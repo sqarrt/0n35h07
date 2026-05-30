@@ -7,6 +7,7 @@ export default function App() {
   const [beamProgress, setBeamProgress] = useState(1)
   const [shieldProgress, setShieldProgress] = useState(1)
   const [shieldVisible, setShieldVisible] = useState(false)
+  const [beamFlash, setBeamFlash] = useState(false)
 
   useEffect(() => {
     const onChange = () => setLocked(!!document.pointerLockElement)
@@ -24,25 +25,35 @@ export default function App() {
           setBeamProgress={setBeamProgress}
           setShieldProgress={setShieldProgress}
           setShieldVisible={setShieldVisible}
+          triggerBeamFlash={() => { setBeamFlash(true); setTimeout(() => setBeamFlash(false), 200) }}
         />
       </Canvas>
 
-      {/* HUD — всегда в screen-space, вне Canvas */}
+      {/* Crosshair + beam cooldown ring */}
       <div style={{
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        color: 'white',
-        fontSize: 22,
-        lineHeight: 1,
-        userSelect: 'none',
         pointerEvents: 'none',
-        fontFamily: 'monospace',
-        textShadow: '0 0 4px black',
         zIndex: 10,
       }}>
-        +
+        <svg width="40" height="40" viewBox="0 0 40 40">
+          <circle cx="20" cy="20" r="14" fill="none" stroke="#333" strokeWidth="2" opacity="0.6" />
+          <circle
+            cx="20" cy="20" r="14"
+            fill="none"
+            stroke={beamProgress >= 1 ? '#0ff' : '#066'}
+            strokeWidth="2"
+            strokeDasharray={`${2 * Math.PI * 14}`}
+            strokeDashoffset={`${2 * Math.PI * 14 * (1 - beamProgress)}`}
+            strokeLinecap="round"
+            transform="rotate(-90 20 20)"
+          />
+          <text x="20" y="25" textAnchor="middle"
+            fill="white" fontSize="16" fontFamily="monospace"
+            style={{ filter: 'drop-shadow(0 0 2px black)', userSelect: 'none' }}>+</text>
+        </svg>
       </div>
 
       {shieldVisible && (
@@ -66,26 +77,10 @@ export default function App() {
         bottom: 40,
         left: '50%',
         transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: 20,
         pointerEvents: 'none',
         fontFamily: 'monospace',
         zIndex: 10,
       }}>
-        <div>
-          <div style={{ color: '#0ff', fontSize: 11, marginBottom: 4, textAlign: 'center', letterSpacing: 1 }}>
-            BEAM [ЛКМ]
-          </div>
-          <div style={{ width: 120, height: 6, background: '#222', borderRadius: 3 }}>
-            <div style={{
-              width: `${beamProgress * 100}%`,
-              height: '100%',
-              background: beamProgress === 1 ? '#0ff' : '#066',
-              borderRadius: 3,
-              transition: 'width 0.05s linear',
-            }} />
-          </div>
-        </div>
         <div>
           <div style={{ color: '#6af', fontSize: 11, marginBottom: 4, textAlign: 'center', letterSpacing: 1 }}>
             SHIELD [ПКМ]
@@ -102,7 +97,17 @@ export default function App() {
         </div>
       </div>
 
-      {!locked && (
+      {beamFlash && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,255,255,0.2)',
+          pointerEvents: 'none',
+          zIndex: 15,
+          animation: 'beamFlash 0.2s ease-out forwards',
+        }} />
+      )}
+
+{!locked && (
         <div style={{
           position: 'fixed',
           inset: 0,
