@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { unlockPointer, holdKey, mouseDown } from './helpers'
 
 test.beforeEach(async ({ page }) => {

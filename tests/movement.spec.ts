@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 import { unlockPointer, getCameraPos, holdKey } from './helpers'
 
 const MOVE_MS = 400
