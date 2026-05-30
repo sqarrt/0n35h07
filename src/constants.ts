@@ -1,0 +1,34 @@
+// Beam / weapon
+export const BEAM_COOLDOWN      = 1500
+export const BEAM_DURATION      = 200
+export const BEAM_WINDUP        = 400
+export const WINDUP_MOVE_FACTOR = 0.25
+export const WINDUP_LOOK_FACTOR = 0.15
+
+// Shield
+export const SHIELD_DURATION = 800
+export const SHIELD_COOLDOWN = 2000
+
+// Player movement
+export const MOVE_SPEED   = 7
+export const EYE_HEIGHT   = 1.7
+export const JUMP_FORCE   = 8
+export const GRAVITY      = -22
+export const ORBIT_RADIUS = 5
+
+// Bot
+export const TARGET_SPEED        = 2.5
+export const BOT_FIRE_INTERVAL   = 2500
+export const BOT_WINDUP          = 600
+export const BOT_SHIELD_INTERVAL = 5000
+export const BOT_SHIELD_DURATION = 1500
+
+// Arena
+export const SPAWN_HALF = 14
+
+// Bot colors (hex strings — create THREE.Color locally where needed)
+export const BOT_COLOR_BASE  = '#5af'
+export const BOT_COLOR_WHITE = '#fff'
+
+// Bot AI difficulty
+export type BotDifficulty = 'normal' | 'passive'

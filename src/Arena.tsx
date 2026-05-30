@@ -1,19 +1,5 @@
-import { RefObject } from 'react'
+import { SPAWN_HALF } from './constants'
 import * as THREE from 'three'
-import { Bot } from './Bot'
-
-interface ArenaProps {
-  targetRef: RefObject<THREE.Mesh | null>
-  botRespawnRef: RefObject<(() => void) | null>
-  isStatic?: boolean
-  camera: THREE.Camera
-  isShieldActive: () => boolean
-  onPlayerHit: () => void
-  onShieldBlock: () => void
-  onBotShieldChange: (active: boolean) => void
-}
-
-const SPAWN_HALF = 14
 
 export function randomArenaPos(): THREE.Vector3 {
   return new THREE.Vector3(
@@ -23,46 +9,35 @@ export function randomArenaPos(): THREE.Vector3 {
   )
 }
 
-export function Arena({ targetRef, botRespawnRef, isStatic = false, camera, isShieldActive, onPlayerHit, onShieldBlock, onBotShieldChange }: ArenaProps) {
+export function Arena() {
   return (
     <>
       <ambientLight intensity={0.4} />
       <directionalLight position={[10, 10, 5]} castShadow intensity={1} />
 
       {/* Floor */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>
         <planeGeometry args={[40, 40]} />
         <meshStandardMaterial color="#444" />
       </mesh>
 
       {/* Walls */}
-      <mesh position={[0, 1.5, -20]} receiveShadow castShadow>
+      <mesh position={[0, 1.5, -20]} receiveShadow castShadow userData={{ noRaycast: true }}>
         <boxGeometry args={[40, 3, 0.5]} />
         <meshStandardMaterial color="#555" />
       </mesh>
-      <mesh position={[0, 1.5, 20]} receiveShadow castShadow>
+      <mesh position={[0, 1.5, 20]} receiveShadow castShadow userData={{ noRaycast: true }}>
         <boxGeometry args={[40, 3, 0.5]} />
         <meshStandardMaterial color="#555" />
       </mesh>
-      <mesh position={[-20, 1.5, 0]} receiveShadow castShadow>
+      <mesh position={[-20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
         <boxGeometry args={[0.5, 3, 40]} />
         <meshStandardMaterial color="#555" />
       </mesh>
-      <mesh position={[20, 1.5, 0]} receiveShadow castShadow>
+      <mesh position={[20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
         <boxGeometry args={[0.5, 3, 40]} />
         <meshStandardMaterial color="#555" />
       </mesh>
-
-      <Bot
-        targetRef={targetRef}
-        botRespawnRef={botRespawnRef}
-        camera={camera}
-        isShieldActive={isShieldActive}
-        onPlayerHit={onPlayerHit}
-        isStatic={isStatic}
-        onShieldBlock={onShieldBlock}
-        onBotShieldChange={onBotShieldChange}
-      />
 
       <gridHelper args={[40, 20, '#666', '#333']} />
     </>

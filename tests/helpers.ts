@@ -1,12 +1,28 @@
 import { Page } from '@playwright/test'
 
+export interface NavigateOpts {
+  difficulty?: 'normal' | 'passive'
+}
+
+// Проходит главное меню если оно открыто
+async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
+  const menuVisible = await page.getByText('СОЗДАТЬ ЛОББИ').isVisible().catch(() => false)
+  if (!menuVisible) return
+  await page.getByText('СОЗДАТЬ ЛОББИ').click()
+  if (opts.difficulty === 'passive') {
+    await page.getByText('ПАССИВНЫЙ').click()
+  }
+  await page.getByText('НАЧАТЬ ИГРУ').click()
+}
+
 // Ждём пока R3F инициализируется и смонтирует Game
-export async function waitForGame(page: Page) {
+export async function waitForGame(page: Page, opts: NavigateOpts = {}) {
+  await navigateThroughMenu(page, opts)
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
 }
 
-export async function unlockPointer(page: Page) {
-  await waitForGame(page)
+export async function unlockPointer(page: Page, opts: NavigateOpts = {}) {
+  await waitForGame(page, opts)
   await page.evaluate(() => {
     const canvas = document.querySelector('canvas')!
     Object.defineProperty(document, 'pointerLockElement', { get: () => canvas, configurable: true })
@@ -29,4 +45,14 @@ export async function holdKey(page: Page, code: string, ms: number) {
 
 export async function mouseDown(page: Page, button: number) {
   await page.evaluate((b) => window.dispatchEvent(new MouseEvent('mousedown', { button: b, bubbles: true })), button)
+}
+
+export async function aimAtBot(page: Page, botId = 0) {
+  await page.evaluate((id) => {
+    const cam = (window as any).__debugCamera
+    const getPos = (window as any).__debugBotPos?.[id]
+    if (!cam || !getPos) return
+    const pos = getPos()
+    if (pos) cam.lookAt(pos.x, pos.y + 0.5, pos.z)
+  }, botId)
 }

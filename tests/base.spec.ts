@@ -5,11 +5,10 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('стартовый экран — оверлей и подсказки', async ({ page }) => {
+test('стартовый экран — главное меню', async ({ page }) => {
   await expect(page.getByText('ONESHOT')).toBeVisible()
-  await expect(page.getByText('Click to play')).toBeVisible()
-  await expect(page.getByText('ЛКМ — beam')).toBeVisible()
-  await expect(page.getByText('Space — jump')).toBeVisible()
+  await expect(page.getByText('СОЗДАТЬ ЛОББИ')).toBeVisible()
+  await expect(page.getByText('ВОЙТИ В ЛОББИ')).toBeVisible()
 })
 
 test('сцена рендерится без ошибок', async ({ page }) => {
@@ -20,6 +19,7 @@ test('сцена рендерится без ошибок', async ({ page }) => 
 })
 
 test('HUD бары полные при старте', async ({ page }) => {
+  await waitForGame(page)
   const bars = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('div[style]')]
       .map(el => el.style.width)

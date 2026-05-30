@@ -1,16 +1,12 @@
 import { test, expect } from './fixtures'
-import { unlockPointer, holdKey, mouseDown } from './helpers'
+import { unlockPointer, holdKey, mouseDown, aimAtBot } from './helpers'
 
-// Выстрел происходит через 400ms после нажатия (замедление игрока)
 const WINDUP_MS = 400
-// Мишень стоит прямо перед игроком при движении вперёд
-const BASE_URL = '/?static=1&targetPos=0,1,-8'
 
 test.beforeEach(async ({ page }) => {
-  await page.goto(BASE_URL)
-  await unlockPointer(page)
-  // Подходим к мишени
-  await holdKey(page, 'KeyW', 700)
+  await page.goto('/')
+  await unlockPointer(page, { difficulty: 'passive' })
+  await aimAtBot(page)
 })
 
 test('ЛКМ — луч попадает в мишень', async ({ page }) => {
@@ -21,7 +17,6 @@ test('ЛКМ — луч попадает в мишень', async ({ page }) => {
 })
 
 test('ЛКМ — beam-бар уходит на кулдаун', async ({ page }) => {
-  // Кулдаун виден по цвету SVG-кольца прицела: #0ff = готов, #066 = кулдаун
   const strokeBefore = await page.evaluate(() =>
     document.querySelector('svg circle[stroke-dasharray]')?.getAttribute('stroke')
   )
@@ -36,9 +31,9 @@ test('ЛКМ — beam-бар уходит на кулдаун', async ({ page })
 
 test('повторный выстрел во время кулдауна не срабатывает', async ({ page }) => {
   await mouseDown(page, 0)
-  await page.waitForTimeout(WINDUP_MS + 300) // первый выстрел
-  await mouseDown(page, 0)                   // второй — должен быть заблокирован кулдауном
+  await page.waitForTimeout(WINDUP_MS + 300)
+  await mouseDown(page, 0)
   await page.waitForTimeout(WINDUP_MS + 300)
   const hits = await page.evaluate(() => (window as any).__debugTargetHitCount ?? 0)
-  expect(hits).toBe(1) // только один успешный выстрел
+  expect(hits).toBe(1)
 })

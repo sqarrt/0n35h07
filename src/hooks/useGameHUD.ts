@@ -1,0 +1,67 @@
+import { useReducer, useCallback } from 'react'
+import { useFlash } from './useFlash'
+
+export interface HUDState {
+  beamProgress: number
+  shieldProgress: number
+  shieldVisible: boolean
+  windupProgress: number
+  beamFlash: boolean
+  playerHit: boolean
+  shieldBlock: boolean
+  botShieldHit: boolean
+}
+
+export type HUDAction =
+  | { type: 'SET_BEAM_PROGRESS';   value: number }
+  | { type: 'SET_SHIELD_PROGRESS'; value: number }
+  | { type: 'SET_SHIELD_VISIBLE';  value: boolean }
+  | { type: 'SET_WINDUP_PROGRESS'; value: number }
+  | { type: 'BEAM_FLASH' }
+  | { type: 'PLAYER_HIT' }
+  | { type: 'SHIELD_BLOCK' }
+  | { type: 'BOT_SHIELD_HIT' }
+
+const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botShieldHit'> = {
+  beamProgress: 1,
+  shieldProgress: 1,
+  shieldVisible: false,
+  windupProgress: 0,
+}
+
+function reducer(
+  state: typeof initial,
+  action: Exclude<HUDAction, { type: 'BEAM_FLASH' | 'PLAYER_HIT' | 'SHIELD_BLOCK' | 'BOT_SHIELD_HIT' }>
+): typeof initial {
+  switch (action.type) {
+    case 'SET_BEAM_PROGRESS':   return { ...state, beamProgress:   action.value }
+    case 'SET_SHIELD_PROGRESS': return { ...state, shieldProgress: action.value }
+    case 'SET_SHIELD_VISIBLE':  return { ...state, shieldVisible:  action.value }
+    case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
+    default: return state
+  }
+}
+
+export function useGameHUD(): { state: HUDState; dispatch: (action: HUDAction) => void } {
+  const [base, baseDispatch] = useReducer(reducer, initial)
+
+  const [beamFlash,    triggerBeamFlash]    = useFlash(200)
+  const [playerHit,    triggerPlayerHit]    = useFlash(350)
+  const [shieldBlock,  triggerShieldBlock]  = useFlash(250)
+  const [botShieldHit, triggerBotShieldHit] = useFlash(200)
+
+  const dispatch = useCallback((action: HUDAction) => {
+    switch (action.type) {
+      case 'BEAM_FLASH':     return triggerBeamFlash()
+      case 'PLAYER_HIT':     return triggerPlayerHit()
+      case 'SHIELD_BLOCK':   return triggerShieldBlock()
+      case 'BOT_SHIELD_HIT': return triggerBotShieldHit()
+      default:               return baseDispatch(action as any)
+    }
+  }, [triggerBeamFlash, triggerPlayerHit, triggerShieldBlock, triggerBotShieldHit])
+
+  return {
+    state: { ...base, beamFlash, playerHit, shieldBlock, botShieldHit },
+    dispatch,
+  }
+}
