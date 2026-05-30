@@ -22,6 +22,7 @@ interface GameProps {
   setShieldProgress: (v: number) => void
   setShieldVisible: (v: boolean) => void
   triggerBeamFlash: () => void
+  triggerPlayerHit: () => void
 }
 
 const BEAM_COOLDOWN      = 1500
@@ -51,11 +52,12 @@ function chestStart(cam: THREE.Camera): THREE.Vector3 {
     .addScaledVector(dir, 0.1)             // чуть вперёд от тела
 }
 
-export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, triggerBeamFlash }: GameProps) {
+export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, triggerBeamFlash, triggerPlayerHit }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
 
   const targetRef      = useRef<THREE.Mesh>(null)
+  const botRespawnRef  = useRef<(() => void) | null>(null)
   const shieldMeshRef  = useRef<THREE.Mesh>(null)
   const controlsRef    = useRef<any>(null)
   const beamGroupRef   = useRef<THREE.Group>(null!)  // императивное управление лучом
@@ -73,7 +75,11 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
   const velocityY       = useRef(0)
   const onGround        = useRef(true)
   const shakeFrames     = useRef(0)
+  const spectatorMode   = useRef(false)
+  const frozenPlayerPos = useRef(new THREE.Vector3())
+  const ORBIT_RADIUS    = 5
 
+  const [isSpectator, setIsSpectator] = useState(false)
   const [afterglow, setAfterglow] = useState<Afterglow | null>(null)
   const particlesRef = useRef<Particle[]>([])
   const [, forceParticleRender] = useState(0)
@@ -119,11 +125,8 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
         if (hits.length > 0) {
           end = hits[0].point.clone()
           hitPoint = end.clone()
-          if (hits[0].object.name === 'target' && targetRef.current) {
+          if (hits[0].object.name === 'target') {
             ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
-            const mesh = targetRef.current
-            const mat = mesh.material as THREE.MeshStandardMaterial
-            mat.color.set('red')
             particlesRef.current = Array.from({ length: 6 }, () => ({
               pos: hitPoint!.clone(),
               vel: new THREE.Vector3(
@@ -133,11 +136,8 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
               ),
               life: 1.0,
             }))
-            setTimeout(() => {
-              if (!targetRef.current) return
-              targetRef.current.position.copy(randomArenaPos())
-              mat.color.set('orange')
-            }, 150)
+            // Делегируем респавн боту (вспышка + телепорт + сброс кулдауна)
+            botRespawnRef.current?.()
           }
         } else {
           end = rayOrigin.clone().addScaledVector(dir, 100)
@@ -184,7 +184,20 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         e.preventDefault()
-        if (onGround.current) { velocityY.current = JUMP_FORCE; onGround.current = false }
+        if (onGround.current && !spectatorMode.current) { velocityY.current = JUMP_FORCE; onGround.current = false }
+      }
+      if (e.key === 'v' || e.key === 'V') {
+        const entering = !spectatorMode.current
+        spectatorMode.current = entering
+        setIsSpectator(entering)
+        if (entering) {
+          frozenPlayerPos.current.copy(camera.position)
+        } else {
+          // Возвращаем игрока точно на замороженную позицию
+          camera.position.copy(frozenPlayerPos.current)
+          velocityY.current = 0
+          onGround.current = frozenPlayerPos.current.y <= EYE_HEIGHT + 0.01
+        }
       }
     }
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
@@ -220,24 +233,31 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
 
     const physicsDelta = beamWindup.current ? delta * WINDUP_MOVE_FACTOR : delta
 
-    if (k.forward) cam.position.addScaledVector(dir, MOVE_SPEED * physicsDelta)
-    if (k.back)    cam.position.addScaledVector(dir, -MOVE_SPEED * physicsDelta)
-    if (k.left)    cam.position.addScaledVector(right, -MOVE_SPEED * physicsDelta)
-    if (k.right)   cam.position.addScaledVector(right, MOVE_SPEED * physicsDelta)
+    if (!spectatorMode.current) {
+      if (k.forward) cam.position.addScaledVector(dir, MOVE_SPEED * physicsDelta)
+      if (k.back)    cam.position.addScaledVector(dir, -MOVE_SPEED * physicsDelta)
+      if (k.left)    cam.position.addScaledVector(right, -MOVE_SPEED * physicsDelta)
+      if (k.right)   cam.position.addScaledVector(right, MOVE_SPEED * physicsDelta)
 
-    if (!onGround.current) {
-      velocityY.current += GRAVITY * physicsDelta
-      cam.position.y += velocityY.current * physicsDelta
-    }
-    if (cam.position.y <= EYE_HEIGHT) {
-      cam.position.y = EYE_HEIGHT
-      velocityY.current = 0
-      onGround.current = true
+      if (!onGround.current) {
+        velocityY.current += GRAVITY * physicsDelta
+        cam.position.y += velocityY.current * physicsDelta
+      }
+      if (cam.position.y <= EYE_HEIGHT) {
+        cam.position.y = EYE_HEIGHT
+        velocityY.current = 0
+        onGround.current = true
+      }
+    } else {
+      // Spectator: камера орбитует вокруг замороженной позиции игрока
+      const spectDir = new THREE.Vector3()
+      cam.getWorldDirection(spectDir)
+      cam.position.copy(frozenPlayerPos.current).addScaledVector(spectDir, -ORBIT_RADIUS)
     }
 
-    // Dynamic FOV: расширяется при движении, сужается при замедлении перед выстрелом
+    // Dynamic FOV
     const isMoving = k.forward || k.back || k.left || k.right
-    const targetFov = beamWindup.current ? 70 : (isMoving ? 87 : 75)
+    const targetFov = spectatorMode.current ? 75 : (beamWindup.current ? 70 : (isMoving ? 87 : 75))
     const pcam = cam as THREE.PerspectiveCamera
     pcam.fov = THREE.MathUtils.lerp(pcam.fov, targetFov, delta * 6)
     pcam.updateProjectionMatrix()
@@ -315,7 +335,26 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
   return (
     <>
       <PointerLockControls ref={controlsRef} />
-      <Arena targetRef={targetRef} isStatic={isStatic} />
+      <Arena
+        targetRef={targetRef}
+        botRespawnRef={botRespawnRef}
+        isStatic={isStatic}
+        camera={camera}
+        isShieldActive={() => shieldActive.current}
+        onPlayerHit={() => {
+          const spawnPos = randomArenaPos()
+          camera.position.set(spawnPos.x, EYE_HEIGHT, spawnPos.z)
+          velocityY.current = 0
+          onGround.current = true
+          // Сброс всех кулдаунов игрока
+          beamWindup.current = false
+          beamCooldown.current = false
+          shieldActive.current = false
+          shieldCooldown.current = false
+          if (controlsRef.current) controlsRef.current.pointerSpeed = 1.0
+          triggerPlayerHit()
+        }}
+      />
 
       {/* Луч (Wide Cylinder) — imperatively updated in useFrame */}
       <group ref={beamGroupRef} visible={false}>
@@ -352,6 +391,20 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
           <meshBasicMaterial color="#ff0" />
         </mesh>
       ))}
+
+      {/* Spectator: светящийся шар на месте игрока */}
+      {isSpectator && (
+        <group position={frozenPlayerPos.current.toArray() as [number, number, number]}>
+          <mesh>
+            <sphereGeometry args={[0.4, 16, 16]} />
+            <meshBasicMaterial color="#4af" />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[0.65, 16, 16]} />
+            <meshBasicMaterial color="#4af" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        </group>
+      )}
     </>
   )
 }

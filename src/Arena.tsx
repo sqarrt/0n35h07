@@ -1,14 +1,17 @@
-import { RefObject, useRef } from 'react'
+import { RefObject } from 'react'
 import * as THREE from 'three'
-import { useFrame } from '@react-three/fiber'
+import { Bot } from './Bot'
 
 interface ArenaProps {
   targetRef: RefObject<THREE.Mesh | null>
+  botRespawnRef: RefObject<(() => void) | null>
   isStatic?: boolean
+  camera: THREE.Camera
+  isShieldActive: () => boolean
+  onPlayerHit: () => void
 }
 
-const SPAWN_HALF = 14  // стены на ±20, оставляем запас
-const TARGET_SPEED = 2.5
+const SPAWN_HALF = 14
 
 export function randomArenaPos(): THREE.Vector3 {
   return new THREE.Vector3(
@@ -18,35 +21,7 @@ export function randomArenaPos(): THREE.Vector3 {
   )
 }
 
-function getInitialTargetPos(): THREE.Vector3 {
-  const param = new URLSearchParams(window.location.search).get('targetPos')
-  if (param) {
-    const [x, y, z] = param.split(',').map(Number)
-    return new THREE.Vector3(x, y, z)
-  }
-  return randomArenaPos()
-}
-
-export function Arena({ targetRef, isStatic = false }: ArenaProps) {
-  const initPos = useRef(getInitialTargetPos())
-  const waypointRef = useRef<THREE.Vector3>(randomArenaPos())
-
-  // Движение мишени к waypoint
-  useFrame((_, delta) => {
-    if (isStatic || !targetRef.current) return
-    const mesh = targetRef.current
-    const wp = waypointRef.current
-    const dx = wp.x - mesh.position.x
-    const dz = wp.z - mesh.position.z
-    const dist = Math.sqrt(dx * dx + dz * dz)
-    if (dist < 0.5) {
-      waypointRef.current = randomArenaPos()
-    } else {
-      mesh.position.x += (dx / dist) * TARGET_SPEED * delta
-      mesh.position.z += (dz / dist) * TARGET_SPEED * delta
-    }
-  })
-
+export function Arena({ targetRef, botRespawnRef, isStatic = false, camera, isShieldActive, onPlayerHit }: ArenaProps) {
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -76,16 +51,14 @@ export function Arena({ targetRef, isStatic = false }: ArenaProps) {
         <meshStandardMaterial color="#555" />
       </mesh>
 
-      {/* Target — всегда в сцене, телепортируется при попадании */}
-      <mesh
-        ref={targetRef}
-        position={initPos.current.toArray() as [number, number, number]}
-        castShadow
-        name="target"
-      >
-        <boxGeometry args={[1, 2, 1]} />
-        <meshStandardMaterial color="orange" />
-      </mesh>
+      <Bot
+        targetRef={targetRef}
+        botRespawnRef={botRespawnRef}
+        camera={camera}
+        isShieldActive={isShieldActive}
+        onPlayerHit={onPlayerHit}
+        isStatic={isStatic}
+      />
 
       <gridHelper args={[40, 20, '#666', '#333']} />
     </>

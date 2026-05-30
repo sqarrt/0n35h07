@@ -10,6 +10,7 @@ export default function App() {
   const [shieldProgress, setShieldProgress] = useState(1)
   const [shieldVisible, setShieldVisible] = useState(false)
   const [beamFlash, setBeamFlash] = useState(false)
+  const [playerHit, setPlayerHit] = useState(false)
 
   useEffect(() => {
     const onChange = () => setLocked(!!document.pointerLockElement)
@@ -31,6 +32,7 @@ export default function App() {
           setShieldProgress={setShieldProgress}
           setShieldVisible={setShieldVisible}
           triggerBeamFlash={() => { setBeamFlash(true); setTimeout(() => setBeamFlash(false), 200) }}
+          triggerPlayerHit={() => { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 350) }}
         />
       </Canvas>
 
@@ -94,6 +96,14 @@ export default function App() {
           </svg>
         </div>
       ))}
+
+      {playerHit && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(255,0,0,0.35)',
+          pointerEvents: 'none', zIndex: 15,
+        }} />
+      )}
 
       {beamFlash && (
         <div style={{
