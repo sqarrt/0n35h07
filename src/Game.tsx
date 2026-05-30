@@ -235,6 +235,13 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
       onGround.current = true
     }
 
+    // Dynamic FOV: расширяется при движении, сужается при замедлении перед выстрелом
+    const isMoving = k.forward || k.back || k.left || k.right
+    const targetFov = beamWindup.current ? 70 : (isMoving ? 87 : 75)
+    const pcam = cam as THREE.PerspectiveCamera
+    pcam.fov = THREE.MathUtils.lerp(pcam.fov, targetFov, delta * 6)
+    pcam.updateProjectionMatrix()
+
     // Camera shake
     if (shakeFrames.current > 0) {
       cam.position.x += (Math.random() - 0.5) * 0.04
