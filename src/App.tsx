@@ -11,6 +11,9 @@ export default function App() {
   const [shieldVisible, setShieldVisible] = useState(false)
   const [beamFlash, setBeamFlash] = useState(false)
   const [playerHit, setPlayerHit] = useState(false)
+  const [windupProgress, setWindupProgress] = useState(0)
+  const [shieldBlock, setShieldBlock] = useState(false)
+  const [botShieldHit, setBotShieldHit] = useState(false)
 
   useEffect(() => {
     const onChange = () => setLocked(!!document.pointerLockElement)
@@ -20,6 +23,7 @@ export default function App() {
 
   const shieldColor   = shieldVisible ? '#6af' : (shieldProgress >= 1 ? '#4169e1' : '#1a2a6e')
   const shieldOpacity = shieldVisible ? 1 : (shieldProgress >= 1 ? 0.85 : 0.5)
+  const isWindingUp   = windupProgress > 0
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -33,8 +37,20 @@ export default function App() {
           setShieldVisible={setShieldVisible}
           triggerBeamFlash={() => { setBeamFlash(true); setTimeout(() => setBeamFlash(false), 200) }}
           triggerPlayerHit={() => { setPlayerHit(true); setTimeout(() => setPlayerHit(false), 350) }}
+          setWindupProgress={setWindupProgress}
+          triggerShieldBlock={() => { setShieldBlock(true); setTimeout(() => setShieldBlock(false), 250) }}
+          triggerBotShieldHit={() => { setBotShieldHit(true); setTimeout(() => setBotShieldHit(false), 200) }}
         />
       </Canvas>
+
+      {/* Edge glow во время подготовки выстрела */}
+      {isWindingUp && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          boxShadow: `inset 0 0 ${110 * windupProgress}px rgba(0,150,255,0.55)`,
+          pointerEvents: 'none', zIndex: 9,
+        }} />
+      )}
 
       {/* Прицел + beam cooldown ring */}
       <div style={{
@@ -85,17 +101,38 @@ export default function App() {
             <path
               d={path}
               fill="none"
-              stroke={shieldColor}
+              stroke={shieldBlock ? '#fff' : shieldColor}
               strokeWidth="6"
               strokeDasharray="104"
               strokeDashoffset={`${104 * (1 - shieldProgress)}`}
               strokeLinecap="square"
-              opacity={shieldOpacity}
-              style={shieldVisible ? { filter: 'drop-shadow(0 0 6px #4169e1)' } : undefined}
+              opacity={shieldBlock ? 1 : shieldOpacity}
+              style={
+                shieldBlock
+                  ? { filter: 'drop-shadow(0 0 8px #fff) brightness(4)' }
+                  : shieldVisible ? { filter: 'drop-shadow(0 0 6px #4169e1)' } : undefined
+              }
             />
           </svg>
         </div>
       ))}
+
+      {/* Блок щитом — голубая вспышка */}
+      {shieldBlock && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,180,255,0.4)',
+          pointerEvents: 'none', zIndex: 16,
+        }} />
+      )}
+
+      {botShieldHit && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(255,160,0,0.35)',
+          pointerEvents: 'none', zIndex: 15,
+        }} />
+      )}
 
       {playerHit && (
         <div style={{

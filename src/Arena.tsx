@@ -9,6 +9,8 @@ interface ArenaProps {
   camera: THREE.Camera
   isShieldActive: () => boolean
   onPlayerHit: () => void
+  onShieldBlock: () => void
+  onBotShieldChange: (active: boolean) => void
 }
 
 const SPAWN_HALF = 14
@@ -21,7 +23,7 @@ export function randomArenaPos(): THREE.Vector3 {
   )
 }
 
-export function Arena({ targetRef, botRespawnRef, isStatic = false, camera, isShieldActive, onPlayerHit }: ArenaProps) {
+export function Arena({ targetRef, botRespawnRef, isStatic = false, camera, isShieldActive, onPlayerHit, onShieldBlock, onBotShieldChange }: ArenaProps) {
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -58,6 +60,8 @@ export function Arena({ targetRef, botRespawnRef, isStatic = false, camera, isSh
         isShieldActive={isShieldActive}
         onPlayerHit={onPlayerHit}
         isStatic={isStatic}
+        onShieldBlock={onShieldBlock}
+        onBotShieldChange={onBotShieldChange}
       />
 
       <gridHelper args={[40, 20, '#666', '#333']} />

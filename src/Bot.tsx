@@ -9,14 +9,17 @@ interface BotProps {
   camera: THREE.Camera
   isShieldActive: () => boolean
   onPlayerHit: () => void
+  onShieldBlock: () => void
+  onBotShieldChange: (active: boolean) => void
   isStatic?: boolean
-  windupStyle: number
 }
 
-const TARGET_SPEED      = 2.5
-const BOT_FIRE_INTERVAL = 2500
-const BOT_WINDUP        = 600
-const BEAM_DURATION     = 200
+const TARGET_SPEED        = 2.5
+const BOT_FIRE_INTERVAL   = 2500
+const BOT_WINDUP          = 600
+const BEAM_DURATION       = 200
+const BOT_SHIELD_INTERVAL = 5000
+const BOT_SHIELD_DURATION = 1500
 
 const BASE_COLOR  = new THREE.Color('#5af')
 const WHITE_COLOR = new THREE.Color('#fff')
@@ -30,20 +33,25 @@ function getInitialBotPos(): THREE.Vector3 {
   return randomArenaPos()
 }
 
-export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayerHit, isStatic = false, windupStyle }: BotProps) {
+export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayerHit, onShieldBlock, onBotShieldChange, isStatic = false }: BotProps) {
   const { scene } = useThree()
 
-  const groupRef        = useRef<THREE.Group>(null!)
-  const bodyMeshRef     = useRef<THREE.Mesh>(null!)
-  const bodyMatRef      = useRef<THREE.MeshStandardMaterial>(null!)
-  const auraMatRef      = useRef<THREE.MeshBasicMaterial>(null!)
-  const botLaserGroupRef = useRef<THREE.Group>(null!)
-  const waypointRef     = useRef<THREE.Vector3>(randomArenaPos())
-  const initPos         = useRef(getInitialBotPos())
+  const groupRef    = useRef<THREE.Group>(null!)
+  const bodyMeshRef = useRef<THREE.Mesh>(null!)
+  const bodyMatRef  = useRef<THREE.MeshStandardMaterial>(null!)
+  const waypointRef = useRef<THREE.Vector3>(randomArenaPos())
+  const initPos     = useRef(getInitialBotPos())
 
   const shootTimer  = useRef(0)
   const isWindingUp = useRef(false)
   const windupTimer = useRef(0)
+
+  const botShieldGroupRef  = useRef<THREE.Group>(null!)
+  const botShieldMatRef    = useRef<THREE.MeshBasicMaterial>(null!)
+  const botShieldWireRef   = useRef<THREE.MeshBasicMaterial>(null!)
+  const botShieldTimer     = useRef(0)
+  const botShieldActive    = useRef(false)
+  const botShieldDuration  = useRef(0)
 
   const beamGroupRef  = useRef<THREE.Group>(null!)
   const beamActiveRef = useRef(false)
@@ -51,24 +59,18 @@ export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayer
   const beamStartRef  = useRef(new THREE.Vector3())
   const beamEndRef    = useRef(new THREE.Vector3())
 
-  const resetWindupVisuals = () => {
-    if (auraMatRef.current)       auraMatRef.current.opacity = 0
-    if (botLaserGroupRef.current) botLaserGroupRef.current.visible = false
-    if (bodyMatRef.current)       bodyMatRef.current.color.copy(BASE_COLOR)
-    if (bodyMeshRef.current)      bodyMeshRef.current.scale.setScalar(1)
-  }
-
   useEffect(() => {
     botRespawnRef.current = () => {
       if (!groupRef.current || !bodyMatRef.current) return
       isWindingUp.current = false
       windupTimer.current = 0
       shootTimer.current  = 0
-      // Reset windup visuals immediately
-      if (auraMatRef.current)       auraMatRef.current.opacity = 0
-      if (botLaserGroupRef.current) botLaserGroupRef.current.visible = false
-      if (bodyMeshRef.current)      bodyMeshRef.current.scale.setScalar(1)
-      // Flash red, then teleport
+      if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
+      botShieldActive.current = false
+      botShieldTimer.current  = 0
+      botShieldDuration.current = 0
+      if (botShieldGroupRef.current) botShieldGroupRef.current.visible = false
+      onBotShieldChange(false)
       bodyMatRef.current.color.set('red')
       setTimeout(() => {
         if (!bodyMatRef.current || !groupRef.current) return
@@ -103,7 +105,33 @@ export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayer
       targetRef.current.position.copy(pos)
     }
 
-    // Shoot timer + windup (fully in useFrame for animated visuals)
+    // Bot shield timer
+    if (!isStatic) {
+      if (!botShieldActive.current) {
+        botShieldTimer.current += delta * 1000
+        if (botShieldTimer.current >= BOT_SHIELD_INTERVAL) {
+          botShieldTimer.current = 0
+          botShieldActive.current = true
+          botShieldDuration.current = 0
+          if (botShieldGroupRef.current) botShieldGroupRef.current.visible = true
+          onBotShieldChange(true)
+        }
+      } else {
+        botShieldDuration.current += delta * 1000
+        if (botShieldDuration.current >= BOT_SHIELD_DURATION) {
+          botShieldActive.current = false
+          botShieldDuration.current = 0
+          if (botShieldGroupRef.current) botShieldGroupRef.current.visible = false
+          onBotShieldChange(false)
+        } else {
+          const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.007)
+          if (botShieldMatRef.current) botShieldMatRef.current.opacity = 0.08 + 0.1 * pulse
+          if (botShieldWireRef.current) botShieldWireRef.current.opacity = 0.3 + 0.3 * pulse
+        }
+      }
+    }
+
+    // Shoot timer + windup in useFrame for animated visuals
     if (!isStatic) {
       if (!isWindingUp.current) {
         shootTimer.current += delta * 1000
@@ -116,46 +144,17 @@ export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayer
         windupTimer.current += delta * 1000
         const windupP = Math.min(windupTimer.current / BOT_WINDUP, 1)
 
-        // --- Windup visuals ---
-        if (windupStyle === 1) {
-          // Style 1: aura sphere grows in opacity
-          if (auraMatRef.current) auraMatRef.current.opacity = windupP * 0.55
-          if (botLaserGroupRef.current) botLaserGroupRef.current.visible = false
-          if (bodyMatRef.current) bodyMatRef.current.color.copy(BASE_COLOR)
-          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
-        } else if (windupStyle === 2) {
-          // Style 2: laser sight from bot chest to player
-          if (auraMatRef.current) auraMatRef.current.opacity = 0
-          const botChest = pos.clone().add(new THREE.Vector3(0, 0.5, 0))
-          const playerPos = camera.position.clone()
-          const laserDir = playerPos.clone().sub(botChest)
-          const len = laserDir.length()
-          if (len > 0.1 && botLaserGroupRef.current) {
-            const mid  = botChest.clone().lerp(playerPos, 0.5)
-            const quat = new THREE.Quaternion().setFromUnitVectors(
-              new THREE.Vector3(0, 1, 0), laserDir.normalize()
-            )
-            botLaserGroupRef.current.position.copy(mid)
-            botLaserGroupRef.current.quaternion.copy(quat)
-            botLaserGroupRef.current.scale.set(1, len, 1)
-            botLaserGroupRef.current.visible = true
-          }
-          if (bodyMatRef.current) bodyMatRef.current.color.copy(BASE_COLOR)
-          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
-        } else {
-          // Style 3: body colour lerps to white, sphere scales up
-          if (auraMatRef.current) auraMatRef.current.opacity = 0
-          if (botLaserGroupRef.current) botLaserGroupRef.current.visible = false
-          if (bodyMatRef.current) bodyMatRef.current.color.lerpColors(BASE_COLOR, WHITE_COLOR, windupP)
-          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1 + windupP * 0.4)
-        }
+        // Style 3: colour lerp + scale up
+        if (bodyMatRef.current) bodyMatRef.current.color.lerpColors(BASE_COLOR, WHITE_COLOR, windupP)
+        if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1 + windupP * 0.4)
 
-        // Fire when windup complete
         if (windupP >= 1) {
           isWindingUp.current = false
           windupTimer.current = 0
-          resetWindupVisuals()
+          if (bodyMatRef.current) bodyMatRef.current.color.copy(BASE_COLOR)
+          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
 
+          // Fire
           const botChest = pos.clone().add(new THREE.Vector3(0, 0.5, 0))
           const playerPos = camera.position.clone()
           const dir = playerPos.clone().sub(botChest).normalize()
@@ -176,8 +175,12 @@ export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayer
           beamActiveRef.current = true
           beamFireTime.current = Date.now()
 
-          if (!blocked && !isShieldActive()) {
-            onPlayerHit()
+          if (!blocked) {
+            if (isShieldActive()) {
+              onShieldBlock()
+            } else {
+              onPlayerHit()
+            }
           }
         }
       }
@@ -226,29 +229,20 @@ export function Bot({ targetRef, botRespawnRef, camera, isShieldActive, onPlayer
 
       {/* Bot model */}
       <group ref={groupRef} position={initPos.current.toArray() as [number, number, number]}>
-        {/* Body sphere (Style 3: scales + color lerp) */}
         <mesh ref={bodyMeshRef} position={[0, 0.5, 0]} castShadow userData={{ noRaycast: true }}>
           <sphereGeometry args={[0.5, 16, 16]} />
           <meshStandardMaterial ref={bodyMatRef} color="#5af" />
         </mesh>
-        {/* Ambient glow */}
-        <mesh position={[0, 0.5, 0]} userData={{ noRaycast: true }}>
-          <sphereGeometry args={[0.75, 16, 16]} />
-          <meshBasicMaterial color="#5af" transparent opacity={0.15} blending={THREE.AdditiveBlending} depthWrite={false} />
-        </mesh>
-        {/* Style 1: aura sphere */}
-        <mesh position={[0, 0.5, 0]} userData={{ noRaycast: true }}>
-          <sphereGeometry args={[1.1, 16, 16]} />
-          <meshBasicMaterial ref={auraMatRef} color="#f44" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} />
-        </mesh>
-      </group>
-
-      {/* Style 2: bot laser sight */}
-      <group ref={botLaserGroupRef} visible={false} userData={{ noRaycast: true, botBeam: true }}>
-        <mesh>
-          <cylinderGeometry args={[0.02, 0.02, 1, 6]} />
-          <meshBasicMaterial color="#f84" transparent opacity={0.7} blending={THREE.AdditiveBlending} depthWrite={false} />
-        </mesh>
+        <group ref={botShieldGroupRef} position={[0, 0.5, 0]} visible={false}>
+          <mesh userData={{ noRaycast: true }}>
+            <sphereGeometry args={[0.75, 16, 16]} />
+            <meshBasicMaterial ref={botShieldMatRef} color="#4af" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
+          </mesh>
+          <mesh userData={{ noRaycast: true }}>
+            <sphereGeometry args={[0.76, 12, 8]} />
+            <meshBasicMaterial ref={botShieldWireRef} color="#4af" wireframe transparent opacity={0.4} depthWrite={false} />
+          </mesh>
+        </group>
       </group>
 
       {/* Beam */}

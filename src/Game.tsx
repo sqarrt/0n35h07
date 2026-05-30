@@ -23,6 +23,9 @@ interface GameProps {
   setShieldVisible: (v: boolean) => void
   triggerBeamFlash: () => void
   triggerPlayerHit: () => void
+  setWindupProgress: (v: number) => void
+  triggerShieldBlock: () => void
+  triggerBotShieldHit: () => void
 }
 
 const BEAM_COOLDOWN      = 1500
@@ -30,7 +33,7 @@ const BEAM_DURATION      = 200  // полная длительность fade-ou
 const BEAM_WINDUP        = 400
 const WINDUP_MOVE_FACTOR = 0.25
 const WINDUP_LOOK_FACTOR = 0.15
-const SHIELD_DURATION    = 500
+const SHIELD_DURATION    = 800
 const SHIELD_COOLDOWN    = 2000
 const MOVE_SPEED         = 7
 const EYE_HEIGHT         = 1.7
@@ -52,7 +55,7 @@ function chestStart(cam: THREE.Camera): THREE.Vector3 {
     .addScaledVector(dir, 0.1)             // чуть вперёд от тела
 }
 
-export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, triggerBeamFlash, triggerPlayerHit }: GameProps) {
+export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, triggerBeamFlash, triggerPlayerHit, setWindupProgress, triggerShieldBlock, triggerBotShieldHit }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
 
@@ -79,6 +82,16 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
   const frozenPlayerPos = useRef(new THREE.Vector3())
   const ORBIT_RADIUS    = 5
 
+  const windupStartTime  = useRef(0)
+  const prevWindupActive = useRef(false)
+  const botShieldActive  = useRef(false)
+
+  const beamWindupTimerId    = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const beamCooldownTimerId  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shieldDurationTimerId = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shieldCooldownTimerId = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const executeBeamFireRef   = useRef<(() => void) | null>(null)
+
   const [isSpectator, setIsSpectator] = useState(false)
   const [afterglow, setAfterglow] = useState<Afterglow | null>(null)
   const particlesRef = useRef<Particle[]>([])
@@ -96,36 +109,33 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
   }, [camera])
 
   useEffect(() => {
-    const fireBeam = () => {
-      if (beamCooldown.current || beamWindup.current) return
-      if (!document.pointerLockElement) return
+    const releaseFire = () => {
+      beamWindupTimerId.current = null
+      beamWindup.current = false
+      if (controlsRef.current) controlsRef.current.pointerSpeed = 1.0
 
-      beamWindup.current = true
-      if (controlsRef.current) controlsRef.current.pointerSpeed = WINDUP_LOOK_FACTOR
+      const dir = new THREE.Vector3()
+      camera.getWorldDirection(dir)
 
-      setTimeout(() => {
-        beamWindup.current = false
-        if (controlsRef.current) controlsRef.current.pointerSpeed = 1.0
+      const targets: THREE.Object3D[] = []
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && !obj.userData.noRaycast) targets.push(obj)
+      })
 
-        const dir = new THREE.Vector3()
-        camera.getWorldDirection(dir)
+      const rayOrigin = camera.position.clone()
+      const raycaster = new THREE.Raycaster(rayOrigin, dir)
+      const hits = raycaster.intersectObjects(targets)
 
-        const targets: THREE.Object3D[] = []
-        scene.traverse((obj) => {
-          if (obj instanceof THREE.Mesh && !obj.userData.noRaycast) targets.push(obj)
-        })
+      let end: THREE.Vector3
+      let hitPoint: THREE.Vector3 | null = null
 
-        const rayOrigin = camera.position.clone()
-        const raycaster = new THREE.Raycaster(rayOrigin, dir)
-        const hits = raycaster.intersectObjects(targets)
-
-        let end: THREE.Vector3
-        let hitPoint: THREE.Vector3 | null = null
-
-        if (hits.length > 0) {
-          end = hits[0].point.clone()
-          hitPoint = end.clone()
-          if (hits[0].object.name === 'target') {
+      if (hits.length > 0) {
+        end = hits[0].point.clone()
+        hitPoint = end.clone()
+        if (hits[0].object.name === 'target') {
+          if (botShieldActive.current) {
+            triggerBotShieldHit()
+          } else {
             ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
             particlesRef.current = Array.from({ length: 6 }, () => ({
               pos: hitPoint!.clone(),
@@ -136,29 +146,42 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
               ),
               life: 1.0,
             }))
-            // Делегируем респавн боту (вспышка + телепорт + сброс кулдауна)
             botRespawnRef.current?.()
           }
-        } else {
-          end = rayOrigin.clone().addScaledVector(dir, 100)
         }
+      } else {
+        end = rayOrigin.clone().addScaledVector(dir, 100)
+      }
 
-        triggerBeamFlash()
-        shakeFrames.current = 5
+      triggerBeamFlash()
+      shakeFrames.current = 5
 
-        // Запускаем луч: end фиксируется, start вычисляется каждый кадр
-        beamEndRef.current = end
-        beamActiveRef.current = true
-        beamFireTime.current = Date.now()
+      beamEndRef.current = end
+      beamActiveRef.current = true
+      beamFireTime.current = Date.now()
 
-        // Afterglow стартует из текущей позиции груди
-        const glowStart = chestStart(camera)
-        setAfterglow({ start: glowStart, end: end.clone(), opacity: 0.5 })
+      const glowStart = chestStart(camera)
+      setAfterglow({ start: glowStart, end: end.clone(), opacity: 0.5 })
 
-        beamCooldown.current = true
-        beamCooldownEnd.current = Date.now() + BEAM_COOLDOWN
-        setTimeout(() => { beamCooldown.current = false }, BEAM_COOLDOWN)
-      }, BEAM_WINDUP)
+      beamCooldown.current = true
+      beamCooldownEnd.current = Date.now() + BEAM_COOLDOWN
+      beamCooldownTimerId.current = setTimeout(() => {
+        beamCooldownTimerId.current = null
+        beamCooldown.current = false
+      }, BEAM_COOLDOWN)
+    }
+
+    executeBeamFireRef.current = releaseFire
+
+    const fireBeam = () => {
+      if (beamCooldown.current || beamWindup.current) return
+      if (!document.pointerLockElement) return
+
+      beamWindup.current = true
+      windupStartTime.current = Date.now()
+      if (controlsRef.current) controlsRef.current.pointerSpeed = WINDUP_LOOK_FACTOR
+
+      beamWindupTimerId.current = setTimeout(releaseFire, BEAM_WINDUP)
     }
 
     const activateShield = () => {
@@ -168,13 +191,17 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
       setShieldVisible(true)
       if (shieldMeshRef.current) shieldMeshRef.current.visible = true
       shieldCooldownEnd.current = Date.now() + SHIELD_DURATION + SHIELD_COOLDOWN
-      setTimeout(() => {
+      shieldDurationTimerId.current = setTimeout(() => {
+        shieldDurationTimerId.current = null
         shieldActive.current = false
         setShieldVisible(false)
         if (shieldMeshRef.current) shieldMeshRef.current.visible = false
         shieldCooldown.current = true
       }, SHIELD_DURATION)
-      setTimeout(() => { shieldCooldown.current = false }, SHIELD_DURATION + SHIELD_COOLDOWN)
+      shieldCooldownTimerId.current = setTimeout(() => {
+        shieldCooldownTimerId.current = null
+        shieldCooldown.current = false
+      }, SHIELD_DURATION + SHIELD_COOLDOWN)
     }
 
     const onMouseDown = (e: MouseEvent) => {
@@ -210,7 +237,7 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('contextmenu', onContextMenu)
     }
-  }, [camera, scene, setShieldVisible, triggerBeamFlash])
+  }, [camera, scene, setShieldVisible, triggerBeamFlash, triggerShieldBlock, triggerBotShieldHit])
 
   useEffect(() => {
     const w = window as any
@@ -268,6 +295,7 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
       cam.position.y += (Math.random() - 0.5) * 0.04
       shakeFrames.current--
     }
+
 
     // Луч: каждый кадр пересчитываем start из текущей позиции камеры + fade radius
     if (beamGroupRef.current) {
@@ -330,6 +358,17 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
         ? Math.max(0, 1 - (shieldCooldownEnd.current - now) / totalShieldTime) : 1
       setShieldProgress(shieldP)
     }
+
+    // Windup progress → App.tsx 2D overlay
+    if (beamWindup.current) {
+      const windupP = Math.min((now - windupStartTime.current) / BEAM_WINDUP, 1)
+      setWindupProgress(windupP)
+      prevWindupActive.current = true
+    } else if (prevWindupActive.current) {
+      setWindupProgress(0)
+      prevWindupActive.current = false
+    }
+
   })
 
   return (
@@ -342,18 +381,33 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
         camera={camera}
         isShieldActive={() => shieldActive.current}
         onPlayerHit={() => {
+          // Если игрок умирает в момент заряда — луч всё равно летит
+          if (beamWindupTimerId.current) {
+            clearTimeout(beamWindupTimerId.current)
+            beamWindupTimerId.current = null
+            executeBeamFireRef.current?.()
+          }
+          if (beamCooldownTimerId.current)  { clearTimeout(beamCooldownTimerId.current);  beamCooldownTimerId.current  = null }
+          if (shieldDurationTimerId.current){ clearTimeout(shieldDurationTimerId.current); shieldDurationTimerId.current = null }
+          if (shieldCooldownTimerId.current){ clearTimeout(shieldCooldownTimerId.current); shieldCooldownTimerId.current = null }
+
           const spawnPos = randomArenaPos()
           camera.position.set(spawnPos.x, EYE_HEIGHT, spawnPos.z)
           velocityY.current = 0
           onGround.current = true
-          // Сброс всех кулдаунов игрока
           beamWindup.current = false
           beamCooldown.current = false
           shieldActive.current = false
           shieldCooldown.current = false
+          setShieldVisible(false)
+          if (shieldMeshRef.current) shieldMeshRef.current.visible = false
+          prevWindupActive.current = false
+          setWindupProgress(0)
           if (controlsRef.current) controlsRef.current.pointerSpeed = 1.0
           triggerPlayerHit()
         }}
+        onShieldBlock={() => triggerShieldBlock()}
+        onBotShieldChange={(active) => { botShieldActive.current = active }}
       />
 
       {/* Луч (Wide Cylinder) — imperatively updated in useFrame */}
@@ -398,10 +452,6 @@ export function Game({ setBeamProgress, setShieldProgress, setShieldVisible, tri
           <mesh>
             <sphereGeometry args={[0.4, 16, 16]} />
             <meshBasicMaterial color="#4af" />
-          </mesh>
-          <mesh>
-            <sphereGeometry args={[0.65, 16, 16]} />
-            <meshBasicMaterial color="#4af" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         </group>
       )}
