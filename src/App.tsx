@@ -13,6 +13,7 @@ import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
 import { btn, dimBtn, screenOverlay } from './screens/styles'
+import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game'
@@ -37,6 +38,8 @@ export default function App() {
   const [botDifficulties, setBotDifficulties] = useState<BotDifficulty[]>([])
   const [lobbyCode, setLobbyCode] = useState('')
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
+  const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
+  const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export default function App() {
       const isLocked = !!document.pointerLockElement
       setLocked(isLocked)
       if (isLocked) setEverLocked(true)
+      else setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)   // вышли из лока → старт кулдауна
     }
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
@@ -67,17 +71,6 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash)
   }, [])
 
-  // Вход в игру → сразу запрашиваем PointerLock (клик «НАЧАТЬ ИГРУ» даёт жест-активацию).
-  // Если по какой-то причине не сработает — остаётся оверлей-фолбэк «НАЖМИТЕ ДЛЯ ВХОДА».
-  useEffect(() => {
-    if (screen !== 'game') return
-    const id = requestAnimationFrame(() => {
-      const canvas = document.querySelector('canvas') as any
-      const r = canvas?.requestPointerLock?.()
-      if (r && typeof r.catch === 'function') r.catch(() => {})   // headless без жеста — глушим reject
-    })
-    return () => cancelAnimationFrame(id)
-  }, [screen])
 
   // Tab (зажат) → таблица счёта K/D.
   useEffect(() => {
@@ -88,6 +81,15 @@ export default function App() {
     window.addEventListener('keyup', up)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [screen])
+
+  // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
+  useEffect(() => {
+    const isPaused = screen === 'game' && !locked && everLocked
+    if (!isPaused) return
+    setNow(Date.now())
+    const iv = setInterval(() => setNow(Date.now()), 100)
+    return () => clearInterval(iv)
+  }, [screen, locked, everLocked])
 
   const handleCreateLobby = () => {
     const code = randomCode()
@@ -149,6 +151,8 @@ export default function App() {
   }
 
   const paused = screen === 'game' && !locked && everLocked
+  const lockCooldownLeft = Math.max(0, lockReadyAt - now)   // мс до возможности повторного входа
+  const resumeDisabled = lockCooldownLeft > 0
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -172,41 +176,60 @@ export default function App() {
             <Game dispatch={dispatch} botDifficulties={botDifficulties} />
           </Canvas>
           {!locked && !everLocked && (
-            <div
-              style={{ position: 'fixed', inset: 0, zIndex: 10, cursor: 'crosshair', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              onClick={() => document.querySelector('canvas')?.requestPointerLock()}
-            >
-              <span style={{ color: 'rgba(255,255,255,0.25)', fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.2em', userSelect: 'none' }}>
-                НАЖМИТЕ ДЛЯ ВХОДА
-              </span>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button style={btn} onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
+                ГОТОВ?
+              </button>
             </div>
           )}
-          <WindupOverlay windupProgress={hud.windupProgress} />
-          <Crosshair beamProgress={hud.beamProgress} />
-          <ScreenFlashes
-            beamFlash={hud.beamFlash}
-            playerHit={hud.playerHit}
-            shieldBlock={hud.shieldBlock}
-            botShieldHit={hud.botShieldHit}
-            shieldVisible={hud.shieldVisible}
-          />
-          <ShieldBrackets
-            shieldProgress={hud.shieldProgress}
-            shieldVisible={hud.shieldVisible}
-            shieldBlock={hud.shieldBlock}
-          />
-          <DashIndicator dashProgress={hud.dashProgress} />
-          <KillFeed lastKill={hud.lastKill} />
-          <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
+          {/* HUD виден только когда играешь (указатель захвачен) — не в меню/на входе. */}
+          {locked && (
+            <>
+              <WindupOverlay windupProgress={hud.windupProgress} />
+              <Crosshair beamProgress={hud.beamProgress} />
+              <ScreenFlashes
+                beamFlash={hud.beamFlash}
+                playerHit={hud.playerHit}
+                shieldBlock={hud.shieldBlock}
+                botShieldHit={hud.botShieldHit}
+                shieldVisible={hud.shieldVisible}
+              />
+              <ShieldBrackets
+                shieldProgress={hud.shieldProgress}
+                shieldVisible={hud.shieldVisible}
+                shieldBlock={hud.shieldBlock}
+              />
+              <DashIndicator dashProgress={hud.dashProgress} />
+              <KillFeed lastKill={hud.lastKill} />
+              <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
+            </>
+          )}
         </>
       )}
 
       {paused && (
         <div style={{ ...screenOverlay, background: 'rgba(10,10,15,0.85)' }}>
           <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
-            ПАУЗА
+            МЕНЮ
           </h2>
-          <button style={btn} onClick={handleResume}>ПРОДОЛЖИТЬ</button>
+          <button
+            style={{
+              ...btn,
+              position: 'relative', overflow: 'hidden',
+              opacity: resumeDisabled ? 0.5 : 1,
+              cursor: resumeDisabled ? 'default' : 'pointer',
+            }}
+            disabled={resumeDisabled}
+            onClick={handleResume}
+          >
+            {resumeDisabled ? `ПРОДОЛЖИТЬ (${(lockCooldownLeft / 1000).toFixed(1)}с)` : 'ПРОДОЛЖИТЬ'}
+            {resumeDisabled && (
+              <span style={{
+                position: 'absolute', left: 0, bottom: 0, height: 2, background: '#4af',
+                width: `${(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}%`,
+              }} />
+            )}
+          </button>
           <button style={dimBtn} onClick={handleBack}>В МЕНЮ</button>
         </div>
       )}

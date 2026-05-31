@@ -106,7 +106,7 @@ test('пауза — Escape показывает меню паузы', async ({ 
     Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
     document.dispatchEvent(new Event('pointerlockchange'))
   })
-  await expect(page.getByText('ПАУЗА')).toBeVisible()
+  await expect(page.getByText('МЕНЮ', { exact: true })).toBeVisible()
   await expect(page.getByText('ПРОДОЛЖИТЬ')).toBeVisible()
   await expect(page.getByText('В МЕНЮ')).toBeVisible()
 })

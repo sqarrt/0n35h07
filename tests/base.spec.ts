@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures'
-import { waitForGame } from './helpers'
+import { waitForGame, unlockPointer } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -13,7 +13,7 @@ test('сцена рендерится без ошибок', async ({ page }) => 
 })
 
 test('HUD бары полные при старте', async ({ page }) => {
-  await waitForGame(page)
+  await unlockPointer(page)   // HUD виден только когда указатель захвачен
   const bars = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('div[style]')]
       .map(el => el.style.width)
