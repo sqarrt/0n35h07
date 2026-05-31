@@ -44,8 +44,11 @@ export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тел
 export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед повторным входом (кнопка «Продолжить»)
 
 // Multiplayer (host-authoritative P2P)
-export const MATCH_ROLES = ['local', 'host', 'client'] as const
+export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
+// Строго 1v1: два фиксированных id игроков — хост и его единственный соперник (бот XOR клиент).
+export const HOST_ID = 0
+export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
@@ -53,10 +56,8 @@ export const MATCH_ENDED_REVEAL_MS = 2000   // пауза: баннер «отк
 export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту
 export const NET_RECONCILE_LERP = 0.15 // коррекция своего игрока к авторитету (анти-дрейф при коллизиях)
 export const NET_SNAPSHOT_HZ = 30     // частота рассылки снапшотов хостом
-export const BOT_TEAM = -1            // общая команда всех ботов (нет дружественного огня бот-в-бота)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: люди спавнятся друг напротив друга по ±Z (детерминированно)
-export const MAX_PLAYERS = 4          // людей+ботов в лобби
-// Палитра цветов шара (выбор в настройках + фолбэк-назначение хостом при коллизии). ≥ MAX_PLAYERS.
+// Палитра цветов шара (выбор в настройках + фолбэк-назначение хостом при коллизии с цветом соперника).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
 // TURN-хук: пусто = только STUN (хватает домашним сетям). Добавь серверы для мобильных/CGNAT.
 export const NET_ICE_SERVERS: RTCIceServer[] = []

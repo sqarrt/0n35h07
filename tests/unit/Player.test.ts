@@ -8,7 +8,7 @@ import type { IWeapon, WeaponContext, FireOutcome } from '../../src/game/abstrac
 import { MUZZLE_Y } from '../../src/constants'
 
 function makePlayer(id = 1) {
-  return new Player(id, 1, new Body(id, '#5af'), new BeamWeapon(), new Shield(), '#5af')
+  return new Player(id, new Body(id, '#5af'), new BeamWeapon(), new Shield(), '#5af')
 }
 
 const dummyWorld = { raycast: () => null } as any
@@ -72,7 +72,7 @@ describe('Player', () => {
 
   it('луч сходится В ТОЧКУ прицела от дула, а не параллельно (фикс TP)', () => {
     const stub = new StubWeapon()
-    const p = new Player(0, 0, new Body(0, '#4af'), stub, new Shield(), '#4af')
+    const p = new Player(0, new Body(0, '#4af'), stub, new Shield(), '#4af')
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
     const point = new THREE.Vector3(0, 1.0, -10)        // ниже линии глаз
     p.aim(point)
@@ -87,7 +87,7 @@ describe('Player', () => {
 
   it('в FP (тело скрыто) пузырь щита не рисуется (фикс FP)', () => {
     const shield = new Shield()
-    const p = new Player(0, 0, new Body(0, '#4af'), new StubWeapon(), shield, '#4af')
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), shield, '#4af')
     p.setBodyVisible(false)
     p.activateShield()
     p.update(0.016, dummyWorld, [])

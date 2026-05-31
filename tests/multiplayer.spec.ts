@@ -29,7 +29,8 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
 
   await client.goto(`/#${code}`)
-  await expect(host.getByText('ИГРОКОВ: 2')).toBeVisible({ timeout: 20000 })
+  // Клиент занял слот соперника → у хоста НАЧАТЬ разблокирована.
+  await expect(host.getByRole('button', { name: 'НАЧАТЬ' })).toBeEnabled({ timeout: 20000 })
   await expect(client.getByText('ОЖИДАНИЕ ХОСТА…')).toBeVisible({ timeout: 20000 })
 
   await host.waitForTimeout(300)

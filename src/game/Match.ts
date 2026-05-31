@@ -9,12 +9,12 @@ import { BotController } from './controllers/BotController'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction } from '../hooks/useGameHUD'
-import type { BotDifficulty, MatchRole, MatchPhase } from '../constants'
+import type { MatchRole, MatchPhase } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import {
-  EYE_HEIGHT, BOT_WINDUP, BOT_COLOR_BASE, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
-  WINDUP_MOVE_FACTOR, BOT_TEAM, NET_HUMAN_SPAWN_Z, READY_COUNTDOWN_MS,
+  EYE_HEIGHT, BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
+  WINDUP_MOVE_FACTOR, OPPONENT_ID, NET_HUMAN_SPAWN_Z, READY_COUNTDOWN_MS,
 } from '../constants'
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
@@ -24,9 +24,8 @@ interface MatchOptions {
   controls: React.RefObject<any>
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean }>
   dispatch: (a: HUDAction) => void
-  botDifficulties: BotDifficulty[]
-  role?:      MatchRole    // 'local' (default) | 'host' | 'client'
-  netConfig?: NetConfig    // обязателен для host/client
+  role:      MatchRole     // 'host' | 'client'
+  netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -44,7 +43,6 @@ export class Match {
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: id игрока → его контроллер
   private byId = new Map<number, Player>()
-  private teamIds = new Map<number, number[]>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: события матча на рассылку
 
@@ -59,7 +57,6 @@ export class Match {
   private killSeq = 0          // монотонный id для ленты убийств
 
   // Ритуал входа (1v1)
-  private humanIds: number[] = [0]
   private readySet = new Set<number>()
   private countdownEndsAt = 0
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
@@ -69,73 +66,41 @@ export class Match {
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
     this.world = new World(o.scene)
-    this.role = o.role ?? 'local'
+    this.role = o.role
+    this.localId = o.netConfig.localId
 
-    if (o.netConfig) {
-      this.localId = o.netConfig.localId
-      const { human, humanController, controllers } = this.buildNetPlayers(o, o.netConfig)
-      this.human = human
-      this.humanController = humanController
-      this.players = [...this.byId.values()]
-      this.bots = this.players.filter(p => p.team === BOT_TEAM)   // боты — для debug-хуков/индикации
-      this.controllers = controllers
-      this.humanIds = o.netConfig.roster.filter(r => r.kind === 'human').map(r => r.id)
-    } else {
-      this.localId = 0
-      const { human, humanController, bots, controllers } = this.buildLocalPlayers(o)
-      this.human = human
-      this.humanController = humanController
-      this.bots = bots
-      this.players = [human, ...bots]
-      this.controllers = controllers
-      this.human.name = 'Вы'
-      this.bots.forEach((b, i) => { b.name = `Бот ${i + 1}` })
-      this.humanIds = [0]
-    }
+    const { human, humanController, controllers, opponentIsBot } = this.buildPlayers(o, o.netConfig)
+    this.human = human
+    this.humanController = humanController
+    this.players = [...this.byId.values()]
+    this.bots = opponentIsBot ? this.players.filter(p => p.id === OPPONENT_ID) : []   // для debug-хуков
+    this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // Ритуал готовности только в 1v1 (2+ живых игрока); иначе сразу в бой.
-    this.phase = this.humanIds.length >= 2 ? 'ready' : 'live'
+    // Ритуал готовности проходят ВСЕ 1v1-матчи (лобби гарантирует двоих). Бот-соперник авто-готов.
+    this.phase = 'ready'
+    if (opponentIsBot) this.readySet.add(OPPONENT_ID)
   }
 
-  // --- построение игроков ---
-  private buildLocalPlayers(o: MatchOptions) {
-    const human = new Player(0, 0, new Body(0, '#4af'),
-      new BeamWeapon({ outerColor: '#0ff' }), new Shield(), '#4af')
-    human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, NET_HUMAN_SPAWN_Z))
-    const humanController = new HumanController(human, o.camera, o.keys, o.controls, this.world)
-
-    const bots = o.botDifficulties.map((_, i) => {
-      const id = i + 1
-      const p = new Player(id, 1, new Body(id, BOT_COLOR_BASE),
-        new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
-        new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
-        BOT_COLOR_BASE)
-      p.respawnAt(this.world.randomSpawn())
-      return p
-    })
-    const botControllers = bots.map((b, i) =>
-      new BotController(b, () => human.position, { passive: o.botDifficulties[i] === 'passive' }))
-    return { human, humanController, bots, controllers: [humanController, ...botControllers] as Controller[] }
-  }
-
-  private buildNetPlayers(o: MatchOptions, net: NetConfig) {
+  // --- построение игроков (ровно двое: локальный + соперник) ---
+  private buildPlayers(o: MatchOptions, net: NetConfig) {
     // Стабильный порядок у обоих пиров → одинаковые точки спавна.
     const roster = [...net.roster].sort((a, b) => a.id - b.id)
     let human!: Player
     let humanController!: HumanController
     const controllers: Controller[] = []
     let humanIndex = 0
+    let opponentIsBot = false
 
     for (const e of roster) {
       const isBot = e.kind === 'bot'
-      // Люди — каждый своя команда (бьют друг друга и ботов); боты — общая BOT_TEAM (нет бот-в-бота).
+      if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
       const p = isBot
-        ? new Player(e.id, BOT_TEAM, new Body(e.id, e.color),
+        ? new Player(e.id, new Body(e.id, e.color),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
             e.color)
-        : new Player(e.id, e.id, new Body(e.id, e.color),
+        : new Player(e.id, new Body(e.id, e.color),
             new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
       p.name = e.name
 
@@ -161,20 +126,18 @@ export class Match {
           controllers.push(rc)
         }
       }
-      // client: все, кроме локального, — без контроллера, ведём из снапшотов
+      // client: соперник — без контроллера, ведём из снапшотов
     }
-    return { human, humanController, controllers }
+    return { human, humanController, controllers, opponentIsBot }
   }
 
   private registerPlayer(p: Player) {
     this.root.add(p.bodyGroup, p.weaponObject, p.trailObject)
     this.byId.set(p.id, p)
-    const ids = this.teamIds.get(p.team) ?? []
-    ids.push(p.id)
-    this.teamIds.set(p.team, ids)
   }
 
-  private excludeIds(p: Player): number[] { return this.teamIds.get(p.team) ?? [] }
+  // 1v1: единственный «чужой» — соперник, поэтому raycast исключает только самого стрелка.
+  private excludeIds(p: Player): number[] { return [p.id] }
 
   // --- Rapier wiring (вызывается из RapierBridge) ---
   attachWorld(world: any, _rapier: any) {
@@ -316,15 +279,22 @@ export class Match {
     this.dispatch({ type: 'SET_MATCH_PHASE', phase: this.phase, ready, countdown })
   }
 
-  /** host: отметить игрока готовым; когда все люди готовы — старт отсчёта. */
+  /** host: отметить игрока готовым; когда готовы оба — старт отсчёта (бот-соперник готов изначально). */
   markReady(id: number) {
-    if (this.phase !== 'ready' || !this.humanIds.includes(id)) return
+    if (this.phase !== 'ready' || !this.players.some(p => p.id === id)) return
     this.readySet.add(id)
     this.phaseDirtyFlag = true
-    if (this.humanIds.every(h => this.readySet.has(h))) {
+    if (this.players.every(p => this.readySet.has(p.id))) {
       this.phase = 'countdown'
       this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
     }
+  }
+
+  /** Тест-хук (e2e): мгновенно в бой без 3с отсчёта. Прод-флоу всегда идёт ready→countdown→live. */
+  forceLiveForTest() {
+    this.readySet = new Set(this.players.map(p => p.id))
+    this.phase = 'live'
+    this.phaseDirtyFlag = true
   }
 
   /** client: применить фазу от хоста. */

@@ -32,7 +32,7 @@ describe('movement helpers', () => {
 })
 
 function makePlayer() {
-  return new Player(0, 0, new Body(0, '#4af'), new BeamWeapon(), new Shield(), '#4af')
+  return new Player(0, new Body(0, '#4af'), new BeamWeapon(), new Shield(), '#4af')
 }
 function frame(over: Partial<InputFrame> = {}): InputFrame {
   return {

@@ -3,6 +3,9 @@ import { createLoopbackPair } from '../../src/net/LoopbackNet'
 import { LobbySession } from '../../src/net/LobbySession'
 import type { LobbyView } from '../../src/net/LobbySession'
 import type { PlayerProfile } from '../../src/settings'
+import { OPPONENT_ID } from '../../src/constants'
+
+const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa' }
 
 const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4' }
 
@@ -36,5 +39,58 @@ describe('LobbySession — назначение цветов хостом', () =
     expect(clientView.connected).toBe(true)
     expect(clientView.localPlayerId).toBe(1)
     expect(clientView.roster.map(r => r.id).sort()).toEqual([0, 1])
+  })
+})
+
+describe('LobbySession — слот соперника (строго 1v1)', () => {
+  /** host-сессия с подписанным view (для чтения текущего ростера/canStart). */
+  function hostWithView() {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new LobbySession(hostNet, 'host', 'AB12', HOST)
+    let view!: LobbyView
+    host.onChange(v => { view = v })
+    return { host, hostNet, clientNet, get: () => view }
+  }
+
+  it('пустой слот → canStart=false; addBot заполняет слот id=OPPONENT_ID → canStart=true', () => {
+    const { host, get } = hostWithView()
+    expect(get().canStart).toBe(false)
+    host.addBot('normal')
+    const opp = get().roster.find(r => r.id === OPPONENT_ID)!
+    expect(opp.kind).toBe('bot')
+    expect(get().canStart).toBe(true)
+  })
+
+  it('повторный addBot — no-op (соперник один)', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal')
+    host.addBot('passive')
+    expect(get().roster.filter(r => r.id === OPPONENT_ID)).toHaveLength(1)
+    expect(get().roster.find(r => r.id === OPPONENT_ID)!.difficulty).toBe('normal')
+  })
+
+  it('removeBot очищает слот → canStart=false', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal')
+    host.removeBot()
+    expect(get().roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
+    expect(get().canStart).toBe(false)
+  })
+
+  it('зашедший человек вытесняет бота; уход человека освобождает слот', () => {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new LobbySession(hostNet, 'host', 'AB12', HOST)
+    let view!: LobbyView
+    host.onChange(v => { view = v })
+    host.addBot('normal')
+    expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('bot')
+
+    new LobbySession(clientNet, 'client', 'AB12', GUEST)   // HELLO синхронно вытесняет бота
+    expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('human')
+    expect(view.canStart).toBe(true)
+
+    hostNet.triggerLeave()                                 // клиент ушёл
+    expect(view.roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
+    expect(view.canStart).toBe(false)
   })
 })

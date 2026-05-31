@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { RosterEntry } from '../net/protocol'
 import type { MatchRole } from '../constants'
+import { HOST_ID, OPPONENT_ID } from '../constants'
 import { btn } from '../screens/styles'
 
 interface ReadyOverlayProps {
@@ -42,18 +43,17 @@ function Half({ entry, mine, isReady, onReady }: HalfProps) {
   )
 }
 
-/** Разделённый экран готовности: слева хост, справа клиент (каждый в своём цвете). */
+/** Разделённый экран готовности: слева хост, справа соперник (бот/клиент), каждый в своём цвете. */
 export function ReadyOverlay({ roster, localId, role, ready, onReady }: ReadyOverlayProps) {
-  const humans = roster.filter(r => r.kind === 'human').sort((a, b) => a.id - b.id)
-  const host = humans[0]
-  const client = humans.find(h => h.id !== host?.id)
+  const host = roster.find(r => r.id === HOST_ID)
+  const opponent = roster.find(r => r.id === OPPONENT_ID)
   const mySide: 'left' | 'right' = role === 'host' ? 'left' : 'right'
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 12, display: 'flex' }}>
-      <Half entry={host}   mine={mySide === 'left'  && host?.id === localId}   isReady={!!host   && ready.includes(host.id)}   onReady={onReady} />
+      <Half entry={host}     mine={mySide === 'left'  && host?.id === localId}     isReady={!!host     && ready.includes(host.id)}     onReady={onReady} />
       <div style={{ width: 1, background: '#1a2030' }} />
-      <Half entry={client} mine={mySide === 'right' && client?.id === localId} isReady={!!client && ready.includes(client.id)} onReady={onReady} />
+      <Half entry={opponent} mine={mySide === 'right' && opponent?.id === localId} isReady={!!opponent && ready.includes(opponent.id)} onReady={onReady} />
     </div>
   )
 }

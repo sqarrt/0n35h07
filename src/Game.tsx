@@ -12,21 +12,20 @@ import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
-import type { BotDifficulty, MatchRole } from './constants'
+import type { MatchRole } from './constants'
 
 export interface GameApi { requestReady(): void }
 
 interface GameProps {
   dispatch: (action: HUDAction) => void
-  botDifficulties?: BotDifficulty[]
-  role?: MatchRole
-  net?: INet
-  netConfig?: { localId: number; roster: RosterEntry[] }
-  peerToPlayer?: Map<PeerId, number>
+  role: MatchRole
+  net: INet
+  netConfig: { localId: number; roster: RosterEntry[] }
+  peerToPlayer: Map<PeerId, number>
   apiRef?: React.MutableRefObject<GameApi | null>
 }
 
-export function Game({ dispatch, botDifficulties = ['normal'], role, net, netConfig, peerToPlayer, apiRef }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, apiRef }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<any>(null)
@@ -38,32 +37,30 @@ export function Game({ dispatch, botDifficulties = ['normal'], role, net, netCon
       controls: controlsRef,
       keys,
       dispatch,
-      botDifficulties,
       role,
       netConfig,
     }),
     [],
   )
 
-  const session = useMemo(
-    () => (net ? new NetSession(net, match, peerToPlayer ?? new Map()) : null),
-    [],
-  )
+  const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
-    const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session?.sendReady())
+    const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
     if (apiRef) apiRef.current = { requestReady }
     const w = window as any
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
-    w.__debugLeave = () => net?.leave()
+    w.__debugForceLive = () => match.forceLiveForTest()
+    w.__debugLeave = () => net.leave()
     return () => {
       match.dispose()
       if (apiRef) apiRef.current = null
       delete w.__debugPhase
       delete w.__debugReady
+      delete w.__debugForceLive
       delete w.__debugLeave
     }
   }, [camera, match])
@@ -95,7 +92,7 @@ export function Game({ dispatch, botDifficulties = ['normal'], role, net, netCon
   // «промотать» заряд/кулдаун/физику за один шаг.
   useFrame((_, dt) => {
     match.update(Math.min(dt, 0.1))
-    session?.afterUpdate()
+    session.afterUpdate()
   })
 
   return (

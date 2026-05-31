@@ -5,7 +5,7 @@ import { unlockPointer, holdKey, getCameraPos, aimAtBot } from './helpers'
 
 test('не проходит сквозь стену', async ({ page }) => {
   await page.goto('/')
-  await unlockPointer(page)                 // 0 ботов; человек смотрит вдоль −Z (стартовая камера)
+  await unlockPointer(page, { difficulty: 'passive' })   // пассивный бот инертен; человек смотрит вдоль −Z
   await holdKey(page, 'KeyW', 4500)         // идём в дальнюю стену (z = −20)
   const pos = await getCameraPos(page)
   expect(Math.abs(pos.z)).toBeLessThan(19.6) // капсула не пробила стену

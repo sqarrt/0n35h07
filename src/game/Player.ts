@@ -26,7 +26,6 @@ export class Player implements IControllable {
   kills = 0            // счёт за сессию (не сбрасывается на респавне)
   deaths = 0
   readonly id: number
-  readonly team: number
   readonly bodyGroup = new THREE.Group()
   readonly spawn = new THREE.Vector3(0, EYE_HEIGHT, 0)
 
@@ -50,14 +49,12 @@ export class Player implements IControllable {
 
   constructor(
     id: number,
-    team: number,
     body: Body,
     weapon: IWeapon,
     shield: IShield,
     color: string,
   ) {
     this.id = id
-    this.team = team
     this.body = body
     this.weapon = weapon
     this.shield = shield
