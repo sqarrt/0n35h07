@@ -7,16 +7,23 @@ import { Arena } from './Arena'
 import { Match } from './game/Match'
 import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
+import { NetSession } from './net/NetSession'
+import type { INet, PeerId } from './net/INet'
+import type { RosterEntry } from './net/protocol'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
-import type { BotDifficulty } from './constants'
+import type { BotDifficulty, MatchRole } from './constants'
 
 interface GameProps {
   dispatch: (action: HUDAction) => void
   botDifficulties?: BotDifficulty[]
+  role?: MatchRole
+  net?: INet
+  netConfig?: { localId: number; roster: RosterEntry[] }
+  peerToPlayer?: Map<PeerId, number>
 }
 
-export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
+export function Game({ dispatch, botDifficulties = ['normal'], role, net, netConfig, peerToPlayer }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<any>(null)
@@ -29,7 +36,14 @@ export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
       keys,
       dispatch,
       botDifficulties,
+      role,
+      netConfig,
     }),
+    [],
+  )
+
+  const session = useMemo(
+    () => (net ? new NetSession(net, match, peerToPlayer ?? new Map()) : null),
     [],
   )
 
@@ -64,7 +78,10 @@ export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
 
   // Клампим dt: скачок кадра (загрузка WASM, возврат во вкладку) не должен
   // «промотать» заряд/кулдаун/физику за один шаг.
-  useFrame((_, dt) => match.update(Math.min(dt, 0.1)))
+  useFrame((_, dt) => {
+    match.update(Math.min(dt, 0.1))
+    session?.afterUpdate()
+  })
 
   return (
     <Suspense>

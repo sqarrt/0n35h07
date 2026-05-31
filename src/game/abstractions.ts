@@ -29,6 +29,7 @@ export interface IWeapon {
   reset(): void
   interrupt(): void
   spawnImpact(point: THREE.Vector3): void
+  playBeam(start: THREE.Vector3, end: THREE.Vector3, hitPoint?: THREE.Vector3 | null): void
   readonly object3d:        THREE.Object3D
   readonly isWindingUp:     boolean
   readonly windupProgress:  number   // 0..1

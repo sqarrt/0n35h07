@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { IWeapon, WeaponContext, FireOutcome } from './abstractions'
-import { BEAM_WINDUP, BEAM_COOLDOWN, BEAM_DURATION, GRAVITY } from '../constants'
+import { BEAM_WINDUP, BEAM_COOLDOWN, BEAM_DURATION, GRAVITY, AIM_RANGE } from '../constants'
 
 interface BeamConfig {
   windupDuration?:   number
@@ -109,7 +109,7 @@ export class BeamWeapon implements IWeapon {
       const eid = hit.object.userData.entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
     } else {
-      this.end.copy(origin).addScaledVector(dir, 100)
+      this.end.copy(origin).addScaledVector(dir, AIM_RANGE)
     }
     this.start.copy(origin)
     this.beamActive = true
@@ -154,6 +154,16 @@ export class BeamWeapon implements IWeapon {
       p.mesh.scale.setScalar(Math.max(0, p.life) * 0.15)
       p.mesh.visible = p.life > 0
     }
+  }
+
+  /** Косметический выстрел без raycast — для удалённого игрока на клиенте (событие FIRED). */
+  playBeam(start: THREE.Vector3, end: THREE.Vector3, hitPoint?: THREE.Vector3 | null) {
+    this.start.copy(start)
+    this.end.copy(end)
+    this.beamActive = true
+    this.beamFireElapsed = 0
+    this.afterglowOpacity = 0.5
+    if (hitPoint) this.spawnImpact(hitPoint)
   }
 
   spawnImpact(point: THREE.Vector3) {
