@@ -71,7 +71,7 @@ export class Match {
     this.players = [this.human, ...this.bots]
     this.controllers = [this.humanController, ...botControllers]
     this.players.forEach(p => {
-      this.root.add(p.bodyGroup, p.weaponObject)
+      this.root.add(p.bodyGroup, p.weaponObject, p.trailObject)
       this.byId.set(p.id, p)
       const ids = this.teamIds.get(p.team) ?? []
       ids.push(p.id)

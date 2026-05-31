@@ -49,6 +49,20 @@ export interface IShield {
   dispose(): void
 }
 
+/** Состояние тела за кадр для рендера следа рывка. */
+export interface DashTrailContext {
+  position: THREE.Vector3   // точка на уровне глаз (центр тела)
+  dashing:  boolean
+}
+
+/** След рывка. Владеет своими мешами; живёт в world-space группе матча (вне RigidBody). */
+export interface IDashTrail {
+  readonly object3d:    THREE.Object3D
+  update(dt: number, ctx: DashTrailContext): void
+  readonly aliveCount:  number   // активных элементов (для тестов/дебага)
+  dispose(): void
+}
+
 /** Контроллер двигает один IControllable каждый кадр. */
 export interface Controller {
   update(dt: number): void

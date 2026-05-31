@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
-import type { IControllable, IWeapon, IShield } from './abstractions'
+import type { IControllable, IWeapon, IShield, IDashTrail } from './abstractions'
 import type { World } from './World'
 import { Body } from './Body'
+import { AfterimageTrail } from './fx/AfterimageTrail'
 import {
   MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY, EYE_HEIGHT,
 } from '../constants'
@@ -28,6 +29,7 @@ export class Player implements IControllable {
   private body: Body
   private weapon: IWeapon
   private shield: IShield
+  private trail: IDashTrail
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
   private isFlashing = false
   private bodyVisible = true
@@ -49,6 +51,7 @@ export class Player implements IControllable {
     this.weapon = weapon
     this.shield = shield
     this.baseColor = new THREE.Color(color)
+    this.trail = new AfterimageTrail(this.baseColor)   // world-space визуал — кладёт Match в root
     shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
     this.bodyGroup.add(body.object3d, shield.object3d)
     // Стабильная ссылка для ref={p.bindBody}: иначе инлайн-ref пере-привязывается
@@ -58,6 +61,9 @@ export class Player implements IControllable {
 
   /** Луч — world-space, рендерится отдельно (вне RigidBody). */
   get weaponObject() { return this.weapon.object3d }
+
+  /** След рывка — тоже world-space (живёт в match.root, не в RigidBody). */
+  get trailObject() { return this.trail.object3d }
 
   // --- Rapier binding (RigidBody = только коллайдер; визуал отдельно в world-space) ---
   bindBody(rb: RapierRigidBody | null) {
@@ -97,6 +103,7 @@ export class Player implements IControllable {
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
     this.shield.update(dt)
     this.syncVisuals()
+    this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
   }
 
   private muzzle(): THREE.Vector3 {
@@ -164,5 +171,6 @@ export class Player implements IControllable {
     this.weapon.dispose()
     this.shield.dispose()
     this.body.dispose()
+    this.trail.dispose()
   }
 }

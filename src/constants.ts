@@ -23,6 +23,13 @@ export const DASH_DURATION = 150   // мс — длительность окна
 export const DASH_COOLDOWN = 1500  // мс
 export const DASH_FOV      = 95    // целевой FOV во время рывка
 
+// Dash trail — «клоны скорости»: полупрозрачные сферы по траектории рывка.
+export const DASH_TRAIL_GHOST_COUNT    = 10    // размер пула клонов
+export const DASH_TRAIL_GHOST_RADIUS   = 0.5   // = радиус сферы-тела
+export const DASH_TRAIL_GHOST_INTERVAL = 16    // мс между клонами
+export const DASH_TRAIL_GHOST_LIFE     = 260   // мс жизни клона
+export const DASH_TRAIL_GHOST_OPACITY  = 0.4
+
 // Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
