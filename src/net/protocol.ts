@@ -59,7 +59,7 @@ export interface Snapshot {
 // --- события матча: хост → все (надёжно, по порядку) ---
 export interface ScoreLine { name: string; kills: number; deaths: number }
 export type MatchEvent =
-  | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null }
+  | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id попавшего (для подавления искр на своей FP-камере)
   | { t: 'kill';    shooter: number; victim: number }
   | { t: 'block';   shooter: number; victim: number }
   | { t: 'respawn'; id: number; pos: Vec3 }

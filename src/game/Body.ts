@@ -157,6 +157,12 @@ export class Body {
 
   setVisible(v: boolean) { this.mesh.visible = v }
 
+  /** Вкл/выкл хитбокс как raycast-цель: мёртвый/сдувающийся шар нельзя застрелить повторно. */
+  setHittable(v: boolean) {
+    const hitbox = this.object3d.children[1] as THREE.Mesh
+    hitbox.userData.noRaycast = !v
+  }
+
   dispose() {
     this.mesh.geometry.dispose()
     this.material.dispose()
