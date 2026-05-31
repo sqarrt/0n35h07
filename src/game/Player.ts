@@ -160,7 +160,11 @@ export class Player implements IControllable {
     this.body.mesh.scale.setScalar(1)
   }
 
-  setBodyVisible(v: boolean) { this.bodyVisible = v; this.body.setVisible(v) }
+  setBodyVisible(v: boolean) {
+    this.bodyVisible = v
+    this.body.setVisible(v)
+    this.trail.object3d.visible = v   // в FP свой след не показываем (камера внутри тела)
+  }
   spawnImpact(point: THREE.Vector3) { this.weapon.spawnImpact(point) }
 
   // --- getters for Match / HUD / debug ---

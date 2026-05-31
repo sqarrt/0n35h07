@@ -97,6 +97,14 @@ describe('Player', () => {
     expect(shield.object3d.visible).toBe(true)          // в TP виден
   })
 
+  it('в FP (тело скрыто) свой след дэша не рисуется', () => {
+    const p = makePlayer()
+    p.setBodyVisible(false)
+    expect(p.trailObject.visible).toBe(false)   // камера внутри тела — клоны не показываем
+    p.setBodyVisible(true)
+    expect(p.trailObject.visible).toBe(true)     // в TP / у других игроков виден
+  })
+
   it('dash во время заряда прерывает выстрел (оружие в кулдаун)', () => {
     const p = makePlayer()
     p.startFiring()
