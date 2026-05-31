@@ -1,6 +1,9 @@
 import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
-import { EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y } from '../constants'
+import {
+  EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN,
+} from '../constants'
 
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
@@ -19,6 +22,9 @@ export class Body {
 
   private desired = new THREE.Vector3()
   private teleport: THREE.Vector3 | null = null
+  private dashDir = new THREE.Vector3()
+  private dashTimer = 0
+  private dashCooldown = 0
 
   constructor(entityId: number, color: string) {
     this.material = new THREE.MeshStandardMaterial({ color })
@@ -62,6 +68,28 @@ export class Body {
     this.desired.y += this.velocityY * dt
   }
 
+  /** Старт рывка: true если кулдаун готов и направление ненулевое. */
+  dash(dir: THREE.Vector3): boolean {
+    if (this.dashCooldown > 0) return false
+    this.dashDir.set(dir.x, 0, dir.z)
+    if (this.dashDir.lengthSq() === 0) return false
+    this.dashDir.normalize()
+    this.dashTimer = DASH_DURATION
+    this.dashCooldown = DASH_COOLDOWN
+    return true
+  }
+
+  /** Копит рывок в desired и тикает таймеры (зовётся из Match.applyPhysics). */
+  stepDash(dt: number) {
+    if (this.dashCooldown > 0) this.dashCooldown -= dt * 1000
+    if (this.dashTimer > 0) {
+      this.desired.addScaledVector(this.dashDir, DASH_SPEED * dt)
+      this.dashTimer -= dt * 1000
+    }
+  }
+
+  get dashing() { return this.dashTimer > 0 }
+
   consumeDesired(): THREE.Vector3 {
     const d = this.desired.clone()
     this.desired.set(0, 0, 0)
@@ -78,6 +106,8 @@ export class Body {
     this.velocityY = 0
     this.grounded = p.y <= EYE_HEIGHT + 0.01
     this.teleport = p.clone()
+    this.dashTimer = 0
+    this.dashCooldown = 0
   }
   consumeTeleport(): THREE.Vector3 | null {
     const t = this.teleport

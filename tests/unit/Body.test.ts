@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { Body } from '../../src/game/Body'
-import { JUMP_FORCE } from '../../src/constants'
+import { JUMP_FORCE, DASH_DURATION } from '../../src/constants'
 
 // Body больше не интегрирует позицию (это делает Rapier KCC) — он копит НАМЕРЕНИЕ.
 describe('Body', () => {
@@ -55,5 +55,28 @@ describe('Body', () => {
     const hitbox = b.object3d.children[1] as THREE.Mesh
     expect(hitbox.userData.entityId).toBe(7)
     expect(hitbox.visible).toBe(false)
+  })
+
+  it('dash() стартует только если кулдаун готов и dir≠0', () => {
+    const b = new Body(0, '#4af')
+    expect(b.dash(new THREE.Vector3(0, 0, 0))).toBe(false)   // нет направления
+    expect(b.dash(new THREE.Vector3(0, 0, -1))).toBe(true)   // ок
+    expect(b.dash(new THREE.Vector3(1, 0, 0))).toBe(false)   // кулдаун
+  })
+
+  it('stepDash() копит рывок в desired, dashing отражает окно', () => {
+    const b = new Body(0, '#4af')
+    b.dash(new THREE.Vector3(0, 0, -1))
+    expect(b.dashing).toBe(true)
+    b.stepDash(0.016)
+    expect(b.consumeDesired().z).toBeLessThan(0)
+  })
+
+  it('dashing=false после окончания окна', () => {
+    const b = new Body(0, '#4af')
+    b.dash(new THREE.Vector3(0, 0, -1))
+    const steps = Math.ceil(DASH_DURATION / 1000 / 0.016) + 2
+    for (let i = 0; i < steps; i++) b.stepDash(0.016)
+    expect(b.dashing).toBe(false)
   })
 })
