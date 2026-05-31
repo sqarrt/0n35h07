@@ -102,6 +102,7 @@ test('войти в лобби → ввести код → url меняется'
 test('пауза — Escape показывает меню паузы', async ({ page }) => {
   await unlockPointer(page)
   await page.evaluate(() => {
+    document.exitPointerLock?.()   // освободить реальный лок (авто-PointerLock при входе в игру)
     Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
     document.dispatchEvent(new Event('pointerlockchange'))
   })
@@ -113,6 +114,7 @@ test('пауза — Escape показывает меню паузы', async ({ 
 test('пауза → В меню → главное меню', async ({ page }) => {
   await unlockPointer(page)
   await page.evaluate(() => {
+    document.exitPointerLock?.()   // освободить реальный лок (авто-PointerLock при входе в игру)
     Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
     document.dispatchEvent(new Event('pointerlockchange'))
   })

@@ -63,6 +63,18 @@ export default function App() {
     return () => window.removeEventListener('hashchange', handleHash)
   }, [])
 
+  // Вход в игру → сразу запрашиваем PointerLock (клик «НАЧАТЬ ИГРУ» даёт жест-активацию).
+  // Если по какой-то причине не сработает — остаётся оверлей-фолбэк «НАЖМИТЕ ДЛЯ ВХОДА».
+  useEffect(() => {
+    if (screen !== 'game') return
+    const id = requestAnimationFrame(() => {
+      const canvas = document.querySelector('canvas') as any
+      const r = canvas?.requestPointerLock?.()
+      if (r && typeof r.catch === 'function') r.catch(() => {})   // headless без жеста — глушим reject
+    })
+    return () => cancelAnimationFrame(id)
+  }, [screen])
+
   const handleCreateLobby = () => {
     const code = randomCode()
     saveLobby(code, [])
