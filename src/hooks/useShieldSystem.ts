@@ -45,6 +45,26 @@ export function useShieldSystem(config: ShieldConfig = {}) {
     }, duration + cooldown)
   }
 
+  const forceActivate = () => {
+    if (shieldCooldown.current || shieldActive.current) return
+
+    shieldActive.current = true
+    shieldCooldownEnd.current = Date.now() + duration + cooldown
+    cbRef.current.onActivate?.()
+
+    durationTimer.current = setTimeout(() => {
+      durationTimer.current = null
+      shieldActive.current = false
+      shieldCooldown.current = true
+      cbRef.current.onDeactivate?.()
+    }, duration)
+
+    cooldownTimer.current = setTimeout(() => {
+      cooldownTimer.current = null
+      shieldCooldown.current = false
+    }, duration + cooldown)
+  }
+
   const reset = () => {
     if (durationTimer.current) { clearTimeout(durationTimer.current); durationTimer.current = null }
     if (cooldownTimer.current) { clearTimeout(cooldownTimer.current); cooldownTimer.current = null }
@@ -60,5 +80,5 @@ export function useShieldSystem(config: ShieldConfig = {}) {
       : 1
   }
 
-  return { isActive, activate, reset, getProgress }
+  return { isActive, activate, forceActivate, reset, getProgress }
 }

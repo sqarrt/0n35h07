@@ -7,17 +7,8 @@ import {
 import { performRaycast } from '../utils/raycast'
 import type { HUDAction } from './useGameHUD'
 
-interface Afterglow {
-  start: THREE.Vector3
-  end: THREE.Vector3
-  opacity: number
-}
-
-interface Particle {
-  pos: THREE.Vector3
-  vel: THREE.Vector3
-  life: number
-}
+export type { Afterglow, Particle } from '../types'
+import type { Afterglow, Particle } from '../types'
 
 interface BeamWeaponConfig {
   controlsRef: React.RefObject<any>
@@ -187,6 +178,11 @@ export function useBeamWeapon(
 
   const isWindingUp = () => beamWindup.current
 
+  const getWindupProgress = () =>
+    beamWindup.current
+      ? Math.min((Date.now() - windupStartTime.current) / BEAM_WINDUP, 1)
+      : 0
+
   const getCooldownProgress = (now: number): number =>
     beamCooldown.current ? Math.max(0, 1 - (beamCooldownEnd.current - now) / BEAM_COOLDOWN) : 1
 
@@ -202,6 +198,7 @@ export function useBeamWeapon(
     particlesRef,
     getCooldownProgress,
     isWindingUp,
+    getWindupProgress,
     getBeamStart,
   }
 }
