@@ -164,8 +164,8 @@ export default function App() {
   }
 
   const handleAddBot = () => sessionRef.current?.addBot('normal')
-  const handleRemoveBot = (id: number) => sessionRef.current?.removeBot(id)
-  const handleSetDifficulty = (id: number, d: BotDifficulty) => sessionRef.current?.setBotDifficulty(id, d)
+  const handleRemoveBot = () => sessionRef.current?.removeBot()
+  const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
 
   const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)

@@ -8,7 +8,7 @@ import { BotController } from '../../src/game/controllers/BotController'
 import { BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL, EYE_HEIGHT } from '../../src/constants'
 
 function makeBot(id = 1) {
-  const p = new Player(id, 1, new Body(id, '#5af'),
+  const p = new Player(id, new Body(id, '#5af'),
     new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0 }),
     new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
     '#5af')

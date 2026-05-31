@@ -1,7 +1,7 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, RosterEntry } from './protocol'
 import type { BotDifficulty } from '../constants'
-import { PLAYER_COLORS, BOT_COLOR_BASE, MAX_PLAYERS } from '../constants'
+import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID } from '../constants'
 import type { PlayerProfile } from '../settings'
 
 export type LobbyRole = 'host' | 'client'
@@ -13,21 +13,22 @@ export interface LobbyView {
   localPlayerId: number   // -1 у клиента, пока хост не назначил
   isHost: boolean
   connected: boolean      // клиент: получил ASSIGN
+  canStart: boolean       // host: слот соперника занят → можно стартовать
 }
 
 /**
- * Хендшейк лобби поверх транспорта. Хост — владелец кода: держит ростер (себя + ботов +
- * подключившихся людей), раздаёт id/цвета и шлёт ASSIGN. Клиент объявляется HELLO и получает
- * свой id + ростер. По START обе стороны строят Match с одинаковым ростером.
+ * Хендшейк лобби (строго 1v1). Хост — владелец кода: держит себя (id 0) и ОДИН слот соперника (id 1) —
+ * бот XOR подключившийся человек. Зашедший человек вытесняет бота. Клиент объявляется HELLO и получает
+ * свой id + ростер. По START обе стороны строят Match с одинаковым ростером `[host, opponent]`.
  */
 export class LobbySession {
   readonly net: INet
   readonly role: LobbyRole
   readonly code: string
-  private roster: RosterEntry[] = []
+  private hostEntry: RosterEntry
+  private opponent: RosterEntry | null = null   // слот соперника: бот | человек | пусто
+  private clientPeer: PeerId | null = null      // host: peer занявшего слот человека
   private localPlayerId: number
-  private peerToPlayer = new Map<PeerId, number>()   // host: peer клиента → его playerId
-  private nextId: number
   private profile: PlayerProfile
   private changeCb: (v: LobbyView) => void = () => {}
   private startCb: () => void = () => {}
@@ -38,16 +39,14 @@ export class LobbySession {
     this.role = role
     this.code = code
     this.profile = profile
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human' }
 
     if (role === 'host') {
-      this.localPlayerId = 0
-      this.nextId = 1
-      this.roster = [{ id: 0, name: profile.name, color: profile.primaryColor, kind: 'human' }]
+      this.localPlayerId = HOST_ID
       net.on('hello', (payload, from) => this.onHello(payload as Hello, from))
       net.onPeerLeave(peer => this.onPeerLeave(peer))
     } else {
       this.localPlayerId = -1
-      this.nextId = 0
       net.on('assign', payload => this.onAssign(payload as Assign))
       net.on('start', () => this.startCb())
       net.onPeerJoin(() => this.sayHello())   // нашли хоста — представляемся
@@ -60,66 +59,55 @@ export class LobbySession {
 
   // --- host ---
   private onHello(hello: Hello, from: PeerId) {
-    if (this.peerToPlayer.has(from)) { this.sendAssign(from); return }   // повтор HELLO — переотправим
-    if (this.roster.length >= MAX_PLAYERS) return
-    const id = this.nextId++
-    const name = (hello.name || '').trim() || `Игрок ${id + 1}`
-    this.roster.push({ id, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human' })
-    this.peerToPlayer.set(from, id)
+    // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → лобби 1v1 полно.
+    if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
+    const name = (hello.name || '').trim() || 'Соперник'
+    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human' }
+    this.clientPeer = from
     this.broadcastRoster()
   }
 
-  /** Цвет игрока без коллизий: основной → резервный → первый свободный из палитры. */
+  /** Цвет соперника без коллизии с цветом хоста: основной → резервный → первый свободный из палитры. */
   private assignColor(primary: string, reserve: string): string {
-    const used = new Set(this.roster.filter(r => r.kind === 'human').map(r => r.color))
-    if (!used.has(primary)) return primary
-    if (!used.has(reserve)) return reserve
-    return PLAYER_COLORS.find(c => !used.has(c)) ?? primary
+    const host = this.hostEntry.color
+    if (primary !== host) return primary
+    if (reserve !== host) return reserve
+    return PLAYER_COLORS.find(c => c !== host) ?? primary
   }
 
   private onPeerLeave(peer: PeerId) {
-    const id = this.peerToPlayer.get(peer)
-    if (id === undefined) return
-    this.peerToPlayer.delete(peer)
-    this.roster = this.roster.filter(r => r.id !== id)
+    if (peer !== this.clientPeer) return
+    this.opponent = null
+    this.clientPeer = null
     this.broadcastRoster()
   }
 
   addBot(difficulty: BotDifficulty = 'normal') {
-    if (this.role !== 'host' || this.roster.length >= MAX_PLAYERS) return
-    const botCount = this.roster.filter(r => r.kind === 'bot').length
-    this.roster.push({ id: this.nextId++, name: `Бот ${botCount + 1}`, color: BOT_COLOR_BASE, kind: 'bot', difficulty })
+    if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
+    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }
     this.broadcastRoster()
   }
 
-  removeBot(id: number) {
-    if (this.role !== 'host') return
-    this.roster = this.roster.filter(r => r.id !== id)
-    this.renumberBots()
+  removeBot() {
+    if (this.role !== 'host' || this.opponent?.kind !== 'bot') return
+    this.opponent = null
     this.broadcastRoster()
   }
 
-  setBotDifficulty(id: number, d: BotDifficulty) {
-    const e = this.roster.find(r => r.id === id)
-    if (e && e.kind === 'bot') { e.difficulty = d; this.broadcastRoster() }
-  }
-
-  private renumberBots() {
-    let n = 1
-    for (const e of this.roster) if (e.kind === 'bot') e.name = `Бот ${n++}`
+  setBotDifficulty(d: BotDifficulty) {
+    if (this.opponent?.kind === 'bot') { this.opponent.difficulty = d; this.broadcastRoster() }
   }
 
   private sendAssign(peer: PeerId) {
-    const yourId = this.peerToPlayer.get(peer)
-    if (yourId !== undefined) this.net.send(peer, 'assign', { yourId, roster: this.roster } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster() } satisfies Assign)
   }
   private broadcastRoster() {
-    for (const peer of this.peerToPlayer.keys()) this.sendAssign(peer)
+    if (this.clientPeer) this.sendAssign(this.clientPeer)
     this.emitChange()
   }
 
   start() {
-    if (this.role !== 'host') return
+    if (this.role !== 'host' || !this.opponent) return
     this.net.broadcast('start', {})
     this.startCb()
   }
@@ -134,7 +122,8 @@ export class LobbySession {
   private onAssign(a: Assign) {
     if (this.helloTimer) { clearInterval(this.helloTimer); this.helloTimer = null }   // подключились — хватит звать
     this.localPlayerId = a.yourId
-    this.roster = a.roster
+    this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry
+    this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
     this.emitChange()
   }
 
@@ -149,15 +138,23 @@ export class LobbySession {
   onStart(cb: () => void) { this.startCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
+  /** Ростер матча: ровно `[host, opponent]` (или только host, пока слот пуст). */
+  private roster(): RosterEntry[] {
+    return this.opponent ? [this.hostEntry, this.opponent] : [this.hostEntry]
+  }
+
   view(): LobbyView {
     return {
-      roster: this.roster,
+      roster: this.roster(),
       localPlayerId: this.localPlayerId,
       isHost: this.role === 'host',
       connected: this.role === 'host' || this.localPlayerId >= 0,
+      canStart: this.role === 'host' && this.opponent !== null,
     }
   }
 
-  netConfig() { return { localId: this.localPlayerId, roster: this.roster } }
-  hostPeerToPlayer() { return this.peerToPlayer }
+  netConfig() { return { localId: this.localPlayerId, roster: this.roster() } }
+  hostPeerToPlayer(): Map<PeerId, number> {
+    return this.clientPeer ? new Map([[this.clientPeer, OPPONENT_ID]]) : new Map()
+  }
 }

@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { RosterEntry, Snapshot } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
-import { READY_COUNTDOWN_MS } from '../../src/constants'
+import { READY_COUNTDOWN_MS, HOST_ID, OPPONENT_ID } from '../../src/constants'
 
 const ROSTER: RosterEntry[] = [
   { id: 0, name: 'A', color: '#4af', kind: 'human' },
@@ -18,7 +18,6 @@ function makeMatch(role: MatchRole, localId: number, roster: RosterEntry[] = ROS
     controls: { current: null } as React.RefObject<any>,
     keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
     dispatch,
-    botDifficulties: [],
     role,
     netConfig: { localId, roster },
   })
@@ -57,14 +56,26 @@ describe('Match — сетевой режим', () => {
     expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(true)
   })
 
-  it('host с ботом (вырожденный p2p-лобби): бот в ростере попадает в снапшот', () => {
+  it('host с ботом-соперником: бот в ростере попадает в снапшот', () => {
     const roster: RosterEntry[] = [
       { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-      { id: 1, name: 'Бот 1', color: '#5af', kind: 'bot', difficulty: 'normal' },
+      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'normal' },
     ]
     const { match } = makeMatch('host', 0, roster)
     expect(match.players.map(p => p.id).sort()).toEqual([0, 1])
     expect(match.serializeSnapshot().players).toHaveLength(2)
+  })
+
+  it('бот-соперник авто-готов: ready содержит OPPONENT_ID, markReady(host) → countdown', () => {
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
+      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'normal' },
+    ]
+    const { match } = makeMatch('host', 0, roster)
+    expect(match.phase).toBe('ready')
+    expect(match.serializePhase().ready).toContain(OPPONENT_ID)
+    match.markReady(HOST_ID)
+    expect(match.phase).toBe('countdown')   // бот уже готов → достаточно готовности хоста
   })
 
   it('1v1 стартует в phase=ready и замораживает игроков', () => {
@@ -73,12 +84,6 @@ describe('Match — сетевой режим', () => {
     match.update(0.016)   // tickPhase → заморозка
     match.human.moveIntent(new THREE.Vector3(5, 0, 0), 1)
     expect(match.human.consumeDesired().x).toBe(0)
-  })
-
-  it('соло-host (1 human) стартует сразу в live', () => {
-    const roster: RosterEntry[] = [{ id: 0, name: 'A', color: '#4af', kind: 'human' }]
-    const { match } = makeMatch('host', 0, roster)
-    expect(match.phase).toBe('live')
   })
 
   it('оба готовы → countdown; по истечении отсчёта → live и разморозка', () => {

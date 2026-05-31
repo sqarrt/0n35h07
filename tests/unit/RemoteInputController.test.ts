@@ -9,7 +9,7 @@ import { RemoteInputController } from '../../src/game/controllers/RemoteInputCon
 import type { InputFrame } from '../../src/net/protocol'
 
 function makePlayer() {
-  return new Player(1, 1, new Body(1, '#f44'), new BeamWeapon(), new Shield(), '#f44')
+  return new Player(1, new Body(1, '#f44'), new BeamWeapon(), new Shield(), '#f44')
 }
 function frame(over: Partial<InputFrame> = {}): InputFrame {
   return {

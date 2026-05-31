@@ -4,25 +4,26 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто (СОЗДАТЬ ЛОББИ → лобби → НАЧАТЬ ИГРУ)
+// Проходит главное меню если оно открыто (СОЗДАТЬ ЛОББИ → +бот → НАЧАТЬ).
+// 1v1: соперник обязателен, иначе НАЧАТЬ заблокирована — поэтому всегда добавляем бота.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByText('СОЗДАТЬ ЛОББИ').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByText('СОЗДАТЬ ЛОББИ').click()
-  // Хост-лобби: добавляем бота если тест требует цель
-  if (opts.difficulty) {
-    await page.getByText('ДОБАВИТЬ БОТА').click()
-    if (opts.difficulty === 'passive') {
-      await page.getByText('ПАССИВНЫЙ').first().click()
-    }
+  await page.getByText('ДОБАВИТЬ БОТА').click()
+  if (opts.difficulty === 'passive') {
+    await page.getByText('ПАССИВНЫЙ').first().click()
   }
   await page.getByText('НАЧАТЬ').click()
 }
 
-// Ждём пока R3F инициализируется и смонтирует Game
+// Ждём пока R3F инициализируется и смонтирует Game, затем пропускаем ритуал готовности
+// (split-ГОТОВ + 3с отсчёт) — gameplay-тестам нужен сразу бой.
 export async function waitForGame(page: Page, opts: NavigateOpts = {}) {
   await navigateThroughMenu(page, opts)
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
+  await page.evaluate(() => (window as any).__debugForceLive?.())
+  await page.waitForFunction(() => (window as any).__debugPhase?.() === 'live', { timeout: 5000 })
 }
 
 export async function unlockPointer(page: Page, opts: NavigateOpts = {}) {

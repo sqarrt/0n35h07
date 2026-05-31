@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { BotDifficulty } from '../../src/constants'
 import { EYE_HEIGHT } from '../../src/constants'
+import type { RosterEntry } from '../../src/net/protocol'
 
 function lockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => document.body, configurable: true })
@@ -11,15 +12,24 @@ function unlockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
 }
 
-function makeMatch(botDifficulties: BotDifficulty[]) {
+/** Строит host-матч 1v1 (вы + бот) и пропускает ритуал готовности — тестируем боёвку. */
+function makeMatch(difficulty: BotDifficulty = 'passive') {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
   const controls = { current: { pointerSpeed: 1 } }
   const keys = { current: { forward: false, back: false, left: false, right: false } }
   const dispatch = vi.fn()
-  const match = new Match({ scene, camera, controls: controls as any, keys: keys as any, dispatch, botDifficulties })
+  const roster: RosterEntry[] = [
+    { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
+    { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty },
+  ]
+  const match = new Match({
+    scene, camera, controls: controls as any, keys: keys as any, dispatch,
+    role: 'host', netConfig: { localId: 0, roster },
+  })
   scene.add(match.root)   // тела игроков + лучи (для raycast боёвки)
   match.installDebug(camera)
+  match.forceLiveForTest()
   return { match, scene, camera, dispatch }
 }
 
@@ -47,7 +57,7 @@ describe('Match', () => {
   })
 
   it('человек убивает пассивного бота: hitCount + BEAM_FLASH + респавн', () => {
-    const { match, scene, camera, dispatch } = makeMatch(['passive'])
+    const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
     step(match, scene, 45)             // > windup 400мс
@@ -57,18 +67,18 @@ describe('Match', () => {
   })
 
   it('убийство ведёт K/D и шлёт KILL/SET_SCORES', () => {
-    const { match, scene, camera, dispatch } = makeMatch(['passive'])
+    const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
     step(match, scene, 45)
     expect(match.human.kills).toBe(1)
     expect(match.bots[0].deaths).toBe(1)
-    expect(dispatch).toHaveBeenCalledWith({ type: 'KILL', kill: { id: 1, killer: 'Вы', victim: 'Бот 1' } })
+    expect(dispatch).toHaveBeenCalledWith({ type: 'KILL', kill: { id: 1, killer: 'Вы', victim: 'Бот' } })
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SCORES' }))
   })
 
   it('попадание в бота со щитом → BOT_SHIELD_HIT, без хита', () => {
-    const { match, scene, camera, dispatch } = makeMatch(['passive'])
+    const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.bots[0].activateShield()     // щит держится 1500мс > windup
     match.humanController.onFire()
@@ -77,16 +87,14 @@ describe('Match', () => {
     expect(hitCount()).toBe(0)
   })
 
-  it('смерть человека не респавнит ботов (респавнится только погибший)', () => {
-    const { match, scene } = makeMatch(['passive', 'passive'])
-    const before = match.bots.map(b => b.position.clone())
+  it('смерть человека не респавнит соперника (респавнится только погибший)', () => {
+    const { match, scene } = makeMatch('passive')
+    const before = match.bots[0].position.clone()
     match.human.receiveHit()
     expect(match.human.alive).toBe(false)
     step(match, scene, 20)             // > RESPAWN_DELAY 150мс
     expect(match.human.alive).toBe(true)
-    match.bots.forEach((b, i) => {
-      expect(b.alive).toBe(true)
-      expect(b.position.distanceTo(before[i])).toBeLessThan(0.01)
-    })
+    expect(match.bots[0].alive).toBe(true)
+    expect(match.bots[0].position.distanceTo(before)).toBeLessThan(0.01)
   })
 })
