@@ -3,6 +3,7 @@ import * as THREE from 'three'
 export interface RaycastOptions {
   excludeNames?: string[]
   excludeUserDataKeys?: string[]
+  excludeEntityIds?: number[]
 }
 
 export function performRaycast(
@@ -11,12 +12,13 @@ export function performRaycast(
   direction: THREE.Vector3,
   opts: RaycastOptions = {}
 ): THREE.Intersection[] {
-  const { excludeNames = [], excludeUserDataKeys = ['noRaycast'] } = opts
+  const { excludeNames = [], excludeUserDataKeys = ['noRaycast'], excludeEntityIds = [] } = opts
   const targets: THREE.Object3D[] = []
   scene.traverse(obj => {
     if (!(obj instanceof THREE.Mesh)) return
     if (excludeNames.includes(obj.name)) return
     if (excludeUserDataKeys.some(k => obj.userData[k])) return
+    if (obj.userData.entityId !== undefined && excludeEntityIds.includes(obj.userData.entityId)) return
     targets.push(obj)
   })
   return new THREE.Raycaster(origin, direction).intersectObjects(targets)

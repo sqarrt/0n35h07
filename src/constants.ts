@@ -17,6 +17,13 @@ export const GRAVITY    = -22
 export const TP_DIST    = 4   // third-person camera distance behind player
 export const TP_HEIGHT  = 2   // third-person camera height above player
 
+// Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
+// position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
+export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
+export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
+export const MUZZLE_Y     = -0.3   // начало луча (грудь) относительно position
+export const RESPAWN_DELAY = 150   // мс между смертью и репозицией (под death-flash)
+
 // Bot
 export const TARGET_SPEED        = 2.5
 export const BOT_FIRE_INTERVAL   = 2500

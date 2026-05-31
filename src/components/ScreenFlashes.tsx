@@ -6,7 +6,7 @@ interface ScreenFlashesProps {
   shieldVisible: boolean
 }
 
-export function ScreenFlashes({ beamFlash, playerHit, shieldBlock, botShieldHit, shieldVisible }: ScreenFlashesProps) {
+export function ScreenFlashes({ beamFlash, playerHit, shieldBlock, shieldVisible }: ScreenFlashesProps) {
   return (
     <>
       {/* Виньетка + сетка при активном щите */}

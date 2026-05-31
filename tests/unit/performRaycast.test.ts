@@ -45,4 +45,14 @@ describe('performRaycast', () => {
     const hits = performRaycast(scene, origin, dir, { excludeNames: ['wall'] })
     expect(hits.length).toBe(0)
   })
+
+  it('фильтрует по excludeEntityIds (своя команда)', () => {
+    const own = boxAt(0, 0, -5)
+    own.userData.entityId = 1
+    const scene = makeScene(own)
+    const origin = new THREE.Vector3(0, 0, 0)
+    const dir = new THREE.Vector3(0, 0, -1)
+    expect(performRaycast(scene, origin, dir, { excludeEntityIds: [1] }).length).toBe(0)
+    expect(performRaycast(scene, origin, dir, { excludeEntityIds: [2] }).length).toBeGreaterThan(0)
+  })
 })
