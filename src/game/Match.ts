@@ -44,6 +44,8 @@ export class Match {
   private lastHud = 0
   private prevWindup = false
   private prevShield = false
+  private scoresDirty = true   // на старте отправить нулевую таблицу
+  private killSeq = 0          // монотонный id для ленты убийств
 
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
@@ -75,6 +77,9 @@ export class Match {
       ids.push(p.id)
       this.teamIds.set(p.team, ids)
     })
+
+    this.human.name = 'Вы'
+    this.bots.forEach((b, i) => { b.name = `Бот ${i + 1}` })
   }
 
   // --- Rapier wiring (вызывается из RapierBridge) ---
@@ -133,6 +138,10 @@ export class Match {
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
+            victim.deaths++
+            if (shooter !== victim) shooter.kills++
+            this.scoresDirty = true
+            this.dispatch({ type: 'KILL', kill: { id: ++this.killSeq, killer: shooter.name, victim: victim.name } })
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
               ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
@@ -158,6 +167,14 @@ export class Match {
   }
 
   private syncHud() {
+    if (this.scoresDirty) {
+      this.scoresDirty = false
+      this.dispatch({
+        type: 'SET_SCORES',
+        scores: this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths })),
+      })
+    }
+
     const w = this.human.isWindingUp
     if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
     else if (this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })

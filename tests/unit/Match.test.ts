@@ -56,6 +56,17 @@ describe('Match', () => {
     expect(match.bots[0].alive).toBe(true)   // погиб и уже респавнулся
   })
 
+  it('убийство ведёт K/D и шлёт KILL/SET_SCORES', () => {
+    const { match, scene, camera, dispatch } = makeMatch(['passive'])
+    aimHumanAtBot(match, camera)
+    match.humanController.onFire()
+    step(match, scene, 45)
+    expect(match.human.kills).toBe(1)
+    expect(match.bots[0].deaths).toBe(1)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'KILL', kill: { id: 1, killer: 'Вы', victim: 'Бот 1' } })
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SCORES' }))
+  })
+
   it('попадание в бота со щитом → BOT_SHIELD_HIT, без хита', () => {
     const { match, scene, camera, dispatch } = makeMatch(['passive'])
     aimHumanAtBot(match, camera)

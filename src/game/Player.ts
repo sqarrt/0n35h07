@@ -17,6 +17,9 @@ import {
 export class Player implements IControllable {
   alive = true
   respawnTimer = 0
+  name = ''            // отображаемое имя (Вы / Бот N) — ставит Match
+  kills = 0            // счёт за сессию (не сбрасывается на респавне)
+  deaths = 0
   readonly id: number
   readonly team: number
   readonly bodyGroup = new THREE.Group()

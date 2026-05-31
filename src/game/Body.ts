@@ -46,9 +46,8 @@ export class Body {
 
   bindBody(rb: RapierRigidBody) {
     this.rb = rb
-    this.desired.set(0, 0, 0)   // сбросить намерение, накопленное до готовности физики
-    this.velocityY = 0
-    rb.setNextKinematicTranslation(this.position)
+    this.desired.set(0, 0, 0)   // сбросить горизонтальное намерение, накопленное до готовности физики
+    rb.setNextKinematicTranslation(this.position)   // velocityY НЕ трогаем — прыжок во время загрузки сохраняется
   }
   unbind() { this.rb = null }
 

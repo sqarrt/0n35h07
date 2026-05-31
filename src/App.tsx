@@ -7,6 +7,8 @@ import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
+import { Scoreboard } from './components/Scoreboard'
+import { KillFeed } from './components/KillFeed'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
@@ -34,6 +36,7 @@ export default function App() {
   const [everLocked, setEverLocked] = useState(false)
   const [botDifficulties, setBotDifficulties] = useState<BotDifficulty[]>([])
   const [lobbyCode, setLobbyCode] = useState('')
+  const [scoreboardOpen, setScoreboardOpen] = useState(false)
   const { state: hud, dispatch } = useGameHUD()
 
   useEffect(() => {
@@ -74,6 +77,16 @@ export default function App() {
       if (r && typeof r.catch === 'function') r.catch(() => {})   // headless без жеста — глушим reject
     })
     return () => cancelAnimationFrame(id)
+  }, [screen])
+
+  // Tab (зажат) → таблица счёта K/D.
+  useEffect(() => {
+    if (screen !== 'game') { setScoreboardOpen(false); return }
+    const down = (e: KeyboardEvent) => { if (e.code === 'Tab') { e.preventDefault(); setScoreboardOpen(true) } }
+    const up   = (e: KeyboardEvent) => { if (e.code === 'Tab') { e.preventDefault(); setScoreboardOpen(false) } }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [screen])
 
   const handleCreateLobby = () => {
@@ -183,6 +196,8 @@ export default function App() {
             shieldBlock={hud.shieldBlock}
           />
           <DashIndicator dashProgress={hud.dashProgress} />
+          <KillFeed lastKill={hud.lastKill} />
+          <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
         </>
       )}
 

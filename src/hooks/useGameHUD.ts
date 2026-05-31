@@ -1,12 +1,17 @@
 import { useReducer, useCallback } from 'react'
 import { useFlash } from './useFlash'
 
+export interface PlayerScore { name: string; kills: number; deaths: number }
+export interface KillEvent { id: number; killer: string; victim: string }
+
 export interface HUDState {
   beamProgress: number
   shieldProgress: number
   dashProgress: number
   shieldVisible: boolean
   windupProgress: number
+  scores: PlayerScore[]
+  lastKill: KillEvent | null
   beamFlash: boolean
   playerHit: boolean
   shieldBlock: boolean
@@ -19,6 +24,8 @@ export type HUDAction =
   | { type: 'SET_DASH_PROGRESS';   value: number }
   | { type: 'SET_SHIELD_VISIBLE';  value: boolean }
   | { type: 'SET_WINDUP_PROGRESS'; value: number }
+  | { type: 'SET_SCORES';          scores: PlayerScore[] }
+  | { type: 'KILL';                kill: KillEvent }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
   | { type: 'SHIELD_BLOCK' }
@@ -30,6 +37,8 @@ const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botSh
   dashProgress: 1,
   shieldVisible: false,
   windupProgress: 0,
+  scores: [],
+  lastKill: null,
 }
 
 function reducer(
@@ -42,6 +51,8 @@ function reducer(
     case 'SET_DASH_PROGRESS':   return { ...state, dashProgress:   action.value }
     case 'SET_SHIELD_VISIBLE':  return { ...state, shieldVisible:  action.value }
     case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
+    case 'SET_SCORES':          return { ...state, scores:        action.scores }
+    case 'KILL':                return { ...state, lastKill:      action.kill }
     default: return state
   }
 }
