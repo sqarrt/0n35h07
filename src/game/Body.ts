@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP,
 } from '../constants'
 
 /**
@@ -22,6 +22,7 @@ export class Body {
 
   private desired = new THREE.Vector3()
   private teleport: THREE.Vector3 | null = null
+  private netTarget: THREE.Vector3 | null = null   // целевая позиция удалённого игрока (клиент)
   private dashDir = new THREE.Vector3()
   private dashTimer = 0
   private dashCooldown = 0
@@ -117,6 +118,23 @@ export class Body {
     const t = this.teleport
     this.teleport = null
     return t
+  }
+
+  // --- networking: позиция удалённого игрока (клиент рендерит из снапшотов) ---
+  applyNetTarget(pos: THREE.Vector3) {
+    if (this.netTarget) this.netTarget.copy(pos)
+    else this.netTarget = pos.clone()
+  }
+  hasNetTarget() { return this.netTarget !== null }
+  /** Следующая позиция: плавный шаг от текущей (rb/кэш) к сетевой цели. */
+  nextRemoteTranslation(): { x: number; y: number; z: number } {
+    const cur = this.rb ? this.rb.translation() : this.position
+    const t = this.netTarget ?? this.position
+    return {
+      x: THREE.MathUtils.lerp(cur.x, t.x, NET_REMOTE_LERP),
+      y: THREE.MathUtils.lerp(cur.y, t.y, NET_REMOTE_LERP),
+      z: THREE.MathUtils.lerp(cur.z, t.z, NET_REMOTE_LERP),
+    }
   }
 
   /** Кэшируем позицию из физического тела (результат прошлого шага). */

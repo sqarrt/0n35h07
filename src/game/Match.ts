@@ -6,14 +6,20 @@ import { BeamWeapon } from './BeamWeapon'
 import { Shield } from './Shield'
 import { HumanController } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
+import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction } from '../hooks/useGameHUD'
-import type { BotDifficulty } from '../constants'
+import type { BotDifficulty, MatchRole } from '../constants'
+import { toVec3, fromVec3 } from '../net/protocol'
+import type { InputFrame, Snapshot, MatchEvent, PeerInfo } from '../net/protocol'
 import {
   EYE_HEIGHT, BOT_WINDUP, BOT_COLOR_BASE, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR,
 } from '../constants'
 
+const NET_SPAWN_Z = 5   // 1v1: игроки спавнятся друг напротив друга по ±Z (детерминированно у обоих)
+
+interface NetConfig { localId: number; peers: PeerInfo[] }
 interface MatchOptions {
   scene:    THREE.Scene
   camera:   THREE.PerspectiveCamera
@@ -21,21 +27,27 @@ interface MatchOptions {
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean }>
   dispatch: (a: HUDAction) => void
   botDifficulties: BotDifficulty[]
+  role?:      MatchRole    // 'local' (default) | 'host' | 'client'
+  netConfig?: NetConfig    // обязателен для host/client
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
 export class Match {
-  readonly human: Player
+  readonly human: Player              // локальный игрок на этом пире
   readonly bots: Player[]
   readonly players: Player[]
   readonly humanController: HumanController
   readonly root = new THREE.Group()    // world-space визуал: тела игроков + лучи (вне RigidBody)
+  readonly role: MatchRole
+  readonly localId: number
 
   private world: World
   private controllers: Controller[]
+  private remoteControllers = new Map<number, RemoteInputController>()   // host: id игрока → его контроллер
   private byId = new Map<number, Player>()
   private teamIds = new Map<number, number[]>()
   private dispatch: MatchOptions['dispatch']
+  private pendingEvents: MatchEvent[] = []   // host: события матча на рассылку
 
   // Rapier (через RapierBridge)
   private physicsWorld: any = null
@@ -50,13 +62,39 @@ export class Match {
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
     this.world = new World(o.scene)
+    this.role = o.role ?? 'local'
 
-    this.human = new Player(0, 0, new Body(0, '#4af'),
+    if (o.netConfig) {
+      this.localId = o.netConfig.localId
+      const { human, humanController, controllers } = this.buildNetPlayers(o, o.netConfig)
+      this.human = human
+      this.humanController = humanController
+      this.bots = []
+      this.players = [...this.byId.values()]
+      this.controllers = controllers
+    } else {
+      this.localId = 0
+      const { human, humanController, bots, controllers } = this.buildLocalPlayers(o)
+      this.human = human
+      this.humanController = humanController
+      this.bots = bots
+      this.players = [human, ...bots]
+      this.controllers = controllers
+      this.human.name = 'Вы'
+      this.bots.forEach((b, i) => { b.name = `Бот ${i + 1}` })
+    }
+
+    this.players.forEach(p => this.registerPlayer(p))
+  }
+
+  // --- построение игроков ---
+  private buildLocalPlayers(o: MatchOptions) {
+    const human = new Player(0, 0, new Body(0, '#4af'),
       new BeamWeapon({ outerColor: '#0ff' }), new Shield(), '#4af')
-    this.human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, 5))
-    this.humanController = new HumanController(this.human, o.camera, o.keys, o.controls, this.world)
+    human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, NET_SPAWN_Z))
+    const humanController = new HumanController(human, o.camera, o.keys, o.controls, this.world)
 
-    this.bots = o.botDifficulties.map((_, i) => {
+    const bots = o.botDifficulties.map((_, i) => {
       const id = i + 1
       const p = new Player(id, 1, new Body(id, BOT_COLOR_BASE),
         new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
@@ -65,22 +103,49 @@ export class Match {
       p.respawnAt(this.world.randomSpawn())
       return p
     })
-    const botControllers = this.bots.map((b, i) =>
-      new BotController(b, () => this.human.position, { passive: o.botDifficulties[i] === 'passive' }))
-
-    this.players = [this.human, ...this.bots]
-    this.controllers = [this.humanController, ...botControllers]
-    this.players.forEach(p => {
-      this.root.add(p.bodyGroup, p.weaponObject, p.trailObject)
-      this.byId.set(p.id, p)
-      const ids = this.teamIds.get(p.team) ?? []
-      ids.push(p.id)
-      this.teamIds.set(p.team, ids)
-    })
-
-    this.human.name = 'Вы'
-    this.bots.forEach((b, i) => { b.name = `Бот ${i + 1}` })
+    const botControllers = bots.map((b, i) =>
+      new BotController(b, () => human.position, { passive: o.botDifficulties[i] === 'passive' }))
+    return { human, humanController, bots, controllers: [humanController, ...botControllers] as Controller[] }
   }
+
+  private buildNetPlayers(o: MatchOptions, net: NetConfig) {
+    // Стабильный порядок у обоих пиров → одинаковые точки спавна.
+    const peers = [...net.peers].sort((a, b) => a.id - b.id)
+    let human!: Player
+    let humanController!: HumanController
+    const controllers: Controller[] = []
+
+    peers.forEach((peer, i) => {
+      // Каждый игрок — своя команда (id) → бьют друг друга, raycast исключает лишь себя.
+      const p = new Player(peer.id, peer.id, new Body(peer.id, peer.color),
+        new BeamWeapon({ outerColor: peer.color }), new Shield(), peer.color)
+      p.name = peer.name
+      p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, i === 0 ? NET_SPAWN_Z : -NET_SPAWN_Z))
+      this.byId.set(peer.id, p)
+
+      if (peer.id === net.localId) {
+        human = p
+        humanController = new HumanController(p, o.camera, o.keys, o.controls, this.world)
+        controllers.push(humanController)
+      } else if (this.role === 'host') {
+        const rc = new RemoteInputController(p, this.world)
+        this.remoteControllers.set(peer.id, rc)
+        controllers.push(rc)
+      }
+      // client: удалённые игроки без контроллера — ведём из снапшотов
+    })
+    return { human, humanController, controllers }
+  }
+
+  private registerPlayer(p: Player) {
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject)
+    this.byId.set(p.id, p)
+    const ids = this.teamIds.get(p.team) ?? []
+    ids.push(p.id)
+    this.teamIds.set(p.team, ids)
+  }
+
+  private excludeIds(p: Player): number[] { return this.teamIds.get(p.team) ?? [] }
 
   // --- Rapier wiring (вызывается из RapierBridge) ---
   attachWorld(world: any, _rapier: any) {
@@ -99,8 +164,23 @@ export class Match {
 
   update(dt: number) {
     this.players.forEach(p => p.syncFromBody())
+
+    if (this.role === 'client') {
+      // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
+      this.humanController.update(dt)
+      this.players.forEach(p => {
+        if (p.id === this.localId) p.update(dt, this.world, this.excludeIds(p))
+        else p.updateRemote(dt, this.world)
+      })
+      this.applyPhysics(dt)
+      this.syncHud()
+      this.humanController.lateUpdate?.(dt)
+      return
+    }
+
+    // local / host — авторитет
     this.controllers.forEach(c => c.update(dt))
-    this.players.forEach(p => p.update(dt, this.world, this.teamIds.get(p.team) ?? []))
+    this.players.forEach(p => p.update(dt, this.world, this.excludeIds(p)))
     this.applyPhysics(dt)
     this.resolveCombat()
     this.resolveRespawns(dt)
@@ -114,6 +194,11 @@ export class Match {
     for (const p of this.players) {
       const rb = p.rb
       if (!rb) continue
+      // Клиент: удалённых не считаем KCC — плавно тянем к сетевой цели.
+      if (this.role === 'client' && p.id !== this.localId) {
+        if (p.hasNetTarget()) rb.setNextKinematicTranslation(p.nextRemoteTranslation())
+        continue
+      }
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
@@ -130,17 +215,20 @@ export class Match {
     for (const shooter of this.players) {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
+      if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null })
       if (o && o.hitEntityId !== null) {
         const victim = this.byId.get(o.hitEntityId)
         if (victim) {
           const res = victim.receiveHit()
           if (res === 'blocked') {
+            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id })
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
             victim.deaths++
             if (shooter !== victim) shooter.kills++
             this.scoresDirty = true
+            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
             this.dispatch({ type: 'KILL', kill: { id: ++this.killSeq, killer: shooter.name, victim: victim.name } })
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
@@ -162,17 +250,20 @@ export class Match {
     for (const p of this.players) {
       if (p.alive) continue
       p.respawnTimer -= dt * 1000
-      if (p.respawnTimer <= 0) p.respawnAt(this.world.randomSpawn())
+      if (p.respawnTimer <= 0) {
+        const pos = this.world.randomSpawn()
+        p.respawnAt(pos)
+        this.emit({ t: 'respawn', id: p.id, pos: toVec3(pos) })
+      }
     }
   }
 
   private syncHud() {
     if (this.scoresDirty) {
       this.scoresDirty = false
-      this.dispatch({
-        type: 'SET_SCORES',
-        scores: this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths })),
-      })
+      const scores = this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths }))
+      this.dispatch({ type: 'SET_SCORES', scores })
+      this.emit({ t: 'scores', scores })
     }
 
     const w = this.human.isWindingUp
@@ -193,6 +284,74 @@ export class Match {
     }
   }
 
+  // --- network API (вызывает NetSession) ---
+  private emit(e: MatchEvent) { if (this.role === 'host') this.pendingEvents.push(e) }
+
+  /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
+  drainEvents(): MatchEvent[] {
+    const e = this.pendingEvents
+    this.pendingEvents = []
+    return e
+  }
+
+  /** host: снимок всех игроков + последний обработанный ввод клиента. */
+  serializeSnapshot(): Snapshot {
+    let ackSeq = 0
+    this.remoteControllers.forEach(c => { ackSeq = Math.max(ackSeq, c.ackSeq) })
+    return { ackSeq, players: this.players.map(p => p.serializeState()) }
+  }
+
+  /** host: применить присланный кадр ввода к аватару игрока playerId. */
+  pushRemoteInput(playerId: number, frame: InputFrame) {
+    this.remoteControllers.get(playerId)?.enqueue(frame)
+  }
+
+  /** client: кадр ввода своего игрока для отправки хосту. */
+  localInputFrame(seq: number): InputFrame { return this.humanController.currentInputFrame(seq) }
+
+  /** client: применить снимок к удалённым игрокам (свой — предсказывается локально). */
+  applySnapshot(snap: Snapshot) {
+    for (const ps of snap.players) {
+      if (ps.id === this.localId) continue
+      this.byId.get(ps.id)?.applyNetState(ps)
+    }
+  }
+
+  /** client: применить событие матча от хоста. */
+  applyEvent(e: MatchEvent) {
+    switch (e.t) {
+      case 'fired': {
+        if (e.id === this.localId) break   // свой выстрел уже показан предсказанием
+        this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), e.hitPoint ? fromVec3(e.hitPoint) : null)
+        break
+      }
+      case 'kill': {
+        const victim = this.byId.get(e.victim)
+        const shooter = this.byId.get(e.shooter)
+        if (!victim) break
+        victim.applyDeath()
+        victim.deaths++
+        if (shooter && shooter !== victim) shooter.kills++
+        this.dispatch({ type: 'KILL', kill: { id: ++this.killSeq, killer: shooter?.name ?? '?', victim: victim.name } })
+        if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
+        break
+      }
+      case 'block': {
+        if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
+        else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+        break
+      }
+      case 'respawn': {
+        this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
+        break
+      }
+      case 'scores': {
+        this.dispatch({ type: 'SET_SCORES', scores: e.scores })
+        break
+      }
+    }
+  }
+
   installDebug(camera: THREE.Camera) {
     const w = window as any
     w.__debugCamera = camera
@@ -202,6 +361,11 @@ export class Match {
     this.bots.forEach((b, i) => {
       w.__debugBotPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
     })
+    w.__debugRole = () => this.role
+    w.__debugPlayerPos = (id: number) => {
+      const p = this.byId.get(id)
+      return p ? { x: p.position.x, y: p.position.y, z: p.position.z } : null
+    }
   }
 
   dispose() {
@@ -210,6 +374,8 @@ export class Match {
     delete w.__debugWindup
     delete w.__debugTargetHitCount
     delete w.__debugBotPos
+    delete w.__debugRole
+    delete w.__debugPlayerPos
     this.players.forEach(p => p.dispose())
   }
 }

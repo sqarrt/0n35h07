@@ -4,9 +4,13 @@ import type { IControllable, IWeapon, IShield, IDashTrail } from './abstractions
 import type { World } from './World'
 import { Body } from './Body'
 import { AfterimageTrail } from './fx/AfterimageTrail'
+import { toVec3, fromVec3 } from '../net/protocol'
+import type { PlayerSnapshot } from '../net/protocol'
 import {
-  MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY, EYE_HEIGHT,
+  MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY, EYE_HEIGHT, WINDUP_SCALE_GAIN,
 } from '../constants'
+
+const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // фиктивный aim для косметического weapon.update удалённого
 
 /**
  * Единая сущность игрока — и человек, и бот, и сетевой игрок. Компонует тело, оружие и
@@ -36,6 +40,10 @@ export class Player implements IControllable {
   private fireTime = -Infinity
   private baseColor: THREE.Color
   private whiteColor = new THREE.Color(BOT_COLOR_WHITE)
+  // Сетевое состояние для рендера удалённого игрока на клиенте (без прогона его сима).
+  private netShieldActive = false
+  private netDashing = false
+  private netWindup = 0
 
   constructor(
     id: number,
@@ -119,10 +127,10 @@ export class Player implements IControllable {
     const shrinkP = Math.min((Date.now() - this.fireTime) / (BOT_WINDUP / 3), 1)
     const mat = this.body.material
     if (wp > 0) {
-      this.body.mesh.scale.setScalar(1 + wp * 0.4)
+      this.body.mesh.scale.setScalar(1 + wp * WINDUP_SCALE_GAIN)
       mat.color.lerpColors(this.baseColor, this.whiteColor, wp)
     } else if (shrinkP < 1) {
-      this.body.mesh.scale.setScalar(1 + 0.4 * (1 - shrinkP))
+      this.body.mesh.scale.setScalar(1 + WINDUP_SCALE_GAIN * (1 - shrinkP))
       mat.color.copy(this.baseColor)
     } else {
       this.body.mesh.scale.setScalar(1)
@@ -166,6 +174,66 @@ export class Player implements IControllable {
   get weaponJustFired()     { return this.weapon.justFired }
   get fireOutcome()         { return this.weapon.outcome }
   clearJustFired()          { this.weapon.clearJustFired() }
+
+  // --- networking (host-authoritative) ---
+  get color() { return this.baseColor }
+
+  /** Снимок состояния для рассылки (хост). */
+  serializeState(): PlayerSnapshot {
+    return {
+      id: this.id,
+      pos: toVec3(this.body.position),
+      aimDir: toVec3(this.aimPoint.clone().sub(this.muzzle()).normalize()),
+      alive: this.alive,
+      shieldActive: this.shieldActive,
+      dashing: this.dashing,
+      windupProgress: this.windupProgress,
+    }
+  }
+
+  /** Применить снимок к удалённому игроку (клиент): цель позиции + визуальные флаги. */
+  applyNetState(snap: PlayerSnapshot) {
+    this.body.applyNetTarget(fromVec3(snap.pos))
+    this.alive = snap.alive
+    this.netShieldActive = snap.shieldActive
+    this.netDashing = snap.dashing
+    this.netWindup = snap.windupProgress
+  }
+
+  hasNetTarget() { return this.body.hasNetTarget() }
+  nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
+
+  /** Косметический выстрел удалённого (клиент, событие FIRED). */
+  cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {
+    this.weapon.playBeam(this.muzzle(), end, hitPoint)
+  }
+
+  /** Смерть удалённого по событию KILL (клиент): авторитет уже решил, щит не проверяем. */
+  applyDeath() {
+    this.alive = false
+    this.isFlashing = true
+    this.body.material.color.set('red')
+  }
+
+  /** Кадр удалённого игрока на клиенте: только косметика, без боёвки/физики. */
+  updateRemote(dt: number, world: World) {
+    // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
+    this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
+    this.trail.update(dt, { position: this.body.position, dashing: this.netDashing })
+    this.applyRemoteVisual()
+  }
+
+  private applyRemoteVisual() {
+    const mat = this.body.material
+    if (this.netWindup > 0) {
+      this.body.mesh.scale.setScalar(1 + this.netWindup * WINDUP_SCALE_GAIN)
+      mat.color.lerpColors(this.baseColor, this.whiteColor, this.netWindup)
+    } else if (!this.isFlashing) {
+      this.body.mesh.scale.setScalar(1)
+      mat.color.copy(this.baseColor)
+    }
+    this.shield.object3d.visible = this.netShieldActive && this.bodyVisible
+  }
 
   dispose() {
     this.weapon.dispose()
