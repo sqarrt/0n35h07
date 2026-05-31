@@ -22,7 +22,7 @@ export interface RosterEntry {
   kind:   PlayerKind
   difficulty?: BotDifficulty   // только для kind==='bot'
 }
-export interface Hello { name: string }
+export interface Hello { name: string; primaryColor: string; reserveColor: string }
 export interface Assign { yourId: number; roster: RosterEntry[] }
 export type Start = Record<string, never>   // пока пусто; место под seed/настройки матча
 

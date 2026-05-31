@@ -6,11 +6,11 @@ test('Tab показывает таблицу K/D с игроками', async ({
   await unlockPointer(page, { difficulty: 'passive' })
   await page.waitForTimeout(200)   // кадры отправляют SET_SCORES
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', bubbles: true })))
-  await expect(page.getByText('Вы', { exact: true })).toBeVisible()
+  await expect(page.getByText('Игрок', { exact: true })).toBeVisible()
   await expect(page.getByText('Бот 1')).toBeVisible()
   // Отпустили Tab — таблица скрывается
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Tab', bubbles: true })))
-  await expect(page.getByText('Вы', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('Игрок', { exact: true })).toHaveCount(0)
 })
 
 test('лента убийств показывает фраг', async ({ page }) => {

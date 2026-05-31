@@ -1,7 +1,8 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, RosterEntry } from './protocol'
 import type { BotDifficulty } from '../constants'
-import { HUMAN_COLORS, BOT_COLOR_BASE, MAX_PLAYERS } from '../constants'
+import { PLAYER_COLORS, BOT_COLOR_BASE, MAX_PLAYERS } from '../constants'
+import type { PlayerProfile } from '../settings'
 
 export type LobbyRole = 'host' | 'client'
 
@@ -25,20 +26,20 @@ export class LobbySession {
   private localPlayerId: number
   private peerToPlayer = new Map<PeerId, number>()   // host: peer клиента → его playerId
   private nextId: number
-  private myName: string
+  private profile: PlayerProfile
   private changeCb: (v: LobbyView) => void = () => {}
   private startCb: () => void = () => {}
 
-  constructor(net: INet, role: LobbyRole, code: string, name: string) {
+  constructor(net: INet, role: LobbyRole, code: string, profile: PlayerProfile) {
     this.net = net
     this.role = role
     this.code = code
-    this.myName = name
+    this.profile = profile
 
     if (role === 'host') {
       this.localPlayerId = 0
       this.nextId = 1
-      this.roster = [{ id: 0, name, color: HUMAN_COLORS[0], kind: 'human' }]
+      this.roster = [{ id: 0, name: profile.name, color: profile.primaryColor, kind: 'human' }]
       net.on('hello', (payload, from) => this.onHello(payload as Hello, from))
       net.onPeerLeave(peer => this.onPeerLeave(peer))
     } else {
@@ -56,10 +57,18 @@ export class LobbySession {
     if (this.peerToPlayer.has(from)) { this.sendAssign(from); return }   // повтор HELLO — переотправим
     if (this.roster.length >= MAX_PLAYERS) return
     const id = this.nextId++
-    const humanCount = this.roster.filter(r => r.kind === 'human').length
-    this.roster.push({ id, name: hello.name || `Игрок ${id + 1}`, color: HUMAN_COLORS[humanCount % HUMAN_COLORS.length], kind: 'human' })
+    const name = (hello.name || '').trim() || `Игрок ${id + 1}`
+    this.roster.push({ id, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human' })
     this.peerToPlayer.set(from, id)
     this.broadcastRoster()
+  }
+
+  /** Цвет игрока без коллизий: основной → резервный → первый свободный из палитры. */
+  private assignColor(primary: string, reserve: string): string {
+    const used = new Set(this.roster.filter(r => r.kind === 'human').map(r => r.color))
+    if (!used.has(primary)) return primary
+    if (!used.has(reserve)) return reserve
+    return PLAYER_COLORS.find(c => !used.has(c)) ?? primary
   }
 
   private onPeerLeave(peer: PeerId) {
@@ -111,7 +120,10 @@ export class LobbySession {
 
   // --- client ---
   private sayHello() {
-    if (this.localPlayerId < 0) this.net.broadcast('hello', { name: this.myName } satisfies Hello)
+    if (this.localPlayerId < 0) {
+      const { name, primaryColor, reserveColor } = this.profile
+      this.net.broadcast('hello', { name, primaryColor, reserveColor } satisfies Hello)
+    }
   }
   private onAssign(a: Assign) {
     this.localPlayerId = a.yourId

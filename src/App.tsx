@@ -12,6 +12,9 @@ import { KillFeed } from './components/KillFeed'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
+import { Settings } from './screens/Settings'
+import { loadProfile } from './settings'
+import type { PlayerProfile } from './settings'
 import { btn, dimBtn, screenOverlay } from './screens/styles'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty } from './constants'
@@ -22,7 +25,7 @@ import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { MatchRole } from './constants'
 
-type Screen = 'menu' | 'join' | 'lobby' | 'game'
+type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 
 interface GameNet {
   role: MatchRole
@@ -43,6 +46,7 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
+  const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -59,7 +63,7 @@ export default function App() {
   const enterLobby = (code: string, role: LobbyRole) => {
     if (sessionRef.current) leaveLobby()
     const net = createNet(code)
-    const session = new LobbySession(net, role, code, role === 'host' ? 'Вы' : 'Соперник')
+    const session = new LobbySession(net, role, code, loadProfile())
     session.onChange(v => setLobbyView(v))
     session.onStart(() => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
@@ -125,6 +129,7 @@ export default function App() {
   }
   const handleJoinLobby = () => setScreen('join')
   const handleJoin = (code: string) => { window.location.hash = code; enterLobby(code, 'client') }
+  const handleSettings = () => setScreen('settings')
 
   const handleStart = () => sessionRef.current?.start()
 
@@ -146,8 +151,11 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} />}
+      {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
       {screen === 'join' && <JoinLobby onJoin={handleJoin} onBack={handleBack} />}
+      {screen === 'settings' && (
+        <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
+      )}
       {screen === 'lobby' && lobbyView && (
         <Lobby
           lobbyCode={lobbyCode}
