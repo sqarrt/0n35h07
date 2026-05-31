@@ -1,53 +1,26 @@
 import { test, expect } from './fixtures'
 import { unlockPointer, mouseDown } from './helpers'
 
-test.beforeEach(async ({ page }) => {
+const ringStroke = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke'))
+const ringOffset = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => parseFloat(document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke-dashoffset') ?? '0'))
+
+test('жизненный цикл щита в HUD: активация → гашение → блок реактивации в кулдауне → бар', async ({ page }) => {
   await page.goto('/')
-  await unlockPointer(page)
-})
+  await unlockPointer(page, { difficulty: 'passive' })   // одна сессия, инертный бот
 
-test('ПКМ — shield-бар уходит на кулдаун', async ({ page }) => {
-  // До: stroke-dashoffset = 0 (бар полный, щит готов)
-  const offsetBefore = await page.evaluate(() =>
-    document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke-dashoffset')
-  )
-  await mouseDown(page, 2)
-  await page.waitForTimeout(600) // щит закончился (500ms), идёт кулдаун
-  // После: stroke-dashoffset > 0 (бар убывает)
-  const offsetAfter = await page.evaluate(() =>
-    document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke-dashoffset')
-  )
-  expect(parseFloat(offsetBefore ?? '0')).toBe(0)
-  expect(parseFloat(offsetAfter ?? '0')).toBeGreaterThan(0)
-})
+  expect(await ringOffset(page)).toBe(0)                 // бар полный, щит готов
 
-test('ПКМ — кольцо щита появляется в HUD', async ({ page }) => {
   await mouseDown(page, 2)
   await page.waitForTimeout(100)
-  // Во время активного щита скобки светятся '#6af'
-  const strokeActive = await page.evaluate(() =>
-    document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke')
-  )
-  expect(strokeActive).toBe('#6af')
-})
+  expect(await ringStroke(page)).toBe('#6af')            // кольцо активно
 
-test('ПКМ — кольцо исчезает после окончания щита', async ({ page }) => {
-  await mouseDown(page, 2)
-  await page.waitForTimeout(950) // > 800ms длительности щита
-  // После окончания: цвет больше не '#6af'
-  const strokeAfter = await page.evaluate(() =>
-    document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke')
-  )
-  expect(strokeAfter).not.toBe('#6af')
-})
+  await page.waitForTimeout(950)                         // > 800мс длительности
+  expect(await ringStroke(page)).not.toBe('#6af')        // кольцо погасло
+  expect(await ringOffset(page)).toBeGreaterThan(0)      // бар ушёл на кулдаун
 
-test('повторный ПКМ во время кулдауна не активирует щит повторно', async ({ page }) => {
-  await mouseDown(page, 2)
-  await page.waitForTimeout(800) // щит закончился, кулдаун активен
-  await mouseDown(page, 2)       // повторный — не должен сработать
+  await mouseDown(page, 2)                               // повтор в кулдауне — не активирует (логику ловит Shield.test)
   await page.waitForTimeout(50)
-  const strokeAfter = await page.evaluate(() =>
-    document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke')
-  )
-  expect(strokeAfter).not.toBe('#6af')
+  expect(await ringStroke(page)).not.toBe('#6af')        // кольцо не вернулось
 })
