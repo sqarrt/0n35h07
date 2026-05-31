@@ -17,7 +17,8 @@ async function playerZ(page: Page, id: number): Promise<number> {
 }
 
 /** Хост создаёт лобби, клиент входит по коду, хост стартует → обе страницы в игре. */
-async function startMatch(context: import('@playwright/test').BrowserContext) {
+/** Лобби → НАЧАТЬ → обе страницы в игре (фаза 'ready', ритуал не пройден). */
+async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
@@ -35,6 +36,16 @@ async function startMatch(context: import('@playwright/test').BrowserContext) {
   await host.getByText('НАЧАТЬ').click()
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 15000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 15000 })
+  return { host, client }
+}
+
+/** enterGame + ритуал готовности обоих + ожидание конца отсчёта → фаза 'live'. */
+async function startMatch(context: import('@playwright/test').BrowserContext) {
+  const { host, client } = await enterGame(context)
+  await host.evaluate(() => (window as any).__debugReady())
+  await client.evaluate(() => (window as any).__debugReady())
+  await expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
+  await expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
   return { host, client }
 }
 
@@ -97,4 +108,20 @@ test('1v1: шар хоста на клиенте сдувается плавно
   const after = samples.slice(samples.indexOf(peak) + 1)
   // после пика есть промежуточные кадры между 1 и пиком → сдувание плавное, а не мгновенный снап
   expect(after.filter(s => s > 1.05 && s < peak - 0.05).length).toBeGreaterThanOrEqual(1)
+})
+
+test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
+  const { host } = await enterGame(context)
+  await expect.poll(() => host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
+
+  await fakeLock(host)
+  await host.evaluate(() => (window as any).__debugReady())   // готов только хост → фаза остаётся 'ready'
+  await host.waitForTimeout(100)
+  const z0 = await playerZ(host, 0)
+  await host.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true })))
+  await host.waitForTimeout(500)
+  await host.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', bubbles: true })))
+
+  expect(Math.abs((await playerZ(host, 0)) - z0)).toBeLessThan(0.3)   // заморожен — не сдвинулся
+  expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
 })

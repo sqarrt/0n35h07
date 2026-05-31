@@ -9,6 +9,9 @@ import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
 import { Scoreboard } from './components/Scoreboard'
 import { KillFeed } from './components/KillFeed'
+import { ReadyOverlay } from './components/ReadyOverlay'
+import { CountdownOverlay } from './components/CountdownOverlay'
+import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
@@ -52,6 +55,7 @@ export default function App() {
   const { state: hud, dispatch } = useGameHUD()
 
   const sessionRef = useRef<LobbySession | null>(null)
+  const gameApiRef = useRef<GameApi | null>(null)
 
   const leaveLobby = () => {
     sessionRef.current?.net.leave()
@@ -140,12 +144,16 @@ export default function App() {
   }
 
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
+  const handleReady = () => {
+    document.querySelector('canvas')?.requestPointerLock()
+    gameApiRef.current?.requestReady()
+  }
 
   const handleAddBot = () => sessionRef.current?.addBot('normal')
   const handleRemoveBot = (id: number) => sessionRef.current?.removeBot(id)
   const handleSetDifficulty = (id: number, d: BotDifficulty) => sessionRef.current?.setBotDifficulty(id, d)
 
-  const paused = screen === 'game' && !locked && everLocked
+  const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
@@ -177,16 +185,27 @@ export default function App() {
               net={gameNet.net}
               netConfig={gameNet.netConfig}
               peerToPlayer={gameNet.peerToPlayer}
+              apiRef={gameApiRef}
             />
           </Canvas>
-          {!locked && !everLocked && (
+          {hud.matchPhase === 'ready' && (
+            <ReadyOverlay
+              roster={gameNet.netConfig.roster}
+              localId={gameNet.netConfig.localId}
+              role={gameNet.role}
+              ready={hud.ready}
+              onReady={handleReady}
+            />
+          )}
+          {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
+          {hud.matchPhase === 'live' && !locked && !everLocked && (
             <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <button style={btn} onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
                 ГОТОВ?
               </button>
             </div>
           )}
-          {locked && (
+          {locked && hud.matchPhase !== 'ready' && (
             <>
               <WindupOverlay windupProgress={hud.windupProgress} />
               <Crosshair beamProgress={hud.beamProgress} />

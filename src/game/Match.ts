@@ -9,12 +9,12 @@ import { BotController } from './controllers/BotController'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction } from '../hooks/useGameHUD'
-import type { BotDifficulty, MatchRole } from '../constants'
+import type { BotDifficulty, MatchRole, MatchPhase } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
-import type { InputFrame, Snapshot, MatchEvent, RosterEntry } from '../net/protocol'
+import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import {
   EYE_HEIGHT, BOT_WINDUP, BOT_COLOR_BASE, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
-  WINDUP_MOVE_FACTOR, BOT_TEAM, NET_HUMAN_SPAWN_Z,
+  WINDUP_MOVE_FACTOR, BOT_TEAM, NET_HUMAN_SPAWN_Z, READY_COUNTDOWN_MS,
 } from '../constants'
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
@@ -38,6 +38,7 @@ export class Match {
   readonly root = new THREE.Group()    // world-space визуал: тела игроков + лучи (вне RigidBody)
   readonly role: MatchRole
   readonly localId: number
+  phase: MatchPhase = 'live'           // ритуал входа (1v1): ready → countdown → live
 
   private world: World
   private controllers: Controller[]
@@ -57,6 +58,13 @@ export class Match {
   private scoresDirty = true   // на старте отправить нулевую таблицу
   private killSeq = 0          // монотонный id для ленты убийств
 
+  // Ритуал входа (1v1)
+  private humanIds: number[] = [0]
+  private readySet = new Set<number>()
+  private countdownEndsAt = 0
+  private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
+  private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
+
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
     this.world = new World(o.scene)
@@ -70,6 +78,7 @@ export class Match {
       this.players = [...this.byId.values()]
       this.bots = this.players.filter(p => p.team === BOT_TEAM)   // боты — для debug-хуков/индикации
       this.controllers = controllers
+      this.humanIds = o.netConfig.roster.filter(r => r.kind === 'human').map(r => r.id)
     } else {
       this.localId = 0
       const { human, humanController, bots, controllers } = this.buildLocalPlayers(o)
@@ -80,9 +89,12 @@ export class Match {
       this.controllers = controllers
       this.human.name = 'Вы'
       this.bots.forEach((b, i) => { b.name = `Бот ${i + 1}` })
+      this.humanIds = [0]
     }
 
     this.players.forEach(p => this.registerPlayer(p))
+    // Ритуал готовности только в 1v1 (2+ живых игрока); иначе сразу в бой.
+    this.phase = this.humanIds.length >= 2 ? 'ready' : 'live'
   }
 
   // --- построение игроков ---
@@ -180,6 +192,7 @@ export class Match {
 
   update(dt: number) {
     this.players.forEach(p => p.syncFromBody())
+    this.tickPhase()   // готовность/отсчёт → заморозка + HUD
 
     if (this.role === 'client') {
       // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
@@ -279,6 +292,51 @@ export class Match {
       }
     }
   }
+
+  // --- ритуал входа (готовность + отсчёт) ---
+  private tickPhase() {
+    if (this.phase === 'countdown' && Date.now() >= this.countdownEndsAt) {
+      this.phase = 'live'
+      this.phaseDirtyFlag = true
+    }
+    const frozen = this.phase !== 'live'
+    this.players.forEach(p => p.setFrozen(frozen))
+    this.syncPhaseHud()
+  }
+
+  private syncPhaseHud() {
+    const countdown = this.phase === 'countdown'
+      ? Math.max(0, Math.ceil((this.countdownEndsAt - Date.now()) / 1000))
+      : 0
+    const ready = [...this.readySet].sort((a, b) => a - b)
+    const sig = `${this.phase}|${ready.join(',')}|${countdown}`
+    if (sig === this.prevPhaseSig) return
+    this.prevPhaseSig = sig
+    this.dispatch({ type: 'SET_MATCH_PHASE', phase: this.phase, ready, countdown })
+  }
+
+  /** host: отметить игрока готовым; когда все люди готовы — старт отсчёта. */
+  markReady(id: number) {
+    if (this.phase !== 'ready' || !this.humanIds.includes(id)) return
+    this.readySet.add(id)
+    this.phaseDirtyFlag = true
+    if (this.humanIds.every(h => this.readySet.has(h))) {
+      this.phase = 'countdown'
+      this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
+    }
+  }
+
+  /** client: применить фазу от хоста. */
+  applyPhase(p: PhaseMsg) {
+    const enteringCountdown = p.phase === 'countdown' && this.phase !== 'countdown'
+    this.phase = p.phase
+    this.readySet = new Set(p.ready)
+    if (enteringCountdown) this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
+  }
+
+  serializePhase(): PhaseMsg { return { phase: this.phase, ready: [...this.readySet] } }
+  phaseDirty() { return this.phaseDirtyFlag }
+  clearPhaseDirty() { this.phaseDirtyFlag = false }
 
   private syncHud() {
     if (this.scoresDirty) {

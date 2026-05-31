@@ -1,5 +1,5 @@
 import type { INet, PeerId } from './INet'
-import type { InputFrame, Snapshot, MatchEvent } from './protocol'
+import type { InputFrame, Snapshot, MatchEvent, PhaseMsg } from './protocol'
 import type { MatchRole } from '../constants'
 import { NET_SNAPSHOT_HZ } from '../constants'
 
@@ -13,6 +13,11 @@ export interface MatchNet {
   applySnapshot(snap: Snapshot): void
   applyEvent(e: MatchEvent): void
   localInputFrame(seq: number): InputFrame
+  markReady(id: number): void
+  applyPhase(p: PhaseMsg): void
+  serializePhase(): PhaseMsg
+  phaseDirty(): boolean
+  clearPhaseDirty(): void
 }
 
 /**
@@ -39,15 +44,27 @@ export class NetSession {
         const pid = this.peerToPlayer.get(from)
         if (pid !== undefined) this.match.pushRemoteInput(pid, payload as InputFrame)
       })
+      net.on('ready', (_payload, from) => {
+        const pid = this.peerToPlayer.get(from)
+        if (pid !== undefined) this.match.markReady(pid)
+      })
     } else if (match.role === 'client') {
       net.on('snapshot', payload => this.match.applySnapshot(payload as Snapshot))
       net.on('event', payload => this.match.applyEvent(payload as MatchEvent))
+      net.on('phase', payload => this.match.applyPhase(payload as PhaseMsg))
     }
   }
+
+  /** Клиент объявляет готовность хосту. */
+  sendReady() { this.net.broadcast('ready', {}) }
 
   /** Отправка исходящего после шага симуляции. */
   afterUpdate(now: number = Date.now()) {
     if (this.match.role === 'host') {
+      if (this.match.phaseDirty()) {
+        this.net.broadcast('phase', this.match.serializePhase())
+        this.match.clearPhaseDirty()
+      }
       for (const e of this.match.drainEvents()) this.net.broadcast('event', e)
       if (now - this.lastSnapshotAt >= this.snapshotInterval) {
         this.lastSnapshotAt = now

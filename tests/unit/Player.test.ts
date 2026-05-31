@@ -97,6 +97,20 @@ describe('Player', () => {
     expect(shield.object3d.visible).toBe(true)          // в TP виден
   })
 
+  it('setFrozen(true) подавляет движение/выстрел/щит, но не прицел', () => {
+    const p = makePlayer()
+    p.setFrozen(true)
+    p.moveIntent(new THREE.Vector3(5, 0, 0), 1)
+    expect(p.consumeDesired().x).toBe(0)         // движение заморожено
+    p.startFiring()
+    expect(p.isWindingUp).toBe(false)            // выстрел заморожен
+    p.activateShield()
+    expect(p.shieldActive).toBe(false)           // щит заморожен
+    p.setFrozen(false)
+    p.moveIntent(new THREE.Vector3(5, 0, 0), 1)
+    expect(p.consumeDesired().x).toBeCloseTo(5)  // разморозили — двигается
+  })
+
   it('в FP (тело скрыто) свой след дэша не рисуется', () => {
     const p = makePlayer()
     p.setBodyVisible(false)

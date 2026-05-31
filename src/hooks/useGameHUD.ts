@@ -1,5 +1,6 @@
 import { useReducer, useCallback } from 'react'
 import { useFlash } from './useFlash'
+import type { MatchPhase } from '../constants'
 
 export interface PlayerScore { name: string; kills: number; deaths: number }
 export interface KillEvent { id: number; killer: string; victim: string }
@@ -12,6 +13,9 @@ export interface HUDState {
   windupProgress: number
   scores: PlayerScore[]
   lastKill: KillEvent | null
+  matchPhase: MatchPhase
+  ready: number[]
+  countdown: number
   beamFlash: boolean
   playerHit: boolean
   shieldBlock: boolean
@@ -26,6 +30,7 @@ export type HUDAction =
   | { type: 'SET_WINDUP_PROGRESS'; value: number }
   | { type: 'SET_SCORES';          scores: PlayerScore[] }
   | { type: 'KILL';                kill: KillEvent }
+  | { type: 'SET_MATCH_PHASE';     phase: MatchPhase; ready: number[]; countdown: number }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
   | { type: 'SHIELD_BLOCK' }
@@ -39,6 +44,9 @@ const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botSh
   windupProgress: 0,
   scores: [],
   lastKill: null,
+  matchPhase: 'live' as MatchPhase,
+  ready: [] as number[],
+  countdown: 0,
 }
 
 function reducer(
@@ -53,6 +61,7 @@ function reducer(
     case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
     case 'SET_SCORES':          return { ...state, scores:        action.scores }
     case 'KILL':                return { ...state, lastKill:      action.kill }
+    case 'SET_MATCH_PHASE':     return { ...state, matchPhase: action.phase, ready: action.ready, countdown: action.countdown }
     default: return state
   }
 }
