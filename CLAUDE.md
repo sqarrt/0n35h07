@@ -3,7 +3,8 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 OneShot — аркадный шутер от первого лица. Стек: React 19 + React Three Fiber (@react-three/fiber 9) +
-Three.js 0.184 + @react-three/rapier 2 (физика), сборка Vite 8, TypeScript 6, опционально Electron.
+Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), сборка Vite 8, TypeScript 6,
+опционально Electron.
 
 ## Development Rules
 
@@ -63,11 +64,22 @@ HUD-события, исключение «своей команды»); его 
 для движения. Меши, которые не должны быть raycast-целью, помечаются `userData.noRaycast` сразу при создании.
 
 **HUD/меню.** HUD — React/DOM-оверлей на `useGameHUD` (reducer в `App`); `Match` шлёт в него HUD-экшены.
-Меню/лобби — машина состояний экранов в `App` (menu/join/lobby/game) + hash-роутинг + localStorage; число и
-сложность ботов задаются в лобби. Для e2e есть debug-глобалы `__debugCamera/__debugWindup/__debugTargetHitCount/
-__debugBotPos`.
+Меню/лобби — машина состояний экранов в `App` (menu/join/lobby/game) + hash-роутинг. Лобби **всегда p2p**:
+создатель кода = хост, вход по `#CODE` = клиент; ростер (люди+боты) держит `LobbySession`. Для e2e есть
+debug-глобалы `__debugCamera/__debugWindup/__debugTargetHitCount/__debugBotPos/__debugRole/__debugPlayerPos`.
 
-**Стратегия тестов.** Rapier (WASM) и r3f-рендер не идут в jsdom → **физику/движение/столкновения тестируем в
-e2e** (`tests/*.spec.ts`, реальный Chromium). Юнит-тесты (`tests/unit/*.test.ts`) держат чистую логику: классы
-конструируются напрямую, `Match.applyPhysics` без Rapier — no-op, `syncFromBody` ставит `bodyGroup` из кэша
-позиции, поэтому raycast боёвки работает и в jsdom.
+**Сеть — P2P, host-authoritative (`src/net/`).** Одиночной игры нет: «один с ботами» = вырожденный хост-лобби
+без подключившихся. `Match` получает `role` (`local|host|client`): **хост** авторитетно симулирует всех (свой
+человек + боты `BotController` + удалённые люди `RemoteInputController`) и шлёт **снапшоты** (позиция/визуальные
+флаги) + **события** (`fired/kill/block/respawn/scores`); **клиент** предсказывает только своего (KCC локально),
+а удалённых рендерит из снапшотов с интерполяцией (`updateRemote`, без прогона их боёвки). Слои: `INet` —
+транспорт (`TrysteroNet` интернет / `BroadcastChannelNet` вкладки+e2e / `LoopbackNet` юниты; выбор —
+`createNet`/`?net`), `protocol.ts` — JSON-сообщения + ростер, `NetSession` — оркестратор (`afterUpdate` после
+`match.update`), `intentsFromInput` — хост применяет `InputFrame` клиента теми же intent-методами (DRY через
+`controllers/movement.ts`). Боёвку считает **только** хост (raycast в его мире) — клиенту не доверяем попадания.
+TURN-хук — `NET_ICE_SERVERS` (пусто = STUN). Грабли: имена action ≤12 байт; снапшоты троттлятся `NET_SNAPSHOT_HZ`.
+
+**Стратегия тестов.** Rapier (WASM) и r3f-рендер не идут в jsdom → **физику/движение/столкновения/сеть-в-браузере
+тестируем в e2e** (`tests/*.spec.ts`, реальный Chromium; `multiplayer.spec` — две страницы через
+BroadcastChannel). Юнит-тесты (`tests/unit/*.test.ts`) держат чистую логику: классы конструируются напрямую,
+`Match.applyPhysics` без Rapier — no-op, сетевой слой тестируется через `LoopbackNet` (host↔client in-process).
