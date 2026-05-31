@@ -36,9 +36,11 @@ export function JoinLobby({ onJoin, onBack }: JoinLobbyProps) {
             fontFamily: 'monospace',
             fontSize: '2rem',
             letterSpacing: '0.5em',
+            textIndent: '0.5em',   // компенсирует трейлинговый letterSpacing → честное центрирование
             textAlign: 'center',
             padding: '0.5rem 1rem',
-            width: '10rem',
+            width: '15rem',
+            boxSizing: 'border-box',
             outline: 'none',
           }}
         />
