@@ -65,6 +65,8 @@ export class Player implements IControllable {
   consumeDesired()        { return this.body.consumeDesired() }
   consumeTeleport()       { return this.body.consumeTeleport() }
   stepVertical(dt: number){ this.body.stepVertical(dt) }
+  stepDash(dt: number)    { this.body.stepDash(dt) }
+  get dashing()           { return this.body.dashing }
   setGrounded(g: boolean) { this.body.setGrounded(g) }
 
   /** Кэшируем позицию из физ-тела и двигаем визуальную группу (она в world-space). */
@@ -79,6 +81,11 @@ export class Player implements IControllable {
   aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира
   startFiring()                { this.weapon.beginWindup() }
   activateShield()             { this.shield.activate() }
+  dash(dir: THREE.Vector3) {
+    if (dir.lengthSq() === 0) return
+    if (!this.body.dash(dir)) return   // кулдаун — заряд не трогаем
+    this.weapon.interrupt()            // успешный рывок отменяет заряд
+  }
 
   // --- simulation (без интеграции позиции — её делает Rapier KCC в Match.applyPhysics) ---
   update(dt: number, world: World, excludeIds: number[]) {

@@ -96,4 +96,20 @@ describe('Player', () => {
     p.update(0.016, dummyWorld, [])
     expect(shield.object3d.visible).toBe(true)          // в TP виден
   })
+
+  it('dash во время заряда прерывает выстрел (оружие в кулдаун)', () => {
+    const p = makePlayer()
+    p.startFiring()
+    expect(p.isWindingUp).toBe(true)
+    p.dash(new THREE.Vector3(0, 0, -1))
+    expect(p.isWindingUp).toBe(false)
+    expect(p.beamCooldownProgress()).toBeLessThan(1)
+  })
+
+  it('dash без направления — не рвёт и не прерывает заряд', () => {
+    const p = makePlayer()
+    p.startFiring()
+    p.dash(new THREE.Vector3(0, 0, 0))
+    expect(p.isWindingUp).toBe(true)
+  })
 })
