@@ -46,7 +46,7 @@ describe('performRaycast', () => {
     expect(hits.length).toBe(0)
   })
 
-  it('фильтрует по excludeEntityIds (своя команда)', () => {
+  it('фильтрует по excludeEntityIds (исключение по entityId)', () => {
     const own = boxAt(0, 0, -5)
     own.userData.entityId = 1
     const scene = makeScene(own)

@@ -28,12 +28,5 @@ test('ЛКМ — beam-бар уходит на кулдаун', async ({ page })
   expect(strokeBefore).toBe('#0ff')
   expect(strokeAfter).toBe('#066')
 })
-
-test('повторный выстрел во время кулдауна не срабатывает', async ({ page }) => {
-  await mouseDown(page, 0)
-  await page.waitForTimeout(WINDUP_MS + 300)
-  await mouseDown(page, 0)
-  await page.waitForTimeout(WINDUP_MS + 300)
-  const hits = await page.evaluate(() => (window as any).__debugTargetHitCount ?? 0)
-  expect(hits).toBe(1)
-})
+// Примечание: «повторный выстрел в кулдауне не срабатывает» — чистая логика кулдауна,
+// покрыта BeamWeapon.test («повторный beginWindup во время кулдауна игнорируется»).
