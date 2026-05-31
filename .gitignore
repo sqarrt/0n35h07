@@ -29,3 +29,4 @@ test-results
 # Локальные настройки/планы Claude и отладочные скриншоты
 .claude/
 dash-strips*.png
+docs/
