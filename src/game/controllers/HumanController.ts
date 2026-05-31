@@ -40,7 +40,7 @@ export class HumanController implements Controller {
   // --- рёберные события от DOM (вызывает хост) ---
   onFire()    { if (document.pointerLockElement) this.player.startFiring() }
   onShield()  { if (document.pointerLockElement) this.player.activateShield() }
-  onJump()    { this.player.jump() }
+  onJump()    { if (document.pointerLockElement) this.player.jump() }
   onDash() {
     if (!document.pointerLockElement) return
     const { dir, right } = this.basis()
@@ -70,6 +70,8 @@ export class HumanController implements Controller {
 
   // --- intents (до физики) ---
   update(dt: number) {
+    // Меню открыто (указатель не захвачен) — игрок не двигается и не целится.
+    if (!document.pointerLockElement) return
     const { dir, right } = this.basis()
 
     const k = this.keys.current
