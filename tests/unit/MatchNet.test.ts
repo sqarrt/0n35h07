@@ -65,6 +65,13 @@ describe('Match — сетевой режим', () => {
     expect(match.serializeSnapshot().players).toHaveLength(2)
   })
 
+  it('client сбрасывает justFired своего игрока (шар сдувается после выстрела)', () => {
+    const { match } = makeMatch('client', 1)
+    match.human.startFiring()
+    match.update(0.5)   // 0.5с > BEAM_WINDUP(0.4с) → выстрел происходит в этом кадре
+    expect(match.human.weaponJustFired).toBe(false)   // флаг очищен (resolveCombat на клиенте не идёт)
+  })
+
   it('host: ввод клиента двигает его аватар (pushRemoteInput → update)', () => {
     const { match } = makeMatch('host', 0)
     match.pushRemoteInput(1, { seq: 1, keys: { f: false, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: true, shield: false, dash: false })

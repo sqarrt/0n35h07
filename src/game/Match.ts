@@ -185,8 +185,12 @@ export class Match {
       // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
       this.humanController.update(dt)
       this.players.forEach(p => {
-        if (p.id === this.localId) p.update(dt, this.world, this.excludeIds(p))
-        else p.updateRemote(dt, this.world)
+        if (p.id === this.localId) {
+          p.update(dt, this.world, this.excludeIds(p))
+          p.clearJustFired()   // боёвку считает хост → сбрасываем флаг сами (иначе шар застрянет раздутым)
+        } else {
+          p.updateRemote(dt, this.world)
+        }
       })
       this.applyPhysics(dt)
       this.syncHud()
