@@ -14,7 +14,7 @@ const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1] }
 
 type Stub = MatchNet & {
   pushed: Array<[number, InputFrame]>; snaps: Snapshot[]; events: MatchEvent[]
-  readyCalls: number[]; phases: PhaseMsg[]; setDirty(v: boolean): void
+  readyCalls: number[]; phases: PhaseMsg[]; leftCalls: number[]; setDirty(v: boolean): void
 }
 
 function stub(role: MatchRole, localId: number): Stub {
@@ -23,9 +23,10 @@ function stub(role: MatchRole, localId: number): Stub {
   const events: MatchEvent[] = []
   const readyCalls: number[] = []
   const phases: PhaseMsg[] = []
+  const leftCalls: number[] = []
   let dirty = false
   return {
-    role, localId, pushed, snaps, events, readyCalls, phases,
+    role, localId, pushed, snaps, events, readyCalls, phases, leftCalls,
     setDirty: v => { dirty = v },
     serializeSnapshot: () => SNAP,
     drainEvents: vi.fn(() => [EVENT]) as unknown as () => MatchEvent[],
@@ -38,6 +39,7 @@ function stub(role: MatchRole, localId: number): Stub {
     serializePhase: () => PHASE,
     phaseDirty: () => dirty,
     clearPhaseDirty: () => { dirty = false },
+    handlePlayerLeft: id => { leftCalls.push(id) },
   }
 }
 
@@ -96,5 +98,23 @@ describe('NetSession (host ↔ client через LoopbackNet)', () => {
     hostSession.afterUpdate(1000)
     expect(client.phases).toEqual([PHASE])
     expect(host.phaseDirty()).toBe(false)   // очищен после рассылки
+  })
+
+  it('дисконнект: хост маршрутизирует уход peer в handlePlayerLeft(его playerId)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
+    const host = stub('host', 0)
+    new NetSession(hostNet, host, new Map([['client', 1]]))
+    new NetSession(clientNet, stub('client', 1), new Map([['host', 0]]))
+    hostNet.triggerLeave()                  // клиент ушёл
+    expect(host.leftCalls).toEqual([1])
+  })
+
+  it('дисконнект: клиент трактует уход (peerToPlayer пуст) как уход хоста (id 0)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
+    const client = stub('client', 1)
+    new NetSession(hostNet, stub('host', 0), new Map([['client', 1]]))
+    new NetSession(clientNet, client, new Map())   // у клиента peerToPlayer пуст
+    clientNet.triggerLeave()
+    expect(client.leftCalls).toEqual([0])
   })
 })

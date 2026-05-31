@@ -18,6 +18,7 @@ export interface MatchNet {
   serializePhase(): PhaseMsg
   phaseDirty(): boolean
   clearPhaseDirty(): void
+  handlePlayerLeft(id: number): void
 }
 
 /**
@@ -53,6 +54,15 @@ export class NetSession {
       net.on('event', payload => this.match.applyEvent(payload as MatchEvent))
       net.on('phase', payload => this.match.applyPhase(payload as PhaseMsg))
     }
+
+    net.onPeerLeave(peerId => this.onPeerLeave(peerId))
+  }
+
+  /** Дисконнект: хост знает playerId по peer; клиент — ушедший это хост (id 0). */
+  private onPeerLeave(peerId: PeerId) {
+    const pid = this.peerToPlayer.get(peerId)
+    if (pid !== undefined) this.match.handlePlayerLeft(pid)
+    else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
   }
 
   /** Клиент объявляет готовность хосту. */
