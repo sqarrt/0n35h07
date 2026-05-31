@@ -132,7 +132,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject)
     this.byId.set(p.id, p)
   }
 
@@ -214,10 +214,10 @@ export class Match {
     for (const shooter of this.players) {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
-      if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null })
+      if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId })
       if (o && o.hitEntityId !== null) {
         const victim = this.byId.get(o.hitEntityId)
-        if (victim) {
+        if (victim && victim.alive) {   // мёртвую/сдувающуюся жертву не добиваем
           const res = victim.receiveHit()
           if (res === 'blocked') {
             this.emit({ t: 'block', shooter: shooter.id, victim: victim.id })
@@ -390,7 +390,10 @@ export class Match {
     switch (e.t) {
       case 'fired': {
         if (e.id === this.localId) break   // свой выстрел уже показан предсказанием
-        this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), e.hitPoint ? fromVec3(e.hitPoint) : null)
+        // Искры попадания не спавним на FP-камере локального игрока (попали в нас, тело скрыто).
+        const hideImpact = e.hit === this.localId && !this.human.bodyIsVisible
+        const hp = e.hitPoint && !hideImpact ? fromVec3(e.hitPoint) : null
+        this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), hp)
         break
       }
       case 'kill': {

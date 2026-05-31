@@ -4,10 +4,12 @@ import type { IControllable, IWeapon, IShield, IDashTrail } from './abstractions
 import type { World } from './World'
 import { Body } from './Body'
 import { AfterimageTrail } from './fx/AfterimageTrail'
+import { DeathBurst } from './fx/DeathBurst'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
 import {
   MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY, EYE_HEIGHT, WINDUP_SCALE_GAIN,
+  DEATH_ANIM_MS, SPAWN_ANIM_MS, SPAWN_OVERSHOOT,
 } from '../constants'
 
 const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // фиктивный aim для косметического weapon.update удалённого
@@ -33,8 +35,11 @@ export class Player implements IControllable {
   private weapon: IWeapon
   private shield: IShield
   private trail: IDashTrail
+  private burst: DeathBurst
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
-  private isFlashing = false
+  private deathTime = -Infinity   // момент начала сдувания (смерть)
+  private spawnTime = -Infinity   // момент начала роста (респаун)
+  private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
@@ -60,6 +65,7 @@ export class Player implements IControllable {
     this.shield = shield
     this.baseColor = new THREE.Color(color)
     this.trail = new AfterimageTrail(this.baseColor)   // world-space визуал — кладёт Match в root
+    this.burst = new DeathBurst(this.baseColor)        // хлопок частиц на смерти — тоже world-space
     shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
     this.bodyGroup.add(body.object3d, shield.object3d)
     // Стабильная ссылка для ref={p.bindBody}: иначе инлайн-ref пере-привязывается
@@ -72,6 +78,9 @@ export class Player implements IControllable {
 
   /** След рывка — тоже world-space (живёт в match.root, не в RigidBody). */
   get trailObject() { return this.trail.object3d }
+
+  /** Хлопок частиц на смерти — world-space (живёт в match.root). */
+  get burstObject() { return this.burst.object3d }
 
   // --- Rapier binding (RigidBody = только коллайдер; визуал отдельно в world-space) ---
   bindBody(rb: RapierRigidBody | null) {
@@ -96,13 +105,16 @@ export class Player implements IControllable {
   setFrozen(v: boolean) { this.frozen = v }
 
   // --- IControllable ---
-  moveIntent(dir: THREE.Vector3, dt: number) { if (this.frozen) return; this.body.move(dir, dt) }
-  jump()                       { if (this.frozen) return; this.body.jump() }
+  // Мёртвый/замороженный игрок не действует: тело стоит на месте, пока сдувается/ждёт респауна
+  // (иначе мёртвый шар «едет» между смертью и респауном).
+  private canAct() { return !this.frozen && this.alive }
+  moveIntent(dir: THREE.Vector3, dt: number) { if (!this.canAct()) return; this.body.move(dir, dt) }
+  jump()                       { if (!this.canAct()) return; this.body.jump() }
   aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира (доступно и в заморозке)
-  startFiring()                { if (this.frozen) return; this.weapon.beginWindup() }
-  activateShield()             { if (this.frozen) return; this.shield.activate() }
+  startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
+  activateShield()             { if (!this.canAct()) return; this.shield.activate() }
   dash(dir: THREE.Vector3) {
-    if (this.frozen) return
+    if (!this.canAct()) return
     if (dir.lengthSq() === 0) return
     if (!this.body.dash(dir)) return   // кулдаун — заряд не трогаем
     this.weapon.interrupt()            // успешный рывок отменяет заряд
@@ -116,6 +128,7 @@ export class Player implements IControllable {
     this.shield.update(dt)
     this.syncVisuals()
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
+    this.burst.update(dt)
   }
 
   private muzzle(): THREE.Vector3 {
@@ -125,7 +138,14 @@ export class Player implements IControllable {
   private syncVisuals() {
     if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
     if (this.weapon.justFired) this.fireTime = Date.now()
-    if (this.isFlashing) return
+
+    const lc = this.lifecycleScale()
+    if (lc !== null) {   // смерть/респаун диктуют масштаб (в своём цвете, без вспышки)
+      this.body.mesh.scale.setScalar(lc)
+      this.body.material.color.copy(this.baseColor)
+      this.shield.object3d.visible = false
+      return
+    }
 
     const wp = this.weapon.windupProgress
     const shrinkP = Math.min((Date.now() - this.fireTime) / (BOT_WINDUP / 3), 1)
@@ -144,12 +164,19 @@ export class Player implements IControllable {
 
   // --- combat (driven by Match, never self-respawn) ---
   receiveHit(): 'blocked' | 'killed' {
+    if (!this.alive) return 'blocked'        // уже мёртв/сдувается — не добиваем (нет двойного килла)
     if (this.shield.isActive) return 'blocked'
     this.alive = false
-    this.isFlashing = true
-    this.body.material.color.set('red')
     this.respawnTimer = RESPAWN_DELAY
+    this.startDeath()
     return 'killed'
+  }
+
+  /** Старт анимации смерти: запуск сдувания, выброс частиц, отключение хитбокса. */
+  private startDeath() {
+    this.deathTime = Date.now()
+    this.body.setHittable(false)
+    if (this.bodyVisible) this.burst.emit(this.body.position.clone().add(this.bodyMeshOffset))
   }
 
   respawnAt(pos: THREE.Vector3) {
@@ -158,10 +185,31 @@ export class Player implements IControllable {
     this.weapon.reset()
     this.shield.reset()
     this.alive = true
-    this.isFlashing = false
+    this.deathTime = -Infinity
+    this.spawnTime = Date.now()        // запускаем рост из нуля с перелётом
     this.respawnTimer = 0
+    this.body.setHittable(true)
     this.body.material.color.copy(this.baseColor)
-    this.body.mesh.scale.setScalar(1)
+    this.body.mesh.scale.setScalar(0)  // анимация дотянет до 1
+  }
+
+  /** Масштаб тела во время смерти/респауна; null — работает обычная windup-логика. */
+  private lifecycleScale(): number | null {
+    const now = Date.now()
+    if (!this.alive) {
+      const t = Math.min((now - this.deathTime) / DEATH_ANIM_MS, 1)
+      return Math.max(0, 1 - t * t)                     // сдувание, ускоряясь к нулю
+    }
+    const st = (now - this.spawnTime) / SPAWN_ANIM_MS
+    if (st < 1) return this.easeOutBack(Math.max(0, st))   // рост с упругим перелётом за 1.0
+    return null
+  }
+
+  /** easeOutBack: из 0 в 1 с перелётом выше 1.0 (упругий «отскок»). */
+  private easeOutBack(t: number): number {
+    const s = SPAWN_OVERSHOOT
+    const p = t - 1
+    return 1 + (s + 1) * p * p * p + s * p * p
   }
 
   setBodyVisible(v: boolean) {
@@ -214,6 +262,7 @@ export class Player implements IControllable {
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
   get bodyScale() { return this.body.mesh.scale.x }   // debug: текущий масштаб шара
+  get bodyIsVisible() { return this.bodyVisible }     // FP=false (тело скрыто) / TP/соперник=true
 
   /** Свой игрок (клиент): запомнить авторитетную позицию из снапшота для реконсиляции. */
   setAuthoritative(pos: THREE.Vector3) { this.body.applyNetTarget(pos) }
@@ -226,9 +275,9 @@ export class Player implements IControllable {
 
   /** Смерть удалённого по событию KILL (клиент): авторитет уже решил, щит не проверяем. */
   applyDeath() {
+    if (!this.alive) return
     this.alive = false
-    this.isFlashing = true
-    this.body.material.color.set('red')
+    this.startDeath()
   }
 
   /** Кадр удалённого игрока на клиенте: только косметика, без боёвки/физики. */
@@ -236,19 +285,27 @@ export class Player implements IControllable {
     // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing })
+    this.burst.update(dt)
     this.applyRemoteVisual()
   }
 
   private applyRemoteVisual() {
     const mat = this.body.material
+    const lc = this.lifecycleScale()
+    if (lc !== null) {   // смерть/респаун диктуют масштаб (в своём цвете, без вспышки)
+      this.body.mesh.scale.setScalar(lc)
+      mat.color.copy(this.baseColor)
+      this.shield.object3d.visible = false
+      return
+    }
     const shrinkP = Math.min((Date.now() - this.netFireTime) / (BOT_WINDUP / 3), 1)   // как в syncVisuals
     if (this.netWindup > 0) {
       this.body.mesh.scale.setScalar(1 + this.netWindup * WINDUP_SCALE_GAIN)
       mat.color.lerpColors(this.baseColor, this.whiteColor, this.netWindup)
-    } else if (shrinkP < 1 && !this.isFlashing) {
+    } else if (shrinkP < 1) {
       this.body.mesh.scale.setScalar(1 + WINDUP_SCALE_GAIN * (1 - shrinkP))   // плавное сдувание после выстрела
       mat.color.copy(this.baseColor)
-    } else if (!this.isFlashing) {
+    } else {
       this.body.mesh.scale.setScalar(1)
       mat.color.copy(this.baseColor)
     }
@@ -260,5 +317,6 @@ export class Player implements IControllable {
     this.shield.dispose()
     this.body.dispose()
     this.trail.dispose()
+    this.burst.dispose()
   }
 }

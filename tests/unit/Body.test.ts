@@ -57,6 +57,16 @@ describe('Body', () => {
     expect(hitbox.visible).toBe(false)
   })
 
+  it('setHittable переключает хитбокс как raycast-цель', () => {
+    const b = new Body(0, '#4af')
+    const hitbox = b.object3d.children[1] as THREE.Mesh
+    expect(hitbox.userData.noRaycast).toBeFalsy()   // изначально цель
+    b.setHittable(false)
+    expect(hitbox.userData.noRaycast).toBe(true)     // мёртвый — не цель
+    b.setHittable(true)
+    expect(hitbox.userData.noRaycast).toBe(false)
+  })
+
   it('dash() стартует только если кулдаун готов и dir≠0', () => {
     const b = new Body(0, '#4af')
     expect(b.dash(new THREE.Vector3(0, 0, 0))).toBe(false)   // нет направления

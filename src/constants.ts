@@ -36,9 +36,20 @@ export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
 export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
 export const MUZZLE_Y     = -0.3   // начало луча (грудь) относительно position
-export const RESPAWN_DELAY = 150   // мс между смертью и репозицией (под death-flash)
+export const RESPAWN_DELAY = 260   // мс между смертью и телепортом: > DEATH_ANIM_MS, чтобы шар телепортировался уже невидимым (scale 0)
 
 export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тела во время заряда выстрела
+
+// Смерть/респаун — быстрые, но заметные (не тормозят динамику боя).
+export const DEATH_ANIM_MS  = 240   // сдувание шара до нуля (полностью укладывается в RESPAWN_DELAY)
+export const SPAWN_ANIM_MS  = 280   // рост из нуля с упругим перелётом (easeOutBack)
+export const SPAWN_OVERSHOOT = 1.7  // коэффициент перелёта easeOutBack (>0 — насколько шар «перепрыгнет» 1.0)
+// Хлопок частиц в момент смерти (world-space, цвет игрока). Гаснут сами — на динамику не влияют.
+export const DEATH_BURST_COUNT   = 14
+export const DEATH_BURST_RADIUS  = 0.16
+export const DEATH_BURST_LIFE    = 400   // мс
+export const DEATH_BURST_SPEED   = 6     // ед/с — разлёт наружу
+export const DEATH_BURST_OPACITY = 0.9
 
 // PointerLock: Chrome блокирует повторный requestPointerLock ~1.25с после выхода.
 export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед повторным входом (кнопка «Продолжить»)
