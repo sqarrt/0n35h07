@@ -5,9 +5,9 @@ import type { LobbyView } from '../../src/net/LobbySession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID } from '../../src/constants'
 
-const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa' }
+const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp' }
 
-const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4' }
+const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp' }
 
 /** Поднимает хост+клиент на loopback (доставка синхронная → хендшейк завершается сразу). */
 function handshake(clientProfile: PlayerProfile) {
@@ -23,19 +23,19 @@ function handshake(clientProfile: PlayerProfile) {
 
 describe('LobbySession — назначение цветов хостом', () => {
   it('клиент с тем же основным цветом, что у хоста, получает свой резервный', () => {
-    const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa' })
+    const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp' })
     const clientEntry = hostView.roster.find(r => r.id === 1)!
     expect(clientEntry.color).toBe('#4fa')   // основной #4af занят хостом → резервный
     expect(clientEntry.name).toBe('Гость')
   })
 
   it('клиент со свободным основным цветом получает именно его', () => {
-    const { hostView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa' })
+    const { hostView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp' })
     expect(hostView.roster.find(r => r.id === 1)!.color).toBe('#fd4')
   })
 
   it('клиент получает свой id и общий ростер (ASSIGN дошёл)', () => {
-    const { clientView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa' })
+    const { clientView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp' })
     expect(clientView.connected).toBe(true)
     expect(clientView.localPlayerId).toBe(1)
     expect(clientView.roster.map(r => r.id).sort()).toEqual([0, 1])

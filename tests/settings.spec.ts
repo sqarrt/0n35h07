@@ -21,6 +21,15 @@ test('настройки — показывают 3D-превью шара (canv
   await expect(page.getByText('РЕЗЕРВНЫЙ', { exact: true })).toBeVisible()
 })
 
+test('настройки — вид по умолчанию (FP/TP) переключается и сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await expect(page.getByText('ВИД ПО УМОЛЧАНИЮ')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'ОТ 1 ЛИЦА' })).toBeVisible()
+  await page.getByRole('button', { name: 'ОТ 3 ЛИЦА' }).click()
+  const view = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').defaultView)
+  expect(view).toBe('tp')   // персист в профиль
+})
+
 test('настройки — имя сохраняется и видно в лобби как «(вы)»', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')

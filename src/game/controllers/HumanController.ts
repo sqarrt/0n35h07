@@ -33,13 +33,15 @@ export class HumanController implements Controller {
     keys: React.MutableRefObject<Keys>,
     controls: React.RefObject<any>,
     world: World,
+    startThirdPerson = false,
   ) {
     this.player = player
     this.camera = camera
     this.keys = keys
     this.controls = controls
     this.world = world
-    player.setBodyVisible(false)   // старт в FP — модель скрыта
+    this.thirdPerson = startThirdPerson
+    player.setBodyVisible(startThirdPerson)   // стартовый вид по настройке (FP скрывает модель)
   }
 
   // --- рёберные события от DOM (вызывает хост) ---
