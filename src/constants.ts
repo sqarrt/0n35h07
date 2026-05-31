@@ -11,6 +11,7 @@ export const SHIELD_COOLDOWN = 2000
 
 // Player movement
 export const MOVE_SPEED = 7
+export const AIM_RANGE  = 100   // дальность луча прицела/выстрела при промахе (ед.)
 export const EYE_HEIGHT = 1.7
 export const JUMP_FORCE = 8
 export const GRAVITY    = -22

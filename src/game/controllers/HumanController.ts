@@ -2,12 +2,15 @@ import * as THREE from 'three'
 import type { Controller } from '../abstractions'
 import type { Player } from '../Player'
 import type { World } from '../World'
+import { horizontalBasis, moveVelocity, dashDirection } from './movement'
+import type { MoveKeys } from './movement'
+import { toVec3 } from '../../net/protocol'
+import type { InputFrame } from '../../net/protocol'
 import {
-  MOVE_SPEED, WINDUP_MOVE_FACTOR, WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV,
+  WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV, AIM_RANGE,
 } from '../../constants'
 
-interface Keys { forward: boolean; back: boolean; left: boolean; right: boolean }
-const UP = new THREE.Vector3(0, 1, 0)
+type Keys = MoveKeys
 
 /** Человек: клавиши/мышь/камера → те же intent-методы Player, что и у бота. */
 export class HumanController implements Controller {
@@ -21,6 +24,8 @@ export class HumanController implements Controller {
   private keys: React.MutableRefObject<Keys>
   private controls: React.RefObject<any>
   private world: World
+  // Рёберные действия за кадр — для сетевого InputFrame (клиент шлёт хосту).
+  private pending = { jump: false, fire: false, shield: false, dash: false }
 
   constructor(
     player: Player,
@@ -38,20 +43,15 @@ export class HumanController implements Controller {
   }
 
   // --- рёберные события от DOM (вызывает хост) ---
-  onFire()    { if (document.pointerLockElement) this.player.startFiring() }
-  onShield()  { if (document.pointerLockElement) this.player.activateShield() }
-  onJump()    { if (document.pointerLockElement) this.player.jump() }
+  onFire()    { if (document.pointerLockElement) { this.player.startFiring();    this.pending.fire = true } }
+  onShield()  { if (document.pointerLockElement) { this.player.activateShield(); this.pending.shield = true } }
+  onJump()    { if (document.pointerLockElement) { this.player.jump();           this.pending.jump = true } }
   onDash() {
     if (!document.pointerLockElement) return
+    this.pending.dash = true
     const { dir, right } = this.basis()
-    const k = this.keys.current
-    const d = new THREE.Vector3()
-    if (k.forward) d.add(dir)
-    if (k.back)    d.sub(dir)
-    if (k.right)   d.add(right)
-    if (k.left)    d.sub(right)
-    if (d.lengthSq() === 0) return   // нет WASD — рывок не делаем
-    this.player.dash(d.normalize())
+    const d = dashDirection(this.keys.current, dir, right)
+    if (d) this.player.dash(d)
   }
   shake()     { this.shakeFrames = 5 }
   toggleView() {
@@ -61,11 +61,22 @@ export class HumanController implements Controller {
 
   /** Камера-относительные горизонтальные оси (для движения и направления рывка). */
   private basis() {
-    const dir = this.camera.getWorldDirection(this.tmp).clone()
-    dir.y = 0
-    dir.normalize()
-    const right = new THREE.Vector3().crossVectors(dir, UP).normalize()
-    return { dir, right }
+    return horizontalBasis(this.camera.getWorldDirection(this.tmp))
+  }
+
+  /** Собрать кадр ввода для отправки хосту (клиент). Сбрасывает рёберные защёлки. */
+  currentInputFrame(seq: number): InputFrame {
+    const k = this.keys.current
+    const look = this.camera.getWorldDirection(new THREE.Vector3())
+    const frame: InputFrame = {
+      seq,
+      keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
+      aimDir: toVec3(look),
+      jump: this.pending.jump, fire: this.pending.fire,
+      shield: this.pending.shield, dash: this.pending.dash,
+    }
+    this.pending = { jump: false, fire: false, shield: false, dash: false }
+    return frame
   }
 
   // --- intents (до физики) ---
@@ -73,22 +84,14 @@ export class HumanController implements Controller {
     // Меню открыто (указатель не захвачен) — игрок не двигается и не целится.
     if (!document.pointerLockElement) return
     const { dir, right } = this.basis()
-
-    const k = this.keys.current
-    const vel = new THREE.Vector3()
-    if (k.forward) vel.addScaledVector(dir, MOVE_SPEED)
-    if (k.back)    vel.addScaledVector(dir, -MOVE_SPEED)
-    if (k.left)    vel.addScaledVector(right, -MOVE_SPEED)
-    if (k.right)   vel.addScaledVector(right, MOVE_SPEED)
-    if (this.player.isWindingUp) vel.multiplyScalar(WINDUP_MOVE_FACTOR)
-    this.player.moveIntent(vel, dt)
+    this.player.moveIntent(moveVelocity(this.keys.current, dir, right, this.player.isWindingUp), dt)
 
     // Прицел = точка мира под перекрестием: луч из камеры (исключая своё тело).
     const camDir = this.camera.getWorldDirection(new THREE.Vector3())
     const hit = this.world.raycast(this.camera.position, camDir, [this.player.id])
     const aimPoint = hit
       ? hit.point
-      : this.camera.position.clone().addScaledVector(camDir, 100)
+      : this.camera.position.clone().addScaledVector(camDir, AIM_RANGE)
     this.player.aim(aimPoint)
   }
 
