@@ -1,0 +1,40 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { loadProfile, saveProfile, DEFAULT_NAMES, NAME_MAX } from '../../src/settings'
+import { PLAYER_COLORS } from '../../src/constants'
+
+beforeEach(() => localStorage.clear())
+
+describe('settings / PlayerProfile', () => {
+  it('первый запуск: случайное шуточное имя из списка + цвета из палитры, и сразу сохранён', () => {
+    const p = loadProfile()
+    expect(DEFAULT_NAMES).toContain(p.name)
+    expect(PLAYER_COLORS).toContain(p.primaryColor)
+    expect(PLAYER_COLORS).toContain(p.reserveColor)
+    expect(p.reserveColor).not.toBe(p.primaryColor)
+    // Записан → второй вызов возвращает то же (не перегенерирует)
+    expect(loadProfile()).toEqual(p)
+  })
+
+  it('save → load roundtrip', () => {
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff' })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff' })
+  })
+
+  it('санитайз: имя обрезается, пустое → «Игрок», цвет вне палитры → дефолт', () => {
+    saveProfile({ name: '   ', primaryColor: 'not-a-color', reserveColor: '#4fa' })
+    const p = loadProfile()
+    expect(p.name).toBe('Игрок')
+    expect(p.primaryColor).toBe(PLAYER_COLORS[0])
+    expect(p.reserveColor).toBe('#4fa')
+
+    saveProfile({ name: 'X'.repeat(50), primaryColor: '#4af', reserveColor: '#fa4' })
+    expect(loadProfile().name.length).toBe(NAME_MAX)
+  })
+
+  it('резерв не может совпасть с основным — сдвигается', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#4af' })
+    const p = loadProfile()
+    expect(p.reserveColor).not.toBe('#4af')
+    expect(PLAYER_COLORS).toContain(p.reserveColor)
+  })
+})

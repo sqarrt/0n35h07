@@ -1,0 +1,91 @@
+import { useState } from 'react'
+import type { CSSProperties } from 'react'
+import { PLAYER_COLORS } from '../constants'
+import { NAME_MAX, saveProfile } from '../settings'
+import type { PlayerProfile } from '../settings'
+import { dimBtn, screenOverlay } from './styles'
+
+interface SettingsProps {
+  profile: PlayerProfile
+  onChange: (p: PlayerProfile) => void
+  onBack: () => void
+}
+
+const swatch = (color: string, selected: boolean, disabled: boolean): CSSProperties => ({
+  width: 34, height: 34, borderRadius: '50%', background: color,
+  border: selected ? '3px solid #ccd' : '2px solid #223',
+  opacity: disabled ? 0.25 : 1,
+  cursor: disabled ? 'default' : 'pointer',
+  boxShadow: selected ? `0 0 10px ${color}` : 'none',
+})
+
+export function Settings({ profile, onChange, onBack }: SettingsProps) {
+  const [name, setName] = useState(profile.name)
+  const [primary, setPrimary] = useState(profile.primaryColor)
+  const [reserve, setReserve] = useState(profile.reserveColor)
+
+  const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
+
+  const handleName = (v: string) => {
+    const next = v.slice(0, NAME_MAX)
+    setName(next)
+    commit({ name: next, primaryColor: primary, reserveColor: reserve })
+  }
+  const handlePrimary = (c: string) => {
+    setPrimary(c)
+    // Резерв не может совпасть с основным — сдвигаем на первый отличный.
+    const nextReserve = c === reserve ? (PLAYER_COLORS.find(x => x !== c) ?? reserve) : reserve
+    setReserve(nextReserve)
+    commit({ name, primaryColor: c, reserveColor: nextReserve })
+  }
+  const handleReserve = (c: string) => {
+    if (c === primary) return
+    setReserve(c)
+    commit({ name, primaryColor: primary, reserveColor: c })
+  }
+
+  const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
+  const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
+
+  return (
+    <div style={screenOverlay}>
+      <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
+
+      <div style={{ marginBottom: '1.6rem', textAlign: 'center' }}>
+        <div style={label}>ИМЯ</div>
+        <input
+          value={name}
+          onChange={e => handleName(e.target.value)}
+          maxLength={NAME_MAX}
+          aria-label="Имя игрока"
+          style={{
+            background: 'transparent', border: '1px solid #4af', color: '#ccd',
+            fontFamily: 'monospace', fontSize: '1.3rem', letterSpacing: '0.1em',
+            textAlign: 'center', padding: '0.5rem 1rem', width: '16rem', outline: 'none',
+          }}
+        />
+      </div>
+
+      <div style={{ textAlign: 'center' }}>
+        <div style={label}>ОСНОВНОЙ ЦВЕТ</div>
+        <div style={row}>
+          {PLAYER_COLORS.map(c => (
+            <div key={c} role="button" aria-label={`основной ${c}`} title={c}
+              style={swatch(c, c === primary, false)} onClick={() => handlePrimary(c)} />
+          ))}
+        </div>
+
+        <div style={label}>РЕЗЕРВНЫЙ ЦВЕТ (когда основной занят)</div>
+        <div style={row}>
+          {PLAYER_COLORS.map(c => (
+            <div key={c} role="button" aria-label={`резервный ${c}`} title={c}
+              style={swatch(c, c === reserve, c === primary)}
+              onClick={() => handleReserve(c)} />
+          ))}
+        </div>
+      </div>
+
+      <button style={dimBtn} onClick={onBack}>НАЗАД</button>
+    </div>
+  )
+}

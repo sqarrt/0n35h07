@@ -3,9 +3,10 @@ import { btn, screenOverlay } from './styles'
 interface MainMenuProps {
   onCreateLobby: () => void
   onJoinLobby: () => void
+  onSettings: () => void
 }
 
-export function MainMenu({ onCreateLobby, onJoinLobby }: MainMenuProps) {
+export function MainMenu({ onCreateLobby, onJoinLobby, onSettings }: MainMenuProps) {
   return (
     <div style={screenOverlay}>
       <h1 style={{
@@ -18,6 +19,7 @@ export function MainMenu({ onCreateLobby, onJoinLobby }: MainMenuProps) {
       </h1>
       <button style={btn} onClick={onCreateLobby}>СОЗДАТЬ ЛОББИ</button>
       <button style={btn} onClick={onJoinLobby}>ВОЙТИ В ЛОББИ</button>
+      <button style={btn} onClick={onSettings}>НАСТРОЙКИ</button>
     </div>
   )
 }
