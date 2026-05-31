@@ -3,6 +3,7 @@ import type { RapierRigidBody } from '@react-three/rapier'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
   DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
+  BALL_RADIUS, BALL_SEGMENTS,
 } from '../constants'
 
 type XYZ = { x: number; y: number; z: number }
@@ -31,7 +32,7 @@ export class Body {
 
   constructor(entityId: number, color: string) {
     this.material = new THREE.MeshStandardMaterial({ color })
-    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), this.material)
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true
     this.mesh.userData.noRaycast = true

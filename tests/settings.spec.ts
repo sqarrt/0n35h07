@@ -12,6 +12,15 @@ test('настройки — экран открывается и показыв
   await expect(page.getByText(/РЕЗЕРВНЫЙ ЦВЕТ/)).toBeVisible()
 })
 
+test('настройки — показывают 3D-превью шара (canvas) и подпись слота', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await expect(page.locator('canvas')).toBeVisible()          // на экране настроек единственный canvas — превью
+  await expect(page.getByText('ОСНОВНОЙ', { exact: true })).toBeVisible()   // подпись активного слота
+  // Клик по резервному свотчу переключает превью на резервный слот
+  await page.getByRole('button', { name: 'резервный #fa4' }).click()
+  await expect(page.getByText('РЕЗЕРВНЫЙ', { exact: true })).toBeVisible()
+})
+
 test('настройки — имя сохраняется и видно в лобби как «(вы)»', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')
