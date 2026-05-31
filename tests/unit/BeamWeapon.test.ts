@@ -68,4 +68,19 @@ describe('BeamWeapon', () => {
     w.beginWindup()
     expect(w.isWindingUp).toBe(false)
   })
+
+  it('interrupt() из windup → cooldown без выстрела', () => {
+    const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
+    w.beginWindup()
+    w.interrupt()
+    expect(w.isWindingUp).toBe(false)
+    expect(w.justFired).toBe(false)
+    expect(w.cooldownProgress()).toBeLessThan(1)
+  })
+
+  it('interrupt() вне windup — no-op', () => {
+    const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
+    w.interrupt()
+    expect(w.cooldownProgress()).toBe(1)
+  })
 })

@@ -164,6 +164,14 @@ export class BeamWeapon implements IWeapon {
     }
   }
 
+  /** Отменяет заряд (windup) и переводит оружие в кулдаун без выстрела. Иначе — no-op. */
+  interrupt() {
+    if (this.phase !== 'windup') return
+    this.phase = 'cooldown'
+    this.cooldownRemaining = this.cooldownDuration
+    this.windupElapsed = 0
+  }
+
   reset() {
     this.phase = 'idle'
     this.windupElapsed = 0

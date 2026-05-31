@@ -27,6 +27,7 @@ export interface IWeapon {
   beginWindup(): void
   update(dt: number, ctx: WeaponContext): void
   reset(): void
+  interrupt(): void
   spawnImpact(point: THREE.Vector3): void
   readonly object3d:        THREE.Object3D
   readonly isWindingUp:     boolean

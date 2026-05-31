@@ -24,6 +24,7 @@ class StubWeapon implements IWeapon {
   beginWindup() {}
   update(_dt: number, ctx: WeaponContext) { this.lastAim = ctx.aim.clone() }
   reset() {}
+  interrupt() {}
   spawnImpact() {}
   cooldownProgress() { return 1 }
   clearJustFired() {}
