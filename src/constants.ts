@@ -31,6 +31,11 @@ export const DASH_TRAIL_GHOST_INTERVAL = 16    // мс между клонами
 export const DASH_TRAIL_GHOST_LIFE     = 260   // мс жизни клона
 export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 
+// Сфера-тело: радиус/детализация (общие для игрового меша и превью в настройках).
+export const BALL_RADIUS   = 0.5
+export const BALL_SEGMENTS = 16
+export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вращение шара в превью настроек
+
 // Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
