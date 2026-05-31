@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { BotDifficulty } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -12,9 +13,17 @@ export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event
 export type NetTag = typeof NET_TAGS[number]
 
 // --- handshake (лобби) ---
+export type PlayerKind = 'human' | 'bot'
+/** Один игрок матча (человек или бот). Хост раздаёт весь ростер клиентам. */
+export interface RosterEntry {
+  id:     number
+  name:   string
+  color:  string
+  kind:   PlayerKind
+  difficulty?: BotDifficulty   // только для kind==='bot'
+}
 export interface Hello { name: string }
-export interface PeerInfo { id: number; name: string; color: string }
-export interface Assign { yourId: number; peers: PeerInfo[] }
+export interface Assign { yourId: number; roster: RosterEntry[] }
 export type Start = Record<string, never>   // пока пусто; место под seed/настройки матча
 
 // --- ввод клиента → хост (часто) ---

@@ -1,15 +1,15 @@
 import { describe, it, expect, vi } from 'vitest'
 import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
-import type { PeerInfo, Snapshot } from '../../src/net/protocol'
+import type { RosterEntry, Snapshot } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
 
-const PEERS: PeerInfo[] = [
-  { id: 0, name: 'A', color: '#4af' },
-  { id: 1, name: 'B', color: '#f44' },
+const ROSTER: RosterEntry[] = [
+  { id: 0, name: 'A', color: '#4af', kind: 'human' },
+  { id: 1, name: 'B', color: '#f44', kind: 'human' },
 ]
 
-function makeMatch(role: MatchRole, localId: number) {
+function makeMatch(role: MatchRole, localId: number, roster: RosterEntry[] = ROSTER) {
   const dispatch = vi.fn()
   const match = new Match({
     scene: new THREE.Scene(),
@@ -19,7 +19,7 @@ function makeMatch(role: MatchRole, localId: number) {
     dispatch,
     botDifficulties: [],
     role,
-    netConfig: { localId, peers: PEERS },
+    netConfig: { localId, roster },
   })
   return { match, dispatch }
 }
@@ -53,6 +53,16 @@ describe('Match — сетевой режим', () => {
     match.applySnapshot(snap)
     expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)   // удалённый
     expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)  // свой — предсказывается
+  })
+
+  it('host с ботом (вырожденный p2p-лобби): бот в ростере попадает в снапшот', () => {
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
+      { id: 1, name: 'Бот 1', color: '#5af', kind: 'bot', difficulty: 'normal' },
+    ]
+    const { match } = makeMatch('host', 0, roster)
+    expect(match.players.map(p => p.id).sort()).toEqual([0, 1])
+    expect(match.serializeSnapshot().players).toHaveLength(2)
   })
 
   it('host: ввод клиента двигает его аватар (pushRemoteInput → update)', () => {

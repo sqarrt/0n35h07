@@ -11,15 +11,13 @@ import type { Controller } from './abstractions'
 import type { HUDAction } from '../hooks/useGameHUD'
 import type { BotDifficulty, MatchRole } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
-import type { InputFrame, Snapshot, MatchEvent, PeerInfo } from '../net/protocol'
+import type { InputFrame, Snapshot, MatchEvent, RosterEntry } from '../net/protocol'
 import {
   EYE_HEIGHT, BOT_WINDUP, BOT_COLOR_BASE, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
-  WINDUP_MOVE_FACTOR,
+  WINDUP_MOVE_FACTOR, BOT_TEAM, NET_HUMAN_SPAWN_Z,
 } from '../constants'
 
-const NET_SPAWN_Z = 5   // 1v1: игроки спавнятся друг напротив друга по ±Z (детерминированно у обоих)
-
-interface NetConfig { localId: number; peers: PeerInfo[] }
+interface NetConfig { localId: number; roster: RosterEntry[] }
 interface MatchOptions {
   scene:    THREE.Scene
   camera:   THREE.PerspectiveCamera
@@ -91,7 +89,7 @@ export class Match {
   private buildLocalPlayers(o: MatchOptions) {
     const human = new Player(0, 0, new Body(0, '#4af'),
       new BeamWeapon({ outerColor: '#0ff' }), new Shield(), '#4af')
-    human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, NET_SPAWN_Z))
+    human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, NET_HUMAN_SPAWN_Z))
     const humanController = new HumanController(human, o.camera, o.keys, o.controls, this.world)
 
     const bots = o.botDifficulties.map((_, i) => {
@@ -110,30 +108,48 @@ export class Match {
 
   private buildNetPlayers(o: MatchOptions, net: NetConfig) {
     // Стабильный порядок у обоих пиров → одинаковые точки спавна.
-    const peers = [...net.peers].sort((a, b) => a.id - b.id)
+    const roster = [...net.roster].sort((a, b) => a.id - b.id)
     let human!: Player
     let humanController!: HumanController
     const controllers: Controller[] = []
+    let humanIndex = 0
 
-    peers.forEach((peer, i) => {
-      // Каждый игрок — своя команда (id) → бьют друг друга, raycast исключает лишь себя.
-      const p = new Player(peer.id, peer.id, new Body(peer.id, peer.color),
-        new BeamWeapon({ outerColor: peer.color }), new Shield(), peer.color)
-      p.name = peer.name
-      p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, i === 0 ? NET_SPAWN_Z : -NET_SPAWN_Z))
-      this.byId.set(peer.id, p)
+    for (const e of roster) {
+      const isBot = e.kind === 'bot'
+      // Люди — каждый своя команда (бьют друг друга и ботов); боты — общая BOT_TEAM (нет бот-в-бота).
+      const p = isBot
+        ? new Player(e.id, BOT_TEAM, new Body(e.id, e.color),
+            new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
+            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
+            e.color)
+        : new Player(e.id, e.id, new Body(e.id, e.color),
+            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
+      p.name = e.name
 
-      if (peer.id === net.localId) {
+      if (isBot) {
+        // Бот: на хосте — авторитетный случайный спавн; на клиенте — нейтральная точка (поправит снапшот).
+        p.respawnAt(this.role === 'host' ? this.world.randomSpawn() : new THREE.Vector3(0, EYE_HEIGHT, 0))
+      } else {
+        p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, humanIndex === 0 ? NET_HUMAN_SPAWN_Z : -NET_HUMAN_SPAWN_Z))
+        humanIndex++
+      }
+      this.byId.set(e.id, p)
+
+      if (e.id === net.localId) {
         human = p
         humanController = new HumanController(p, o.camera, o.keys, o.controls, this.world)
         controllers.push(humanController)
       } else if (this.role === 'host') {
-        const rc = new RemoteInputController(p, this.world)
-        this.remoteControllers.set(peer.id, rc)
-        controllers.push(rc)
+        if (isBot) {
+          controllers.push(new BotController(p, () => this.human.position, { passive: e.difficulty === 'passive' }))
+        } else {
+          const rc = new RemoteInputController(p, this.world)
+          this.remoteControllers.set(e.id, rc)
+          controllers.push(rc)
+        }
       }
-      // client: удалённые игроки без контроллера — ведём из снапшотов
-    })
+      // client: все, кроме локального, — без контроллера, ведём из снапшотов
+    }
     return { human, humanController, controllers }
   }
 
