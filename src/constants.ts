@@ -52,6 +52,8 @@ export const BOT_TEAM = -1            // общая команда всех бо
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: люди спавнятся друг напротив друга по ±Z (детерминированно)
 export const MAX_PLAYERS = 4          // людей+ботов в лобби
 export const HUMAN_COLORS = ['#4af', '#fa4', '#4fa', '#f4a']   // цвета людей по индексу (хост = [0])
+// TURN-хук: пусто = только STUN (хватает домашним сетям). Добавь серверы для мобильных/CGNAT.
+export const NET_ICE_SERVERS: RTCIceServer[] = []
 
 // Bot
 export const TARGET_SPEED        = 2.5

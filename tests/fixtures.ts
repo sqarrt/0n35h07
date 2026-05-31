@@ -35,6 +35,11 @@ export const test = base.extend<{ page: Page }>({
       await use(cdpPage)
       // Don't close — same tab is reused by the next test
     } else {
+      // e2e всегда на BroadcastChannel (без внешних трекеров Trystero). Применяется и к
+      // страницам, созданным через context.newPage() (multiplayer.spec).
+      await page.context().addInitScript(() => {
+        try { localStorage.setItem('oneshot:net', 'bc') } catch { /* ignore */ }
+      })
       await use(page)
     }
   },

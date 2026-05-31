@@ -1,18 +1,27 @@
 import type { INet } from './INet'
 import { BroadcastChannelNet } from './BroadcastChannelNet'
+import { TrysteroNet } from './TrysteroNet'
+import { NET_ICE_SERVERS } from '../constants'
 
 export type NetKind = 'bc' | 'trystero'
 
-/** Транспорт из ?net= (по умолчанию BroadcastChannel — для e2e и игры «в две вкладки»). */
+/**
+ * Выбор транспорта: ?net= → localStorage('oneshot:net') → по умолчанию Trystero (интернет-P2P).
+ * e2e/локальная отладка форсят 'bc' (BroadcastChannel — same-origin, без внешних трекеров).
+ */
 export function resolveNetKind(): NetKind {
-  const p = new URLSearchParams(window.location.search).get('net')
-  return p === 'trystero' ? 'trystero' : 'bc'
+  const q = new URLSearchParams(window.location.search).get('net')
+  if (q === 'bc' || q === 'trystero') return q
+  try {
+    const ls = localStorage.getItem('oneshot:net')
+    if (ls === 'bc' || ls === 'trystero') return ls
+  } catch { /* localStorage недоступен — игнор */ }
+  return 'trystero'
 }
 
-/**
- * Фабрика транспорта по коду лобби. Пока всегда BroadcastChannel (same-origin);
- * TrysteroNet (интернет-P2P) подключим отдельным этапом и выберем по resolveNetKind().
- */
+/** Фабрика транспорта по коду лобби. */
 export function createNet(code: string): INet {
-  return new BroadcastChannelNet(code)
+  return resolveNetKind() === 'bc'
+    ? new BroadcastChannelNet(code)
+    : new TrysteroNet(code, NET_ICE_SERVERS)
 }
