@@ -1,33 +1,45 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { Body } from '../../src/game/Body'
-import { EYE_HEIGHT } from '../../src/constants'
+import { JUMP_FORCE } from '../../src/constants'
 
+// Body больше не интегрирует позицию (это делает Rapier KCC) — он копит НАМЕРЕНИЕ.
 describe('Body', () => {
-  it('на земле без прыжка не падает', () => {
+  it('move() копит горизонтальное намерение (Y не трогает)', () => {
     const b = new Body(0, '#4af')
-    b.setPosition(new THREE.Vector3(0, EYE_HEIGHT, 0))
-    b.update(0.1)
-    expect(b.position.y).toBe(EYE_HEIGHT)
-  })
-
-  it('jump() поднимает, затем гравитация возвращает на землю', () => {
-    const b = new Body(0, '#4af')
-    b.setPosition(new THREE.Vector3(0, EYE_HEIGHT, 0))
-    b.jump()
-    b.update(0.05)
-    expect(b.position.y).toBeGreaterThan(EYE_HEIGHT)        // взлетел
-    for (let i = 0; i < 60; i++) b.update(0.05)             // ~3с — приземлился
-    expect(b.position.y).toBe(EYE_HEIGHT)
-  })
-
-  it('move() двигает только по X/Z, Y не трогает', () => {
-    const b = new Body(0, '#4af')
-    b.setPosition(new THREE.Vector3(0, EYE_HEIGHT, 0))
     b.move(new THREE.Vector3(3, 99, -2), 1)
-    expect(b.position.x).toBeCloseTo(3)
-    expect(b.position.z).toBeCloseTo(-2)
-    expect(b.position.y).toBe(EYE_HEIGHT)
+    const d = b.consumeDesired()
+    expect(d.x).toBeCloseTo(3)
+    expect(d.z).toBeCloseTo(-2)
+    expect(d.y).toBe(0)
+    expect(b.consumeDesired().x).toBe(0)   // consumeDesired обнуляет
+  })
+
+  it('jump() задаёт скорость только на земле', () => {
+    const b = new Body(0, '#4af')
+    expect(b.grounded).toBe(true)
+    b.jump()
+    expect(b.velocityY).toBe(JUMP_FORCE)
+    b.setGrounded(false)
+    b.velocityY = 0
+    b.jump()                               // в воздухе — игнор
+    expect(b.velocityY).toBe(0)
+  })
+
+  it('stepVertical() копит падение в desired.y', () => {
+    const b = new Body(0, '#4af')
+    b.setGrounded(false)
+    b.stepVertical(0.1)
+    expect(b.velocityY).toBeLessThan(0)    // гравитация тянет вниз
+    expect(b.consumeDesired().y).toBeLessThan(0)
+  })
+
+  it('setGrounded(true) обнуляет вертикальную скорость', () => {
+    const b = new Body(0, '#4af')
+    b.setGrounded(false)
+    b.velocityY = -5
+    b.setGrounded(true)
+    expect(b.velocityY).toBe(0)
   })
 
   it('setVisible() переключает видимость меша тела', () => {

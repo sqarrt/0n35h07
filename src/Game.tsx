@@ -1,11 +1,14 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect, useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
+import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import type { HUDAction } from './hooks/useGameHUD'
+import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
 import type { BotDifficulty } from './constants'
 
 interface GameProps {
@@ -58,13 +61,32 @@ export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
     }
   }, [match])
 
-  useFrame((_, dt) => match.update(dt))
+  // Клампим dt: скачок кадра (загрузка WASM, возврат во вкладку) не должен
+  // «промотать» заряд/кулдаун/физику за один шаг.
+  useFrame((_, dt) => match.update(Math.min(dt, 0.1)))
 
   return (
-    <>
-      <PointerLockControls ref={controlsRef} />
-      <Arena />
-      <primitive object={match.root} />
-    </>
+    <Suspense>
+      <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
+        <PointerLockControls ref={controlsRef} />
+        <Arena />
+        <RapierBridge match={match} />
+
+        {/* RigidBody = только физика (капсула); визуал игроков — в match.root (world-space). */}
+        {match.players.map(p => (
+          <RigidBody
+            key={p.id}
+            type="kinematicPosition"
+            colliders={false}
+            position={[p.spawn.x, p.spawn.y, p.spawn.z]}
+            ref={p.bindBody}
+          >
+            <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} position={[0, CAPSULE_OFFSET_Y, 0]} />
+          </RigidBody>
+        ))}
+
+        <primitive object={match.root} />
+      </Physics>
+    </Suspense>
   )
 }

@@ -1,22 +1,26 @@
 import * as THREE from 'three'
+import type { RapierRigidBody } from '@react-three/rapier'
 import type { IControllable, IWeapon, IShield } from './abstractions'
 import type { World } from './World'
 import { Body } from './Body'
 import {
-  MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY,
-  WINDUP_MOVE_FACTOR, EYE_HEIGHT,
+  MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, RESPAWN_DELAY, EYE_HEIGHT,
 } from '../constants'
 
 /**
  * Единая сущность игрока — и человек, и бот, и сетевой игрок. Компонует тело, оружие и
  * щит (инжектятся → DIP). Контроллеры дёргают intent-методы. Сам себя НЕ респавнит.
+ *
+ * Сцена-граф: bodyGroup (тело + хитбокс + щит) кладётся внутрь <RigidBody> (трансформ —
+ * от Rapier); луч (weaponObject) — world-space, рендерится в match.beams.
  */
 export class Player implements IControllable {
   alive = true
   respawnTimer = 0
-  readonly object3d = new THREE.Group()
   readonly id: number
   readonly team: number
+  readonly bodyGroup = new THREE.Group()
+  readonly spawn = new THREE.Vector3(0, EYE_HEIGHT, 0)
 
   private body: Body
   private weapon: IWeapon
@@ -42,7 +46,31 @@ export class Player implements IControllable {
     this.weapon = weapon
     this.shield = shield
     this.baseColor = new THREE.Color(color)
-    this.object3d.add(body.object3d, weapon.object3d, shield.object3d)
+    shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
+    this.bodyGroup.add(body.object3d, shield.object3d)
+    // Стабильная ссылка для ref={p.bindBody}: иначе инлайн-ref пере-привязывается
+    // каждый кадр (App ре-рендерит на HUD) и ломает bound → двойной трансформ хитбокса.
+    this.bindBody = this.bindBody.bind(this)
+  }
+
+  /** Луч — world-space, рендерится отдельно (вне RigidBody). */
+  get weaponObject() { return this.weapon.object3d }
+
+  // --- Rapier binding (RigidBody = только коллайдер; визуал отдельно в world-space) ---
+  bindBody(rb: RapierRigidBody | null) {
+    if (!rb) { this.body.unbind(); return }
+    this.body.bindBody(rb)
+  }
+  get rb() { return this.body.rb }
+  consumeDesired()        { return this.body.consumeDesired() }
+  consumeTeleport()       { return this.body.consumeTeleport() }
+  stepVertical(dt: number){ this.body.stepVertical(dt) }
+  setGrounded(g: boolean) { this.body.setGrounded(g) }
+
+  /** Кэшируем позицию из физ-тела и двигаем визуальную группу (она в world-space). */
+  syncFromBody() {
+    this.body.syncFromBody()
+    this.bodyGroup.position.copy(this.body.position)
   }
 
   // --- IControllable ---
@@ -52,10 +80,8 @@ export class Player implements IControllable {
   startFiring()                { this.weapon.beginWindup() }
   activateShield()             { this.shield.activate() }
 
-  // --- simulation ---
+  // --- simulation (без интеграции позиции — её делает Rapier KCC в Match.applyPhysics) ---
   update(dt: number, world: World, excludeIds: number[]) {
-    // Во время заряда вся физика (вкл. падение) замедляется — как и движение.
-    this.body.update(dt * (this.weapon.isWindingUp ? WINDUP_MOVE_FACTOR : 1))
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
@@ -68,10 +94,7 @@ export class Player implements IControllable {
   }
 
   private syncVisuals() {
-    this.shield.object3d.position.copy(this.body.position).y += BODY_MESH_Y
-    // В FP (тело скрыто) пузырь щита не рисуем — он обернул бы камеру; щит при этом
-    // продолжает блокировать попадания, индикация идёт через HUD.
-    if (!this.bodyVisible) this.shield.object3d.visible = false
+    if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
     if (this.weapon.justFired) this.fireTime = Date.now()
     if (this.isFlashing) return
 
@@ -101,6 +124,7 @@ export class Player implements IControllable {
   }
 
   respawnAt(pos: THREE.Vector3) {
+    this.spawn.copy(pos)
     this.body.setPosition(pos)
     this.weapon.reset()
     this.shield.reset()

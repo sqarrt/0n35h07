@@ -1,20 +1,24 @@
 import * as THREE from 'three'
-import {
-  EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-} from '../constants'
+import type { RapierRigidBody } from '@react-three/rapier'
+import { EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y } from '../constants'
 
 /**
- * Физическое тело сущности: позиция (точка на уровне глаз), вертикальная физика,
- * меш-сфера (визуал) и хитбокс (raycast-цель с entityId). Едино для игрока и ботов.
+ * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
+ * Body лишь КОПИТ намерение движения (desired) и кэширует позицию из rb. Меш-сфера —
+ * визуал, хитбокс — raycast-цель боёвки с entityId. Едино для игрока и ботов.
  */
 export class Body {
-  readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)
-  readonly object3d = new THREE.Group()
+  readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)   // кэш rb.translation()
+  readonly object3d = new THREE.Group()                     // локально (origin) — трансформ даёт RigidBody
   readonly mesh:     THREE.Mesh
   readonly material: THREE.MeshStandardMaterial
 
-  private velocityY = 0
-  private onGround  = true
+  rb: RapierRigidBody | null = null
+  velocityY = 0
+  grounded  = true
+
+  private desired = new THREE.Vector3()
+  private teleport: THREE.Vector3 | null = null
 
   constructor(entityId: number, color: string) {
     this.material = new THREE.MeshStandardMaterial({ color })
@@ -34,41 +38,61 @@ export class Body {
     this.object3d.add(this.mesh, hitbox)
   }
 
+  bindBody(rb: RapierRigidBody) {
+    this.rb = rb
+    this.desired.set(0, 0, 0)   // сбросить намерение, накопленное до готовности физики
+    this.velocityY = 0
+    rb.setNextKinematicTranslation(this.position)
+  }
+  unbind() { this.rb = null }
+
+  /** Горизонтальное намерение за кадр (Y даёт гравитация в stepVertical). */
   move(worldDir: THREE.Vector3, dt: number) {
-    this.position.x += worldDir.x * dt
-    this.position.z += worldDir.z * dt
+    this.desired.x += worldDir.x * dt
+    this.desired.z += worldDir.z * dt
   }
 
   jump() {
-    if (this.onGround) {
-      this.velocityY = JUMP_FORCE
-      this.onGround = false
-    }
+    if (this.grounded) this.velocityY = JUMP_FORCE
   }
 
-  update(dt: number) {
-    if (!this.onGround) {
-      this.velocityY += GRAVITY * dt
-      this.position.y += this.velocityY * dt
-    }
-    if (this.position.y <= EYE_HEIGHT) {
-      this.position.y = EYE_HEIGHT
-      this.velocityY = 0
-      this.onGround = true
-    }
-    this.object3d.position.copy(this.position)
+  /** Накопить вертикаль (вызывается из Match.applyPhysics перед шагом KCC). */
+  stepVertical(dt: number) {
+    this.velocityY += GRAVITY * dt
+    this.desired.y += this.velocityY * dt
+  }
+
+  consumeDesired(): THREE.Vector3 {
+    const d = this.desired.clone()
+    this.desired.set(0, 0, 0)
+    return d
+  }
+
+  setGrounded(g: boolean) {
+    this.grounded = g
+    if (g) this.velocityY = 0
   }
 
   setPosition(p: THREE.Vector3) {
     this.position.copy(p)
     this.velocityY = 0
-    this.onGround = p.y <= EYE_HEIGHT + 0.01
-    this.object3d.position.copy(this.position)
+    this.grounded = p.y <= EYE_HEIGHT + 0.01
+    this.teleport = p.clone()
+  }
+  consumeTeleport(): THREE.Vector3 | null {
+    const t = this.teleport
+    this.teleport = null
+    return t
   }
 
-  setVisible(v: boolean) {
-    this.mesh.visible = v
+  /** Кэшируем позицию из физического тела (результат прошлого шага). */
+  syncFromBody() {
+    if (!this.rb) return
+    const t = this.rb.translation()
+    this.position.set(t.x, t.y, t.z)
   }
+
+  setVisible(v: boolean) { this.mesh.visible = v }
 
   dispose() {
     this.mesh.geometry.dispose()

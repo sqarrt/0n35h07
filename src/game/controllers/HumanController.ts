@@ -93,7 +93,8 @@ export class HumanController implements Controller {
 
     const moving = !!(this.keys.current.forward || this.keys.current.back ||
                       this.keys.current.left || this.keys.current.right)
-    const targetFov = this.thirdPerson ? 75 : (this.player.isWindingUp ? 70 : (moving ? 87 : 75))
+    // Динамический FOV работает и в FP, и в TP.
+    const targetFov = this.player.isWindingUp ? 70 : (moving ? 87 : 75)
     this.fov = THREE.MathUtils.lerp(this.fov, targetFov, dt * 6)
     this.camera.fov = this.fov
     this.camera.updateProjectionMatrix()

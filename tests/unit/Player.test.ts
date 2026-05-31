@@ -54,11 +54,10 @@ describe('Player', () => {
     expect(p.position.z).toBe(-2)
   })
 
-  it('moveIntent() двигает тело', () => {
+  it('moveIntent() копит намерение (интеграцию делает Rapier KCC)', () => {
     const p = makePlayer()
-    const x0 = p.position.x
     p.moveIntent(new THREE.Vector3(2, 0, 0), 1)
-    expect(p.position.x).toBeCloseTo(x0 + 2)
+    expect(p.consumeDesired().x).toBeCloseTo(2)
   })
 
   it('startFiring() переводит оружие в зарядку (вшитый кулдаун)', () => {
@@ -95,22 +94,5 @@ describe('Player', () => {
     p.setBodyVisible(true)
     p.update(0.016, dummyWorld, [])
     expect(shield.object3d.visible).toBe(true)          // в TP виден
-  })
-
-  it('во время заряда физика прыжка замедляется (фикс приземления)', () => {
-    // Заряжающийся интегрирует физику медленнее (dt*factor) → за то же число кадров
-    // проходит по дуге меньше (и в итоге дольше в воздухе — как было до рефакторинга).
-    const normal = makePlayer()
-    const charging = makePlayer()
-    normal.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    charging.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    normal.jump(); charging.jump()
-    charging.startFiring()                             // заряжается → физика замедлена
-    for (let i = 0; i < 12; i++) {                     // ~190мс < windup 400
-      normal.update(0.016, dummyWorld, [])
-      charging.update(0.016, dummyWorld, [])
-    }
-    // без фикса обе позиции совпали бы (полный dt); с фиксом заряжающийся продвинулся меньше
-    expect(charging.position.y).toBeLessThan(normal.position.y)
   })
 })

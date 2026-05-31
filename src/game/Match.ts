@@ -11,6 +11,7 @@ import type { HUDAction } from '../hooks/useGameHUD'
 import type { BotDifficulty } from '../constants'
 import {
   EYE_HEIGHT, BOT_WINDUP, BOT_COLOR_BASE, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
+  WINDUP_MOVE_FACTOR,
 } from '../constants'
 
 interface MatchOptions {
@@ -24,17 +25,21 @@ interface MatchOptions {
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
 export class Match {
-  readonly root = new THREE.Group()
   readonly human: Player
   readonly bots: Player[]
+  readonly players: Player[]
   readonly humanController: HumanController
+  readonly root = new THREE.Group()    // world-space визуал: тела игроков + лучи (вне RigidBody)
 
   private world: World
-  private players: Player[]
   private controllers: Controller[]
   private byId = new Map<number, Player>()
   private teamIds = new Map<number, number[]>()
   private dispatch: MatchOptions['dispatch']
+
+  // Rapier (через RapierBridge)
+  private physicsWorld: any = null
+  private kcc: any = null
 
   private lastHud = 0
   private prevWindup = false
@@ -64,7 +69,7 @@ export class Match {
     this.players = [this.human, ...this.bots]
     this.controllers = [this.humanController, ...botControllers]
     this.players.forEach(p => {
-      this.root.add(p.object3d)
+      this.root.add(p.bodyGroup, p.weaponObject)
       this.byId.set(p.id, p)
       const ids = this.teamIds.get(p.team) ?? []
       ids.push(p.id)
@@ -72,13 +77,47 @@ export class Match {
     })
   }
 
+  // --- Rapier wiring (вызывается из RapierBridge) ---
+  attachWorld(world: any, _rapier: any) {
+    this.physicsWorld = world
+    this.kcc = world.createCharacterController(0.01)
+    this.kcc.setApplyImpulsesToDynamicBodies(false)
+    this.kcc.setUp({ x: 0, y: 1, z: 0 })
+    // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
+    // Арена плоская, скольжение по поверхностям не нужно.
+  }
+  detachWorld() {
+    if (this.physicsWorld && this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
+    this.kcc = null
+    this.physicsWorld = null
+  }
+
   update(dt: number) {
+    this.players.forEach(p => p.syncFromBody())
     this.controllers.forEach(c => c.update(dt))
     this.players.forEach(p => p.update(dt, this.world, this.teamIds.get(p.team) ?? []))
-    this.controllers.forEach(c => c.lateUpdate?.(dt))
+    this.applyPhysics(dt)
     this.resolveCombat()
     this.resolveRespawns(dt)
     this.syncHud()
+    this.controllers.forEach(c => c.lateUpdate?.(dt))
+  }
+
+  /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
+  private applyPhysics(dt: number) {
+    if (!this.kcc) return
+    for (const p of this.players) {
+      const rb = p.rb
+      if (!rb) continue
+      const t = p.consumeTeleport()
+      if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
+      p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
+      this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
+      const c = this.kcc.computedMovement()
+      const cur = rb.translation()
+      rb.setNextKinematicTranslation({ x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z })
+      p.setGrounded(this.kcc.computedGrounded())
+    }
   }
 
   private resolveCombat() {

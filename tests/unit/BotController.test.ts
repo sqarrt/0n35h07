@@ -43,12 +43,12 @@ describe('BotController', () => {
     expect(shielded).toBe(true)
   })
 
-  it('активный — движется к waypoint', () => {
+  it('активный — копит намерение движения к waypoint', () => {
     const p = makeBot()
     const bc = new BotController(p, target, {})
-    const x0 = p.position.x, z0 = p.position.z
     for (let i = 0; i < 20; i++) bc.update(0.05)   // 1с, ещё не стреляет
-    const moved = Math.abs(p.position.x - x0) > 0.01 || Math.abs(p.position.z - z0) > 0.01
-    expect(moved).toBe(true)
+    // Интеграцию позиции делает Rapier KCC; контроллер лишь накапливает desired.
+    const d = p.consumeDesired()
+    expect(Math.hypot(d.x, d.z)).toBeGreaterThan(0)
   })
 })

@@ -18,7 +18,7 @@ function makeMatch(botDifficulties: BotDifficulty[]) {
   const keys = { current: { forward: false, back: false, left: false, right: false } }
   const dispatch = vi.fn()
   const match = new Match({ scene, camera, controls: controls as any, keys: keys as any, dispatch, botDifficulties })
-  scene.add(match.root)
+  scene.add(match.root)   // тела игроков + лучи (для raycast боёвки)
   match.installDebug(camera)
   return { match, scene, camera, dispatch }
 }

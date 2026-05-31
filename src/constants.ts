@@ -34,6 +34,13 @@ export const BOT_SHIELD_DURATION = 1500
 // Arena
 export const SPAWN_HALF = 14
 
+// Физическая капсула игрока (Rapier KinematicCharacterController).
+// CapsuleCollider args = [halfHeight, radius]; высота капсулы = 2*half + 2*radius = 1.7.
+// Смещение вниз = halfHeight + radius = 0.85 → ступни на y=0 при точке глаз eye=1.7.
+export const CAPSULE_RADIUS      = 0.5
+export const CAPSULE_HALF_HEIGHT = 0.35
+export const CAPSULE_OFFSET_Y    = -0.85
+
 // Bot colors (hex strings — create THREE.Color locally where needed)
 export const BOT_COLOR_BASE  = '#5af'
 export const BOT_COLOR_WHITE = '#fff'
