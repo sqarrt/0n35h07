@@ -226,7 +226,9 @@ export class Match {
       this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
       const c = this.kcc.computedMovement()
       const cur = rb.translation()
-      rb.setNextKinematicTranslation({ x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z })
+      const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
+      if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
+      rb.setNextKinematicTranslation(next)
       p.setGrounded(this.kcc.computedGrounded())
     }
   }
@@ -329,11 +331,13 @@ export class Match {
   /** client: кадр ввода своего игрока для отправки хосту. */
   localInputFrame(seq: number): InputFrame { return this.humanController.currentInputFrame(seq) }
 
-  /** client: применить снимок к удалённым игрокам (свой — предсказывается локально). */
+  /** client: снимок → удалённым позиция/визуал; своему — авторитет для мягкой реконсиляции. */
   applySnapshot(snap: Snapshot) {
     for (const ps of snap.players) {
-      if (ps.id === this.localId) continue
-      this.byId.get(ps.id)?.applyNetState(ps)
+      const p = this.byId.get(ps.id)
+      if (!p) continue
+      if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // предсказание + коррекция к авторитету
+      else p.applyNetState(ps)
     }
   }
 

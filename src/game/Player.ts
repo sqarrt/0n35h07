@@ -207,6 +207,10 @@ export class Player implements IControllable {
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
 
+  /** Свой игрок (клиент): запомнить авторитетную позицию из снапшота для реконсиляции. */
+  setAuthoritative(pos: THREE.Vector3) { this.body.applyNetTarget(pos) }
+  reconcileLocal(next: { x: number; y: number; z: number }) { this.body.reconcileTowardNet(next) }
+
   /** Косметический выстрел удалённого (клиент, событие FIRED). */
   cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {
     this.weapon.playBeam(this.muzzle(), end, hitPoint)

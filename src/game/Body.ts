@@ -2,8 +2,10 @@ import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
 } from '../constants'
+
+type XYZ = { x: number; y: number; z: number }
 
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
@@ -111,6 +113,7 @@ export class Body {
     this.velocityY = 0
     this.grounded = p.y <= EYE_HEIGHT + 0.01
     this.teleport = p.clone()
+    this.netTarget = null   // респавн/телепорт — старый авторитет недействителен
     this.dashTimer = 0
     this.dashCooldown = 0
   }
@@ -127,7 +130,7 @@ export class Body {
   }
   hasNetTarget() { return this.netTarget !== null }
   /** Следующая позиция: плавный шаг от текущей (rb/кэш) к сетевой цели. */
-  nextRemoteTranslation(): { x: number; y: number; z: number } {
+  nextRemoteTranslation(): XYZ {
     const cur = this.rb ? this.rb.translation() : this.position
     const t = this.netTarget ?? this.position
     return {
@@ -135,6 +138,14 @@ export class Body {
       y: THREE.MathUtils.lerp(cur.y, t.y, NET_REMOTE_LERP),
       z: THREE.MathUtils.lerp(cur.z, t.z, NET_REMOTE_LERP),
     }
+  }
+
+  /** Свой игрок (клиент): мягко тянем результат KCC к авторитету — анти-дрейф при коллизиях. */
+  reconcileTowardNet(next: XYZ) {
+    if (!this.netTarget) return
+    next.x += (this.netTarget.x - next.x) * NET_RECONCILE_LERP
+    next.y += (this.netTarget.y - next.y) * NET_RECONCILE_LERP
+    next.z += (this.netTarget.z - next.z) * NET_RECONCILE_LERP
   }
 
   /** Кэшируем позицию из физического тела (результат прошлого шага). */

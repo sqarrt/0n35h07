@@ -41,7 +41,7 @@ describe('Match — сетевой режим', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })
   })
 
-  it('client applySnapshot ставит цель удалённому, своего не трогает', () => {
+  it('client applySnapshot: и удалённый, и свой получают цель (свой — для реконсиляции)', () => {
     const { match } = makeMatch('client', 1)
     const snap: Snapshot = {
       ackSeq: 0,
@@ -51,8 +51,9 @@ describe('Match — сетевой режим', () => {
       ],
     }
     match.applySnapshot(snap)
-    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)   // удалённый
-    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)  // свой — предсказывается
+    // Удалённый интерполируется к цели; свой хранит авторитет для мягкой коррекции (KCC + reconcileLocal).
+    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)
+    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(true)
   })
 
   it('host с ботом (вырожденный p2p-лобби): бот в ростере попадает в снапшот', () => {
