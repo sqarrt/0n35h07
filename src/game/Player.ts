@@ -37,6 +37,7 @@ export class Player implements IControllable {
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
   private isFlashing = false
   private bodyVisible = true
+  private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
   private whiteColor = new THREE.Color(BOT_COLOR_WHITE)
@@ -94,13 +95,17 @@ export class Player implements IControllable {
     this.bodyGroup.position.copy(this.body.position)
   }
 
+  /** Заморозка: во время готовности/отсчёта движение и действия отключены, камера/прицел — нет. */
+  setFrozen(v: boolean) { this.frozen = v }
+
   // --- IControllable ---
-  moveIntent(dir: THREE.Vector3, dt: number) { this.body.move(dir, dt) }
-  jump()                       { this.body.jump() }
-  aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира
-  startFiring()                { this.weapon.beginWindup() }
-  activateShield()             { this.shield.activate() }
+  moveIntent(dir: THREE.Vector3, dt: number) { if (this.frozen) return; this.body.move(dir, dt) }
+  jump()                       { if (this.frozen) return; this.body.jump() }
+  aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира (доступно и в заморозке)
+  startFiring()                { if (this.frozen) return; this.weapon.beginWindup() }
+  activateShield()             { if (this.frozen) return; this.shield.activate() }
   dash(dir: THREE.Vector3) {
+    if (this.frozen) return
     if (dir.lengthSq() === 0) return
     if (!this.body.dash(dir)) return   // кулдаун — заряд не трогаем
     this.weapon.interrupt()            // успешный рывок отменяет заряд

@@ -46,6 +46,9 @@ export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['local', 'host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
+export const MATCH_PHASES = ['ready', 'countdown', 'live'] as const
+export type MatchPhase = typeof MATCH_PHASES[number]
+export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
 export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту
 export const NET_RECONCILE_LERP = 0.15 // коррекция своего игрока к авторитету (анти-дрейф при коллизиях)
 export const NET_SNAPSHOT_HZ = 30     // частота рассылки снапшотов хостом

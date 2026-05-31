@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { BotDifficulty } from '../constants'
+import type { BotDifficulty, MatchPhase } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -9,8 +9,11 @@ import type { BotDifficulty } from '../constants'
 export type Vec3 = [number, number, number]
 
 /** Теги каналов транспорта (короткие — у Trystero лимит ~12 байт на имя action). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase'] as const
 export type NetTag = typeof NET_TAGS[number]
+
+/** Фаза матча: хост → все (готовность/отсчёт перед боем). */
+export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
 // --- handshake (лобби) ---
 export type PlayerKind = 'human' | 'bot'
