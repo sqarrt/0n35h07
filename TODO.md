@@ -11,3 +11,20 @@
 - ~~выстрел не должен происходить мгновенно. при нажатии кнопки выстрела ИГРОК замедляется на короткое время, после которого выстрел производится. ВАЖНО - замедляется как перемещение, так и поворот камеры, если игрок был в воздухе - его перемещение тоже замедляется. Это НЕ ДОЛЖНО распространяться на других игроков или объекты сцены~~
 - ~~хочу перенести игру из браузера на Electron~~
 - ~~индикацию кулдауна выстрела надо показывать на прицеле, а не внизу~~
+
+## ~~Тесты — аудит + юнит-тесты хуков~~
+
+### ~~E2E — удалить дубли и слабые тесты (32 → 29):~~
+- ~~`base.spec.ts: "стартовый экран — главное меню"` — 100% дубль lobby.spec.ts~~
+- ~~`shield.spec.ts: "контекстное меню заблокировано"` — не верифицирует блокировку~~
+- ~~`charging.spec.ts: "задержка выстрела..."` — дубль shooting.spec.ts "ЛКМ — луч попадает в мишень"~~
+
+### ~~Добавить Vitest для юнит-тестов:~~
+- ~~`npm install -D vitest @testing-library/react jsdom`~~
+- ~~создать `vitest.config.ts` (environment: jsdom, include: tests/unit)~~
+- ~~обновить scripts: `test` = vitest run + playwright headless~~
+
+### ~~Юнит-тесты (12 тестов):~~
+- ~~`tests/unit/useFlash.test.ts` (3 теста) — trigger/duration/reset timer~~
+- ~~`tests/unit/useShieldSystem.test.ts` (6 тестов) — isActive/activate/cooldown/getProgress~~
+- ~~`tests/unit/performRaycast.test.ts` (3 теста) — noRaycast/intersections/excludeNames~~

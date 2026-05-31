@@ -26,15 +26,17 @@ interface BeamWeaponConfig {
   onBotShieldHit: () => void
   onFire: () => void
   dispatch: (action: HUDAction) => void
+  playerBodyPos?: React.RefObject<THREE.Vector3>
 }
 
-function chestStart(cam: THREE.Camera): THREE.Vector3 {
+function chestStart(cam: THREE.Camera, bodyPos?: THREE.Vector3): THREE.Vector3 {
+  const origin = bodyPos ?? cam.position
   const dir = new THREE.Vector3()
   cam.getWorldDirection(dir)
   dir.y = 0
   dir.normalize()
   const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize()
-  return cam.position.clone()
+  return origin.clone()
     .add(new THREE.Vector3(0, -0.85, 0))
     .addScaledVector(right, 0.8)
     .addScaledVector(dir, 0.1)
@@ -76,7 +78,8 @@ export function useBeamWeapon(
     const dir = new THREE.Vector3()
     camera.getWorldDirection(dir)
 
-    const hits = performRaycast(scene, camera.position.clone(), dir)
+    const origin = cfgRef.current.playerBodyPos?.current ?? camera.position
+    const hits = performRaycast(scene, origin.clone(), dir)
 
     let end: THREE.Vector3
     if (hits.length > 0) {
@@ -101,7 +104,7 @@ export function useBeamWeapon(
         }
       }
     } else {
-      end = camera.position.clone().addScaledVector(dir, 100)
+      end = origin.clone().addScaledVector(dir, 100)
     }
 
     cfgRef.current.onFire()
@@ -110,7 +113,7 @@ export function useBeamWeapon(
     beamActiveRef.current = true
     beamFireTimeRef.current = Date.now()
 
-    setAfterglow({ start: chestStart(camera), end: end.clone(), opacity: 0.5 })
+    setAfterglow({ start: chestStart(camera, cfgRef.current.playerBodyPos?.current), end: end.clone(), opacity: 0.5 })
 
     beamCooldown.current = true
     beamCooldownEnd.current = Date.now() + BEAM_COOLDOWN
@@ -187,7 +190,7 @@ export function useBeamWeapon(
   const getCooldownProgress = (now: number): number =>
     beamCooldown.current ? Math.max(0, 1 - (beamCooldownEnd.current - now) / BEAM_COOLDOWN) : 1
 
-  const getBeamStart = () => chestStart(camera)
+  const getBeamStart = () => chestStart(camera, cfgRef.current.playerBodyPos?.current)
 
   return {
     startWindup,

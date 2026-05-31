@@ -5,12 +5,6 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('стартовый экран — главное меню', async ({ page }) => {
-  await expect(page.getByText('ONESHOT')).toBeVisible()
-  await expect(page.getByText('СОЗДАТЬ ЛОББИ')).toBeVisible()
-  await expect(page.getByText('ВОЙТИ В ЛОББИ')).toBeVisible()
-})
-
 test('сцена рендерится без ошибок', async ({ page }) => {
   const errors: string[] = []
   page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()) })

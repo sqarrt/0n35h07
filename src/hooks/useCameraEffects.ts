@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 
 interface CameraState {
-  isSpectator: boolean
+  isThirdPerson: boolean
   isWindingUp: boolean
   isMoving: boolean
 }
@@ -21,8 +21,8 @@ export function useCameraEffects(
       shakeFrames.current--
     }
 
-    const { isSpectator, isWindingUp, isMoving } = getState()
-    const targetFov = isSpectator ? 75 : (isWindingUp ? 70 : (isMoving ? 87 : 75))
+    const { isThirdPerson, isWindingUp, isMoving } = getState()
+    const targetFov = isThirdPerson ? 75 : (isWindingUp ? 70 : (isMoving ? 87 : 75))
     const pcam = camera as THREE.PerspectiveCamera
     pcam.fov = THREE.MathUtils.lerp(pcam.fov, targetFov, delta * 6)
     pcam.updateProjectionMatrix()

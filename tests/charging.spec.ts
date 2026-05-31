@@ -34,14 +34,6 @@ test('замедление активно сразу после нажатия (
   expect(isWindingUp).toBe(true)
 })
 
-test('задержка выстрела — попадание только после окончания замедления', async ({ page }) => {
-  await aimAtBot(page)
-  await mouseDown(page, 0)
-  await page.waitForTimeout(WINDUP_MS + 300)
-  const hits = await page.evaluate(() => (window as any).__debugTargetHitCount ?? 0)
-  expect(hits).toBe(1)
-})
-
 test('повторный ЛКМ во время замедления не запускает второй заряд', async ({ page }) => {
   await aimAtBot(page)
   await mouseDown(page, 0)

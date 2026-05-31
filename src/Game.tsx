@@ -15,16 +15,17 @@ import type { HUDAction } from './hooks/useGameHUD'
 
 interface GameProps {
   dispatch: (action: HUDAction) => void
-  botCount?: number
-  botDifficulty?: BotDifficulty
+  botDifficulties?: BotDifficulty[]
 }
 
-export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameProps) {
+export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
+  const botCount = botDifficulties.length
   const { camera, scene } = useThree()
   const keys = useGameInput()
 
-  const controlsRef   = useRef<any>(null)
-  const shieldMeshRef = useRef<THREE.Mesh>(null)
+  const controlsRef    = useRef<any>(null)
+  const shieldMeshRef  = useRef<THREE.Mesh>(null)
+  const playerGroupRef = useRef<THREE.Group>(null!)
 
   // Per-bot refs — stable array objects, mutated by each Bot via useEffect
   const botTargetRefs    = useRef<Array<{ current: THREE.Mesh | null }>>(
@@ -35,21 +36,12 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
   )
   const botShieldActives = useRef<boolean[]>(Array.from({ length: botCount }, () => false))
 
-  // Shield 3D mesh (camera-attached sphere)
-  useEffect(() => {
-    const geo = new THREE.SphereGeometry(0.9, 16, 16)
-    const mat = new THREE.MeshStandardMaterial({ color: 'royalblue', transparent: true, opacity: 0.3, side: THREE.DoubleSide })
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.userData.noRaycast = true
-    mesh.visible = false
-    shieldMeshRef.current = mesh
-    camera.add(mesh)
-    return () => { camera.remove(mesh); geo.dispose(); mat.dispose() }
-  }, [camera])
-
   useEffect(() => { camera.rotation.set(0, 0, 0) }, [camera])
 
-  // Systems
+  // Systems — movement first so playerBodyPos is available for beam
+  const isWindingUpRef = useRef<() => boolean>(() => false)
+  const movement = usePlayerMovement(camera, keys, () => isWindingUpRef.current())
+
   const shield = useShieldSystem({
     onActivate: () => {
       dispatch({ type: 'SET_SHIELD_VISIBLE', value: true })
@@ -71,12 +63,12 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
       cameraEffects.shake()
     },
     dispatch,
+    playerBodyPos: movement.playerBodyPos,
   })
-
-  const movement = usePlayerMovement(camera, keys, beam.isWindingUp)
+  isWindingUpRef.current = beam.isWindingUp
 
   const cameraEffects = useCameraEffects(camera, () => ({
-    isSpectator: movement.spectatorMode.current,
+    isThirdPerson: movement.thirdPersonMode.current,
     isWindingUp: beam.isWindingUp(),
     isMoving: !!(keys.current.forward || keys.current.back || keys.current.left || keys.current.right),
   }))
@@ -101,7 +93,7 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
         e.preventDefault()
         movement.jump()
       }
-      if (e.key === 'v' || e.key === 'V') movement.toggleSpectator()
+      if (e.key === 'v' || e.key === 'V') movement.toggleThirdPerson()
     }
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
 
@@ -115,9 +107,12 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
     }
   }, [])
 
-  // HUD progress (throttled)
+  // HUD progress (throttled) + player sphere position
   const lastHudUpdate = useRef(0)
   useFrame(() => {
+    if (playerGroupRef.current) {
+      playerGroupRef.current.position.copy(movement.playerBodyPos.current)
+    }
     const now = Date.now()
     if (now - lastHudUpdate.current > 50) {
       lastHudUpdate.current = now
@@ -140,14 +135,27 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
     <>
       <PointerLockControls ref={controlsRef} />
       <Arena />
+
+      {/* Player sphere + shield bubble */}
+      <group ref={playerGroupRef}>
+        <mesh visible={movement.isThirdPerson} userData={{ noRaycast: true }}>
+          <sphereGeometry args={[0.4, 16, 16]} />
+          <meshStandardMaterial color="#4af" />
+        </mesh>
+        <mesh ref={shieldMeshRef} visible={false} userData={{ noRaycast: true }}>
+          <sphereGeometry args={[0.9, 16, 16]} />
+          <meshStandardMaterial color="royalblue" transparent opacity={0.3} side={THREE.DoubleSide} />
+        </mesh>
+      </group>
+
       {Array.from({ length: botCount }, (_, i) => (
         <Bot
           key={i}
           botId={i}
           targetRef={botTargetRefs.current[i] as React.RefObject<THREE.Mesh | null>}
           botRespawnRef={botRespawnRefs.current[i] as React.RefObject<(() => void) | null>}
-          difficulty={botDifficulty}
-          camera={camera}
+          difficulty={botDifficulties[i]}
+          playerPosRef={movement.playerBodyPos}
           isShieldActive={shield.isActive}
           onPlayerHit={handlePlayerHit}
           onShieldBlock={() => dispatch({ type: 'SHIELD_BLOCK' })}
@@ -175,7 +183,7 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
         const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize())
         return (
           <group position={mid} quaternion={quat} scale={[1, len, 1]}>
-            <mesh>
+            <mesh userData={{ noRaycast: true }}>
               <cylinderGeometry args={[0.1, 0.1, 1, 8]} />
               <meshBasicMaterial color="#0ff" transparent opacity={opacity * 0.4} blending={THREE.AdditiveBlending} depthWrite={false} />
             </mesh>
@@ -185,21 +193,11 @@ export function Game({ dispatch, botCount = 1, botDifficulty = 'normal' }: GameP
 
       {/* Particles */}
       {beam.particlesRef.current.map((p, i) => (
-        <mesh key={i} position={p.pos} scale={p.life * 0.15}>
+        <mesh key={i} position={p.pos} scale={p.life * 0.15} userData={{ noRaycast: true }}>
           <sphereGeometry args={[1, 4, 4]} />
           <meshBasicMaterial color="#ff0" />
         </mesh>
       ))}
-
-      {/* Spectator marker */}
-      {movement.isSpectator && (
-        <group position={movement.frozenPlayerPos.current.toArray() as [number, number, number]}>
-          <mesh>
-            <sphereGeometry args={[0.4, 16, 16]} />
-            <meshBasicMaterial color="#4af" />
-          </mesh>
-        </group>
-      )}
     </>
   )
 }

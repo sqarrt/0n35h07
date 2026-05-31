@@ -15,7 +15,7 @@ interface BotProps {
   botId: number
   targetRef: RefObject<THREE.Mesh | null>
   botRespawnRef: RefObject<(() => void) | null>
-  camera: THREE.Camera
+  playerPosRef: RefObject<THREE.Vector3>
   isShieldActive: () => boolean
   onPlayerHit: () => void
   onShieldBlock: () => void
@@ -27,7 +27,7 @@ const BASE_COLOR  = new THREE.Color(BOT_COLOR_BASE)
 const WHITE_COLOR = new THREE.Color(BOT_COLOR_WHITE)
 
 export function Bot({
-  botId, targetRef, botRespawnRef, camera, isShieldActive,
+  botId, targetRef, botRespawnRef, playerPosRef, isShieldActive,
   onPlayerHit, onShieldBlock, onBotShieldChange, difficulty = 'normal',
 }: BotProps) {
   const isPassive = difficulty === 'passive'
@@ -42,6 +42,8 @@ export function Bot({
   const shootTimer  = useRef(0)
   const isWindingUp = useRef(false)
   const windupTimer = useRef(0)
+  const isShrinking = useRef(false)
+  const shrinkTimer = useRef(0)
 
   const botShieldGroupRef = useRef<THREE.Group>(null!)
   const botShieldMatRef   = useRef<THREE.MeshBasicMaterial>(null!)
@@ -60,7 +62,9 @@ export function Bot({
     botRespawnRef.current = () => {
       if (!groupRef.current || !bodyMatRef.current) return
       isWindingUp.current = false
+      isShrinking.current = false
       windupTimer.current = 0
+      shrinkTimer.current = 0
       shootTimer.current  = 0
       if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
       botShieldActive.current = false
@@ -137,14 +141,14 @@ export function Bot({
 
     // Shoot + windup
     if (!isPassive) {
-      if (!isWindingUp.current) {
+      if (!isWindingUp.current && !isShrinking.current) {
         shootTimer.current += delta * 1000
         if (shootTimer.current >= BOT_FIRE_INTERVAL) {
           shootTimer.current = 0
           isWindingUp.current = true
           windupTimer.current = 0
         }
-      } else {
+      } else if (isWindingUp.current) {
         windupTimer.current += delta * 1000
         const windupP = Math.min(windupTimer.current / BOT_WINDUP, 1)
 
@@ -154,11 +158,12 @@ export function Bot({
         if (windupP >= 1) {
           isWindingUp.current = false
           windupTimer.current = 0
+          isShrinking.current = true
+          shrinkTimer.current = 0
           if (bodyMatRef.current) bodyMatRef.current.color.copy(BASE_COLOR)
-          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
 
           const botChest  = pos.clone().add(new THREE.Vector3(0, 0.5, 0))
-          const playerPos = camera.position.clone()
+          const playerPos = playerPosRef.current.clone()
           const dir = playerPos.clone().sub(botChest).normalize()
 
           const hits = performRaycast(scene, botChest, dir, {
@@ -177,6 +182,15 @@ export function Bot({
             if (isShieldActive()) onShieldBlock()
             else setTimeout(onPlayerHit, BEAM_DURATION)
           }
+        }
+      } else if (isShrinking.current) {
+        shrinkTimer.current += delta * 1000
+        const shrinkP = Math.min(shrinkTimer.current / (BOT_WINDUP / 3), 1)
+        if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1 + 0.4 * (1 - shrinkP))
+        if (shrinkP >= 1) {
+          isShrinking.current = false
+          shrinkTimer.current = 0
+          if (bodyMeshRef.current) bodyMeshRef.current.scale.setScalar(1)
         }
       }
     }

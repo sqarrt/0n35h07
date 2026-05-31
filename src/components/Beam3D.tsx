@@ -58,11 +58,11 @@ export function Beam3D({
 
   return (
     <group ref={groupRef} visible={false} userData={groupUserData}>
-      <mesh>
+      <mesh userData={{ noRaycast: true }}>
         <cylinderGeometry args={[0.05, 0.05, 1, 8]} />
         <meshBasicMaterial color={innerColor} />
       </mesh>
-      <mesh>
+      <mesh userData={{ noRaycast: true }}>
         <cylinderGeometry args={[0.15, 0.15, 1, 8]} />
         <meshBasicMaterial
           color={outerColor}

@@ -10,11 +10,12 @@ export const SHIELD_DURATION = 800
 export const SHIELD_COOLDOWN = 2000
 
 // Player movement
-export const MOVE_SPEED   = 7
-export const EYE_HEIGHT   = 1.7
-export const JUMP_FORCE   = 8
-export const GRAVITY      = -22
-export const ORBIT_RADIUS = 5
+export const MOVE_SPEED = 7
+export const EYE_HEIGHT = 1.7
+export const JUMP_FORCE = 8
+export const GRAVITY    = -22
+export const TP_DIST    = 4   // third-person camera distance behind player
+export const TP_HEIGHT  = 2   // third-person camera height above player
 
 // Bot
 export const TARGET_SPEED        = 2.5
