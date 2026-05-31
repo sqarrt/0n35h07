@@ -112,6 +112,7 @@ export class Match {
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
+      p.stepDash(dt)                                                  // рывок добавляет к desired
       this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
       const c = this.kcc.computedMovement()
       const cur = rb.translation()

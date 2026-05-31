@@ -3,7 +3,7 @@ import type { Controller } from '../abstractions'
 import type { Player } from '../Player'
 import type { World } from '../World'
 import {
-  MOVE_SPEED, WINDUP_MOVE_FACTOR, WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT,
+  MOVE_SPEED, WINDUP_MOVE_FACTOR, WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV,
 } from '../../constants'
 
 interface Keys { forward: boolean; back: boolean; left: boolean; right: boolean }
@@ -41,18 +41,36 @@ export class HumanController implements Controller {
   onFire()    { if (document.pointerLockElement) this.player.startFiring() }
   onShield()  { if (document.pointerLockElement) this.player.activateShield() }
   onJump()    { this.player.jump() }
+  onDash() {
+    if (!document.pointerLockElement) return
+    const { dir, right } = this.basis()
+    const k = this.keys.current
+    const d = new THREE.Vector3()
+    if (k.forward) d.add(dir)
+    if (k.back)    d.sub(dir)
+    if (k.right)   d.add(right)
+    if (k.left)    d.sub(right)
+    if (d.lengthSq() === 0) return   // нет WASD — рывок не делаем
+    this.player.dash(d.normalize())
+  }
   shake()     { this.shakeFrames = 5 }
   toggleView() {
     this.thirdPerson = !this.thirdPerson
     this.player.setBodyVisible(this.thirdPerson)
   }
 
-  // --- intents (до физики) ---
-  update(dt: number) {
+  /** Камера-относительные горизонтальные оси (для движения и направления рывка). */
+  private basis() {
     const dir = this.camera.getWorldDirection(this.tmp).clone()
     dir.y = 0
     dir.normalize()
     const right = new THREE.Vector3().crossVectors(dir, UP).normalize()
+    return { dir, right }
+  }
+
+  // --- intents (до физики) ---
+  update(dt: number) {
+    const { dir, right } = this.basis()
 
     const k = this.keys.current
     const vel = new THREE.Vector3()
@@ -93,8 +111,9 @@ export class HumanController implements Controller {
 
     const moving = !!(this.keys.current.forward || this.keys.current.back ||
                       this.keys.current.left || this.keys.current.right)
-    // Динамический FOV работает и в FP, и в TP.
-    const targetFov = this.player.isWindingUp ? 70 : (moving ? 87 : 75)
+    // Динамический FOV работает и в FP, и в TP; рывок даёт всплеск.
+    const targetFov = this.player.dashing ? DASH_FOV
+      : this.player.isWindingUp ? 70 : (moving ? 87 : 75)
     this.fov = THREE.MathUtils.lerp(this.fov, targetFov, dt * 6)
     this.camera.fov = this.fov
     this.camera.updateProjectionMatrix()

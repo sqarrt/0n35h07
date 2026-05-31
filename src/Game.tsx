@@ -48,6 +48,7 @@ export function Game({ dispatch, botDifficulties = ['normal'] }: GameProps) {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') { e.preventDefault(); hc.onJump() }
       if (e.key === 'v' || e.key === 'V') hc.toggleView()
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hc.onDash()
     }
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
 
