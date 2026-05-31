@@ -17,6 +17,12 @@ export const GRAVITY    = -22
 export const TP_DIST    = 4   // third-person camera distance behind player
 export const TP_HEIGHT  = 2   // third-person camera height above player
 
+// Dash (рывок на Shift)
+export const DASH_SPEED    = 24    // ед/с (~3.4× MOVE_SPEED)
+export const DASH_DURATION = 150   // мс — длительность окна рывка
+export const DASH_COOLDOWN = 1500  // мс
+export const DASH_FOV      = 95    // целевой FOV во время рывка
+
 // Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
