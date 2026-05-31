@@ -58,7 +58,7 @@ export default function App() {
   const gameApiRef = useRef<GameApi | null>(null)
 
   const leaveLobby = () => {
-    sessionRef.current?.net.leave()
+    sessionRef.current?.dispose()
     sessionRef.current = null
     setLobbyView(null)
     setGameNet(null)

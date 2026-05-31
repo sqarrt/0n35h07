@@ -6,6 +6,8 @@ import type { PlayerProfile } from '../settings'
 
 export type LobbyRole = 'host' | 'client'
 
+const HELLO_RETRY_MS = 400   // клиент повторяет HELLO, пока не получит ASSIGN (надёжность под нагрузкой)
+
 export interface LobbyView {
   roster: RosterEntry[]
   localPlayerId: number   // -1 у клиента, пока хост не назначил
@@ -29,6 +31,7 @@ export class LobbySession {
   private profile: PlayerProfile
   private changeCb: (v: LobbyView) => void = () => {}
   private startCb: () => void = () => {}
+  private helloTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(net: INet, role: LobbyRole, code: string, profile: PlayerProfile) {
     this.net = net
@@ -49,6 +52,9 @@ export class LobbySession {
       net.on('start', () => this.startCb())
       net.onPeerJoin(() => this.sayHello())   // нашли хоста — представляемся
       this.sayHello()
+      // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
+      // хоста). В loopback хендшейк уже синхронно завершён — таймер не нужен.
+      if (this.localPlayerId < 0) this.helloTimer = setInterval(() => this.sayHello(), HELLO_RETRY_MS)
     }
   }
 
@@ -126,9 +132,16 @@ export class LobbySession {
     }
   }
   private onAssign(a: Assign) {
+    if (this.helloTimer) { clearInterval(this.helloTimer); this.helloTimer = null }   // подключились — хватит звать
     this.localPlayerId = a.yourId
     this.roster = a.roster
     this.emitChange()
+  }
+
+  /** Закрыть сессию: остановить ретраи HELLO и выйти из транспорта. */
+  dispose() {
+    if (this.helloTimer) { clearInterval(this.helloTimer); this.helloTimer = null }
+    this.net.leave()
   }
 
   // --- общий API ---
