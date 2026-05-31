@@ -26,6 +26,7 @@ interface MatchOptions {
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
+  defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -115,7 +116,7 @@ export class Match {
 
       if (e.id === net.localId) {
         human = p
-        humanController = new HumanController(p, o.camera, o.keys, o.controls, this.world)
+        humanController = new HumanController(p, o.camera, o.keys, o.controls, this.world, o.defaultThirdPerson ?? false)
         controllers.push(humanController)
       } else if (this.role === 'host') {
         if (isBot) {

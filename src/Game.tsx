@@ -22,10 +22,11 @@ interface GameProps {
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
+  defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, apiRef }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<any>(null)
@@ -39,6 +40,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, apiRef }: G
       dispatch,
       role,
       netConfig,
+      defaultThirdPerson,
     }),
     [],
   )

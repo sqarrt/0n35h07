@@ -199,6 +199,7 @@ export default function App() {
               net={gameNet.net}
               netConfig={gameNet.netConfig}
               peerToPlayer={gameNet.peerToPlayer}
+              defaultThirdPerson={profile.defaultView === 'tp'}
               apiRef={gameApiRef}
             />
           </Canvas>

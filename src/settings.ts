@@ -1,9 +1,12 @@
 import { PLAYER_COLORS } from './constants'
 
+export type DefaultView = 'fp' | 'tp'
+
 export interface PlayerProfile {
   name: string
   primaryColor: string
   reserveColor: string
+  defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
 }
 
 const KEY = 'oneshot:profile'
@@ -23,7 +26,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp' }
 }
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
@@ -32,7 +35,8 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const primaryColor = PLAYER_COLORS.includes(p.primaryColor as string) ? (p.primaryColor as string) : PLAYER_COLORS[0]
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
-  return { name, primaryColor, reserveColor }
+  const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
+  return { name, primaryColor, reserveColor, defaultView }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
@@ -46,6 +50,6 @@ export function loadProfile(): PlayerProfile {
   return fresh
 }
 
-export function saveProfile(p: PlayerProfile): void {
+export function saveProfile(p: Partial<PlayerProfile>): void {
   try { localStorage.setItem(KEY, JSON.stringify(sanitize(p))) } catch { /* ignore */ }
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { PLAYER_COLORS } from '../constants'
 import { NAME_MAX, saveProfile } from '../settings'
-import type { PlayerProfile } from '../settings'
+import type { PlayerProfile, DefaultView } from '../settings'
 import { BallPreview } from '../components/BallPreview'
 import { dimBtn, screenOverlay } from './styles'
 
@@ -25,10 +25,20 @@ const swatch = (color: string, selected: boolean, disabled: boolean): CSSPropert
 const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
 const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
 
+const segBtn = (active: boolean): CSSProperties => ({
+  background: active ? 'rgba(68,170,255,0.12)' : 'transparent',
+  border: `1px solid ${active ? '#4af' : '#334'}`,
+  color: active ? '#4af' : '#667',
+  padding: '0.45rem 0.9rem',
+  fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.1em',
+  cursor: 'pointer',
+})
+
 export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const [name, setName] = useState(profile.name)
   const [primary, setPrimary] = useState(profile.primaryColor)
   const [reserve, setReserve] = useState(profile.reserveColor)
+  const [view, setView] = useState<DefaultView>(profile.defaultView)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает превью
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
@@ -36,7 +46,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
     setName(next)
-    commit({ name: next, primaryColor: primary, reserveColor: reserve })
+    commit({ name: next, primaryColor: primary, reserveColor: reserve, defaultView: view })
   }
   const handlePrimary = (c: string) => {
     setEditing('primary')
@@ -44,13 +54,17 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     // Резерв не может совпасть с основным — сдвигаем на первый отличный.
     const nextReserve = c === reserve ? (PLAYER_COLORS.find(x => x !== c) ?? reserve) : reserve
     setReserve(nextReserve)
-    commit({ name, primaryColor: c, reserveColor: nextReserve })
+    commit({ name, primaryColor: c, reserveColor: nextReserve, defaultView: view })
   }
   const handleReserve = (c: string) => {
     setEditing('reserve')
     if (c === primary) return
     setReserve(c)
-    commit({ name, primaryColor: primary, reserveColor: c })
+    commit({ name, primaryColor: primary, reserveColor: c, defaultView: view })
+  }
+  const handleView = (v: DefaultView) => {
+    setView(v)
+    commit({ name, primaryColor: primary, reserveColor: reserve, defaultView: v })
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
@@ -99,6 +113,15 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
               <div key={c} role="button" aria-label={`резервный ${c}`} title={c}
                 style={swatch(c, c === reserve, c === primary)}
                 onClick={() => handleReserve(c)} />
+            ))}
+          </div>
+
+          <div style={label}>ВИД ПО УМОЛЧАНИЮ</div>
+          <div style={row}>
+            {(['fp', 'tp'] as DefaultView[]).map(v => (
+              <button key={v} style={segBtn(view === v)} onClick={() => handleView(v)}>
+                {v === 'fp' ? 'ОТ 1 ЛИЦА' : 'ОТ 3 ЛИЦА'}
+              </button>
             ))}
           </div>
         </div>
