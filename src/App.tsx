@@ -6,6 +6,7 @@ import { Crosshair } from './components/Crosshair'
 import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
+import { DashIndicator } from './components/DashIndicator'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
@@ -181,6 +182,7 @@ export default function App() {
             shieldVisible={hud.shieldVisible}
             shieldBlock={hud.shieldBlock}
           />
+          <DashIndicator dashProgress={hud.dashProgress} />
         </>
       )}
 

@@ -90,6 +90,11 @@ export class Body {
 
   get dashing() { return this.dashTimer > 0 }
 
+  /** Прогресс готовности рывка: 1 = готов, 0..1 во время кулдауна. */
+  dashProgress(): number {
+    return this.dashCooldown > 0 ? Math.max(0, 1 - this.dashCooldown / DASH_COOLDOWN) : 1
+  }
+
   consumeDesired(): THREE.Vector3 {
     const d = this.desired.clone()
     this.desired.set(0, 0, 0)

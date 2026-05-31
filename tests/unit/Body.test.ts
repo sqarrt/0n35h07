@@ -79,4 +79,11 @@ describe('Body', () => {
     for (let i = 0; i < steps; i++) b.stepDash(0.016)
     expect(b.dashing).toBe(false)
   })
+
+  it('dashProgress: 1 в покое, <1 на кулдауне', () => {
+    const b = new Body(0, '#4af')
+    expect(b.dashProgress()).toBe(1)
+    b.dash(new THREE.Vector3(0, 0, -1))
+    expect(b.dashProgress()).toBeLessThan(1)
+  })
 })

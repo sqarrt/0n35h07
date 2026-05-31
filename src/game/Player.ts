@@ -150,6 +150,7 @@ export class Player implements IControllable {
   get isWindingUp()         { return this.weapon.isWindingUp }
   get windupProgress()      { return this.weapon.windupProgress }
   beamCooldownProgress()    { return this.weapon.cooldownProgress() }
+  dashCooldownProgress()    { return this.body.dashProgress() }
   shieldProgress()          { return this.shield.progress() }
   get shieldActive()        { return this.shield.isActive }
   get weaponJustFired()     { return this.weapon.justFired }

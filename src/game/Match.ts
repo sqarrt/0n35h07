@@ -172,6 +172,7 @@ export class Match {
       this.lastHud = now
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
+      this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
     }
   }
 

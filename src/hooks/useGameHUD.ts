@@ -4,6 +4,7 @@ import { useFlash } from './useFlash'
 export interface HUDState {
   beamProgress: number
   shieldProgress: number
+  dashProgress: number
   shieldVisible: boolean
   windupProgress: number
   beamFlash: boolean
@@ -15,6 +16,7 @@ export interface HUDState {
 export type HUDAction =
   | { type: 'SET_BEAM_PROGRESS';   value: number }
   | { type: 'SET_SHIELD_PROGRESS'; value: number }
+  | { type: 'SET_DASH_PROGRESS';   value: number }
   | { type: 'SET_SHIELD_VISIBLE';  value: boolean }
   | { type: 'SET_WINDUP_PROGRESS'; value: number }
   | { type: 'BEAM_FLASH' }
@@ -25,6 +27,7 @@ export type HUDAction =
 const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botShieldHit'> = {
   beamProgress: 1,
   shieldProgress: 1,
+  dashProgress: 1,
   shieldVisible: false,
   windupProgress: 0,
 }
@@ -36,6 +39,7 @@ function reducer(
   switch (action.type) {
     case 'SET_BEAM_PROGRESS':   return { ...state, beamProgress:   action.value }
     case 'SET_SHIELD_PROGRESS': return { ...state, shieldProgress: action.value }
+    case 'SET_DASH_PROGRESS':   return { ...state, dashProgress:   action.value }
     case 'SET_SHIELD_VISIBLE':  return { ...state, shieldVisible:  action.value }
     case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
     default: return state
