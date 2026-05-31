@@ -394,6 +394,7 @@ export class Match {
       const p = this.byId.get(id)
       return p ? { kills: p.kills, deaths: p.deaths } : null
     }
+    w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
   }
 
   dispose() {
@@ -405,6 +406,7 @@ export class Match {
     delete w.__debugRole
     delete w.__debugPlayerPos
     delete w.__debugScore
+    delete w.__debugBodyScale
     this.players.forEach(p => p.dispose())
   }
 }

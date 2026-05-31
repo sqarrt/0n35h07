@@ -44,6 +44,8 @@ export class Player implements IControllable {
   private netShieldActive = false
   private netDashing = false
   private netWindup = 0
+  private prevNetWindup = 0
+  private netFireTime = -Infinity   // момент выстрела удалённого (фронт netWindup 1→0) — для плавного сдувания
 
   constructor(
     id: number,
@@ -201,11 +203,15 @@ export class Player implements IControllable {
     this.alive = snap.alive
     this.netShieldActive = snap.shieldActive
     this.netDashing = snap.dashing
+    // Заряд был и пропал → выстрел: запускаем локальную плавную анимацию сдувания.
+    if (this.prevNetWindup > 0.5 && snap.windupProgress === 0) this.netFireTime = Date.now()
+    this.prevNetWindup = snap.windupProgress
     this.netWindup = snap.windupProgress
   }
 
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
+  get bodyScale() { return this.body.mesh.scale.x }   // debug: текущий масштаб шара
 
   /** Свой игрок (клиент): запомнить авторитетную позицию из снапшота для реконсиляции. */
   setAuthoritative(pos: THREE.Vector3) { this.body.applyNetTarget(pos) }
@@ -233,9 +239,13 @@ export class Player implements IControllable {
 
   private applyRemoteVisual() {
     const mat = this.body.material
+    const shrinkP = Math.min((Date.now() - this.netFireTime) / (BOT_WINDUP / 3), 1)   // как в syncVisuals
     if (this.netWindup > 0) {
       this.body.mesh.scale.setScalar(1 + this.netWindup * WINDUP_SCALE_GAIN)
       mat.color.lerpColors(this.baseColor, this.whiteColor, this.netWindup)
+    } else if (shrinkP < 1 && !this.isFlashing) {
+      this.body.mesh.scale.setScalar(1 + WINDUP_SCALE_GAIN * (1 - shrinkP))   // плавное сдувание после выстрела
+      mat.color.copy(this.baseColor)
     } else if (!this.isFlashing) {
       this.body.mesh.scale.setScalar(1)
       mat.color.copy(this.baseColor)
