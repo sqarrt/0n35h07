@@ -58,11 +58,13 @@ export function Game({ dispatch, botDifficulties = ['normal'], role, net, netCon
     const w = window as any
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
+    w.__debugLeave = () => net?.leave()
     return () => {
       match.dispose()
       if (apiRef) apiRef.current = null
       delete w.__debugPhase
       delete w.__debugReady
+      delete w.__debugLeave
     }
   }, [camera, match])
 

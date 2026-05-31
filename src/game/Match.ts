@@ -64,6 +64,7 @@ export class Match {
   private countdownEndsAt = 0
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
   private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
+  private leftIds = new Set<number>()   // отключившиеся игроки
 
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
@@ -337,6 +338,21 @@ export class Match {
   serializePhase(): PhaseMsg { return { phase: this.phase, ready: [...this.readySet] } }
   phaseDirty() { return this.phaseDirtyFlag }
   clearPhaseDirty() { this.phaseDirtyFlag = false }
+
+  /** Игрок отключился: скрыть его аватар, завершить матч, уведомить оставшегося. */
+  handlePlayerLeft(id: number) {
+    if (this.leftIds.has(id)) return
+    this.leftIds.add(id)
+    const p = this.byId.get(id)
+    if (p) {
+      p.bodyGroup.visible = false
+      p.weaponObject.visible = false
+      p.trailObject.visible = false
+    }
+    this.phase = 'ended'
+    this.phaseDirtyFlag = true
+    this.dispatch({ type: 'SET_OPPONENT_LEFT', name: p?.name ?? '?' })
+  }
 
   private syncHud() {
     if (this.scoresDirty) {

@@ -11,6 +11,7 @@ import { Scoreboard } from './components/Scoreboard'
 import { KillFeed } from './components/KillFeed'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
+import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
@@ -71,7 +72,8 @@ export default function App() {
     session.onChange(v => setLobbyView(v))
     session.onStart(() => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: session.hostPeerToPlayer() })
+      // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()) })
       setEverLocked(false)
       setScreen('game')
     })
@@ -116,6 +118,18 @@ export default function App() {
     window.addEventListener('keyup', up)
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
   }, [screen])
+
+  // Соперник отключился — освобождаем курсор для клика «ВЫЙТИ».
+  useEffect(() => {
+    if (hud.opponentLeft) document.exitPointerLock?.()
+  }, [hud.opponentLeft])
+
+  // Закрытие вкладки в игре → мгновенный 'bye' соседу (иначе детект по presence-таймауту).
+  useEffect(() => {
+    const onUnload = () => sessionRef.current?.net.leave()
+    window.addEventListener('beforeunload', onUnload)
+    return () => window.removeEventListener('beforeunload', onUnload)
+  }, [])
 
   // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
   useEffect(() => {
@@ -205,7 +219,7 @@ export default function App() {
               </button>
             </div>
           )}
-          {locked && hud.matchPhase !== 'ready' && (
+          {locked && (hud.matchPhase === 'live' || hud.matchPhase === 'countdown') && (
             <>
               <WindupOverlay windupProgress={hud.windupProgress} />
               <Crosshair beamProgress={hud.beamProgress} />
@@ -225,6 +239,9 @@ export default function App() {
               <KillFeed lastKill={hud.lastKill} />
               <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
             </>
+          )}
+          {hud.opponentLeft && (
+            <MatchEndedOverlay name={hud.opponentLeft.name} scores={hud.scores} onExit={handleBack} />
           )}
         </>
       )}

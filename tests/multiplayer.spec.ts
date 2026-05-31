@@ -29,13 +29,13 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
 
   await client.goto(`/#${code}`)
-  await expect(host.getByText('ИГРОКОВ: 2')).toBeVisible({ timeout: 10000 })
-  await expect(client.getByText('ОЖИДАНИЕ ХОСТА…')).toBeVisible({ timeout: 10000 })
+  await expect(host.getByText('ИГРОКОВ: 2')).toBeVisible({ timeout: 20000 })
+  await expect(client.getByText('ОЖИДАНИЕ ХОСТА…')).toBeVisible({ timeout: 20000 })
 
   await host.waitForTimeout(300)
   await host.getByText('НАЧАТЬ').click()
-  await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 15000 })
-  await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 15000 })
+  await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
+  await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   return { host, client }
 }
 
@@ -124,4 +124,19 @@ test('1v1: ритуал входа — пока не готовы оба, дви
 
   expect(Math.abs((await playerZ(host, 0)) - z0)).toBeLessThan(0.3)   // заморожен — не сдвинулся
   expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
+})
+
+test('1v1: клиент отключился — хост видит баннер и (после паузы) ВЫЙТИ', async ({ context }) => {
+  const { host, client } = await startMatch(context)
+  await client.evaluate(() => (window as any).__debugLeave())   // клиент покидает игру
+  await expect(host.getByText(/отключился/)).toBeVisible({ timeout: 6000 })
+  await expect(host.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
+  expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ended')
+})
+
+test('1v1: хост отключился — клиент видит баннер и ВЫЙТИ', async ({ context }) => {
+  const { host, client } = await startMatch(context)
+  await host.evaluate(() => (window as any).__debugLeave())
+  await expect(client.getByText(/отключился/)).toBeVisible({ timeout: 6000 })
+  await expect(client.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
 })

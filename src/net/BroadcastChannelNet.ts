@@ -92,8 +92,8 @@ export class BroadcastChannelNet implements INet {
     this.post({ kind: 'bye', from: this.selfId })
     clearInterval(this.pingTimer)
     clearInterval(this.pruneTimer)
-    this.ch.close()
     this.handlers.clear()
     this.seen.clear()
+    setTimeout(() => this.ch.close(), 0)   // даём 'bye' уйти до закрытия канала (мгновенный детект)
   }
 }

@@ -103,6 +103,19 @@ describe('Match — сетевой режим', () => {
     expect(match.phase).toBe('countdown')
   })
 
+  it('handlePlayerLeft: фаза ended, аватар скрыт, шлёт SET_OPPONENT_LEFT', () => {
+    const { match, dispatch } = makeMatch('host', 0)
+    const opponent = match.players.find(p => p.id === 1)!
+    match.handlePlayerLeft(1)
+    expect(match.phase).toBe('ended')
+    expect(opponent.bodyGroup.visible).toBe(false)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_OPPONENT_LEFT', name: 'B' })
+    // ended → заморозка
+    match.update(0.016)
+    match.human.moveIntent(new THREE.Vector3(5, 0, 0), 1)
+    expect(match.human.consumeDesired().x).toBe(0)
+  })
+
   it('client сбрасывает justFired своего игрока (шар сдувается после выстрела)', () => {
     const { match } = makeMatch('client', 1)
     match.human.startFiring()
