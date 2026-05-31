@@ -43,8 +43,12 @@ test('Y фиксирован на 1.7 при ходьбе', async ({ page }) => 
 })
 
 test('Space — прыжок (Y поднимается выше 1.7)', async ({ page }) => {
-  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true })))
-  await page.waitForTimeout(300)
+  // Жмём Space, пока камера не поднимется (физика Rapier может ещё грузиться под нагрузкой).
+  await page.waitForFunction(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }))
+    const cam = (window as any).__debugCamera
+    return !!cam && cam.position.y > 1.75
+  }, { timeout: 6000, polling: 100 })
   const peak = await getCameraPos(page)
   expect(peak.y).toBeGreaterThan(1.7)
 })
