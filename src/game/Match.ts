@@ -67,8 +67,8 @@ export class Match {
       const { human, humanController, controllers } = this.buildNetPlayers(o, o.netConfig)
       this.human = human
       this.humanController = humanController
-      this.bots = []
       this.players = [...this.byId.values()]
+      this.bots = this.players.filter(p => p.team === BOT_TEAM)   // боты — для debug-хуков/индикации
       this.controllers = controllers
     } else {
       this.localId = 0

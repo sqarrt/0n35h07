@@ -9,14 +9,14 @@ async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByText('СОЗДАТЬ ЛОББИ').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByText('СОЗДАТЬ ЛОББИ').click()
-  // По умолчанию 0 ботов; добавляем бота если тест требует цель
+  // Хост-лобби: добавляем бота если тест требует цель
   if (opts.difficulty) {
     await page.getByText('ДОБАВИТЬ БОТА').click()
     if (opts.difficulty === 'passive') {
       await page.getByText('ПАССИВНЫЙ').first().click()
     }
   }
-  await page.getByText('ВОЙТИ').click()
+  await page.getByText('НАЧАТЬ').click()
 }
 
 // Ждём пока R3F инициализируется и смонтирует Game

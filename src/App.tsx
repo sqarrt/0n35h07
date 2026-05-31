@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -15,62 +15,89 @@ import { Lobby } from './screens/Lobby'
 import { btn, dimBtn, screenOverlay } from './screens/styles'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty } from './constants'
+import { createNet } from './net/createNet'
+import { LobbySession } from './net/LobbySession'
+import type { LobbyView, LobbyRole } from './net/LobbySession'
+import type { INet, PeerId } from './net/INet'
+import type { RosterEntry } from './net/protocol'
+import type { MatchRole } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game'
 
+interface GameNet {
+  role: MatchRole
+  net: INet
+  netConfig: { localId: number; roster: RosterEntry[] }
+  peerToPlayer: Map<PeerId, number>
+}
+
 function randomCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase()
-}
-
-function saveLobby(code: string, difficulties: BotDifficulty[]) {
-  localStorage.setItem(`lobby_${code}`, JSON.stringify(difficulties))
-}
-
-function loadLobby(code: string): BotDifficulty[] | null {
-  const raw = localStorage.getItem(`lobby_${code}`)
-  return raw ? JSON.parse(raw) : null
 }
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [locked, setLocked] = useState(false)
   const [everLocked, setEverLocked] = useState(false)
-  const [botDifficulties, setBotDifficulties] = useState<BotDifficulty[]>([])
   const [lobbyCode, setLobbyCode] = useState('')
+  const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
+  const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [scoreboardOpen, setScoreboardOpen] = useState(false)
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
+
+  const sessionRef = useRef<LobbySession | null>(null)
+
+  const leaveLobby = () => {
+    sessionRef.current?.net.leave()
+    sessionRef.current = null
+    setLobbyView(null)
+    setGameNet(null)
+  }
+
+  const enterLobby = (code: string, role: LobbyRole) => {
+    if (sessionRef.current) leaveLobby()
+    const net = createNet(code)
+    const session = new LobbySession(net, role, code, role === 'host' ? 'Вы' : 'Соперник')
+    session.onChange(v => setLobbyView(v))
+    session.onStart(() => {
+      const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: session.hostPeerToPlayer() })
+      setEverLocked(false)
+      setScreen('game')
+    })
+    sessionRef.current = session
+    setLobbyCode(code)
+    setScreen('lobby')
+  }
 
   useEffect(() => {
     const onChange = () => {
       const isLocked = !!document.pointerLockElement
       setLocked(isLocked)
       if (isLocked) setEverLocked(true)
-      else setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)   // вышли из лока → старт кулдауна
+      else setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)
     }
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
-  // Hash-based routing
+  // Hash-routing: /#CODE → войти в лобби клиентом (если ещё не в лобби с этим кодом).
   useEffect(() => {
     const handleHash = () => {
       const code = window.location.hash.slice(1).toUpperCase()
       if (/^[A-Z0-9]{4}$/.test(code)) {
-        const saved = loadLobby(code) ?? []
-        setLobbyCode(code)
-        setBotDifficulties(saved)
-        setScreen('lobby')
-      } else if (!code) {
+        if (sessionRef.current?.code !== code) enterLobby(code, 'client')
+      } else if (!code && !sessionRef.current) {
         setScreen('menu')
       }
     }
     handleHash()
     window.addEventListener('hashchange', handleHash)
     return () => window.removeEventListener('hashchange', handleHash)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
 
   // Tab (зажат) → таблица счёта K/D.
   useEffect(() => {
@@ -93,87 +120,56 @@ export default function App() {
 
   const handleCreateLobby = () => {
     const code = randomCode()
-    saveLobby(code, [])
-    setLobbyCode(code)
-    setBotDifficulties([])
-    setScreen('lobby')
     window.location.hash = code
+    enterLobby(code, 'host')
   }
-
   const handleJoinLobby = () => setScreen('join')
+  const handleJoin = (code: string) => { window.location.hash = code; enterLobby(code, 'client') }
 
-  const handleJoin = (code: string) => {
-    const difficulties = loadLobby(code) ?? []
-    saveLobby(code, difficulties)
-    setLobbyCode(code)
-    setBotDifficulties(difficulties)
-    setScreen('lobby')
-    window.location.hash = code
-  }
-
-  const handleStart = () => {
-    setEverLocked(false)
-    setScreen('game')
-  }
+  const handleStart = () => sessionRef.current?.start()
 
   const handleBack = () => {
+    leaveLobby()
     setScreen('menu')
     if (window.location.hash) window.location.hash = ''
   }
 
-  const handleResume = () => {
-    document.querySelector('canvas')?.requestPointerLock()
-  }
+  const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
 
-  const handleBotAdd = () => {
-    setBotDifficulties(prev => {
-      if (prev.length >= 4) return prev
-      const next: BotDifficulty[] = [...prev, 'normal']
-      saveLobby(lobbyCode, next)
-      return next
-    })
-  }
-
-  const handleBotRemove = (idx: number) => {
-    setBotDifficulties(prev => {
-      const next = prev.filter((_, i) => i !== idx)
-      saveLobby(lobbyCode, next)
-      return next
-    })
-  }
-
-  const handleDifficultyChange = (idx: number, d: BotDifficulty) => {
-    setBotDifficulties(prev => {
-      const next = prev.map((v, i) => i === idx ? d : v)
-      saveLobby(lobbyCode, next)
-      return next
-    })
-  }
+  const handleAddBot = () => sessionRef.current?.addBot('normal')
+  const handleRemoveBot = (id: number) => sessionRef.current?.removeBot(id)
+  const handleSetDifficulty = (id: number, d: BotDifficulty) => sessionRef.current?.setBotDifficulty(id, d)
 
   const paused = screen === 'game' && !locked && everLocked
-  const lockCooldownLeft = Math.max(0, lockReadyAt - now)   // мс до возможности повторного входа
+  const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} />}
       {screen === 'join' && <JoinLobby onJoin={handleJoin} onBack={handleBack} />}
-      {screen === 'lobby' && (
+      {screen === 'lobby' && lobbyView && (
         <Lobby
           lobbyCode={lobbyCode}
-          botDifficulties={botDifficulties}
-          onBotAdd={handleBotAdd}
-          onBotRemove={handleBotRemove}
-          onDifficultyChange={handleDifficultyChange}
+          view={lobbyView}
+          onAddBot={handleAddBot}
+          onRemoveBot={handleRemoveBot}
+          onSetDifficulty={handleSetDifficulty}
           onStart={handleStart}
           onBack={handleBack}
         />
       )}
 
-      {screen === 'game' && (
+      {screen === 'game' && gameNet && (
         <>
           <Canvas shadows camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
-            <Game dispatch={dispatch} botDifficulties={botDifficulties} />
+            <Game
+              dispatch={dispatch}
+              role={gameNet.role}
+              net={gameNet.net}
+              netConfig={gameNet.netConfig}
+              peerToPlayer={gameNet.peerToPlayer}
+            />
           </Canvas>
           {!locked && !everLocked && (
             <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -182,7 +178,6 @@ export default function App() {
               </button>
             </div>
           )}
-          {/* HUD виден только когда играешь (указатель захвачен) — не в меню/на входе. */}
           {locked && (
             <>
               <WindupOverlay windupProgress={hud.windupProgress} />
