@@ -114,6 +114,7 @@ test('1v1: шар хоста на клиенте сдувается плавно
 test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
   const { host } = await enterGame(context)
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
+  await expect(host.getByText('Рывок')).toBeVisible()   // легенда управления на экране готовности
 
   await fakeLock(host)
   await host.evaluate(() => (window as any).__debugReady())   // готов только хост → фаза остаётся 'ready'
