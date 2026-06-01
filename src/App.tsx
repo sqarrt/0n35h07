@@ -73,6 +73,8 @@ export default function App() {
     session.onChange(v => setLobbyView(v))
     session.onStart(() => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
+      dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()) })
       setEverLocked(false)
