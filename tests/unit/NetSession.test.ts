@@ -8,7 +8,7 @@ import type { MatchRole } from '../../src/constants'
 function frame(seq: number): InputFrame {
   return { seq, keys: { f: true, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false }
 }
-const SNAP: Snapshot = { ackSeq: 3, players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0 }] }
+const SNAP: Snapshot = { ackSeq: 3, players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }] }
 const EVENT: MatchEvent = { t: 'kill', shooter: 0, victim: 1 }
 const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1] }
 

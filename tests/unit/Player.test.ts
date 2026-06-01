@@ -1,11 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { Player } from '../../src/game/Player'
 import { Body } from '../../src/game/Body'
 import { BeamWeapon } from '../../src/game/BeamWeapon'
 import { Shield } from '../../src/game/Shield'
 import type { IWeapon, WeaponContext, FireOutcome } from '../../src/game/abstractions'
-import { MUZZLE_Y, DEATH_ANIM_MS, SPAWN_ANIM_MS } from '../../src/constants'
+import { MUZZLE_Y, MOVE_SPEED, RESPAWN_SPEED_MULT } from '../../src/constants'
 
 function makePlayer(id = 1) {
   return new Player(id, new Body(id, '#5af'), new BeamWeapon(), new Shield(), '#5af')
@@ -135,37 +135,54 @@ describe('Player', () => {
     expect(p.isWindingUp).toBe(true)
   })
 
-  it('смерть: тело сдувается к нулю за DEATH_ANIM_MS', () => {
-    const t0 = 1_000_000
-    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+  it('смерть запускает фазу призрака: alive=false, isRespawning, атака заблокирована', () => {
     const p = makePlayer()
     expect(p.receiveHit()).toBe('killed')
-    spy.mockReturnValue(t0 + DEATH_ANIM_MS + 10)
-    p.update(0.016, dummyWorld, [])
-    expect(p.bodyScale).toBeLessThan(0.05)        // сдулся почти в ноль
-    spy.mockRestore()
+    expect(p.alive).toBe(false)
+    expect(p.isRespawning).toBe(true)
+    p.startFiring();    expect(p.isWindingUp).toBe(false)   // стрелять нельзя
+    p.activateShield(); expect(p.shieldActive).toBe(false)  // щит нельзя
   })
 
-  it('повторный hit по мёртвому/сдувающемуся — blocked (нет двойного килла)', () => {
+  it('призрак движется в RESPAWN_SPEED_MULT раз быстрее обычного', () => {
+    const live = makePlayer()
+    live.moveIntent(new THREE.Vector3(MOVE_SPEED, 0, 0), 1)
+    const liveDx = live.consumeDesired().x
+
+    const ghost = makePlayer()
+    ghost.receiveHit()
+    ghost.moveIntent(new THREE.Vector3(MOVE_SPEED, 0, 0), 1)
+    expect(ghost.consumeDesired().x).toBeCloseTo(liveDx * RESPAWN_SPEED_MULT)
+  })
+
+  it('повторный hit по призраку — blocked (нет двойного килла)', () => {
     const p = makePlayer()
     expect(p.receiveHit()).toBe('killed')
     expect(p.receiveHit()).toBe('blocked')
   })
 
-  it('респаун: тело растёт из нуля с перелётом выше 1, затем оседает к 1', () => {
-    const t0 = 2_000_000
-    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+  it('respawnAt материализует на месте: alive, !isRespawning, атака снова доступна', () => {
     const p = makePlayer()
+    p.receiveHit()
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    spy.mockReturnValue(t0 + 1)
-    p.update(0.016, dummyWorld, [])
-    expect(p.bodyScale).toBeLessThan(0.2)         // только начал расти из нуля
-    spy.mockReturnValue(t0 + SPAWN_ANIM_MS * 0.7)
-    p.update(0.016, dummyWorld, [])
-    expect(p.bodyScale).toBeGreaterThan(1)        // упругий перелёт выше 1.0
-    spy.mockReturnValue(t0 + SPAWN_ANIM_MS + 10)
-    p.update(0.016, dummyWorld, [])
-    expect(p.bodyScale).toBeCloseTo(1)            // осел на 1
-    spy.mockRestore()
+    expect(p.alive).toBe(true)
+    expect(p.isRespawning).toBe(false)
+    p.startFiring(); expect(p.isWindingUp).toBe(true)
+  })
+
+  it('возрождение сбрасывает ВСЕ кулдауны (луч/щит/дэш готовы)', () => {
+    const p = makePlayer()
+    p.startFiring()
+    p.update(0.5, dummyWorld, [])            // > windup → выстрел → кулдаун луча
+    p.activateShield()                        // щит → кулдаун
+    p.dash(new THREE.Vector3(0, 0, -1))       // дэш → кулдаун
+    expect(p.beamCooldownProgress()).toBeLessThan(1)
+    expect(p.dashCooldownProgress()).toBeLessThan(1)
+
+    p.receiveHit()                            // смерть → призрак
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0)) // материализация
+    expect(p.beamCooldownProgress()).toBe(1)
+    expect(p.shieldProgress()).toBe(1)
+    expect(p.dashCooldownProgress()).toBe(1)
   })
 })
