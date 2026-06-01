@@ -75,7 +75,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     }
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') { e.preventDefault(); hc.onJump() }
-      if (e.key === 'v' || e.key === 'V') hc.toggleView()
+      if (e.code === 'KeyV') hc.toggleView()   // по физической клавише — не зависит от раскладки
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hc.onDash()
     }
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
