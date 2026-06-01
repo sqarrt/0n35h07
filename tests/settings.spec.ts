@@ -30,6 +30,14 @@ test('настройки — вид по умолчанию (FP/TP) перекл
   expect(view).toBe('tp')   // персист в профиль
 })
 
+test('настройки — модель сферы переключается и сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await expect(page.getByText('МОДЕЛЬ СФЕРЫ')).toBeVisible()
+  await page.getByRole('button', { name: 'ВОЛНЫ' }).click()
+  const model = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').ballModel)
+  expect(model).toBe('waves')   // персист в профиль
+})
+
 test('настройки — имя сохраняется и видно в лобби как «(вы)»', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')

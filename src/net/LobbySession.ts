@@ -39,7 +39,7 @@ export class LobbySession {
     this.role = role
     this.code = code
     this.profile = profile
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human' }
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel }
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
@@ -62,7 +62,7 @@ export class LobbySession {
     // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → лобби 1v1 полно.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
     const name = (hello.name || '').trim() || 'Соперник'
-    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human' }
+    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth' }
     this.clientPeer = from
     this.broadcastRoster()
   }
@@ -115,8 +115,8 @@ export class LobbySession {
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
-      const { name, primaryColor, reserveColor } = this.profile
-      this.net.broadcast('hello', { name, primaryColor, reserveColor } satisfies Hello)
+      const { name, primaryColor, reserveColor, ballModel } = this.profile
+      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {

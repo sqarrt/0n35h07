@@ -33,8 +33,23 @@ export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 
 // Сфера-тело: радиус/детализация (общие для игрового меша и превью в настройках).
 export const BALL_RADIUS   = 0.5
-export const BALL_SEGMENTS = 16
+export const BALL_SEGMENTS = 128        // высокополигональный меш — фасетки незаметны, волны гладкие
 export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вращение шара в превью настроек
+
+// Модели шара (выбор в настройках; сетевая косметика — видна сопернику).
+export const BALL_MODELS = ['smooth', 'waves', 'planet'] as const
+export type BallModel = typeof BALL_MODELS[number]
+// Волны — деформация вершин (вдоль нормали) в шейдере:
+export const BALL_WAVE_COUNT = 10     // число волн по высоте сферы
+export const BALL_WAVE_AMP   = 0.03   // амплитуда волн
+export const BALL_WAVE_SPEED = 3      // скорость бега волн
+// Планета — кольцо вокруг сферы (локальные единицы меша-сферы, радиус 0.5):
+export const BALL_RING_INNER    = 0.62  // внутренний радиус кольца
+export const BALL_RING_OUTER    = 1.0   // внешний радиус кольца
+export const BALL_RING_TILT_DEG = 70    // наклон кольца, градусы
+export const BALL_RING_SEGMENTS = 96
+export const BALL_RING_BANDS     = 5     // число банд градиента
+export const BALL_RING_SCROLL    = 0.4   // скорость дрейфа банд (иллюзия движения)
 
 // Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).

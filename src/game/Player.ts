@@ -140,6 +140,7 @@ export class Player implements IControllable {
     this.syncVisuals()
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing || this.respawning })
     this.burst.update(dt)
+    this.body.tickShader(dt)
   }
 
   private muzzle(): THREE.Vector3 {
@@ -153,12 +154,12 @@ export class Player implements IControllable {
     const lc = this.lifecycleVisual()
     if (lc !== null) {   // призрак/материализация диктуют масштаб+прозрачность (в своём цвете)
       this.body.mesh.scale.setScalar(lc.scale)
-      this.body.material.opacity = lc.opacity
+      this.body.setOpacity(lc.opacity)   // сфера + кольцо
       this.body.material.color.copy(this.baseColor)
       this.shield.object3d.visible = false
       return
     }
-    this.body.material.opacity = 1   // обычное состояние — непрозрачно
+    this.body.setOpacity(1)   // обычное состояние — непрозрачно
 
     const wp = this.weapon.windupProgress
     const shrinkP = Math.min((Date.now() - this.fireTime) / (BOT_WINDUP / 3), 1)
@@ -299,6 +300,7 @@ export class Player implements IControllable {
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || this.respawning })
     this.burst.update(dt)
+    this.body.tickShader(dt)
     this.applyRemoteVisual()
   }
 
@@ -307,12 +309,12 @@ export class Player implements IControllable {
     const lc = this.lifecycleVisual()
     if (lc !== null) {   // призрак/материализация (в своём цвете)
       this.body.mesh.scale.setScalar(lc.scale)
-      mat.opacity = lc.opacity
+      this.body.setOpacity(lc.opacity)   // сфера + кольцо
       mat.color.copy(this.baseColor)
       this.shield.object3d.visible = false
       return
     }
-    mat.opacity = 1
+    this.body.setOpacity(1)
     const shrinkP = Math.min((Date.now() - this.netFireTime) / (BOT_WINDUP / 3), 1)   // как в syncVisuals
     if (this.netWindup > 0) {
       this.body.mesh.scale.setScalar(1 + this.netWindup * WINDUP_SCALE_GAIN)

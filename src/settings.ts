@@ -1,4 +1,5 @@
-import { PLAYER_COLORS } from './constants'
+import { PLAYER_COLORS, BALL_MODELS } from './constants'
+import type { BallModel } from './constants'
 
 export type DefaultView = 'fp' | 'tp'
 
@@ -7,6 +8,7 @@ export interface PlayerProfile {
   primaryColor: string
   reserveColor: string
   defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
+  ballModel: BallModel       // модель сферы (сетевая косметика)
 }
 
 const KEY = 'oneshot:profile'
@@ -26,7 +28,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp' }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth' }
 }
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
@@ -36,7 +38,8 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
-  return { name, primaryColor, reserveColor, defaultView }
+  const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
+  return { name, primaryColor, reserveColor, defaultView, ballModel }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
