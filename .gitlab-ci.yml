@@ -46,6 +46,6 @@ deploy:
         set ftp:ssl-protect-data true;
         set ssl:verify-certificate no;
         set net:max-retries 2;
-        open -u \"$FTP_USER\",\"$FTP_PASSWORD\" -p \"$FTP_PORT\" \"$FTP_HOST\";
-        mirror -R --delete --verbose dist/ \"$FTP_REMOTE_DIR\";
+        open -u '$FTP_USER','$FTP_PASSWORD' 'ftp://$FTP_HOST:$FTP_PORT';
+        mirror -R --delete --verbose dist/ '$FTP_REMOTE_DIR';
         bye"
