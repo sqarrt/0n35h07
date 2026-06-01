@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { PLAYER_COLORS } from '../constants'
+import { PLAYER_COLORS, BALL_MODELS } from '../constants'
+import type { BallModel } from '../constants'
 import { NAME_MAX, saveProfile } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { BallPreview } from '../components/BallPreview'
@@ -39,14 +40,16 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const [primary, setPrimary] = useState(profile.primaryColor)
   const [reserve, setReserve] = useState(profile.reserveColor)
   const [view, setView] = useState<DefaultView>(profile.defaultView)
+  const [model, setModel] = useState<BallModel>(profile.ballModel)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает превью
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
+  const base = () => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
     setName(next)
-    commit({ name: next, primaryColor: primary, reserveColor: reserve, defaultView: view })
+    commit({ ...base(), name: next })
   }
   const handlePrimary = (c: string) => {
     setEditing('primary')
@@ -54,20 +57,25 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     // Резерв не может совпасть с основным — сдвигаем на первый отличный.
     const nextReserve = c === reserve ? (PLAYER_COLORS.find(x => x !== c) ?? reserve) : reserve
     setReserve(nextReserve)
-    commit({ name, primaryColor: c, reserveColor: nextReserve, defaultView: view })
+    commit({ ...base(), primaryColor: c, reserveColor: nextReserve })
   }
   const handleReserve = (c: string) => {
     setEditing('reserve')
     if (c === primary) return
     setReserve(c)
-    commit({ name, primaryColor: primary, reserveColor: c, defaultView: view })
+    commit({ ...base(), primaryColor: primary, reserveColor: c })
   }
   const handleView = (v: DefaultView) => {
     setView(v)
-    commit({ name, primaryColor: primary, reserveColor: reserve, defaultView: v })
+    commit({ ...base(), defaultView: v })
+  }
+  const handleModel = (m: BallModel) => {
+    setModel(m)
+    commit({ ...base(), ballModel: m })
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
+  const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
 
   return (
     <div style={screenOverlay}>
@@ -76,7 +84,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
       <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start' }}>
         {/* Левая панель — живое превью шара в редактируемом цвете */}
         <div style={{ textAlign: 'center' }}>
-          <BallPreview color={previewColor} />
+          <BallPreview color={previewColor} model={model} />
           <div style={{ ...label, marginTop: '0.9rem', marginBottom: 0, color: previewColor, letterSpacing: '0.2em' }}>
             {editing === 'primary' ? 'ОСНОВНОЙ' : 'РЕЗЕРВНЫЙ'}
           </div>
@@ -121,6 +129,15 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
             {(['fp', 'tp'] as DefaultView[]).map(v => (
               <button key={v} style={segBtn(view === v)} onClick={() => handleView(v)}>
                 {v === 'fp' ? 'ОТ 1 ЛИЦА' : 'ОТ 3 ЛИЦА'}
+              </button>
+            ))}
+          </div>
+
+          <div style={label}>МОДЕЛЬ СФЕРЫ</div>
+          <div style={row}>
+            {BALL_MODELS.map(m => (
+              <button key={m} style={segBtn(model === m)} onClick={() => handleModel(m)}>
+                {modelLabel[m]}
               </button>
             ))}
           </div>

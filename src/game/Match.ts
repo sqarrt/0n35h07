@@ -98,11 +98,11 @@ export class Match {
       const isBot = e.kind === 'bot'
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
       const p = isBot
-        ? new Player(e.id, new Body(e.id, e.color),
+        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
             e.color)
-        : new Player(e.id, new Body(e.id, e.color),
+        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
             new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
       p.name = e.name
 

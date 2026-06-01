@@ -5,6 +5,8 @@ import {
   DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
 } from '../constants'
+import type { BallModel } from '../constants'
+import { createBallMaterial, createBallRing } from './fx/ballMaterial'
 
 type XYZ = { x: number; y: number; z: number }
 
@@ -29,13 +31,23 @@ export class Body {
   private dashDir = new THREE.Vector3()
   private dashTimer = 0
   private dashCooldown = 0
+  private shaderTick: (dt: number) => void
+  private ring: { tick: (dt: number) => void; setOpacity: (o: number) => void; dispose: () => void } | null = null
 
-  constructor(entityId: number, color: string) {
-    this.material = new THREE.MeshStandardMaterial({ color, transparent: true })   // opacity анимируется (призрак)
+  constructor(entityId: number, color: string, model: BallModel = 'smooth') {
+    const ball = createBallMaterial(color, model)   // материал сферы по модели (smooth/waves/planet)
+    this.material = ball.material
+    this.shaderTick = ball.tick
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true
     this.mesh.userData.noRaycast = true
+
+    if (model === 'planet') {   // кольцо — дочерний меш сферы (масштабируется/гаснет вместе с планетой)
+      const ring = createBallRing(color)
+      this.mesh.add(ring.mesh)
+      this.ring = ring
+    }
 
     const hitbox = new THREE.Mesh(
       new THREE.BoxGeometry(1, 2, 1),
@@ -158,6 +170,12 @@ export class Body {
 
   setVisible(v: boolean) { this.mesh.visible = v }
 
+  /** Двигает время шейдеров модели (волны / дрейф кольца). Для smooth — no-op. */
+  tickShader(dt: number) { this.shaderTick(dt); this.ring?.tick(dt) }
+
+  /** Прозрачность визуала (призрак/материализация): сфера + кольцо. */
+  setOpacity(o: number) { this.material.opacity = o; this.ring?.setOpacity(o) }
+
   /** Вкл/выкл хитбокс как raycast-цель: мёртвый/сдувающийся шар нельзя застрелить повторно. */
   setHittable(v: boolean) {
     const hitbox = this.object3d.children[1] as THREE.Mesh
@@ -167,6 +185,7 @@ export class Body {
   dispose() {
     this.mesh.geometry.dispose()
     this.material.dispose()
+    this.ring?.dispose()
     const hb = this.object3d.children[1] as THREE.Mesh
     hb.geometry.dispose()
     ;(hb.material as THREE.Material).dispose()

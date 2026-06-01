@@ -16,8 +16,8 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp' })
-    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp' })
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth' })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth' })
   })
 
   it('defaultView сохраняется; отсутствует/мусор → fp', () => {
@@ -25,6 +25,13 @@ describe('settings / PlayerProfile', () => {
     expect(loadProfile().defaultView).toBe('tp')
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без поля
     expect(loadProfile().defaultView).toBe('fp')
+  })
+
+  it('ballModel сохраняется; отсутствует/мусор → smooth', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballModel: 'waves' })
+    expect(loadProfile().ballModel).toBe('waves')
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballModel: 'bogus' as any })
+    expect(loadProfile().ballModel).toBe('smooth')
   })
 
   it('санитайз: имя обрезается, пустое → «Игрок», цвет вне палитры → дефолт', () => {
