@@ -50,6 +50,7 @@ export interface PlayerSnapshot {
   shieldActive:   boolean
   dashing:        boolean
   windupProgress: number
+  respawning:     boolean   // фаза призрака (полупрозрачный, неуязвим)
 }
 export interface Snapshot {
   ackSeq:  number              // последний обработанный seq ввода клиента (для реконсиляции)

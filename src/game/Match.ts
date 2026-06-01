@@ -52,6 +52,7 @@ export class Match {
   private kcc: any = null
 
   private lastHud = 0
+  private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
   private prevWindup = false
   private prevShield = false
   private scoresDirty = true   // на старте отправить нулевую таблицу
@@ -171,6 +172,7 @@ export class Match {
         }
       })
       this.applyPhysics(dt)
+      this.human.tickRespawn(dt)   // локально тикаем фазу призрака (индикация/скорость); финал — событием respawn
       this.syncHud()
       this.humanController.lateUpdate?.(dt)
       return
@@ -246,12 +248,14 @@ export class Match {
     }
   }
 
+  // Фаза призрака: игрок неуязвим и сам двигается (через controllers+applyPhysics); по истечении таймера
+  // материализуется НА МЕСТЕ остановки (не на случайной точке).
   private resolveRespawns(dt: number) {
     for (const p of this.players) {
-      if (p.alive) continue
+      if (!p.isRespawning) continue
       p.respawnTimer -= dt * 1000
       if (p.respawnTimer <= 0) {
-        const pos = this.world.randomSpawn()
+        const pos = p.position.clone()
         p.respawnAt(pos)
         this.emit({ t: 'respawn', id: p.id, pos: toVec3(pos) })
       }
@@ -348,6 +352,12 @@ export class Match {
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
+      // Фаза призрака локального игрока: шлём прогресс пока активна и один раз null по завершении.
+      const respawn = this.human.isRespawning ? this.human.respawnProgress() : null
+      if (respawn !== null || this.prevRespawnActive) {
+        this.dispatch({ type: 'SET_RESPAWNING', progress: respawn })
+        this.prevRespawnActive = respawn !== null
+      }
     }
   }
 

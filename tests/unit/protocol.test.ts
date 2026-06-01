@@ -22,7 +22,7 @@ describe('protocol Vec3', () => {
   it('Snapshot JSON-сериализуем (без THREE-объектов)', () => {
     const snap: Snapshot = {
       ackSeq: 7,
-      players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0 }],
+      players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }],
     }
     const round = JSON.parse(JSON.stringify(snap)) as Snapshot
     expect(round).toEqual(snap)

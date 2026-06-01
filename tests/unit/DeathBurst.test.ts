@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as THREE from 'three'
 import { DeathBurst } from '../../src/game/fx/DeathBurst'
 import { DEATH_BURST_LIFE } from '../../src/constants'
@@ -18,13 +18,16 @@ describe('DeathBurst', () => {
   })
 
   it('частицы движутся и падают под гравитацией', () => {
+    // Детерминируем разлёт: rnd=0.25 → горизонтальная скорость ≠0 и умеренная vy (гравитация успеет вернуть).
+    const spy = vi.spyOn(Math, 'random').mockReturnValue(0.25)
     const b = new DeathBurst(new THREE.Color('#4af'))
     b.emit(new THREE.Vector3(0, 5, 0))
-    for (let i = 0; i < 6; i++) b.update(DT)
+    spy.mockRestore()
+    for (let i = 0; i < 14; i++) b.update(DT)
     const meshes = b.object3d.children as THREE.Mesh[]
     const moved = meshes.some(m => Math.abs(m.position.x) > 0.01 || Math.abs(m.position.z) > 0.01)
     expect(moved).toBe(true)                                   // разлетелись по горизонтали
     const minY = Math.min(...meshes.filter(m => m.visible).map(m => m.position.y))
-    expect(minY).toBeLessThan(5)                               // часть уже падает (гравитация)
+    expect(minY).toBeLessThan(5)                               // уже падают (гравитация)
   })
 })

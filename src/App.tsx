@@ -7,6 +7,7 @@ import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
+import { RespawnOverlay } from './components/RespawnOverlay'
 import { Scoreboard } from './components/Scoreboard'
 import { KillFeed } from './components/KillFeed'
 import { ReadyOverlay } from './components/ReadyOverlay'
@@ -237,6 +238,7 @@ export default function App() {
                 shieldBlock={hud.shieldBlock}
               />
               <DashIndicator dashProgress={hud.dashProgress} />
+              {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
               <KillFeed lastKill={hud.lastKill} />
               <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
             </>

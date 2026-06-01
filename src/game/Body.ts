@@ -31,7 +31,7 @@ export class Body {
   private dashCooldown = 0
 
   constructor(entityId: number, color: string) {
-    this.material = new THREE.MeshStandardMaterial({ color })
+    this.material = new THREE.MeshStandardMaterial({ color, transparent: true })   // opacity анимируется (призрак)
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true

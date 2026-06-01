@@ -56,14 +56,14 @@ describe('Match', () => {
     delete w.__debugCamera; delete w.__debugWindup; delete w.__debugTargetHitCount; delete w.__debugBotPos
   })
 
-  it('человек убивает пассивного бота: hitCount + BEAM_FLASH + респавн', () => {
+  it('человек убивает пассивного бота: hitCount + BEAM_FLASH + бот в фазе призрака', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
     step(match, scene, 45)             // > windup 400мс
     expect(hitCount()).toBe(1)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BEAM_FLASH' })
-    expect(match.bots[0].alive).toBe(true)   // погиб и уже респавнулся
+    expect(match.bots[0].isRespawning).toBe(true)   // погиб → фаза призрака (1.5с)
   })
 
   it('убийство ведёт K/D и шлёт KILL/SET_SCORES', () => {
@@ -87,14 +87,25 @@ describe('Match', () => {
     expect(hitCount()).toBe(0)
   })
 
-  it('смерть человека не респавнит соперника (респавнится только погибший)', () => {
+  it('смерть игрока не трогает соперника (фаза призрака только у погибшего)', () => {
     const { match, scene } = makeMatch('passive')
-    const before = match.bots[0].position.clone()
+    const botBefore = match.bots[0].position.clone()
     match.human.receiveHit()
-    expect(match.human.alive).toBe(false)
-    step(match, scene, 20)             // > RESPAWN_DELAY 150мс
-    expect(match.human.alive).toBe(true)
+    expect(match.human.isRespawning).toBe(true)
+    expect(match.bots[0].isRespawning).toBe(false)   // соперник не в фазе
+    step(match, scene, 20)
     expect(match.bots[0].alive).toBe(true)
-    expect(match.bots[0].position.distanceTo(before)).toBeLessThan(0.01)
+    expect(match.bots[0].position.distanceTo(botBefore)).toBeLessThan(0.01)
+  })
+
+  it('по истечении фазы игрок материализуется НА МЕСТЕ остановки (не на рандоме)', () => {
+    const { match, scene } = makeMatch('passive')
+    match.human.respawnAt(new THREE.Vector3(2, EYE_HEIGHT, 3))   // в известную точку, alive
+    match.human.receiveHit()                                     // → призрак (без ввода — стоит)
+    const ghostPos = match.human.position.clone()
+    step(match, scene, 100)                                      // > RESPAWN_GHOST_MS (1.5с)
+    expect(match.human.alive).toBe(true)
+    expect(match.human.isRespawning).toBe(false)
+    expect(match.human.position.distanceTo(ghostPos)).toBeLessThan(0.5)
   })
 })

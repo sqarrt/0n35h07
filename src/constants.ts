@@ -41,14 +41,16 @@ export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вр
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
 export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
 export const MUZZLE_Y     = -0.3   // начало луча (грудь) относительно position
-export const RESPAWN_DELAY = 260   // мс между смертью и телепортом: > DEATH_ANIM_MS, чтобы шар телепортировался уже невидимым (scale 0)
 
 export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тела во время заряда выстрела
 
-// Смерть/респаун — быстрые, но заметные (не тормозят динамику боя).
-export const DEATH_ANIM_MS  = 240   // сдувание шара до нуля (полностью укладывается в RESPAWN_DELAY)
-export const SPAWN_ANIM_MS  = 280   // рост из нуля с упругим перелётом (easeOutBack)
-export const SPAWN_OVERSHOOT = 1.7  // коэффициент перелёта easeOutBack (>0 — насколько шар «перепрыгнет» 1.0)
+// Фаза «призрака» при респауне: игрок неуязвим и быстро ищет новую точку спавна.
+export const RESPAWN_GHOST_MS   = 1500  // длительность фазы (мс)
+export const RESPAWN_SPEED_MULT = 2     // множитель скорости движения в фазе
+export const RESPAWN_SPEED_RAMP = 0.3   // доля конца фазы, на которой ускорение плавно спадает к ×1
+export const GHOST_OPACITY      = 0.4   // прозрачность шара-призрака
+export const SPAWN_ANIM_MS  = 280       // материализация на месте (короткий «пуф»)
+export const SPAWN_POP      = 0.25      // амплитуда упругого пуфа при материализации
 // Хлопок частиц в момент смерти (world-space, цвет игрока). Гаснут сами — на динамику не влияют.
 export const DEATH_BURST_COUNT   = 14
 export const DEATH_BURST_RADIUS  = 0.16
