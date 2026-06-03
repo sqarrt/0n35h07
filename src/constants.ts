@@ -90,7 +90,6 @@ export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
-export const MATCH_ENDED_REVEAL_MS = 2000   // пауза: баннер «отключился» → скорборд + ВЫЙТИ
 export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту
 export const NET_RECONCILE_LERP = 0.15 // коррекция своего игрока к авторитету (анти-дрейф при коллизиях)
 export const NET_SNAPSHOT_HZ = 30     // частота рассылки снапшотов хостом
