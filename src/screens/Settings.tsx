@@ -5,7 +5,7 @@ import type { BallModel } from '../constants'
 import { NAME_MAX, saveProfile } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { BallPreview } from '../components/BallPreview'
-import { dimBtn, screenOverlay } from './styles'
+import { Button } from '../ui/Button'
 
 interface SettingsProps {
   profile: PlayerProfile
@@ -15,25 +15,8 @@ interface SettingsProps {
 
 type Slot = 'primary' | 'reserve'
 
-const swatch = (color: string, selected: boolean, disabled: boolean): CSSProperties => ({
-  width: 34, height: 34, borderRadius: '50%', background: color,
-  border: selected ? '3px solid #ccd' : '2px solid #223',
-  opacity: disabled ? 0.25 : 1,
-  cursor: disabled ? 'default' : 'pointer',
-  boxShadow: selected ? `0 0 10px ${color}` : 'none',
-})
-
 const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
 const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
-
-const segBtn = (active: boolean): CSSProperties => ({
-  background: active ? 'rgba(68,170,255,0.12)' : 'transparent',
-  border: `1px solid ${active ? '#4af' : '#334'}`,
-  color: active ? '#4af' : '#667',
-  padding: '0.45rem 0.9rem',
-  fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.1em',
-  cursor: 'pointer',
-})
 
 export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const [name, setName] = useState(profile.name)
@@ -78,8 +61,8 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
 
   return (
-    <div style={screenOverlay}>
-      <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
+    <div className="screen">
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
 
       <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start' }}>
         {/* Левая панель — живое превью шара в редактируемом цвете */}
@@ -95,14 +78,14 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={{ marginBottom: '1.6rem' }}>
             <div style={label}>ИМЯ</div>
             <input
+              className="input"
               value={name}
               onChange={e => handleName(e.target.value)}
               maxLength={NAME_MAX}
               aria-label="Имя игрока"
               style={{
-                background: 'transparent', border: '1px solid #4af', color: '#ccd',
-                fontFamily: 'monospace', fontSize: '1.3rem', letterSpacing: '0.1em',
-                padding: '0.5rem 1rem', width: '16rem', outline: 'none',
+                fontSize: '1.3rem', letterSpacing: '0.1em',
+                padding: '0.5rem 1rem', width: '16rem',
               }}
             />
           </div>
@@ -111,7 +94,9 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={row}>
             {PLAYER_COLORS.map(c => (
               <div key={c} role="button" aria-label={`основной ${c}`} title={c}
-                style={swatch(c, c === primary, false)} onClick={() => handlePrimary(c)} />
+                className={`swatch${c === primary ? ' swatch--sel' : ''}`}
+                style={{ background: c, color: c }}
+                onClick={() => handlePrimary(c)} />
             ))}
           </div>
 
@@ -119,7 +104,8 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={row}>
             {PLAYER_COLORS.map(c => (
               <div key={c} role="button" aria-label={`резервный ${c}`} title={c}
-                style={swatch(c, c === reserve, c === primary)}
+                className={`swatch${c === reserve ? ' swatch--sel' : ''}${c === primary ? ' swatch--dis' : ''}`}
+                style={{ background: c, color: c }}
                 onClick={() => handleReserve(c)} />
             ))}
           </div>
@@ -127,7 +113,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={label}>ВИД ПО УМОЛЧАНИЮ</div>
           <div style={row}>
             {(['fp', 'tp'] as DefaultView[]).map(v => (
-              <button key={v} style={segBtn(view === v)} onClick={() => handleView(v)}>
+              <button key={v} className={`seg${view === v ? ' seg--on' : ''}`} onClick={() => handleView(v)}>
                 {v === 'fp' ? 'ОТ 1 ЛИЦА' : 'ОТ 3 ЛИЦА'}
               </button>
             ))}
@@ -136,7 +122,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={label}>МОДЕЛЬ СФЕРЫ</div>
           <div style={row}>
             {BALL_MODELS.map(m => (
-              <button key={m} style={segBtn(model === m)} onClick={() => handleModel(m)}>
+              <button key={m} className={`seg${model === m ? ' seg--on' : ''}`} onClick={() => handleModel(m)}>
                 {modelLabel[m]}
               </button>
             ))}
@@ -144,7 +130,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
         </div>
       </div>
 
-      <button style={dimBtn} onClick={onBack}>НАЗАД</button>
+      <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
     </div>
   )
 }

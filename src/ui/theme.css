@@ -85,3 +85,9 @@
 .seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
 .seg:hover { border-color: var(--ghost-line-hover); color: #bcd6ee; }
 .seg--on { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.1); }
+
+/* Цветовые свотчи (Settings) */
+.swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid #223; }
+.swatch:hover { transform: scale(1.08); }
+.swatch--sel { border: 3px solid var(--text); box-shadow: 0 0 10px currentColor; }
+.swatch--dis { opacity: 0.25; cursor: default; }
