@@ -27,7 +27,7 @@ export function JoinLobby({ onJoin, onBack }: JoinLobbyProps) {
         maxLength={4}
         autoFocus
         style={{
-          fontSize: '2rem', letterSpacing: '0.5em', textIndent: '0.5em',
+          fontSize: '2rem', letterSpacing: '0.5em', textIndent: code.length > 0 ? '0.5em' : '0',
           textAlign: 'center', padding: '0.5rem 1rem', width: '15rem',
           boxSizing: 'border-box', marginBottom: '1.6rem',
         }}
