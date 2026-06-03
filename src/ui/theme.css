@@ -66,3 +66,22 @@
   outline: none;
 }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+/* VS-лобби */
+.lobby-frame { border: 1px solid var(--surface-line); background: var(--bg); padding: 24px 28px 26px; }
+.lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.lobby-pane { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12px; height: 236px; padding-top: 8px; }
+.lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 236px; }
+.lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
+.lobby-ball { width: 96px; height: 96px; border-radius: 50%; box-shadow: inset -12px -12px 26px rgba(0,0,0,0.4); }
+.lobby-ph { width: 96px; height: 96px; border-radius: 50%; border: 2px dashed #2a3a4c; }
+.lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
+.lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
+.lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
+/* копирование */
+.copy-btn { background: transparent; border: 1px solid var(--line); color: var(--accent-dim); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.12em; padding: 5px 12px; cursor: pointer; }
+.copy-btn:hover { background: var(--accent-fill); color: var(--ink); border-color: var(--accent-fill); }
+/* сегменты (сложность бота) */
+.seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
+.seg:hover { border-color: var(--ghost-line-hover); color: #bcd6ee; }
+.seg--on { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.1); }

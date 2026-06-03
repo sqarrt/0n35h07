@@ -24,7 +24,7 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
 
   await host.goto('/')
   await host.getByText('СОЗДАТЬ ЛОББИ').click()
-  await expect(host.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(host.getByText('ЛОББИ', { exact: true })).toBeVisible()
   const codeText = await host.getByText(/КОД:/).textContent()
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
 

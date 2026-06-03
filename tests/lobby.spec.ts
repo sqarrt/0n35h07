@@ -12,7 +12,7 @@ test('главное меню — кнопки навигации видны', a
 
 test('создать лобби — слот соперника пуст, НАЧАТЬ заблокирована', async ({ page }) => {
   await page.getByText('СОЗДАТЬ ЛОББИ').click()
-  await expect(page.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
   await expect(page.getByText(/КОД:/)).toBeVisible()
   await expect(page.getByText('ОЖИДАНИЕ СОПЕРНИКА…')).toBeVisible()   // слот соперника пуст
   await expect(page.getByText('ДОБАВИТЬ БОТА')).toBeVisible()
@@ -27,13 +27,13 @@ test('создать лобби — url меняется на /#CODE', async ({ 
 
 test('прямой переход по /#CODE — открывает лобби', async ({ page }) => {
   await page.goto('/#AB3K')
-  await expect(page.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
   await expect(page.getByText('КОД: AB3K')).toBeVisible()
 })
 
 test('прямой переход по /#CODE — заходишь клиентом (ждёшь хоста)', async ({ page }) => {
   await page.goto('/#XY9Z')
-  await expect(page.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
   await expect(page.getByText('ПОДКЛЮЧЕНИЕ…')).toBeVisible()       // хоста нет — клиент ждёт
   await expect(page.getByText('ДОБАВИТЬ БОТА')).not.toBeVisible()  // клиент не правит ростер
 })
@@ -80,9 +80,18 @@ test('войти в лобби → ввести код → url меняется'
   await page.getByText('ВОЙТИ В ЛОББИ').click()
   await page.locator('input').fill('AB3K')
   await page.getByRole('button', { name: 'ВОЙТИ' }).click()
-  await expect(page.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
   await expect(page.getByText('КОД: AB3K')).toBeVisible()
   expect(page.url()).toContain('AB3K')
+})
+
+test('копирование кода — кнопка кликается и даёт фидбек', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await page.goto('/')
+  await page.getByText('СОЗДАТЬ ЛОББИ').click()
+  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
+  await page.getByText('⧉ КОПИРОВАТЬ').click()
+  await expect(page.getByText('СКОПИРОВАНО')).toBeVisible()
 })
 
 test('пауза — Escape показывает меню паузы', async ({ page }) => {
