@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { BotDifficulty } from '../constants'
-import { HOST_ID, OPPONENT_ID } from '../constants'
+import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
@@ -12,13 +12,14 @@ interface LobbyProps {
   onAddBot: () => void
   onRemoveBot: () => void
   onSetDifficulty: (d: BotDifficulty) => void
+  onSetDuration: (min: number) => void
   onStart: () => void
   onBack: () => void
 }
 
 
-export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onStart, onBack }: LobbyProps) {
-  const { roster, isHost, localPlayerId, connected, canStart } = view
+export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onStart, onBack }: LobbyProps) {
+  const { roster, isHost, localPlayerId, connected, canStart, durationMin } = view
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
   const [copied, setCopied] = useState(false)
@@ -87,6 +88,18 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
             <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {lobbyCode}</div>
           </div>
           {pane(opponent, 'opp')}
+        </div>
+        <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--muted)' }}>// МАТЧ · ДЛИТЕЛЬНОСТЬ</div>
+          {isHost ? (
+            <div style={{ display: 'flex', gap: 9 }}>
+              {MATCH_DURATIONS_MIN.map(m => (
+                <button key={m} className={`seg${durationMin === m ? ' seg--on' : ''}`} onClick={() => onSetDuration(m)}>{m} МИН</button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 14, letterSpacing: '0.14em', color: '#9fb4c8', border: '1px solid var(--surface-line)', padding: '6px 16px' }}>{durationMin} МИН</div>
+          )}
         </div>
         <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 22, paddingTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {isHost

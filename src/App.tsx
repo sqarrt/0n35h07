@@ -158,6 +158,7 @@ export default function App() {
   const handleAddBot = () => sessionRef.current?.addBot('normal')
   const handleRemoveBot = () => sessionRef.current?.removeBot()
   const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
+  const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
 
   const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
@@ -177,6 +178,7 @@ export default function App() {
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
           onSetDifficulty={handleSetDifficulty}
+          onSetDuration={handleSetDuration}
           onStart={handleStart}
           onBack={handleBack}
         />
