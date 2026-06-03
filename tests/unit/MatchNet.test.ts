@@ -32,12 +32,11 @@ describe('Match — сетевой режим', () => {
     expect(snap.players.map(p => p.id).sort()).toEqual([0, 1])
   })
 
-  it('client применяет KILL: счёт растёт, шлёт KILL и PLAYER_HIT для локальной жертвы', () => {
+  it('client применяет KILL: счёт растёт, шлёт PLAYER_HIT для локальной жертвы', () => {
     const { match, dispatch } = makeMatch('client', 1)
     match.applyEvent({ t: 'kill', shooter: 0, victim: 1 })
     expect(match.players.find(p => p.id === 1)!.deaths).toBe(1)
     expect(match.players.find(p => p.id === 0)!.kills).toBe(1)
-    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'KILL' }))
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })
   })
 
@@ -108,13 +107,16 @@ describe('Match — сетевой режим', () => {
     expect(match.phase).toBe('countdown')
   })
 
-  it('handlePlayerLeft: фаза ended, аватар скрыт, шлёт SET_OPPONENT_LEFT', () => {
+  it('handlePlayerLeft: фаза ended, аватар скрыт, шлёт SET_MATCH_RESULT disconnect/win', () => {
     const { match, dispatch } = makeMatch('host', 0)
     const opponent = match.players.find(p => p.id === 1)!
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')
     expect(opponent.bodyGroup.visible).toBe(false)
-    expect(dispatch).toHaveBeenCalledWith({ type: 'SET_OPPONENT_LEFT', name: 'B' })
+    const result = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0]
+    expect(result).toBeTruthy()
+    expect(result.result.reason).toBe('disconnect')
+    expect(result.result.outcome).toBe('win')
     // ended → заморозка
     match.update(0.016)
     match.human.moveIntent(new THREE.Vector3(5, 0, 0), 1)

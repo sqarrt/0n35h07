@@ -7,7 +7,7 @@ export function CountdownOverlay({ n }: { n: number }) {
       background: 'rgba(10,10,15,0.35)',
     }}>
       <div key={n} style={{
-        fontFamily: 'monospace', fontWeight: 'bold',
+        fontFamily: 'var(--ui-font)', fontWeight: 'bold',
         fontSize: n > 0 ? '9rem' : '4rem', color: '#4af',
         textShadow: '0 0 40px rgba(68,170,255,0.6)',
         animation: 'cdPop 1s ease-out',

@@ -1,4 +1,4 @@
-import { btn, screenOverlay } from './styles'
+import { Button } from '../ui/Button'
 
 interface MainMenuProps {
   onCreateLobby: () => void
@@ -8,18 +8,19 @@ interface MainMenuProps {
 
 export function MainMenu({ onCreateLobby, onJoinLobby, onSettings }: MainMenuProps) {
   return (
-    <div style={screenOverlay}>
+    <div className="screen">
       <h1 style={{
         fontSize: '4rem', fontWeight: 'bold',
-        letterSpacing: '0.3em', color: '#4af',
-        marginBottom: '3rem', marginTop: 0,
+        letterSpacing: '0.3em', color: 'var(--accent)',
+        margin: '0 0 1rem', marginLeft: '0.3em',
         textShadow: '0 0 30px rgba(68,170,255,0.5)',
       }}>
         ONESHOT
       </h1>
-      <button style={btn} onClick={onCreateLobby}>СОЗДАТЬ ЛОББИ</button>
-      <button style={btn} onClick={onJoinLobby}>ВОЙТИ В ЛОББИ</button>
-      <button style={btn} onClick={onSettings}>НАСТРОЙКИ</button>
+      <div className="accent-rule" style={{ marginBottom: '2rem' }} />
+      <Button variant="primary" onClick={onCreateLobby}>СОЗДАТЬ ЛОББИ</Button>
+      <Button variant="secondary" onClick={onJoinLobby}>ВОЙТИ В ЛОББИ</Button>
+      <Button variant="secondary" onClick={onSettings}>НАСТРОЙКИ</Button>
     </div>
   )
 }

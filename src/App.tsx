@@ -8,8 +8,7 @@ import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
 import { RespawnOverlay } from './components/RespawnOverlay'
-import { Scoreboard } from './components/Scoreboard'
-import { KillFeed } from './components/KillFeed'
+import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
@@ -20,8 +19,8 @@ import { Lobby } from './screens/Lobby'
 import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
-import { btn, dimBtn, screenOverlay } from './screens/styles'
-import { POINTERLOCK_COOLDOWN } from './constants'
+import { Button } from './ui/Button'
+import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty } from './constants'
 import { createNet } from './net/createNet'
 import { LobbySession } from './net/LobbySession'
@@ -37,6 +36,7 @@ interface GameNet {
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
+  durationMs: number
 }
 
 function randomCode() {
@@ -50,14 +50,16 @@ export default function App() {
   const [lobbyCode, setLobbyCode] = useState('')
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
-  const [scoreboardOpen, setScoreboardOpen] = useState(false)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
 
+  const [joinStatus, setJoinStatus] = useState<'idle' | 'connecting' | 'failed'>('idle')
+
   const sessionRef = useRef<LobbySession | null>(null)
   const gameApiRef = useRef<GameApi | null>(null)
+  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leaveLobby = () => {
     sessionRef.current?.dispose()
@@ -71,18 +73,19 @@ export default function App() {
     const net = createNet(code)
     const session = new LobbySession(net, role, code, loadProfile())
     session.onChange(v => setLobbyView(v))
-    session.onStart(() => {
+    session.onStart((durationMs) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
+      dispatch({ type: 'RESET_MATCH' })
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()) })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs })
       setEverLocked(false)
       setScreen('game')
     })
     sessionRef.current = session
     setLobbyCode(code)
-    setScreen('lobby')
   }
 
   useEffect(() => {
@@ -101,7 +104,7 @@ export default function App() {
     const handleHash = () => {
       const code = window.location.hash.slice(1).toUpperCase()
       if (/^[A-Z0-9]{4}$/.test(code)) {
-        if (sessionRef.current?.code !== code) enterLobby(code, 'client')
+        if (sessionRef.current?.code !== code) { enterLobby(code, 'client'); setScreen('lobby') }
       } else if (!code && !sessionRef.current) {
         setScreen('menu')
       }
@@ -112,20 +115,10 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Tab (зажат) → таблица счёта K/D.
+  // Матч завершён — освобождаем курсор для клика «ВЫЙТИ».
   useEffect(() => {
-    if (screen !== 'game') { setScoreboardOpen(false); return }
-    const down = (e: KeyboardEvent) => { if (e.code === 'Tab') { e.preventDefault(); setScoreboardOpen(true) } }
-    const up   = (e: KeyboardEvent) => { if (e.code === 'Tab') { e.preventDefault(); setScoreboardOpen(false) } }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
-  }, [screen])
-
-  // Соперник отключился — освобождаем курсор для клика «ВЫЙТИ».
-  useEffect(() => {
-    if (hud.opponentLeft) document.exitPointerLock?.()
-  }, [hud.opponentLeft])
+    if (hud.matchResult) document.exitPointerLock?.()
+  }, [hud.matchResult])
 
   // Закрытие вкладки в игре → мгновенный 'bye' соседу (иначе детект по presence-таймауту).
   useEffect(() => {
@@ -133,6 +126,18 @@ export default function App() {
     window.addEventListener('beforeunload', onUnload)
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
+
+  // Клиент подключился (получил ASSIGN) на экране входа → переходим в лобби.
+  useEffect(() => {
+    if (screen === 'join' && joinStatus === 'connecting' && lobbyView?.connected) {
+      if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
+      setJoinStatus('idle')
+      setScreen('lobby')
+    }
+  }, [screen, joinStatus, lobbyView])
+
+  // Размонтирование — чистка таймера подключения.
+  useEffect(() => () => { if (connectTimer.current) clearTimeout(connectTimer.current) }, [])
 
   // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
   useEffect(() => {
@@ -147,14 +152,26 @@ export default function App() {
     const code = randomCode()
     window.location.hash = code
     enterLobby(code, 'host')
+    setScreen('lobby')
   }
-  const handleJoinLobby = () => setScreen('join')
-  const handleJoin = (code: string) => { window.location.hash = code; enterLobby(code, 'client') }
+  const handleJoinLobby = () => { setScreen('join'); setJoinStatus('idle') }
+  const handleJoin = (code: string) => {
+    if (connectTimer.current) clearTimeout(connectTimer.current)
+    setJoinStatus('connecting')
+    window.location.hash = code
+    enterLobby(code, 'client')   // остаёмся на экране 'join'
+    connectTimer.current = setTimeout(() => {
+      setJoinStatus('failed')
+      leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
+    }, CONNECT_TIMEOUT_MS)
+  }
   const handleSettings = () => setScreen('settings')
 
   const handleStart = () => sessionRef.current?.start()
 
   const handleBack = () => {
+    if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
+    setJoinStatus('idle')
     leaveLobby()
     setScreen('menu')
     if (window.location.hash) window.location.hash = ''
@@ -169,6 +186,7 @@ export default function App() {
   const handleAddBot = () => sessionRef.current?.addBot('normal')
   const handleRemoveBot = () => sessionRef.current?.removeBot()
   const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
+  const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
 
   const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
@@ -177,7 +195,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
-      {screen === 'join' && <JoinLobby onJoin={handleJoin} onBack={handleBack} />}
+      {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
       {screen === 'settings' && (
         <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
       )}
@@ -188,6 +206,7 @@ export default function App() {
           onAddBot={handleAddBot}
           onRemoveBot={handleRemoveBot}
           onSetDifficulty={handleSetDifficulty}
+          onSetDuration={handleSetDuration}
           onStart={handleStart}
           onBack={handleBack}
         />
@@ -204,6 +223,7 @@ export default function App() {
               peerToPlayer={gameNet.peerToPlayer}
               defaultThirdPerson={profile.defaultView === 'tp'}
               apiRef={gameApiRef}
+              durationMs={gameNet.durationMs}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (
@@ -218,7 +238,7 @@ export default function App() {
           {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
           {hud.matchPhase === 'live' && !locked && !everLocked && (
             <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <button style={btn} onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
+              <button className="btn" onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
                 ГОТОВ?
               </button>
             </div>
@@ -241,24 +261,23 @@ export default function App() {
               />
               <DashIndicator dashProgress={hud.dashProgress} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
-              <KillFeed lastKill={hud.lastKill} />
-              <Scoreboard scores={hud.scores} visible={scoreboardOpen} />
+              <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>
           )}
-          {hud.opponentLeft && (
-            <MatchEndedOverlay name={hud.opponentLeft.name} scores={hud.scores} onExit={handleBack} />
+          {hud.matchResult && (
+            <MatchEndedOverlay result={hud.matchResult} onExit={handleBack} />
           )}
         </>
       )}
 
       {paused && (
-        <div style={{ ...screenOverlay, background: 'rgba(10,10,15,0.85)' }}>
+        <div className="screen" style={{ background: 'rgba(10,10,15,0.85)' }}>
           <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
             МЕНЮ
           </h2>
           <button
+            className="btn btn--primary"
             style={{
-              ...btn,
               position: 'relative', overflow: 'hidden',
               opacity: resumeDisabled ? 0.5 : 1,
               cursor: resumeDisabled ? 'default' : 'pointer',
@@ -274,7 +293,7 @@ export default function App() {
               }} />
             )}
           </button>
-          <button style={dimBtn} onClick={handleBack}>В МЕНЮ</button>
+          <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
         </div>
       )}
     </div>

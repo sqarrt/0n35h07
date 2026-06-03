@@ -1,55 +1,55 @@
 import { useState } from 'react'
-import { btn, dimBtn, screenOverlay } from './styles'
+import { Button } from '../ui/Button'
+
+type JoinStatus = 'idle' | 'connecting' | 'failed'
 
 interface JoinLobbyProps {
+  status: JoinStatus
   onJoin: (code: string) => void
   onBack: () => void
 }
 
-export function JoinLobby({ onJoin, onBack }: JoinLobbyProps) {
+export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
   const [code, setCode] = useState('')
-
-  const handleJoin = () => {
-    if (code.trim().length > 0) onJoin(code.trim().toUpperCase())
-  }
+  const connecting = status === 'connecting'
+  const failed = status === 'failed'
+  const handleJoin = () => { if (!connecting && code.trim().length > 0) onJoin(code.trim().toUpperCase()) }
 
   return (
-    <div style={screenOverlay}>
-      <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
+    <div className="screen">
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
         ВОЙТИ В ЛОББИ
       </h2>
+      <div className="accent-rule" style={{ marginBottom: '1.6rem' }} />
+      <div style={{ color: 'var(--muted)', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem', fontFamily: 'var(--ui-font)' }}>
+        КОД ЛОББИ
+      </div>
 
-      <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-        <div style={{ color: '#556', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem' }}>
-          КОД ЛОББИ
-        </div>
+      <div className={`code-wrap${connecting ? ' is-connecting' : ''}${failed ? ' is-error' : ''}`}>
         <input
+          className="input"
           value={code}
           onChange={e => setCode(e.target.value.toUpperCase().slice(0, 4))}
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
           maxLength={4}
           autoFocus
+          disabled={connecting}
           style={{
-            background: 'transparent',
-            border: '1px solid #4af',
-            color: '#ccd',
-            fontFamily: 'monospace',
-            fontSize: '2rem',
-            letterSpacing: '0.5em',
-            textIndent: '0.5em',   // компенсирует трейлинговый letterSpacing → честное центрирование
-            textAlign: 'center',
-            padding: '0.5rem 1rem',
-            width: '15rem',
-            boxSizing: 'border-box',
-            outline: 'none',
+            fontSize: '2rem', letterSpacing: '0.5em', textIndent: code.length > 0 ? '0.5em' : '0',
+            textAlign: 'center', padding: '0.5rem 1rem', boxSizing: 'border-box',
           }}
         />
+        <svg className="code-run" viewBox="0 0 240 64">
+          <rect x="1.5" y="1.5" width="237" height="61" pathLength="100" />
+        </svg>
       </div>
 
-      <button style={{ ...btn, opacity: code.trim().length === 0 ? 0.4 : 1 }} onClick={handleJoin}>
-        ВОЙТИ
-      </button>
-      <button style={dimBtn} onClick={onBack}>НАЗАД</button>
+      <div className={`join-status${connecting ? ' connecting' : ''}${failed ? ' failed' : ''}`}>
+        {connecting ? 'ПОДКЛЮЧЕНИЕ…' : failed ? `ЛОББИ ${code} НЕ ОТВЕЧАЕТ` : ''}
+      </div>
+
+      <Button variant="primary" disabled={connecting || code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
+      <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
     </div>
   )
 }

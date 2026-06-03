@@ -24,7 +24,7 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
 
   await host.goto('/')
   await host.getByText('СОЗДАТЬ ЛОББИ').click()
-  await expect(host.getByRole('heading', { name: 'ЛОББИ' })).toBeVisible()
+  await expect(host.getByText('ЛОББИ', { exact: true })).toBeVisible()
   const codeText = await host.getByText(/КОД:/).textContent()
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
 
@@ -131,7 +131,7 @@ test('1v1: ритуал входа — пока не готовы оба, дви
 test('1v1: клиент отключился — хост видит баннер и (после паузы) ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await client.evaluate(() => (window as any).__debugLeave())   // клиент покидает игру
-  await expect(host.getByText(/отключился/)).toBeVisible({ timeout: 6000 })
+  await expect(host.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
   await expect(host.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
   expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ended')
 })
@@ -139,6 +139,6 @@ test('1v1: клиент отключился — хост видит банне�
 test('1v1: хост отключился — клиент видит баннер и ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await host.evaluate(() => (window as any).__debugLeave())
-  await expect(client.getByText(/отключился/)).toBeVisible({ timeout: 6000 })
+  await expect(client.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
   await expect(client.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
 })

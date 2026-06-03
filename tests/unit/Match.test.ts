@@ -66,14 +66,13 @@ describe('Match', () => {
     expect(match.bots[0].isRespawning).toBe(true)   // погиб → фаза призрака (1.5с)
   })
 
-  it('убийство ведёт K/D и шлёт KILL/SET_SCORES', () => {
+  it('убийство ведёт K/D и шлёт SET_SCORES', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
     step(match, scene, 45)
     expect(match.human.kills).toBe(1)
     expect(match.bots[0].deaths).toBe(1)
-    expect(dispatch).toHaveBeenCalledWith({ type: 'KILL', kill: { id: 1, killer: 'Вы', victim: 'Бот' } })
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SCORES' }))
   })
 

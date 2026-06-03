@@ -31,7 +31,7 @@ export function RespawnOverlay({ progress }: { progress: number }) {
       <Bar edge="bottom" pct={pct} />
       <div style={{
         position: 'fixed', top: 16, left: 0, right: 0, textAlign: 'center',
-        color: GHOST, fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.25em',
+        color: GHOST, fontFamily: 'var(--ui-font)', fontSize: '0.75rem', letterSpacing: '0.25em',
         textShadow: `0 0 8px ${GHOST}`, pointerEvents: 'none', zIndex: 14,
       }}>
         ВОЗРОЖДЕНИЕ

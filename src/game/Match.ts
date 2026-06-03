@@ -8,13 +8,14 @@ import { HumanController } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
-import type { HUDAction } from '../hooks/useGameHUD'
+import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import {
   EYE_HEIGHT, BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, NET_HUMAN_SPAWN_Z, READY_COUNTDOWN_MS,
+  MATCH_TIME_BROADCAST_MS,
 } from '../constants'
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
@@ -27,6 +28,7 @@ interface MatchOptions {
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
+  durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -56,7 +58,12 @@ export class Match {
   private prevWindup = false
   private prevShield = false
   private scoresDirty = true   // на старте отправить нулевую таблицу
-  private killSeq = 0          // монотонный id для ленты убийств
+
+  // Часы матча
+  private durationMs: number
+  private matchEndsAt = 0       // 0 = ещё не в live; ставится лениво на первом live-кадре
+  private lastTimeSentAt = 0
+  private ended = false
 
   // Ритуал входа (1v1)
   private readySet = new Set<number>()
@@ -70,6 +77,7 @@ export class Match {
     this.world = new World(o.scene)
     this.role = o.role
     this.localId = o.netConfig.localId
+    this.durationMs = o.durationMs ?? 0
 
     const { human, humanController, controllers, opponentIsBot } = this.buildPlayers(o, o.netConfig)
     this.human = human
@@ -184,6 +192,7 @@ export class Match {
     this.applyPhysics(dt)
     this.resolveCombat()
     this.resolveRespawns(dt)
+    this.tickMatchClock(Date.now())
     this.syncHud()
     this.controllers.forEach(c => c.lateUpdate?.(dt))
   }
@@ -231,7 +240,6 @@ export class Match {
             if (shooter !== victim) shooter.kills++
             this.scoresDirty = true
             this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
-            this.dispatch({ type: 'KILL', kill: { id: ++this.killSeq, killer: shooter.name, victim: victim.name } })
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
               ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
@@ -324,9 +332,44 @@ export class Match {
       p.weaponObject.visible = false
       p.trailObject.visible = false
     }
+    this.endMatch('disconnect')
+  }
+
+  private tickMatchClock(now: number) {
+    if (this.phase !== 'live') return
+    if (this.durationMs === 0) return   // без таймера (обратная совместимость)
+    if (this.matchEndsAt === 0) this.matchEndsAt = now + this.durationMs
+    const remaining = Math.max(0, this.matchEndsAt - now)
+    if (now - this.lastTimeSentAt >= MATCH_TIME_BROADCAST_MS || remaining === 0) {
+      this.lastTimeSentAt = now
+      this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(remaining / 1000) })
+      this.emit({ t: 'time', remainingMs: remaining })
+    }
+    if (remaining === 0) this.endMatch('time')
+  }
+
+  private endMatch(reason: 'time' | 'disconnect') {
+    if (this.ended) return
+    this.ended = true
     this.phase = 'ended'
     this.phaseDirtyFlag = true
-    this.dispatch({ type: 'SET_OPPONENT_LEFT', name: p?.name ?? '?' })
+    this.syncPhaseHud()
+    this.dispatch({ type: 'SET_MATCH_RESULT', result: this.computeResult(reason) })
+    this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
+  }
+
+  private computeResult(reason: 'time' | 'disconnect'): MatchResult {
+    const me = this.byId.get(this.localId)
+    const opp = this.players.find(p => p.id !== this.localId)
+    const myKills = me?.kills ?? 0
+    const oppKills = opp?.kills ?? 0
+    const outcome: 'win' | 'lose' | 'draw' =
+      reason === 'disconnect' ? 'win'
+      : myKills > oppKills ? 'win'
+      : myKills < oppKills ? 'lose'
+      : 'draw'
+    const scores = this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths }))
+    return { outcome, reason, scores }
   }
 
   private syncHud() {
@@ -414,7 +457,6 @@ export class Match {
         victim.applyDeath()
         victim.deaths++
         if (shooter && shooter !== victim) shooter.kills++
-        this.dispatch({ type: 'KILL', kill: { id: ++this.killSeq, killer: shooter?.name ?? '?', victim: victim.name } })
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
         break
       }
@@ -429,6 +471,14 @@ export class Match {
       }
       case 'scores': {
         this.dispatch({ type: 'SET_SCORES', scores: e.scores })
+        break
+      }
+      case 'time': {
+        this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(e.remainingMs / 1000) })
+        break
+      }
+      case 'matchEnd': {
+        this.endMatch(e.reason)
         break
       }
     }
@@ -453,6 +503,7 @@ export class Match {
       return p ? { kills: p.kills, deaths: p.deaths } : null
     }
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
+    w.__debugForceEnd = () => this.endMatch('time')
   }
 
   dispose() {
@@ -465,6 +516,7 @@ export class Match {
     delete w.__debugPlayerPos
     delete w.__debugScore
     delete w.__debugBodyScale
+    delete w.__debugForceEnd
     this.players.forEach(p => p.dispose())
   }
 }

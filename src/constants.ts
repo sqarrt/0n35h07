@@ -76,6 +76,14 @@ export const DEATH_BURST_OPACITY = 0.9
 // PointerLock: Chrome блокирует повторный requestPointerLock ~1.25с после выхода.
 export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед повторным входом (кнопка «Продолжить»)
 
+// Матч на время (выбор хоста в лобби). Конец матча: таймер ИЛИ отключение соперника.
+export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
+export const DEFAULT_MATCH_DURATION_MIN = 5
+export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
+
+// JoinLobby: ожидание ASSIGN от хоста; по истечении — ошибка
+export const CONNECT_TIMEOUT_MS = 10000
+
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
@@ -85,7 +93,6 @@ export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
-export const MATCH_ENDED_REVEAL_MS = 2000   // пауза: баннер «отключился» → скорборд + ВЫЙТИ
 export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту
 export const NET_RECONCILE_LERP = 0.15 // коррекция своего игрока к авторитету (анти-дрейф при коллизиях)
 export const NET_SNAPSHOT_HZ = 30     // частота рассылки снапшотов хостом

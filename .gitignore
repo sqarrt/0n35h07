@@ -25,9 +25,12 @@ dist-ssr
 
 .playwright-mcp
 test-results
+.env
 
 # Локальные настройки/планы Claude и отладочные скриншоты
 .claude/
 dash-strips*.png
 docs/
 TODO.md
+.superpowers
+.mcp.json

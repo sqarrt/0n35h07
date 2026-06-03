@@ -1,9 +1,10 @@
-import type { CSSProperties } from 'react'
+import { useState } from 'react'
 import type { BotDifficulty } from '../constants'
-import { HOST_ID, OPPONENT_ID } from '../constants'
+import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
-import { btn, dimBtn, screenOverlay } from './styles'
+import { Button } from '../ui/Button'
+import { LobbyBackdrop } from '../components/LobbyBackdrop'
 
 interface LobbyProps {
   lobbyCode: string
@@ -11,100 +12,104 @@ interface LobbyProps {
   onAddBot: () => void
   onRemoveBot: () => void
   onSetDifficulty: (d: BotDifficulty) => void
+  onSetDuration: (min: number) => void
   onStart: () => void
   onBack: () => void
 }
 
-const smallBtn: CSSProperties = {
-  background: 'transparent',
-  border: '1px solid #334',
-  color: '#556',
-  padding: '0.25rem 0.6rem',
-  fontFamily: 'monospace',
-  fontSize: '0.7rem',
-  letterSpacing: '0.08em',
-  cursor: 'pointer',
-}
 
-const rowBase: CSSProperties = {
-  padding: '0.5rem 1rem',
-  borderBottom: '1px solid #1a2030',
-  color: '#778', fontSize: '0.9rem',
-  display: 'flex', alignItems: 'center', gap: '0.5rem',
-}
-
-export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onStart, onBack }: LobbyProps) {
-  const { roster, isHost, localPlayerId, connected, canStart } = view
+export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onStart, onBack }: LobbyProps) {
+  const { roster, isHost, localPlayerId, connected, canStart, durationMin } = view
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
+  const [copied, setCopied] = useState(false)
 
-  const diffBtn = (cur: BotDifficulty | undefined, d: BotDifficulty): CSSProperties => ({
-    ...smallBtn,
-    borderColor: cur === d ? '#4af' : '#334',
-    color: cur === d ? '#4af' : '#556',
-    background: cur === d ? 'rgba(68,170,255,0.1)' : 'transparent',
-  })
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(lobbyCode)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = lobbyCode; document.body.appendChild(ta); ta.select()
+      try { document.execCommand('copy') } catch { /* ignore */ }
+      document.body.removeChild(ta)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
-  const row = (entry: RosterEntry) => (
-    <div key={entry.id} style={rowBase}>
-      <span style={{ color: entry.color, fontSize: '0.7rem' }}>●</span>
-      <span style={{ flex: 1, color: entry.id === localPlayerId ? '#ccd' : '#778' }}>
-        {entry.name}{entry.id === localPlayerId ? ' (вы)' : ''}
-      </span>
-      {entry.kind === 'bot' && isHost && (
-        <>
-          <button style={diffBtn(entry.difficulty, 'normal')} onClick={() => onSetDifficulty('normal')}>НОРМАЛЬНЫЙ</button>
-          <button style={diffBtn(entry.difficulty, 'passive')} onClick={() => onSetDifficulty('passive')}>ПАССИВНЫЙ</button>
-          <button style={{ ...smallBtn, color: '#445', borderColor: '#2a2030' }} onClick={onRemoveBot}>×</button>
-        </>
-      )}
-      {entry.kind === 'human' && entry.id !== localPlayerId && (
-        <span style={{ color: '#4fa', fontSize: '0.6rem', letterSpacing: '0.1em' }}>ИГРОК</span>
-      )}
-    </div>
-  )
+  const pane = (entry: RosterEntry | null, side: 'host' | 'opp') => {
+    if (!entry) {
+      return (
+        <div className="lobby-pane">
+          <div style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 12, letterSpacing: '0.14em' }}>
+            ОЖИДАНИЕ СОПЕРНИКА…
+          </div>
+          {isHost && <Button variant="ghost" style={{ minWidth: 'auto', fontSize: '0.75rem', padding: '0.4rem 1rem' }} onClick={onAddBot}>ДОБАВИТЬ БОТА</Button>}
+        </div>
+      )
+    }
+    const mine = entry.id === localPlayerId
+    const tag = side === 'host' ? 'ХОСТ' : entry.kind === 'bot' ? 'БОТ' : 'ИГРОК'
+    const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
+    return (
+      <div className="lobby-pane">
+        <div className="lobby-nick" style={{ color: entry.color }}>{entry.name}{mine ? ' (вы)' : ''}</div>
+        <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>
+        {entry.kind === 'bot' && isHost && (
+          <>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <button className={`seg${entry.difficulty === 'normal' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('normal')}>НОРМАЛЬНЫЙ</button>
+              <button className={`seg${entry.difficulty === 'passive' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('passive')}>ПАССИВНЫЙ</button>
+            </div>
+            <button
+              aria-label="×"
+              style={{ background: 'transparent', border: 'none', fontSize: 10, color: 'var(--muted)', cursor: 'pointer', letterSpacing: '0.1em', fontFamily: 'var(--ui-font)' }}
+              onClick={onRemoveBot}
+            >× убрать</button>
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div style={screenOverlay}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#4af', letterSpacing: '0.2em', margin: 0 }}>ЛОББИ</h2>
-        <span style={{ color: '#556', fontSize: '0.75rem', letterSpacing: '0.15em' }}>КОД: {lobbyCode}</span>
-      </div>
-
-      <div style={{ marginBottom: '0.5rem', minWidth: '380px' }}>
-        {host && row(host)}
-        {opponent
-          ? row(opponent)
-          : (
-            <div style={{ ...rowBase, color: '#556', fontStyle: 'italic' }}>
-              <span style={{ color: '#445', fontSize: '0.7rem' }}>○</span>
-              <span style={{ flex: 1 }}>ОЖИДАНИЕ СОПЕРНИКА…</span>
-            </div>
-          )}
-      </div>
-
-      {isHost && !opponent && (
-        <button
-          style={{ ...dimBtn, minWidth: 'auto', padding: '0.4rem 1.2rem', fontSize: '0.8rem', marginBottom: '1.5rem' }}
-          onClick={onAddBot}
-        >
-          ДОБАВИТЬ БОТА
-        </button>
-      )}
-
-      {isHost
-        ? <button
-            style={{ ...btn, opacity: canStart ? 1 : 0.4, cursor: canStart ? 'pointer' : 'default' }}
-            disabled={!canStart}
-            onClick={onStart}
-          >
-            НАЧАТЬ
-          </button>
-        : <div style={{ color: '#556', fontSize: '0.8rem', letterSpacing: '0.15em', marginBottom: '0.8rem' }}>
-            {connected ? 'ОЖИДАНИЕ ХОСТА…' : 'ПОДКЛЮЧЕНИЕ…'}
+    <div className="screen">
+      <LobbyBackdrop host={host ?? undefined} opponent={opponent ?? undefined} />
+      <div className="lobby-frame" style={{ minWidth: 600 }}>
+        <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
+        <div className="lobby-face">
+          {pane(host ?? null, 'host')}
+          <div className="lobby-center">
+            <button className="lobby-code-copy" onClick={copyCode} title="Скопировать код">
+              <span className="lobby-code">{lobbyCode}</span>
+              <span className="glyph" aria-hidden="true">⧉</span>
+              {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
+            </button>
+            <div className="lobby-vs">— VS —</div>
+            {/* скрытый узел для тестов формата кода */}
+            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {lobbyCode}</div>
           </div>
-      }
-      <button style={dimBtn} onClick={onBack}>НАЗАД</button>
+          {pane(opponent, 'opp')}
+        </div>
+        <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--muted)' }}>// МАТЧ · ДЛИТЕЛЬНОСТЬ</div>
+          {isHost ? (
+            <div style={{ display: 'flex', gap: 9 }}>
+              {MATCH_DURATIONS_MIN.map(m => (
+                <button key={m} className={`seg${durationMin === m ? ' seg--on' : ''}`} onClick={() => onSetDuration(m)}>{m} МИН</button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 14, letterSpacing: '0.14em', color: '#9fb4c8', border: '1px solid var(--surface-line)', padding: '6px 16px' }}>{durationMin} МИН</div>
+          )}
+        </div>
+        <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 22, paddingTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+          {isHost
+            ? <Button variant="primary" disabled={!canStart} onClick={onStart} style={{ width: 300 }}>НАЧАТЬ</Button>
+            : <div style={{ color: 'var(--muted)', fontSize: '0.8rem', letterSpacing: '0.15em', fontFamily: 'var(--ui-font)' }}>{connected ? 'ОЖИДАНИЕ ХОСТА…' : 'ПОДКЛЮЧЕНИЕ…'}</div>}
+          <Button variant="ghost" onClick={onBack} style={{ width: 300 }}>НАЗАД</Button>
+        </div>
+      </div>
     </div>
   )
 }

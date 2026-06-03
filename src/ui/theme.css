@@ -1,0 +1,128 @@
+/* Дизайн-токены OneShot. Акцент = цвет игры (#4af). Без градиентов в элементах UI. */
+:root {
+  --bg: #0a0c11;
+  --accent: #4af;            /* идентичность/свечения */
+  --accent-fill: #2b9ff0;    /* заливка кнопок */
+  --accent-bright: #4fb4ff;  /* hover заливки */
+  --accent-press: #1c7fc8;   /* active */
+  --accent-dim: #7fd0ff;     /* текст idle-кнопки */
+  --line: #2f6f9e;           /* контур idle-кнопки */
+  --ink: #06121f;            /* текст на заливке */
+  --ghost-line: #2a3340;
+  --ghost-line-hover: #3a6f9c;
+  --danger: #f66;
+  --ok: #4fa;
+  --opp: #fa4;               /* цвет соперника */
+  --text: #cfe6ff;
+  --muted: #778;
+  --surface-line: #1a2433;
+  --ui-font: 'Share Tech Mono', monospace;
+}
+
+/* Полноэкранный оверлей-экран (замена инлайн screenOverlay). */
+.screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: var(--ui-font); color: var(--text);
+  z-index: 100;
+}
+
+/* Тонкая акцентная линия под заголовком. */
+.accent-rule { width: 120px; height: 1px; background: var(--line); }
+
+/* Hard-кнопка: мгновенная плоская заливка, без transition. */
+.btn {
+  font-family: var(--ui-font);
+  font-size: 1rem;
+  letter-spacing: 0.18em;
+  padding: 0.75rem 2rem;
+  min-width: 220px;
+  background: transparent;
+  color: var(--accent-dim);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  margin: 0.4rem 0;
+}
+.btn:hover { background: var(--accent-fill); color: var(--ink); border-color: var(--accent-fill); }
+.btn:active { background: var(--accent-press); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn:disabled:hover { background: transparent; color: var(--accent-dim); border-color: var(--line); }
+
+.btn--primary { background: var(--accent-fill); color: var(--ink); border-color: var(--accent-fill); font-weight: bold; }
+.btn--primary:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
+.btn--primary:disabled, .btn--primary:disabled:hover { background: var(--accent-fill); border-color: var(--accent-fill); opacity: 0.4; }
+
+.btn--ghost { border-color: var(--ghost-line); color: var(--muted); }
+.btn--ghost:hover { background: transparent; color: var(--text); border-color: var(--ghost-line-hover); }
+
+.input {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: var(--ui-font);
+  outline: none;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+/* VS-лобби */
+/* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
+.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; }
+.lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
+.lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
+.lobby-code-copy { position: relative; background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; font-family: var(--ui-font); }
+.lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
+.lobby-code-copy:hover .lobby-code { color: var(--accent-bright); text-shadow: 0 0 24px rgba(68,170,255,0.75); }
+.lobby-code-copy .glyph { font-size: 18px; color: var(--muted); }
+.lobby-code-copy:hover .glyph { color: var(--accent-dim); }
+.lobby-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
+.lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
+.lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
+/* код кликабелен → копирование ссылки; фидбек «СКОПИРОВАНО» абсолютно под кодом — не занимает поток, без сдвигов */
+.lobby-copied { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: 11px; letter-spacing: 0.16em; color: var(--ok); white-space: nowrap; }
+/* сегменты (сложность бота) */
+.seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
+.seg:hover { border-color: var(--ghost-line-hover); color: #bcd6ee; }
+.seg--on { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.1); }
+
+/* Цветовые свотчи (Settings) */
+.swatch { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; border: 2px solid #223; }
+.swatch:hover { transform: scale(1.08); }
+.swatch--sel { border: 3px solid var(--text); box-shadow: 0 0 10px currentColor; }
+.swatch--dis { opacity: 0.25; cursor: default; }
+
+.ready-overlay { position: fixed; inset: 0; z-index: 12; cursor: pointer; font-family: var(--ui-font); }
+.ready-tint-l { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; background: linear-gradient(90deg, rgba(68,170,255,0.16), transparent); pointer-events: none; }
+.ready-tint-r { position: absolute; top: 0; bottom: 0; right: 0; width: 34%; background: linear-gradient(270deg, rgba(255,170,68,0.16), transparent); pointer-events: none; }
+.ready-corner { position: absolute; top: 18px; font-size: 13px; letter-spacing: 0.12em; }
+.ready-corner small { display: block; font-size: 10px; letter-spacing: 0.16em; margin-top: 4px; }
+.ready-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 15px; letter-spacing: 0.16em; }
+.ready-hint .hkey { border: 1px solid var(--line); background: rgba(68,170,255,0.1); color: #bdf; border-radius: 3px; padding: 3px 9px; font-size: 13px; }
+.ready-legend { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(10,10,15,0.72); border: 1px solid var(--surface-line); border-radius: 6px; padding: 9px 14px; pointer-events: none; }
+
+/* HUD: постоянный счёт + таймер сверху по центру (Center Bar) */
+.match-hud { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; z-index: 11; pointer-events: none; font-family: var(--ui-font); }
+.match-hud .side { display: flex; align-items: center; gap: 7px; width: 150px; }
+.match-hud .side.you { justify-content: flex-end; }
+.match-hud .side.opp { justify-content: flex-start; }
+.match-hud .nm { font-size: 11px; letter-spacing: 0.14em; color: #8a93a0; }
+.match-hud .frag { font-size: 22px; }
+.match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
+.match-hud .dot { font-size: 10px; }
+
+/* JoinLobby: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
+.code-wrap { position: relative; width: 240px; height: 64px; }
+.code-wrap .input { width: 100%; height: 100%; }
+.code-wrap.is-error .input { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset, 0 0 14px rgba(255,90,90,0.28); }
+.code-run { position: absolute; inset: 0; pointer-events: none; display: none; }
+.code-wrap.is-connecting .code-run { display: block; }
+.code-run rect { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 20 80; filter: drop-shadow(0 0 4px var(--accent)); }
+.code-wrap.is-connecting .code-run rect { animation: code-run-dash 1.2s linear infinite; }
+@keyframes code-run-dash { to { stroke-dashoffset: -100; } }
+.join-status { height: 20px; font-size: 12px; letter-spacing: 0.18em; margin: 0.6rem 0 1rem; text-align: center; }
+.join-status.connecting { color: var(--accent-dim); }
+.join-status.failed { color: var(--danger); }
