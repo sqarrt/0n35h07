@@ -78,11 +78,22 @@ test('войти в лобби → назад → главное меню', asyn
 
 test('войти в лобби → ввести код → url меняется', async ({ page }) => {
   await page.getByText('ВОЙТИ В ЛОББИ').click()
-  await page.locator('input').fill('AB3K')
+  await page.locator('.code-wrap input').fill('AB3K')
   await page.getByRole('button', { name: 'ВОЙТИ' }).click()
-  await expect(page.getByText('ЛОББИ', { exact: true })).toBeVisible()
-  await expect(page.getByText('КОД: AB3K')).toBeVisible()
+  // После клика экран остаётся на join в состоянии подключения (хост не отвечает)
+  await expect(page.getByText('ПОДКЛЮЧЕНИЕ…')).toBeVisible()
   expect(page.url()).toContain('AB3K')
+})
+
+test('вход по несуществующему коду — таймаут показывает ошибку, ВОЙТИ снова активна', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('ВОЙТИ В ЛОББИ').click()
+  await page.locator('.code-wrap input').fill('ZZZ9')
+  await page.getByRole('button', { name: 'ВОЙТИ' }).click()
+  await expect(page.getByText('ПОДКЛЮЧЕНИЕ…')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'ВОЙТИ' })).toBeDisabled()
+  await expect(page.getByText(/НЕ ОТВЕЧАЕТ/)).toBeVisible({ timeout: 13000 })
+  await expect(page.getByRole('button', { name: 'ВОЙТИ' })).toBeEnabled()
 })
 
 test('копирование кода — кнопка кликается и даёт фидбек', async ({ page, context }) => {
