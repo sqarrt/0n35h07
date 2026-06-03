@@ -75,6 +75,8 @@ export default function App() {
     session.onChange(v => setLobbyView(v))
     session.onStart((durationMs) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
+      dispatch({ type: 'RESET_MATCH' })
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.

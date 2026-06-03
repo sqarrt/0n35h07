@@ -38,6 +38,7 @@ export type HUDAction =
   | { type: 'SET_RESPAWNING';      progress: number | null }
   | { type: 'SET_MATCH_TIME';      seconds: number | null }
   | { type: 'SET_MATCH_RESULT';    result: MatchResult }
+  | { type: 'RESET_MATCH' }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
   | { type: 'SHIELD_BLOCK' }
@@ -73,6 +74,7 @@ function reducer(
     case 'SET_RESPAWNING':      return { ...state, respawning: action.progress === null ? null : { progress: action.progress } }
     case 'SET_MATCH_TIME':      return { ...state, matchTime: action.seconds }
     case 'SET_MATCH_RESULT':    return { ...state, matchResult: action.result }
+    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [] }
     default: return state
   }
 }

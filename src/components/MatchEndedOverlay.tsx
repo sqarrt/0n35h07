@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { CSSProperties } from 'react'
 import type { MatchResult } from '../hooks/useGameHUD'
 import { Button } from '../ui/Button'
@@ -32,11 +33,11 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
         <div style={{ color: 'var(--accent)', textAlign: 'right' }}>K</div>
         <div style={{ color: 'var(--accent)', textAlign: 'right' }}>D</div>
         {result.scores.map((s, i) => (
-          <div key={i} style={{ display: 'contents' }}>
+          <Fragment key={i}>
             <div>{s.name}</div>
             <div style={{ textAlign: 'right' }}>{s.kills}</div>
             <div style={{ textAlign: 'right' }}>{s.deaths}</div>
-          </div>
+          </Fragment>
         ))}
       </div>
       <Button variant="primary" onClick={onExit}>ВЫЙТИ</Button>
