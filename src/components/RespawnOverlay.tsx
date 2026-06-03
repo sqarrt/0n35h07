@@ -1,13 +1,19 @@
+import { HUD_FRAME_INSET } from '../constants'
+
 const GHOST = '#9cf'
 
-/** Горизонтальная полоса остатка времени фазы (сверху/снизу), тает к центру — как откат дэша. */
+/**
+ * Горизонтальная полоса остатка времени фазы (сверху/снизу), тает к центру.
+ * Лежит на линии-периметре HUD (как плечи скобок щита и полосы дэша) → единый контур.
+ * Полная длина = половина ширины экрана, по центру.
+ */
 function Bar({ edge, pct }: { edge: 'top' | 'bottom'; pct: number }) {
   return (
     <div style={{
       position: 'fixed', left: '50%', transform: 'translateX(-50%)',
-      top:    edge === 'top'    ? 0 : undefined,
-      bottom: edge === 'bottom' ? 0 : undefined,
-      height: 5, width: `${pct}%`,
+      top:    edge === 'top'    ? HUD_FRAME_INSET : undefined,
+      bottom: edge === 'bottom' ? HUD_FRAME_INSET : undefined,
+      height: 6, width: `${pct * 0.5}%`,
       background: GHOST, boxShadow: `0 0 10px ${GHOST}`,
       transition: 'width 0.05s linear', pointerEvents: 'none', zIndex: 14,
     }} />
@@ -30,7 +36,8 @@ export function RespawnOverlay({ progress }: { progress: number }) {
       <Bar edge="top" pct={pct} />
       <Bar edge="bottom" pct={pct} />
       <div style={{
-        position: 'fixed', top: 16, left: 0, right: 0, textAlign: 'center',
+        position: 'fixed', top: '50%', left: 0, right: 0, textAlign: 'center',
+        transform: 'translateY(-120px)',   // над прицелом, ниже таймера/счёта (MatchHud сверху)
         color: GHOST, fontFamily: 'var(--ui-font)', fontSize: '0.75rem', letterSpacing: '0.25em',
         textShadow: `0 0 8px ${GHOST}`, pointerEvents: 'none', zIndex: 14,
       }}>

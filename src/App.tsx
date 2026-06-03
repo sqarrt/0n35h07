@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -12,6 +12,7 @@ import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
+import { MenuBackdrop } from './components/MenuBackdrop'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
@@ -21,7 +22,7 @@ import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
 import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
-import type { BotDifficulty } from './constants'
+import type { BotDifficulty, BallModel } from './constants'
 import { createNet } from './net/createNet'
 import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
@@ -51,6 +52,8 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
+  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel }>(() => ({ color: profile.primaryColor, model: profile.ballModel }))
+  const handlePreview = useCallback((color: string, model: BallModel) => setSettingsPreview({ color, model }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -192,12 +195,17 @@ export default function App() {
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
+  const menuPlayer = screen === 'settings'
+    ? settingsPreview
+    : { color: profile.primaryColor, model: profile.ballModel }
+
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+    <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
       {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
       {screen === 'settings' && (
-        <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
+        <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
       )}
       {screen === 'lobby' && lobbyView && (
         <Lobby
@@ -285,13 +293,15 @@ export default function App() {
             disabled={resumeDisabled}
             onClick={handleResume}
           >
-            {resumeDisabled ? `ПРОДОЛЖИТЬ (${(lockCooldownLeft / 1000).toFixed(1)}с)` : 'ПРОДОЛЖИТЬ'}
+            {/* индикация кулдауна — заливка слева-направо (без смены текста → кнопка не прыгает) */}
             {resumeDisabled && (
               <span style={{
-                position: 'absolute', left: 0, bottom: 0, height: 2, background: '#4af',
+                position: 'absolute', left: 0, top: 0, bottom: 0,
                 width: `${(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}%`,
+                background: 'rgba(120,180,255,0.28)',
               }} />
             )}
+            <span style={{ position: 'relative' }}>ПРОДОЛЖИТЬ</span>
           </button>
           <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
         </div>

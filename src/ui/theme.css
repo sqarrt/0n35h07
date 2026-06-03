@@ -19,10 +19,11 @@
   --ui-font: 'Share Tech Mono', monospace;
 }
 
-/* Полноэкранный оверлей-экран (замена инлайн screenOverlay). */
+/* Полноэкранный оверлей-экран. Фон прозрачный — за ним персистентный MenuBackdrop (тёмный фон на корне App).
+   Пауза-оверлей задаёт свой полупрозрачный фон инлайном. */
 .screen {
   position: fixed; inset: 0;
-  background: var(--bg);
+  background: transparent;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   font-family: var(--ui-font); color: var(--text);
@@ -31,6 +32,18 @@
 
 /* Тонкая акцентная линия под заголовком. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
+
+/* Полупрозрачная панель-подложка под контентом меню (читаемость текста поверх фоновых моделек). */
+.menu-panel {
+  border: 1px solid var(--surface-line);
+  background: rgba(10,12,17,0.72);
+  backdrop-filter: blur(2px);
+  padding: 32px 40px;
+  position: relative; z-index: 1;
+  box-sizing: border-box;
+  width: min(680px, 92vw);
+  min-height: 540px;
+}
 
 /* Hard-кнопка: мгновенная плоская заливка, без transition. */
 .btn {
@@ -69,7 +82,7 @@
 
 /* VS-лобби */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
-.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; }
+.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; box-sizing: border-box; width: min(680px, 92vw); min-height: 540px; }
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
@@ -109,7 +122,7 @@
 .match-hud .side { display: flex; align-items: center; gap: 7px; width: 150px; }
 .match-hud .side.you { justify-content: flex-end; }
 .match-hud .side.opp { justify-content: flex-start; }
-.match-hud .nm { font-size: 11px; letter-spacing: 0.14em; color: #8a93a0; }
+.match-hud .nm { font-size: 11px; letter-spacing: 0.14em; color: #8a93a0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .match-hud .frag { font-size: 22px; }
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }

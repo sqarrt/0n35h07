@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { HUD_FRAME_INSET } from '../constants'
 
 /**
  * Индикатор рывка — вертикальные полосы по бокам, продолжающие угловые L-рамки щита
@@ -15,8 +16,8 @@ function Strip({ side, pct, ready, flash }: { side: 'left' | 'right'; pct: numbe
   return (
     <div style={{
       position: 'fixed', top: '50%', height: 'calc(100vh / 3)', transform: 'translateY(-50%)', width: 6,
-      left:  side === 'left'  ? 20 : undefined,
-      right: side === 'right' ? 20 : undefined,
+      left:  side === 'left'  ? HUD_FRAME_INSET : undefined,
+      right: side === 'right' ? HUD_FRAME_INSET : undefined,
       background: 'rgba(255,255,255,0.05)',
       display: 'flex', flexDirection: 'column', justifyContent: 'center',
       pointerEvents: 'none', zIndex: 11,

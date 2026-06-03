@@ -4,7 +4,6 @@ import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
-import { LobbyBackdrop } from '../components/LobbyBackdrop'
 
 interface LobbyProps {
   lobbyCode: string
@@ -53,7 +52,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
     const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
     return (
       <div className="lobby-pane">
-        <div className="lobby-nick" style={{ color: entry.color }}>{entry.name}{mine ? ' (вы)' : ''}</div>
+        <div className="lobby-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.name}</div>
         <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>
         {entry.kind === 'bot' && isHost && (
           <>
@@ -74,8 +73,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
 
   return (
     <div className="screen">
-      <LobbyBackdrop host={host ?? undefined} opponent={opponent ?? undefined} />
-      <div className="lobby-frame" style={{ minWidth: 600 }}>
+      <div className="lobby-frame">
         <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
         <div className="lobby-face">
           {pane(host ?? null, 'host')}

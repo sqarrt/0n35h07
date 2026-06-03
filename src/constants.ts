@@ -76,6 +76,10 @@ export const DEATH_BURST_OPACITY = 0.9
 // PointerLock: Chrome блокирует повторный requestPointerLock ~1.25с после выхода.
 export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед повторным входом (кнопка «Продолжить»)
 
+// HUD: единый прямоугольный контур. Скобки щита (углы), полосы дэша (бока) и полосы возрождения (верх/низ)
+// лежат на одной линии-периметре. Плечи скобок занимают ~21–27px от кромки → полосы ставим на тот же отступ.
+export const HUD_FRAME_INSET = 21   // px от кромки экрана до полос дэша/возрождения
+
 // Матч на время (выбор хоста в лобби). Конец матча: таймер ИЛИ отключение соперника.
 export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
 export const DEFAULT_MATCH_DURATION_MIN = 5

@@ -38,11 +38,11 @@ test('настройки — модель сферы переключается 
   expect(model).toBe('waves')   // персист в профиль
 })
 
-test('настройки — имя сохраняется и видно в лобби как «(вы)»', async ({ page }) => {
+test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')
   await input.fill('ТестБоец')
   await page.getByText('НАЗАД').click()
   await page.getByText('СОЗДАТЬ ЛОББИ').click()
-  await expect(page.getByText('ТестБоец (вы)')).toBeVisible()
+  await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })
