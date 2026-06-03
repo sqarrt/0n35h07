@@ -293,13 +293,15 @@ export default function App() {
             disabled={resumeDisabled}
             onClick={handleResume}
           >
-            {resumeDisabled ? `ПРОДОЛЖИТЬ (${(lockCooldownLeft / 1000).toFixed(1)}с)` : 'ПРОДОЛЖИТЬ'}
+            {/* индикация кулдауна — заливка слева-направо (без смены текста → кнопка не прыгает) */}
             {resumeDisabled && (
               <span style={{
-                position: 'absolute', left: 0, bottom: 0, height: 2, background: '#4af',
+                position: 'absolute', left: 0, top: 0, bottom: 0,
                 width: `${(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}%`,
+                background: 'rgba(120,180,255,0.28)',
               }} />
             )}
+            <span style={{ position: 'relative' }}>ПРОДОЛЖИТЬ</span>
           </button>
           <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
         </div>
