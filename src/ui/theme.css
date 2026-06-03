@@ -73,13 +73,17 @@
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
+.lobby-code-copy { position: relative; background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; font-family: var(--ui-font); }
 .lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
+.lobby-code-copy:hover .lobby-code { color: var(--accent-bright); text-shadow: 0 0 24px rgba(68,170,255,0.75); }
+.lobby-code-copy .glyph { font-size: 18px; color: var(--muted); }
+.lobby-code-copy:hover .glyph { color: var(--accent-dim); }
+.lobby-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 .lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
 .lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
 .lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
-/* копирование */
-.copy-btn { background: transparent; border: 1px solid var(--line); color: var(--accent-dim); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.12em; padding: 5px 12px; cursor: pointer; min-width: 150px; text-align: center; box-sizing: border-box; }
-.copy-btn:hover { background: var(--accent-fill); color: var(--ink); border-color: var(--accent-fill); }
+/* код кликабелен → копирование ссылки; фидбек «СКОПИРОВАНО» абсолютно под кодом — не занимает поток, без сдвигов */
+.lobby-copied { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 4px; font-size: 11px; letter-spacing: 0.16em; color: var(--ok); white-space: nowrap; }
 /* сегменты (сложность бота) */
 .seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
 .seg:hover { border-color: var(--ghost-line-hover); color: #bcd6ee; }

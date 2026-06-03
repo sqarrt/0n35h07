@@ -81,8 +81,11 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
           <div className="lobby-center">
-            <div className="lobby-code">{lobbyCode}</div>
-            <button className="copy-btn" onClick={copyInvite}>{copied ? 'СКОПИРОВАНО' : '⧉ КОПИРОВАТЬ'}</button>
+            <button className="lobby-code-copy" onClick={copyInvite} title="Скопировать ссылку-приглашение">
+              <span className="lobby-code">{lobbyCode}</span>
+              <span className="glyph" aria-hidden="true">⧉</span>
+              {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
+            </button>
             <div className="lobby-vs">— VS —</div>
             {/* скрытый узел для тестов формата кода */}
             <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {lobbyCode}</div>
