@@ -81,6 +81,9 @@ export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
 export const DEFAULT_MATCH_DURATION_MIN = 5
 export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
 
+// JoinLobby: ожидание ASSIGN от хоста; по истечении — ошибка
+export const CONNECT_TIMEOUT_MS = 10000
+
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]

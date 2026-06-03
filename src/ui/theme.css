@@ -109,3 +109,16 @@
 .match-hud .frag { font-size: 22px; }
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
+
+/* JoinLobby: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
+.code-wrap { position: relative; width: 240px; height: 64px; }
+.code-wrap .input { width: 100%; height: 100%; }
+.code-wrap.is-error .input { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset, 0 0 14px rgba(255,90,90,0.28); }
+.code-run { position: absolute; inset: 0; pointer-events: none; display: none; }
+.code-wrap.is-connecting .code-run { display: block; }
+.code-run rect { fill: none; stroke: var(--accent); stroke-width: 3; stroke-dasharray: 20 80; filter: drop-shadow(0 0 4px var(--accent)); }
+.code-wrap.is-connecting .code-run rect { animation: code-run-dash 1.2s linear infinite; }
+@keyframes code-run-dash { to { stroke-dashoffset: -100; } }
+.join-status { height: 20px; font-size: 12px; letter-spacing: 0.18em; margin: 0.6rem 0 1rem; text-align: center; }
+.join-status.connecting { color: var(--accent-dim); }
+.join-status.failed { color: var(--danger); }

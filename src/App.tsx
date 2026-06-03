@@ -20,7 +20,7 @@ import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
-import { POINTERLOCK_COOLDOWN } from './constants'
+import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty } from './constants'
 import { createNet } from './net/createNet'
 import { LobbySession } from './net/LobbySession'
@@ -55,8 +55,11 @@ export default function App() {
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
 
+  const [joinStatus, setJoinStatus] = useState<'idle' | 'connecting' | 'failed'>('idle')
+
   const sessionRef = useRef<LobbySession | null>(null)
   const gameApiRef = useRef<GameApi | null>(null)
+  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leaveLobby = () => {
     sessionRef.current?.dispose()
@@ -81,7 +84,6 @@ export default function App() {
     })
     sessionRef.current = session
     setLobbyCode(code)
-    setScreen('lobby')
   }
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function App() {
     const handleHash = () => {
       const code = window.location.hash.slice(1).toUpperCase()
       if (/^[A-Z0-9]{4}$/.test(code)) {
-        if (sessionRef.current?.code !== code) enterLobby(code, 'client')
+        if (sessionRef.current?.code !== code) { enterLobby(code, 'client'); setScreen('lobby') }
       } else if (!code && !sessionRef.current) {
         setScreen('menu')
       }
@@ -123,6 +125,18 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
+  // Клиент подключился (получил ASSIGN) на экране входа → переходим в лобби.
+  useEffect(() => {
+    if (screen === 'join' && joinStatus === 'connecting' && lobbyView?.connected) {
+      if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
+      setJoinStatus('idle')
+      setScreen('lobby')
+    }
+  }, [screen, joinStatus, lobbyView])
+
+  // Размонтирование — чистка таймера подключения.
+  useEffect(() => () => { if (connectTimer.current) clearTimeout(connectTimer.current) }, [])
+
   // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
   useEffect(() => {
     const isPaused = screen === 'game' && !locked && everLocked
@@ -136,14 +150,26 @@ export default function App() {
     const code = randomCode()
     window.location.hash = code
     enterLobby(code, 'host')
+    setScreen('lobby')
   }
-  const handleJoinLobby = () => setScreen('join')
-  const handleJoin = (code: string) => { window.location.hash = code; enterLobby(code, 'client') }
+  const handleJoinLobby = () => { setScreen('join'); setJoinStatus('idle') }
+  const handleJoin = (code: string) => {
+    if (connectTimer.current) clearTimeout(connectTimer.current)
+    setJoinStatus('connecting')
+    window.location.hash = code
+    enterLobby(code, 'client')   // остаёмся на экране 'join'
+    connectTimer.current = setTimeout(() => {
+      setJoinStatus('failed')
+      leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
+    }, CONNECT_TIMEOUT_MS)
+  }
   const handleSettings = () => setScreen('settings')
 
   const handleStart = () => sessionRef.current?.start()
 
   const handleBack = () => {
+    if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
+    setJoinStatus('idle')
     leaveLobby()
     setScreen('menu')
     if (window.location.hash) window.location.hash = ''
@@ -167,7 +193,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
       {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
-      {screen === 'join' && <JoinLobby onJoin={handleJoin} onBack={handleBack} />}
+      {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
       {screen === 'settings' && (
         <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
       )}
