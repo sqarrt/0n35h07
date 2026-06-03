@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
 import type { BotDifficulty } from '../constants'
 import { HOST_ID, OPPONENT_ID } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
+import { BallPreview } from '../components/BallPreview'
 
 interface LobbyProps {
   lobbyCode: string
@@ -16,10 +16,6 @@ interface LobbyProps {
   onBack: () => void
 }
 
-const ballStyle = (color: string): CSSProperties => ({
-  background: color,
-  boxShadow: `0 0 26px ${color}80, inset -12px -12px 26px rgba(0,0,0,0.4)`,
-})
 
 export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onStart, onBack }: LobbyProps) {
   const { roster, isHost, localPlayerId, connected, canStart } = view
@@ -58,12 +54,14 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
     const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
     return (
       <div className="lobby-pane">
-        <div className="lobby-ball" style={ballStyle(entry.color)} />
+        <div className="lobby-ball-frame">
+          <BallPreview color={entry.color} model={entry.ballModel ?? 'smooth'} size={120} />
+        </div>
         <div className="lobby-nick" style={{ color: entry.color }}>{entry.name}{mine ? ' (вы)' : ''}</div>
         <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>
         {entry.kind === 'bot' && isHost && (
           <>
-            <div style={{ display: 'flex', gap: 7 }}>
+            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
               <button className={`seg${entry.difficulty === 'normal' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('normal')}>НОРМАЛЬНЫЙ</button>
               <button className={`seg${entry.difficulty === 'passive' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('passive')}>ПАССИВНЫЙ</button>
             </div>
@@ -80,7 +78,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
 
   return (
     <div className="screen">
-      <div className="lobby-frame" style={{ minWidth: 560 }}>
+      <div className="lobby-frame" style={{ minWidth: 600 }}>
         <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
