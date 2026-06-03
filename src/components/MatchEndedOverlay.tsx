@@ -1,48 +1,45 @@
-import { useState, useEffect, Fragment } from 'react'
-import type { PlayerScore } from '../hooks/useGameHUD'
-import { MATCH_ENDED_REVEAL_MS } from '../constants'
+import type { CSSProperties } from 'react'
+import type { MatchResult } from '../hooks/useGameHUD'
 import { Button } from '../ui/Button'
 
-interface MatchEndedOverlayProps {
-  name: string
-  scores: PlayerScore[]
-  onExit: () => void
+const OUTCOME: Record<MatchResult['outcome'], { label: string; color: string }> = {
+  win:  { label: 'ПОБЕДА',    color: 'var(--ok)' },
+  lose: { label: 'ПОРАЖЕНИЕ', color: 'var(--danger)' },
+  draw: { label: 'НИЧЬЯ',     color: '#fd4' },
+}
+const REASON: Record<MatchResult['reason'], string> = {
+  time: 'ВРЕМЯ ВЫШЛО',
+  disconnect: 'СОПЕРНИК ОТКЛЮЧИЛСЯ',
 }
 
-/** Конец матча: баннер «{name} отключился», через паузу — финальный скорборд + ВЫЙТИ. */
-export function MatchEndedOverlay({ name, scores, onExit }: MatchEndedOverlayProps) {
-  const [revealed, setRevealed] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setRevealed(true), MATCH_ENDED_REVEAL_MS)
-    return () => clearTimeout(t)
-  }, [])
+const wrap: CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(7,10,14,0.9)',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+  fontFamily: 'var(--ui-font)', color: 'var(--text)',
+}
 
+/** Экран конца матча: исход + причина + финальный счёт + ВЫЙТИ. */
+export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onExit: () => void }) {
+  const o = OUTCOME[result.outcome]
   return (
-    <div className='screen' style={{ background: 'rgba(10,10,15,0.88)', zIndex: 30 }}>
-      <h2 style={{ color: '#f66', letterSpacing: '0.15em', marginTop: 0, marginBottom: revealed ? '1.5rem' : 0 }}>
-        {name} отключился
-      </h2>
-
-      {revealed && (
-        <>
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) 2rem 2rem', gap: '0.35rem 1.4rem',
-            fontFamily: 'monospace', color: '#cde', marginBottom: '2rem',
-          }}>
-            <div style={{ color: '#4af', letterSpacing: '0.15em' }}>ИГРОК</div>
-            <div style={{ color: '#4af', textAlign: 'right' }}>K</div>
-            <div style={{ color: '#4af', textAlign: 'right' }}>D</div>
-            {scores.map((s, i) => (
-              <Fragment key={i}>
-                <div>{s.name}</div>
-                <div style={{ textAlign: 'right' }}>{s.kills}</div>
-                <div style={{ textAlign: 'right' }}>{s.deaths}</div>
-              </Fragment>
-            ))}
+    <div style={wrap}>
+      <h1 style={{ fontSize: 52, letterSpacing: '0.22em', margin: '0 0 4px', marginLeft: '0.22em', color: o.color, textShadow: `0 0 26px ${o.color}` }}>
+        {o.label}
+      </h1>
+      <div style={{ fontSize: 12, letterSpacing: '0.2em', color: '#7a8694', marginBottom: 28 }}>{REASON[result.reason]}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px,1fr) 2rem 2rem', gap: '0.35rem 1.4rem', marginBottom: 28 }}>
+        <div style={{ color: 'var(--accent)', letterSpacing: '0.15em' }}>ИГРОК</div>
+        <div style={{ color: 'var(--accent)', textAlign: 'right' }}>K</div>
+        <div style={{ color: 'var(--accent)', textAlign: 'right' }}>D</div>
+        {result.scores.map((s, i) => (
+          <div key={i} style={{ display: 'contents' }}>
+            <div>{s.name}</div>
+            <div style={{ textAlign: 'right' }}>{s.kills}</div>
+            <div style={{ textAlign: 'right' }}>{s.deaths}</div>
           </div>
-          <Button onClick={onExit}>ВЫЙТИ</Button>
-        </>
-      )}
+        ))}
+      </div>
+      <Button variant="primary" onClick={onExit}>ВЫЙТИ</Button>
     </div>
   )
 }

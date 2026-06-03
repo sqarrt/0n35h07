@@ -3,7 +3,10 @@ import { useFlash } from './useFlash'
 import type { MatchPhase } from '../constants'
 
 export interface PlayerScore { name: string; kills: number; deaths: number }
-export interface KillEvent { id: number; killer: string; victim: string }
+
+export type MatchOutcome = 'win' | 'lose' | 'draw'
+export type MatchEndReason = 'time' | 'disconnect'
+export interface MatchResult { outcome: MatchOutcome; reason: MatchEndReason; scores: PlayerScore[] }
 
 export interface HUDState {
   beamProgress: number
@@ -12,11 +15,11 @@ export interface HUDState {
   shieldVisible: boolean
   windupProgress: number
   scores: PlayerScore[]
-  lastKill: KillEvent | null
   matchPhase: MatchPhase
   ready: number[]
   countdown: number
-  opponentLeft: { name: string } | null
+  matchTime: number | null
+  matchResult: MatchResult | null
   respawning: { progress: number } | null
   beamFlash: boolean
   playerHit: boolean
@@ -31,10 +34,10 @@ export type HUDAction =
   | { type: 'SET_SHIELD_VISIBLE';  value: boolean }
   | { type: 'SET_WINDUP_PROGRESS'; value: number }
   | { type: 'SET_SCORES';          scores: PlayerScore[] }
-  | { type: 'KILL';                kill: KillEvent }
   | { type: 'SET_MATCH_PHASE';     phase: MatchPhase; ready: number[]; countdown: number }
-  | { type: 'SET_OPPONENT_LEFT';   name: string }
   | { type: 'SET_RESPAWNING';      progress: number | null }
+  | { type: 'SET_MATCH_TIME';      seconds: number | null }
+  | { type: 'SET_MATCH_RESULT';    result: MatchResult }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
   | { type: 'SHIELD_BLOCK' }
@@ -47,11 +50,11 @@ const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botSh
   shieldVisible: false,
   windupProgress: 0,
   scores: [],
-  lastKill: null,
   matchPhase: 'live' as MatchPhase,
   ready: [] as number[],
   countdown: 0,
-  opponentLeft: null as { name: string } | null,
+  matchTime: null as number | null,
+  matchResult: null as MatchResult | null,
   respawning: null as { progress: number } | null,
 }
 
@@ -66,10 +69,10 @@ function reducer(
     case 'SET_SHIELD_VISIBLE':  return { ...state, shieldVisible:  action.value }
     case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
     case 'SET_SCORES':          return { ...state, scores:        action.scores }
-    case 'KILL':                return { ...state, lastKill:      action.kill }
     case 'SET_MATCH_PHASE':     return { ...state, matchPhase: action.phase, ready: action.ready, countdown: action.countdown }
-    case 'SET_OPPONENT_LEFT':   return { ...state, opponentLeft: { name: action.name } }
     case 'SET_RESPAWNING':      return { ...state, respawning: action.progress === null ? null : { progress: action.progress } }
+    case 'SET_MATCH_TIME':      return { ...state, matchTime: action.seconds }
+    case 'SET_MATCH_RESULT':    return { ...state, matchResult: action.result }
     default: return state
   }
 }

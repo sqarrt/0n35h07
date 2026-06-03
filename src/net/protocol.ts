@@ -27,8 +27,8 @@ export interface RosterEntry {
   ballModel?: BallModel        // модель сферы (косметика); нет → 'smooth'
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel }
-export interface Assign { yourId: number; roster: RosterEntry[] }
-export type Start = Record<string, never>   // пока пусто; место под seed/настройки матча
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number }
+export interface Start { durationMs: number }
 
 // --- ввод клиента → хост (часто) ---
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
@@ -66,6 +66,8 @@ export type MatchEvent =
   | { t: 'block';   shooter: number; victim: number }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'scores';  scores: ScoreLine[] }
+  | { t: 'time';     remainingMs: number }
+  | { t: 'matchEnd'; reason: 'time' | 'disconnect' }
 
 // --- хелперы Vec3 ↔ THREE.Vector3 ---
 export function toVec3(v: THREE.Vector3): Vec3 { return [v.x, v.y, v.z] }

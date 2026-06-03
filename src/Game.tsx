@@ -24,9 +24,10 @@ interface GameProps {
   peerToPlayer: Map<PeerId, number>
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
+  durationMs?: number
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<any>(null)
@@ -41,6 +42,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       role,
       netConfig,
       defaultThirdPerson,
+      durationMs,
     }),
     [],
   )

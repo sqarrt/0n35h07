@@ -1,7 +1,7 @@
 import type { INet, PeerId } from './INet'
-import type { Hello, Assign, RosterEntry } from './protocol'
+import type { Hello, Assign, Start, RosterEntry } from './protocol'
 import type { BotDifficulty } from '../constants'
-import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID } from '../constants'
+import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN } from '../constants'
 import type { PlayerProfile } from '../settings'
 
 export type LobbyRole = 'host' | 'client'
@@ -14,6 +14,7 @@ export interface LobbyView {
   isHost: boolean
   connected: boolean      // клиент: получил ASSIGN
   canStart: boolean       // host: слот соперника занят → можно стартовать
+  durationMin: number
 }
 
 /**
@@ -30,8 +31,9 @@ export class LobbySession {
   private clientPeer: PeerId | null = null      // host: peer занявшего слот человека
   private localPlayerId: number
   private profile: PlayerProfile
+  private durationMin: number = DEFAULT_MATCH_DURATION_MIN
   private changeCb: (v: LobbyView) => void = () => {}
-  private startCb: () => void = () => {}
+  private startCb: (durationMs: number) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(net: INet, role: LobbyRole, code: string, profile: PlayerProfile) {
@@ -48,7 +50,7 @@ export class LobbySession {
     } else {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
-      net.on('start', () => this.startCb())
+      net.on('start', payload => this.startCb((payload as Start).durationMs))
       net.onPeerJoin(() => this.sayHello())   // нашли хоста — представляемся
       this.sayHello()
       // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
@@ -99,7 +101,7 @@ export class LobbySession {
   }
 
   private sendAssign(peer: PeerId) {
-    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster() } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin } satisfies Assign)
   }
   private broadcastRoster() {
     if (this.clientPeer) this.sendAssign(this.clientPeer)
@@ -108,8 +110,15 @@ export class LobbySession {
 
   start() {
     if (this.role !== 'host' || !this.opponent) return
-    this.net.broadcast('start', {})
-    this.startCb()
+    const durationMs = this.durationMin * 60_000
+    this.net.broadcast('start', { durationMs } satisfies Start)
+    this.startCb(durationMs)
+  }
+
+  setDuration(min: number) {
+    if (this.role !== 'host') return
+    this.durationMin = min
+    this.broadcastRoster()   // клиент увидит новую длительность в Assign
   }
 
   // --- client ---
@@ -124,6 +133,7 @@ export class LobbySession {
     this.localPlayerId = a.yourId
     this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry
     this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
+    this.durationMin = a.durationMin
     this.emitChange()
   }
 
@@ -135,7 +145,7 @@ export class LobbySession {
 
   // --- общий API ---
   onChange(cb: (v: LobbyView) => void) { this.changeCb = cb; cb(this.view()) }
-  onStart(cb: () => void) { this.startCb = cb }
+  onStart(cb: (durationMs: number) => void) { this.startCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
   /** Ростер матча: ровно `[host, opponent]` (или только host, пока слот пуст). */
@@ -150,6 +160,7 @@ export class LobbySession {
       isHost: this.role === 'host',
       connected: this.role === 'host' || this.localPlayerId >= 0,
       canStart: this.role === 'host' && this.opponent !== null,
+      durationMin: this.durationMin,
     }
   }
 

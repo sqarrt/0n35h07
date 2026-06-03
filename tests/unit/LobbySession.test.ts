@@ -21,6 +21,23 @@ function handshake(clientProfile: PlayerProfile) {
   return { host, client, hostView: hostView!, clientView: clientView! }
 }
 
+describe('LobbySession длительность матча', () => {
+  it('хост задаёт длительность; клиент видит её и получает durationMs в onStart', () => {
+    const [a, b] = createLoopbackPair('H', 'C')
+    const host = new LobbySession(a, 'host', 'CODE', HOST)
+    const client = new LobbySession(b, 'client', 'CODE', GUEST)
+    // После конструкторов клиент уже подключился (HELLO синхронно → ASSIGN)
+    host.setDuration(10)
+    let started = 0
+    client.onStart(ms => { started = ms })
+    let clientView = client.view()
+    client.onChange(v => { clientView = v })
+    host.start()   // client уже в слоте соперника после HELLO
+    expect(clientView.durationMin).toBe(10)
+    expect(started).toBe(600000)
+  })
+})
+
 describe('LobbySession — назначение цветов хостом', () => {
   it('клиент с тем же основным цветом, что у хоста, получает свой резервный', () => {
     const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' })
