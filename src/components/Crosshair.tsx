@@ -24,7 +24,7 @@ export function Crosshair({ beamProgress }: CrosshairProps) {
           transform="rotate(-90 20 20)"
         />
         <text x="20" y="25" textAnchor="middle"
-          fill="white" fontSize="16" fontFamily="monospace"
+          fill="white" fontSize="16" fontFamily="var(--ui-font)"
           style={{ filter: 'drop-shadow(0 0 2px black)', userSelect: 'none' }}>+</text>
       </svg>
     </div>

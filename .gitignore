@@ -31,3 +31,5 @@ test-results
 dash-strips*.png
 docs/
 TODO.md
+.superpowers
+.mcp.json
