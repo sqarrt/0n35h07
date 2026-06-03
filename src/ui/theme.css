@@ -1,0 +1,33 @@
+/* Дизайн-токены OneShot. Акцент = цвет игры (#4af). Без градиентов в элементах UI. */
+:root {
+  --bg: #0a0c11;
+  --accent: #4af;            /* идентичность/свечения */
+  --accent-fill: #2b9ff0;    /* заливка кнопок */
+  --accent-bright: #4fb4ff;  /* hover заливки */
+  --accent-press: #1c7fc8;   /* active */
+  --accent-dim: #7fd0ff;     /* текст idle-кнопки */
+  --line: #2f6f9e;           /* контур idle-кнопки */
+  --ink: #06121f;            /* текст на заливке */
+  --ghost-line: #2a3340;
+  --ghost-line-hover: #3a6f9c;
+  --danger: #f66;
+  --ok: #4fa;
+  --opp: #fa4;               /* цвет соперника */
+  --text: #cfe6ff;
+  --muted: #778;
+  --surface-line: #1a2433;
+  --ui-font: 'Share Tech Mono', monospace;
+}
+
+/* Полноэкранный оверлей-экран (замена инлайн screenOverlay). */
+.screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: var(--ui-font); color: var(--text);
+  z-index: 100;
+}
+
+/* Тонкая акцентная линия под заголовком. */
+.accent-rule { width: 120px; height: 1px; background: var(--line); }
