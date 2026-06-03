@@ -20,7 +20,7 @@ import { Lobby } from './screens/Lobby'
 import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
-import { btn, dimBtn, screenOverlay } from './screens/styles'
+import { Button } from './ui/Button'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty } from './constants'
 import { createNet } from './net/createNet'
@@ -218,7 +218,7 @@ export default function App() {
           {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
           {hud.matchPhase === 'live' && !locked && !everLocked && (
             <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <button style={btn} onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
+              <button className="btn" onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
                 ГОТОВ?
               </button>
             </div>
@@ -252,13 +252,13 @@ export default function App() {
       )}
 
       {paused && (
-        <div style={{ ...screenOverlay, background: 'rgba(10,10,15,0.85)' }}>
+        <div className="screen" style={{ background: 'rgba(10,10,15,0.85)' }}>
           <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
             МЕНЮ
           </h2>
           <button
+            className="btn btn--primary"
             style={{
-              ...btn,
               position: 'relative', overflow: 'hidden',
               opacity: resumeDisabled ? 0.5 : 1,
               cursor: resumeDisabled ? 'default' : 'pointer',
@@ -274,7 +274,7 @@ export default function App() {
               }} />
             )}
           </button>
-          <button style={dimBtn} onClick={handleBack}>В МЕНЮ</button>
+          <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
         </div>
       )}
     </div>
