@@ -1,5 +1,13 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// Отключаем троттлинг фоновых вкладок Chromium: multiplayer-тесты держат 2 страницы (большинство скрыты),
+// и троттлинг таймеров/рендера тормозит ретраи HELLO в LobbySession → флаки на хендшейке под нагрузкой.
+const NO_BG_THROTTLE = [
+  '--disable-background-timer-throttling',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-renderer-backgrounding',
+]
+
 export default defineConfig({
   testDir: './tests',
   testIgnore: ['**/unit/**'],
@@ -20,6 +28,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:5173',
         headless: true,
+        launchOptions: { args: NO_BG_THROTTLE },
       },
     },
     {
@@ -28,6 +37,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         baseURL: 'http://localhost:5173',
         headless: false,
+        launchOptions: { args: NO_BG_THROTTLE },
       },
     },
     {
