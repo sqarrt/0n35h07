@@ -55,7 +55,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
     return (
       <div className="lobby-pane">
         <div className="lobby-ball-frame">
-          <BallPreview color={entry.color} model={entry.ballModel ?? 'smooth'} size={120} />
+          <BallPreview color={entry.color} model={entry.ballModel ?? 'smooth'} size={240} />
         </div>
         <div className="lobby-nick" style={{ color: entry.color }}>{entry.name}{mine ? ' (вы)' : ''}</div>
         <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>

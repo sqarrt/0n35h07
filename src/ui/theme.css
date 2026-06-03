@@ -73,13 +73,13 @@
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; height: 270px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 270px; }
 .lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
-.lobby-ball-frame { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; }
+.lobby-ball-frame { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .lobby-ph { width: 120px; height: 120px; border-radius: 50%; border: 2px dashed #2a3a4c; }
 .lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
 .lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
 .lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
 /* копирование */
-.copy-btn { background: transparent; border: 1px solid var(--line); color: var(--accent-dim); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.12em; padding: 5px 12px; cursor: pointer; }
+.copy-btn { background: transparent; border: 1px solid var(--line); color: var(--accent-dim); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.12em; padding: 5px 12px; cursor: pointer; min-width: 150px; text-align: center; box-sizing: border-box; }
 .copy-btn:hover { background: var(--accent-fill); color: var(--ink); border-color: var(--accent-fill); }
 /* сегменты (сложность бота) */
 .seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
@@ -97,6 +97,6 @@
 .ready-tint-r { position: absolute; top: 0; bottom: 0; right: 0; width: 34%; background: linear-gradient(270deg, rgba(255,170,68,0.16), transparent); pointer-events: none; }
 .ready-corner { position: absolute; top: 18px; font-size: 13px; letter-spacing: 0.12em; }
 .ready-corner small { display: block; font-size: 10px; letter-spacing: 0.16em; margin-top: 4px; }
-.ready-hint { position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 15px; letter-spacing: 0.16em; }
+.ready-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 15px; letter-spacing: 0.16em; }
 .ready-hint .hkey { border: 1px solid var(--line); background: rgba(68,170,255,0.1); color: #bdf; border-radius: 3px; padding: 3px 9px; font-size: 13px; }
 .ready-legend { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(10,10,15,0.72); border: 1px solid var(--surface-line); border-radius: 6px; padding: 9px 14px; pointer-events: none; }
