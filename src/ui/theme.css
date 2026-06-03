@@ -57,3 +57,12 @@
 
 .btn--ghost { border-color: var(--ghost-line); color: var(--muted); }
 .btn--ghost:hover { background: transparent; color: var(--text); border-color: var(--ghost-line-hover); }
+
+.input {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-family: var(--ui-font);
+  outline: none;
+}
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }

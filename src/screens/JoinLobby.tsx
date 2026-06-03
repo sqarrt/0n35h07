@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { btn, dimBtn, screenOverlay } from './styles'
+import { Button } from '../ui/Button'
 
 interface JoinLobbyProps {
   onJoin: (code: string) => void
@@ -8,48 +8,32 @@ interface JoinLobbyProps {
 
 export function JoinLobby({ onJoin, onBack }: JoinLobbyProps) {
   const [code, setCode] = useState('')
-
-  const handleJoin = () => {
-    if (code.trim().length > 0) onJoin(code.trim().toUpperCase())
-  }
+  const handleJoin = () => { if (code.trim().length > 0) onJoin(code.trim().toUpperCase()) }
 
   return (
-    <div style={screenOverlay}>
-      <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
+    <div className="screen">
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
         ВОЙТИ В ЛОББИ
       </h2>
-
-      <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
-        <div style={{ color: '#556', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem' }}>
-          КОД ЛОББИ
-        </div>
-        <input
-          value={code}
-          onChange={e => setCode(e.target.value.toUpperCase().slice(0, 4))}
-          onKeyDown={e => e.key === 'Enter' && handleJoin()}
-          maxLength={4}
-          autoFocus
-          style={{
-            background: 'transparent',
-            border: '1px solid #4af',
-            color: '#ccd',
-            fontFamily: 'monospace',
-            fontSize: '2rem',
-            letterSpacing: '0.5em',
-            textIndent: '0.5em',   // компенсирует трейлинговый letterSpacing → честное центрирование
-            textAlign: 'center',
-            padding: '0.5rem 1rem',
-            width: '15rem',
-            boxSizing: 'border-box',
-            outline: 'none',
-          }}
-        />
+      <div className="accent-rule" style={{ marginBottom: '1.6rem' }} />
+      <div style={{ color: 'var(--muted)', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem', fontFamily: 'var(--ui-font)' }}>
+        КОД ЛОББИ
       </div>
-
-      <button style={{ ...btn, opacity: code.trim().length === 0 ? 0.4 : 1 }} onClick={handleJoin}>
-        ВОЙТИ
-      </button>
-      <button style={dimBtn} onClick={onBack}>НАЗАД</button>
+      <input
+        className="input"
+        value={code}
+        onChange={e => setCode(e.target.value.toUpperCase().slice(0, 4))}
+        onKeyDown={e => e.key === 'Enter' && handleJoin()}
+        maxLength={4}
+        autoFocus
+        style={{
+          fontSize: '2rem', letterSpacing: '0.5em', textIndent: '0.5em',
+          textAlign: 'center', padding: '0.5rem 1rem', width: '15rem',
+          boxSizing: 'border-box', marginBottom: '1.6rem',
+        }}
+      />
+      <Button variant="primary" disabled={code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
+      <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
     </div>
   )
 }
