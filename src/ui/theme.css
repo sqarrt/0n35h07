@@ -68,13 +68,12 @@
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
 /* VS-лобби */
-.lobby-frame { border: 1px solid var(--surface-line); background: var(--bg); padding: 24px 28px 26px; }
+/* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
+.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; }
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; height: 270px; padding-top: 8px; }
-.lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 270px; }
+.lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
+.lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
 .lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
-.lobby-ball-frame { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-.lobby-ph { width: 120px; height: 120px; border-radius: 50%; border: 2px dashed #2a3a4c; }
 .lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
 .lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
 .lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
