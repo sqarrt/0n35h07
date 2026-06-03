@@ -57,7 +57,8 @@ interface LobbyBackdropProps { host?: RosterEntry; opponent?: RosterEntry }
 export function LobbyBackdrop({ host, opponent }: LobbyBackdropProps) {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-      <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: [0, 0, 6], fov: 45 }}>
+      <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: [0, 3.02, 5.18], fov: 45 }}
+        onCreated={({ camera }) => camera.lookAt(0, 0, 0)}>
         <ambientLight intensity={0.4} />
         <OrbitingLight />
         {host && <EdgeBall entry={host} side="left" />}

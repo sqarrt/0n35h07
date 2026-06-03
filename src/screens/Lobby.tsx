@@ -24,13 +24,12 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
   const [copied, setCopied] = useState(false)
 
-  const copyInvite = async () => {
-    const url = `${location.origin}${location.pathname}#${lobbyCode}`
+  const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(lobbyCode)
     } catch {
       const ta = document.createElement('textarea')
-      ta.value = url; document.body.appendChild(ta); ta.select()
+      ta.value = lobbyCode; document.body.appendChild(ta); ta.select()
       try { document.execCommand('copy') } catch { /* ignore */ }
       document.body.removeChild(ta)
     }
@@ -81,7 +80,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
           <div className="lobby-center">
-            <button className="lobby-code-copy" onClick={copyInvite} title="Скопировать ссылку-приглашение">
+            <button className="lobby-code-copy" onClick={copyCode} title="Скопировать код">
               <span className="lobby-code">{lobbyCode}</span>
               <span className="glyph" aria-hidden="true">⧉</span>
               {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
