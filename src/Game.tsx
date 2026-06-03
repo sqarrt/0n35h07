@@ -24,7 +24,7 @@ interface GameProps {
   peerToPlayer: Map<PeerId, number>
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
-  durationMs?: number
+  durationMs: number
 }
 
 export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs }: GameProps) {

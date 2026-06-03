@@ -353,6 +353,7 @@ export class Match {
     this.ended = true
     this.phase = 'ended'
     this.phaseDirtyFlag = true
+    this.syncPhaseHud()
     this.dispatch({ type: 'SET_MATCH_RESULT', result: this.computeResult(reason) })
     this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
   }
