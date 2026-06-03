@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import type { PlayerScore } from '../hooks/useGameHUD'
 import { MATCH_ENDED_REVEAL_MS } from '../constants'
-import { btn, screenOverlay } from '../screens/styles'
+import { Button } from '../ui/Button'
 
 interface MatchEndedOverlayProps {
   name: string
@@ -18,7 +18,7 @@ export function MatchEndedOverlay({ name, scores, onExit }: MatchEndedOverlayPro
   }, [])
 
   return (
-    <div style={{ ...screenOverlay, background: 'rgba(10,10,15,0.88)', zIndex: 30 }}>
+    <div className='screen' style={{ background: 'rgba(10,10,15,0.88)', zIndex: 30 }}>
       <h2 style={{ color: '#f66', letterSpacing: '0.15em', marginTop: 0, marginBottom: revealed ? '1.5rem' : 0 }}>
         {name} отключился
       </h2>
@@ -40,7 +40,7 @@ export function MatchEndedOverlay({ name, scores, onExit }: MatchEndedOverlayPro
               </Fragment>
             ))}
           </div>
-          <button style={btn} onClick={onExit}>ВЫЙТИ</button>
+          <Button onClick={onExit}>ВЫЙТИ</Button>
         </>
       )}
     </div>
