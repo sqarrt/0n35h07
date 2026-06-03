@@ -16,7 +16,7 @@ function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolea
   const pos = side === 'l' ? { left: 18 } : { right: 18, textAlign: 'right' as const }
   return (
     <div className="ready-corner" style={{ ...pos, color: entry.color }}>
-      {entry.name}{mine ? ' (вы)' : ''}
+      <span style={{ textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 3 }}>{entry.name}</span>
       <small style={{ color: isReady ? 'var(--ok)' : 'var(--muted)' }}>{isReady ? 'ГОТОВ ✓' : '○ НЕ ГОТОВ'}</small>
     </div>
   )

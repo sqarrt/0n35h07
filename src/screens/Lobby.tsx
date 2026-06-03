@@ -52,7 +52,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
     const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
     return (
       <div className="lobby-pane">
-        <div className="lobby-nick" style={{ color: entry.color }}>{entry.name}{mine ? ' (вы)' : ''}</div>
+        <div className="lobby-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.name}</div>
         <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>
         {entry.kind === 'bot' && isHost && (
           <>
