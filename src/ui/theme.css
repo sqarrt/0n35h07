@@ -91,3 +91,12 @@
 .swatch:hover { transform: scale(1.08); }
 .swatch--sel { border: 3px solid var(--text); box-shadow: 0 0 10px currentColor; }
 .swatch--dis { opacity: 0.25; cursor: default; }
+
+.ready-overlay { position: fixed; inset: 0; z-index: 12; cursor: pointer; font-family: var(--ui-font); }
+.ready-tint-l { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; background: linear-gradient(90deg, rgba(68,170,255,0.16), transparent); pointer-events: none; }
+.ready-tint-r { position: absolute; top: 0; bottom: 0; right: 0; width: 34%; background: linear-gradient(270deg, rgba(255,170,68,0.16), transparent); pointer-events: none; }
+.ready-corner { position: absolute; top: 18px; font-size: 13px; letter-spacing: 0.12em; }
+.ready-corner small { display: block; font-size: 10px; letter-spacing: 0.16em; margin-top: 4px; }
+.ready-hint { position: absolute; bottom: 78px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 15px; letter-spacing: 0.16em; }
+.ready-hint .hkey { border: 1px solid var(--line); background: rgba(68,170,255,0.1); color: #bdf; border-radius: 3px; padding: 3px 9px; font-size: 13px; }
+.ready-legend { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(10,10,15,0.72); border: 1px solid var(--surface-line); border-radius: 6px; padding: 9px 14px; pointer-events: none; }
