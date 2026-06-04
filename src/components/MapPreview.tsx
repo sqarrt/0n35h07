@@ -6,8 +6,8 @@ const FLOOR = ARENA_FLOOR_HALF * 2
 const PREVIEW_W = 150
 const PREVIEW_H = 100
 
-/** Геометрия карты (пол + боксы) без физики/игроков — для статичного 3D-превью. */
-function MapScene({ map }: { map: GameMap }) {
+/** Геометрия карты (пол + боксы) без физики/игроков — для статичного 3D-превью и размытого фона. */
+export function MapScene({ map }: { map: GameMap }) {
   return (
     <>
       <ambientLight intensity={0.55} />

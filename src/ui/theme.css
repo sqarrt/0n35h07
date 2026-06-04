@@ -50,6 +50,11 @@
 /* Внутренний слой экрана: заполняет подложку, каждый экран сам задаёт выравнивание (center / stretch). */
 .panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; }
 
+/* Размытое 3D-превью выбранной карты — атмосферный фон за шарами (MenuBackdrop сверху, резкий).
+   Появляется фейдом при входе в лобби (анимация на маунте; смена карты внутри лобби фейд не перезапускает). */
+.map-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; filter: blur(2.5px) brightness(0.7); animation: map-bg-fade 0.4s ease-out; }
+@keyframes map-bg-fade { from { opacity: 0; } }
+
 /* Hard-кнопка: мгновенная плоская заливка, без transition. */
 .btn {
   font-family: var(--ui-font);

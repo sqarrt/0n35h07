@@ -1,0 +1,33 @@
+import { useEffect } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
+import { MapScene } from './MapPreview'
+import { MAPS } from '../game/maps'
+import type { MapId } from '../constants'
+
+/** Перерисовать статичный (frameloop=demand) фон при смене карты. */
+function Invalidate({ dep }: { dep: string }) {
+  const invalidate = useThree(s => s.invalidate)
+  useEffect(() => { invalidate() }, [dep, invalidate])
+  return null
+}
+
+/**
+ * Размытое 3D-превью выбранной карты на весь экран — атмосферный фон ЗА шарами (MenuBackdrop сверху, резкий).
+ * Блюр — CSS на DOM-канвасе (без пост-эффектов); demand-рендер (карта статична, перерисовка при смене mapId).
+ */
+export function MapBackground({ mapId }: { mapId: MapId }) {
+  return (
+    <div className="map-bg">
+      <Canvas
+        frameloop="demand"
+        dpr={[1, 1.5]}
+        gl={{ alpha: true }}
+        camera={{ position: [0, 16, 24], fov: 50 }}
+        onCreated={({ camera }) => camera.lookAt(0, 2, 0)}
+      >
+        <MapScene map={MAPS[mapId]} />
+        <Invalidate dep={mapId} />
+      </Canvas>
+    </div>
+  )
+}

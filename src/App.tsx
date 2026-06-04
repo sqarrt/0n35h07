@@ -13,6 +13,7 @@ import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { MenuBackdrop } from './components/MenuBackdrop'
+import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
@@ -228,6 +229,7 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
+      {screen === 'lobby' && lobbyView && <MapBackground mapId={lobbyView.mapId} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
