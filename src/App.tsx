@@ -258,7 +258,9 @@ export default function App() {
 
       {screen === 'game' && gameNet && (
         <>
-          <Canvas shadows camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
+          {/* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
+              всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */}
+          <Canvas shadows="percentage" camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
             <Game
               dispatch={dispatch}
               role={gameNet.role}
