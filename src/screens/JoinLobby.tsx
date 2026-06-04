@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
 
-type JoinStatus = 'idle' | 'connecting' | 'failed'
+export type JoinStatus = 'idle' | 'searching' | 'found' | 'failed-find' | 'failed-connect'
 
 interface JoinLobbyProps {
   status: JoinStatus
@@ -11,9 +11,25 @@ interface JoinLobbyProps {
 
 export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
   const [code, setCode] = useState('')
-  const connecting = status === 'connecting'
-  const failed = status === 'failed'
-  const handleJoin = () => { if (!connecting && code.trim().length > 0) onJoin(code.trim().toUpperCase()) }
+  const busy = status === 'searching' || status === 'found'   // идёт попытка — ввод/кнопка заблокированы
+  const failed = status === 'failed-find' || status === 'failed-connect'
+  const handleJoin = () => { if (!busy && code.trim().length > 0) onJoin(code.trim().toUpperCase()) }
+
+  // Бегущая обводка: акцент при поиске, зелёная при «лобби найдено», красный контур при ошибке.
+  const wrapState = status === 'searching' ? ' is-connecting'
+    : status === 'found' ? ' is-found'
+    : failed ? ' is-error' : ''
+
+  const statusText =
+    status === 'searching' ? 'ПОИСК ЛОББИ…'
+    : status === 'found' ? 'ЛОББИ НАЙДЕНО · ПОДКЛЮЧЕНИЕ…'
+    : status === 'failed-find' ? `ЛОББИ ${code} НЕ НАЙДЕНО`
+    : status === 'failed-connect' ? 'НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ'
+    : ''
+  const statusClass =
+    status === 'searching' ? ' connecting'
+    : status === 'found' ? ' found'
+    : failed ? ' failed' : ''
 
   return (
     <div className="screen">
@@ -26,7 +42,7 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
         КОД ЛОББИ
       </div>
 
-      <div className={`code-wrap${connecting ? ' is-connecting' : ''}${failed ? ' is-error' : ''}`}>
+      <div className={`code-wrap${wrapState}`}>
         <input
           className="input"
           value={code}
@@ -34,7 +50,7 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
           maxLength={4}
           autoFocus
-          disabled={connecting}
+          disabled={busy}
           style={{
             fontSize: '2rem', letterSpacing: '0.5em', textIndent: code.length > 0 ? '0.5em' : '0',
             textAlign: 'center', padding: '0.5rem 1rem', boxSizing: 'border-box',
@@ -45,11 +61,9 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
         </svg>
       </div>
 
-      <div className={`join-status${connecting ? ' connecting' : ''}${failed ? ' failed' : ''}`}>
-        {connecting ? 'ПОДКЛЮЧЕНИЕ…' : failed ? `ЛОББИ ${code} НЕ ОТВЕЧАЕТ` : ''}
-      </div>
+      <div className={`join-status${statusClass}`}>{statusText}</div>
 
-      <Button variant="primary" disabled={connecting || code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
+      <Button variant="primary" disabled={busy || code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
       <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
       </div>
     </div>

@@ -13,9 +13,11 @@ import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { MenuBackdrop } from './components/MenuBackdrop'
+import { NetStatusChip } from './components/NetStatusChip'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
+import type { JoinStatus } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
 import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
@@ -23,7 +25,8 @@ import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
 import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
-import { createNet } from './net/createNet'
+import { createNet, resolveNetKind } from './net/createNet'
+import { warmRelayCache } from './net/relays'
 import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
 import type { INet, PeerId } from './net/INet'
@@ -58,7 +61,7 @@ export default function App() {
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
 
-  const [joinStatus, setJoinStatus] = useState<'idle' | 'connecting' | 'failed'>('idle')
+  const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
   const sessionRef = useRef<LobbySession | null>(null)
   const gameApiRef = useRef<GameApi | null>(null)
@@ -90,6 +93,12 @@ export default function App() {
     sessionRef.current = session
     setLobbyCode(code)
   }
+
+  // На входе в меню прогреваем кеш живых релеев (self-healing сигналинга). Только для интернет-транспорта:
+  // под ?net=bc (e2e/локалка) реальные WebSocket-пробы не нужны и шумят в тестах.
+  useEffect(() => {
+    if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
+  }, [screen])
 
   useEffect(() => {
     const onChange = () => {
@@ -130,12 +139,17 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
-  // Клиент подключился (получил ASSIGN) на экране входа → переходим в лобби.
+  // Экран входа: поиск → лобби найдено (транспорт нашёл пира) → подключён (получен ASSIGN) → в лобби.
   useEffect(() => {
-    if (screen === 'join' && joinStatus === 'connecting' && lobbyView?.connected) {
+    if (screen !== 'join') return
+    const busy = joinStatus === 'searching' || joinStatus === 'found'
+    if (!busy) return
+    if (lobbyView?.connected) {
       if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
       setJoinStatus('idle')
       setScreen('lobby')
+    } else if (joinStatus === 'searching' && lobbyView?.foundHost) {
+      setJoinStatus('found')
     }
   }, [screen, joinStatus, lobbyView])
 
@@ -160,11 +174,14 @@ export default function App() {
   const handleJoinLobby = () => { setScreen('join'); setJoinStatus('idle') }
   const handleJoin = (code: string) => {
     if (connectTimer.current) clearTimeout(connectTimer.current)
-    setJoinStatus('connecting')
+    setJoinStatus('searching')
     window.location.hash = code
     enterLobby(code, 'client')   // остаёмся на экране 'join'
     connectTimer.current = setTimeout(() => {
-      setJoinStatus('failed')
+      // Классифицируем провал по свежему состоянию сессии: нашли пира, но не завершили хендшейк →
+      // «не удалось подключиться»; пира так и не нашли → «лобби не найдено».
+      const foundHost = sessionRef.current?.view().foundHost ?? false
+      setJoinStatus(foundHost ? 'failed-connect' : 'failed-find')
       leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
     }, CONNECT_TIMEOUT_MS)
   }
@@ -202,6 +219,7 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
+      {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
       {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
       {screen === 'settings' && (

@@ -2,6 +2,7 @@ import type { INet } from './INet'
 import { BroadcastChannelNet } from './BroadcastChannelNet'
 import { TrysteroNet } from './TrysteroNet'
 import { NET_ICE_SERVERS } from '../constants'
+import { resolveRelaysSync } from './relays'
 
 export type NetKind = 'bc' | 'trystero'
 
@@ -23,5 +24,5 @@ export function resolveNetKind(): NetKind {
 export function createNet(code: string): INet {
   return resolveNetKind() === 'bc'
     ? new BroadcastChannelNet(code)
-    : new TrysteroNet(code, NET_ICE_SERVERS)
+    : new TrysteroNet(code, resolveRelaysSync(), NET_ICE_SERVERS)
 }
