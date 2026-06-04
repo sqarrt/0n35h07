@@ -115,8 +115,11 @@ export class Match {
       p.name = e.name
 
       if (isBot) {
-        // Бот: на хосте — авторитетный случайный спавн; на клиенте — нейтральная точка (поправит снапшот).
-        p.respawnAt(this.role === 'host' ? this.world.randomSpawn() : new THREE.Vector3(0, EYE_HEIGHT, 0))
+        // Бот-соперник спавнится зеркально игроку (как человек-соперник): хост — в -Z напротив себя (+Z);
+        // на клиенте — нейтральная точка (поправит снапшот).
+        p.respawnAt(this.role === 'host'
+          ? new THREE.Vector3(0, EYE_HEIGHT, -NET_HUMAN_SPAWN_Z)
+          : new THREE.Vector3(0, EYE_HEIGHT, 0))
       } else {
         p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, humanIndex === 0 ? NET_HUMAN_SPAWN_Z : -NET_HUMAN_SPAWN_Z))
         humanIndex++
