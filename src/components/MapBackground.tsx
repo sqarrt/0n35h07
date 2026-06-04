@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { MapScene } from './MapPreview'
 import { MAPS } from '../game/maps'
@@ -14,10 +14,14 @@ function Invalidate({ dep }: { dep: string }) {
 /**
  * Размытое 3D-превью выбранной карты на весь экран — атмосферный фон ЗА шарами (MenuBackdrop сверху, резкий).
  * Блюр — CSS на DOM-канвасе (без пост-эффектов); demand-рендер (карта статична, перерисовка при смене mapId).
+ * Фейдin/out через opacity-transition: `show` → видим; на маунте 0→1, при show=false 1→0 (родитель держит
+ * смонтированным на время фейда — useDelayedUnmount).
  */
-export function MapBackground({ mapId }: { mapId: MapId }) {
+export function MapBackground({ mapId, show }: { mapId: MapId; show: boolean }) {
+  const [visible, setVisible] = useState(false)   // стартуем прозрачными → transition даёт fade-in
+  useEffect(() => { setVisible(show) }, [show])
   return (
-    <div className="map-bg">
+    <div className={`map-bg${visible ? ' is-visible' : ''}`}>
       <Canvas
         frameloop="demand"
         dpr={[1, 1.5]}

@@ -29,15 +29,18 @@ import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
+import { useDelayedUnmount } from './hooks/useDelayedUnmount'
 import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId } from './constants'
+import { DEFAULT_MAP_ID } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 
 const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
+const MAP_FADE_MS = 700                  // длительность fade in/out фона карты (синхронно с .map-bg transition)
 
 interface GameNet {
   role: MatchRole
@@ -227,9 +230,16 @@ export default function App() {
   const panelSlide = screen === 'settings' ? Math.round(window.innerWidth * SETTINGS_PANEL_SHIFT_FRAC) : 0
   const panelRef = useDampedTranslateX(panelSlide)
 
+  // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
+  // последний mapId фиксируем, чтобы при выходе (lobbyView уже null) фон не мигнул на дефолтную карту.
+  const showMap = screen === 'lobby' && !!lobbyView
+  const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
+  const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
+  useEffect(() => { if (lobbyView?.mapId) setLastMapId(lobbyView.mapId) }, [lobbyView?.mapId])
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
-      {screen === 'lobby' && lobbyView && <MapBackground mapId={lobbyView.mapId} />}
+      {mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
