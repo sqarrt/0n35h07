@@ -239,7 +239,7 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
-      {mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
+      {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}

@@ -28,3 +28,32 @@ test('старт на выбранной карте применяет её сп
   const z = await page.evaluate(() => (window as any).__debugPlayerPos(0)?.z ?? NaN)
   expect(z).toBeGreaterThan(14)
 })
+
+test('os_india: по рампе можно подняться на центральную площадку', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('СОЗДАТЬ ЛОББИ').click()
+  await page.getByRole('button', { name: /os_india/ }).click()
+  await page.getByText('ДОБАВИТЬ БОТА').click()
+  await page.getByText('НАЧАТЬ').click()
+
+  await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
+  await page.evaluate(() => (window as any).__debugForceLive?.())
+  await page.waitForFunction(() => (window as any).__debugPhase?.() === 'live', { timeout: 5000 })
+  // «в игре» (фейк pointer lock) — иначе ввод игнорируется
+  await page.evaluate(() => {
+    const c = document.querySelector('canvas')!
+    Object.defineProperty(document, 'pointerLockElement', { get: () => c, configurable: true })
+    document.dispatchEvent(new Event('pointerlockchange'))
+  })
+  // Идём вперёд (−Z, на рампу) короткими бёрстами, копим максимум высоты глаз.
+  let maxY = 0
+  for (let i = 0; i < 10; i++) {
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true })))
+    await page.waitForTimeout(450)
+    const y = await page.evaluate(() => (window as any).__debugPlayerPos(0)?.y ?? 0)
+    if (y > maxY) maxY = y
+  }
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', bubbles: true })))
+  // На земле глаз ≈ 1.7; поднявшись на площадку (верх y=3) — заметно выше.
+  expect(maxY).toBeGreaterThan(3)
+})

@@ -27,6 +27,9 @@ type XYZ3 = { x: number; y: number; z: number }
 interface Kcc {
   setApplyImpulsesToDynamicBodies(v: boolean): void
   setUp(v: XYZ3): void
+  setMaxSlopeClimbAngle(rad: number): void
+  setMinSlopeSlideAngle(rad: number): void
+  enableAutostep(maxHeight: number, minWidth: number, includeDynamic: boolean): void
   computeColliderMovement(collider: unknown, desired: XYZ3): void
   computedMovement(): XYZ3
   computedGrounded(): boolean
@@ -167,8 +170,12 @@ export class Match {
     this.kcc = world.createCharacterController(0.01)
     this.kcc.setApplyImpulsesToDynamicBodies(false)
     this.kcc.setUp({ x: 0, y: 1, z: 0 })
+    // Рампы-лестницы (os_india): autostep даёт капсуле всходить на низкие ступени (≤0.4) как по подъёму;
+    // углы склона — на случай наклонных поверхностей. Высокие препятствия (стены/ящики >0.4) не перешагнуть.
+    this.kcc.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
+    this.kcc.setMinSlopeSlideAngle((50 * Math.PI) / 180)
+    this.kcc.enableAutostep(0.4, 0.25, false)
     // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
-    // Арена плоская, скольжение по поверхностям не нужно.
   }
   detachWorld() {
     if (this.physicsWorld && this.kcc) this.physicsWorld.removeCharacterController(this.kcc)

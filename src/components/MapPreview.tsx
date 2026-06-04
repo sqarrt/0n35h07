@@ -17,7 +17,7 @@ export function MapScene({ map }: { map: GameMap }) {
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
       {map.blocks.map((b, i) => (
-        <mesh key={i} position={b.pos}>
+        <mesh key={i} position={b.pos} rotation={b.rot}>
           <boxGeometry args={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} />
           <meshStandardMaterial color={b.color} />
         </mesh>

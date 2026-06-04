@@ -24,11 +24,11 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
       {/* Боксы карты: стены/базы/укрытия/колонны. blocksBeam=false → меш noRaycast (луч проходит). */}
       {map.blocks.map((b, i) => (
         <group key={i}>
-          <mesh position={b.pos} receiveShadow castShadow userData={{ noRaycast: b.blocksBeam === false }}>
+          <mesh position={b.pos} rotation={b.rot} receiveShadow castShadow userData={{ noRaycast: b.blocksBeam === false }}>
             <boxGeometry args={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} />
             <meshStandardMaterial color={b.color} />
           </mesh>
-          <CuboidCollider args={b.size} position={b.pos} />
+          <CuboidCollider args={b.size} position={b.pos} rotation={b.rot} />
         </group>
       ))}
     </>
