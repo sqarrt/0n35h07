@@ -51,6 +51,7 @@ export class Player implements IControllable {
   private netWindup = 0
   private prevNetWindup = 0
   private netFireTime = -Infinity   // момент выстрела удалённого (фронт netWindup 1→0) — для плавного сдувания
+  private netAimDir = new THREE.Vector3(0, 0, -1)   // направление взгляда удалённого (из снапшота) — для ориентации модели
 
   constructor(
     id: number,
@@ -135,6 +136,7 @@ export class Player implements IControllable {
   update(dt: number, world: World, excludeIds: number[]) {
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
+    this.body.faceDir(aim)   // модель смотрит туда же, куда целится игрок (за камерой)
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
     this.shield.update(dt)
     this.syncVisuals()
@@ -263,6 +265,7 @@ export class Player implements IControllable {
     this.body.applyNetTarget(fromVec3(snap.pos))
     this.alive = snap.alive
     this.respawning = snap.respawning
+    this.netAimDir.copy(fromVec3(snap.aimDir))
     this.netShieldActive = snap.shieldActive
     this.netDashing = snap.dashing
     // Заряд был и пропал → выстрел: запускаем локальную плавную анимацию сдувания.
@@ -298,6 +301,7 @@ export class Player implements IControllable {
   updateRemote(dt: number, world: World) {
     // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
+    this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || this.respawning })
     this.burst.update(dt)
     this.body.tickShader(dt)
