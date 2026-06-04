@@ -10,6 +10,12 @@ import { createBallMaterial, createBallRing } from './fx/ballMaterial'
 
 type XYZ = { x: number; y: number; z: number }
 
+// Scratch для ориентации визуала «лицом» к направлению (без аллокаций в кадре).
+const _faceMat = new THREE.Matrix4()
+const _faceUp = new THREE.Vector3(0, 1, 0)
+const _faceOrigin = new THREE.Vector3(0, 0, 0)
+const _faceTarget = new THREE.Vector3()
+
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
  * Body лишь КОПИТ намерение движения (desired) и кэширует позицию из rb. Меш-сфера —
@@ -169,6 +175,18 @@ export class Body {
   }
 
   setVisible(v: boolean) { this.mesh.visible = v }
+
+  /**
+   * Ориентирует визуальную сферу «лицом» по направлению прицела — ТОЛЬКО рысканье (горизонталь):
+   * модель остаётся вертикальной, не наклоняется по тангажу/крену при взгляде вверх-вниз. Крутится
+   * только меш (сфера + кольцо планеты); хитбокс не трогаем — боёвка стабильна.
+   */
+  faceDir(dir: THREE.Vector3) {
+    _faceTarget.set(dir.x, 0, dir.z)   // проекция на горизонталь → чистый yaw, без наклона
+    if (_faceTarget.lengthSq() < 1e-8) return   // прицел почти вертикальный — ориентацию не трогаем
+    _faceMat.lookAt(_faceOrigin, _faceTarget, _faceUp)
+    this.mesh.quaternion.setFromRotationMatrix(_faceMat)
+  }
 
   /** Двигает время шейдеров модели (волны / дрейф кольца). Для smooth — no-op. */
   tickShader(dt: number) { this.shaderTick(dt); this.ring?.tick(dt) }
