@@ -14,7 +14,8 @@ async function getConnectedPage(): Promise<Page> {
     } catch (e) {
       throw new Error(
         `Cannot connect to browser at localhost:${CDP_PORT}. ` +
-        `Start Chrome with: --remote-debugging-port=${CDP_PORT}\n${e}`
+        `Start Chrome with: --remote-debugging-port=${CDP_PORT}`,
+        { cause: e },
       )
     }
   }

@@ -12,6 +12,9 @@ import {
 
 type Keys = MoveKeys
 
+/** Минимальный интерфейс контролов (drei PointerLockControls): используем только pointerSpeed. */
+export interface PointerControls { pointerSpeed: number }
+
 /** Человек: клавиши/мышь/камера → те же intent-методы Player, что и у бота. */
 export class HumanController implements Controller {
   private thirdPerson = false
@@ -22,7 +25,7 @@ export class HumanController implements Controller {
   private player: Player
   private camera: THREE.PerspectiveCamera
   private keys: React.MutableRefObject<Keys>
-  private controls: React.RefObject<any>
+  private controls: React.RefObject<PointerControls | null>
   private world: World
   // Рёберные действия за кадр — для сетевого InputFrame (клиент шлёт хосту).
   private pending = { jump: false, fire: false, shield: false, dash: false }
@@ -31,7 +34,7 @@ export class HumanController implements Controller {
     player: Player,
     camera: THREE.PerspectiveCamera,
     keys: React.MutableRefObject<Keys>,
-    controls: React.RefObject<any>,
+    controls: React.RefObject<PointerControls | null>,
     world: World,
     startThirdPerson = false,
   ) {

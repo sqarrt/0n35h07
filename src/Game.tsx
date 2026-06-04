@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, Suspense } from 'react'
+import type { ComponentRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
@@ -32,7 +33,7 @@ interface GameProps {
 export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
-  const controlsRef = useRef<any>(null)
+  const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
 
   const match = useMemo(
     () => new Match({
@@ -47,9 +48,12 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       durationMs,
       mapId,
     }),
+    // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
 
   useEffect(() => {
@@ -57,7 +61,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     match.installDebug(camera)
     const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
     if (apiRef) apiRef.current = { requestReady }
-    const w = window as any
+    const w = window
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
     w.__debugForceLive = () => match.forceLiveForTest()
@@ -70,6 +74,8 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       delete w.__debugForceLive
       delete w.__debugLeave
     }
+    // Установка debug-хуков/готовности завязана на match (стабилен) и camera; прочее намеренно вне deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, match])
 
   useEffect(() => {

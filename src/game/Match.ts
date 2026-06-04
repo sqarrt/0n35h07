@@ -5,6 +5,7 @@ import { Body } from './Body'
 import { BeamWeapon } from './BeamWeapon'
 import { Shield } from './Shield'
 import { HumanController } from './controllers/HumanController'
+import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
@@ -20,10 +21,24 @@ import {
 } from '../constants'
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
+
+// Минимальные интерфейсы физики Rapier (используемая часть API) — без зависимости от типов @dimforge/rapier.
+type XYZ3 = { x: number; y: number; z: number }
+interface Kcc {
+  setApplyImpulsesToDynamicBodies(v: boolean): void
+  setUp(v: XYZ3): void
+  computeColliderMovement(collider: unknown, desired: XYZ3): void
+  computedMovement(): XYZ3
+  computedGrounded(): boolean
+}
+interface PhysicsWorld {
+  createCharacterController(offset: number): Kcc
+  removeCharacterController(kcc: Kcc): void
+}
 interface MatchOptions {
   scene:    THREE.Scene
   camera:   THREE.PerspectiveCamera
-  controls: React.RefObject<any>
+  controls: React.RefObject<PointerControls | null>
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
@@ -52,8 +67,8 @@ export class Match {
   private pendingEvents: MatchEvent[] = []   // host: события матча на рассылку
 
   // Rapier (через RapierBridge)
-  private physicsWorld: any = null
-  private kcc: any = null
+  private physicsWorld: PhysicsWorld | null = null
+  private kcc: Kcc | null = null
 
   private lastHud = 0
   private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
@@ -147,7 +162,7 @@ export class Match {
   private excludeIds(p: Player): number[] { return [p.id] }
 
   // --- Rapier wiring (вызывается из RapierBridge) ---
-  attachWorld(world: any, _rapier: any) {
+  attachWorld(world: PhysicsWorld, _rapier: unknown) {
     this.physicsWorld = world
     this.kcc = world.createCharacterController(0.01)
     this.kcc.setApplyImpulsesToDynamicBodies(false)
@@ -239,7 +254,7 @@ export class Match {
             this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
-              ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
+              window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
             }
             if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
           }
@@ -482,14 +497,15 @@ export class Match {
   }
 
   installDebug(camera: THREE.Camera) {
-    const w = window as any
+    const w = window
     w.__debugCamera = camera
     w.__debugWindup = () => this.human.isWindingUp
     w.__debugTargetHitCount = 0
-    w.__debugBotPos = {}
+    const botPos: Record<number, () => { x: number; y: number; z: number }> = {}
     this.bots.forEach((b, i) => {
-      w.__debugBotPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
+      botPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
     })
+    w.__debugBotPos = botPos
     w.__debugRole = () => this.role
     w.__debugPlayerPos = (id: number) => {
       const p = this.byId.get(id)
@@ -504,7 +520,7 @@ export class Match {
   }
 
   dispose() {
-    const w = window as any
+    const w = window
     delete w.__debugCamera
     delete w.__debugWindup
     delete w.__debugTargetHitCount

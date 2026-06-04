@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures'
-import { unlockPointer, holdKey, mouseDown, aimAtBot } from './helpers'
+import { unlockPointer, mouseDown, aimAtBot } from './helpers'
 
 const WINDUP_MS = 400
 
