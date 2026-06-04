@@ -1,19 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { World } from '../../src/game/World'
-import { SPAWN_HALF, EYE_HEIGHT } from '../../src/constants'
+import { EYE_HEIGHT } from '../../src/constants'
 
 describe('World', () => {
-  it('randomSpawn() — в пределах арены и на уровне глаз', () => {
-    const world = new World(new THREE.Scene())
-    for (let i = 0; i < 50; i++) {
-      const p = world.randomSpawn()
-      expect(Math.abs(p.x)).toBeLessThanOrEqual(SPAWN_HALF)
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(SPAWN_HALF)
-      expect(p.y).toBe(EYE_HEIGHT)
-    }
-  })
-
   it('raycast() — возвращает ближайший хитбокс и исключает свой entityId', () => {
     const scene = new THREE.Scene()
     const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1))

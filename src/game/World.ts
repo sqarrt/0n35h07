@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import { performRaycast } from '../utils/raycast'
-import { SPAWN_HALF, EYE_HEIGHT } from '../constants'
 
 /**
  * Обёртка над сценой: единая точка для raycast и спавна.
@@ -20,14 +19,5 @@ export class World {
       excludeEntityIds: excludeIds,
     })
     return hits.length > 0 ? hits[0] : null
-  }
-
-  /** Случайная точка спавна на уровне глаз. */
-  randomSpawn(): THREE.Vector3 {
-    return new THREE.Vector3(
-      (Math.random() - 0.5) * SPAWN_HALF * 2,
-      EYE_HEIGHT,
-      (Math.random() - 0.5) * SPAWN_HALF * 2,
-    )
   }
 }
