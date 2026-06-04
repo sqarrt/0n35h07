@@ -3,6 +3,8 @@ import type { GameMap } from '../game/maps'
 import { ARENA_FLOOR_HALF } from '../game/maps'
 
 const FLOOR = ARENA_FLOOR_HALF * 2
+const PREVIEW_W = 150
+const PREVIEW_H = 100
 
 /** Геометрия карты (пол + боксы) без физики/игроков — для статичного 3D-превью. */
 function MapScene({ map }: { map: GameMap }) {
@@ -36,6 +38,7 @@ export function MapPreview({ map }: { map: GameMap }) {
       frameloop="demand"
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}
+      style={{ width: PREVIEW_W, height: PREVIEW_H, display: 'block' }}
       camera={{ position: [0, 34, 38], fov: 45 }}
       onCreated={({ camera }) => camera.lookAt(0, 0, 0)}
     >

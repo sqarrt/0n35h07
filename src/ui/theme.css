@@ -33,17 +33,22 @@
 /* Тонкая акцентная линия под заголовком. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
 
-/* Полупрозрачная панель-подложка под контентом меню (читаемость текста поверх фоновых моделек). */
+/* Полупрозрачная подложка меню: на всю высоту экрана, единой ширины на всех экранах (твёрдость, без скачков).
+   Персистентна на уровне App; позиция (переезд в настройки) демпфируется в App с тем же TAU, что и шары. */
 .menu-panel {
-  border: 1px solid var(--surface-line);
+  border-left: 1px solid var(--surface-line);
+  border-right: 1px solid var(--surface-line);
   background: rgba(10,12,17,0.72);
   backdrop-filter: blur(2px);
   padding: 32px 40px;
   position: relative; z-index: 1;
   box-sizing: border-box;
   width: min(680px, 92vw);
-  min-height: 640px;
+  height: 100dvh;
+  display: flex;
 }
+/* Внутренний слой экрана: заполняет подложку, каждый экран сам задаёт выравнивание (center / stretch). */
+.panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; }
 
 /* Hard-кнопка: мгновенная плоская заливка, без transition. */
 .btn {
@@ -82,7 +87,6 @@
 
 /* VS-лобби */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
-.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; box-sizing: border-box; width: min(680px, 92vw); min-height: 640px; }
 /* Плитки выбора карты в лобби: клик по 3D-превью выбирает карту. */
 .map-tiles { display: flex; gap: 12px; justify-content: center; }
 .map-tile {
@@ -94,8 +98,6 @@
 .map-tile-label { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
 .map-tile:hover .map-tile-label { color: var(--text); }
 .map-tile--on .map-tile-label { color: var(--accent); }
-/* 3D-превью карты (canvas). */
-.map-preview { width: 124px; height: 86px; display: block; }
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }

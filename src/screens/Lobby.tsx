@@ -75,9 +75,8 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   }
 
   return (
-    <div className="screen">
-      <div className="lobby-frame">
-        <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
+    <div className="panel-fill" style={{ justifyContent: 'center' }}>
+      <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
           <div className="lobby-center">
@@ -128,7 +127,6 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
             : <div style={{ color: 'var(--muted)', fontSize: '0.8rem', letterSpacing: '0.15em', fontFamily: 'var(--ui-font)' }}>{connected ? 'ОЖИДАНИЕ ХОСТА…' : 'ПОДКЛЮЧЕНИЕ…'}</div>}
           <Button variant="ghost" onClick={onBack} style={{ width: 300 }}>НАЗАД</Button>
         </div>
-      </div>
     </div>
   )
 }

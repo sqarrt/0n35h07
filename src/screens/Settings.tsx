@@ -64,10 +64,9 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   useEffect(() => { onPreview(previewColor, model) }, [previewColor, model, onPreview])
 
   return (
-    <div className="screen">
-      {/* Слева — фоновая 3D-моделька (MenuBackdrop). Панель настроек прижата вправо. */}
-      <div className="menu-panel" style={{ alignSelf: 'flex-end', marginRight: '8vw', width: 'min(560px, 46vw)', display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '0.4rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
+    // Подложка целиком уезжает вправо (анимирует App), слева открывается фоновая 3D-моделька.
+    <div className="panel-fill" style={{ justifyContent: 'center' }}>
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '0.4rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
         <div style={{ ...label, marginBottom: '1.8rem' }}>
           НА МОДЕЛИ:{' '}
           <span style={{ color: previewColor, letterSpacing: '0.2em' }}>
@@ -128,7 +127,6 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
         <RelaysSection />
 
         <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
-      </div>
     </div>
   )
 }

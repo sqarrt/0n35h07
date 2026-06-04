@@ -27,6 +27,7 @@ import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
+import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
 import type { INet, PeerId } from './net/INet'
@@ -34,6 +35,8 @@ import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
+
+const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
 
 interface GameNet {
   role: MatchRole
@@ -218,27 +221,39 @@ export default function App() {
     ? settingsPreview
     : { color: profile.primaryColor, model: profile.ballModel }
 
+  // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
+  // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
+  const panelSlide = screen === 'settings' ? Math.round(window.innerWidth * SETTINGS_PANEL_SHIFT_FRAC) : 0
+  const panelRef = useDampedTranslateX(panelSlide)
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
-      {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
-      {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
-      {screen === 'settings' && (
-        <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
-      )}
-      {screen === 'lobby' && lobbyView && (
-        <Lobby
-          lobbyCode={lobbyCode}
-          view={lobbyView}
-          onAddBot={handleAddBot}
-          onRemoveBot={handleRemoveBot}
-          onSetDifficulty={handleSetDifficulty}
-          onSetDuration={handleSetDuration}
-          onSetMap={handleSetMap}
-          onStart={handleStart}
-          onBack={handleBack}
-        />
+      {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
+      {screen !== 'game' && (
+        <div className="screen">
+          <div className="menu-panel" ref={panelRef}>
+            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
+            {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
+            {screen === 'settings' && (
+              <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
+            )}
+            {screen === 'lobby' && lobbyView && (
+              <Lobby
+                lobbyCode={lobbyCode}
+                view={lobbyView}
+                onAddBot={handleAddBot}
+                onRemoveBot={handleRemoveBot}
+                onSetDifficulty={handleSetDifficulty}
+                onSetDuration={handleSetDuration}
+                onSetMap={handleSetMap}
+                onStart={handleStart}
+                onBack={handleBack}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {screen === 'game' && gameNet && (

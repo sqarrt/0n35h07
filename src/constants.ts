@@ -88,6 +88,10 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 // id используется и как подпись в UI.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
+
+// Демпфирование анимаций меню (переезд подложки и фоновых шаров) — единая скорость («резко, но не мгновенно»,
+// ~200 мс на ~95% пути). TAU в секундах для cur += (target-cur)*(1-exp(-dt/TAU)).
+export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
 
 // JoinLobby: ожидание ASSIGN от хоста; по истечении — ошибка
