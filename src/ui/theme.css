@@ -56,6 +56,9 @@
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   filter: blur(2.5px) brightness(0.7);
   opacity: 0; transition: opacity 0.7s ease;
+  /* Своя GPU-слой: блюр растеризуется один раз, fade анимирует только opacity (без пере-блюра каждый кадр). */
+  will-change: opacity;
+  transform: translateZ(0);
 }
 .map-bg.is-visible { opacity: 1; }
 

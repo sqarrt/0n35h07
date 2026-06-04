@@ -19,19 +19,28 @@ function Invalidate({ dep }: { dep: string }) {
  */
 export function MapBackground({ mapId, show }: { mapId: MapId; show: boolean }) {
   const [visible, setVisible] = useState(false)   // стартуем прозрачными → transition даёт fade-in
+  const [ready, setReady] = useState(false)       // отложенный маунт WebGL — чтобы лобби открылось без фриза
   useEffect(() => { setVisible(show) }, [show])
+  // Инициализацию канваса (создание GL-контекста + компиляция шейдеров) откладываем за первый кадр лобби,
+  // чтобы интерфейс не подвисал в момент открытия. Фон проявится фейдом чуть позже — это фон, не критично.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)))
+    return () => cancelAnimationFrame(id)
+  }, [])
   return (
-    <div className={`map-bg${visible ? ' is-visible' : ''}`}>
-      <Canvas
-        frameloop="demand"
-        dpr={[1, 1.5]}
-        gl={{ alpha: true }}
-        camera={{ position: [0, 16, 24], fov: 50 }}
-        onCreated={({ camera }) => camera.lookAt(0, 2, 0)}
-      >
-        <MapScene map={MAPS[mapId]} />
-        <Invalidate dep={mapId} />
-      </Canvas>
+    <div className={`map-bg${visible && ready ? ' is-visible' : ''}`}>
+      {ready && (
+        <Canvas
+          frameloop="demand"
+          dpr={0.5}                /* фон размыт → низкий dpr незаметен, но дешевле рендер/инициализация */
+          gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
+          camera={{ position: [0, 16, 24], fov: 50 }}
+          onCreated={({ camera }) => camera.lookAt(0, 2, 0)}
+        >
+          <MapScene map={MAPS[mapId]} />
+          <Invalidate dep={mapId} />
+        </Canvas>
+      )}
     </div>
   )
 }
