@@ -1,0 +1,43 @@
+/* Редактор карт — единый «индустриально-терминальный» язык с игрой (моно, акцент #4af, плоско, без градиентов). */
+.editor-root { position: fixed; inset: 0; background: var(--bg); font-family: var(--ui-font); color: var(--text); }
+.editor-root canvas { display: block; }
+
+.editor-crosshair {
+  position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 5;
+}
+.editor-crosshair::before, .editor-crosshair::after {
+  content: ''; position: absolute; background: var(--accent); box-shadow: 0 0 4px var(--accent);
+}
+.editor-crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+.editor-crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+.editor-hint {
+  position: fixed; left: 50%; top: 58%; transform: translateX(-50%); z-index: 6;
+  background: rgba(10,12,17,0.78); border: 1px solid var(--surface-line); padding: 8px 14px;
+  font-size: 12px; letter-spacing: 0.12em; color: var(--accent-dim); white-space: nowrap;
+}
+
+.editor-hotbar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(10,12,17,0.78); border: 1px solid var(--surface-line); padding: 8px 12px;
+}
+.editor-hotbar .seg { font-size: 11px; }
+.editor-sep { width: 1px; height: 22px; background: var(--surface-line); margin: 0 4px; }
+
+.editor-panel {
+  position: fixed; top: 14px; left: 14px; z-index: 6; width: 320px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(10,12,17,0.82); border: 1px solid var(--surface-line); padding: 14px 16px;
+}
+.editor-title { font-size: 13px; letter-spacing: 0.18em; color: var(--accent); }
+.editor-dim { color: var(--muted); letter-spacing: 0.1em; font-size: 11px; margin-left: 8px; }
+.editor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
+.editor-row .input { padding: 4px 8px; font-size: 12px; }
+.editor-row input[type=number] { width: 64px; }
+.editor-row input[type=color] { width: 34px; height: 26px; background: transparent; border: 1px solid var(--line); cursor: pointer; }
+.editor-row .seg, .editor-row .btn { font-size: 11px; min-width: auto; padding: 0.4rem 0.7rem; margin: 0; }
+.editor-json { width: 100%; height: 120px; resize: vertical; background: transparent; border: 1px solid var(--surface-line); color: var(--text); font-family: var(--ui-font); font-size: 10px; padding: 6px; }
+.editor-exit { color: var(--muted); font-size: 11px; letter-spacing: 0.1em; text-decoration: none; }
+.editor-exit:hover { color: var(--accent-dim); }

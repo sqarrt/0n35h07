@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -40,6 +40,9 @@ import { DEFAULT_MAP_ID } from './constants'
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 
 const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
+
+// Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
+const MapEditor = lazy(() => import('./editor/MapEditor').then(m => ({ default: m.MapEditor })))
 const MAP_FADE_MS = 700                  // длительность fade in/out фона карты (синхронно с .map-bg transition)
 
 interface GameNet {
@@ -57,6 +60,7 @@ function randomCode() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
+  const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && window.location.hash === '#editor')
   const [locked, setLocked] = useState(false)
   const [everLocked, setEverLocked] = useState(false)
   const [lobbyCode, setLobbyCode] = useState('')
@@ -107,6 +111,13 @@ export default function App() {
   useEffect(() => {
     if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
+
+  // Дев-маршрут #editor → редактор карт (только при npm run dev).
+  useEffect(() => {
+    const onHash = () => setEditorMode(import.meta.env.DEV && window.location.hash === '#editor')
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     const onChange = () => {
@@ -236,6 +247,10 @@ export default function App() {
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
   useEffect(() => { if (lobbyView?.mapId) setLastMapId(lobbyView.mapId) }, [lobbyView?.mapId])
+
+  if (editorMode) {
+    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><MapEditor /></Suspense>
+  }
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
