@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
-import type { BotDifficulty } from '../../src/constants'
+import type { BotDifficulty, MapId } from '../../src/constants'
 import { EYE_HEIGHT } from '../../src/constants'
 import type { RosterEntry } from '../../src/net/protocol'
+import { MAPS } from '../../src/game/maps'
 
 function lockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => document.body, configurable: true })
@@ -13,7 +14,7 @@ function unlockPointer() {
 }
 
 /** Строит host-матч 1v1 (вы + бот) и пропускает ритуал готовности — тестируем боёвку. */
-function makeMatch(difficulty: BotDifficulty = 'passive') {
+function makeMatch(difficulty: BotDifficulty = 'passive', mapId?: MapId) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
   const controls = { current: { pointerSpeed: 1 } }
@@ -25,7 +26,7 @@ function makeMatch(difficulty: BotDifficulty = 'passive') {
   ]
   const match = new Match({
     scene, camera, controls: controls as any, keys: keys as any, dispatch,
-    role: 'host', netConfig: { localId: 0, roster },
+    role: 'host', netConfig: { localId: 0, roster }, mapId,
   })
   scene.add(match.root)   // тела игроков + лучи (для raycast боёвки)
   match.installDebug(camera)
@@ -54,6 +55,12 @@ describe('Match', () => {
     unlockPointer()
     const w = window as any
     delete w.__debugCamera; delete w.__debugWindup; delete w.__debugTargetHitCount; delete w.__debugBotPos
+  })
+
+  it('спавнит игроков по слотам выбранной карты (os_pillars)', () => {
+    const { match } = makeMatch('passive', 'os_pillars')
+    expect(match.human.position.toArray()).toEqual(MAPS.os_pillars.spawns[0])
+    expect(match.bots[0].position.toArray()).toEqual(MAPS.os_pillars.spawns[1])
   })
 
   it('человек убивает пассивного бота: hitCount + BEAM_FLASH + бот в фазе призрака', () => {

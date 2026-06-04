@@ -12,7 +12,8 @@ import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
-import type { MatchRole } from './constants'
+import type { MatchRole, MapId } from './constants'
+import { MAPS } from './game/maps'
 
 export interface GameApi { requestReady(): void }
 
@@ -25,9 +26,10 @@ interface GameProps {
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
+  mapId: MapId
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<any>(null)
@@ -43,6 +45,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       netConfig,
       defaultThirdPerson,
       durationMs,
+      mapId,
     }),
     [],
   )
@@ -103,7 +106,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     <Suspense>
       <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
         <PointerLockControls ref={controlsRef} />
-        <Arena />
+        <Arena map={MAPS[mapId]} />
         <RapierBridge match={match} />
 
         {/* RigidBody = только физика (капсула); визуал игроков — в match.root (world-space). */}

@@ -31,7 +31,7 @@ import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole } from './constants'
+import type { MatchRole, MapId } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 
@@ -41,6 +41,7 @@ interface GameNet {
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
   durationMs: number
+  mapId: MapId
 }
 
 function randomCode() {
@@ -79,14 +80,14 @@ export default function App() {
     const net = createNet(code)
     const session = new LobbySession(net, role, code, loadProfile())
     session.onChange(v => setLobbyView(v))
-    session.onStart((durationMs) => {
+    session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId })
       setEverLocked(false)
       setScreen('game')
     })
@@ -207,6 +208,7 @@ export default function App() {
   const handleRemoveBot = () => sessionRef.current?.removeBot()
   const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
   const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
+  const handleSetMap = (id: MapId) => sessionRef.current?.setMap(id)
 
   const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
@@ -233,6 +235,7 @@ export default function App() {
           onRemoveBot={handleRemoveBot}
           onSetDifficulty={handleSetDifficulty}
           onSetDuration={handleSetDuration}
+          onSetMap={handleSetMap}
           onStart={handleStart}
           onBack={handleBack}
         />
@@ -250,6 +253,7 @@ export default function App() {
               defaultThirdPerson={profile.defaultView === 'tp'}
               apiRef={gameApiRef}
               durationMs={gameNet.durationMs}
+              mapId={gameNet.mapId}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (

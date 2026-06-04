@@ -42,7 +42,7 @@
   position: relative; z-index: 1;
   box-sizing: border-box;
   width: min(680px, 92vw);
-  min-height: 540px;
+  min-height: 640px;
 }
 
 /* Hard-кнопка: мгновенная плоская заливка, без transition. */
@@ -82,7 +82,20 @@
 
 /* VS-лобби */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
-.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; box-sizing: border-box; width: min(680px, 92vw); min-height: 540px; }
+.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; box-sizing: border-box; width: min(680px, 92vw); min-height: 640px; }
+/* Плитки выбора карты в лобби: клик по 3D-превью выбирает карту. */
+.map-tiles { display: flex; gap: 12px; justify-content: center; }
+.map-tile {
+  background: transparent; border: 1px solid var(--surface-line); padding: 6px 6px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: var(--ui-font);
+}
+.map-tile:hover { border-color: var(--ghost-line-hover); }
+.map-tile--on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.map-tile-label { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+.map-tile:hover .map-tile-label { color: var(--text); }
+.map-tile--on .map-tile-label { color: var(--accent); }
+/* 3D-превью карты (canvas). */
+.map-preview { width: 124px; height: 86px; display: block; }
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }

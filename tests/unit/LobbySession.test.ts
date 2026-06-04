@@ -38,6 +38,24 @@ describe('LobbySession длительность матча', () => {
   })
 })
 
+describe('LobbySession выбор карты', () => {
+  it('дефолт — arena; хост меняет карту → клиент видит её и получает mapId в onStart', () => {
+    const [a, b] = createLoopbackPair('H', 'C')
+    const host = new LobbySession(a, 'host', 'CODE', HOST)
+    const client = new LobbySession(b, 'client', 'CODE', GUEST)
+    let clientView = client.view()
+    client.onChange(v => { clientView = v })
+    expect(clientView.mapId).toBe('os_arena')
+
+    host.setMap('os_pillars')
+    let startedMap = ''
+    client.onStart((_ms, mapId) => { startedMap = mapId })
+    host.start()
+    expect(clientView.mapId).toBe('os_pillars')
+    expect(startedMap).toBe('os_pillars')
+  })
+})
+
 describe('LobbySession — назначение цветов хостом', () => {
   it('клиент с тем же основным цветом, что у хоста, получает свой резервный', () => {
     const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' })

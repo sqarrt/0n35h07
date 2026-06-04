@@ -83,6 +83,11 @@ export const HUD_FRAME_INSET = 21   // px от кромки экрана до п
 // Матч на время (выбор хоста в лобби). Конец матча: таймер ИЛИ отключение соперника.
 export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
 export const DEFAULT_MATCH_DURATION_MIN = 5
+
+// Карта матча (выбор хоста в лобби). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
+// id используется и как подпись в UI.
+export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
+export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
 
 // JoinLobby: ожидание ASSIGN от хоста; по истечении — ошибка

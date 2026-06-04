@@ -1,53 +1,36 @@
-import { SPAWN_HALF } from './constants'
-import * as THREE from 'three'
 import { CuboidCollider } from '@react-three/rapier'
+import { MAPS, ARENA_FLOOR_HALF } from './game/maps'
+import type { GameMap } from './game/maps'
+import { DEFAULT_MAP_ID } from './constants'
 
-export function randomArenaPos(): THREE.Vector3 {
-  return new THREE.Vector3(
-    (Math.random() - 0.5) * SPAWN_HALF * 2,
-    1,
-    (Math.random() - 0.5) * SPAWN_HALF * 2,
-  )
-}
+const FLOOR_SIZE = ARENA_FLOOR_HALF * 2
 
-export function Arena() {
+/** Арена по данным карты: общий пол/свет/сетка + боксы карты (видимый меш + Rapier-коллайдер). */
+export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   return (
     <>
       <ambientLight intensity={0.4} />
       <directionalLight position={[10, 10, 5]} castShadow intensity={1} />
 
-      {/* Floor */}
+      {/* Пол: плоскость (визуал) + статический коллайдер (верх на y=0). Луч игнорит (noRaycast). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#444" />
+        <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
+        <meshStandardMaterial color={map.floorColor} />
       </mesh>
+      <CuboidCollider args={[ARENA_FLOOR_HALF, 0.5, ARENA_FLOOR_HALF]} position={[0, -0.5, 0]} />
 
-      {/* Walls */}
-      <mesh position={[0, 1.5, -20]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[40, 3, 0.5]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[0, 1.5, 20]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[40, 3, 0.5]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[-20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[0.5, 3, 40]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[0.5, 3, 40]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
+      <gridHelper args={[FLOOR_SIZE, 20, '#666', '#333']} />
 
-      <gridHelper args={[40, 20, '#666', '#333']} />
-
-      {/* Статические коллайдеры Rapier (args — полу-размеры). Пол: верх на y=0. */}
-      <CuboidCollider args={[20, 0.5, 20]} position={[0, -0.5, 0]} />
-      <CuboidCollider args={[20, 1.5, 0.25]} position={[0, 1.5, -20]} />
-      <CuboidCollider args={[20, 1.5, 0.25]} position={[0, 1.5, 20]} />
-      <CuboidCollider args={[0.25, 1.5, 20]} position={[-20, 1.5, 0]} />
-      <CuboidCollider args={[0.25, 1.5, 20]} position={[20, 1.5, 0]} />
+      {/* Боксы карты: стены/базы/укрытия/колонны. blocksBeam=false → меш noRaycast (луч проходит). */}
+      {map.blocks.map((b, i) => (
+        <group key={i}>
+          <mesh position={b.pos} receiveShadow castShadow userData={{ noRaycast: b.blocksBeam === false }}>
+            <boxGeometry args={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} />
+            <meshStandardMaterial color={b.color} />
+          </mesh>
+          <CuboidCollider args={b.size} position={b.pos} />
+        </group>
+      ))}
     </>
   )
 }
