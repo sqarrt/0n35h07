@@ -13,6 +13,7 @@ export interface LobbyView {
   localPlayerId: number   // -1 у клиента, пока хост не назначил
   isHost: boolean
   connected: boolean      // клиент: получил ASSIGN
+  foundHost: boolean      // клиент: транспорт нашёл пира (onPeerJoin) — идёт хендшейк; host: всегда true
   canStart: boolean       // host: слот соперника занят → можно стартовать
   durationMin: number
 }
@@ -35,6 +36,7 @@ export class LobbySession {
   private changeCb: (v: LobbyView) => void = () => {}
   private startCb: (durationMs: number) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
+  private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «лобби найдено»)
 
   constructor(net: INet, role: LobbyRole, code: string, profile: PlayerProfile) {
     this.net = net
@@ -51,7 +53,7 @@ export class LobbySession {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
       net.on('start', payload => this.startCb((payload as Start).durationMs))
-      net.onPeerJoin(() => this.sayHello())   // нашли хоста — представляемся
+      net.onPeerJoin(() => { this.peerSeen = true; this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
       this.sayHello()
       // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
       // хоста). В loopback хендшейк уже синхронно завершён — таймер не нужен.
@@ -159,6 +161,7 @@ export class LobbySession {
       localPlayerId: this.localPlayerId,
       isHost: this.role === 'host',
       connected: this.role === 'host' || this.localPlayerId >= 0,
+      foundHost: this.role === 'host' || this.peerSeen,
       canStart: this.role === 'host' && this.opponent !== null,
       durationMin: this.durationMin,
     }

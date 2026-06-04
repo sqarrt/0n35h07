@@ -5,6 +5,7 @@ import type { BallModel } from '../constants'
 import { NAME_MAX, saveProfile } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { Button } from '../ui/Button'
+import { RelaysSection } from './RelaysSection'
 
 interface SettingsProps {
   profile: PlayerProfile
@@ -123,6 +124,8 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
             </button>
           ))}
         </div>
+
+        <RelaysSection />
 
         <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
       </div>

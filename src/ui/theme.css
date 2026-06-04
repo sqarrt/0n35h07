@@ -138,4 +138,52 @@
 @keyframes code-run-dash { to { stroke-dashoffset: -100; } }
 .join-status { height: 20px; font-size: 12px; letter-spacing: 0.18em; margin: 0.6rem 0 1rem; text-align: center; }
 .join-status.connecting { color: var(--accent-dim); }
+.join-status.found { color: var(--ok); }
 .join-status.failed { color: var(--danger); }
+
+/* «Лобби найдено» — та же бегущая обводка, но цветом подтверждения. */
+.code-wrap.is-found .code-run { display: block; }
+.code-wrap.is-found .code-run rect { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); animation: code-run-dash 1.2s linear infinite; }
+
+/* Ненавязчивый индикатор пробы релеев — угол пред-игровых экранов. */
+.net-chip {
+  position: fixed; left: 16px; bottom: 14px; z-index: 105;
+  display: flex; align-items: center; gap: 7px;
+  font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.16em;
+  color: var(--muted); pointer-events: none; user-select: none;
+}
+.net-chip .dot { font-size: 9px; line-height: 1; }
+.net-chip .dot--ok { color: var(--ok); }
+.net-chip .dot--warn { color: var(--danger); }
+.net-chip .dot--probing { color: var(--accent-dim); animation: net-blink 0.9s steps(1) infinite; }
+@keyframes net-blink { 50% { opacity: 0.2; } }
+
+/* Раздел релеев в настройках (сворачиваемый, закрыт по умолчанию). */
+.relays { margin-top: 0.4rem; margin-bottom: 1.2rem; }
+.relays-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: transparent; border: none; padding: 6px 0; cursor: pointer;
+  font-family: var(--ui-font); font-size: 0.7rem; letter-spacing: 0.15em; color: #667;
+}
+.relays-head:hover { color: var(--accent-dim); }
+.relays-sum { color: var(--muted); letter-spacing: 0.12em; }
+/* Полный список по здоровью — со скроллом; полоса тонкая, в стиле темы (не дефолтная «жирная»). */
+.relays-list {
+  max-height: 196px; overflow-y: auto; margin: 6px 0 10px; border-top: 1px solid var(--surface-line);
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;   /* Firefox */
+}
+.relays-list::-webkit-scrollbar { width: 6px; }
+.relays-list::-webkit-scrollbar-track { background: transparent; }
+.relays-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.relays-list::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+.relay-row {
+  display: flex; align-items: center; gap: 10px; padding: 4px 2px;
+  font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.06em; color: var(--text);
+  border-bottom: 1px solid rgba(26,36,51,0.5);
+}
+.relay-row .dot { font-size: 9px; line-height: 1; }
+.relay-row .dot--ok { color: var(--ok); }
+.relay-row .dot--dead { color: var(--danger); }
+.relay-row .dot--muted { color: var(--muted); }
+.relay-host { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.relay-lat { color: var(--muted); }

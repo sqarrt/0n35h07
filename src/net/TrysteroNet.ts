@@ -20,8 +20,11 @@ export class TrysteroNet implements INet {
   private joinCbs: PeerHandler[] = []
   private leaveCbs: PeerHandler[] = []
 
-  constructor(roomId: string, iceServers: RTCIceServer[] = []) {
+  constructor(roomId: string, relayUrls: string[] = [], iceServers: RTCIceServer[] = []) {
     const config: JoinRoomConfig = { appId: APP_ID }
+    // Закрепляем подтверждённо живые релеи (проба на входе в меню) — иначе Trystero выбирает фиксированную
+    // пятёрку по хешу appId, и при их падении пиры не находят друг друга.
+    if (relayUrls.length) config.relayConfig = { urls: relayUrls }
     if (iceServers.length) config.rtcConfig = { iceServers }
     this.room = joinRoom(config, roomId)
     this.room.onPeerJoin = id => this.joinCbs.forEach(cb => cb(id))
