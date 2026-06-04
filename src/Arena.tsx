@@ -1,12 +1,11 @@
 import { CuboidCollider } from '@react-three/rapier'
-import { MAPS, ARENA_FLOOR_HALF } from './game/maps'
+import { MAPS } from './game/maps'
 import type { GameMap } from './game/maps'
 import { DEFAULT_MAP_ID } from './constants'
 
-const FLOOR_SIZE = ARENA_FLOOR_HALF * 2
-
-/** Арена по данным карты: общий пол/свет/сетка + боксы карты (видимый меш + Rapier-коллайдер). */
+/** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + боксы карты (меш + Rapier-коллайдер). */
 export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
+  const [hx, hz] = map.half
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -14,12 +13,13 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
 
       {/* Пол: плоскость (визуал) + статический коллайдер (верх на y=0). Луч игнорит (noRaycast). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>
-        <planeGeometry args={[FLOOR_SIZE, FLOOR_SIZE]} />
+        <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
-      <CuboidCollider args={[ARENA_FLOOR_HALF, 0.5, ARENA_FLOOR_HALF]} position={[0, -0.5, 0]} />
+      <CuboidCollider args={[hx, 0.5, hz]} position={[0, -0.5, 0]} />
 
-      <gridHelper args={[FLOOR_SIZE, 20, '#666', '#333']} />
+      {/* Сетка квадратная по природе → масштабируем по Z под прямоугольный пол. */}
+      <gridHelper args={[hx * 2, 20, '#666', '#333']} scale={[1, 1, hz / hx]} />
 
       {/* Боксы карты: стены/базы/укрытия/колонны. blocksBeam=false → меш noRaycast (луч проходит). */}
       {map.blocks.map((b, i) => (

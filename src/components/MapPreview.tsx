@@ -1,19 +1,19 @@
-import { Canvas } from '@react-three/fiber'
+import { useEffect } from 'react'
+import { Canvas, useThree } from '@react-three/fiber'
 import type { GameMap } from '../game/maps'
-import { ARENA_FLOOR_HALF } from '../game/maps'
 
-const FLOOR = ARENA_FLOOR_HALF * 2
 const PREVIEW_W = 150
 const PREVIEW_H = 100
 
-/** Геометрия карты (пол + боксы) без физики/игроков — для статичного 3D-превью и размытого фона. */
+/** Геометрия карты (пол по её размеру + боксы) без физики/игроков — для 3D-превью и размытого фона. */
 export function MapScene({ map }: { map: GameMap }) {
+  const [hx, hz] = map.half
   return (
     <>
       <ambientLight intensity={0.55} />
       <directionalLight position={[12, 20, 8]} intensity={1.1} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[FLOOR, FLOOR]} />
+        <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
       {map.blocks.map((b, i) => (
@@ -27,8 +27,25 @@ export function MapScene({ map }: { map: GameMap }) {
 }
 
 /**
+ * Кадрирует камеру под размер карты (прямоугольные/длинные карты не должны обрезаться) и перерисовывает
+ * (frameloop=demand) при смене карты. `lift` — насколько камера выше/дальше (превью круче сверху, фон ниже).
+ */
+export function FitCamera({ map, lift }: { map: GameMap; lift: number }) {
+  const camera = useThree(s => s.camera)
+  const invalidate = useThree(s => s.invalidate)
+  const [hx, hz] = map.half
+  useEffect(() => {
+    const reach = Math.max(hx, hz)
+    camera.position.set(0, reach * lift, reach * (lift + 0.15))
+    camera.lookAt(0, 0, 0)
+    invalidate()
+  }, [hx, hz, lift, camera, invalidate])
+  return null
+}
+
+/**
  * Реальное 3D-превью карты под углом (а не схема): рендерит геометрию карты из тех же данных, что и арена.
- * frameloop="demand" → один статичный кадр, без цикла анимации (дёшево, как «скриншот», но всегда актуально).
+ * frameloop="demand" → один статичный кадр (дёшево, как «скриншот», но всегда актуально); камера под размер.
  */
 export function MapPreview({ map }: { map: GameMap }) {
   return (
@@ -39,10 +56,10 @@ export function MapPreview({ map }: { map: GameMap }) {
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}
       style={{ width: PREVIEW_W, height: PREVIEW_H, display: 'block' }}
-      camera={{ position: [0, 34, 38], fov: 45 }}
-      onCreated={({ camera }) => camera.lookAt(0, 0, 0)}
+      camera={{ fov: 45 }}
     >
       <MapScene map={map} />
+      <FitCamera map={map} lift={1.7} />
     </Canvas>
   )
 }

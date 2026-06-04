@@ -1,18 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import type { WebGLRenderer } from 'three'
-import { MapScene } from './MapPreview'
+import { MapScene, FitCamera } from './MapPreview'
 import { MAPS } from '../game/maps'
 import type { MapId } from '../constants'
 
 const SWITCH_FADE_MS = 320   // кроссфейд при смене карты
-
-/** Перерисовать статичный (frameloop=demand) фон при смене карты. */
-function Invalidate({ dep }: { dep: string }) {
-  const invalidate = useThree(s => s.invalidate)
-  useEffect(() => { invalidate() }, [dep, invalidate])
-  return null
-}
 
 /**
  * Размытое 3D-превью выбранной карты на весь экран — атмосферный фон ЗА шарами (MenuBackdrop сверху, резкий).
@@ -56,11 +49,11 @@ export function MapBackground({ mapId, show }: { mapId: MapId; show: boolean }) 
           frameloop="demand"
           dpr={0.5}                /* фон размыт → низкий dpr незаметен, но дешевле рендер/инициализация */
           gl={{ alpha: true, antialias: false, powerPreference: 'low-power', preserveDrawingBuffer: true }}
-          camera={{ position: [0, 16, 24], fov: 50 }}
-          onCreated={({ gl, camera }) => { glRef.current = gl; camera.lookAt(0, 2, 0) }}
+          camera={{ fov: 50 }}
+          onCreated={({ gl }) => { glRef.current = gl }}
         >
           <MapScene map={MAPS[drawnMap]} />
-          <Invalidate dep={drawnMap} />
+          <FitCamera map={MAPS[drawnMap]} lift={0.8} />
         </Canvas>
       )}
       {snapshot && <img key={snapshot.key} className="map-bg-snap" src={snapshot.url} alt="" />}

@@ -24,23 +24,23 @@ export interface MapBlock {
 
 export interface GameMap {
   id: MapId            // и подпись в UI (отдельного name нет)
+  half: [number, number]   // полу-размеры пола арены [X, Z] — карта может быть прямоугольной (длиннее по Z)
   floorColor: string
   blocks: MapBlock[]
   spawns: [Vec3, Vec3]   // [HOST_ID, OPPONENT_ID]
 }
 
-const ARENA_HALF = 20    // полу-размер пола (40×40)
 const WALL_H = 1.5       // полу-высота периметровой стены
 const WALL_T = 0.25      // полу-толщина стены
 
-/** Четыре периметровые стены (декор+коллайдер, луч проходит — как в исходной арене). */
-function perimeter(color: string): MapBlock[] {
+/** Четыре периметровые стены по размеру пола [hx, hz] (декор+коллайдер, луч проходит). */
+function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   const bb = false
   return [
-    { pos: [0, WALL_H, -ARENA_HALF], size: [ARENA_HALF, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [0, WALL_H, ARENA_HALF], size: [ARENA_HALF, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [-ARENA_HALF, WALL_H, 0], size: [WALL_T, WALL_H, ARENA_HALF], color, blocksBeam: bb },
-    { pos: [ARENA_HALF, WALL_H, 0], size: [WALL_T, WALL_H, ARENA_HALF], color, blocksBeam: bb },
+    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
+    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
+    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
+    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
   ]
 }
 
@@ -52,17 +52,21 @@ const INDIA_WOOD = '#8a5a2b'        // ящики
 const INDIA_STONE = '#b89863'       // плита/ступени/купол
 const INDIA_STONE_DK = '#9a7b46'    // колонны/постройка
 
-// Лестница-подъём на площадку (верх y=3) со стороны +Z: ступени от z≈8 (низ) к z=3 (площадка).
-const STAIR_TOP_Y = 3
-const STAIR_STEPS = 10
-const STAIR_Z_BOTTOM = 8
+// Карта вытянута по Z (длинные подъёмы): пол 40×80.
+const INDIA_ARENA: [number, number] = [20, 40]
+const INDIA_PLAT_HZ = 5      // полу-глубина центральной площадки (z ∈ [-5, 5])
+const INDIA_PLAT_TOP = 3     // верх площадки
+
+// Лестница-подъём (верх y=3) со стороны +Z: длинные пологие ступени от z=низ к z=край площадки.
+const STAIR_STEPS = 12
+const STAIR_Z_BOTTOM = 22    // низ лестницы (ближе к спавну)
 function indiaStairs(): MapBlock[] {
-  const h = STAIR_TOP_Y / STAIR_STEPS                       // высота ступени 0.3 (≤ autostep 0.4)
-  const d = (STAIR_Z_BOTTOM - 3) / STAIR_STEPS              // глубина ступени 0.5
+  const h = INDIA_PLAT_TOP / STAIR_STEPS                    // высота ступени 0.25 (≤ autostep 0.4)
+  const d = (STAIR_Z_BOTTOM - INDIA_PLAT_HZ) / STAIR_STEPS  // глубина ступени ~1.4 (пологий длинный подъём)
   const steps: MapBlock[] = []
   for (let i = 0; i < STAIR_STEPS; i++) {
     const top = (i + 1) * h
-    const zc = STAIR_Z_BOTTOM - (i + 0.5) * d               // от z=8 к z=3
+    const zc = STAIR_Z_BOTTOM - (i + 0.5) * d               // от z=22 к z=5
     steps.push({ pos: [0, top / 2, zc], size: [3, top / 2, d / 2], color: INDIA_STONE })
   }
   return steps
@@ -79,34 +83,35 @@ function mirrorZ(b: MapBlock): MapBlock {
 
 // Центр (симметричен сам по себе): плита-площадка (верх y=3), 4 колонны → 3 арки снизу, постройка + купол.
 const INDIA_CENTER: MapBlock[] = [
-  { pos: [0, 2.75, 0], size: [9, 0.25, 3], color: INDIA_STONE },
-  { pos: [-7, 1.25, 0], size: [0.5, 1.25, 2.5], color: INDIA_STONE_DK },
-  { pos: [-2.5, 1.25, 0], size: [0.5, 1.25, 2.5], color: INDIA_STONE_DK },
-  { pos: [2.5, 1.25, 0], size: [0.5, 1.25, 2.5], color: INDIA_STONE_DK },
-  { pos: [7, 1.25, 0], size: [0.5, 1.25, 2.5], color: INDIA_STONE_DK },
+  { pos: [0, 2.75, 0], size: [9, 0.25, INDIA_PLAT_HZ], color: INDIA_STONE },
+  { pos: [-7, 1.25, 0], size: [0.5, 1.25, INDIA_PLAT_HZ], color: INDIA_STONE_DK },
+  { pos: [-2.5, 1.25, 0], size: [0.5, 1.25, INDIA_PLAT_HZ], color: INDIA_STONE_DK },
+  { pos: [2.5, 1.25, 0], size: [0.5, 1.25, INDIA_PLAT_HZ], color: INDIA_STONE_DK },
+  { pos: [7, 1.25, 0], size: [0.5, 1.25, INDIA_PLAT_HZ], color: INDIA_STONE_DK },
   { pos: [0, 3.6, 0], size: [2, 0.6, 2], color: INDIA_STONE_DK },
   { pos: [0, 4.4, 0], size: [1.2, 0.3, 1.2], color: INDIA_STONE },
 ]
 
-// Ближняя половина (Z>0): рампа на площадку + ящики (большие с приставными малыми, одиночные малые, совсем
-// малые у рампы). Дальняя половина — mirrorZ.
+// Ближняя половина (Z>0): подъём-лестница на площадку + ящики (большие с приставными малыми, одиночные малые,
+// совсем малые у рампы). Дальняя половина — mirrorZ. Двор длинный (до z≈40), ящики разнесены.
 const INDIA_HALF: MapBlock[] = [
   ...indiaStairs(),
-  { pos: [-7, 1.1, 10], size: [0.6, 1.1, 0.6], color: INDIA_WOOD },        // большой (полное укрытие)
-  { pos: [-5.95, 0.725, 10], size: [0.45, 0.725, 0.45], color: INDIA_WOOD }, // вплотную малый
-  { pos: [7, 1.1, 10], size: [0.6, 1.1, 0.6], color: INDIA_WOOD },
-  { pos: [5.95, 0.725, 10], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },
-  { pos: [-3, 0.725, 13], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },  // одиночные малые
-  { pos: [3, 0.725, 13], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },
-  { pos: [-4.5, 0.4, 8.5], size: [0.35, 0.4, 0.35], color: INDIA_WOOD },   // совсем малые у рампы
-  { pos: [4.5, 0.4, 8.5], size: [0.35, 0.4, 0.35], color: INDIA_WOOD },
+  { pos: [-7, 1.1, 16], size: [0.6, 1.1, 0.6], color: INDIA_WOOD },         // большой (полное укрытие)
+  { pos: [-5.95, 0.725, 16], size: [0.45, 0.725, 0.45], color: INDIA_WOOD }, // вплотную малый
+  { pos: [7, 1.1, 16], size: [0.6, 1.1, 0.6], color: INDIA_WOOD },
+  { pos: [5.95, 0.725, 16], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },
+  { pos: [-3, 0.725, 29], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },   // одиночные малые (у спавна)
+  { pos: [3, 0.725, 29], size: [0.45, 0.725, 0.45], color: INDIA_WOOD },
+  { pos: [-4.5, 0.4, 23.5], size: [0.35, 0.4, 0.35], color: INDIA_WOOD },   // совсем малые у низа подъёма
+  { pos: [4.5, 0.4, 23.5], size: [0.35, 0.4, 0.35], color: INDIA_WOOD },
 ]
 
 export const MAPS: Record<MapId, GameMap> = {
   os_arena: {
     id: 'os_arena',
+    half: [20, 20],
     floorColor: '#444',
-    blocks: perimeter('#555'),
+    blocks: perimeter('#555', 20, 20),
     spawns: [
       [0, EYE_HEIGHT, NET_HUMAN_SPAWN_Z],
       [0, EYE_HEIGHT, -NET_HUMAN_SPAWN_Z],
@@ -115,24 +120,26 @@ export const MAPS: Record<MapId, GameMap> = {
 
   os_india: {
     id: 'os_india',
+    half: INDIA_ARENA,
     floorColor: '#c2a878',
     blocks: [
-      ...perimeter('#8a6d3b'),
+      ...perimeter('#8a6d3b', INDIA_ARENA[0], INDIA_ARENA[1]),
       ...INDIA_CENTER,
       ...INDIA_HALF,
       ...INDIA_HALF.map(mirrorZ),
     ],
     spawns: [
-      [0, EYE_HEIGHT, 16],    // лицом к подъёму на рампу
-      [0, EYE_HEIGHT, -16],
+      [0, EYE_HEIGHT, 34],    // на краях длинной арены, лицом к подъёму
+      [0, EYE_HEIGHT, -34],
     ],
   },
 
   os_pillars: {
     id: 'os_pillars',
+    half: [20, 20],
     floorColor: '#3a4150',
     blocks: [
-      ...perimeter('#404a5c'),
+      ...perimeter('#404a5c', 20, 20),
       // Симметричная решётка высоких колонн — укрытия, блокируют луч (blocksBeam по умолчанию).
       { pos: [0, 3, 0], size: [1, 3, 1], color: '#5a6678' },
       { pos: [-8, 3, -6], size: [1, 3, 1], color: '#5a6678' },
@@ -148,9 +155,6 @@ export const MAPS: Record<MapId, GameMap> = {
 }
 
 export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars']
-
-/** Полу-размер пола арены (для пола Arena и рамки top-down превью). */
-export const ARENA_FLOOR_HALF = ARENA_HALF
 
 /** Случайная точка в пределах игровой зоны — блуждание бота (без учёта препятствий; KCC не даёт пройти сквозь). */
 export function randomArenaPos(): THREE.Vector3 {
