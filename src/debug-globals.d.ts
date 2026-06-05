@@ -1,0 +1,24 @@
+import type * as THREE from 'three'
+
+// Дебаг-глобалы для e2e (ставит Match.installDebug / Game). Объявлены здесь, чтобы не кастовать window к any.
+type Vec3Lite = { x: number; y: number; z: number }
+
+declare global {
+  interface Window {
+    __debugCamera?: THREE.Camera
+    __debugWindup?: () => boolean
+    __debugTargetHitCount?: number
+    __debugBotPos?: Record<number, () => Vec3Lite>
+    __debugRole?: () => string
+    __debugPlayerPos?: (id: number) => Vec3Lite | null
+    __debugScore?: (id: number) => { kills: number; deaths: number } | null
+    __debugBodyScale?: (id: number) => number | null
+    __debugForceEnd?: () => void
+    __debugPhase?: () => string
+    __debugReady?: () => void
+    __debugForceLive?: () => void
+    __debugLeave?: () => void
+  }
+}
+
+export {}

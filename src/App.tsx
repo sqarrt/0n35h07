@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -13,6 +13,7 @@ import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { MenuBackdrop } from './components/MenuBackdrop'
+import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
@@ -27,13 +28,23 @@ import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
+import { useDampedTranslateX } from './hooks/useDampedTranslateX'
+import { useDelayedUnmount } from './hooks/useDelayedUnmount'
 import { LobbySession } from './net/LobbySession'
 import type { LobbyView, LobbyRole } from './net/LobbySession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole } from './constants'
+import type { MatchRole, MapId } from './constants'
+import { DEFAULT_MAP_ID } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
+
+const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
+
+// Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
+const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
+const isEditorHash = () => window.location.hash.startsWith('#editor')
+const MAP_FADE_MS = 700                  // длительность fade in/out фона карты (синхронно с .map-bg transition)
 
 interface GameNet {
   role: MatchRole
@@ -41,6 +52,7 @@ interface GameNet {
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
   durationMs: number
+  mapId: MapId
 }
 
 function randomCode() {
@@ -49,6 +61,7 @@ function randomCode() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
+  const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
   const [everLocked, setEverLocked] = useState(false)
   const [lobbyCode, setLobbyCode] = useState('')
@@ -79,14 +92,14 @@ export default function App() {
     const net = createNet(code)
     const session = new LobbySession(net, role, code, loadProfile())
     session.onChange(v => setLobbyView(v))
-    session.onStart((durationMs) => {
+    session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId })
       setEverLocked(false)
       setScreen('game')
     })
@@ -99,6 +112,13 @@ export default function App() {
   useEffect(() => {
     if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
+
+  // Дев-маршрут #editor → редактор карт (только при npm run dev).
+  useEffect(() => {
+    const onHash = () => setEditorMode(import.meta.env.DEV && isEditorHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     const onChange = () => {
@@ -207,6 +227,7 @@ export default function App() {
   const handleRemoveBot = () => sessionRef.current?.removeBot()
   const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
   const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
+  const handleSetMap = (id: MapId) => sessionRef.current?.setMap(id)
 
   const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
@@ -216,31 +237,58 @@ export default function App() {
     ? settingsPreview
     : { color: profile.primaryColor, model: profile.ballModel }
 
+  // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
+  // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
+  const panelSlide = screen === 'settings' ? Math.round(window.innerWidth * SETTINGS_PANEL_SHIFT_FRAC) : 0
+  const panelRef = useDampedTranslateX(panelSlide)
+
+  // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
+  // последний mapId фиксируем, чтобы при выходе (lobbyView уже null) фон не мигнул на дефолтную карту.
+  const showMap = screen === 'lobby' && !!lobbyView
+  const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
+  const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
+  useEffect(() => { if (lobbyView?.mapId) setLastMapId(lobbyView.mapId) }, [lobbyView?.mapId])
+
+  if (editorMode) {
+    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
+  }
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
+      {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
-      {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
-      {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
-      {screen === 'settings' && (
-        <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
-      )}
-      {screen === 'lobby' && lobbyView && (
-        <Lobby
-          lobbyCode={lobbyCode}
-          view={lobbyView}
-          onAddBot={handleAddBot}
-          onRemoveBot={handleRemoveBot}
-          onSetDifficulty={handleSetDifficulty}
-          onSetDuration={handleSetDuration}
-          onStart={handleStart}
-          onBack={handleBack}
-        />
+      {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
+      {screen !== 'game' && (
+        <div className="screen">
+          <div className="menu-panel" ref={panelRef}>
+            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
+            {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
+            {screen === 'settings' && (
+              <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
+            )}
+            {screen === 'lobby' && lobbyView && (
+              <Lobby
+                lobbyCode={lobbyCode}
+                view={lobbyView}
+                onAddBot={handleAddBot}
+                onRemoveBot={handleRemoveBot}
+                onSetDifficulty={handleSetDifficulty}
+                onSetDuration={handleSetDuration}
+                onSetMap={handleSetMap}
+                onStart={handleStart}
+                onBack={handleBack}
+              />
+            )}
+          </div>
+        </div>
       )}
 
       {screen === 'game' && gameNet && (
         <>
-          <Canvas shadows camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
+          {/* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
+              всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */}
+          <Canvas shadows="percentage" camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
             <Game
               dispatch={dispatch}
               role={gameNet.role}
@@ -250,6 +298,7 @@ export default function App() {
               defaultThirdPerson={profile.defaultView === 'tp'}
               apiRef={gameApiRef}
               durationMs={gameNet.durationMs}
+              mapId={gameNet.mapId}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (

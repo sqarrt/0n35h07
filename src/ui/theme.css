@@ -33,17 +33,38 @@
 /* Тонкая акцентная линия под заголовком. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
 
-/* Полупрозрачная панель-подложка под контентом меню (читаемость текста поверх фоновых моделек). */
+/* Полупрозрачная подложка меню: на всю высоту экрана, единой ширины на всех экранах (твёрдость, без скачков).
+   Персистентна на уровне App; позиция (переезд в настройки) демпфируется в App с тем же TAU, что и шары. */
 .menu-panel {
-  border: 1px solid var(--surface-line);
+  border-left: 1px solid var(--surface-line);
+  border-right: 1px solid var(--surface-line);
   background: rgba(10,12,17,0.72);
   backdrop-filter: blur(2px);
   padding: 32px 40px;
   position: relative; z-index: 1;
   box-sizing: border-box;
   width: min(680px, 92vw);
-  min-height: 540px;
+  height: 100dvh;
+  display: flex;
 }
+/* Внутренний слой экрана: заполняет подложку, каждый экран сам задаёт выравнивание (center / stretch). */
+.panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; }
+
+/* Размытое 3D-превью выбранной карты — атмосферный фон за шарами (MenuBackdrop сверху, резкий).
+   Плавный fade in/out по opacity (вход/выход из лобби). Длительность синхронна с MAP_FADE_MS в App. */
+.map-bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  filter: blur(5px) brightness(0.7);
+  opacity: 0; transition: opacity 0.7s ease;
+  /* Своя GPU-слой: блюр растеризуется один раз, fade анимирует только opacity (без пере-блюра каждый кадр). */
+  will-change: opacity;
+  transform: translateZ(0);
+}
+.map-bg.is-visible { opacity: 1; }
+.map-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Кроссфейд при смене карты: снимок старой арены поверх новой, гаснет (длительность = SWITCH_FADE_MS). */
+.map-bg-snap { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 1; animation: map-snap-out 320ms ease forwards; }
+@keyframes map-snap-out { to { opacity: 0; } }
 
 /* Hard-кнопка: мгновенная плоская заливка, без transition. */
 .btn {
@@ -80,9 +101,27 @@
 }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
+/* Тумблер вкл/выкл — плоский, твёрдый (без transition), в духе игры. */
+.toggle { width: 34px; height: 18px; border: 1px solid var(--line); background: transparent; cursor: pointer; padding: 0; position: relative; flex: 0 0 auto; }
+.toggle[data-on="true"] { background: var(--accent-fill); border-color: var(--accent-fill); }
+.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--accent-dim); }
+.toggle[data-on="true"] .toggle-knob { left: auto; right: 2px; background: var(--ink); }
+
 /* VS-лобби */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
-.lobby-frame { border: 1px solid var(--surface-line); background: rgba(10,12,17,0.72); backdrop-filter: blur(2px); padding: 24px 28px 26px; position: relative; z-index: 1; box-sizing: border-box; width: min(680px, 92vw); min-height: 540px; }
+/* Плитки выбора карты в лобби: клик по 3D-превью выбирает карту. */
+.map-tiles { display: flex; gap: 12px; justify-content: center; }
+.map-preview { width: 150px; height: 100px; display: block; }
+.map-tile {
+  background: transparent; border: 1px solid var(--surface-line); padding: 6px 6px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; font-family: var(--ui-font);
+}
+.map-tile:hover { border-color: var(--ghost-line-hover); }
+.map-tile--on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.map-tile-label { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+.map-tile:hover .map-tile-label { color: var(--text); }
+.map-tile--on .map-tile-label { color: var(--accent); }
 .lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
 .lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
 .lobby-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
@@ -158,18 +197,21 @@
 .net-chip .dot--probing { color: var(--accent-dim); animation: net-blink 0.9s steps(1) infinite; }
 @keyframes net-blink { 50% { opacity: 0.2; } }
 
-/* Раздел релеев в настройках (сворачиваемый, закрыт по умолчанию). */
-.relays { margin-top: 0.4rem; margin-bottom: 1.2rem; }
+/* Раздел релеев в настройках — растягивается на всё свободное место до кнопки «Назад». */
+.relays { margin-top: 0.4rem; margin-bottom: 1.2rem; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .relays-head {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
   background: transparent; border: none; padding: 6px 0; cursor: pointer;
   font-family: var(--ui-font); font-size: 0.7rem; letter-spacing: 0.15em; color: #667;
 }
 .relays-head:hover { color: var(--accent-dim); }
+/* Статичный заголовок (список всегда раскрыт) — без курсора/ховера. */
+.relays-head--static { cursor: default; color: var(--accent-dim); border-bottom: 1px solid var(--surface-line); margin-bottom: 0.4rem; }
+.relays-head--static:hover { color: var(--accent-dim); }
 .relays-sum { color: var(--muted); letter-spacing: 0.12em; }
 /* Полный список по здоровью — со скроллом; полоса тонкая, в стиле темы (не дефолтная «жирная»). */
 .relays-list {
-  max-height: 196px; overflow-y: auto; margin: 6px 0 10px; border-top: 1px solid var(--surface-line);
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 6px 0 10px; border-top: 1px solid var(--surface-line);
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;   /* Firefox */
 }
 .relays-list::-webkit-scrollbar { width: 6px; }

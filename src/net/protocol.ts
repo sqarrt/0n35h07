@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { BotDifficulty, MatchPhase, BallModel } from '../constants'
+import type { BotDifficulty, MatchPhase, BallModel, MapId } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -27,8 +27,8 @@ export interface RosterEntry {
   ballModel?: BallModel        // модель сферы (косметика); нет → 'smooth'
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number }
-export interface Start { durationMs: number }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId }
+export interface Start { durationMs: number; mapId: MapId }
 
 // --- ввод клиента → хост (часто) ---
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }

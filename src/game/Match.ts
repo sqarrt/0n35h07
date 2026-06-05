@@ -5,30 +5,50 @@ import { Body } from './Body'
 import { BeamWeapon } from './BeamWeapon'
 import { Shield } from './Shield'
 import { HumanController } from './controllers/HumanController'
+import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
-import type { MatchRole, MatchPhase } from '../constants'
+import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
+import { MAPS } from './maps'
 import {
-  EYE_HEIGHT, BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
-  WINDUP_MOVE_FACTOR, OPPONENT_ID, NET_HUMAN_SPAWN_Z, READY_COUNTDOWN_MS,
-  MATCH_TIME_BROADCAST_MS,
+  BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
+  WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
+  MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
 } from '../constants'
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
+
+// Минимальные интерфейсы физики Rapier (используемая часть API) — без зависимости от типов @dimforge/rapier.
+type XYZ3 = { x: number; y: number; z: number }
+interface Kcc {
+  setApplyImpulsesToDynamicBodies(v: boolean): void
+  setUp(v: XYZ3): void
+  setMaxSlopeClimbAngle(rad: number): void
+  setMinSlopeSlideAngle(rad: number): void
+  enableAutostep(maxHeight: number, minWidth: number, includeDynamic: boolean): void
+  computeColliderMovement(collider: unknown, desired: XYZ3): void
+  computedMovement(): XYZ3
+  computedGrounded(): boolean
+}
+interface PhysicsWorld {
+  createCharacterController(offset: number): Kcc
+  removeCharacterController(kcc: Kcc): void
+}
 interface MatchOptions {
   scene:    THREE.Scene
   camera:   THREE.PerspectiveCamera
-  controls: React.RefObject<any>
+  controls: React.RefObject<PointerControls | null>
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
+  mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -50,8 +70,8 @@ export class Match {
   private pendingEvents: MatchEvent[] = []   // host: события матча на рассылку
 
   // Rapier (через RapierBridge)
-  private physicsWorld: any = null
-  private kcc: any = null
+  private physicsWorld: PhysicsWorld | null = null
+  private kcc: Kcc | null = null
 
   private lastHud = 0
   private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
@@ -96,10 +116,10 @@ export class Match {
   private buildPlayers(o: MatchOptions, net: NetConfig) {
     // Стабильный порядок у обоих пиров → одинаковые точки спавна.
     const roster = [...net.roster].sort((a, b) => a.id - b.id)
+    const spawns = MAPS[o.mapId ?? DEFAULT_MAP_ID].spawns   // [HOST_ID, OPPONENT_ID]
     let human!: Player
     let humanController!: HumanController
     const controllers: Controller[] = []
-    let humanIndex = 0
     let opponentIsBot = false
 
     for (const e of roster) {
@@ -114,16 +134,8 @@ export class Match {
             new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
       p.name = e.name
 
-      if (isBot) {
-        // Бот-соперник спавнится зеркально игроку (как человек-соперник): хост — в -Z напротив себя (+Z);
-        // на клиенте — нейтральная точка (поправит снапшот).
-        p.respawnAt(this.role === 'host'
-          ? new THREE.Vector3(0, EYE_HEIGHT, -NET_HUMAN_SPAWN_Z)
-          : new THREE.Vector3(0, EYE_HEIGHT, 0))
-      } else {
-        p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, humanIndex === 0 ? NET_HUMAN_SPAWN_Z : -NET_HUMAN_SPAWN_Z))
-        humanIndex++
-      }
+      // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
+      p.respawnAt(new THREE.Vector3().fromArray(spawns[e.id === OPPONENT_ID ? 1 : 0]))
       this.byId.set(e.id, p)
 
       if (e.id === net.localId) {
@@ -153,13 +165,17 @@ export class Match {
   private excludeIds(p: Player): number[] { return [p.id] }
 
   // --- Rapier wiring (вызывается из RapierBridge) ---
-  attachWorld(world: any, _rapier: any) {
+  attachWorld(world: PhysicsWorld, _rapier: unknown) {
     this.physicsWorld = world
     this.kcc = world.createCharacterController(0.01)
     this.kcc.setApplyImpulsesToDynamicBodies(false)
     this.kcc.setUp({ x: 0, y: 1, z: 0 })
+    // Рампы-лестницы (os_india): autostep даёт капсуле всходить на низкие ступени (≤0.4) как по подъёму;
+    // углы склона — на случай наклонных поверхностей. Высокие препятствия (стены/ящики >0.4) не перешагнуть.
+    this.kcc.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
+    this.kcc.setMinSlopeSlideAngle((50 * Math.PI) / 180)
+    this.kcc.enableAutostep(0.4, 0.25, false)
     // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
-    // Арена плоская, скольжение по поверхностям не нужно.
   }
   detachWorld() {
     if (this.physicsWorld && this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
@@ -245,7 +261,7 @@ export class Match {
             this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
-              ;(window as any).__debugTargetHitCount = ((window as any).__debugTargetHitCount ?? 0) + 1
+              window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
             }
             if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
           }
@@ -488,14 +504,15 @@ export class Match {
   }
 
   installDebug(camera: THREE.Camera) {
-    const w = window as any
+    const w = window
     w.__debugCamera = camera
     w.__debugWindup = () => this.human.isWindingUp
     w.__debugTargetHitCount = 0
-    w.__debugBotPos = {}
+    const botPos: Record<number, () => { x: number; y: number; z: number }> = {}
     this.bots.forEach((b, i) => {
-      w.__debugBotPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
+      botPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
     })
+    w.__debugBotPos = botPos
     w.__debugRole = () => this.role
     w.__debugPlayerPos = (id: number) => {
       const p = this.byId.get(id)
@@ -510,7 +527,7 @@ export class Match {
   }
 
   dispose() {
-    const w = window as any
+    const w = window
     delete w.__debugCamera
     delete w.__debugWindup
     delete w.__debugTargetHitCount

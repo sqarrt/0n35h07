@@ -1,13 +1,13 @@
 import { useRef, useMemo, useEffect } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import type { Group } from 'three'
-import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID } from '../constants'
+import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU } from '../constants'
 import type { BallModel } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 
 // Анимация переезда/появления модельки.
-const DAMP_TAU = 0.06          // переезд позиции/масштаба (~200 мс на ~95% пути) — «резко, но не мгновенно»
+const DAMP_TAU = MENU_ANIM_TAU // переезд позиции/масштаба — общий TAU с подложкой меню (одинаковая скорость)
 const FADE_TAU = 0.13          // появление (opacity) чуть дольше переезда — мягче выходит из фейда (~0.4с)
 const BIG_FRACTION = 0.4       // радиус крупного шара = доля высоты viewport (диаметр ≈ 0.8 высоты)
 const SETTINGS_X_FRACTION = 0.26   // смещение влево на экране настроек (доля ширины)

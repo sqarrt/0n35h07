@@ -1,0 +1,73 @@
+/* Редактор карт — единый «индустриально-терминальный» язык с игрой (моно, акцент #4af, плоско, без градиентов). */
+.editor-root { position: fixed; inset: 0; background: var(--bg); font-family: var(--ui-font); color: var(--text); }
+.editor-root canvas { display: block; }
+
+.editor-crosshair {
+  position: fixed; left: 50%; top: 50%; width: 14px; height: 14px; transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 5;
+}
+.editor-crosshair::before, .editor-crosshair::after {
+  content: ''; position: absolute; background: var(--accent); box-shadow: 0 0 4px var(--accent);
+}
+.editor-crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+.editor-crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+.editor-hint {
+  position: fixed; left: 50%; top: 58%; transform: translateX(-50%); z-index: 6;
+  background: rgba(10,12,17,0.78); border: 1px solid var(--surface-line); padding: 8px 14px;
+  font-size: 12px; letter-spacing: 0.12em; color: var(--accent-dim); white-space: nowrap;
+}
+
+.editor-hotbar {
+  position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 6;
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(10,12,17,0.78); border: 1px solid var(--surface-line); padding: 8px 12px;
+}
+.editor-hotbar .seg { font-size: 11px; }
+.editor-sep { width: 1px; height: 22px; background: var(--surface-line); margin: 0 4px; }
+
+.editor-panel {
+  position: fixed; top: 14px; left: 14px; z-index: 6; width: 320px;
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(10,12,17,0.82); border: 1px solid var(--surface-line); padding: 14px 16px;
+}
+.editor-title { font-size: 13px; letter-spacing: 0.18em; color: var(--accent); }
+.editor-dim { color: var(--muted); letter-spacing: 0.1em; font-size: 11px; margin-left: 8px; }
+.editor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; letter-spacing: 0.08em; color: var(--muted); }
+.editor-row .input { padding: 4px 8px; font-size: 12px; }
+.editor-row input[type=number] { width: 64px; }
+.editor-pal { display: flex; flex-wrap: wrap; gap: 5px; }
+.editor-name { color: var(--accent-dim); letter-spacing: 0.1em; font-size: 13px; }
+.editor-row .seg, .editor-row .btn { font-size: 11px; min-width: auto; padding: 0.4rem 0.7rem; margin: 0; }
+.editor-json { width: 100%; height: 120px; resize: vertical; background: transparent; border: 1px solid var(--surface-line); color: var(--text); font-family: var(--ui-font); font-size: 10px; padding: 6px; }
+.editor-exit { color: var(--muted); font-size: 11px; letter-spacing: 0.1em; text-decoration: none; }
+.editor-exit:hover { color: var(--accent-dim); }
+
+/* Экран выбора карты (/#editor) — в стиле главного меню (.menu-panel + .btn). */
+.editor-picker { display: flex; align-items: center; justify-content: center; }
+.editor-pick-panel { width: min(560px, 92vw); }
+.editor-pick { align-items: stretch; justify-content: flex-start; gap: 12px; padding-top: 7vh; }
+.editor-pick-title {
+  font-size: 2.4rem; font-weight: bold; letter-spacing: 0.26em; color: var(--accent);
+  margin: 0; text-align: center; text-shadow: 0 0 26px rgba(68,170,255,0.45);
+}
+.editor-pick .accent-rule { margin: 0 auto 10px; }
+.editor-pick-section { font-size: 11px; letter-spacing: 0.18em; color: var(--muted); margin-top: 10px; }
+.editor-pick-list {
+  display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 42vh;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
+}
+.editor-pick-list::-webkit-scrollbar { width: 6px; }
+.editor-pick-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+.editor-pick-row { display: flex; gap: 6px; align-items: stretch; }
+.editor-pick-item { flex: 1; min-width: 0; margin: 0; text-align: left; justify-content: flex-start; }
+.editor-pick-act {
+  flex: 0 0 auto; width: 38px; background: transparent; border: 1px solid var(--ghost-line);
+  color: var(--muted); font-family: var(--ui-font); font-size: 14px; cursor: pointer;
+}
+.editor-pick-act:hover { color: var(--text); border-color: var(--ghost-line-hover); }
+.editor-pick-act--del:hover { color: var(--danger); border-color: var(--danger); }
+.editor-pick-new { display: flex; gap: 10px; }
+.editor-pick-new .input { flex: 1; padding: 0.7rem 0.9rem; font-size: 0.95rem; }
+.editor-pick-new .btn { min-width: 0; margin: 0; white-space: nowrap; }
+.editor-pick .editor-exit { margin-top: auto; padding-top: 18px; }

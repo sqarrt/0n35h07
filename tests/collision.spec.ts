@@ -5,18 +5,21 @@ import { unlockPointer, holdKey, getCameraPos, aimAtBot } from './helpers'
 
 test('не проходит сквозь стену', async ({ page }) => {
   await page.goto('/')
-  await unlockPointer(page, { difficulty: 'passive' })   // пассивный бот инертен; человек смотрит вдоль −Z
-  await holdKey(page, 'KeyW', 4500)         // идём в дальнюю стену (z = −20)
+  await unlockPointer(page, { difficulty: 'passive' })   // человек смотрит вдоль −Z
+  // Идём вбок (в стену x=+20): соперник спавнится прямо по курсу −Z (z=−5) и перекрыл бы путь к стене,
+  // а боковая полоса (x) свободна — тестируем именно столкновение со стеной, а не с игроком.
+  await holdKey(page, 'KeyD', 4500)
   const pos = await getCameraPos(page)
-  expect(Math.abs(pos.z)).toBeLessThan(19.6) // капсула не пробила стену
-  expect(pos.z).toBeLessThan(-15)            // но дошёл до неё
+  expect(Math.abs(pos.x)).toBeLessThan(19.6) // капсула не пробила стену
+  expect(pos.x).toBeGreaterThan(15)          // но дошёл до неё
 })
 
 test('не проходит сквозь бота', async ({ page }) => {
   await page.goto('/')
   await unlockPointer(page, { difficulty: 'passive' })
   // Подходим к боту, постоянно подправляя прицел (homing), и упираемся в него.
-  for (let i = 0; i < 8; i++) {
+  // Спавны разнесены (≈32 по Z на os_arena), поэтому идём дольше, пока не упрёмся.
+  for (let i = 0; i < 16; i++) {
     await aimAtBot(page)
     await holdKey(page, 'KeyW', 500)
   }

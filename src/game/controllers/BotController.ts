@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { Controller } from '../abstractions'
 import type { Player } from '../Player'
-import { randomArenaPos } from '../../Arena'
+import { randomArenaPos } from '../maps'
 import { TARGET_SPEED, BOT_FIRE_INTERVAL, BOT_SHIELD_INTERVAL } from '../../constants'
 
 interface BotOptions { passive?: boolean; fireInterval?: number; shieldInterval?: number }

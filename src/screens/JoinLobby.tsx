@@ -32,8 +32,7 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
     : failed ? ' failed' : ''
 
   return (
-    <div className="screen">
-      <div className="menu-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
       <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
         ВОЙТИ В ЛОББИ
       </h2>
@@ -65,7 +64,6 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
 
       <Button variant="primary" disabled={busy || code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
       <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
-      </div>
     </div>
   )
 }

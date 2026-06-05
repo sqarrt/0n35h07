@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures'
-import { waitForGame, unlockPointer } from './helpers'
+import { unlockPointer } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')

@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, Suspense } from 'react'
+import type { ComponentRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
@@ -12,7 +13,8 @@ import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
-import type { MatchRole } from './constants'
+import type { MatchRole, MapId } from './constants'
+import { MAPS } from './game/maps'
 
 export interface GameApi { requestReady(): void }
 
@@ -25,12 +27,13 @@ interface GameProps {
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
+  mapId: MapId
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
-  const controlsRef = useRef<any>(null)
+  const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
 
   const match = useMemo(
     () => new Match({
@@ -43,10 +46,14 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       netConfig,
       defaultThirdPerson,
       durationMs,
+      mapId,
     }),
+    // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
 
   useEffect(() => {
@@ -54,7 +61,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     match.installDebug(camera)
     const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
     if (apiRef) apiRef.current = { requestReady }
-    const w = window as any
+    const w = window
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
     w.__debugForceLive = () => match.forceLiveForTest()
@@ -67,6 +74,8 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       delete w.__debugForceLive
       delete w.__debugLeave
     }
+    // Установка debug-хуков/готовности завязана на match (стабилен) и camera; прочее намеренно вне deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, match])
 
   useEffect(() => {
@@ -103,7 +112,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     <Suspense>
       <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
         <PointerLockControls ref={controlsRef} />
-        <Arena />
+        <Arena map={MAPS[mapId]} />
         <RapierBridge match={match} />
 
         {/* RigidBody = только физика (капсула); визуал игроков — в match.root (world-space). */}

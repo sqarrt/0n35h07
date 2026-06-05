@@ -1,7 +1,7 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, Start, RosterEntry } from './protocol'
-import type { BotDifficulty } from '../constants'
-import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN } from '../constants'
+import type { BotDifficulty, MapId } from '../constants'
+import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID } from '../constants'
 import type { PlayerProfile } from '../settings'
 
 export type LobbyRole = 'host' | 'client'
@@ -16,6 +16,7 @@ export interface LobbyView {
   foundHost: boolean      // клиент: транспорт нашёл пира (onPeerJoin) — идёт хендшейк; host: всегда true
   canStart: boolean       // host: слот соперника занят → можно стартовать
   durationMin: number
+  mapId: MapId            // выбранная карта матча
 }
 
 /**
@@ -33,8 +34,9 @@ export class LobbySession {
   private localPlayerId: number
   private profile: PlayerProfile
   private durationMin: number = DEFAULT_MATCH_DURATION_MIN
+  private mapId: MapId = DEFAULT_MAP_ID
   private changeCb: (v: LobbyView) => void = () => {}
-  private startCb: (durationMs: number) => void = () => {}
+  private startCb: (durationMs: number, mapId: MapId) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
   private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «лобби найдено»)
 
@@ -52,7 +54,7 @@ export class LobbySession {
     } else {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
-      net.on('start', payload => this.startCb((payload as Start).durationMs))
+      net.on('start', payload => { const s = payload as Start; this.startCb(s.durationMs, s.mapId) })
       net.onPeerJoin(() => { this.peerSeen = true; this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
       this.sayHello()
       // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
@@ -103,7 +105,7 @@ export class LobbySession {
   }
 
   private sendAssign(peer: PeerId) {
-    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId } satisfies Assign)
   }
   private broadcastRoster() {
     if (this.clientPeer) this.sendAssign(this.clientPeer)
@@ -113,14 +115,20 @@ export class LobbySession {
   start() {
     if (this.role !== 'host' || !this.opponent) return
     const durationMs = this.durationMin * 60_000
-    this.net.broadcast('start', { durationMs } satisfies Start)
-    this.startCb(durationMs)
+    this.net.broadcast('start', { durationMs, mapId: this.mapId } satisfies Start)
+    this.startCb(durationMs, this.mapId)
   }
 
   setDuration(min: number) {
     if (this.role !== 'host') return
     this.durationMin = min
     this.broadcastRoster()   // клиент увидит новую длительность в Assign
+  }
+
+  setMap(mapId: MapId) {
+    if (this.role !== 'host') return
+    this.mapId = mapId
+    this.broadcastRoster()   // клиент увидит новую карту в Assign
   }
 
   // --- client ---
@@ -136,6 +144,7 @@ export class LobbySession {
     this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry
     this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
     this.durationMin = a.durationMin
+    this.mapId = a.mapId
     this.emitChange()
   }
 
@@ -147,7 +156,7 @@ export class LobbySession {
 
   // --- общий API ---
   onChange(cb: (v: LobbyView) => void) { this.changeCb = cb; cb(this.view()) }
-  onStart(cb: (durationMs: number) => void) { this.startCb = cb }
+  onStart(cb: (durationMs: number, mapId: MapId) => void) { this.startCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
   /** Ростер матча: ровно `[host, opponent]` (или только host, пока слот пуст). */
@@ -164,6 +173,7 @@ export class LobbySession {
       foundHost: this.role === 'host' || this.peerSeen,
       canStart: this.role === 'host' && this.opponent !== null,
       durationMin: this.durationMin,
+      mapId: this.mapId,
     }
   }
 

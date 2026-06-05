@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import type { BotDifficulty } from '../constants'
+import type { BotDifficulty, MapId } from '../constants'
 import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
+import { MAPS, MAP_IDS, MAP_PREVIEW } from '../game/maps'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
+import { MapPreview } from '../components/MapPreview'
 
 interface LobbyProps {
   lobbyCode: string
@@ -12,13 +14,14 @@ interface LobbyProps {
   onRemoveBot: () => void
   onSetDifficulty: (d: BotDifficulty) => void
   onSetDuration: (min: number) => void
+  onSetMap: (id: MapId) => void
   onStart: () => void
   onBack: () => void
 }
 
 
-export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onStart, onBack }: LobbyProps) {
-  const { roster, isHost, localPlayerId, connected, canStart, durationMin } = view
+export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onSetMap, onStart, onBack }: LobbyProps) {
+  const { roster, isHost, localPlayerId, connected, canStart, durationMin, mapId } = view
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
   const [copied, setCopied] = useState(false)
@@ -72,9 +75,8 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   }
 
   return (
-    <div className="screen">
-      <div className="lobby-frame">
-        <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
+    <div className="panel-fill" style={{ justifyContent: 'center' }}>
+      <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
           <div className="lobby-center">
@@ -88,6 +90,27 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
             <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {lobbyCode}</div>
           </div>
           {pane(opponent, 'opp')}
+        </div>
+        <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--muted)' }}>// КАРТА</div>
+          {/* Плитки с 3D-превью: клик по плитке выбирает карту (только хост; клиент видит выбор). */}
+          <div className="map-tiles">
+            {MAP_IDS.map(id => (
+              <button
+                key={id}
+                className={`map-tile${mapId === id ? ' map-tile--on' : ''}`}
+                style={{ cursor: isHost ? 'pointer' : 'default' }}
+                aria-pressed={mapId === id}
+                onClick={isHost ? () => onSetMap(id) : undefined}
+              >
+                {/* Готовый рендер (preview.png) — мгновенно; фолбэк — живой превью-канвас. */}
+                {MAP_PREVIEW[id]
+                  ? <img className="map-preview" src={MAP_PREVIEW[id]} alt={`Карта ${id}`} />
+                  : <MapPreview map={MAPS[id]} />}
+                <span className="map-tile-label">{id}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div style={{ borderTop: '1px solid var(--surface-line)', marginTop: 16, paddingTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           <div style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--muted)' }}>// МАТЧ · ДЛИТЕЛЬНОСТЬ</div>
@@ -107,7 +130,6 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
             : <div style={{ color: 'var(--muted)', fontSize: '0.8rem', letterSpacing: '0.15em', fontFamily: 'var(--ui-font)' }}>{connected ? 'ОЖИДАНИЕ ХОСТА…' : 'ПОДКЛЮЧЕНИЕ…'}</div>}
           <Button variant="ghost" onClick={onBack} style={{ width: 300 }}>НАЗАД</Button>
         </div>
-      </div>
     </div>
   )
 }

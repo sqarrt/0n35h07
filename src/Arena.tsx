@@ -1,53 +1,72 @@
-import { SPAWN_HALF } from './constants'
-import * as THREE from 'three'
-import { CuboidCollider } from '@react-three/rapier'
+import { useMemo, useEffect } from 'react'
+import { CuboidCollider, RigidBody, MeshCollider } from '@react-three/rapier'
+import { MAPS, MAP_GEO } from './game/maps'
+import type { GameMap } from './game/maps'
+import { DEFAULT_MAP_ID } from './constants'
+import { gridGeometry } from './game/grid'
+import { compileBlocksCached, buildGeometry } from './game/mapGeometryCache'
+import { MapLights } from './components/MapVisualBits'
+import { MapEdges, BLOCK_LAYER } from './components/EdgeOutline'
+import { loadProfile } from './settings'
 
-export function randomArenaPos(): THREE.Vector3 {
-  return new THREE.Vector3(
-    (Math.random() - 0.5) * SPAWN_HALF * 2,
-    1,
-    (Math.random() - 0.5) * SPAWN_HALF * 2,
-  )
-}
+const BOUND_H = 32      // полу-высота невидимых периметровых стен (не выпрыгнуть за арену; с большим запасом)
+const BOUND_T = 0.5     // полу-толщина невидимых стен
 
-export function Arena() {
+/** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + блоки карты (батч: 2 меша + trimesh). */
+export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
+  const [hx, hz] = map.half
+  const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
+  useEffect(() => () => gridGeo.dispose(), [gridGeo])
+
+  // Геометрия из компила (geo.json), фолбэк — слияние из blocks на лету (кеш по id). Две группы (укрытия/периметр).
+  const compiled = useMemo(() => MAP_GEO[map.id] ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
+  const raycast = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
+  const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
+  useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
+
+  const postFx = useMemo(() => loadProfile().postProcessing, [])
+
   return (
     <>
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[10, 10, 5]} castShadow intensity={1} />
+      <MapLights />
 
-      {/* Floor */}
+      {/* Пол: плоскость (визуал) + статический коллайдер (верх на y=0). Луч игнорит (noRaycast). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>
-        <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color="#444" />
+        <planeGeometry args={[hx * 2, hz * 2]} />
+        <meshStandardMaterial color={map.floorColor} />
       </mesh>
+      <CuboidCollider args={[hx, 0.5, hz]} position={[0, -0.5, 0]} />
 
-      {/* Walls */}
-      <mesh position={[0, 1.5, -20]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[40, 3, 0.5]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[0, 1.5, 20]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[40, 3, 0.5]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[-20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[0.5, 3, 40]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
-      <mesh position={[20, 1.5, 0]} receiveShadow castShadow userData={{ noRaycast: true }}>
-        <boxGeometry args={[0.5, 3, 40]} />
-        <meshStandardMaterial color="#555" />
-      </mesh>
+      {/* Невидимые высокие стены по периметру — не выпрыгнуть за арену (коллайдеры без меша). */}
+      <CuboidCollider args={[hx, BOUND_H, BOUND_T]} position={[0, BOUND_H, -hz]} />
+      <CuboidCollider args={[hx, BOUND_H, BOUND_T]} position={[0, BOUND_H, hz]} />
+      <CuboidCollider args={[BOUND_T, BOUND_H, hz]} position={[-hx, BOUND_H, 0]} />
+      <CuboidCollider args={[BOUND_T, BOUND_H, hz]} position={[hx, BOUND_H, 0]} />
 
-      <gridHelper args={[40, 20, '#666', '#333']} />
+      {/* Сетка пола 1×1 (чуть выше пола — без z-fighting). */}
+      <lineSegments geometry={gridGeo} position={[0, 0.01, 0]}>
+        <lineBasicMaterial color="#555" />
+      </lineSegments>
 
-      {/* Статические коллайдеры Rapier (args — полу-размеры). Пол: верх на y=0. */}
-      <CuboidCollider args={[20, 0.5, 20]} position={[0, -0.5, 0]} />
-      <CuboidCollider args={[20, 1.5, 0.25]} position={[0, 1.5, -20]} />
-      <CuboidCollider args={[20, 1.5, 0.25]} position={[0, 1.5, 20]} />
-      <CuboidCollider args={[0.25, 1.5, 20]} position={[-20, 1.5, 0]} />
-      <CuboidCollider args={[0.25, 1.5, 20]} position={[20, 1.5, 0]} />
+      {/* Блоки карты: два слитых меша (укрытия + периметр), trimesh-коллайдеры из той же геометрии. */}
+      <RigidBody type="fixed" colliders={false}>
+        <MeshCollider type="trimesh">
+          {raycast && (
+            // Укрытия — на слое блоков (BLOCK_LAYER) → попадают в контур рёбер.
+            <mesh geometry={raycast} castShadow receiveShadow onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+              <meshStandardMaterial vertexColors />
+            </mesh>
+          )}
+          {noRaycast && (
+            <mesh geometry={noRaycast} castShadow receiveShadow userData={{ noRaycast: true }}>
+              <meshStandardMaterial vertexColors />
+            </mesh>
+          )}
+        </MeshCollider>
+      </RigidBody>
+
+      {/* Экранный контур видимых рёбер укрытий (постпроцессинг — переключается в настройках) */}
+      {postFx && <MapEdges />}
     </>
   )
 }

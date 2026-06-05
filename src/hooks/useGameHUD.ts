@@ -93,7 +93,7 @@ export function useGameHUD(): { state: HUDState; dispatch: (action: HUDAction) =
       case 'PLAYER_HIT':     return triggerPlayerHit()
       case 'SHIELD_BLOCK':   return triggerShieldBlock()
       case 'BOT_SHIELD_HIT': return triggerBotShieldHit()
-      default:               return baseDispatch(action as any)
+      default:               return baseDispatch(action)
     }
   }, [triggerBeamFlash, triggerPlayerHit, triggerShieldBlock, triggerBotShieldHit])
 

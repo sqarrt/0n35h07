@@ -18,5 +18,21 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Параметры/переменные с префиксом _ — намеренно неиспользуемые (напр. attachWorld(_rapier)).
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Экспериментальные правила React Compiler ложно срабатывают на валидных паттернах проекта:
+      // setState в эффектах (нормальный React) и императивная мутация ref/объектов в R3F useFrame.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+    },
+  },
+  {
+    // Тесты (Vitest/Playwright) — не React: `use` Playwright не хук; window-дебаг-глобалы по природе any.
+    files: ['tests/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
   },
 ])

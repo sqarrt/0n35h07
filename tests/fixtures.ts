@@ -14,7 +14,8 @@ async function getConnectedPage(): Promise<Page> {
     } catch (e) {
       throw new Error(
         `Cannot connect to browser at localhost:${CDP_PORT}. ` +
-        `Start Chrome with: --remote-debugging-port=${CDP_PORT}\n${e}`
+        `Start Chrome with: --remote-debugging-port=${CDP_PORT}`,
+        { cause: e },
       )
     }
   }
@@ -27,22 +28,28 @@ async function getConnectedPage(): Promise<Page> {
   return _page
 }
 
-// Custom `page` fixture: in 'connected' project reuses a single tab via CDP
+// Custom fixtures: 'connected' project reuses a single CDP tab; иначе — детерминированная среда e2e.
 export const test = base.extend<{ page: Page }>({
+  // Init-скрипт на контексте → применяется и к `page`, и к `context.newPage()` (multiplayer.spec):
+  // BroadcastChannel вместо трекеров Trystero + профиль с выключенным постпроцессингом (контур рёбер
+  // роняет FPS в двухинстансном headless и ломает тайминг-зависимые проверки; в e2e он не нужен).
+  context: async ({ context }, use, testInfo) => {
+    if (testInfo.project.name !== 'connected') {
+      await context.addInitScript(() => {
+        try {
+          localStorage.setItem('oneshot:net', 'bc')
+          localStorage.setItem('oneshot:profile', JSON.stringify({ name: 'Игрок', primaryColor: '#4af', reserveColor: '#fa4', postProcessing: false }))
+        } catch { /* ignore */ }
+      })
+    }
+    await use(context)
+  },
   page: async ({ page }, use, testInfo) => {
     if (testInfo.project.name === 'connected') {
       const cdpPage = await getConnectedPage()
       await use(cdpPage)
       // Don't close — same tab is reused by the next test
     } else {
-      // e2e всегда на BroadcastChannel (без внешних трекеров Trystero) + детерминированный
-      // профиль (дефолтное имя случайное). Применяется и к context.newPage() (multiplayer.spec).
-      await page.context().addInitScript(() => {
-        try {
-          localStorage.setItem('oneshot:net', 'bc')
-          localStorage.setItem('oneshot:profile', JSON.stringify({ name: 'Игрок', primaryColor: '#4af', reserveColor: '#fa4' }))
-        } catch { /* ignore */ }
-      })
       await use(page)
     }
   },
