@@ -1,11 +1,10 @@
 import { useMemo, useEffect } from 'react'
 import { CuboidCollider, RigidBody, MeshCollider } from '@react-three/rapier'
-import { MAPS } from './game/maps'
+import { MAPS, MAP_GEO } from './game/maps'
 import type { GameMap } from './game/maps'
 import { DEFAULT_MAP_ID } from './constants'
-import { unitWedgeGeometry } from './game/wedge'
 import { gridGeometry } from './game/grid'
-import { mergedBlockGeometries } from './game/blockGeometry'
+import { compileBlocksCached, buildGeometry } from './game/mapGeometryCache'
 import { MapLights } from './components/MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from './components/EdgeOutline'
 import { loadProfile } from './settings'
@@ -16,16 +15,13 @@ const BOUND_T = 0.5     // полу-толщина невидимых стен
 /** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + блоки карты (батч: 2 меша + trimesh). */
 export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   const [hx, hz] = map.half
-  const wedgeGeo = useMemo(() => unitWedgeGeometry(), [])
-  const wedgeGeoFlip = useMemo(() => unitWedgeGeometry(true), [])
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
 
-  // Блоки слиты в две геометрии (укрытия/периметр) — рендер и trimesh-коллайдер из одной геометрии.
-  const { raycast, noRaycast } = useMemo(
-    () => mergedBlockGeometries(map.blocks, wedgeGeo, wedgeGeoFlip),
-    [map.blocks, wedgeGeo, wedgeGeoFlip],
-  )
+  // Геометрия из компила (geo.json), фолбэк — слияние из blocks на лету (кеш по id). Две группы (укрытия/периметр).
+  const compiled = useMemo(() => MAP_GEO[map.id] ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
+  const raycast = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
+  const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
   useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
 
   const postFx = useMemo(() => loadProfile().postProcessing, [])

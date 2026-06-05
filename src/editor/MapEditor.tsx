@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { EYE_HEIGHT } from '../constants'
-import type { Vec3 } from '../game/maps'
+import type { Vec3, GameMap } from '../game/maps'
+import { compileBlocks, serializeGeo } from '../game/mapGeometryCache'
+import { ThumbnailRenderer } from '../components/MapPreview'
 import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
-import { loadMap, saveMap } from './mapsApi'
+import { loadMap, saveMap, saveCompiled, saveThumbnail } from './mapsApi'
 import './editor.css'
 
 type CellCoord = [number, number, number]
@@ -51,6 +53,7 @@ export function MapEditor({ name }: { name: string }) {
   const [locked, setLocked] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [status, setStatus] = useState('')
+  const [thumbMap, setThumbMap] = useState<GameMap | null>(null)   // карта на офскрин-рендер превью при сохранении
 
   const loadInto = useCallback((data: MapData) => {
     setHalf(data.half)
@@ -119,10 +122,20 @@ export function MapEditor({ name }: { name: string }) {
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name })
 
+  // Сохранение пишет 3 артефакта: raw.json (исходник) + geo.json (компил геометрии) + preview.png (офскрин-рендер).
   const doSave = async () => {
     setStatus('сохранение…')
-    const ok = await saveMap(name, buildMap())
-    setStatus(ok ? `сохранено: ${name}.json` : 'ошибка сохранения')
+    const data = buildMap()
+    const rawOk = await saveMap(name, data)
+    const geoOk = await saveCompiled(name, serializeGeo(compileBlocks(data.blocks)))
+    setStatus(rawOk && geoOk ? 'рендер превью…' : 'ошибка сохранения')
+    setThumbMap(data as unknown as GameMap)   // монтирует ThumbnailRenderer → onThumb
+  }
+
+  const onThumb = async (dataUrl: string | null) => {
+    const pngOk = dataUrl ? await saveThumbnail(name, dataUrl) : false
+    setThumbMap(null)
+    setStatus(pngOk ? `сохранено: ${name}` : 'сохранено (без превью)')
   }
 
   const count = voxels.size
@@ -184,6 +197,9 @@ export function MapEditor({ name }: { name: string }) {
 
         <a className="editor-exit" href="#editor">← к выбору карт</a>
       </div>
+
+      {/* Офскрин-рендер превью при сохранении (preview.png) */}
+      {thumbMap && <ThumbnailRenderer map={thumbMap} onCapture={onThumb} />}
     </div>
   )
 }

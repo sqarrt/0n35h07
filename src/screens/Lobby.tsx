@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { BotDifficulty, MapId } from '../constants'
 import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
-import { MAPS, MAP_IDS } from '../game/maps'
+import { MAPS, MAP_IDS, MAP_PREVIEW } from '../game/maps'
 import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
@@ -103,7 +103,10 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
                 aria-pressed={mapId === id}
                 onClick={isHost ? () => onSetMap(id) : undefined}
               >
-                <MapPreview map={MAPS[id]} />
+                {/* Готовый рендер (preview.png) — мгновенно; фолбэк — живой превью-канвас. */}
+                {MAP_PREVIEW[id]
+                  ? <img className="map-preview" src={MAP_PREVIEW[id]} alt={`Карта ${id}`} />
+                  : <MapPreview map={MAPS[id]} />}
                 <span className="map-tile-label">{id}</span>
               </button>
             ))}

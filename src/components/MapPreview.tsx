@@ -1,8 +1,7 @@
-import { useEffect, useMemo } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import type { GameMap } from '../game/maps'
-import { unitWedgeGeometry } from '../game/wedge'
-import { mergedBlockGeometries } from '../game/blockGeometry'
+import { compileBlocks, buildGeometry } from '../game/mapGeometryCache'
 import { MapLights } from './MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from './EdgeOutline'
 import { loadProfile } from '../settings'
@@ -10,16 +9,15 @@ import { loadProfile } from '../settings'
 const PREVIEW_W = 150
 const PREVIEW_H = 100
 
-/** Геометрия карты (пол по её размеру + блоки) без физики/игроков — для 3D-превью и размытого фона. */
+/**
+ * Геометрия карты (пол + блоки) без физики/игроков — для офскрин-рендера превью при сохранении и как фолбэк,
+ * если у карты ещё нет preview.png. Компилируется из текущих blocks (отражает свежие правки редактора).
+ */
 export function MapScene({ map }: { map: GameMap }) {
   const [hx, hz] = map.half
-  const wedgeGeo = useMemo(() => unitWedgeGeometry(), [])
-  const wedgeGeoFlip = useMemo(() => unitWedgeGeometry(true), [])
-  // Блоки слиты в две геометрии (как в арене) — превью/фон не тормозят на детальных картах.
-  const { raycast, noRaycast } = useMemo(
-    () => mergedBlockGeometries(map.blocks, wedgeGeo, wedgeGeoFlip),
-    [map.blocks, wedgeGeo, wedgeGeoFlip],
-  )
+  const compiled = useMemo(() => compileBlocks(map.blocks), [map.blocks])
+  const raycast = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
+  const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
   useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
   const postFx = useMemo(() => loadProfile().postProcessing, [])
   return (
@@ -71,5 +69,42 @@ export function MapPreview({ map }: { map: GameMap }) {
       <MapScene map={map} />
       <FitCamera map={map} lift={1.7} />
     </Canvas>
+  )
+}
+
+const THUMB_W = 1024   // повыше — картинка идёт и на полноэкранный фон лобби (апскейл не должен «шакалить»)
+const THUMB_H = 640
+
+/** Снимает кадр после нескольких рендеров (композеру нужно отрисоваться) → PNG dataURL. */
+function Capture({ onReady }: { onReady: (dataUrl: string | null) => void }) {
+  const gl = useThree(s => s.gl)
+  const frames = useRef(0)
+  useFrame(() => {
+    frames.current++
+    if (frames.current === 3) {
+      try { onReady(gl.domElement.toDataURL('image/png')) } catch { onReady(null) }
+    }
+  })
+  return null
+}
+
+/**
+ * Офскрин-рендер карты (с контуром) → PNG для preview.png. Монтируется редактором на время сохранения,
+ * после захвата вызывает onCapture. preserveDrawingBuffer — чтобы toDataURL вернул пиксели.
+ */
+export function ThumbnailRenderer({ map, onCapture }: { map: GameMap; onCapture: (dataUrl: string | null) => void }) {
+  return (
+    <div style={{ position: 'fixed', left: -10000, top: 0, width: THUMB_W, height: THUMB_H, pointerEvents: 'none' }} aria-hidden>
+      <Canvas
+        dpr={1}
+        gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true }}
+        style={{ width: THUMB_W, height: THUMB_H }}
+        camera={{ fov: 45 }}
+      >
+        <MapScene map={map} />
+        <FitCamera map={map} lift={1.7} />
+        <Capture onReady={onCapture} />
+      </Canvas>
+    </div>
   )
 }

@@ -10082,6 +10082,23 @@
       "blocksBeam": true,
       "shape": "wedge",
       "dir": 0
+    },
+    {
+      "pos": [
+        0.75,
+        3.25,
+        6.25
+      ],
+      "size": [
+        0.25,
+        0.25,
+        0.25
+      ],
+      "color": "#b89863",
+      "blocksBeam": true,
+      "shape": "wedge",
+      "dir": 0,
+      "flip": true
     }
   ],
   "spawns": [

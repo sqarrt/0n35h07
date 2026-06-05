@@ -1,9 +1,11 @@
 import * as THREE from 'three'
 import { SPAWN_HALF } from '../constants'
 import type { MapId } from '../constants'
-import os_arena from '../maps/os_arena.json'
-import os_india from '../maps/os_india.json'
-import os_pillars from '../maps/os_pillars.json'
+import os_arena from '../maps/os_arena/raw.json'
+import os_india from '../maps/os_india/raw.json'
+import os_pillars from '../maps/os_pillars/raw.json'
+import { parseGeo } from './mapGeometryCache'
+import type { CompiledMap } from './mapGeometryCache'
 
 /**
  * Карты как данные — единый источник для 3D-арены (Arena), спавнов (Match) и top-down превью (MapPreview).
@@ -58,6 +60,22 @@ export const MAPS: Record<MapId, GameMap> = {
 }
 
 export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars']
+
+// Артефакты карт (опциональны — генерируются редактором при сохранении; бандлятся Vite, работают в проде).
+// id извлекаем из пути '../maps/<id>/<file>'.
+const idOf = (p: string): MapId => p.split('/').slice(-2, -1)[0] as MapId
+
+/** Компил геометрии по id (geo.json). Нет файла → undefined → Arena компилирует из blocks (фолбэк). */
+export const MAP_GEO: Partial<Record<MapId, CompiledMap>> = Object.fromEntries(
+  Object.entries(import.meta.glob('../maps/*/geo.json', { eager: true }) as Record<string, { default: unknown }>)
+    .map(([p, m]) => [idOf(p), parseGeo(m.default as never)]),
+) as Partial<Record<MapId, CompiledMap>>
+
+/** URL картинки превью по id (preview.png). Нет файла → undefined → живой превью-канвас (фолбэк). */
+export const MAP_PREVIEW: Partial<Record<MapId, string>> = Object.fromEntries(
+  Object.entries(import.meta.glob('../maps/*/preview.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
+    .map(([p, url]) => [idOf(p), url]),
+) as Partial<Record<MapId, string>>
 
 /** Случайная точка в пределах игровой зоны — блуждание бота (без учёта препятствий; KCC не даёт пройти сквозь). */
 export function randomArenaPos(): THREE.Vector3 {

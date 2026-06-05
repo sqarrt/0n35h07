@@ -2,10 +2,11 @@ import { serializeMap, parseMap } from './editorStore'
 import type { MapData } from './editorStore'
 
 /**
- * Клиент dev-мостика карт (vite-plugin-editor-maps): список/чтение/запись JSON-карт в src/maps.
- * Работает только при `npm run dev` (редактор и так dev-only).
+ * Клиент dev-мостика карт (vite-plugin-editor-maps): каждая карта — папка src/maps/<id>/ с
+ * raw.json (исходник), geo.json (компил геометрии), preview.png (рендер). Работает только при `npm run dev`.
  */
 const BASE = '/__maps'
+const enc = encodeURIComponent
 
 export async function listMaps(): Promise<string[]> {
   try {
@@ -14,36 +15,46 @@ export async function listMaps(): Promise<string[]> {
   } catch { return [] }
 }
 
-export async function loadMap(name: string): Promise<MapData | null> {
+export async function loadMap(id: string): Promise<MapData | null> {
   try {
-    const r = await fetch(`${BASE}/${encodeURIComponent(name)}`)
+    const r = await fetch(`${BASE}/${enc(id)}/raw.json`)
     return r.ok ? parseMap(await r.text()) : null
   } catch { return null }
 }
 
-export async function saveMap(name: string, map: MapData): Promise<boolean> {
+export async function saveMap(id: string, map: MapData): Promise<boolean> {
+  return put(`${enc(id)}/raw.json`, serializeMap(map), 'application/json')
+}
+
+/** Компил геометрии (geo.json). */
+export async function saveCompiled(id: string, geoJson: string): Promise<boolean> {
+  return put(`${enc(id)}/geo.json`, geoJson, 'application/json')
+}
+
+/** Картинка превью: dataURL (data:image/png;base64,...) → тело base64. */
+export async function saveThumbnail(id: string, dataUrl: string): Promise<boolean> {
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '')
+  return put(`${enc(id)}/preview.png`, base64, 'text/plain')
+}
+
+export async function deleteMap(id: string): Promise<boolean> {
   try {
-    const r = await fetch(`${BASE}/${encodeURIComponent(name)}`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json' },
-      body: serializeMap(map),
-    })
+    const r = await fetch(`${BASE}/${enc(id)}`, { method: 'DELETE' })
     return r.ok
   } catch { return false }
 }
 
-export async function deleteMap(name: string): Promise<boolean> {
-  try {
-    const r = await fetch(`${BASE}/${encodeURIComponent(name)}`, { method: 'DELETE' })
-    return r.ok
-  } catch { return false }
-}
-
-/** Переименование: читаем старую карту, пишем под новым именем (с обновлённым id) и удаляем старую. */
-export async function renameMap(oldName: string, newName: string): Promise<boolean> {
-  const data = await loadMap(oldName)
+/** Переименование: читаем исходник, пишем под новым id и удаляем старую папку (geo/preview перегенерируются при сохранении). */
+export async function renameMap(oldId: string, newId: string): Promise<boolean> {
+  const data = await loadMap(oldId)
   if (!data) return false
-  const ok = await saveMap(newName, { ...data, id: newName })
-  if (!ok) return false
-  return deleteMap(oldName)
+  if (!(await saveMap(newId, { ...data, id: newId }))) return false
+  return deleteMap(oldId)
+}
+
+async function put(pathPart: string, body: string, contentType: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${BASE}/${pathPart}`, { method: 'PUT', headers: { 'content-type': contentType }, body })
+    return r.ok
+  } catch { return false }
 }
