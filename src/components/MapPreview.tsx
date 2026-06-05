@@ -1,27 +1,37 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import type { GameMap } from '../game/maps'
+import { unitWedgeGeometry } from '../game/wedge'
+import { mergedBlockGeometries } from '../game/blockGeometry'
+import { MapLights } from './MapVisualBits'
+import { MapEdges, BLOCK_LAYER } from './EdgeOutline'
+import { loadProfile } from '../settings'
 
 const PREVIEW_W = 150
 const PREVIEW_H = 100
 
-/** Геометрия карты (пол по её размеру + боксы) без физики/игроков — для 3D-превью и размытого фона. */
+/** Геометрия карты (пол по её размеру + блоки) без физики/игроков — для 3D-превью и размытого фона. */
 export function MapScene({ map }: { map: GameMap }) {
   const [hx, hz] = map.half
+  const wedgeGeo = useMemo(() => unitWedgeGeometry(), [])
+  const wedgeGeoFlip = useMemo(() => unitWedgeGeometry(true), [])
+  // Блоки слиты в две геометрии (как в арене) — превью/фон не тормозят на детальных картах.
+  const { raycast, noRaycast } = useMemo(
+    () => mergedBlockGeometries(map.blocks, wedgeGeo, wedgeGeoFlip),
+    [map.blocks, wedgeGeo, wedgeGeoFlip],
+  )
+  useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
+  const postFx = useMemo(() => loadProfile().postProcessing, [])
   return (
     <>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[12, 20, 8]} intensity={1.1} />
+      <MapLights />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
-      {map.blocks.map((b, i) => (
-        <mesh key={i} position={b.pos} rotation={b.rot}>
-          <boxGeometry args={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} />
-          <meshStandardMaterial color={b.color} />
-        </mesh>
-      ))}
+      {raycast && <mesh geometry={raycast} onUpdate={o => o.layers.enable(BLOCK_LAYER)}><meshStandardMaterial vertexColors /></mesh>}
+      {noRaycast && <mesh geometry={noRaycast}><meshStandardMaterial vertexColors /></mesh>}
+      {postFx && <MapEdges />}
     </>
   )
 }

@@ -29,8 +29,9 @@ describe('maps — реестр карт', () => {
     }
   })
 
-  it('арена сохраняет исходные спавны ±5 по Z', () => {
-    expect(MAPS.os_arena.spawns[0]).toEqual([0, 1.7, 5])
-    expect(MAPS.os_arena.spawns[1]).toEqual([0, 1.7, -5])
+  it('карты загружены из данных редактора (есть периметр-стены blocksBeam:false)', () => {
+    for (const id of MAP_IDS) {
+      expect(MAPS[id].blocks.some(b => b.blocksBeam === false)).toBe(true)
+    }
   })
 })

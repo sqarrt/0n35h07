@@ -42,7 +42,8 @@ type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
 
 // Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
-const MapEditor = lazy(() => import('./editor/MapEditor').then(m => ({ default: m.MapEditor })))
+const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
+const isEditorHash = () => window.location.hash.startsWith('#editor')
 const MAP_FADE_MS = 700                  // длительность fade in/out фона карты (синхронно с .map-bg transition)
 
 interface GameNet {
@@ -60,7 +61,7 @@ function randomCode() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
-  const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && window.location.hash === '#editor')
+  const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
   const [everLocked, setEverLocked] = useState(false)
   const [lobbyCode, setLobbyCode] = useState('')
@@ -114,7 +115,7 @@ export default function App() {
 
   // Дев-маршрут #editor → редактор карт (только при npm run dev).
   useEffect(() => {
-    const onHash = () => setEditorMode(import.meta.env.DEV && window.location.hash === '#editor')
+    const onHash = () => setEditorMode(import.meta.env.DEV && isEditorHash())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
@@ -249,7 +250,7 @@ export default function App() {
   useEffect(() => { if (lobbyView?.mapId) setLastMapId(lobbyView.mapId) }, [lobbyView?.mapId])
 
   if (editorMode) {
-    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><MapEditor /></Suspense>
+    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
   }
 
   return (

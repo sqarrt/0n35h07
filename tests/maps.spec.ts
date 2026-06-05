@@ -24,9 +24,10 @@ test('старт на выбранной карте применяет её сп
   await page.getByText('НАЧАТЬ').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
-  // Хост (id 0) спавнится в дальнем конце «os_pillars» (z ≈ 16), а не в арена-точке (z = 5).
+  // Применились спавны именно os_pillars (хост z ≈ 13, half=15), а не другой карты.
   const z = await page.evaluate(() => (window as any).__debugPlayerPos(0)?.z ?? NaN)
-  expect(z).toBeGreaterThan(14)
+  expect(z).toBeGreaterThan(11)
+  expect(z).toBeLessThan(15)
 })
 
 test('os_india: по рампе можно подняться на центральную площадку', async ({ page }) => {

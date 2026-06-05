@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useRelayStatus } from '../hooks/useRelayStatus'
 import { reprobe } from '../net/relays'
 import type { RelayResult } from '../net/relays'
@@ -13,11 +12,10 @@ function sortByHealth(results: RelayResult[]): RelayResult[] {
 }
 
 /**
- * Сворачиваемый раздел настроек: полный список сигналинг-релеев, отсортированный по «здоровью»
- * (живые → мёртвые). Закрыт по умолчанию — ненавязчиво. Кнопка перепроверки форсит свежую пробу.
+ * Полный список сигналинг-релеев, отсортированный по «здоровью» (живые → мёртвые), всегда раскрыт.
+ * Кнопка перепроверки форсит свежую пробу.
  */
 export function RelaysSection() {
-  const [open, setOpen] = useState(false)
   const { phase, results, selected } = useRelayStatus()
   const probing = phase === 'probing'
 
@@ -32,29 +30,25 @@ export function RelaysSection() {
 
   return (
     <div className="relays">
-      <button className="relays-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
-        <span>{open ? '▾' : '▸'} СЕТЬ · РЕЛЕИ</span>
+      <div className="relays-head relays-head--static">
+        <span>РЕЛЕИ</span>
         <span className="relays-sum">{summary}</span>
-      </button>
+      </div>
 
-      {open && (
-        <>
-          <div className="relays-list">
-            {rows.map(r => (
-              <div className="relay-row" key={r.url}>
-                <span className={`dot ${detailed ? (r.alive ? 'dot--ok' : 'dot--dead') : 'dot--muted'}`}>
-                  {detailed && !r.alive ? '○' : '●'}
-                </span>
-                <span className="relay-host">{host(r.url)}</span>
-                <span className="relay-lat">{r.latencyMs != null ? `${r.latencyMs}ms` : '—'}</span>
-              </div>
-            ))}
+      <div className="relays-list">
+        {rows.map(r => (
+          <div className="relay-row" key={r.url}>
+            <span className={`dot ${detailed ? (r.alive ? 'dot--ok' : 'dot--dead') : 'dot--muted'}`}>
+              {detailed && !r.alive ? '○' : '●'}
+            </span>
+            <span className="relay-host">{host(r.url)}</span>
+            <span className="relay-lat">{r.latencyMs != null ? `${r.latencyMs}ms` : '—'}</span>
           </div>
-          <button className="seg" onClick={() => void reprobe()} disabled={probing}>
-            {probing ? 'ПРОВЕРКА…' : 'ПРОВЕРИТЬ ЗАНОВО'}
-          </button>
-        </>
-      )}
+        ))}
+      </div>
+      <button className="seg" onClick={() => void reprobe()} disabled={probing}>
+        {probing ? 'ПРОВЕРКА…' : 'ПРОВЕРИТЬ ЗАНОВО'}
+      </button>
     </div>
   )
 }

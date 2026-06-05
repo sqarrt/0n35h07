@@ -1,48 +1,86 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
-import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
 import type { Vec3 } from '../game/maps'
 import { EditorScene } from './EditorScene'
-import {
-  BRUSH, cellKey, voxelize, toMapData, serializeMap, parseMap, saveMap, listMaps, loadMap, wallColorOf,
-} from './editorStore'
-import type { BrushSize, MapData } from './editorStore'
+import type { EditorTool } from './EditorScene'
+import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
+import type { Cell, MapData } from './editorStore'
+import { loadMap, saveMap } from './mapsApi'
 import './editor.css'
 
-type Cell = [number, number, number]
+type CellCoord = [number, number, number]
 
-// Палитра строителя: камень/песок/дерево/металл + акценты.
+// Палитра строителя: камень/песок/дерево/металл + акценты. Используется для блоков, пола и стен.
 const EDITOR_COLORS = ['#8a8f98', '#5a6678', '#b89863', '#8a5a2b', '#c2a878', '#9a7b46', '#4af', '#fa4', '#4fa', '#f66', '#222', '#ddd']
 
-export function MapEditor() {
-  const [voxels, setVoxels] = useState<Map<string, string>>(() => new Map())
+// Инструменты хотбара (клавиши 1–4). Ориентация клина — авто по взгляду.
+const TOOLS: { tool: EditorTool; label: string }[] = [
+  { tool: 'cube', label: 'КУБ' },
+  { tool: 'wedge', label: 'КЛИН' },
+  { tool: 'spawn0', label: 'СПАВН ХОСТА' },
+  { tool: 'spawn1', label: 'СПАВН ГОСТЯ' },
+]
+const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4']
+
+/** Ряд свотчей выбора цвета из палитры. */
+function Palette({ value, onPick }: { value: string; onPick: (c: string) => void }) {
+  return (
+    <div className="editor-pal">
+      {EDITOR_COLORS.map(c => (
+        <span key={c} className={`swatch${c === value ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => onPick(c)} />
+      ))}
+    </div>
+  )
+}
+
+/** Редактор одной карты (name из роута). Существующую грузит из src/maps, отсутствующую открывает пустой. */
+export function MapEditor({ name }: { name: string }) {
+  const [voxels, setVoxels] = useState<Map<string, Cell>>(() => new Map())
 
   const [half, setHalf] = useState<[number, number]>([20, 20])
   const [floorColor, setFloorColor] = useState('#3a3f47')
-  const [wallColor, setWallColor] = useState('#555')
+  const [wallColor, setWallColor] = useState('#5a6678')
   const [spawns, setSpawns] = useState<[Vec3, Vec3]>([[0, EYE_HEIGHT, 16], [0, EYE_HEIGHT, -16]])
-  const [brush, setBrush] = useState<BrushSize>('small')
+  const [tool, setTool] = useState<EditorTool>('cube')
+  const [fly, setFly] = useState(false)   // Tab: полёт без гравитации/коллизии; по дефолту ходьба
+  const [wedgeRot, setWedgeRot] = useState(0)   // R: ручной доворот клина поверх авто-ориентации
+  const [wedgeFlip, setWedgeFlip] = useState(false)   // T: клин вверх ногами (скос снизу)
+  const [showCubeGrid, setShowCubeGrid] = useState(true)   // L: подсветка границ всех клеток (стройка)
   const [color, setColor] = useState(EDITOR_COLORS[2])
   const [locked, setLocked] = useState(false)
-  const [json, setJson] = useState('')
-  const [saved, setSaved] = useState<string[]>(() => listMaps())
+  const [loaded, setLoaded] = useState(false)
+  const [status, setStatus] = useState('')
 
-  const camPos = useRef(new THREE.Vector3(0, 6, 26))
+  const loadInto = useCallback((data: MapData) => {
+    setHalf(data.half)
+    setFloorColor(data.floorColor)
+    setWallColor(wallColorOf(data))
+    setSpawns(data.spawns)
+    setVoxels(voxelize(data.blocks))
+  }, [])
 
-  const onPlace = useCallback((origin: Cell, n: number, col: string) => {
+  // Загрузка карты по имени роута (отсутствующая = новая пустая с этим id).
+  useEffect(() => {
+    let alive = true
+    void loadMap(name).then(data => {
+      if (!alive) return
+      if (data) loadInto(data)
+      setLoaded(true)
+    })
+    return () => { alive = false }
+  }, [name, loadInto])
+
+  const onPlace = useCallback((cell: CellCoord, data: Cell) => {
+    if (cell[1] < 0) return
     setVoxels(prev => {
       const m = new Map(prev)
-      const [ox, oy, oz] = origin
-      for (let x = 0; x < n; x++) for (let y = 0; y < n; y++) for (let z = 0; z < n; z++) {
-        if (oy + y < 0) continue
-        m.set(cellKey(ox + x, oy + y, oz + z), col)
-      }
+      m.set(cellKey(...cell), data)
       return m
     })
   }, [])
 
-  const onRemove = useCallback((cell: Cell) => {
+  const onRemove = useCallback((cell: CellCoord) => {
     setVoxels(prev => {
       if (!prev.has(cellKey(...cell))) return prev
       const m = new Map(prev)
@@ -51,13 +89,25 @@ export function MapEditor() {
     })
   }, [])
 
+  // Спавн — привязанная к полусетке точка (X/Z из сцены), на уровень глаз.
+  const onSpawn = useCallback((idx: 0 | 1, x: number, z: number) => {
+    setSpawns(prev => {
+      const next: [Vec3, Vec3] = [prev[0], prev[1]]
+      next[idx] = [x, EYE_HEIGHT, z]
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     const onLock = () => setLocked(!!document.pointerLockElement)
     document.addEventListener('pointerlockchange', onLock)
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Digit1') setBrush('small')
-      if (e.code === 'Digit2') setBrush('medium')
-      if (e.code === 'Digit3') setBrush('large')
+      if (e.code === 'Tab') { e.preventDefault(); setFly(v => !v); return }
+      if (e.code === 'KeyR') { setWedgeRot(v => (v + 1) % 4); return }
+      if (e.code === 'KeyT') { setWedgeFlip(v => !v); return }
+      if (e.code === 'KeyL') { setShowCubeGrid(v => !v); return }
+      const idx = TOOL_KEYS.indexOf(e.code)
+      if (idx >= 0) setTool(TOOLS[idx].tool)
     }
     window.addEventListener('keydown', onKey)
     return () => {
@@ -67,49 +117,19 @@ export function MapEditor() {
   }, [])
 
   const buildMap = (): MapData =>
-    toMapData(voxels, { half, floorColor, wallColor, spawns })
+    toMapData(voxels, { half, floorColor, wallColor, spawns, id: name })
 
-  const exportJson = async () => {
-    const s = serializeMap(buildMap())
-    setJson(s)
-    try { await navigator.clipboard.writeText(s) } catch { /* покажем в textarea */ }
-  }
-
-  const doSave = () => {
-    const name = prompt('Имя карты:')?.trim()
-    if (!name) return
-    saveMap(name, buildMap())
-    setSaved(listMaps())
-  }
-
-  const loadInto = (data: MapData) => {
-    setHalf(data.half)
-    setFloorColor(data.floorColor)
-    setWallColor(wallColorOf(data))
-    setSpawns(data.spawns)
-    setVoxels(voxelize(data.blocks))
-  }
-
-  const doImport = (name: string) => {
-    const data = loadMap(name)
-    if (data) loadInto(data)
-  }
-
-  const importPasted = () => {
-    const data = parseMap(json)
-    if (data) loadInto(data); else alert('Невалидный JSON карты')
-  }
-
-  const setSpawnHere = (idx: 0 | 1) => {
-    const p = camPos.current
-    setSpawns(prev => {
-      const next: [Vec3, Vec3] = [prev[0], prev[1]]
-      next[idx] = [Math.round(p.x), EYE_HEIGHT, Math.round(p.z)]
-      return next
-    })
+  const doSave = async () => {
+    setStatus('сохранение…')
+    const ok = await saveMap(name, buildMap())
+    setStatus(ok ? `сохранено: ${name}.json` : 'ошибка сохранения')
   }
 
   const count = voxels.size
+
+  if (!loaded) {
+    return <div className="editor-root" style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка карты «{name}»…</div>
+  }
 
   return (
     <div className="editor-root">
@@ -117,21 +137,21 @@ export function MapEditor() {
         <EditorScene
           voxels={voxels}
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
-          brush={BRUSH[brush]} color={color}
-          onPlace={onPlace} onRemove={onRemove} camPosRef={camPos}
+          tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
+          onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
         />
       </Canvas>
 
       {/* Прицел */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">КЛИК — захватить мышь · ЛКМ ставить · ПКМ убирать · WASD+Space/Shift — полёт · ESC — меню</div>}
+      {!locked && <div className="editor-hint">КЛИК — захватить мышь · ЛКМ ставить · ПКМ убирать{tool === 'wedge' ? ' · R — поворот, T — перевернуть клин' : ''} · WASD — движение, Space — {fly ? 'вверх' : 'прыжок'} · TAB — {fly ? 'полёт' : 'ходьба'} · L — грани кубов: {showCubeGrid ? 'вкл' : 'выкл'} · ESC — меню</div>}
 
-      {/* Хотбар: размеры кисти + палитра */}
+      {/* Хотбар: инструменты (куб/клин/спавны) + палитра цвета блока */}
       <div className="editor-hotbar">
-        {(['small', 'medium', 'large'] as BrushSize[]).map((b, i) => (
-          <button key={b} className={`seg${brush === b ? ' seg--on' : ''}`} onClick={() => setBrush(b)}>
-            {i + 1}·{b.toUpperCase()} {BRUSH[b]}³
+        {TOOLS.map(({ tool: t, label }, i) => (
+          <button key={t} className={`seg${tool === t ? ' seg--on' : ''}`} onClick={() => setTool(t)}>
+            {i + 1}·{label}
           </button>
         ))}
         <span className="editor-sep" />
@@ -142,34 +162,27 @@ export function MapEditor() {
 
       {/* Боковая панель */}
       <div className="editor-panel">
-        <div className="editor-title">РЕДАКТОР КАРТ <span className="editor-dim">кубов: {count}</span></div>
+        <div className="editor-title">РЕДАКТОР КАРТ <span className="editor-dim">блоков: {count}</span></div>
+
+        <div className="editor-row"><span>КАРТА</span>
+          <span className="editor-name">{name}</span>
+        </div>
 
         <div className="editor-row"><span>АРЕНА X</span>
           <input className="input" type="number" value={half[0]} min={4} onChange={e => setHalf([Math.max(4, +e.target.value), half[1]])} />
           <span>Z</span>
           <input className="input" type="number" value={half[1]} min={4} onChange={e => setHalf([half[0], Math.max(4, +e.target.value)])} />
         </div>
-        <div className="editor-row"><span>ПОЛ</span><input type="color" value={floorColor} onChange={e => setFloorColor(e.target.value)} />
-          <span>СТЕНЫ</span><input type="color" value={wallColor} onChange={e => setWallColor(e.target.value)} /></div>
 
-        <div className="editor-row">
-          <button className="seg" onClick={() => setSpawnHere(0)}>СПАВН ХОСТА ТУТ</button>
-          <button className="seg" onClick={() => setSpawnHere(1)}>СПАВН СОПЕРНИКА ТУТ</button>
-        </div>
+        <div className="editor-row"><span>ПОЛ</span><Palette value={floorColor} onPick={setFloorColor} /></div>
+        <div className="editor-row"><span>СТЕНЫ</span><Palette value={wallColor} onPick={setWallColor} /></div>
 
         <div className="editor-row">
           <button className="btn" onClick={doSave}>СОХРАНИТЬ</button>
-          <button className="btn" onClick={exportJson}>JSON → буфер</button>
+          {status && <span className="editor-dim">{status}</span>}
         </div>
-        <div className="editor-row">
-          <select className="input" defaultValue="" onChange={e => { if (e.target.value) doImport(e.target.value) }}>
-            <option value="">ИМПОРТ…</option>
-            {saved.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-          <button className="btn btn--ghost" onClick={importPasted}>ИЗ JSON НИЖЕ</button>
-        </div>
-        <textarea className="editor-json" value={json} onChange={e => setJson(e.target.value)} placeholder="JSON карты (Сохранить/Экспорт сюда; можно вставить и импортировать)" />
-        <a className="editor-exit" href="#">← выйти из редактора</a>
+
+        <a className="editor-exit" href="#editor">← к выбору карт</a>
       </div>
     </div>
   )

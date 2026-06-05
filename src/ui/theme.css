@@ -100,6 +100,13 @@
 }
 .input:focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
+/* Тумблер вкл/выкл — плоский, твёрдый (без transition), в духе игры. */
+.toggle { width: 34px; height: 18px; border: 1px solid var(--line); background: transparent; cursor: pointer; padding: 0; position: relative; flex: 0 0 auto; }
+.toggle[data-on="true"] { background: var(--accent-fill); border-color: var(--accent-fill); }
+.toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-knob { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; background: var(--accent-dim); }
+.toggle[data-on="true"] .toggle-knob { left: auto; right: 2px; background: var(--ink); }
+
 /* VS-лобби */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
 /* Плитки выбора карты в лобби: клик по 3D-превью выбирает карту. */
@@ -188,18 +195,21 @@
 .net-chip .dot--probing { color: var(--accent-dim); animation: net-blink 0.9s steps(1) infinite; }
 @keyframes net-blink { 50% { opacity: 0.2; } }
 
-/* Раздел релеев в настройках (сворачиваемый, закрыт по умолчанию). */
-.relays { margin-top: 0.4rem; margin-bottom: 1.2rem; }
+/* Раздел релеев в настройках — растягивается на всё свободное место до кнопки «Назад». */
+.relays { margin-top: 0.4rem; margin-bottom: 1.2rem; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .relays-head {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
   background: transparent; border: none; padding: 6px 0; cursor: pointer;
   font-family: var(--ui-font); font-size: 0.7rem; letter-spacing: 0.15em; color: #667;
 }
 .relays-head:hover { color: var(--accent-dim); }
+/* Статичный заголовок (список всегда раскрыт) — без курсора/ховера. */
+.relays-head--static { cursor: default; color: var(--accent-dim); border-bottom: 1px solid var(--surface-line); margin-bottom: 0.4rem; }
+.relays-head--static:hover { color: var(--accent-dim); }
 .relays-sum { color: var(--muted); letter-spacing: 0.12em; }
 /* Полный список по здоровью — со скроллом; полоса тонкая, в стиле темы (не дефолтная «жирная»). */
 .relays-list {
-  max-height: 196px; overflow-y: auto; margin: 6px 0 10px; border-top: 1px solid var(--surface-line);
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 6px 0 10px; border-top: 1px solid var(--surface-line);
   scrollbar-width: thin; scrollbar-color: var(--line) transparent;   /* Firefox */
 }
 .relays-list::-webkit-scrollbar { width: 6px; }

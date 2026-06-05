@@ -18,7 +18,8 @@ test('не проходит сквозь бота', async ({ page }) => {
   await page.goto('/')
   await unlockPointer(page, { difficulty: 'passive' })
   // Подходим к боту, постоянно подправляя прицел (homing), и упираемся в него.
-  for (let i = 0; i < 8; i++) {
+  // Спавны разнесены (≈32 по Z на os_arena), поэтому идём дольше, пока не упрёмся.
+  for (let i = 0; i < 16; i++) {
     await aimAtBot(page)
     await holdKey(page, 'KeyW', 500)
   }
