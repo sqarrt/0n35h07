@@ -10,7 +10,7 @@ import {
   WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV, AIM_RANGE,
 } from '../../constants'
 
-type Keys = MoveKeys
+type Keys = MoveKeys & { jump: boolean }   // + held-прыжок (auto-bhop), обрабатывается за кадр
 
 /** Минимальный интерфейс контролов (drei PointerLockControls): используем только pointerSpeed. */
 export interface PointerControls { pointerSpeed: number }
@@ -27,8 +27,8 @@ export class HumanController implements Controller {
   private keys: React.MutableRefObject<Keys>
   private controls: React.RefObject<PointerControls | null>
   private world: World
-  // Рёберные действия за кадр — для сетевого InputFrame (клиент шлёт хосту).
-  private pending = { jump: false, fire: false, shield: false, dash: false }
+  // Рёберные действия за кадр — для сетевого InputFrame (клиент шлёт хосту). Прыжок — held (см. keys.jump).
+  private pending = { fire: false, shield: false, dash: false }
 
   constructor(
     player: Player,
@@ -50,7 +50,6 @@ export class HumanController implements Controller {
   // --- рёберные события от DOM (вызывает хост) ---
   onFire()    { if (document.pointerLockElement) { this.player.startFiring();    this.pending.fire = true } }
   onShield()  { if (document.pointerLockElement) { this.player.activateShield(); this.pending.shield = true } }
-  onJump()    { if (document.pointerLockElement) { this.player.jump();           this.pending.jump = true } }
   onDash() {
     if (!document.pointerLockElement) return
     this.pending.dash = true
@@ -77,19 +76,21 @@ export class HumanController implements Controller {
       seq,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
       aimDir: toVec3(look),
-      jump: this.pending.jump, fire: this.pending.fire,
+      jump: k.jump,   // held-состояние (не ребро) — auto-bhop/двойной прыжок считает Body на хосте
+      fire: this.pending.fire,
       shield: this.pending.shield, dash: this.pending.dash,
     }
-    this.pending = { jump: false, fire: false, shield: false, dash: false }
+    this.pending = { fire: false, shield: false, dash: false }
     return frame
   }
 
   // --- intents (до физики) ---
   update(dt: number) {
-    // Меню открыто (указатель не захвачен) — игрок не двигается и не целится.
-    if (!document.pointerLockElement) return
+    // Меню открыто (указатель не захвачен) — игрок не двигается, не целится, прыжок сбрасываем (без застрявшего bhop).
+    if (!document.pointerLockElement) { this.player.setJumpInput(false); return }
     const { dir, right } = this.basis()
     this.player.moveIntent(moveVelocity(this.keys.current, dir, right, this.player.isWindingUp), dt)
+    this.player.setJumpInput(this.keys.current.jump)   // held → auto-bhop/двойной прыжок (решает Body)
 
     // Прицел = точка мира под перекрестием: луч из камеры (исключая своё тело).
     const camDir = this.camera.getWorldDirection(new THREE.Vector3())

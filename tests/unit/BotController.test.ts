@@ -47,7 +47,8 @@ describe('BotController', () => {
     const p = makeBot()
     const bc = new BotController(p, target, {})
     for (let i = 0; i < 20; i++) bc.update(0.05)   // 1с, ещё не стреляет
-    // Интеграцию позиции делает Rapier KCC; контроллер лишь накапливает desired.
+    // Интеграцию позиции делает Rapier KCC; контроллер копит wish, stepHorizontal реализует его в desired.
+    p.stepHorizontal(0.05, null)
     const d = p.consumeDesired()
     expect(Math.hypot(d.x, d.z)).toBeGreaterThan(0)
   })

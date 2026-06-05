@@ -13,10 +13,13 @@ const REASON: Record<MatchResult['reason'], string> = {
   disconnect: 'СОПЕРНИК ОТКЛЮЧИЛСЯ',
 }
 
+const FADE = '@keyframes matchEndFade { from { opacity: 0 } to { opacity: 1 } }'
+
 const wrap: CSSProperties = {
   position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(7,10,14,0.9)',
   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
   fontFamily: 'var(--ui-font)', color: 'var(--text)',
+  animation: 'matchEndFade 0.1s ease-out',   // короткое появление после стоп-кадра конца матча
 }
 
 /** Экран конца матча: исход + причина + финальный счёт + ВЫЙТИ. */
@@ -24,6 +27,7 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
   const o = OUTCOME[result.outcome]
   return (
     <div style={wrap}>
+      <style>{FADE}</style>
       <h1 style={{ fontSize: 52, letterSpacing: '0.22em', margin: '0 0 4px', marginLeft: '0.22em', color: o.color, textShadow: `0 0 26px ${o.color}` }}>
         {o.label}
       </h1>

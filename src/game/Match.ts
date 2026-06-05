@@ -18,9 +18,14 @@ import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
+  AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG,
 } from '../constants'
 
+const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+
 interface NetConfig { localId: number; roster: RosterEntry[] }
+
+const END_FREEZE_MS = 200   // «стоп-кадр»: игроки замирают перед показом экрана исхода (overlay сам делает fade-in)
 
 // Минимальные интерфейсы физики Rapier (используемая часть API) — без зависимости от типов @dimforge/rapier.
 type XYZ3 = { x: number; y: number; z: number }
@@ -42,7 +47,7 @@ interface MatchOptions {
   scene:    THREE.Scene
   camera:   THREE.PerspectiveCamera
   controls: React.RefObject<PointerControls | null>
-  keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean }>
+  keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
@@ -91,6 +96,8 @@ export class Match {
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
   private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
   private leftIds = new Set<number>()   // отключившиеся игроки
+  private pendingResult: MatchResult | null = null   // отложенный экран исхода (после END_FREEZE_MS)
+  private resultDueAt = 0
 
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
@@ -170,11 +177,11 @@ export class Match {
     this.kcc = world.createCharacterController(0.01)
     this.kcc.setApplyImpulsesToDynamicBodies(false)
     this.kcc.setUp({ x: 0, y: 1, z: 0 })
-    // Рампы-лестницы (os_india): autostep даёт капсуле всходить на низкие ступени (≤0.4) как по подъёму;
-    // углы склона — на случай наклонных поверхностей. Высокие препятствия (стены/ящики >0.4) не перешагнуть.
-    this.kcc.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
-    this.kcc.setMinSlopeSlideAngle((50 * Math.PI) / 180)
-    this.kcc.enableAutostep(0.4, 0.25, false)
+    // Autostep даёт капсуле всходить на ступени (≤AUTOSTEP_MAX_HEIGHT) как по лестнице — в т.ч. на блоки 1×1
+    // (высота 1.0); углы склона — для наклонных поверхностей/рамп. Препятствия выше ступени не перешагнуть.
+    this.kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    this.kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    this.kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
     // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
   }
   detachWorld() {
@@ -229,7 +236,10 @@ export class Match {
       }
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
+      const groundNormal = this.groundNormalUnder(p)                  // нормаль под игроком (для склона)
+      p.stepJump()                                                    // прыжок/двойной/auto-bhop (held-ввод)
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
+      p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
       p.stepDash(dt)                                                  // рывок добавляет к desired
       this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
       const c = this.kcc.computedMovement()
@@ -239,6 +249,14 @@ export class Match {
       rb.setNextKinematicTranslation(next)
       p.setGrounded(this.kcc.computedGrounded())
     }
+  }
+
+  /** Нормаль поверхности под игроком (луч вниз по меш-блокам) — для следования склону без потери скорости.
+   *  Пол (noRaycast) и плоский верх дают n≈(0,1,0) → склон не применяется. Не на земле → null. */
+  private groundNormalUnder(p: Player): THREE.Vector3 | null {
+    if (!p.grounded) return null
+    const hit = this.world.raycast(p.position, _DOWN, [p.id])
+    return hit?.face ? hit.face.normal : null
   }
 
   private resolveCombat() {
@@ -298,6 +316,12 @@ export class Match {
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
     this.syncPhaseHud()
+    // Отложенный показ экрана исхода: phase='ended' уже заморозил игроков (стоп-кадр); по истечении паузы —
+    // диспатч результата (overlay появляется с собственным fade-in). Тикается и на host, и на client.
+    if (this.pendingResult && Date.now() >= this.resultDueAt) {
+      this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
+      this.pendingResult = null
+    }
   }
 
   private syncPhaseHud() {
@@ -373,7 +397,9 @@ export class Match {
     this.phase = 'ended'
     this.phaseDirtyFlag = true
     this.syncPhaseHud()
-    this.dispatch({ type: 'SET_MATCH_RESULT', result: this.computeResult(reason) })
+    // Заморозить игроков на END_FREEZE_MS (phase='ended' морозит в tickPhase), затем показать экран исхода.
+    this.pendingResult = this.computeResult(reason)
+    this.resultDueAt = Date.now() + END_FREEZE_MS
     this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
   }
 
@@ -414,6 +440,7 @@ export class Match {
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
+      this.dispatch({ type: 'SET_PLAYER_SPEED',    value: this.human.speed })
       // Фаза призрака локального игрока: шлём прогресс пока активна и один раз null по завершении.
       const respawn = this.human.isRespawning ? this.human.respawnProgress() : null
       if (respawn !== null || this.prevRespawnActive) {

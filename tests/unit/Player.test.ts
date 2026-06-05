@@ -58,7 +58,8 @@ describe('Player', () => {
   it('moveIntent() копит намерение (интеграцию делает Rapier KCC)', () => {
     const p = makePlayer()
     p.moveIntent(new THREE.Vector3(2, 0, 0), 1)
-    expect(p.consumeDesired().x).toBeCloseTo(2)
+    p.stepHorizontal(0.016, null)   // скоростная модель реализует намерение в desired
+    expect(p.consumeDesired().x).toBeGreaterThan(0)
   })
 
   it('startFiring() переводит оружие в зарядку (вшитый кулдаун)', () => {
@@ -108,7 +109,8 @@ describe('Player', () => {
     expect(p.shieldActive).toBe(false)           // щит заморожен
     p.setFrozen(false)
     p.moveIntent(new THREE.Vector3(5, 0, 0), 1)
-    expect(p.consumeDesired().x).toBeCloseTo(5)  // разморозили — двигается
+    p.stepHorizontal(0.016, null)
+    expect(p.consumeDesired().x).toBeGreaterThan(0)  // разморозили — двигается
   })
 
   it('в FP (тело скрыто) свой след дэша не рисуется', () => {

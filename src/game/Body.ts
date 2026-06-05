@@ -4,6 +4,7 @@ import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
   DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
+  MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
 import type { BallModel } from '../constants'
 import { createBallMaterial, createBallRing } from './fx/ballMaterial'
@@ -15,6 +16,8 @@ const _faceMat = new THREE.Matrix4()
 const _faceUp = new THREE.Vector3(0, 1, 0)
 const _faceOrigin = new THREE.Vector3(0, 0, 0)
 const _faceTarget = new THREE.Vector3()
+// Scratch для шага движения (без аллокаций в кадре).
+const _wishDir = new THREE.Vector3()
 
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
@@ -31,6 +34,12 @@ export class Body {
   velocityY = 0
   grounded  = true
 
+  private velH = new THREE.Vector3()        // персистентная горизонтальная скорость (Quake-инерция)
+  private wishVel = new THREE.Vector3()     // желаемая скорость из ввода за кадр (величина = wishspeed)
+  private airJumps = 0                       // оставшиеся воздушные прыжки (двойной прыжок)
+  private jumpHeld = false                   // удержание прыжка (auto-bhop) — ввод за кадр
+  private prevJumpHeld = false               // для детекта ребра (нового нажатия) → воздушный прыжок
+  private jumpedThisFrame = false            // прыжок в этом кадре → пропустить трение (bhop)
   private desired = new THREE.Vector3()
   private teleport: THREE.Vector3 | null = null
   private netTarget: THREE.Vector3 | null = null   // целевая позиция удалённого игрока (клиент)
@@ -73,20 +82,74 @@ export class Body {
   }
   unbind() { this.rb = null }
 
-  /** Горизонтальное намерение за кадр (Y даёт гравитация в stepVertical). */
-  move(worldDir: THREE.Vector3, dt: number) {
-    this.desired.x += worldDir.x * dt
-    this.desired.z += worldDir.z * dt
+  /** Желаемая горизонтальная скорость за кадр (НЕ интегрируем сразу — копит stepHorizontal через velH). */
+  move(worldDir: THREE.Vector3, _dt: number) {
+    this.wishVel.copy(worldDir)
   }
 
-  jump() {
-    if (this.grounded) this.velocityY = JUMP_FORCE
+  /** Удержание прыжка за кадр (held-ввод): на земле — авто-bhop, в воздухе — двойной по новому нажатию. */
+  setJumpInput(held: boolean) { this.jumpHeld = held }
+
+  /** Обработка прыжка (в Match.applyPhysics ДО stepVertical; grounded — с прошлого кадра). */
+  stepJump() {
+    this.jumpedThisFrame = false
+    const edge = this.jumpHeld && !this.prevJumpHeld
+    if (this.grounded && this.jumpHeld) {
+      this.velocityY = JUMP_FORCE          // auto-bhop: держишь прыжок → прыжок на каждом приземлении
+      this.airJumps = MAX_AIR_JUMPS        // гарантируем воздушный прыжок даже на первом прыжке со спавна
+      this.jumpedThisFrame = true
+    } else if (edge && !this.grounded && this.airJumps > 0) {
+      this.velocityY = JUMP_FORCE          // двойной прыжок — только по НОВОМУ нажатию в воздухе
+      this.airJumps--
+    }
+    this.prevJumpHeld = this.jumpHeld
   }
 
   /** Накопить вертикаль (вызывается из Match.applyPhysics перед шагом KCC). */
   stepVertical(dt: number) {
     this.velocityY += GRAVITY * dt
     this.desired.y += this.velocityY * dt
+  }
+
+  /**
+   * Горизонтальный шаг (Quake): на земле — трение (кроме кадра прыжка → bhop) + быстрый разгон к wishspeed
+   * и следование склону без потери скорости; в воздухе — air-accelerate с кэпом (разгон стрейфом+мышью).
+   * `groundNormal` — нормаль поверхности под игроком (или null → плоско). Копит результат в desired.
+   */
+  stepHorizontal(dt: number, groundNormal: THREE.Vector3 | null) {
+    const wishspeed = this.wishVel.length()
+    if (wishspeed > 1e-6) _wishDir.copy(this.wishVel).divideScalar(wishspeed)
+    else _wishDir.set(0, 0, 0)
+
+    if (this.grounded) {
+      if (!this.jumpedThisFrame) this.velH.multiplyScalar(Math.max(0, 1 - GROUND_FRICTION * dt))
+      if (wishspeed > 1e-6) this.accelerate(_wishDir, wishspeed, GROUND_ACCEL, dt)
+      this.followSlope(groundNormal, dt)   // на подъёме скорость не съедается (Fix: замедление на рампе)
+    } else if (wishspeed > 1e-6) {
+      this.accelerate(_wishDir, Math.min(wishspeed, AIR_WISH_SPEED), AIR_ACCEL, dt)
+    }
+
+    if (this.velH.lengthSq() > MAX_SPEED * MAX_SPEED) this.velH.setLength(MAX_SPEED)   // верхний предел скорости
+
+    this.desired.x += this.velH.x * dt
+    this.desired.z += this.velH.z * dt
+  }
+
+  /** Quake-accelerate: добавляет скорость к wishdir не превышая wishspeed (только разгоняет, не тормозит). */
+  private accelerate(wishdir: THREE.Vector3, wishspeed: number, accel: number, dt: number) {
+    const current = this.velH.dot(wishdir)
+    const add = wishspeed - current
+    if (add <= 0) return
+    const accelSpeed = Math.min(accel * wishspeed * dt, add)
+    this.velH.addScaledVector(wishdir, accelSpeed)
+  }
+
+  /** На склоне даём desired вертикальную добавку, чтобы движение шло вдоль поверхности (v·n=0) —
+   *  горизонтальная скорость не теряется на подъёме/спуске. Плоскость/стена/нет нормали → ничего. */
+  private followSlope(groundNormal: THREE.Vector3 | null, dt: number) {
+    if (!groundNormal || groundNormal.y < SLOPE_MIN_NORMAL_Y) return
+    const vy = -(groundNormal.x * this.velH.x + groundNormal.z * this.velH.z) / groundNormal.y
+    this.desired.y += vy * dt
   }
 
   /** Старт рывка: true если кулдаун готов и направление ненулевое. */
@@ -111,6 +174,9 @@ export class Body {
 
   get dashing() { return this.dashTimer > 0 }
 
+  /** Текущая горизонтальная скорость (ед/с) — для оверлея скорости. */
+  get horizontalSpeed() { return Math.hypot(this.velH.x, this.velH.z) }
+
   /** Прогресс готовности рывка: 1 = готов, 0..1 во время кулдауна. */
   dashProgress(): number {
     return this.dashCooldown > 0 ? Math.max(0, 1 - this.dashCooldown / DASH_COOLDOWN) : 1
@@ -124,12 +190,21 @@ export class Body {
 
   setGrounded(g: boolean) {
     this.grounded = g
-    if (g) this.velocityY = 0
+    if (g) { this.velocityY = 0; this.airJumps = MAX_AIR_JUMPS }   // приземлились → восстановить воздушные прыжки
+  }
+
+  /** Полная остановка (заморозка готовности/отсчёта/конца матча): гасим инерцию и намерение. */
+  halt() {
+    this.velH.set(0, 0, 0)
+    this.wishVel.set(0, 0, 0)
+    this.velocityY = 0
   }
 
   setPosition(p: THREE.Vector3) {
     this.position.copy(p)
     this.velocityY = 0
+    this.velH.set(0, 0, 0)        // респавн/телепорт — инерцию не переносим
+    this.wishVel.set(0, 0, 0)
     this.grounded = p.y <= EYE_HEIGHT + 0.01
     this.teleport = p.clone()
     this.netTarget = null   // респавн/телепорт — старый авторитет недействителен

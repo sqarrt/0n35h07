@@ -18,6 +18,17 @@ export const GRAVITY    = -22
 export const TP_DIST    = 4   // third-person camera distance behind player
 export const TP_HEIGHT  = 2   // third-person camera height above player
 
+// Прыжок / bhop / air-strafe — скоростная (Quake) модель: горизонтальная скорость персистентна (velH),
+// на земле — трение+быстрый разгон к желаемой; в воздухе — air-accelerate с кэпом → разгон стрейфом+мышью;
+// кадр прыжка пропускает трение → bhop сохраняет скорость. Прыжок — held-ввод (auto-bhop при удержании).
+export const MAX_AIR_JUMPS   = 1     // воздушных прыжков (двойной прыжок: 1 с земли + 1 в воздухе)
+export const GROUND_ACCEL    = 16    // ускорение к желаемой скорости на земле (множитель wishspeed·dt) — снаппи
+export const GROUND_FRICTION = 12    // трение на земле (1/с); кадр прыжка трение пропускает (основа bhop)
+export const AIR_ACCEL       = 30    // ускорение в воздухе (Quake air-accelerate) — набор скорости стрейфом не мгновенный
+export const AIR_WISH_SPEED  = 1.0   // кэп желаемой скорости в воздухе → разгон стрейфом сверх MOVE_SPEED
+export const MAX_SPEED       = MOVE_SPEED * 6   // верхний предел горизонтальной скорости (~×6 обычной) — bhop не разгоняет бесконечно
+export const SLOPE_MIN_NORMAL_Y = 0.1   // мин. n.y, чтобы считать поверхность полом-склоном (а не стеной)
+
 // Dash (рывок на Shift)
 export const DASH_SPEED    = 24    // ед/с (~3.4× MOVE_SPEED)
 export const DASH_DURATION = 150   // мс — длительность окна рывка
@@ -131,6 +142,12 @@ export const SPAWN_HALF = 14
 export const CAPSULE_RADIUS      = 0.5
 export const CAPSULE_HALF_HEIGHT = 0.35
 export const CAPSULE_OFFSET_Y    = -0.85
+
+// KCC: автоступень и углы склона. Высота ступени ≥ высоты блока 1×1 (=1.0) → на блоки 1×1 всходим
+// как по лестнице, а не упираемся (раньше 0.4 < 1.0).
+export const AUTOSTEP_MAX_HEIGHT = 1.05
+export const AUTOSTEP_MIN_WIDTH  = 0.25
+export const KCC_SLOPE_DEG       = 50    // макс. угол climb/slide
 
 // Bot colors (hex strings — create THREE.Color locally where needed)
 export const BOT_COLOR_BASE  = '#5af'

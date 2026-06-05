@@ -7,6 +7,7 @@ import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
+import { StatsOverlay } from './components/StatsOverlay'
 import { RespawnOverlay } from './components/RespawnOverlay'
 import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
@@ -59,6 +60,23 @@ function randomCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase()
 }
 
+// Персистентность роли хоста. `HOSTED_KEY` (localStorage) — последний СОЗДАННЫЙ нами код (переживает закрытие
+// вкладки/перезапуск браузера). `HOST_LIVE_KEY` — код, который вкладка-хост держит ПРЯМО СЕЙЧАС (снимается на
+// unload). Решение при открытии #CODE: хост, если код наш И живого хоста этого кода нет (мы — та самая вкладка
+// после refresh/повторного открытия); иначе клиент. Так refresh/reopen хоста → снова хост, а ВТОРАЯ вкладка
+// при живой первой (или вход по чужому коду) → клиент. На другом устройстве localStorage не общий → клиент.
+const HOSTED_KEY = 'oneshot:hosted'
+const HOST_LIVE_KEY = 'oneshot:hostLive'
+function rememberHosted(code: string) { try { localStorage.setItem(HOSTED_KEY, code) } catch { /* ignore */ } }
+function forgetHosted() { try { localStorage.removeItem(HOSTED_KEY); localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
+function setHostLive(code: string) { try { localStorage.setItem(HOST_LIVE_KEY, code) } catch { /* ignore */ } }
+function clearHostLive(code: string) { try { if (localStorage.getItem(HOST_LIVE_KEY) === code) localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
+/** Наш ли это код и нет живого хоста этого кода сейчас (refresh/reopen) → можем стать хостом. */
+function shouldHost(code: string): boolean {
+  try { return localStorage.getItem(HOSTED_KEY) === code && localStorage.getItem(HOST_LIVE_KEY) !== code }
+  catch { return false }
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
@@ -89,6 +107,7 @@ export default function App() {
 
   const enterLobby = (code: string, role: LobbyRole) => {
     if (sessionRef.current) leaveLobby()
+    if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
     const net = createNet(code)
     const session = new LobbySession(net, role, code, loadProfile())
     session.onChange(v => setLobbyView(v))
@@ -136,7 +155,8 @@ export default function App() {
     const handleHash = () => {
       const code = window.location.hash.slice(1).toUpperCase()
       if (/^[A-Z0-9]{4}$/.test(code)) {
-        if (sessionRef.current?.code !== code) { enterLobby(code, 'client'); setScreen('lobby') }
+        // Свой созданный код и нет живой вкладки-хоста (refresh/reopen) → хост; иначе (живой хост/чужой) → клиент.
+        if (sessionRef.current?.code !== code) { enterLobby(code, shouldHost(code) ? 'host' : 'client'); setScreen('lobby') }
       } else if (!code && !sessionRef.current) {
         setScreen('menu')
       }
@@ -152,9 +172,14 @@ export default function App() {
     if (hud.matchResult) document.exitPointerLock?.()
   }, [hud.matchResult])
 
-  // Закрытие вкладки в игре → мгновенный 'bye' соседу (иначе детект по presence-таймауту).
+  // Закрытие/обновление вкладки → мгновенный 'bye' соседу (иначе детект по presence-таймауту) + снимаем флаг
+  // живого хоста этого кода (refresh/reopen этой же вкладки потом снова станет хостом; вторая живая — клиентом).
   useEffect(() => {
-    const onUnload = () => sessionRef.current?.net.leave()
+    const onUnload = () => {
+      const s = sessionRef.current
+      if (s?.role === 'host') clearHostLive(s.code)
+      s?.net.leave()
+    }
     window.addEventListener('beforeunload', onUnload)
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
@@ -187,6 +212,7 @@ export default function App() {
 
   const handleCreateLobby = () => {
     const code = randomCode()
+    rememberHosted(code)   // запомнить, что это лобби создали мы → остаёмся хостом при обновлении
     window.location.hash = code
     enterLobby(code, 'host')
     setScreen('lobby')
@@ -212,6 +238,7 @@ export default function App() {
   const handleBack = () => {
     if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
     setJoinStatus('idle')
+    forgetHosted()   // явный выход в меню → больше не претендуем на роль хоста этого кода
     leaveLobby()
     setScreen('menu')
     if (window.location.hash) window.location.hash = ''
@@ -233,9 +260,11 @@ export default function App() {
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
+  // На экране «войти в лобби» показываем резервный цвет (хост может занять твой основной — превью того,
+  // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'settings'
     ? settingsPreview
-    : { color: profile.primaryColor, model: profile.ballModel }
+    : { color: screen === 'join' ? profile.reserveColor : profile.primaryColor, model: profile.ballModel }
 
   // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
@@ -335,6 +364,7 @@ export default function App() {
                 shieldBlock={hud.shieldBlock}
               />
               <DashIndicator dashProgress={hud.dashProgress} />
+              <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
               <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>

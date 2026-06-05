@@ -47,6 +47,7 @@ describe('intentsFromInput (хост применяет ввод клиента)
   it('W копит движение вперёд (desired.z < 0)', () => {
     const p = makePlayer()
     intentsFromInput(p, frame({ keys: { f: true, b: false, l: false, r: false } }), 0.016, world)
+    p.stepHorizontal(0.016, null)   // скоростная модель: разгон желаемой скорости → desired
     expect(p.consumeDesired().z).toBeLessThan(0)
   })
 

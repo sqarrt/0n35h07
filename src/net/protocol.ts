@@ -36,8 +36,8 @@ export interface InputFrame {
   seq:    number
   keys:   InputKeys
   aimDir: Vec3       // направление взгляда (для basis движения и прицела)
-  jump:   boolean    // рёберные действия — one-shot за кадр
-  fire:   boolean
+  jump:   boolean    // held-состояние прыжка (auto-bhop/двойной прыжок считает Body на хосте)
+  fire:   boolean    // рёберные действия (fire/shield/dash) — one-shot за кадр
   shield: boolean
   dash:   boolean
 }

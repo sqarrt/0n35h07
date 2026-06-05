@@ -4,8 +4,8 @@ import type { World } from '../World'
 import { intentsFromInput } from '../../net/input'
 import type { InputFrame } from '../../net/protocol'
 
-interface Edges { jump: boolean; fire: boolean; shield: boolean; dash: boolean }
-const noEdges = (): Edges => ({ jump: false, fire: false, shield: false, dash: false })
+interface Edges { fire: boolean; shield: boolean; dash: boolean }
+const noEdges = (): Edges => ({ fire: false, shield: false, dash: false })
 
 /**
  * Хост: ведёт аватар удалённого игрока по присланным InputFrame через те же intent-методы,
@@ -26,9 +26,8 @@ export class RemoteInputController implements Controller {
     this.world = world
   }
 
-  /** Принять кадр: копим рёберные действия, движение/прицел — из самого нового кадра. */
+  /** Принять кадр: копим рёберные действия (fire/shield/dash); движение/прицел/прыжок(held) — из самого нового. */
   enqueue(frame: InputFrame) {
-    this.edges.jump   ||= frame.jump
     this.edges.fire   ||= frame.fire
     this.edges.shield ||= frame.shield
     this.edges.dash   ||= frame.dash

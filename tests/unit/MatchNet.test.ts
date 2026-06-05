@@ -96,7 +96,8 @@ describe('Match — сетевой режим', () => {
     match.update(0.016)   // tickPhase: countdown → live
     expect(match.phase).toBe('live')
     match.human.moveIntent(new THREE.Vector3(5, 0, 0), 1)
-    expect(match.human.consumeDesired().x).toBeCloseTo(5)   // разморожен
+    match.human.stepHorizontal(0.016, null)   // скоростная модель реализует намерение в desired
+    expect(match.human.consumeDesired().x).toBeGreaterThan(0)   // разморожен
     spy.mockRestore()
   })
 
@@ -110,9 +111,15 @@ describe('Match — сетевой режим', () => {
   it('handlePlayerLeft: фаза ended, аватар скрыт, шлёт SET_MATCH_RESULT disconnect/win', () => {
     const { match, dispatch } = makeMatch('host', 0)
     const opponent = match.players.find(p => p.id === 1)!
+    const t0 = 5_000_000
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')
     expect(opponent.bodyGroup.visible).toBe(false)
+    // Экран исхода отложен на END_FREEZE_MS — диспатчится после стоп-кадра.
+    spy.mockReturnValue(t0 + 250)
+    match.update(0.016)
+    spy.mockRestore()
     const result = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0]
     expect(result).toBeTruthy()
     expect(result.result.reason).toBe('disconnect')

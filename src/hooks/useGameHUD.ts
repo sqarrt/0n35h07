@@ -12,6 +12,7 @@ export interface HUDState {
   beamProgress: number
   shieldProgress: number
   dashProgress: number
+  playerSpeed: number
   shieldVisible: boolean
   windupProgress: number
   scores: PlayerScore[]
@@ -31,6 +32,7 @@ export type HUDAction =
   | { type: 'SET_BEAM_PROGRESS';   value: number }
   | { type: 'SET_SHIELD_PROGRESS'; value: number }
   | { type: 'SET_DASH_PROGRESS';   value: number }
+  | { type: 'SET_PLAYER_SPEED';    value: number }
   | { type: 'SET_SHIELD_VISIBLE';  value: boolean }
   | { type: 'SET_WINDUP_PROGRESS'; value: number }
   | { type: 'SET_SCORES';          scores: PlayerScore[] }
@@ -48,6 +50,7 @@ const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botSh
   beamProgress: 1,
   shieldProgress: 1,
   dashProgress: 1,
+  playerSpeed: 0,
   shieldVisible: false,
   windupProgress: 0,
   scores: [],
@@ -67,6 +70,7 @@ function reducer(
     case 'SET_BEAM_PROGRESS':   return { ...state, beamProgress:   action.value }
     case 'SET_SHIELD_PROGRESS': return { ...state, shieldProgress: action.value }
     case 'SET_DASH_PROGRESS':   return { ...state, dashProgress:   action.value }
+    case 'SET_PLAYER_SPEED':    return { ...state, playerSpeed:    action.value }
     case 'SET_SHIELD_VISIBLE':  return { ...state, shieldVisible:  action.value }
     case 'SET_WINDUP_PROGRESS': return { ...state, windupProgress: action.value }
     case 'SET_SCORES':          return { ...state, scores:        action.scores }
