@@ -1,5 +1,6 @@
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Color } from 'three'
 import type { Group } from 'three'
 import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU } from '../constants'
 import type { BallModel } from '../constants'
@@ -9,6 +10,8 @@ import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 // Анимация переезда/появления модельки.
 const DAMP_TAU = MENU_ANIM_TAU // переезд позиции/масштаба — общий TAU с подложкой меню (одинаковая скорость)
 const FADE_TAU = 0.13          // появление (opacity) чуть дольше переезда — мягче выходит из фейда (~0.4с)
+const COLOR_TAU = 0.067        // плавная смена цвета модельки (~0.2с до 95%) — основной↔резервный на «войти»
+const EXIT_MS = 400            // сколько держим выходящий шар смонтированным, пока он уезжает за край
 const BIG_FRACTION = 0.4       // радиус крупного шара = доля высоты viewport (диаметр ≈ 0.8 высоты)
 const SETTINGS_X_FRACTION = 0.26   // смещение влево на экране настроек (доля ширины)
 const SETTINGS_H_FRACTION = 0.32   // и масштаб поменьше, чтобы шар влез целиком слева
@@ -52,36 +55,44 @@ function OrbitingLight() {
 }
 
 /**
- * Шар игрока с анимируемыми x/scale/opacity. Каждый кадр тянет текущие значения к целевым
- * экспоненциальным демпфированием (FPS-независимо). Появляется фейдом 0.2с; при `slideIn` —
- * выезжает из-за кадра к своей кромке. Тот же инстанс при смене `pos` едет к новой цели.
+ * Шар игрока с анимируемыми x/scale/opacity/цветом. Каждый кадр тянет текущие значения к целевым
+ * экспоненциальным демпфированием (FPS-независимо). Появляется фейдом 0.2с; при `slideIn` — выезжает
+ * из-за кадра к своей кромке; при `exiting` — уезжает за край и гаснет (перед размонтированием). Тот же
+ * инстанс при смене `pos` едет к новой цели, при смене `spec.color` — плавно перекрашивается.
  */
-function AnimatedBall({ spec, pos, slideIn }: { spec: BallSpec; pos: Pos; slideIn: boolean }) {
+function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec; pos: Pos; slideIn: boolean; exiting?: boolean }) {
   const viewport = useThree(s => s.viewport)
   const groupRef = useRef<Group>(null)
+  // Материал мемоизируем по МОДЕЛИ (не цвету): смена цвета не пересоздаёт материал, цвет лерпим в кадре.
   const { material, tick } = useMemo(() => {
     const m = createBallMaterial(spec.color, spec.model)
     m.material.opacity = 0   // без вспышки до первого кадра
     return m
-  }, [spec.color, spec.model])
-  const ring = useMemo(() => (spec.model === 'planet' ? createBallRing(spec.color) : null), [spec.color, spec.model])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spec.model])
+  const ring = useMemo(() => (spec.model === 'planet' ? createBallRing(spec.color) : null), [spec.model]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => material.dispose(), [material])
   useEffect(() => () => ring?.dispose(), [ring])
 
+  const targetColor = useMemo(() => new Color(spec.color), [spec.color])
   const cur = useRef<{ x: number; scale: number; opacity: number } | null>(null)
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     const t = resolveTarget(pos, viewport)
+    const targetX = exiting ? offscreenX(pos, viewport) : t.x   // выход — уезжаем за край
+    const targetOpacity = exiting ? 0 : 1
     if (!cur.current) {
       cur.current = { x: slideIn ? offscreenX(pos, viewport) : t.x, scale: t.scale, opacity: 0 }
     }
     const k = 1 - Math.exp(-dt / DAMP_TAU)
     const kf = 1 - Math.exp(-dt / FADE_TAU)
+    const kc = 1 - Math.exp(-dt / COLOR_TAU)
     const c = cur.current
-    c.x += (t.x - c.x) * k
+    c.x += (targetX - c.x) * k
     c.scale += (t.scale - c.scale) * k
-    c.opacity += (1 - c.opacity) * kf
+    c.opacity += (targetOpacity - c.opacity) * kf
+    material.color.lerp(targetColor, kc)
     material.opacity = c.opacity
     ring?.setOpacity(c.opacity)
     tick(dt); ring?.tick(dt)
@@ -122,11 +133,48 @@ function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null)
   ]
 }
 
+type RenderedBall = ActiveBall & { exiting?: boolean }
+
+/** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
+function signOf(balls: ActiveBall[]): string {
+  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.model}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
+}
+
 function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null }) {
-  const balls = computeBalls(mode, player, lobby)
+  const active = computeBalls(mode, player, lobby)
+  const sign = signOf(active)
+  const [rendered, setRendered] = useState<RenderedBall[]>(active)
+  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  useEffect(() => {
+    const activeKeys = new Set(active.map(b => b.key))
+    setRendered(prev => {
+      const next: RenderedBall[] = active.map(b => ({ ...b }))   // активные — без exiting
+      for (const b of prev) {
+        if (activeKeys.has(b.key)) {                              // вернулся в активные → отменить выход
+          const tm = timers.current.get(b.key)
+          if (tm) { clearTimeout(tm); timers.current.delete(b.key) }
+          continue
+        }
+        next.push({ ...b, exiting: true })                       // пропал → держим, пока уезжает за край
+        if (!timers.current.has(b.key)) {
+          const tm = setTimeout(() => {
+            timers.current.delete(b.key)
+            setRendered(r => r.filter(x => x.key !== b.key))
+          }, EXIT_MS)
+          timers.current.set(b.key, tm)
+        }
+      }
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sign])
+
+  useEffect(() => () => { timers.current.forEach(clearTimeout); timers.current.clear() }, [])
+
   return (
     <>
-      {balls.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} />)}
+      {rendered.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} exiting={b.exiting} />)}
     </>
   )
 }

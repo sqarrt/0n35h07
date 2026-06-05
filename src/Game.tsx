@@ -85,7 +85,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       if (e.button === 2) hc.onShield()
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space') { e.preventDefault(); hc.onJump() }
+      // Прыжок (Space) — held-ввод в useGameInput (auto-bhop при удержании), не рёберный onJump.
       if (e.code === 'KeyV') hc.toggleView()   // по физической клавише — не зависит от раскладки
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hc.onDash()
     }

@@ -28,7 +28,7 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
 
   return (
     <>
-      <MapLights />
+      <MapLights half={map.half} />
 
       {/* Пол: плоскость (визуал) + статический коллайдер (верх на y=0). Луч игнорит (noRaycast). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>

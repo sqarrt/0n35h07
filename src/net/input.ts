@@ -25,7 +25,7 @@ export function intentsFromInput(player: Player, frame: InputFrame, dt: number, 
   const aimPoint = hit ? hit.point : origin.clone().addScaledVector(aimDir, AIM_RANGE)
   player.aim(aimPoint)
 
-  if (frame.jump)   player.jump()
+  player.setJumpInput(frame.jump)   // held-состояние (auto-bhop/двойной прыжок считает Body на хосте)
   if (frame.shield) player.activateShield()
   if (frame.fire)   player.startFiring()
   if (frame.dash) {

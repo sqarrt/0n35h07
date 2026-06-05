@@ -37,8 +37,11 @@ describe('Match: конец по времени', () => {
     // Перемотать время за конец матча
     spy.mockReturnValue(t0 + 5001)
     match.update(0.016)   // host-ветка: tickMatchClock увидит remaining=0 → endMatch('time')
-    spy.mockRestore()
     expect(match.phase).toBe('ended')
+    // Стоп-кадр: экран исхода отложен на END_FREEZE_MS — появляется только после паузы.
+    spy.mockReturnValue(t0 + 5001 + 250)
+    match.update(0.016)
+    spy.mockRestore()
     const ended = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0]
     expect(ended).toBeTruthy()
     expect(ended.result.reason).toBe('time')
@@ -48,11 +51,17 @@ describe('Match: конец по времени', () => {
 
 describe('Match: отключение соперника', () => {
   it('handlePlayerLeft → ended, исход win, reason disconnect', () => {
+    const t0 = 3_000_000
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const dispatch = vi.fn()
     const { match } = makeMatch('host', { durationMs: 600000, dispatch })
     match.forceLiveForTest()
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')
+    // Экран исхода отложен на END_FREEZE_MS — диспатчится после стоп-кадра.
+    spy.mockReturnValue(t0 + 250)
+    match.update(0.016)
+    spy.mockRestore()
     const r = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0].result
     expect(r.reason).toBe('disconnect')
     expect(r.outcome).toBe('win')

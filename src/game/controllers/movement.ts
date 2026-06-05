@@ -16,15 +16,17 @@ export function horizontalBasis(look: THREE.Vector3): { dir: THREE.Vector3; righ
   return { dir, right }
 }
 
-/** Вектор скорости WASD (с замедлением во время заряда выстрела). */
+/** Желаемая скорость WASD: единичное направление × MOVE_SPEED (диагональ НЕ быстрее — нормализуем, чтобы
+ *  wishspeed был чётко определён для скоростной модели). Замедление во время заряда выстрела. */
 export function moveVelocity(
   keys: MoveKeys, dir: THREE.Vector3, right: THREE.Vector3, windingUp: boolean,
 ): THREE.Vector3 {
   const vel = new THREE.Vector3()
-  if (keys.forward) vel.addScaledVector(dir, MOVE_SPEED)
-  if (keys.back)    vel.addScaledVector(dir, -MOVE_SPEED)
-  if (keys.left)    vel.addScaledVector(right, -MOVE_SPEED)
-  if (keys.right)   vel.addScaledVector(right, MOVE_SPEED)
+  if (keys.forward) vel.add(dir)
+  if (keys.back)    vel.sub(dir)
+  if (keys.left)    vel.sub(right)
+  if (keys.right)   vel.add(right)
+  if (vel.lengthSq() > 0) vel.normalize().multiplyScalar(MOVE_SPEED)
   if (windingUp) vel.multiplyScalar(WINDUP_MOVE_FACTOR)
   return vel
 }

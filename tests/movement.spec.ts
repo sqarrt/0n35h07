@@ -32,7 +32,7 @@ test('WASD — четыре направления и фиксированная
 })
 
 test('Space — прыжок и приземление', async ({ page }) => {
-  // Жмём Space, пока камера не поднимется (физика Rapier может ещё грузиться под нагрузкой).
+  // Жмём Space (keydown), пока камера не поднимется (физика Rapier может ещё грузиться под нагрузкой).
   await page.waitForFunction(() => {
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }))
     const cam = (window as any).__debugCamera
@@ -40,6 +40,28 @@ test('Space — прыжок и приземление', async ({ page }) => {
   }, { timeout: 6000, polling: 100 })
   expect((await getCameraPos(page)).y).toBeGreaterThan(1.7)   // взлетел
 
+  // ОТПУСКАЕМ Space — иначе удержание = auto-bhop, и игрок не приземлится.
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true })))
   await page.waitForTimeout(1200)
   expect((await getCameraPos(page)).y).toBeCloseTo(1.7, 1)    // вернулся на землю
+})
+
+test('bhop — удержание Space даёт серию прыжков даже с W+D (без авто-повтора ОС)', async ({ page }) => {
+  // Регрессия: раньше bhop держался на ОС-автоповторе Space, и W+D+Space его рвало. Теперь прыжок — held-ввод:
+  // одно нажатие Space (без keyup) + W + D → keys.jump остаётся true → авто-прыжок на каждом приземлении.
+  await page.evaluate(() => {
+    for (const code of ['Space', 'KeyW', 'KeyD']) window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true }))
+  })
+  let bounces = 0
+  let wasAir = false
+  for (let i = 0; i < 45; i++) {
+    await page.waitForTimeout(40)
+    const air = (await getCameraPos(page)).y > 1.78
+    if (air && !wasAir) bounces++   // фронт «оторвался от земли» = новый прыжок в серии
+    wasAir = air
+  }
+  await page.evaluate(() => {
+    for (const code of ['Space', 'KeyW', 'KeyD']) window.dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true }))
+  })
+  expect(bounces).toBeGreaterThanOrEqual(2)   // серия прыжков продолжается при зажатых W+D
 })

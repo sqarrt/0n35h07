@@ -42,6 +42,9 @@ export function ShieldBrackets({ shieldProgress, shieldVisible, shieldBlock }: S
   const opacity = shieldVisible ? 1 : (shieldProgress >= 1 ? 0.85 : 0.5)
   const off = A * (1 - shieldProgress)
 
+  // Прозрачность/свечение применяются на ГРУППЕ плеч (а не на каждом path): иначе в вершине угла, где
+  // перпендикулярные плечи перекрываются, полупрозрачности перемножаются и угол виден ярче («шов»).
+  const armOpacity = shieldBlock ? 1 : opacity
   const armStyle = shieldBlock
     ? { filter: 'drop-shadow(0 0 8px #fff) brightness(4)' }
     : shieldVisible ? { filter: 'drop-shadow(0 0 6px #4169e1)' }
@@ -57,16 +60,19 @@ export function ShieldBrackets({ shieldProgress, shieldVisible, shieldBlock }: S
         const arm = (d: string) => (
           <path d={d} fill="none"
             stroke={shieldBlock ? '#fff' : color} strokeWidth="6"
-            strokeDasharray={`${A}`} strokeDashoffset={`${off}`} strokeLinecap="square"
-            opacity={shieldBlock ? 1 : opacity} style={armStyle} />
+            strokeDasharray={`${A}`} strokeDashoffset={`${off}`} strokeLinecap="square" />
         )
         return (
           <div key={c.key} style={{ position: 'fixed', pointerEvents: 'none', zIndex: 11, ...c.pos }}>
             <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`}>
-              <path d={hPath} fill="none" stroke="#223" strokeWidth="6" opacity="0.4" />
-              <path d={vPath} fill="none" stroke="#223" strokeWidth="6" opacity="0.4" />
-              {arm(hPath)}
-              {arm(vPath)}
+              <g opacity="0.4">
+                <path d={hPath} fill="none" stroke="#223" strokeWidth="6" />
+                <path d={vPath} fill="none" stroke="#223" strokeWidth="6" />
+              </g>
+              <g opacity={armOpacity} style={armStyle}>
+                {arm(hPath)}
+                {arm(vPath)}
+              </g>
             </svg>
           </div>
         )

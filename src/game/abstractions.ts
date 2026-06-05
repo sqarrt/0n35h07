@@ -4,7 +4,7 @@ import type { World } from './World'
 /** То, чем управляет ЛЮБОЙ контроллер (клавиатура человека или ИИ бота). */
 export interface IControllable {
   moveIntent(worldDir: THREE.Vector3, dt: number): void
-  jump(): void
+  setJumpInput(held: boolean): void
   aim(dir: THREE.Vector3): void
   startFiring(): void
   activateShield(): void

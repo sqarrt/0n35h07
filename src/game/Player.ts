@@ -91,9 +91,12 @@ export class Player implements IControllable {
   get rb() { return this.body.rb }
   consumeDesired()        { return this.body.consumeDesired() }
   consumeTeleport()       { return this.body.consumeTeleport() }
+  stepJump()              { this.body.stepJump() }
   stepVertical(dt: number){ this.body.stepVertical(dt) }
+  stepHorizontal(dt: number, groundNormal: THREE.Vector3 | null) { this.body.stepHorizontal(dt, groundNormal) }
   stepDash(dt: number)    { this.body.stepDash(dt) }
   get dashing()           { return this.body.dashing }
+  get grounded()          { return this.body.grounded }
   setGrounded(g: boolean) { this.body.setGrounded(g) }
 
   /** Кэшируем позицию из физ-тела и двигаем визуальную группу (она в world-space). */
@@ -102,8 +105,9 @@ export class Player implements IControllable {
     this.bodyGroup.position.copy(this.body.position)
   }
 
-  /** Заморозка: во время готовности/отсчёта движение и действия отключены, камера/прицел — нет. */
-  setFrozen(v: boolean) { this.frozen = v }
+  /** Заморозка: во время готовности/отсчёта/конца движение и действия отключены, камера/прицел — нет.
+   *  Включение гасит инерцию (velH/velocityY) → игроки реально стоят (стоп-кадр конца матча). */
+  setFrozen(v: boolean) { this.frozen = v; if (v) this.body.halt() }
 
   // --- IControllable ---
   // Движение доступно живому И призраку (в фазе респауна, ×3 скорость); атака — только живому.
@@ -121,7 +125,7 @@ export class Player implements IControllable {
     if (p >= RESPAWN_SPEED_RAMP) return RESPAWN_SPEED_MULT
     return 1 + (RESPAWN_SPEED_MULT - 1) * (p / RESPAWN_SPEED_RAMP)
   }
-  jump()                       { if (!this.canMove()) return; this.body.jump() }
+  setJumpInput(held: boolean)  { this.body.setJumpInput(this.canMove() && held) }   // held → auto-bhop/двойной прыжок
   aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира (доступно и в заморозке)
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
   activateShield()             { if (!this.canAct()) return; this.shield.activate() }
