@@ -24,8 +24,9 @@ export const TP_HEIGHT  = 2   // third-person camera height above player
 export const MAX_AIR_JUMPS   = 1     // воздушных прыжков (двойной прыжок: 1 с земли + 1 в воздухе)
 export const GROUND_ACCEL    = 16    // ускорение к желаемой скорости на земле (множитель wishspeed·dt) — снаппи
 export const GROUND_FRICTION = 12    // трение на земле (1/с); кадр прыжка трение пропускает (основа bhop)
-export const AIR_ACCEL       = 100   // ускорение в воздухе (Quake air-accelerate)
+export const AIR_ACCEL       = 15    // ускорение в воздухе (Quake air-accelerate) — набор скорости стрейфом не мгновенный
 export const AIR_WISH_SPEED  = 1.0   // кэп желаемой скорости в воздухе → разгон стрейфом сверх MOVE_SPEED
+export const MAX_SPEED       = MOVE_SPEED * 6   // верхний предел горизонтальной скорости (~×6 обычной) — bhop не разгоняет бесконечно
 export const SLOPE_MIN_NORMAL_Y = 0.1   // мин. n.y, чтобы считать поверхность полом-склоном (а не стеной)
 
 // Dash (рывок на Shift)

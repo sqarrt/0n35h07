@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { Body } from '../../src/game/Body'
-import { JUMP_FORCE, DASH_DURATION, MOVE_SPEED } from '../../src/constants'
+import { JUMP_FORCE, DASH_DURATION, MOVE_SPEED, MAX_SPEED } from '../../src/constants'
 
 // Body больше не интегрирует позицию (это делает Rapier KCC) — он копит НАМЕРЕНИЕ через скоростную модель.
 describe('Body', () => {
@@ -33,6 +33,16 @@ describe('Body', () => {
     b.setJumpInput(false); b.stepJump()
     b.setJumpInput(true);  b.stepJump()    // воздушные прыжки исчерпаны (MAX_AIR_JUMPS=1) → нет
     expect(b.velocityY).toBe(0)
+  })
+
+  it('верхний предел скорости: горизонталь не превышает MAX_SPEED', () => {
+    const b = new Body(0, '#4af')
+    b.move(new THREE.Vector3(1000, 0, 0), 1)   // желаем нереально много → упрёмся в потолок
+    let d = new THREE.Vector3()
+    for (let i = 0; i < 20; i++) { b.stepHorizontal(0.016, null); d = b.consumeDesired() }
+    const speed = Math.hypot(d.x, d.z) / 0.016   // desired = velH·dt → восстанавливаем скорость
+    expect(speed).toBeLessThanOrEqual(MAX_SPEED + 1e-3)
+    expect(speed).toBeGreaterThan(MOVE_SPEED)    // и при этом разогнались выше обычной
   })
 
   it('bhop: инерция переживает приземление (setGrounded не гасит горизонталь)', () => {

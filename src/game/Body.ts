@@ -4,7 +4,7 @@ import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
   DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
-  MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, SLOPE_MIN_NORMAL_Y,
+  MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
 import type { BallModel } from '../constants'
 import { createBallMaterial, createBallRing } from './fx/ballMaterial'
@@ -128,6 +128,8 @@ export class Body {
     } else if (wishspeed > 1e-6) {
       this.accelerate(_wishDir, Math.min(wishspeed, AIR_WISH_SPEED), AIR_ACCEL, dt)
     }
+
+    if (this.velH.lengthSq() > MAX_SPEED * MAX_SPEED) this.velH.setLength(MAX_SPEED)   // верхний предел скорости
 
     this.desired.x += this.velH.x * dt
     this.desired.z += this.velH.z * dt
