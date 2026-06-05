@@ -10,6 +10,8 @@ export interface PlayerProfile {
   defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
   ballModel: BallModel       // модель сферы (сетевая косметика)
   postProcessing: boolean    // графика: экранный контур рёбер (постобработка); локальное предпочтение
+  showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
+  showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
 }
 
 const KEY = 'oneshot:profile'
@@ -29,7 +31,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false }
 }
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
@@ -41,7 +43,9 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const postProcessing = typeof p.postProcessing === 'boolean' ? p.postProcessing : true   // по умолчанию вкл
-  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing }
+  const showFps = typeof p.showFps === 'boolean' ? p.showFps : false       // по умолчанию выкл
+  const showSpeed = typeof p.showSpeed === 'boolean' ? p.showSpeed : false  // по умолчанию выкл
+  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */

@@ -40,10 +40,12 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [view, setView] = useState<DefaultView>(profile.defaultView)
   const [model, setModel] = useState<BallModel>(profile.ballModel)
   const [post, setPost] = useState(profile.postProcessing)
+  const [showFps, setShowFps] = useState(profile.showFps)
+  const [showSpeed, setShowSpeed] = useState(profile.showSpeed)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -74,6 +76,14 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handlePost = (v: boolean) => {
     setPost(v)
     commit({ ...base(), postProcessing: v })
+  }
+  const handleShowFps = (v: boolean) => {
+    setShowFps(v)
+    commit({ ...base(), showFps: v })
+  }
+  const handleShowSpeed = (v: boolean) => {
+    setShowSpeed(v)
+    commit({ ...base(), showSpeed: v })
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
@@ -166,6 +176,16 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
             <Toggle checked={post} onChange={handlePost} aria-label="Подсвечивать контуры" />
             <span style={{ ...label, marginBottom: 0 }}>ПОДСВЕЧИВАТЬ КОНТУРЫ</span>
+          </div>
+
+          <div style={subHeader}>ОВЕРЛЕЙ</div>
+          <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
+            <Toggle checked={showFps} onChange={handleShowFps} aria-label="Выводить счётчик кадров" />
+            <span style={{ ...label, marginBottom: 0 }}>ВЫВОДИТЬ СЧЁТЧИК КАДРОВ</span>
+          </div>
+          <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
+            <Toggle checked={showSpeed} onChange={handleShowSpeed} aria-label="Выводить скорость игрока" />
+            <span style={{ ...label, marginBottom: 0 }}>ВЫВОДИТЬ СКОРОСТЬ ИГРОКА</span>
           </div>
         </>
       )}

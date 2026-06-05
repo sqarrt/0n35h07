@@ -7,6 +7,7 @@ import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
 import { WindupOverlay } from './components/WindupOverlay'
 import { DashIndicator } from './components/DashIndicator'
+import { StatsOverlay } from './components/StatsOverlay'
 import { RespawnOverlay } from './components/RespawnOverlay'
 import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
@@ -363,6 +364,7 @@ export default function App() {
                 shieldBlock={hud.shieldBlock}
               />
               <DashIndicator dashProgress={hud.dashProgress} />
+              <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
               <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>

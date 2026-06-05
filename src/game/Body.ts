@@ -174,6 +174,9 @@ export class Body {
 
   get dashing() { return this.dashTimer > 0 }
 
+  /** Текущая горизонтальная скорость (ед/с) — для оверлея скорости. */
+  get horizontalSpeed() { return Math.hypot(this.velH.x, this.velH.z) }
+
   /** Прогресс готовности рывка: 1 = готов, 0..1 во время кулдауна. */
   dashProgress(): number {
     return this.dashCooldown > 0 ? Math.max(0, 1 - this.dashCooldown / DASH_COOLDOWN) : 1

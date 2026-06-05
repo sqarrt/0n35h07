@@ -16,8 +16,17 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false })
-    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false })
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true })
+  })
+
+  it('showFps/showSpeed сохраняются; отсутствуют/мусор → false', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', showFps: true, showSpeed: true })
+    expect(loadProfile().showFps).toBe(true)
+    expect(loadProfile().showSpeed).toBe(true)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без полей
+    expect(loadProfile().showFps).toBe(false)
+    expect(loadProfile().showSpeed).toBe(false)
   })
 
   it('postProcessing сохраняется; отсутствует/мусор → true', () => {

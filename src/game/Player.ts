@@ -97,6 +97,7 @@ export class Player implements IControllable {
   stepDash(dt: number)    { this.body.stepDash(dt) }
   get dashing()           { return this.body.dashing }
   get grounded()          { return this.body.grounded }
+  get speed()             { return this.body.horizontalSpeed }   // горизонтальная скорость (оверлей)
   setGrounded(g: boolean) { this.body.setGrounded(g) }
 
   /** Кэшируем позицию из физ-тела и двигаем визуальную группу (она в world-space). */

@@ -440,6 +440,7 @@ export class Match {
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
+      this.dispatch({ type: 'SET_PLAYER_SPEED',    value: this.human.speed })
       // Фаза призрака локального игрока: шлём прогресс пока активна и один раз null по завершении.
       const respawn = this.human.isRespawning ? this.human.respawnProgress() : null
       if (respawn !== null || this.prevRespawnActive) {
