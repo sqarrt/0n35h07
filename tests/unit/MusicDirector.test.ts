@@ -14,25 +14,29 @@ const rolesOf = (arr: { role: string }[]) => arr.map(v => v.role).sort()
 describe('MusicDirector.compose', () => {
   const d = new MusicDirector()
 
-  it('детерминирован: (seed, loopIndex) → одинаковая аранжировка', () => {
-    expect(d.compose(42, 5, LIB)).toEqual(d.compose(42, 5, LIB))
+  it('детерминирован: (seed, loopIndex, section) → одинаковая аранжировка', () => {
+    expect(d.compose(42, 5, LIB, 'full')).toEqual(d.compose(42, 5, LIB, 'full'))
   })
 
-  it('интро (loopIndex 0,1): только kicks+bass', () => {
-    expect(rolesOf(d.compose(42, 0, LIB))).toEqual(['bass', 'kicks'])
-    expect(rolesOf(d.compose(42, 1, LIB))).toEqual(['bass', 'kicks'])
+  it('intro: только kicks+bass', () => {
+    expect(rolesOf(d.compose(42, 0, LIB, 'intro'))).toEqual(['bass', 'kicks'])
+    expect(rolesOf(d.compose(42, 7, LIB, 'intro'))).toEqual(['bass', 'kicks'])
   })
 
-  it('после интро (loopIndex 2): вступают lead и sfx', () => {
-    expect(rolesOf(d.compose(42, 2, LIB))).toEqual(['bass', 'kicks', 'lead', 'sfx'])
+  it('full: все четыре роли', () => {
+    expect(rolesOf(d.compose(42, 2, LIB, 'full'))).toEqual(['bass', 'kicks', 'lead', 'sfx'])
+  })
+
+  it('finale: только kicks+lead', () => {
+    expect(rolesOf(d.compose(42, 9, LIB, 'finale'))).toEqual(['kicks', 'lead'])
   })
 
   it('все stemId существуют в библиотеке', () => {
     const all = new Set(Object.values(LIB).flat().map(s => s.id))
-    for (const v of d.compose(7, 9, LIB)) expect(all.has(v.stemId)).toBe(true)
+    for (const v of d.compose(7, 9, LIB, 'full')) expect(all.has(v.stemId)).toBe(true)
   })
 
   it('у каждого голоса положительный gain', () => {
-    for (const v of d.compose(7, 2, LIB)) expect(v.gain).toBeGreaterThan(0)
+    for (const v of d.compose(7, 2, LIB, 'full')) expect(v.gain).toBeGreaterThan(0)
   })
 })

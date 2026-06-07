@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { MatchMusic } from '../../src/game/audio/MatchMusic'
-import type { IMusicEngine, Arrangement, StemLibrary } from '../../src/game/audio/types'
+import type { IMusicEngine, Arrangement, StemLibrary, MusicSection } from '../../src/game/audio/types'
+
+const intro = (): MusicSection => 'intro'
 
 class FakeEngine implements IMusicEngine {
   loadCalls = 0
@@ -9,6 +11,7 @@ class FakeEngine implements IMusicEngine {
   loopIndex = 0
   async load(_lib: StemLibrary) { this.loadCalls++ }
   async start(provider: (i: number) => Arrangement) { this.startCalls++; this.provider = provider }
+  fadeOut() {}
   stop() {}
   setMasterGain() {}
   dispose() {}
@@ -20,7 +23,7 @@ afterEach(() => { delete window.__debugMusic })
 describe('MatchMusic', () => {
   it('start(): сначала load, потом start с provider', async () => {
     const eng = new FakeEngine()
-    await new MatchMusic('AB12', eng).start()
+    await new MatchMusic('AB12', eng, intro).start()
     expect(eng.loadCalls).toBe(1)
     expect(eng.startCalls).toBe(1)
     expect(eng.provider).toBeTypeOf('function')
@@ -28,27 +31,29 @@ describe('MatchMusic', () => {
 
   it('provider даёт детерминированную интро-аранжировку (kicks+bass) на loop 0', async () => {
     const eng = new FakeEngine()
-    await new MatchMusic('AB12', eng).start()
+    await new MatchMusic('AB12', eng, intro).start()
     const roles = eng.provider!(0).map(v => v.role).sort()
     expect(roles).toEqual(['bass', 'kicks'])
   })
 
   it('одинаковый код → одинаковый provider-выход (детерминизм от сида)', async () => {
-    const e1 = new FakeEngine(); await new MatchMusic('ZZZZ', e1).start()
-    const e2 = new FakeEngine(); await new MatchMusic('ZZZZ', e2).start()
+    const e1 = new FakeEngine(); await new MatchMusic('ZZZZ', e1, intro).start()
+    const e2 = new FakeEngine(); await new MatchMusic('ZZZZ', e2, intro).start()
     expect(e1.provider!(3)).toEqual(e2.provider!(3))
   })
 
   it('start() идемпотентен', async () => {
     const eng = new FakeEngine()
-    const m = new MatchMusic('AB12', eng)
+    const m = new MatchMusic('AB12', eng, intro)
     await m.start(); await m.start()
     expect(eng.startCalls).toBe(1)
   })
 
-  it('устанавливает и снимает window.__debugMusic', async () => {
+  it('__debugMusic ставится в start() (не в конструкторе) и снимается в dispose()', async () => {
     const eng = new FakeEngine()
-    const m = new MatchMusic('AB12', eng)
+    const m = new MatchMusic('AB12', eng, intro)
+    expect(window.__debugMusic).toBeUndefined()   // конструктор НЕ трогает глобал (StrictMode-safe)
+    await m.start()
     expect(window.__debugMusic).toBeTypeOf('function')
     m.dispose()
     expect(window.__debugMusic).toBeUndefined()

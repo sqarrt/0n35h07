@@ -1,15 +1,21 @@
-import type { Role, StemLibrary, Arrangement, VoiceSpec } from './types'
+import type { Role, MusicSection, StemLibrary, Arrangement, VoiceSpec } from './types'
 import { mulberry32 } from './rng'
 
 // --- ПРАВИЛА КОМПОЗИЦИИ (тюнятся здесь — константами ИЛИ переписыванием алгоритма) ---
-const INTRO_LOOPS = 2        // столько 8с-лупов играют только kicks+bass до вступления остального
 const SWAP_EVERY_LOOPS = 4   // как часто можно сменить выбранный стем внутри роли
 const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.7, sfx: 0.5 }
 const ROLE_SALT: Record<Role, number> = { bass: 0x1111, kicks: 0x2222, lead: 0x3333, sfx: 0x4444 }
 const CYCLE_MIX = 0x9E3779B1   // золотое сечение — перемешивает номер цикла подмены
 
-const INTRO_ROLES: Role[] = ['kicks', 'bass']
-const FULL_ROLES: Role[] = ['kicks', 'bass', 'lead', 'sfx']
+// Набор ролей по секции матча:
+//   intro  — до первого убийства: только kicks+bass
+//   full   — основная фаза: все четыре
+//   finale — последние секунды: kicks+lead
+const SECTION_ROLES: Record<MusicSection, Role[]> = {
+  intro:  ['kicks', 'bass'],
+  full:   ['kicks', 'bass', 'lead', 'sfx'],
+  finale: ['kicks', 'lead'],
+}
 
 function pickVoice(role: Role, seed: number, cycle: number, library: StemLibrary): VoiceSpec | null {
   const stems = library[role]
@@ -21,11 +27,10 @@ function pickVoice(role: Role, seed: number, cycle: number, library: StemLibrary
 
 /** Чистая детерминированная композиция. Единственное место музыкальных правил. */
 export class MusicDirector {
-  compose(seed: number, loopIndex: number, library: StemLibrary): Arrangement {
+  compose(seed: number, loopIndex: number, library: StemLibrary, section: MusicSection): Arrangement {
     const cycle = Math.floor(loopIndex / SWAP_EVERY_LOOPS)
-    const roles = loopIndex < INTRO_LOOPS ? INTRO_ROLES : FULL_ROLES
     const voices: VoiceSpec[] = []
-    for (const role of roles) {
+    for (const role of SECTION_ROLES[section]) {
       const v = pickVoice(role, seed, cycle, library)
       if (v) voices.push(v)
     }

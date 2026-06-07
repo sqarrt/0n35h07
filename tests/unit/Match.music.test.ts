@@ -9,6 +9,7 @@ class FakeEngine implements IMusicEngine {
   loopIndex = 0
   async load(_lib: StemLibrary) {}
   async start(_p: (i: number) => Arrangement) { this.startCalls++ }
+  fadeOut() {}
   stop() {}
   setMasterGain() {}
   dispose() {}
@@ -40,17 +41,21 @@ describe('Match × музыка', () => {
     expect(window.__debugMusic).toBeUndefined()
   })
 
-  it('с сидом и движком стартует музыку при входе в live', async () => {
+  it('с сидом и движком стартует музыку при входе в live, ставит __debugMusic', async () => {
     const eng = new FakeEngine()
     const m = makeMatch({ seedCode: 'AB12', musicEngine: eng })
+    expect(window.__debugMusic).toBeUndefined()   // до live глобала нет
     m.forceLiveForTest()
     m.update(0.016)
     await vi.waitFor(() => expect(eng.startCalls).toBe(1))
+    expect(window.__debugMusic).toBeTypeOf('function')
   })
 
-  it('dispose() снимает __debugMusic', () => {
+  it('dispose() снимает __debugMusic', async () => {
     const m = makeMatch({ seedCode: 'AB12', musicEngine: new FakeEngine() })
-    expect(window.__debugMusic).toBeTypeOf('function')
+    m.forceLiveForTest()
+    m.update(0.016)
+    await vi.waitFor(() => expect(window.__debugMusic).toBeTypeOf('function'))
     m.dispose()
     expect(window.__debugMusic).toBeUndefined()
   })
