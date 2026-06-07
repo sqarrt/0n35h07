@@ -27,6 +27,9 @@ dist-ssr
 test-results
 .env
 
+# Strudel-прелюдия редактора музыки (AGPL-сосед) — в игру не тащим
+prebake.strudel
+
 # Локальные настройки/планы Claude и отладочные скриншоты
 .claude/
 dash-strips*.png
