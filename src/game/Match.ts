@@ -14,6 +14,8 @@ import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import { MAPS } from './maps'
+import type { IMusicEngine } from './audio/types'
+import { MatchMusic } from './audio/MatchMusic'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -54,6 +56,8 @@ interface MatchOptions {
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
+  seedCode?: string        // источник сида музыки (лобби-код); общий у обоих пиров
+  musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -99,6 +103,10 @@ export class Match {
   private pendingResult: MatchResult | null = null   // отложенный экран исхода (после END_FREEZE_MS)
   private resultDueAt = 0
 
+  // Музыка матча (опциональна: без сида/движка — тишина, напр. в юнит-тестах)
+  private music: MatchMusic | null = null
+  private musicStarted = false
+
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
     this.world = new World(o.scene)
@@ -117,6 +125,9 @@ export class Match {
     // Ритуал готовности проходят ВСЕ 1v1-матчи (лобби гарантирует двоих). Бот-соперник авто-готов.
     this.phase = 'ready'
     if (opponentIsBot) this.readySet.add(OPPONENT_ID)
+
+    // Музыка матча: только если переданы сид и движок (в юнит-тестах их нет → тишина).
+    if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine)
   }
 
   // --- построение игроков (ровно двое: локальный + соперник) ---
@@ -321,6 +332,12 @@ export class Match {
     if (this.pendingResult && Date.now() >= this.resultDueAt) {
       this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
       this.pendingResult = null
+    }
+    // Музыка стартует один раз при входе в бой — покрывает все пути в live
+    // (host countdown→live, client applyHostPhase, forceLiveForTest).
+    if (this.phase === 'live' && !this.musicStarted) {
+      this.musicStarted = true
+      void this.music?.start()
     }
   }
 
@@ -565,5 +582,6 @@ export class Match {
     delete w.__debugBodyScale
     delete w.__debugForceEnd
     this.players.forEach(p => p.dispose())
+    this.music?.dispose()
   }
 }
