@@ -6,6 +6,7 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
@@ -28,9 +29,10 @@ interface GameProps {
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
+  seedCode: string
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
@@ -47,6 +49,8 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       defaultThirdPerson,
       durationMs,
       mapId,
+      seedCode,
+      musicEngine: new WebAudioMusicEngine(),
     }),
     // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
     // eslint-disable-next-line react-hooks/exhaustive-deps

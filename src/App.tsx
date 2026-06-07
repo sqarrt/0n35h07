@@ -54,6 +54,7 @@ interface GameNet {
   peerToPlayer: Map<PeerId, number>
   durationMs: number
   mapId: MapId
+  code: string
 }
 
 function randomCode() {
@@ -118,7 +119,7 @@ export default function App() {
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setEverLocked(false)
       setScreen('game')
     })
@@ -328,6 +329,7 @@ export default function App() {
               apiRef={gameApiRef}
               durationMs={gameNet.durationMs}
               mapId={gameNet.mapId}
+              seedCode={gameNet.code}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (
