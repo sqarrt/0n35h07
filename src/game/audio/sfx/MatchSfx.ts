@@ -70,11 +70,7 @@ export class MatchSfx {
         this.engine.stopLoop(`shield:${inp.id}`)
       }
       if (inp.dashing && !(prev?.dashing)) playEv('dash')
-      // jump/land — throttle на игрока (схлопывает bhop-пару, см. MOVE_SFX_THROTTLE_MS)
-      if (inp.justJumped && this.moveSfxOk(inp.id, now)) {
-        playEv('jump'); moves.push({ id: inp.id, kind: 'jump', pos: inp.pos.clone() })
-        this.lastMoveSfx.set(inp.id, now)
-      }
+      // Прыжок не озвучиваем (по запросу) — только приземление. Throttle на игрока от частых ретриггеров land.
       if (inp.grounded === true && prev?.grounded === false && this.moveSfxOk(inp.id, now)) {
         playEv('land'); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() })
         this.lastMoveSfx.set(inp.id, now)

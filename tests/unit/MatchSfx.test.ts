@@ -67,11 +67,11 @@ describe('MatchSfx.frame', () => {
     expect(fake.played('dash')).toBe(1)
   })
 
-  it('justJumped → jump и возвращает move-jump', () => {
+  it('прыжок НЕ озвучивается (по запросу — только приземление)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     const moves = sfx.frame([input({ justJumped: true })])
-    expect(fake.played('jump')).toBe(1)
-    expect(moves).toEqual([{ id: 1, kind: 'jump', pos: expect.anything() }])
+    expect(fake.played('jump')).toBe(0)
+    expect(moves).toEqual([])
   })
 
   it('grounded false→true → land', () => {
@@ -88,39 +88,41 @@ describe('MatchSfx.frame', () => {
     expect(fake.played('cooldown_ready')).toBe(1)
   })
 
-  it('move(): озвучивает прыжок/приземление соперника', () => {
+  it('move(): озвучивает приземление соперника', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
-    sfx.move('jump', new THREE.Vector3())
-    expect(fake.played('jump')).toBe(1)
+    sfx.move('land', new THREE.Vector3())
+    expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: land сразу после jump (bhop-пара ~16мс) подавляется', () => {
+  it('throttle: частые приземления подряд подавляются (≤ раз в окно)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
-    sfx.frame([input({ grounded: false })], 0)                    // в воздухе
-    sfx.frame([input({ justJumped: true, grounded: false })], 100) // прыжок на t=100
-    sfx.frame([input({ grounded: true })], 116)                    // приземление через 16мс → подавлено
-    expect(fake.played('jump')).toBe(1)
-    expect(fake.played('land')).toBe(0)
+    sfx.frame([input({ grounded: false })], 0)
+    sfx.frame([input({ grounded: true })], 100)    // land #1
+    sfx.frame([input({ grounded: false })], 110)
+    sfx.frame([input({ grounded: true })], 120)    // через 20мс → подавлено
+    expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: одиночное приземление (без недавнего прыжка) звучит', () => {
+  it('throttle: одиночное приземление (после полёта) звучит', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ grounded: false })], 0)
     sfx.frame([input({ grounded: true })], 500)                    // приземление после полёта → звучит
     expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: пер-игрок (прыжок одного не глушит прыжок другого в тот же миг)', () => {
+  it('throttle: пер-игрок (приземление одного не глушит приземление другого)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
-    sfx.frame([input({ id: 0, justJumped: true }), input({ id: 1, justJumped: true })], 100)
-    expect(fake.played('jump')).toBe(2)   // разные игроки — оба слышны
+    sfx.frame([input({ id: 0, grounded: false }), input({ id: 1, grounded: false })], 0)
+    sfx.frame([input({ id: 0, grounded: true }), input({ id: 1, grounded: true })], 100)
+    expect(fake.played('land')).toBe(2)   // разные игроки — оба слышны
   })
 
   it('свои звуки — 2D, соперника — позиционные', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
-    sfx.frame([input({ id: 0, isLocal: true, justJumped: true }), input({ id: 1, isLocal: false, justJumped: true })], 100)
-    expect(fake.calls.filter(c => c.event === 'jump' && c.method === 'play2D').length).toBe(1)   // свой — непозиционно
-    expect(fake.calls.filter(c => c.event === 'jump' && c.method === 'playAt').length).toBe(1)   // соперник — позиционно
+    sfx.frame([input({ id: 0, isLocal: true, grounded: false }), input({ id: 1, isLocal: false, grounded: false })], 0)
+    sfx.frame([input({ id: 0, isLocal: true, grounded: true }), input({ id: 1, isLocal: false, grounded: true })], 100)
+    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'play2D').length).toBe(1)   // свой — непозиционно
+    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'playAt').length).toBe(1)   // соперник — позиционно
   })
 
   it('свой щит-луп — 2D (target=null), соперника — позиционный', () => {
