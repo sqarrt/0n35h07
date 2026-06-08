@@ -351,9 +351,9 @@ export class Match {
       this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
       this.pendingResult = null
     }
-    // Музыка стартует один раз при входе в бой — уже с обратного отсчёта (countdown),
-    // с мягким фейдом. Покрывает все пути (host countdown→live, client applyHostPhase, forceLiveForTest).
-    if ((this.phase === 'countdown' || this.phase === 'live') && !this.musicStarted) {
+    // Музыка стартует один раз — только после отсчёта, на входе в live (с мягким фейдом).
+    // Покрывает все пути перехода в live: host countdown→live, client applyPhase, forceLiveForTest.
+    if (this.phase === 'live' && !this.musicStarted) {
       this.musicStarted = true
       void this.music?.start()
     }
