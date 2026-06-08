@@ -12,6 +12,7 @@ class FakeEngine implements IMusicEngine {
   setMasterGain() {}
   dispose() {}
   activeStemIds() { return [] }
+  readLevel() { return 0 }
 }
 
 const KICK = 'kicks/sub_long'

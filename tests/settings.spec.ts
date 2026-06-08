@@ -45,9 +45,9 @@ test('настройки — раздел ЗВУК: 4 ползунка, изме
   await expect(page.getByRole('slider', { name: 'МУЗЫКА', exact: true })).toBeVisible()
   await expect(page.getByRole('slider', { name: 'МУЗЫКА В МЕНЮ' })).toBeVisible()
   await expect(page.getByRole('slider', { name: 'ЭФФЕКТЫ' })).toBeVisible()
-  await page.getByRole('slider', { name: 'МУЗЫКА', exact: true }).fill('30')
+  await page.getByRole('slider', { name: 'МУЗЫКА', exact: true }).fill('50')   // ≠ дефолта → onChange сохранит
   const vol = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').volumeMusic)
-  expect(vol).toBeCloseTo(0.3, 5)   // персист в профиль (0..1)
+  expect(vol).toBeCloseTo(0.5, 5)   // персист в профиль (0..1)
   await page.getByRole('slider', { name: 'МУЗЫКА В МЕНЮ' }).fill('20')
   const volMenu = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').volumeMenuMusic)
   expect(volMenu).toBeCloseTo(0.2, 5)

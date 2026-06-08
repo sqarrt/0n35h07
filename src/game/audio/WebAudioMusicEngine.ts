@@ -1,4 +1,5 @@
 import type { StemLibrary, Arrangement, IMusicEngine } from './types'
+import { ANALYSER_FFT, analyserLevel } from './AudioAnalysis'
 
 const LOOP_SECONDS = 8.0          // музыкальная длина лупа (НЕ длина файла 8.0065 — там Opus-паддинг)
 const SCHEDULE_AHEAD_SEC = 2.0    // насколько вперёд планируем источники. С запасом: луп длинный (8с) и
@@ -84,6 +85,11 @@ export class WebAudioMusicEngine implements IMusicEngine {
   private prevVoices = new Map<string, number>()   // stemId играющих голосов → их gain (для кроссфейда подмены)
   private _active = new Set<string>()
   private userGain = 1   // пользовательский уровень музыки 0..1 (поверх эталона MASTER_GAIN_DEFAULT)
+  private analyser: AnalyserNode | null = null   // отвод мастера для визуализации
+  private analyserBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT))
+
+  /** Текущий RMS-уровень музыки 0..1 (для визуализации). */
+  readLevel(): number { return this.analyser ? analyserLevel(this.analyser, this.analyserBuf) : 0 }
 
   get loopIndex(): number { return Math.max(0, this._loopIndex - 1) }
   activeStemIds(): string[] { return [...this._active] }
@@ -156,6 +162,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.ctx = null
     this.master = null
     this.echoSend = null
+    this.analyser = null
     this.buffers.clear()
     this.norm.clear()
   }
@@ -166,6 +173,9 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.master = this.ctx.createGain()
       this.master.gain.value = MASTER_GAIN_DEFAULT
       this.master.connect(this.ctx.destination)                         // сухой сигнал
+      this.analyser = this.ctx.createAnalyser()                         // отвод для визуализации (не влияет на звук)
+      this.analyser.fftSize = ANALYSER_FFT
+      this.master.connect(this.analyser)
       // Эхо-шина: master → echoSend(0) → delay → feedback↺ → echoWet → destination.
       // echoSend закрыт во время игры (эхо не накапливается); открывается на fadeOut.
       this.echoSend = this.ctx.createGain()

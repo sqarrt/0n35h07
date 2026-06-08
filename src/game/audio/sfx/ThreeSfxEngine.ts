@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { SFX_LIBRARY } from './sfxLibrary'
+import { ANALYSER_FFT, analyserLevel } from '../AudioAnalysis'
 import type { ISfxEngine, SfxEvent } from './types'
 
 // Базовый уровень эффектов (поверх него — пользовательский 0..1). Высокий, т.к. присланные звуки тихие
@@ -27,8 +28,19 @@ export class ThreeSfxEngine implements ISfxEngine {
   private buffers = new Map<SfxEvent, AudioBuffer>()
   private parent: THREE.Object3D | null = null
   private loops = new Map<string, THREE.Audio | THREE.PositionalAudio>()
+  private analyser: AnalyserNode
+  private analyserBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT))
 
-  constructor() { this.setMasterGain(1) }
+  constructor() {
+    this.setMasterGain(1)
+    // Отвод выхода listener в анализатор (для визуализации; на звук не влияет).
+    this.analyser = this.listener.context.createAnalyser()
+    this.analyser.fftSize = ANALYSER_FFT
+    this.listener.getInput().connect(this.analyser)
+  }
+
+  /** Текущий RMS-уровень эффектов 0..1 (для визуализации). */
+  readLevel(): number { return analyserLevel(this.analyser, this.analyserBuf) }
 
   async load(): Promise<void> {
     const ctx = this.listener.context

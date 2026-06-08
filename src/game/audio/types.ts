@@ -24,4 +24,6 @@ export interface IMusicEngine {
   readonly loopIndex: number
   /** Активные stemId на текущем лупе (для дебага/e2e). */
   activeStemIds(): string[]
+  /** Текущий RMS-уровень 0..1 (для визуализации звука). */
+  readLevel(): number
 }

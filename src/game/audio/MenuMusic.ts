@@ -77,6 +77,8 @@ export class MenuMusic {
   }
 
   setVolume(v: number): void { this.engine.setMasterGain(v) }
+  /** Текущий RMS-уровень музыки меню 0..1 (для визуализации). */
+  readLevel(): number { return this.engine.readLevel() }
   dispose(): void { this.engine.dispose() }
 
   /** Аранжировка лупа: кик (постоянный фундамент) + бас (в основном звучит, иногда пауза) +

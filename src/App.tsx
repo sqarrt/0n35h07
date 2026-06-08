@@ -29,6 +29,8 @@ import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { MenuMusic } from './game/audio/MenuMusic'
+import { AudioAnalysis } from './game/audio/AudioAnalysis'
+import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
@@ -108,6 +110,15 @@ export default function App() {
   useEffect(() => { menuMusic.setVolume(profile.volumeMaster * profile.volumeMenuMusic) }, [menuMusic, profile.volumeMaster, profile.volumeMenuMusic])
   // Предзагрузка буферов заранее (декод не требует жеста) → первый жест запускает мгновенно, без второго действия.
   useEffect(() => { void menuMusic.preload() }, [menuMusic])
+
+  // Анализ звука для визуализации: общий уровень со всех источников (SFX + музыка меню; музыку матча
+  // регистрирует Game). Питает glow шаров в меню и полосу-визуализатор в матче.
+  const [audioAnalysis] = useState(() => new AudioAnalysis())
+  useEffect(() => {
+    const offSfx = audioAnalysis.addReader(() => sfx.readLevel())
+    const offMenu = audioAnalysis.addReader(() => menuMusic.readLevel())
+    return () => { offSfx(); offMenu() }
+  }, [audioAnalysis, sfx, menuMusic])
   // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
   const gesturedRef = useRef(false)
   useEffect(() => {
@@ -318,7 +329,7 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={audioAnalysis} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
@@ -364,6 +375,7 @@ export default function App() {
               seedCode={gameNet.code}
               sfxEngine={sfx}
               musicVolume={profile.volumeMaster * profile.volumeMusic}
+              audioAnalysis={audioAnalysis}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (
@@ -402,6 +414,7 @@ export default function App() {
               <DashIndicator dashProgress={hud.dashProgress} />
               <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
+              <AudioBar analysis={audioAnalysis} />
               <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>
           )}

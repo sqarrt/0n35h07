@@ -13,6 +13,7 @@ import { NetSession } from './net/NetSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { ISfxEngine } from './game/audio/sfx/types'
+import type { AudioAnalysis } from './game/audio/AudioAnalysis'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
 import type { MatchRole, MapId } from './constants'
@@ -33,9 +34,10 @@ interface GameProps {
   seedCode: string
   sfxEngine: ISfxEngine
   musicVolume: number   // общий × музыка (0..1); применяется к движку музыки
+  audioAnalysis: AudioAnalysis   // регистрируем сюда уровень музыки матча (для визуализации)
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
@@ -66,6 +68,9 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
 
   // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
   useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
+
+  // Регистрируем уровень музыки матча в общий анализ (для полосы-визуализатора); снимаем на анмаунте.
+  useEffect(() => audioAnalysis.addReader(() => musicEngine.readLevel()), [audioAnalysis, musicEngine])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])

@@ -14,6 +14,7 @@ class FakeEngine implements IMusicEngine {
   setMasterGain() {}
   dispose() {}
   activeStemIds() { return [] }
+  readLevel() { return 0 }
 }
 
 function makeMatch(opts: { seedCode?: string; musicEngine?: IMusicEngine }) {
