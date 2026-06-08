@@ -20,10 +20,22 @@ describe('MusicDirector.compose — песенная форма', () => {
     expect(d.compose(42, 9, LIB, FAR)).toEqual(d.compose(42, 9, LIB, FAR))
   })
 
-  it('интро в начале матча: kicks+bass, стемы стабильны внутри секции', () => {
+  it('интро: kicks+bass; кик-опора стабилен, бас меняется каждые 2 лупа', () => {
     for (const loop of [0, 1, 2, 3]) expect(rolesOf(d.compose(42, loop, LIB, FAR))).toEqual(['bass', 'kicks'])
-    const ids = (loop: number) => d.compose(42, loop, LIB, FAR).map(v => v.stemId).sort()
-    expect(ids(0)).toEqual(ids(3))   // внутри интро стемы не дёргаются
+    const kick = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'kicks')!.stemId
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')!.stemId
+    expect(kick(0)).toBe(kick(3))      // кик — опора, стабилен весь интро
+    expect(bass(0)).toBe(bass(1))      // первый 2-луповый блок
+    expect(bass(0)).not.toBe(bass(2))  // смена баса на 3-м лупе
+    expect(bass(2)).toBe(bass(3))      // второй блок
+  })
+
+  it('бас не звучит дольше 2 лупов подряд: смена внутри куплета и припева', () => {
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')!.stemId
+    // куплет абс 4..7
+    expect(bass(4)).toBe(bass(5)); expect(bass(4)).not.toBe(bass(6)); expect(bass(6)).toBe(bass(7))
+    // припев абс 8..11
+    expect(bass(8)).toBe(bass(9)); expect(bass(8)).not.toBe(bass(10)); expect(bass(10)).toBe(bass(11))
   })
 
   it('аутро по остатку времени: kicks+lead (независимо от loopIndex)', () => {
