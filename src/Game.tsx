@@ -12,6 +12,7 @@ import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
+import type { ISfxEngine } from './game/audio/sfx/types'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
 import type { MatchRole, MapId } from './constants'
@@ -30,9 +31,10 @@ interface GameProps {
   durationMs: number
   mapId: MapId
   seedCode: string
+  sfxEngine: ISfxEngine
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
@@ -51,6 +53,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       mapId,
       seedCode,
       musicEngine: new WebAudioMusicEngine(),
+      sfxEngine,
     }),
     // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,6 +84,12 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     // Установка debug-хуков/готовности завязана на match (стабилен) и camera; прочее намеренно вне deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, match])
+
+  // На входе в матч: listener SFX на камеру, позиционные ноды — в match.root; на выходе отцепляем.
+  useEffect(() => {
+    sfxEngine.attach(camera, match.root)
+    return () => sfxEngine.detach()
+  }, [camera, match, sfxEngine])
 
   useEffect(() => {
     const hc = match.humanController

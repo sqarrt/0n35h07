@@ -16,6 +16,8 @@ import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '..
 import { MAPS } from './maps'
 import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
+import type { ISfxEngine } from './audio/sfx/types'
+import { MatchSfx } from './audio/sfx/MatchSfx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -58,6 +60,7 @@ interface MatchOptions {
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
   seedCode?: string        // источник сида музыки (лобби-код); общий у обоих пиров
   musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
+  sfxEngine?: ISfxEngine      // движок SFX (DIP); нет в юнит-тестах → тишина
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -106,6 +109,7 @@ export class Match {
   // Музыка матча (опциональна: без сида/движка — тишина, напр. в юнит-тестах)
   private music: MatchMusic | null = null
   private musicStarted = false
+  private sfx: MatchSfx | null = null
   private lastRemainingMs = Infinity    // остаток матча (host считает, client получает в 'time') — для аутро музыки
   private lastRemainingAt = 0
 
@@ -130,6 +134,7 @@ export class Match {
 
     // Музыка матча: только если переданы сид и движок (в юнит-тестах их нет → тишина).
     if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine, () => this.musicRemainingMs())
+    if (o.sfxEngine) this.sfx = new MatchSfx(o.sfxEngine)
   }
 
   // --- построение игроков (ровно двое: локальный + соперник) ---
@@ -213,6 +218,7 @@ export class Match {
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
+          if (p.weaponJustFired) this.sfx?.playAtSelf(p)   // свой выстрел — сразу, синхронно с визуалом
           p.clearJustFired()   // боёвку считает хост → сбрасываем флаг сами (иначе шар застрянет раздутым)
         } else {
           p.updateRemote(dt, this.world)
@@ -342,6 +348,9 @@ export class Match {
       void this.music?.start()
     }
   }
+
+  /** Мир-позиция игрока по id (для позиционных SFX). */
+  private sfxPos = (id: number): THREE.Vector3 | null => this.byId.get(id)?.position ?? null
 
   /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
   private musicRemainingMs(): number {
@@ -479,7 +488,11 @@ export class Match {
   }
 
   // --- network API (вызывает NetSession) ---
-  private emit(e: MatchEvent) { if (this.role === 'host') this.pendingEvents.push(e) }
+  private emit(e: MatchEvent) {
+    if (this.role !== 'host') return
+    this.pendingEvents.push(e)
+    this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
+  }
 
   /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
   drainEvents(): MatchEvent[] {
@@ -522,6 +535,7 @@ export class Match {
         const hideImpact = e.hit === this.localId && !this.human.bodyIsVisible
         const hp = e.hitPoint && !hideImpact ? fromVec3(e.hitPoint) : null
         this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), hp)
+        this.sfx?.combat(e, this.sfxPos)   // выстрел соперника — позиционно (свой клиент озвучивает предсказанием)
         break
       }
       case 'kill': {
@@ -532,15 +546,18 @@ export class Match {
         victim.deaths++
         if (shooter && shooter !== victim) shooter.kills++
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
+        this.sfx?.combat(e, this.sfxPos)
         break
       }
       case 'block': {
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+        this.sfx?.combat(e, this.sfxPos)
         break
       }
       case 'respawn': {
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
+        this.sfx?.combat(e, this.sfxPos)
         break
       }
       case 'scores': {

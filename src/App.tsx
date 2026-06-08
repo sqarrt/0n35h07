@@ -25,6 +25,8 @@ import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
+import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
+import { SfxProvider } from './sfx/SfxContext'
 import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
@@ -92,6 +94,12 @@ export default function App() {
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
+
+  // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз.
+  const sfxRef = useRef<ThreeSfxEngine | null>(null)
+  if (sfxRef.current === null) sfxRef.current = new ThreeSfxEngine()
+  const sfx = sfxRef.current
+  useEffect(() => { void sfx.load() }, [sfx])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
@@ -284,6 +292,7 @@ export default function App() {
   }
 
   return (
+    <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
@@ -330,6 +339,7 @@ export default function App() {
               durationMs={gameNet.durationMs}
               mapId={gameNet.mapId}
               seedCode={gameNet.code}
+              sfxEngine={sfx}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (
@@ -406,5 +416,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </SfxProvider>
   )
 }
