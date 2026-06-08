@@ -4,7 +4,7 @@ import type * as THREE from 'three'
 export type SfxEvent =
   | 'beam_fire' | 'block' | 'shield_up' | 'shield_down' | 'cooldown_ready'
   | 'dash' | 'jump' | 'land' | 'death' | 'respawn'
-  | 'ui_click' | 'ui_hover' | 'ui_toggle' | 'ready' | 'lobby_join' | 'count_tick'
+  | 'ui_click' | 'ui_hover' | 'ui_toggle' | 'ready' | 'lobby_join' | 'count_tick' | 'go'
   | 'shield_loop' | 'ghost_loop'
 
 /** Движок SFX (DIP-граница: реальный three-аудио ИЛИ фейк в тестах). */

@@ -29,4 +29,14 @@ describe('Match × SFX', () => {
   it('с sfxEngine конструируется без ошибок', () => {
     expect(() => makeMatch(new FakeSfxEngine())).not.toThrow()
   })
+
+  it('«go» играет один раз на входе в live (завершение отсчёта)', () => {
+    const fake = new FakeSfxEngine()
+    const m = makeMatch(fake)
+    expect(fake.played('go')).toBe(0)   // до live — нет
+    m.forceLiveForTest()
+    m.update(0.016)
+    m.update(0.016)
+    expect(fake.played('go')).toBe(1)   // ровно один раз
+  })
 })

@@ -351,10 +351,11 @@ export class Match {
       this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
       this.pendingResult = null
     }
-    // Музыка стартует один раз — только после отсчёта, на входе в live (с мягким фейдом).
-    // Покрывает все пути перехода в live: host countdown→live, client applyPhase, forceLiveForTest.
+    // Первый live-кадр (отсчёт завершён): «GO!» + старт музыки. Один раз; покрывает все пути перехода
+    // в live (host countdown→live, client applyPhase, forceLiveForTest). go — 2D, как count_tick.
     if (this.phase === 'live' && !this.musicStarted) {
       this.musicStarted = true
+      this.sfx?.play2D('go')
       void this.music?.start()
     }
   }
