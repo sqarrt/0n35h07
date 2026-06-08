@@ -23,6 +23,13 @@ function arrangements(seed: number, loops: number) {
   return Array.from({ length: loops }, (_, i) => m.arrange(i))
 }
 
+/** Максимум подряд идущих лупов, где pred(loop) истинно. */
+function maxRun(arrs: { stemId: string }[][], pred: (a: { stemId: string }[]) => boolean): number {
+  let max = 0, cur = 0
+  for (const a of arrs) { cur = pred(a) ? cur + 1 : 0; if (cur > max) max = cur }
+  return max
+}
+
 describe('MenuMusic.arrange', () => {
   it('кик sub_long звучит каждый луп (постоянный фундамент)', () => {
     for (const arr of arrangements(1, 40)) {
@@ -35,6 +42,24 @@ describe('MenuMusic.arrange', () => {
     const onCount = arrs.filter(a => a.some(v => v.stemId === BASS)).length
     expect(onCount).toBeLessThan(arrs.length)   // иногда паузы
     expect(onCount).toBeGreaterThan(arrs.length / 2)   // но в основном звучит
+  })
+
+  it('бас отдыхает не больше 1 лупа подряд (паузы не слипаются)', () => {
+    for (const seed of [1, 42, 123, 777, 9001]) {
+      const arrs = arrangements(seed, 300)
+      const maxOff = maxRun(arrs, a => !a.some(v => v.stemId === BASS))
+      expect(maxOff).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('ни один лид не звучит больше 2 лупов подряд', () => {
+    for (const seed of [1, 42, 123, 777, 9001]) {
+      const arrs = arrangements(seed, 300)
+      for (const color of COLORS) {
+        const maxOn = maxRun(arrs, a => a.some(v => v.stemId === color))
+        expect(maxOn).toBeLessThanOrEqual(2)
+      }
+    }
   })
 
   it('каждый цветной слой иногда звучит, но НЕ всегда (независимо)', () => {

@@ -106,14 +106,22 @@ export default function App() {
   // Музыка меню (отдельный движок/контекст). Громкость = общий × музыка_меню (живьём).
   const [menuMusic] = useState(() => new MenuMusic(new WebAudioMusicEngine()))
   useEffect(() => { menuMusic.setVolume(profile.volumeMaster * profile.volumeMenuMusic) }, [menuMusic, profile.volumeMaster, profile.volumeMenuMusic])
+  // Предзагрузка буферов заранее (декод не требует жеста) → первый жест запускает мгновенно, без второго действия.
+  useEffect(() => { void menuMusic.preload() }, [menuMusic])
   // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
   const gesturedRef = useRef(false)
   useEffect(() => {
     if (screen === 'game') { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }
-    const onGesture = () => { gesturedRef.current = true; void menuMusic.start() }
-    window.addEventListener('pointerdown', onGesture, { once: true })
-    return () => window.removeEventListener('pointerdown', onGesture)
+    const onGesture = () => {
+      gesturedRef.current = true
+      void menuMusic.start()
+      window.removeEventListener('pointerdown', onGesture)
+      window.removeEventListener('keydown', onGesture)
+    }
+    window.addEventListener('pointerdown', onGesture)
+    window.addEventListener('keydown', onGesture)
+    return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
   }, [screen, menuMusic])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')

@@ -13,8 +13,8 @@ export type Arrangement = VoiceSpec[]
 /** Движок воспроизведения (DIP-граница: реальный Web Audio ИЛИ фейк в тестах). */
 export interface IMusicEngine {
   load(library: StemLibrary): Promise<void>
-  /** Запускает планировщик; provider даёт аранжировку для каждого loopIndex. */
-  start(provider: (loopIndex: number) => Arrangement): Promise<void>
+  /** Запускает планировщик; provider даёт аранжировку для каждого loopIndex. fadeInSec — длина фейд-ина мастера. */
+  start(provider: (loopIndex: number) => Arrangement, fadeInSec?: number): Promise<void>
   /** Плавно гасит музыку (мастер → 0) и останавливает планировщик — на завершении матча. */
   fadeOut(): void
   stop(): void

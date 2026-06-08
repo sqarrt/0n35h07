@@ -101,16 +101,21 @@ export class WebAudioMusicEngine implements IMusicEngine {
     }))
   }
 
-  async start(provider: (loopIndex: number) => Arrangement): Promise<void> {
+  async start(provider: (loopIndex: number) => Arrangement, fadeInSec: number = START_FADE_SEC): Promise<void> {
     const ctx = this.ensureCtx()
     this.provider = provider
     if (ctx.state === 'suspended') await ctx.resume()
     this._loopIndex = 0
     this.prevVoices.clear()
-    // Мягкий фейд-ин всей музыки на входе в бой (0.5с): мастер с 0 до рабочей громкости × пользовательский уровень.
-    this.master!.gain.setValueAtTime(0, ctx.currentTime)
-    this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT * this.userGain, ctx.currentTime + START_FADE_SEC)
-    this.nextBoundary = ctx.currentTime + START_DELAY_SEC
+    const now = ctx.currentTime
+    // Сброс эха: при переиспользовании движка (музыка меню) прошлый fadeOut оставил echoSend открытым —
+    // иначе после возврата эхо подмешивается и копится. Закрываем перед новым стартом.
+    if (this.echoSend) { this.echoSend.gain.cancelScheduledValues(now); this.echoSend.gain.setValueAtTime(0, now) }
+    // Мягкий фейд-ин всей музыки: мастер с 0 до рабочей громкости × пользовательский уровень за fadeInSec.
+    this.master!.gain.cancelScheduledValues(now)
+    this.master!.gain.setValueAtTime(0, now)
+    this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT * this.userGain, now + fadeInSec)
+    this.nextBoundary = now + START_DELAY_SEC
     if (this.timer == null) this.timer = setInterval(() => this.tick(), SCHEDULER_TICK_MS)
     this.tick()
   }
