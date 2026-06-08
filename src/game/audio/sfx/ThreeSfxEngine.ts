@@ -2,7 +2,10 @@ import * as THREE from 'three'
 import { SFX_LIBRARY } from './sfxLibrary'
 import type { ISfxEngine, SfxEvent } from './types'
 
-const SFX_MASTER_GAIN = 0.9
+// Базовый уровень эффектов (поверх него — пользовательский 0..1). Высокий, т.к. присланные звуки тихие
+// (пики 0.04–0.17 → запас до клиппинга огромен): прежний потолок 0.9 ощущался тихо даже на 100%.
+// При этом базе ползунок ~40% даёт прежнюю «100%»-громкость, а 100% — заметно громче.
+const SFX_MASTER_GAIN = 2.25
 const SFX_REF_DISTANCE = 6
 const SFX_ROLLOFF = 1
 const SFX_MAX_DISTANCE = 60
