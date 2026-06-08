@@ -6,11 +6,15 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
+import { STEM_LIBRARY } from './game/audio/stems'
 import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
+import type { ISfxEngine } from './game/audio/sfx/types'
+import type { AudioAnalysis } from './game/audio/AudioAnalysis'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
 import type { MatchRole, MapId } from './constants'
@@ -28,12 +32,19 @@ interface GameProps {
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
+  seedCode: string
+  sfxEngine: ISfxEngine
+  musicVolume: number   // общий × музыка (0..1); применяется к движку музыки
+  audioAnalysis: AudioAnalysis   // регистрируем сюда уровень музыки матча (для визуализации)
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
+
+  // Движок музыки держим ссылкой (а не инлайном), чтобы прокидывать пользовательскую громкость.
+  const musicEngine = useMemo(() => new WebAudioMusicEngine(), [])
 
   const match = useMemo(
     () => new Match({
@@ -47,11 +58,28 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       defaultThirdPerson,
       durationMs,
       mapId,
+      seedCode,
+      musicEngine,
+      sfxEngine,
     }),
     // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+
+  // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
+  useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
+
+  // Предзагрузка (декод) стемов музыки на маунте — во время ритуала готовности/отсчёта, чтобы старт боя
+  // (live) не ловил спайк декодирования ~58 буферов. start() на live тогда лишь планирует (буферы готовы).
+  useEffect(() => { void musicEngine.load(STEM_LIBRARY) }, [musicEngine])
+
+  // Регистрируем уровень+спектр музыки матча в общий анализ (для визуализатора); снимаем на анмаунте.
+  useEffect(() => {
+    const offL = audioAnalysis.addReader(() => musicEngine.readLevel())
+    const offB = audioAnalysis.addBandReader(out => musicEngine.readBands(out))
+    return () => { offL(); offB() }
+  }, [audioAnalysis, musicEngine])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
@@ -77,6 +105,12 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
     // Установка debug-хуков/готовности завязана на match (стабилен) и camera; прочее намеренно вне deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, match])
+
+  // На входе в матч: listener SFX на камеру, позиционные ноды — в match.root; на выходе отцепляем.
+  useEffect(() => {
+    sfxEngine.attach(camera, match.root)
+    return () => sfxEngine.detach()
+  }, [camera, match, sfxEngine])
 
   useEffect(() => {
     const hc = match.humanController

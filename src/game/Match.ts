@@ -14,6 +14,10 @@ import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import { MAPS } from './maps'
+import type { IMusicEngine } from './audio/types'
+import { MatchMusic } from './audio/MatchMusic'
+import type { ISfxEngine } from './audio/sfx/types'
+import { MatchSfx } from './audio/sfx/MatchSfx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -54,6 +58,9 @@ interface MatchOptions {
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
+  seedCode?: string        // источник сида музыки (лобби-код); общий у обоих пиров
+  musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
+  sfxEngine?: ISfxEngine      // движок SFX (DIP); нет в юнит-тестах → тишина
 }
 
 /** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
@@ -93,11 +100,19 @@ export class Match {
   // Ритуал входа (1v1)
   private readySet = new Set<number>()
   private countdownEndsAt = 0
+  private prevCountTick = 0   // последняя сыгранная секунда отсчёта (дедуп count_tick)
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
   private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
   private leftIds = new Set<number>()   // отключившиеся игроки
   private pendingResult: MatchResult | null = null   // отложенный экран исхода (после END_FREEZE_MS)
   private resultDueAt = 0
+
+  // Музыка матча (опциональна: без сида/движка — тишина, напр. в юнит-тестах)
+  private music: MatchMusic | null = null
+  private musicStarted = false
+  private sfx: MatchSfx | null = null
+  private lastRemainingMs = Infinity    // остаток матча (host считает, client получает в 'time') — для аутро музыки
+  private lastRemainingAt = 0
 
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
@@ -117,6 +132,10 @@ export class Match {
     // Ритуал готовности проходят ВСЕ 1v1-матчи (лобби гарантирует двоих). Бот-соперник авто-готов.
     this.phase = 'ready'
     if (opponentIsBot) this.readySet.add(OPPONENT_ID)
+
+    // Музыка матча: только если переданы сид и движок (в юнит-тестах их нет → тишина).
+    if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine, () => this.musicRemainingMs())
+    if (o.sfxEngine) this.sfx = new MatchSfx(o.sfxEngine)
   }
 
   // --- построение игроков (ровно двое: локальный + соперник) ---
@@ -206,6 +225,7 @@ export class Match {
         }
       })
       this.applyPhysics(dt)
+      this.sfxFrameClientSelf()   // свои движения (прыжок/рывок/щит/land/cooldown) — сразу, без сетевой задержки
       this.human.tickRespawn(dt)   // локально тикаем фазу призрака (индикация/скорость); финал — событием respawn
       this.syncHud()
       this.humanController.lateUpdate?.(dt)
@@ -221,6 +241,7 @@ export class Match {
     this.tickMatchClock(Date.now())
     this.syncHud()
     this.controllers.forEach(c => c.lateUpdate?.(dt))
+    this.sfxFrameHost()   // движения обоих (grounded/justJumped уже свежие после applyPhysics) + эмит move
   }
 
   /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
@@ -316,12 +337,63 @@ export class Match {
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
     this.syncPhaseHud()
+    // Тик отсчёта (3/2/1) — раз на целую секунду. 2D, считается локально и на host, и на client.
+    if (this.phase === 'countdown') {
+      const left = Math.ceil((this.countdownEndsAt - Date.now()) / 1000)
+      if (left !== this.prevCountTick && left >= 1 && left <= 3) this.sfx?.play2D('count_tick')
+      this.prevCountTick = left
+    } else {
+      this.prevCountTick = 0
+    }
     // Отложенный показ экрана исхода: phase='ended' уже заморозил игроков (стоп-кадр); по истечении паузы —
     // диспатч результата (overlay появляется с собственным fade-in). Тикается и на host, и на client.
     if (this.pendingResult && Date.now() >= this.resultDueAt) {
       this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
       this.pendingResult = null
     }
+    // Первый live-кадр (отсчёт завершён): «GO!» + старт музыки. Один раз; покрывает все пути перехода
+    // в live (host countdown→live, client applyPhase, forceLiveForTest). go — 2D, как count_tick.
+    if (this.phase === 'live' && !this.musicStarted) {
+      this.musicStarted = true
+      this.sfx?.play2D('go')
+      void this.music?.start()
+    }
+  }
+
+  /** Мир-позиция игрока по id (для позиционных SFX). */
+  private sfxPos = (id: number): THREE.Vector3 | null => this.byId.get(id)?.position ?? null
+
+  /** host: перекличка движений обоих игроков + эмит дискретных move-событий (прыжок/land) клиенту. */
+  private sfxFrameHost() {
+    if (!this.sfx) return
+    const inputs = this.players.map(p => ({
+      id: p.id, obj: p.bodyGroup, pos: p.position,
+      shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
+      dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
+      shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
+      windingUp: p.isWindingUp,
+      isLocal: p.id === this.localId,
+    }))
+    const moves = this.sfx.frame(inputs)
+    for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
+  }
+
+  /** client: перекличка движений своего игрока (из локальной симуляции — без сетевой задержки). */
+  private sfxFrameClientSelf() {
+    if (!this.sfx) return
+    const me = this.human
+    this.sfx.frame([{
+      id: me.id, obj: me.bodyGroup, pos: me.position,
+      shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
+      dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
+      windingUp: me.isWindingUp, isLocal: true,
+    }])
+  }
+
+  /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
+  private musicRemainingMs(): number {
+    if (!Number.isFinite(this.lastRemainingMs)) return Infinity
+    return Math.max(0, this.lastRemainingMs - (Date.now() - this.lastRemainingAt))
   }
 
   private syncPhaseHud() {
@@ -383,6 +455,8 @@ export class Match {
     if (this.durationMs === 0) return   // без таймера (обратная совместимость)
     if (this.matchEndsAt === 0) this.matchEndsAt = now + this.durationMs
     const remaining = Math.max(0, this.matchEndsAt - now)
+    this.lastRemainingMs = remaining   // для музыкальной секции finale
+    this.lastRemainingAt = now
     if (now - this.lastTimeSentAt >= MATCH_TIME_BROADCAST_MS || remaining === 0) {
       this.lastTimeSentAt = now
       this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(remaining / 1000) })
@@ -400,6 +474,8 @@ export class Match {
     // Заморозить игроков на END_FREEZE_MS (phase='ended' морозит в tickPhase), затем показать экран исхода.
     this.pendingResult = this.computeResult(reason)
     this.resultDueAt = Date.now() + END_FREEZE_MS
+    this.music?.fadeOut()   // плавно гасим музыку перед экраном исхода
+    this.sfx?.reset()       // гасим луп щита и сбрасываем переходы
     this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
   }
 
@@ -451,7 +527,11 @@ export class Match {
   }
 
   // --- network API (вызывает NetSession) ---
-  private emit(e: MatchEvent) { if (this.role === 'host') this.pendingEvents.push(e) }
+  private emit(e: MatchEvent) {
+    if (this.role !== 'host') return
+    this.pendingEvents.push(e)
+    this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
+  }
 
   /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
   drainEvents(): MatchEvent[] {
@@ -481,7 +561,15 @@ export class Match {
       const p = this.byId.get(ps.id)
       if (!p) continue
       if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // предсказание + коррекция к авторитету
-      else p.applyNetState(ps)
+      else {
+        p.applyNetState(ps)
+        // Щит/рывок соперника — из флагов снапшота по их переходам (прыжок/land приходят событием move).
+        this.sfx?.frame([{
+          id: ps.id, obj: p.bodyGroup, pos: p.position,
+          shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
+          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, isLocal: false,
+        }])
+      }
     }
   }
 
@@ -504,15 +592,23 @@ export class Match {
         victim.deaths++
         if (shooter && shooter !== victim) shooter.kills++
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
+        this.sfx?.combat(e, this.sfxPos)
         break
       }
       case 'block': {
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+        this.sfx?.combat(e, this.sfxPos)
         break
       }
       case 'respawn': {
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
+        this.sfx?.combat(e, this.sfxPos)
+        break
+      }
+      case 'move': {
+        if (e.id === this.localId) break   // своё движение уже сыграно предсказанием
+        this.sfx?.move(e.kind, this.byId.get(e.id)?.position ?? fromVec3(e.pos))
         break
       }
       case 'scores': {
@@ -520,6 +616,8 @@ export class Match {
         break
       }
       case 'time': {
+        this.lastRemainingMs = e.remainingMs   // для музыкальной секции finale (клиент)
+        this.lastRemainingAt = Date.now()
         this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(e.remainingMs / 1000) })
         break
       }
@@ -565,5 +663,6 @@ export class Match {
     delete w.__debugBodyScale
     delete w.__debugForceEnd
     this.players.forEach(p => p.dispose())
+    this.music?.dispose()
   }
 }

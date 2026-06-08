@@ -38,6 +38,31 @@ test('настройки — модель сферы переключается 
   expect(model).toBe('waves')   // персист в профиль
 })
 
+test('настройки — раздел ЗВУК: 4 ползунка, изменение сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByRole('button', { name: 'ЗВУК' }).click()
+  await expect(page.getByRole('slider', { name: 'ОБЩАЯ ГРОМКОСТЬ' })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'МУЗЫКА', exact: true })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'МУЗЫКА В МЕНЮ' })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'ЭФФЕКТЫ' })).toBeVisible()
+  await page.getByRole('slider', { name: 'МУЗЫКА', exact: true }).fill('50')   // ≠ дефолта → onChange сохранит
+  const vol = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').volumeMusic)
+  expect(vol).toBeCloseTo(0.5, 5)   // персист в профиль (0..1)
+  await page.getByRole('slider', { name: 'МУЗЫКА В МЕНЮ' }).fill('20')
+  const volMenu = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').volumeMenuMusic)
+  expect(volMenu).toBeCloseTo(0.2, 5)
+})
+
+test('настройки — графика: галка «СВЕЧЕНИЕ В МЕНЮ» отключает эффект и сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByRole('button', { name: 'ГРАФИКА' }).click()
+  const sw = page.getByRole('switch', { name: 'Свечение в меню' })
+  await expect(sw).toBeVisible()
+  await sw.click()   // вкл → выкл
+  const glow = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').menuGlow)
+  expect(glow).toBe(false)   // персист в профиль
+})
+
 test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')

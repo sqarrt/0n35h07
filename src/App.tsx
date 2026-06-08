@@ -25,7 +25,13 @@ import { Settings } from './screens/Settings'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
-import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
+import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
+import { SfxProvider } from './sfx/SfxContext'
+import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
+import { MenuMusic } from './game/audio/MenuMusic'
+import { AudioAnalysis } from './game/audio/AudioAnalysis'
+import { AudioBar } from './components/AudioBar'
+import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
@@ -54,6 +60,7 @@ interface GameNet {
   peerToPlayer: Map<PeerId, number>
   durationMs: number
   mapId: MapId
+  code: string
 }
 
 function randomCode() {
@@ -86,11 +93,51 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel }>(() => ({ color: profile.primaryColor, model: profile.ballModel }))
-  const handlePreview = useCallback((color: string, model: BallModel) => setSettingsPreview({ color, model }), [])
+  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }))
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string) => setSettingsPreview({ color, model, ringColor }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
+
+  // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
+  const [sfx] = useState(() => new ThreeSfxEngine())
+  useEffect(() => { void sfx.load() }, [sfx])
+  // Громкость эффектов = общий × эффекты (живьём: UI-звуки в меню сразу реагируют на ползунок).
+  useEffect(() => { sfx.setMasterGain(profile.volumeMaster * profile.volumeSfx) }, [sfx, profile.volumeMaster, profile.volumeSfx])
+
+  // Музыка меню (отдельный движок/контекст). Громкость = общий × музыка_меню (живьём).
+  const [menuMusic] = useState(() => new MenuMusic(new WebAudioMusicEngine()))
+  useEffect(() => { menuMusic.setVolume(profile.volumeMaster * profile.volumeMenuMusic) }, [menuMusic, profile.volumeMaster, profile.volumeMenuMusic])
+  // Предзагрузка буферов заранее (декод не требует жеста) → первый жест запускает мгновенно, без второго действия.
+  useEffect(() => { void menuMusic.preload() }, [menuMusic])
+
+  // Анализ звука для визуализации: общий уровень со всех источников (SFX + музыка меню; музыку матча
+  // регистрирует Game). Питает glow шаров в меню и полосу-визуализатор в матче.
+  const [audioAnalysis] = useState(() => new AudioAnalysis())
+  useEffect(() => {
+    const offs = [
+      audioAnalysis.addReader(() => sfx.readLevel()),
+      audioAnalysis.addReader(() => menuMusic.readLevel()),
+      audioAnalysis.addBandReader(out => sfx.readBands(out)),
+      audioAnalysis.addBandReader(out => menuMusic.readBands(out)),
+    ]
+    return () => { for (const off of offs) off() }
+  }, [audioAnalysis, sfx, menuMusic])
+  // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
+  const gesturedRef = useRef(false)
+  useEffect(() => {
+    if (screen === 'game') { menuMusic.stop(); return }
+    if (gesturedRef.current) { void menuMusic.start(); return }
+    const onGesture = () => {
+      gesturedRef.current = true
+      void menuMusic.start()
+      window.removeEventListener('pointerdown', onGesture)
+      window.removeEventListener('keydown', onGesture)
+    }
+    window.addEventListener('pointerdown', onGesture)
+    window.addEventListener('keydown', onGesture)
+    return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
+  }, [screen, menuMusic])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
@@ -118,7 +165,7 @@ export default function App() {
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setEverLocked(false)
       setScreen('game')
     })
@@ -229,7 +276,7 @@ export default function App() {
       const foundHost = sessionRef.current?.view().foundHost ?? false
       setJoinStatus(foundHost ? 'failed-connect' : 'failed-find')
       leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
-    }, CONNECT_TIMEOUT_MS)
+    }, profile.connectTimeoutSec * 1000)
   }
   const handleSettings = () => setScreen('settings')
 
@@ -264,7 +311,10 @@ export default function App() {
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'settings'
     ? settingsPreview
-    : { color: screen === 'join' ? profile.reserveColor : profile.primaryColor, model: profile.ballModel }
+    // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
+    : screen === 'join'
+      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor }
+      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }
 
   // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
@@ -283,9 +333,10 @@ export default function App() {
   }
 
   return (
+    <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
@@ -328,6 +379,10 @@ export default function App() {
               apiRef={gameApiRef}
               durationMs={gameNet.durationMs}
               mapId={gameNet.mapId}
+              seedCode={gameNet.code}
+              sfxEngine={sfx}
+              musicVolume={profile.volumeMaster * profile.volumeMusic}
+              audioAnalysis={audioAnalysis}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (
@@ -366,6 +421,7 @@ export default function App() {
               <DashIndicator dashProgress={hud.dashProgress} />
               <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
+              {profile.audioViz && <AudioBar analysis={audioAnalysis} />}
               <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>
           )}
@@ -404,5 +460,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </SfxProvider>
   )
 }

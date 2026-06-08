@@ -1,0 +1,118 @@
+import { describe, it, expect } from 'vitest'
+import { MusicDirector } from '../../src/game/audio/MusicDirector'
+import type { StemLibrary } from '../../src/game/audio/types'
+
+// Синтетическая библиотека — тесты не зависят от реальных ассетов.
+const LIB: StemLibrary = {
+  bass:  Array.from({ length: 4 }, (_, i) => ({ id: `bass/b${i}`, url: `b${i}` })),
+  kicks: Array.from({ length: 6 }, (_, i) => ({ id: `kicks/k${i}`, url: `k${i}` })),
+  lead:  Array.from({ length: 6 }, (_, i) => ({ id: `lead/l${i}`, url: `l${i}` })),
+  sfx:   Array.from({ length: 4 }, (_, i) => ({ id: `sfx/s${i}`, url: `s${i}` })),
+}
+const FAR = 10 * 60_000        // далеко до конца матча → не аутро
+const OUTRO = 5_000            // ≤ OUTRO_MS → аутро
+const rolesOf = (arr: { role: string }[]) => arr.map(v => v.role).sort()
+const leadId = (arr: { role: string; stemId: string }[]) => arr.find(v => v.role === 'lead')!.stemId
+const d = new MusicDirector()
+
+describe('MusicDirector.compose — песенная форма', () => {
+  it('детерминирован: одинаковые входы → одинаковая аранжировка', () => {
+    expect(d.compose(42, 9, LIB, FAR)).toEqual(d.compose(42, 9, LIB, FAR))
+  })
+
+  it('интро: kicks+bass; кик-опора стабилен, бас меняется', () => {
+    for (const loop of [0, 1, 2, 3]) expect(rolesOf(d.compose(42, loop, LIB, FAR))).toEqual(['bass', 'kicks'])
+    const kick = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'kicks')!.stemId
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')!.stemId
+    expect(kick(0)).toBe(kick(3))                                   // кик — опора, стабилен весь интро
+    expect(new Set([0, 1, 2, 3].map(bass)).size).toBeGreaterThan(1) // бас не один на всё интро
+  })
+
+  it('бас не звучит дольше 2 лупов подряд', () => {
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')?.stemId
+    for (let l = 0; l <= 58; l++) {
+      const a = bass(l), b = bass(l + 1), c = bass(l + 2)
+      if (a !== undefined && a === b && a === c) throw new Error(`бас залип на лупах ${l}..${l + 2}`)
+    }
+  })
+
+  it('аутро по остатку времени: kicks+lead (независимо от loopIndex)', () => {
+    expect(rolesOf(d.compose(42, 100, LIB, OUTRO))).toEqual(['kicks', 'lead'])
+  })
+
+  it('аутро берёт лид припева (вариант 0)', () => {
+    // первый припев: интро(4)+куплет(4) → абс. лупы 8..11, occurrence 0, вариант 0
+    expect(leadId(d.compose(42, 200, LIB, OUTRO))).toBe(leadId(d.compose(42, 9, LIB, FAR)))
+  })
+
+  it('секции тела: верные наборы ролей', () => {
+    expect(rolesOf(d.compose(42, 4, LIB, FAR))).toEqual(['bass', 'kicks', 'lead', 'sfx'])   // куплет (абс 4..7)
+    expect(rolesOf(d.compose(42, 20, LIB, FAR))).toEqual(['bass', 'sfx'])                    // бридж (абс 20..21)
+    expect(rolesOf(d.compose(42, 22, LIB, FAR))).toEqual(['kicks', 'lead'])                  // соло (абс 22..25)
+  })
+
+  it('вариация: куплеты ротируют лид по пулу (occ0≠occ1, occ0==occ3)', () => {
+    // куплеты на абс. лупах 4(occ0),12(occ1),30(occ2),38(occ3); берём 2-й луп секции (1-й — пауза лида)
+    const o0 = leadId(d.compose(42, 5, LIB, FAR))
+    const o1 = leadId(d.compose(42, 13, LIB, FAR))
+    const o3 = leadId(d.compose(42, 39, LIB, FAR))
+    expect(o0).not.toBe(o1)   // соседние повторы — разные варианты
+    expect(o0).toBe(o3)       // период пула (COLOR_POOL=3) → occ0 и occ3 совпадают
+  })
+
+  it('бас не залипает: меняется по секциям (за матч встречается несколько разных)', () => {
+    const bassId = (loop: number) => d.compose(42, loop, LIB, FAR).find(v => v.role === 'bass')!.stemId
+    // интро(0), куплет(4), припев(8), бридж(20) — все с басом, но разные секции
+    const distinct = new Set([0, 4, 8, 20].map(bassId))
+    expect(distinct.size).toBeGreaterThan(1)
+  })
+
+  it('лид и бас не сменяются одновременно (когда оба звучат) ни на одном лупе', () => {
+    const lead = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'lead')?.stemId ?? null
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')?.stemId ?? null
+    for (let l = 1; l <= 60; l++) {
+      const lp = lead(l - 1), lc = lead(l), bp = bass(l - 1), bc = bass(l)
+      const leadSwapped = lp !== null && lc !== null && lp !== lc   // оба лупа со звучащим лидом, стем сменился
+      const bassSwapped = bp !== null && bc !== null && bp !== bc   // (вход/выход роли на границе секции — не «смена»)
+      expect(leadSwapped && bassSwapped, `луп ${l}: лид и бас сменились одновременно`).toBe(false)
+    }
+  })
+
+  it('между разными лидами — пауза ≥1 луп (нет бесшовного перехода лид→лид)', () => {
+    const hasLead = (l: number) => d.compose(42, l, LIB, FAR).some(v => v.role === 'lead')
+    // куплет(4-7) → припев(8-11): первый луп припева (8) — без лида (пауза), лид вступает с 9-го
+    expect(hasLead(7)).toBe(true)    // конец куплета — лид звучит
+    expect(hasLead(8)).toBe(false)   // первый луп припева — пауза
+    expect(hasLead(9)).toBe(true)    // лид припева вступил
+  })
+
+  it('нет прямого перехода между двумя РАЗНЫМИ лидами (сначала пауза)', () => {
+    const primary = (l: number) => {
+      const ls = d.compose(42, l, LIB, FAR).filter(v => v.role === 'lead')
+      return ls.length ? ls[0].stemId : null   // основной лид секции (орнамент — второй, идёт после)
+    }
+    for (let l = 5; l <= 60; l++) {
+      const a = primary(l - 1), b = primary(l)
+      if (a !== null && b !== null && a !== b) throw new Error(`прямой переход лида на лупе ${l}: ${a}→${b}`)
+    }
+  })
+
+  it('лид куплета и лид припева различны (узнаваемость секций)', () => {
+    expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 9, LIB, FAR)))  // 8 — пауза, берём 9
+  })
+
+  it('орнамент: на последнем лупе припева — второй (отличный) лид, в середине — один', () => {
+    const leads = (loop: number) => d.compose(42, loop, LIB, FAR).filter(v => v.role === 'lead')
+    expect(leads(9).length).toBe(1)             // середина припева (8 — пауза) — один лид
+    expect(leads(11).length).toBe(2)            // последний луп припева (абс 11) — добавлен второй лид
+    expect(new Set(leads(11).map(v => v.stemId)).size).toBe(2)   // два разных лида
+  })
+
+  it('все stemId существуют в библиотеке; gain положительный', () => {
+    const all = new Set(Object.values(LIB).flat().map(s => s.id))
+    for (const v of d.compose(7, 9, LIB, FAR)) {
+      expect(all.has(v.stemId)).toBe(true)
+      expect(v.gain).toBeGreaterThan(0)
+    }
+  })
+})

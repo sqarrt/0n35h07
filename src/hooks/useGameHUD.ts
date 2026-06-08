@@ -78,7 +78,7 @@ function reducer(
     case 'SET_RESPAWNING':      return { ...state, respawning: action.progress === null ? null : { progress: action.progress } }
     case 'SET_MATCH_TIME':      return { ...state, matchTime: action.seconds }
     case 'SET_MATCH_RESULT':    return { ...state, matchResult: action.result }
-    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [] }
+    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [], respawning: null }
     default: return state
   }
 }
