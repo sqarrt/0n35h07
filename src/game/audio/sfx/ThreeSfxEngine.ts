@@ -58,7 +58,7 @@ export class ThreeSfxEngine implements ISfxEngine {
   attach(camera: THREE.Camera, parent: THREE.Object3D): void {
     camera.add(this.listener)
     this.parent = parent
-    this.resume()
+    this.ready()   // возобновить контекст на входе в матч
   }
   detach(): void {
     for (const key of [...this.loops.keys()]) this.stopLoop(key)
@@ -97,8 +97,7 @@ export class ThreeSfxEngine implements ISfxEngine {
 
   playAt(event: SfxEvent, pos: THREE.Vector3, gain = 1): void {
     const buf = this.buffers.get(event)
-    if (!buf || !this.parent) return
-    this.resume()
+    if (!buf || !this.parent || !this.ready()) return
     const a = this.makePositional(buf)
     a.position.copy(pos)
     this.parent.add(a)
@@ -109,8 +108,7 @@ export class ThreeSfxEngine implements ISfxEngine {
 
   play2D(event: SfxEvent, gain = 1): void {
     const buf = this.buffers.get(event)
-    if (!buf) return
-    this.resume()
+    if (!buf || !this.ready()) return
     const a = new THREE.Audio(this.listener)
     a.setBuffer(buf)
     a.onEnded = () => { a.disconnect() }
@@ -120,8 +118,7 @@ export class ThreeSfxEngine implements ISfxEngine {
   startLoop(event: SfxEvent, key: string, target: THREE.Object3D | null): void {
     if (this.loops.has(key)) return
     const buf = this.buffers.get(event)
-    if (!buf) return
-    this.resume()
+    if (!buf || !this.ready()) return
     // target=null → свой игрок: 2D-луп (источник у listener → позиционный panner вырождается, кряк).
     const a = target ? this.makePositional(buf) : new THREE.Audio(this.listener)
     if (!target) a.setBuffer(buf)
@@ -147,7 +144,11 @@ export class ThreeSfxEngine implements ISfxEngine {
   }
   dispose(): void { this.detach(); this.buffers.clear() }
 
-  private resume(): void {
-    if (this.listener.context.state === 'suspended') void this.listener.context.resume()
+  /** Контекст готов проигрывать? Если нет — пробуем возобновить (но НЕ ставим звук в очередь). */
+  private ready(): boolean {
+    const ctx = this.listener.context
+    if (ctx.state === 'running') return true
+    void ctx.resume()   // возобновится по жесту; до этого звуки не копим (иначе пачка выстрелит разом на resume)
+    return false
   }
 }

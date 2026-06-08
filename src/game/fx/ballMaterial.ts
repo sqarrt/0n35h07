@@ -45,9 +45,10 @@ export function createBallMaterial(color: string, model: BallModel) {
 export function createBallRing(color: string) {
   const uTime = { value: 0 }
   const uOpacity = { value: 1 }
+  const uColor = { value: new THREE.Color(color) }
   const material = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    uniforms: { uColor: { value: new THREE.Color(color) }, uOpacity, uTime },
+    uniforms: { uColor, uOpacity, uTime },
     vertexShader: `
       varying float vT;
       void main() {
@@ -76,6 +77,8 @@ export function createBallRing(color: string) {
     mesh,
     tick: (dt: number) => { uTime.value += dt },
     setOpacity: (o: number) => { uOpacity.value = o },
+    setColor: (c: THREE.Color) => { uColor.value.copy(c) },
+    lerpColor: (c: THREE.Color, t: number) => { uColor.value.lerp(c, t) },
     dispose: () => { mesh.geometry.dispose(); material.dispose() },
   }
 }

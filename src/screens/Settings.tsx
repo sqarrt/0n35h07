@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { PLAYER_COLORS, BALL_MODELS } from '../constants'
 import type { BallModel } from '../constants'
-import { NAME_MAX, saveProfile } from '../settings'
+import { NAME_MAX, saveProfile, CONNECT_TIMEOUT_OPTIONS } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { Button } from '../ui/Button'
 import { Toggle } from '../ui/Toggle'
@@ -13,7 +13,7 @@ import { useSfx } from '../sfx/SfxContext'
 interface SettingsProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
-  onPreview: (color: string, model: BallModel) => void   // живое превью для фоновой модельки (App)
+  onPreview: (color: string, model: BallModel, ringColor: string) => void   // живое превью (App); ringColor — второй цвет (кольцо)
   onBack: () => void
 }
 
@@ -48,6 +48,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [showSpeed, setShowSpeed] = useState(profile.showSpeed)
   const [menuGlow, setMenuGlow] = useState(profile.menuGlow)
   const [audioViz, setAudioViz] = useState(profile.audioViz)
+  const [connTimeout, setConnTimeout] = useState(profile.connectTimeoutSec)
   const [volMaster, setVolMaster] = useState(profile.volumeMaster)
   const [volMusic, setVolMusic] = useState(profile.volumeMusic)
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
@@ -55,7 +56,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -107,6 +108,11 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
     setAudioViz(v)
     commit({ ...base(), audioViz: v })
   }
+  const handleConnTimeout = (v: number) => {
+    if (v !== connTimeout) sfx.play2D('ui_toggle')
+    setConnTimeout(v)
+    commit({ ...base(), connectTimeoutSec: v })
+  }
   const handleVolMaster = (v: number) => {
     setVolMaster(v)
     commit({ ...base(), volumeMaster: v })
@@ -125,10 +131,11 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
+  const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
   const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
 
   // Фоновая моделька (App) отражает редактируемый цвет/модель вживую.
-  useEffect(() => { onPreview(previewColor, model) }, [previewColor, model, onPreview])
+  useEffect(() => { onPreview(previewColor, model, previewRingColor) }, [previewColor, model, previewRingColor, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева открывается фоновая 3D-моделька.
@@ -216,7 +223,17 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
         </>
       )}
 
-      {section === 'net' && <RelaysSection />}
+      {section === 'net' && (
+        <>
+          <div style={{ ...label, marginBottom: '0.6rem' }}>ТАЙМАУТ ПОДКЛЮЧЕНИЯ К ЛОББИ</div>
+          <div style={{ ...row, flexWrap: 'wrap' }}>
+            {CONNECT_TIMEOUT_OPTIONS.map(s => (
+              <button key={s} className={`seg${connTimeout === s ? ' seg--on' : ''}`} onClick={() => handleConnTimeout(s)}>{s} С</button>
+            ))}
+          </div>
+          <RelaysSection />
+        </>
+      )}
 
       {section === 'graphics' && (
         <>

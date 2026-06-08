@@ -90,10 +90,11 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
         <div className="lobby-face">
           {pane(host ?? null, 'host')}
           <div className="lobby-center">
+            {/* подпись центрируется по колонке (=по «ЛОББИ»), а не по кнопке код+глиф (её центр смещён) */}
+            {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
             <button className="lobby-code-copy" onClick={copyCode} title="Скопировать код">
               <span className="lobby-code">{lobbyCode}</span>
               <span className="glyph" aria-hidden="true">⧉</span>
-              {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
             </button>
             <div className="lobby-vs">— VS —</div>
             {/* скрытый узел для тестов формата кода */}

@@ -21,7 +21,7 @@ const SETTINGS_W_FRACTION = 0.22
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings'
 type Pos = 'center' | 'left-edge' | 'right-edge' | 'settings-left'
-interface BallSpec { color: string; model: BallModel }
+interface BallSpec { color: string; model: BallModel; ringColor?: string }   // ringColor — «второй» цвет (для кольца планеты)
 interface ActiveBall { key: string; spec: BallSpec; pos: Pos; slideIn: boolean }
 
 interface Viewport { width: number; height: number }
@@ -72,7 +72,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec;
     return m
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec.model])
-  const ring = useMemo(() => (spec.model === 'planet' ? createBallRing(spec.color) : null), [spec.model]) // eslint-disable-line react-hooks/exhaustive-deps
+  const ring = useMemo(() => (spec.model === 'planet' ? createBallRing(spec.ringColor ?? spec.color) : null), [spec.model]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => material.dispose(), [material])
   useEffect(() => () => ring?.dispose(), [ring])
   // Модель — на слой свечения (его рендерит depth-пасс MenuEdgeGlow); кольцу включаем depthWrite,
@@ -83,6 +83,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec;
   }, [ring])
 
   const targetColor = useMemo(() => new Color(spec.color), [spec.color])
+  const targetRingColor = useMemo(() => new Color(spec.ringColor ?? spec.color), [spec.ringColor, spec.color])
   const cur = useRef<{ x: number; scale: number; opacity: number } | null>(null)
 
   useFrame((_, dtRaw) => {
@@ -103,6 +104,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec;
     material.color.lerp(targetColor, kc)
     material.opacity = c.opacity
     ring?.setOpacity(c.opacity)
+    ring?.lerpColor(targetRingColor, kc)   // кольцо плавно тянется к «второму» цвету (реактивно)
     tick(dt); ring?.tick(dt)
     const g = groupRef.current
     if (g) { g.position.x = c.x; g.scale.setScalar(c.scale) }
@@ -119,7 +121,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec;
   )
 }
 
-const specOf = (color: string, model?: BallModel): BallSpec => ({ color, model: model ?? 'smooth' })
+const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec => ({ color, model: model ?? 'smooth', ringColor })
 
 /** Какие шары активны и куда едут — по текущему режиму/состоянию лобби. Ключ `player` стабилен между экранами. */
 function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null): ActiveBall[] {
@@ -129,14 +131,15 @@ function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null)
   const host = lobby.roster.find(r => r.id === HOST_ID)
   const opp = lobby.roster.find(r => r.id === OPPONENT_ID)
   if (!host) return [{ key: 'player', spec: player, pos: 'center', slideIn: false }]
-  if (!opp) return [{ key: 'player', spec: specOf(host.color, host.ballModel), pos: 'center', slideIn: false }]
+  if (!opp) return [{ key: 'player', spec: specOf(host.color, host.ballModel, player.ringColor), pos: 'center', slideIn: false }]
 
   // Двое: хост слева, соперник справа. Свой шар (player) — на своей стороне, другой выезжает.
+  // У своего шара кольцо — наш «второй» цвет (player.ringColor); у соперника второго цвета нет → его же цвет.
   const selfIsHost = lobby.localPlayerId === HOST_ID
   const self = selfIsHost ? host : opp
   const other = selfIsHost ? opp : host
   return [
-    { key: 'player', spec: specOf(self.color, self.ballModel), pos: selfIsHost ? 'left-edge' : 'right-edge', slideIn: false },
+    { key: 'player', spec: specOf(self.color, self.ballModel, player.ringColor), pos: selfIsHost ? 'left-edge' : 'right-edge', slideIn: false },
     { key: 'other', spec: specOf(other.color, other.ballModel), pos: selfIsHost ? 'right-edge' : 'left-edge', slideIn: true },
   ]
 }
@@ -145,7 +148,7 @@ type RenderedBall = ActiveBall & { exiting?: boolean }
 
 /** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
 function signOf(balls: ActiveBall[]): string {
-  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.model}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
+  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
 }
 
 function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null }) {

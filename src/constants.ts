@@ -105,9 +105,6 @@ export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
 
-// JoinLobby: ожидание ASSIGN от хоста; по истечении — ошибка
-export const CONNECT_TIMEOUT_MS = 10000
-
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]

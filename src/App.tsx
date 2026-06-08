@@ -31,7 +31,7 @@ import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { MenuMusic } from './game/audio/MenuMusic'
 import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
-import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
+import { POINTERLOCK_COOLDOWN } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
@@ -93,8 +93,8 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel }>(() => ({ color: profile.primaryColor, model: profile.ballModel }))
-  const handlePreview = useCallback((color: string, model: BallModel) => setSettingsPreview({ color, model }), [])
+  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }))
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string) => setSettingsPreview({ color, model, ringColor }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -276,7 +276,7 @@ export default function App() {
       const foundHost = sessionRef.current?.view().foundHost ?? false
       setJoinStatus(foundHost ? 'failed-connect' : 'failed-find')
       leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
-    }, CONNECT_TIMEOUT_MS)
+    }, profile.connectTimeoutSec * 1000)
   }
   const handleSettings = () => setScreen('settings')
 
@@ -311,7 +311,10 @@ export default function App() {
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'settings'
     ? settingsPreview
-    : { color: screen === 'join' ? profile.reserveColor : profile.primaryColor, model: profile.ballModel }
+    // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
+    : screen === 'join'
+      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor }
+      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }
 
   // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
