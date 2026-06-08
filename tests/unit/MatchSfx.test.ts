@@ -1,9 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { MatchSfx } from '../../src/game/audio/sfx/MatchSfx'
+import type { PlayerSfxInput } from '../../src/game/audio/sfx/MatchSfx'
 import { FakeSfxEngine } from '../../src/game/audio/sfx/FakeSfxEngine'
 
 const pos = () => new THREE.Vector3(1, 2, 3)
+
+function input(over: Partial<PlayerSfxInput> = {}): PlayerSfxInput {
+  return {
+    id: 1, obj: new THREE.Object3D(), pos: new THREE.Vector3(),
+    shieldActive: false, dashing: false, grounded: true, justJumped: false,
+    dashReady: null, shieldReady: null, ...over,
+  }
+}
 
 describe('MatchSfx.combat', () => {
   it('fired→beam_fire, block→block, kill→death, respawn→respawn', () => {
@@ -23,5 +32,53 @@ describe('MatchSfx.combat', () => {
     const fake = new FakeSfxEngine()
     new MatchSfx(fake).combat({ t: 'time', remainingMs: 1000 }, () => pos())
     expect(fake.calls.length).toBe(0)
+  })
+})
+
+describe('MatchSfx.frame', () => {
+  it('щит off→on: shield_up + startLoop; on→off: shield_down + stopLoop', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ shieldActive: false })])
+    sfx.frame([input({ shieldActive: true })])
+    expect(fake.played('shield_up')).toBe(1)
+    expect(fake.calls.some(c => c.method === 'startLoop' && c.event === 'shield_loop')).toBe(true)
+    sfx.frame([input({ shieldActive: false })])
+    expect(fake.played('shield_down')).toBe(1)
+    expect(fake.calls.some(c => c.method === 'stopLoop')).toBe(true)
+  })
+
+  it('рывок false→true → dash (один раз)', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ dashing: false })])
+    sfx.frame([input({ dashing: true })])
+    sfx.frame([input({ dashing: true })])
+    expect(fake.played('dash')).toBe(1)
+  })
+
+  it('justJumped → jump и возвращает move-jump', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    const moves = sfx.frame([input({ justJumped: true })])
+    expect(fake.played('jump')).toBe(1)
+    expect(moves).toEqual([{ id: 1, kind: 'jump', pos: expect.anything() }])
+  })
+
+  it('grounded false→true → land', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ grounded: false })])
+    sfx.frame([input({ grounded: true })])
+    expect(fake.played('land')).toBe(1)
+  })
+
+  it('cooldown_ready — когда рывок ИЛИ щит перешёл в готов (только локальный)', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ dashReady: false, shieldReady: true })])
+    sfx.frame([input({ dashReady: true, shieldReady: true })])   // рывок стал готов
+    expect(fake.played('cooldown_ready')).toBe(1)
+  })
+
+  it('move(): озвучивает прыжок/приземление соперника', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.move('jump', new THREE.Vector3())
+    expect(fake.played('jump')).toBe(1)
   })
 })

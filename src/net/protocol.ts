@@ -65,6 +65,7 @@ export type MatchEvent =
   | { t: 'kill';    shooter: number; victim: number }
   | { t: 'block';   shooter: number; victim: number }
   | { t: 'respawn'; id: number; pos: Vec3 }
+  | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // дискретное движение соперника (host → client)
   | { t: 'scores';  scores: ScoreLine[] }
   | { t: 'time';     remainingMs: number }
   | { t: 'matchEnd'; reason: 'time' | 'disconnect' }

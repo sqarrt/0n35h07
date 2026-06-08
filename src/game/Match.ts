@@ -100,6 +100,7 @@ export class Match {
   // Ритуал входа (1v1)
   private readySet = new Set<number>()
   private countdownEndsAt = 0
+  private prevCountTick = 0   // последняя сыгранная секунда отсчёта (дедуп count_tick)
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
   private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
   private leftIds = new Set<number>()   // отключившиеся игроки
@@ -225,6 +226,7 @@ export class Match {
         }
       })
       this.applyPhysics(dt)
+      this.sfxFrameClientSelf()   // свои движения (прыжок/рывок/щит/land/cooldown) — сразу, без сетевой задержки
       this.human.tickRespawn(dt)   // локально тикаем фазу призрака (индикация/скорость); финал — событием respawn
       this.syncHud()
       this.humanController.lateUpdate?.(dt)
@@ -240,6 +242,7 @@ export class Match {
     this.tickMatchClock(Date.now())
     this.syncHud()
     this.controllers.forEach(c => c.lateUpdate?.(dt))
+    this.sfxFrameHost()   // движения обоих (grounded/justJumped уже свежие после applyPhysics) + эмит move
   }
 
   /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
@@ -335,6 +338,14 @@ export class Match {
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
     this.syncPhaseHud()
+    // Тик отсчёта (3/2/1) — раз на целую секунду. 2D, считается локально и на host, и на client.
+    if (this.phase === 'countdown') {
+      const left = Math.ceil((this.countdownEndsAt - Date.now()) / 1000)
+      if (left !== this.prevCountTick && left >= 1 && left <= 3) this.sfx?.play2D('count_tick')
+      this.prevCountTick = left
+    } else {
+      this.prevCountTick = 0
+    }
     // Отложенный показ экрана исхода: phase='ended' уже заморозил игроков (стоп-кадр); по истечении паузы —
     // диспатч результата (overlay появляется с собственным fade-in). Тикается и на host, и на client.
     if (this.pendingResult && Date.now() >= this.resultDueAt) {
@@ -351,6 +362,30 @@ export class Match {
 
   /** Мир-позиция игрока по id (для позиционных SFX). */
   private sfxPos = (id: number): THREE.Vector3 | null => this.byId.get(id)?.position ?? null
+
+  /** host: перекличка движений обоих игроков + эмит дискретных move-событий (прыжок/land) клиенту. */
+  private sfxFrameHost() {
+    if (!this.sfx) return
+    const inputs = this.players.map(p => ({
+      id: p.id, obj: p.bodyGroup, pos: p.position,
+      shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
+      dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
+      shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
+    }))
+    const moves = this.sfx.frame(inputs)
+    for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
+  }
+
+  /** client: перекличка движений своего игрока (из локальной симуляции — без сетевой задержки). */
+  private sfxFrameClientSelf() {
+    if (!this.sfx) return
+    const me = this.human
+    this.sfx.frame([{
+      id: me.id, obj: me.bodyGroup, pos: me.position,
+      shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
+      dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
+    }])
+  }
 
   /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
   private musicRemainingMs(): number {
@@ -437,6 +472,7 @@ export class Match {
     this.pendingResult = this.computeResult(reason)
     this.resultDueAt = Date.now() + END_FREEZE_MS
     this.music?.fadeOut()   // плавно гасим музыку перед экраном исхода
+    this.sfx?.reset()       // гасим луп щита и сбрасываем переходы
     this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
   }
 
@@ -522,7 +558,15 @@ export class Match {
       const p = this.byId.get(ps.id)
       if (!p) continue
       if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // предсказание + коррекция к авторитету
-      else p.applyNetState(ps)
+      else {
+        p.applyNetState(ps)
+        // Щит/рывок соперника — из флагов снапшота по их переходам (прыжок/land приходят событием move).
+        this.sfx?.frame([{
+          id: ps.id, obj: p.bodyGroup, pos: p.position,
+          shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
+          dashReady: null, shieldReady: null,
+        }])
+      }
     }
   }
 
@@ -558,6 +602,11 @@ export class Match {
       case 'respawn': {
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
         this.sfx?.combat(e, this.sfxPos)
+        break
+      }
+      case 'move': {
+        if (e.id === this.localId) break   // своё движение уже сыграно предсказанием
+        this.sfx?.move(e.kind, this.byId.get(e.id)?.position ?? fromVec3(e.pos))
         break
       }
       case 'scores': {

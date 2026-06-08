@@ -33,6 +33,7 @@ export class Body {
   rb: RapierRigidBody | null = null
   velocityY = 0
   grounded  = true
+  justJumped = false   // прыжок применён в этом кадре (для SFX); живёт один кадр (выставляется в stepJump)
 
   private velH = new THREE.Vector3()        // персистентная горизонтальная скорость (Quake-инерция)
   private wishVel = new THREE.Vector3()     // желаемая скорость из ввода за кадр (величина = wishspeed)
@@ -93,14 +94,17 @@ export class Body {
   /** Обработка прыжка (в Match.applyPhysics ДО stepVertical; grounded — с прошлого кадра). */
   stepJump() {
     this.jumpedThisFrame = false
+    this.justJumped = false
     const edge = this.jumpHeld && !this.prevJumpHeld
     if (this.grounded && this.jumpHeld) {
       this.velocityY = JUMP_FORCE          // auto-bhop: держишь прыжок → прыжок на каждом приземлении
       this.airJumps = MAX_AIR_JUMPS        // гарантируем воздушный прыжок даже на первом прыжке со спавна
       this.jumpedThisFrame = true
+      this.justJumped = true
     } else if (edge && !this.grounded && this.airJumps > 0) {
       this.velocityY = JUMP_FORCE          // двойной прыжок — только по НОВОМУ нажатию в воздухе
       this.airJumps--
+      this.justJumped = true
     }
     this.prevJumpHeld = this.jumpHeld
   }
