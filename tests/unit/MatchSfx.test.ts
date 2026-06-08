@@ -93,4 +93,26 @@ describe('MatchSfx.frame', () => {
     sfx.move('jump', new THREE.Vector3())
     expect(fake.played('jump')).toBe(1)
   })
+
+  it('throttle: land сразу после jump (bhop-пара ~16мс) подавляется', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ grounded: false })], 0)                    // в воздухе
+    sfx.frame([input({ justJumped: true, grounded: false })], 100) // прыжок на t=100
+    sfx.frame([input({ grounded: true })], 116)                    // приземление через 16мс → подавлено
+    expect(fake.played('jump')).toBe(1)
+    expect(fake.played('land')).toBe(0)
+  })
+
+  it('throttle: одиночное приземление (без недавнего прыжка) звучит', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ grounded: false })], 0)
+    sfx.frame([input({ grounded: true })], 500)                    // приземление после полёта → звучит
+    expect(fake.played('land')).toBe(1)
+  })
+
+  it('throttle: пер-игрок (прыжок одного не глушит прыжок другого в тот же миг)', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ id: 0, justJumped: true }), input({ id: 1, justJumped: true })], 100)
+    expect(fake.played('jump')).toBe(2)   // разные игроки — оба слышны
+  })
 })

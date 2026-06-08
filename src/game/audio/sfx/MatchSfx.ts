@@ -4,6 +4,13 @@ import type { MatchEvent } from '../../../net/protocol'
 
 export type MoveKind = 'jump' | 'land'
 
+// Throttle движенческих звуков (jump/land) на игрока: в авто-bhop приземление и отрыв идут парой ~16мс
+// подряд → перекрытие коротких транзиентов даёт «пердёж». Схлопываем в один удар на отскок; обычные
+// прыжки (полёт >этого интервала) не задеты.
+const MOVE_SFX_THROTTLE_MS = 100
+
+const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
 /** Снимок состояния игрока за кадр для перклички переходов. */
 export interface PlayerSfxInput {
   id: number
@@ -24,7 +31,13 @@ interface PrevState { shield: boolean; dashing: boolean; grounded: boolean | nul
 export class MatchSfx {
   private engine: ISfxEngine
   private prev = new Map<number, PrevState>()
+  private lastMoveSfx = new Map<number, number>()   // id → время последнего jump/land (throttle)
   constructor(engine: ISfxEngine) { this.engine = engine }
+
+  /** Можно ли сейчас сыграть движенческий звук игрока (не чаще MOVE_SFX_THROTTLE_MS). */
+  private moveSfxOk(id: number, now: number): boolean {
+    return now - (this.lastMoveSfx.get(id) ?? -Infinity) >= MOVE_SFX_THROTTLE_MS
+  }
 
   /** Боёвка — из общего пути событий (host: emit; client: applyEvent). posOf даёт мир-позицию игрока.
    *  beam_fire здесь НЕ играется: его звук — это весь выстрел (заряд→разряд), стартует с начала windup
@@ -39,7 +52,7 @@ export class MatchSfx {
   }
 
   /** Перекличка состояний за кадр: заряд/щит/рывок/прыжок/land/cooldown. Возвращает движения для эмита (host). */
-  frame(inputs: PlayerSfxInput[]): { id: number; kind: MoveKind; pos: THREE.Vector3 }[] {
+  frame(inputs: PlayerSfxInput[], now: number = nowMs()): { id: number; kind: MoveKind; pos: THREE.Vector3 }[] {
     const moves: { id: number; kind: MoveKind; pos: THREE.Vector3 }[] = []
     for (const inp of inputs) {
       const prev = this.prev.get(inp.id)
@@ -52,8 +65,15 @@ export class MatchSfx {
         this.engine.stopLoop(`shield:${inp.id}`)
       }
       if (inp.dashing && !(prev?.dashing)) this.engine.playAt('dash', inp.pos)
-      if (inp.justJumped) { this.engine.playAt('jump', inp.pos); moves.push({ id: inp.id, kind: 'jump', pos: inp.pos.clone() }) }
-      if (inp.grounded === true && prev?.grounded === false) { this.engine.playAt('land', inp.pos); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() }) }
+      // jump/land — throttle на игрока (схлопывает bhop-пару, см. MOVE_SFX_THROTTLE_MS)
+      if (inp.justJumped && this.moveSfxOk(inp.id, now)) {
+        this.engine.playAt('jump', inp.pos); moves.push({ id: inp.id, kind: 'jump', pos: inp.pos.clone() })
+        this.lastMoveSfx.set(inp.id, now)
+      }
+      if (inp.grounded === true && prev?.grounded === false && this.moveSfxOk(inp.id, now)) {
+        this.engine.playAt('land', inp.pos); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() })
+        this.lastMoveSfx.set(inp.id, now)
+      }
       if (inp.dashReady !== null && inp.shieldReady !== null && prev) {
         if ((inp.dashReady && !prev.dashReady) || (inp.shieldReady && !prev.shieldReady)) this.engine.play2D('cooldown_ready')
       }
@@ -75,5 +95,6 @@ export class MatchSfx {
   reset(): void {
     for (const id of this.prev.keys()) this.engine.stopLoop(`shield:${id}`)
     this.prev.clear()
+    this.lastMoveSfx.clear()
   }
 }
