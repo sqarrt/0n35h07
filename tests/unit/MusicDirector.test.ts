@@ -4,39 +4,61 @@ import type { StemLibrary } from '../../src/game/audio/types'
 
 // Синтетическая библиотека — тесты не зависят от реальных ассетов.
 const LIB: StemLibrary = {
-  bass:  [{ id: 'bass/b1', url: 'b1' }, { id: 'bass/b2', url: 'b2' }],
-  kicks: [{ id: 'kicks/k1', url: 'k1' }, { id: 'kicks/k2', url: 'k2' }],
-  lead:  [{ id: 'lead/l1', url: 'l1' }, { id: 'lead/l2', url: 'l2' }],
-  sfx:   [{ id: 'sfx/s1', url: 's1' }, { id: 'sfx/s2', url: 's2' }],
+  bass:  Array.from({ length: 4 }, (_, i) => ({ id: `bass/b${i}`, url: `b${i}` })),
+  kicks: Array.from({ length: 6 }, (_, i) => ({ id: `kicks/k${i}`, url: `k${i}` })),
+  lead:  Array.from({ length: 6 }, (_, i) => ({ id: `lead/l${i}`, url: `l${i}` })),
+  sfx:   Array.from({ length: 4 }, (_, i) => ({ id: `sfx/s${i}`, url: `s${i}` })),
 }
+const FAR = 10 * 60_000        // далеко до конца матча → не аутро
+const OUTRO = 5_000            // ≤ OUTRO_MS → аутро
 const rolesOf = (arr: { role: string }[]) => arr.map(v => v.role).sort()
+const leadId = (arr: { role: string; stemId: string }[]) => arr.find(v => v.role === 'lead')!.stemId
+const d = new MusicDirector()
 
-describe('MusicDirector.compose', () => {
-  const d = new MusicDirector()
-
-  it('детерминирован: (seed, loopIndex, section) → одинаковая аранжировка', () => {
-    expect(d.compose(42, 5, LIB, 'full')).toEqual(d.compose(42, 5, LIB, 'full'))
+describe('MusicDirector.compose — песенная форма', () => {
+  it('детерминирован: одинаковые входы → одинаковая аранжировка', () => {
+    expect(d.compose(42, 9, LIB, FAR)).toEqual(d.compose(42, 9, LIB, FAR))
   })
 
-  it('intro: только kicks+bass', () => {
-    expect(rolesOf(d.compose(42, 0, LIB, 'intro'))).toEqual(['bass', 'kicks'])
-    expect(rolesOf(d.compose(42, 7, LIB, 'intro'))).toEqual(['bass', 'kicks'])
+  it('интро в начале матча: kicks+bass, стемы стабильны внутри секции', () => {
+    for (const loop of [0, 1, 2, 3]) expect(rolesOf(d.compose(42, loop, LIB, FAR))).toEqual(['bass', 'kicks'])
+    const ids = (loop: number) => d.compose(42, loop, LIB, FAR).map(v => v.stemId).sort()
+    expect(ids(0)).toEqual(ids(3))   // внутри интро стемы не дёргаются
   })
 
-  it('full: все четыре роли', () => {
-    expect(rolesOf(d.compose(42, 2, LIB, 'full'))).toEqual(['bass', 'kicks', 'lead', 'sfx'])
+  it('аутро по остатку времени: kicks+lead (независимо от loopIndex)', () => {
+    expect(rolesOf(d.compose(42, 100, LIB, OUTRO))).toEqual(['kicks', 'lead'])
   })
 
-  it('finale: только kicks+lead', () => {
-    expect(rolesOf(d.compose(42, 9, LIB, 'finale'))).toEqual(['kicks', 'lead'])
+  it('аутро берёт лид припева (вариант 0)', () => {
+    // первый припев: интро(4)+куплет(4) → абс. лупы 8..11, occurrence 0, вариант 0
+    expect(leadId(d.compose(42, 200, LIB, OUTRO))).toBe(leadId(d.compose(42, 9, LIB, FAR)))
   })
 
-  it('все stemId существуют в библиотеке', () => {
+  it('секции тела: верные наборы ролей', () => {
+    expect(rolesOf(d.compose(42, 4, LIB, FAR))).toEqual(['bass', 'kicks', 'lead', 'sfx'])   // куплет (абс 4..7)
+    expect(rolesOf(d.compose(42, 20, LIB, FAR))).toEqual(['bass', 'sfx'])                    // бридж (абс 20..21)
+    expect(rolesOf(d.compose(42, 22, LIB, FAR))).toEqual(['kicks', 'lead'])                  // соло (абс 22..25)
+  })
+
+  it('вариация: куплеты ротируют лид по пулу (occ0≠occ1, occ0==occ3)', () => {
+    // куплеты начинаются на абс. лупах: 4 (occ0), 12 (occ1), затем +26: 30 (occ2), 38 (occ3)
+    const o0 = leadId(d.compose(42, 4, LIB, FAR))
+    const o1 = leadId(d.compose(42, 12, LIB, FAR))
+    const o3 = leadId(d.compose(42, 38, LIB, FAR))
+    expect(o0).not.toBe(o1)   // соседние повторы — разные варианты
+    expect(o0).toBe(o3)       // период пула (COLOR_POOL=3) → occ0 и occ3 совпадают
+  })
+
+  it('лид куплета и лид припева различны (узнаваемость секций)', () => {
+    expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 8, LIB, FAR)))
+  })
+
+  it('все stemId существуют в библиотеке; gain положительный', () => {
     const all = new Set(Object.values(LIB).flat().map(s => s.id))
-    for (const v of d.compose(7, 9, LIB, 'full')) expect(all.has(v.stemId)).toBe(true)
-  })
-
-  it('у каждого голоса положительный gain', () => {
-    for (const v of d.compose(7, 2, LIB, 'full')) expect(v.gain).toBeGreaterThan(0)
+    for (const v of d.compose(7, 9, LIB, FAR)) {
+      expect(all.has(v.stemId)).toBe(true)
+      expect(v.gain).toBeGreaterThan(0)
+    }
   })
 })

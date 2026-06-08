@@ -1,21 +1,20 @@
-import type { IMusicEngine, MusicSection } from './types'
+import type { IMusicEngine } from './types'
 import { STEM_LIBRARY } from './stems'
 import { MusicDirector } from './MusicDirector'
 import { hashSeed } from './rng'
 
 /** Связывает сид (из лобби-кода) + директора с движком; владеет жизненным циклом музыки матча.
- *  Секцию (intro/full/finale) на каждом лупе спрашивает у матча через getSection — она зависит
- *  от состояния боя (первое убийство, остаток времени), синхронного у обоих пиров. */
+ *  Остаток времени матча (для аутро) спрашивает у матча через getRemainingMs — он синхронен у пиров. */
 export class MatchMusic {
   private readonly seed: number
   private readonly engine: IMusicEngine
-  private readonly getSection: () => MusicSection
+  private readonly getRemainingMs: () => number
   private readonly director = new MusicDirector()
   private started = false
 
-  constructor(seedCode: string, engine: IMusicEngine, getSection: () => MusicSection) {
+  constructor(seedCode: string, engine: IMusicEngine, getRemainingMs: () => number) {
     this.engine = engine
-    this.getSection = getSection
+    this.getRemainingMs = getRemainingMs
     this.seed = hashSeed(seedCode)
   }
 
@@ -29,7 +28,7 @@ export class MatchMusic {
     const engine = this.engine
     window.__debugMusic = () => ({ loopIndex: engine.loopIndex, active: engine.activeStemIds() })
     await engine.load(STEM_LIBRARY)
-    await engine.start(loopIndex => this.director.compose(this.seed, loopIndex, STEM_LIBRARY, this.getSection()))
+    await engine.start(loopIndex => this.director.compose(this.seed, loopIndex, STEM_LIBRARY, this.getRemainingMs()))
   }
 
   /** Плавно гасит музыку на завершении матча. Безопасно звать до старта (no-op). */

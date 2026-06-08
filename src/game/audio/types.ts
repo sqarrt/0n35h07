@@ -5,10 +5,6 @@ export const ROLES: readonly Role[] = ['bass', 'kicks', 'lead', 'sfx']
 export interface StemRef { id: string; url: string }
 export type StemLibrary = Record<Role, StemRef[]>
 
-/** Музыкальная секция матча — задаётся состоянием боя, а не временем лупа:
- *  intro — до первого убийства; full — основная фаза; finale — последние секунды матча. */
-export type MusicSection = 'intro' | 'full' | 'finale'
-
 /** Один звучащий голос на текущем лупе. */
 export interface VoiceSpec { role: Role; stemId: string; gain: number }
 /** Набор голосов на луп — результат композиции. */
