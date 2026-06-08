@@ -44,15 +44,24 @@ export class ThreeSfxEngine implements ISfxEngine {
     this.parent = null
   }
 
-  playAt(event: SfxEvent, pos: THREE.Vector3, gain = 1): void {
-    const buf = this.buffers.get(event)
-    if (!buf || !this.parent) return
-    this.resume()
+  /** Позиционная нода с общей настройкой дистанции и панорамированием equalpower.
+   *  HRTF (дефолт three.js) при движущемся listener (он на камере) пересчитывает свёртку каждый кадр
+   *  → треск/зиппер. equalpower — constant-power L/R без свёртки, без артефактов. */
+  private makePositional(buf: AudioBuffer): THREE.PositionalAudio {
     const a = new THREE.PositionalAudio(this.listener)
     a.setBuffer(buf)
     a.setRefDistance(SFX_REF_DISTANCE)
     a.setRolloffFactor(SFX_ROLLOFF)
     a.setMaxDistance(SFX_MAX_DISTANCE)
+    a.panner.panningModel = 'equalpower'
+    return a
+  }
+
+  playAt(event: SfxEvent, pos: THREE.Vector3, gain = 1): void {
+    const buf = this.buffers.get(event)
+    if (!buf || !this.parent) return
+    this.resume()
+    const a = this.makePositional(buf)
     a.setVolume((SFX_GAIN[event] ?? 1) * gain)
     a.position.copy(pos)
     this.parent.add(a)
@@ -77,11 +86,7 @@ export class ThreeSfxEngine implements ISfxEngine {
     const buf = this.buffers.get(event)
     if (!buf) return
     this.resume()
-    const a = new THREE.PositionalAudio(this.listener)
-    a.setBuffer(buf)
-    a.setRefDistance(SFX_REF_DISTANCE)
-    a.setRolloffFactor(SFX_ROLLOFF)
-    a.setMaxDistance(SFX_MAX_DISTANCE)
+    const a = this.makePositional(buf)
     a.setLoop(true)
     a.setVolume(SFX_GAIN[event] ?? 0.5)
     target.add(a)
