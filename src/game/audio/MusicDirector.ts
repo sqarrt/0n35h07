@@ -24,7 +24,8 @@ const SECTION_ROLES: Record<SectionType, Role[]> = {
   outro:  ['kicks', 'lead'],
 }
 
-const FOUNDATION_ROLES: Role[] = ['bass', 'kicks']   // фундамент: единый по матчу, медленная ротация
+const FOUNDATION_ROLES: Role[] = ['kicks']   // фундамент (опора): единый по матчу, медленная ротация.
+                                             // Бас НЕ фундамент — он «цвет», меняется по секциям (иначе залипает)
 const FOUNDATION_POOL = 2      // вариантов фундамента (ротация раз в проход паттерна тела)
 const COLOR_POOL = 3           // вариантов цвета (lead/sfx) на тип секции
 const ORNAMENT_GAIN = 0.5      // гейн второго лида на одно-луповом орнаменте

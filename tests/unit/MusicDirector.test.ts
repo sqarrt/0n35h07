@@ -50,6 +50,13 @@ describe('MusicDirector.compose — песенная форма', () => {
     expect(o0).toBe(o3)       // период пула (COLOR_POOL=3) → occ0 и occ3 совпадают
   })
 
+  it('бас не залипает: меняется по секциям (за матч встречается несколько разных)', () => {
+    const bassId = (loop: number) => d.compose(42, loop, LIB, FAR).find(v => v.role === 'bass')!.stemId
+    // интро(0), куплет(4), припев(8), бридж(20) — все с басом, но разные секции
+    const distinct = new Set([0, 4, 8, 20].map(bassId))
+    expect(distinct.size).toBeGreaterThan(1)
+  })
+
   it('лид куплета и лид припева различны (узнаваемость секций)', () => {
     expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 8, LIB, FAR)))
   })
