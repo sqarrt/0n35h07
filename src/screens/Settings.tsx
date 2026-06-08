@@ -6,6 +6,7 @@ import { NAME_MAX, saveProfile } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { Button } from '../ui/Button'
 import { Toggle } from '../ui/Toggle'
+import { Slider } from '../ui/Slider'
 import { RelaysSection } from './RelaysSection'
 import { useSfx } from '../sfx/SfxContext'
 
@@ -17,7 +18,7 @@ interface SettingsProps {
 }
 
 type Slot = 'primary' | 'reserve'
-type Section = 'player' | 'net' | 'graphics'
+type Section = 'player' | 'sound' | 'net' | 'graphics'
 
 const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
 const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
@@ -29,6 +30,7 @@ const subHeader: CSSProperties = {
 
 const SECTIONS: { id: Section; label: string }[] = [
   { id: 'player', label: 'ИГРОК' },
+  { id: 'sound', label: 'ЗВУК' },
   { id: 'net', label: 'СЕТЬ' },
   { id: 'graphics', label: 'ГРАФИКА' },
 ]
@@ -44,10 +46,13 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [post, setPost] = useState(profile.postProcessing)
   const [showFps, setShowFps] = useState(profile.showFps)
   const [showSpeed, setShowSpeed] = useState(profile.showSpeed)
+  const [volMaster, setVolMaster] = useState(profile.volumeMaster)
+  const [volMusic, setVolMusic] = useState(profile.volumeMusic)
+  const [volSfx, setVolSfx] = useState(profile.volumeSfx)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -90,6 +95,18 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handleShowSpeed = (v: boolean) => {
     setShowSpeed(v)
     commit({ ...base(), showSpeed: v })
+  }
+  const handleVolMaster = (v: number) => {
+    setVolMaster(v)
+    commit({ ...base(), volumeMaster: v })
+  }
+  const handleVolMusic = (v: number) => {
+    setVolMusic(v)
+    commit({ ...base(), volumeMusic: v })
+  }
+  const handleVolSfx = (v: number) => {
+    setVolSfx(v)
+    commit({ ...base(), volumeSfx: v })
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
@@ -171,6 +188,15 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
               </button>
             ))}
           </div>
+        </>
+      )}
+
+      {section === 'sound' && (
+        <>
+          <div style={subHeader}>ГРОМКОСТЬ</div>
+          <Slider label="ОБЩАЯ ГРОМКОСТЬ" value={volMaster} onChange={handleVolMaster} />
+          <Slider label="МУЗЫКА" value={volMusic} onChange={handleVolMusic} />
+          <Slider label="ЭФФЕКТЫ" value={volSfx} onChange={handleVolSfx} />
         </>
       )}
 

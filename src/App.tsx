@@ -98,6 +98,8 @@ export default function App() {
   // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
   const [sfx] = useState(() => new ThreeSfxEngine())
   useEffect(() => { void sfx.load() }, [sfx])
+  // Громкость эффектов = общий × эффекты (живьём: UI-звуки в меню сразу реагируют на ползунок).
+  useEffect(() => { sfx.setMasterGain(profile.volumeMaster * profile.volumeSfx) }, [sfx, profile.volumeMaster, profile.volumeSfx])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
@@ -338,6 +340,7 @@ export default function App() {
               mapId={gameNet.mapId}
               seedCode={gameNet.code}
               sfxEngine={sfx}
+              musicVolume={profile.volumeMaster * profile.volumeMusic}
             />
           </Canvas>
           {hud.matchPhase === 'ready' && (

@@ -32,12 +32,16 @@ interface GameProps {
   mapId: MapId
   seedCode: string
   sfxEngine: ISfxEngine
+  musicVolume: number   // общий × музыка (0..1); применяется к движку музыки
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
+
+  // Движок музыки держим ссылкой (а не инлайном), чтобы прокидывать пользовательскую громкость.
+  const musicEngine = useMemo(() => new WebAudioMusicEngine(), [])
 
   const match = useMemo(
     () => new Match({
@@ -52,13 +56,16 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       durationMs,
       mapId,
       seedCode,
-      musicEngine: new WebAudioMusicEngine(),
+      musicEngine,
       sfxEngine,
     }),
     // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
+
+  // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
+  useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])

@@ -21,7 +21,7 @@ export class ThreeSfxEngine implements ISfxEngine {
   private parent: THREE.Object3D | null = null
   private loops = new Map<string, THREE.PositionalAudio>()
 
-  constructor() { this.listener.setMasterVolume(SFX_MASTER_GAIN) }
+  constructor() { this.setMasterGain(1) }
 
   async load(): Promise<void> {
     const ctx = this.listener.context
@@ -97,7 +97,11 @@ export class ThreeSfxEngine implements ISfxEngine {
     this.loops.delete(key)
   }
 
-  setMasterGain(gain: number): void { this.listener.setMasterVolume(gain) }
+  /** Пользовательский уровень 0..1 поверх эталонного SFX_MASTER_GAIN (1 = настроенный на слух эталон). */
+  setMasterGain(gain: number): void {
+    const level = Math.min(1, Math.max(0, gain))
+    this.listener.setMasterVolume(SFX_MASTER_GAIN * level)
+  }
   dispose(): void { this.detach(); this.buffers.clear() }
 
   private resume(): void {

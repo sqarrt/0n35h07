@@ -83,6 +83,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
   private _loopIndex = 0
   private prevVoices = new Map<string, number>()   // stemId играющих голосов → их gain (для кроссфейда подмены)
   private _active = new Set<string>()
+  private userGain = 1   // пользовательский уровень музыки 0..1 (поверх эталона MASTER_GAIN_DEFAULT)
 
   get loopIndex(): number { return Math.max(0, this._loopIndex - 1) }
   activeStemIds(): string[] { return [...this._active] }
@@ -106,9 +107,9 @@ export class WebAudioMusicEngine implements IMusicEngine {
     if (ctx.state === 'suspended') await ctx.resume()
     this._loopIndex = 0
     this.prevVoices.clear()
-    // Мягкий фейд-ин всей музыки на входе в бой (0.5с): мастер с 0 до рабочей громкости.
+    // Мягкий фейд-ин всей музыки на входе в бой (0.5с): мастер с 0 до рабочей громкости × пользовательский уровень.
     this.master!.gain.setValueAtTime(0, ctx.currentTime)
-    this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT, ctx.currentTime + START_FADE_SEC)
+    this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT * this.userGain, ctx.currentTime + START_FADE_SEC)
     this.nextBoundary = ctx.currentTime + START_DELAY_SEC
     if (this.timer == null) this.timer = setInterval(() => this.tick(), SCHEDULER_TICK_MS)
     this.tick()
@@ -138,8 +139,10 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.prevVoices.clear()
   }
 
+  /** Пользовательский уровень музыки 0..1 (1 = эталон MASTER_GAIN_DEFAULT). Применяется живьём и на старте. */
   setMasterGain(gain: number): void {
-    if (this.master && this.ctx) this.master.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.05)
+    this.userGain = Math.min(1, Math.max(0, gain))
+    if (this.master && this.ctx) this.master.gain.setTargetAtTime(MASTER_GAIN_DEFAULT * this.userGain, this.ctx.currentTime, 0.05)
   }
 
   dispose(): void {

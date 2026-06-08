@@ -38,6 +38,17 @@ test('настройки — модель сферы переключается 
   expect(model).toBe('waves')   // персист в профиль
 })
 
+test('настройки — раздел ЗВУК: 3 ползунка, изменение сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByRole('button', { name: 'ЗВУК' }).click()
+  await expect(page.getByRole('slider', { name: 'ОБЩАЯ ГРОМКОСТЬ' })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'МУЗЫКА' })).toBeVisible()
+  await expect(page.getByRole('slider', { name: 'ЭФФЕКТЫ' })).toBeVisible()
+  await page.getByRole('slider', { name: 'МУЗЫКА' }).fill('30')
+  const vol = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').volumeMusic)
+  expect(vol).toBeCloseTo(0.3, 5)   // персист в профиль (0..1)
+})
+
 test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')
