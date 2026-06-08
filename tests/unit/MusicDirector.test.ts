@@ -54,6 +54,13 @@ describe('MusicDirector.compose — песенная форма', () => {
     expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 8, LIB, FAR)))
   })
 
+  it('орнамент: на последнем лупе припева — второй (отличный) лид, в середине — один', () => {
+    const leads = (loop: number) => d.compose(42, loop, LIB, FAR).filter(v => v.role === 'lead')
+    expect(leads(8).length).toBe(1)             // начало первого припева (абс 8) — один лид
+    expect(leads(11).length).toBe(2)            // последний луп припева (абс 11) — добавлен второй лид
+    expect(new Set(leads(11).map(v => v.stemId)).size).toBe(2)   // два разных лида
+  })
+
   it('все stemId существуют в библиотеке; gain положительный', () => {
     const all = new Set(Object.values(LIB).flat().map(s => s.id))
     for (const v of d.compose(7, 9, LIB, FAR)) {

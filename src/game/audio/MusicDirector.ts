@@ -27,6 +27,7 @@ const SECTION_ROLES: Record<SectionType, Role[]> = {
 const FOUNDATION_ROLES: Role[] = ['bass', 'kicks']   // фундамент: единый по матчу, медленная ротация
 const FOUNDATION_POOL = 2      // вариантов фундамента (ротация раз в проход паттерна тела)
 const COLOR_POOL = 3           // вариантов цвета (lead/sfx) на тип секции
+const ORNAMENT_GAIN = 0.5      // гейн второго лида на одно-луповом орнаменте
 
 const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.7, sfx: 0.5 }
 const ROLE_SALT: Record<Role, number> = { bass: 0x1111, kicks: 0x2222, lead: 0x3333, sfx: 0x4444 }
@@ -67,6 +68,24 @@ function voiceFor(role: Role, pos: SectionPos, foundationVariant: number, seed: 
   return pickStem(seed, role, pos.type, pos.occurrence % COLOR_POOL, library, ROLE_GAIN[role])
 }
 
+/** Орнамент: второй лид на ПОСЛЕДНЕМ лупе припева/соло — короткая «перекличка» лид-на-лид.
+ *  Источник: для припева — лид куплета, для соло — лид припева. Гарантированно отличен от лида секции. */
+function ornamentLead(pos: SectionPos, primaryLeadId: string | undefined, seed: number, library: StemLibrary): VoiceSpec | null {
+  if (pos.loopInSection !== pos.loops - 1) return null
+  const srcKey = pos.type === 'chorus' ? 'verse' : pos.type === 'solo' ? 'chorus' : null
+  if (srcKey === null) return null
+  const v = pickStem(seed, 'lead', srcKey, pos.occurrence % COLOR_POOL, library, ORNAMENT_GAIN)
+  if (!v) return null
+  let stemId = v.stemId
+  if (stemId === primaryLeadId) {                 // гарантируем различие двух лидов
+    const leads = library.lead
+    const i = leads.findIndex(s => s.id === stemId)
+    stemId = leads[(i + 1) % leads.length].id
+    if (stemId === primaryLeadId) return null      // в библиотеке один лид — орнамент пропускаем
+  }
+  return { role: 'lead', stemId, gain: ORNAMENT_GAIN }
+}
+
 /** Чистая детерминированная композиция. Единственное место музыкальных правил. */
 export class MusicDirector {
   compose(seed: number, loopIndex: number, library: StemLibrary, remainingMs: number): Arrangement {
@@ -77,6 +96,8 @@ export class MusicDirector {
       const v = voiceFor(role, pos, foundationVariant, seed, library)
       if (v) voices.push(v)
     }
+    const orn = ornamentLead(pos, voices.find(v => v.role === 'lead')?.stemId, seed, library)
+    if (orn && !voices.some(v => v.stemId === orn.stemId)) voices.push(orn)
     return voices
   }
 }
