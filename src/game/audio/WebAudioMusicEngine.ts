@@ -14,6 +14,13 @@ const MASTER_GAIN_DEFAULT = 0.6
 const ECHO_DELAY_SEC = 0.35       // время задержки эхо (между повторами)
 const ECHO_FEEDBACK = 0.5         // коэффициент обратной связи (<1): каждый повтор тише, хвост ~2с
 const ECHO_WET = 0.45             // громкость эхо-выхода
+// Нормализация громкости стемов: каждый стем приводим к целевому RMS (тихие лиды слышны, громкие
+// кики не выбиваются), но множитель ограничиваем так, чтобы ПИК не вышел за потолок (транзиенты
+// киков не бьют по ушам). Считается из декодированного PCM → детерминировано и одинаково у пиров.
+const NORM_TARGET_RMS = 0.10
+const NORM_MIN_GAIN = 0.25
+const NORM_MAX_GAIN = 4.0
+const NORM_PEAK_CEILING = 0.9
 const FADE_CURVE_POINTS = 32      // точек в equal-power кривой кроссфейда
 const DECLICK_SEC = 0.003         // микро-фейд от/до нуля на краях каждого источника. Буферы стемов
                                   // стартуют/кончаются на НЕнулевом семпле (особенно бас: buffer[0]≈+0.08,
@@ -36,12 +43,37 @@ export function equalPowerCurve(gain: number, fade: 'in' | 'out'): Float32Array 
   return curve
 }
 
+/** Нормализующий множитель громкости стема: к целевому RMS, ограниченный по пику (анти-«бьёт по ушам»). */
+export function normGainFor(rms: number, peak: number): number {
+  if (rms <= 0) return 1
+  let g = Math.min(NORM_MAX_GAIN, Math.max(NORM_MIN_GAIN, NORM_TARGET_RMS / rms))
+  if (peak > 0 && peak * g > NORM_PEAK_CEILING) g = NORM_PEAK_CEILING / peak   // пик-сейф важнее RMS-цели
+  return g
+}
+
+/** RMS и пик буфера по всем каналам (для нормализации громкости). */
+function analyzeLoudness(buf: AudioBuffer): { rms: number; peak: number } {
+  let sumSq = 0, peak = 0, count = 0
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const d = buf.getChannelData(ch)
+    for (let i = 0; i < d.length; i++) {
+      const x = d[i]
+      sumSq += x * x
+      const a = x < 0 ? -x : x
+      if (a > peak) peak = a
+    }
+    count += d.length
+  }
+  return { rms: count > 0 ? Math.sqrt(sumSq / count) : 0, peak }
+}
+
 /** Web Audio движок: декод стемов, lookahead-планировщик, семпл-точное зацикливание + кроссфейд. */
 export class WebAudioMusicEngine implements IMusicEngine {
   private ctx: AudioContext | null = null
   private master: GainNode | null = null
   private echoSend: GainNode | null = null   // гейт входа в эхо: 0 во время игры, открывается на fadeOut
   private buffers = new Map<string, AudioBuffer>()
+  private norm = new Map<string, number>()   // stemId → нормализующий множитель громкости
   private provider: ((loopIndex: number) => Arrangement) | null = null
   private timer: ReturnType<typeof setInterval> | null = null
   private nextBoundary = 0
@@ -58,7 +90,10 @@ export class WebAudioMusicEngine implements IMusicEngine {
     await Promise.all(refs.map(async ref => {
       if (this.buffers.has(ref.id)) return
       const data = await (await fetch(ref.url)).arrayBuffer()
-      this.buffers.set(ref.id, await ctx.decodeAudioData(data))
+      const buf = await ctx.decodeAudioData(data)
+      this.buffers.set(ref.id, buf)
+      const { rms, peak } = analyzeLoudness(buf)
+      this.norm.set(ref.id, normGainFor(rms, peak))
     }))
   }
 
@@ -111,6 +146,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.master = null
     this.echoSend = null
     this.buffers.clear()
+    this.norm.clear()
   }
 
   private ensureCtx(): AudioContext {
@@ -180,15 +216,16 @@ export class WebAudioMusicEngine implements IMusicEngine {
     if (!buf || !this.ctx || !this.master) return
     const src = this.ctx.createBufferSource()
     src.buffer = buf
+    const ng = gain * (this.norm.get(stemId) ?? 1)   // громкость роли × нормализация стема
     const g = this.ctx.createGain()
     const p = g.gain
     const end = when + dur
     if (fade === 'out') {
-      p.setValueCurveAtTime(equalPowerCurve(gain, 'out'), when, CROSSFADE_SEC)   // спад до 0, старт с 0
+      p.setValueCurveAtTime(equalPowerCurve(ng, 'out'), when, CROSSFADE_SEC)   // спад до 0, старт с 0
     } else {
-      if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(gain, 'in'), when, CROSSFADE_SEC)
-      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(gain, when + DECLICK_SEC) }  // 'none' — де-клик вход
-      p.setValueAtTime(gain, end - DECLICK_SEC)   // де-клик выход в конце лупа (стем кончается не на нуле)
+      if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(ng, 'in'), when, CROSSFADE_SEC)
+      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(ng, when + DECLICK_SEC) }  // 'none' — де-клик вход
+      p.setValueAtTime(ng, end - DECLICK_SEC)   // де-клик выход в конце лупа (стем кончается не на нуле)
       p.linearRampToValueAtTime(0, end)
     }
     src.connect(g).connect(this.master)
