@@ -182,6 +182,14 @@ export class WebAudioMusicEngine implements IMusicEngine {
     const ctx = this.ctx
     const provider = this.provider
     if (!ctx || !provider || !this.master) return
+    // Планировщик отстал (троттлинг setInterval в фоновой вкладке, тогда как currentTime идёт):
+    // НЕ вываливаем просроченные лупы разом — иначе src.start(when<now) стартует их немедленно, все
+    // сразу → наложение/каша (нарастает с каждым уходом в фон). Перескакиваем к настоящему времени.
+    if (this.nextBoundary < ctx.currentTime) {
+      const missed = Math.ceil((ctx.currentTime - this.nextBoundary) / LOOP_SECONDS)
+      this.nextBoundary += missed * LOOP_SECONDS
+      this._loopIndex += missed
+    }
     while (this.nextBoundary < ctx.currentTime + SCHEDULE_AHEAD_SEC) {
       this.scheduleLoop(this._loopIndex, this.nextBoundary, provider)
       this.nextBoundary += LOOP_SECONDS
