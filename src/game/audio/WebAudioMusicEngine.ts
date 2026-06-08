@@ -7,8 +7,13 @@ const START_DELAY_SEC = 0.12      // отступ первого лупа от c
 const CROSSFADE_SEC = 0.12        // длина кроссфейда при подмене стема: уходящий «хвост» и входящий
                                   // голос звучат внахлёст после границы (сглаживает стык бас→бас, кик→кик)
 const START_FADE_SEC = 0.5        // мягкий фейд-ин всей музыки на старте (вход в бой)
-const END_FADE_SEC = 0.5          // мягкий фейд-аут всей музыки на завершении матча
+const END_FADE_SEC = 0.8          // фейд-аут сухого сигнала на завершении матча
 const MASTER_GAIN_DEFAULT = 0.6
+// Затухающее эхо на завершении матча: молчит во время игры, включается на fadeOut и звенит хвостом,
+// чтобы трек не обрывался резко. delay→feedback→delay (петля декея), вход гейтится echoSend.
+const ECHO_DELAY_SEC = 0.35       // время задержки эхо (между повторами)
+const ECHO_FEEDBACK = 0.5         // коэффициент обратной связи (<1): каждый повтор тише, хвост ~2с
+const ECHO_WET = 0.45             // громкость эхо-выхода
 const FADE_CURVE_POINTS = 32      // точек в equal-power кривой кроссфейда
 const DECLICK_SEC = 0.003         // микро-фейд от/до нуля на краях каждого источника. Буферы стемов
                                   // стартуют/кончаются на НЕнулевом семпле (особенно бас: buffer[0]≈+0.08,
@@ -35,6 +40,7 @@ export function equalPowerCurve(gain: number, fade: 'in' | 'out'): Float32Array 
 export class WebAudioMusicEngine implements IMusicEngine {
   private ctx: AudioContext | null = null
   private master: GainNode | null = null
+  private echoSend: GainNode | null = null   // гейт входа в эхо: 0 во время игры, открывается на fadeOut
   private buffers = new Map<string, AudioBuffer>()
   private provider: ((loopIndex: number) => Arrangement) | null = null
   private timer: ReturnType<typeof setInterval> | null = null
@@ -77,6 +83,12 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.master.gain.cancelScheduledValues(now)
       this.master.gain.setValueAtTime(this.master.gain.value, now)
       this.master.gain.linearRampToValueAtTime(0, now + END_FADE_SEC)
+      // Открываем эхо: затухающий сухой сигнал попадает в delay и звенит хвостом ~2с (не резкий обрыв).
+      if (this.echoSend) {
+        this.echoSend.gain.cancelScheduledValues(now)
+        this.echoSend.gain.setValueAtTime(0, now)
+        this.echoSend.gain.linearRampToValueAtTime(1, now + 0.05)
+      }
     }
     // Планировщик гасим сразу: уже звучащие лупы доиграют под затухающий мастер, новые не нужны.
     if (this.timer != null) { clearInterval(this.timer); this.timer = null }
@@ -97,6 +109,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
     void this.ctx?.close().catch(() => {})
     this.ctx = null
     this.master = null
+    this.echoSend = null
     this.buffers.clear()
   }
 
@@ -105,7 +118,20 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.ctx = new AudioContext()
       this.master = this.ctx.createGain()
       this.master.gain.value = MASTER_GAIN_DEFAULT
-      this.master.connect(this.ctx.destination)
+      this.master.connect(this.ctx.destination)                         // сухой сигнал
+      // Эхо-шина: master → echoSend(0) → delay → feedback↺ → echoWet → destination.
+      // echoSend закрыт во время игры (эхо не накапливается); открывается на fadeOut.
+      this.echoSend = this.ctx.createGain()
+      this.echoSend.gain.value = 0
+      const delay = this.ctx.createDelay(1.0)
+      delay.delayTime.value = ECHO_DELAY_SEC
+      const feedback = this.ctx.createGain()
+      feedback.gain.value = ECHO_FEEDBACK
+      const echoWet = this.ctx.createGain()
+      echoWet.gain.value = ECHO_WET
+      this.master.connect(this.echoSend).connect(delay)
+      delay.connect(feedback).connect(delay)                            // петля обратной связи (декей)
+      delay.connect(echoWet).connect(this.ctx.destination)
     }
     return this.ctx
   }
