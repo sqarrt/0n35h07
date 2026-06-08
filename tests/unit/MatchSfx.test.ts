@@ -10,22 +10,26 @@ function input(over: Partial<PlayerSfxInput> = {}): PlayerSfxInput {
   return {
     id: 1, obj: new THREE.Object3D(), pos: new THREE.Vector3(),
     shieldActive: false, dashing: false, grounded: true, justJumped: false,
-    dashReady: null, shieldReady: null, ...over,
+    dashReady: null, shieldReady: null, windingUp: false, ...over,
   }
 }
 
 describe('MatchSfx.combat', () => {
-  it('fired→beam_fire, block→block, kill→death, respawn→respawn', () => {
+  it('block→block, kill→death, respawn→respawn', () => {
     const fake = new FakeSfxEngine()
     const sfx = new MatchSfx(fake)
-    sfx.combat({ t: 'fired', id: 1, end: [0, 0, 0], hitPoint: null, hit: null }, () => pos())
     sfx.combat({ t: 'block', shooter: 0, victim: 1 }, () => pos())
     sfx.combat({ t: 'kill', shooter: 0, victim: 1 }, () => pos())
     sfx.combat({ t: 'respawn', id: 1, pos: [0, 1, 0] }, () => pos())
-    expect(fake.played('beam_fire')).toBe(1)
     expect(fake.played('block')).toBe(1)
     expect(fake.played('death')).toBe(1)
     expect(fake.played('respawn')).toBe(1)
+  })
+
+  it('beam_fire НЕ играется по событию fired (звук стартует с начала заряда, см. frame)', () => {
+    const fake = new FakeSfxEngine()
+    new MatchSfx(fake).combat({ t: 'fired', id: 1, end: [0, 0, 0], hitPoint: null, hit: null }, () => pos())
+    expect(fake.played('beam_fire')).toBe(0)
   })
 
   it('игнорирует не-боевые события (scores/time)', () => {
@@ -45,6 +49,14 @@ describe('MatchSfx.frame', () => {
     sfx.frame([input({ shieldActive: false })])
     expect(fake.played('shield_down')).toBe(1)
     expect(fake.calls.some(c => c.method === 'stopLoop')).toBe(true)
+  })
+
+  it('заряд false→true → beam_fire (один раз, на НАЧАЛЕ windup)', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ windingUp: false })])
+    sfx.frame([input({ windingUp: true })])
+    sfx.frame([input({ windingUp: true })])
+    expect(fake.played('beam_fire')).toBe(1)
   })
 
   it('рывок false→true → dash (один раз)', () => {

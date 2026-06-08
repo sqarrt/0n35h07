@@ -219,7 +219,6 @@ export class Match {
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
-          if (p.weaponJustFired) this.sfx?.playAtSelf(p)   // свой выстрел — сразу, синхронно с визуалом
           p.clearJustFired()   // боёвку считает хост → сбрасываем флаг сами (иначе шар застрянет раздутым)
         } else {
           p.updateRemote(dt, this.world)
@@ -371,6 +370,7 @@ export class Match {
       shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
       dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
       shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
+      windingUp: p.isWindingUp,
     }))
     const moves = this.sfx.frame(inputs)
     for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
@@ -384,6 +384,7 @@ export class Match {
       id: me.id, obj: me.bodyGroup, pos: me.position,
       shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
       dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
+      windingUp: me.isWindingUp,
     }])
   }
 
@@ -564,7 +565,7 @@ export class Match {
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
           shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
-          dashReady: null, shieldReady: null,
+          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0,
         }])
       }
     }
@@ -579,7 +580,6 @@ export class Match {
         const hideImpact = e.hit === this.localId && !this.human.bodyIsVisible
         const hp = e.hitPoint && !hideImpact ? fromVec3(e.hitPoint) : null
         this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), hp)
-        this.sfx?.combat(e, this.sfxPos)   // выстрел соперника — позиционно (свой клиент озвучивает предсказанием)
         break
       }
       case 'kill': {

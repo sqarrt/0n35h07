@@ -15,9 +15,10 @@ export interface PlayerSfxInput {
   justJumped: boolean
   dashReady: boolean | null     // не-null только для локального игрока (cooldown_ready)
   shieldReady: boolean | null
+  windingUp: boolean            // заряд луча идёт (для beam_fire — звук стартует с НАЧАЛА заряда)
 }
 
-interface PrevState { shield: boolean; dashing: boolean; grounded: boolean | null; dashReady: boolean; shieldReady: boolean }
+interface PrevState { shield: boolean; dashing: boolean; grounded: boolean | null; dashReady: boolean; shieldReady: boolean; windingUp: boolean }
 
 /** Логика триггеров SFX матча. Единственное место правил «событие/переход → звук». */
 export class MatchSfx {
@@ -25,10 +26,11 @@ export class MatchSfx {
   private prev = new Map<number, PrevState>()
   constructor(engine: ISfxEngine) { this.engine = engine }
 
-  /** Боёвка — из общего пути событий (host: emit; client: applyEvent). posOf даёт мир-позицию игрока. */
+  /** Боёвка — из общего пути событий (host: emit; client: applyEvent). posOf даёт мир-позицию игрока.
+   *  beam_fire здесь НЕ играется: его звук — это весь выстрел (заряд→разряд), стартует с начала windup
+   *  (см. frame), иначе разряд опаздывает на длину заряда. block/kill/respawn — мгновенные, по событию. */
   combat(e: MatchEvent, posOf: (id: number) => THREE.Vector3 | null): void {
     switch (e.t) {
-      case 'fired':   { const p = posOf(e.id);     if (p) this.engine.playAt('beam_fire', p); break }
       case 'block':   { const p = posOf(e.victim); if (p) this.engine.playAt('block', p);     break }
       case 'kill':    { const p = posOf(e.victim); if (p) this.engine.playAt('death', p);      break }
       case 'respawn': { this.engine.playAt('respawn', new THREE.Vector3(e.pos[0], e.pos[1], e.pos[2])); break }
@@ -36,14 +38,12 @@ export class MatchSfx {
     }
   }
 
-  /** Свой выстрел (клиент, предсказание) — позиционно у себя. */
-  playAtSelf(player: { position: THREE.Vector3 }): void { this.engine.playAt('beam_fire', player.position) }
-
-  /** Перекличка состояний за кадр: щит/рывок/прыжок/land/cooldown. Возвращает движения для эмита (host). */
+  /** Перекличка состояний за кадр: заряд/щит/рывок/прыжок/land/cooldown. Возвращает движения для эмита (host). */
   frame(inputs: PlayerSfxInput[]): { id: number; kind: MoveKind; pos: THREE.Vector3 }[] {
     const moves: { id: number; kind: MoveKind; pos: THREE.Vector3 }[] = []
     for (const inp of inputs) {
       const prev = this.prev.get(inp.id)
+      if (inp.windingUp && !(prev?.windingUp)) this.engine.playAt('beam_fire', inp.pos)   // звук всего выстрела — с начала заряда
       if (inp.shieldActive && !(prev?.shield)) {
         this.engine.playAt('shield_up', inp.pos)
         this.engine.startLoop('shield_loop', `shield:${inp.id}`, inp.obj)
@@ -59,7 +59,7 @@ export class MatchSfx {
       }
       this.prev.set(inp.id, {
         shield: inp.shieldActive, dashing: inp.dashing, grounded: inp.grounded,
-        dashReady: inp.dashReady ?? true, shieldReady: inp.shieldReady ?? true,
+        dashReady: inp.dashReady ?? true, shieldReady: inp.shieldReady ?? true, windingUp: inp.windingUp,
       })
     }
     return moves
