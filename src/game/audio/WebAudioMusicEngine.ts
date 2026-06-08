@@ -4,10 +4,32 @@ const LOOP_SECONDS = 8.0          // музыкальная длина лупа 
 const SCHEDULE_AHEAD_SEC = 0.25   // насколько вперёд планируем источники
 const SCHEDULER_TICK_MS = 50      // период тика планировщика
 const START_DELAY_SEC = 0.12      // отступ первого лупа от currentTime (на декод/планирование)
-const FADE_SEC = 0.04             // фейд-ин впервые вступающего голоса (анти-щелчок)
+const CROSSFADE_SEC = 0.12        // длина кроссфейда при подмене стема: уходящий «хвост» и входящий
+                                  // голос звучат внахлёст после границы (сглаживает стык бас→бас, кик→кик)
 const START_FADE_SEC = 0.5        // мягкий фейд-ин всей музыки на старте (вход в бой)
 const END_FADE_SEC = 0.5          // мягкий фейд-аут всей музыки на завершении матча
 const MASTER_GAIN_DEFAULT = 0.6
+const FADE_CURVE_POINTS = 32      // точек в equal-power кривой кроссфейда
+const DECLICK_SEC = 0.003         // микро-фейд от/до нуля на краях каждого источника. Буферы стемов
+                                  // стартуют/кончаются на НЕнулевом семпле (особенно бас: buffer[0]≈+0.08,
+                                  // buffer[end]≈-0.16) → старт/обрыв на полном гейне = разрыв сигнала = щелчок.
+
+/** 'none' — gain держится ровно (с де-клик-краями); 'in'/'out' — equal-power кроссфейд вверх/вниз. */
+type Fade = 'none' | 'in' | 'out'
+
+/** Equal-power кривая кроссфейда: 'in' = gain·sin, 'out' = gain·cos (1/4 периода).
+ *  Сумма мощностей пары out+in держится постоянной → переход без провала громкости.
+ *  Обе кривые стартуют с нуля (для 'out' принудительно c[0]=0) — свежий источник не должен
+ *  начинать звук с ненулевого buffer[0] на полном гейне, иначе щелчок. */
+export function equalPowerCurve(gain: number, fade: 'in' | 'out'): Float32Array {
+  const curve = new Float32Array(FADE_CURVE_POINTS)
+  for (let i = 0; i < FADE_CURVE_POINTS; i++) {
+    const t = (i / (FADE_CURVE_POINTS - 1)) * (Math.PI / 2)
+    curve[i] = gain * (fade === 'in' ? Math.sin(t) : Math.cos(t))
+  }
+  if (fade === 'out') curve[0] = 0   // де-клик: хвост начинается от нуля, а не от full на buffer[0]
+  return curve
+}
 
 /** Web Audio движок: декод стемов, lookahead-планировщик, семпл-точное зацикливание + кроссфейд. */
 export class WebAudioMusicEngine implements IMusicEngine {
@@ -18,7 +40,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
   private timer: ReturnType<typeof setInterval> | null = null
   private nextBoundary = 0
   private _loopIndex = 0
-  private prevIds = new Set<string>()
+  private prevVoices = new Map<string, number>()   // stemId играющих голосов → их gain (для кроссфейда подмены)
   private _active = new Set<string>()
 
   get loopIndex(): number { return Math.max(0, this._loopIndex - 1) }
@@ -39,7 +61,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.provider = provider
     if (ctx.state === 'suspended') await ctx.resume()
     this._loopIndex = 0
-    this.prevIds.clear()
+    this.prevVoices.clear()
     // Мягкий фейд-ин всей музыки на входе в бой (0.5с): мастер с 0 до рабочей громкости.
     this.master!.gain.setValueAtTime(0, ctx.currentTime)
     this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT, ctx.currentTime + START_FADE_SEC)
@@ -63,7 +85,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
   stop(): void {
     if (this.timer != null) { clearInterval(this.timer); this.timer = null }
     this._active.clear()
-    this.prevIds.clear()
+    this.prevVoices.clear()
   }
 
   setMasterGain(gain: number): void {
@@ -100,27 +122,51 @@ export class WebAudioMusicEngine implements IMusicEngine {
   }
 
   private scheduleLoop(loopIndex: number, when: number, provider: (i: number) => Arrangement): void {
-    const ctx = this.ctx!
-    const master = this.master!
     const arr = provider(loopIndex)
     const ids = new Set(arr.map(v => v.stemId))
-    for (const v of arr) {
-      const buf = this.buffers.get(v.stemId)
-      if (!buf) continue
-      const src = ctx.createBufferSource()
-      src.buffer = buf
-      const g = ctx.createGain()
-      if (this.prevIds.has(v.stemId)) {
-        g.gain.setValueAtTime(v.gain, when)               // продолжающийся голос — стык встык, без фейда
-      } else {
-        g.gain.setValueAtTime(0, when)                    // впервые вступает — короткий фейд-ин
-        g.gain.linearRampToValueAtTime(v.gain, when + FADE_SEC)
-      }
-      src.connect(g).connect(master)
-      src.start(when)
-      src.stop(when + LOOP_SECONDS)   // обрезаем хвост-паддинг файла → ровно 8.0с, без наложения с след. лупом
+
+    // Уходящие голоса (в прошлом лупе были, теперь их нет): доигрываем короткий «хвост» того же
+    // стема с его начала — даунбит хвоста совпадает с границей и встаёт встык к остановившемуся
+    // источнику, поэтому стем звучит непрерывно ещё CROSSFADE_SEC и гаснет. Этот хвост перекрывается
+    // с фейд-ином входящего голоса → честный кроссфейд без провала в тишину.
+    for (const [id, prevGain] of this.prevVoices) {
+      if (ids.has(id)) continue
+      this.scheduleSource(id, when, prevGain, 'out', CROSSFADE_SEC)   // хвост уходящего — equal-power вниз
     }
-    this.prevIds = ids
+
+    const voices = new Map<string, number>()
+    for (const v of arr) {
+      const fade: Fade = this.prevVoices.has(v.stemId) ? 'none' : 'in'  // продолжается встык / вступает кроссфейдом
+      this.scheduleSource(v.stemId, when, v.gain, fade, LOOP_SECONDS)
+      if (this.buffers.has(v.stemId)) voices.set(v.stemId, v.gain)
+    }
+    this.prevVoices = voices
     this._active = ids
+  }
+
+  /** Один источник стема: старт `when`, длина `dur`. Гейн всегда входит из нуля и уходит в ноль
+   *  (де-клик-края), иначе старт/обрыв на ненулевом семпле буфера даёт щелчок:
+   *   - 'in'   — equal-power вход за CROSSFADE_SEC, затем держится, в конце де-клик-спад;
+   *   - 'out'  — хвост: equal-power спад за CROSSFADE_SEC (кривая стартует с нуля → старт без щелчка);
+   *   - 'none' — продолжение: микро-фейд из нуля на входе и в ноль на выходе (CROSSFADE не нужен — стык встык). */
+  private scheduleSource(stemId: string, when: number, gain: number, fade: Fade, dur: number): void {
+    const buf = this.buffers.get(stemId)
+    if (!buf || !this.ctx || !this.master) return
+    const src = this.ctx.createBufferSource()
+    src.buffer = buf
+    const g = this.ctx.createGain()
+    const p = g.gain
+    const end = when + dur
+    if (fade === 'out') {
+      p.setValueCurveAtTime(equalPowerCurve(gain, 'out'), when, CROSSFADE_SEC)   // спад до 0, старт с 0
+    } else {
+      if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(gain, 'in'), when, CROSSFADE_SEC)
+      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(gain, when + DECLICK_SEC) }  // 'none' — де-клик вход
+      p.setValueAtTime(gain, end - DECLICK_SEC)   // де-клик выход в конце лупа (стем кончается не на нуле)
+      p.linearRampToValueAtTime(0, end)
+    }
+    src.connect(g).connect(this.master)
+    src.start(when)
+    src.stop(end)
   }
 }
