@@ -23,6 +23,7 @@ export interface PlayerSfxInput {
   dashReady: boolean | null     // не-null только для локального игрока (cooldown_ready)
   shieldReady: boolean | null
   windingUp: boolean            // заряд луча идёт (для beam_fire — звук стартует с НАЧАЛА заряда)
+  isLocal: boolean              // свой игрок → звуки 2D (идут «от тебя»); соперник → позиционно (слышно откуда)
 }
 
 interface PrevState { shield: boolean; dashing: boolean; grounded: boolean | null; dashReady: boolean; shieldReady: boolean; windingUp: boolean }
@@ -56,22 +57,26 @@ export class MatchSfx {
     const moves: { id: number; kind: MoveKind; pos: THREE.Vector3 }[] = []
     for (const inp of inputs) {
       const prev = this.prev.get(inp.id)
-      if (inp.windingUp && !(prev?.windingUp)) this.engine.playAt('beam_fire', inp.pos)   // звук всего выстрела — с начала заряда
+      // Свой игрок: источник совпадает с listener (камерой) → panner вырождается, кряк. Поэтому свои — 2D.
+      const playEv = inp.isLocal
+        ? (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.play2D(ev)
+        : (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.playAt(ev, inp.pos)
+      if (inp.windingUp && !(prev?.windingUp)) playEv('beam_fire')   // звук всего выстрела — с начала заряда
       if (inp.shieldActive && !(prev?.shield)) {
-        this.engine.playAt('shield_up', inp.pos)
-        this.engine.startLoop('shield_loop', `shield:${inp.id}`, inp.obj)
+        playEv('shield_up')
+        this.engine.startLoop('shield_loop', `shield:${inp.id}`, inp.isLocal ? null : inp.obj)
       } else if (!inp.shieldActive && prev?.shield) {
-        this.engine.playAt('shield_down', inp.pos)
+        playEv('shield_down')
         this.engine.stopLoop(`shield:${inp.id}`)
       }
-      if (inp.dashing && !(prev?.dashing)) this.engine.playAt('dash', inp.pos)
+      if (inp.dashing && !(prev?.dashing)) playEv('dash')
       // jump/land — throttle на игрока (схлопывает bhop-пару, см. MOVE_SFX_THROTTLE_MS)
       if (inp.justJumped && this.moveSfxOk(inp.id, now)) {
-        this.engine.playAt('jump', inp.pos); moves.push({ id: inp.id, kind: 'jump', pos: inp.pos.clone() })
+        playEv('jump'); moves.push({ id: inp.id, kind: 'jump', pos: inp.pos.clone() })
         this.lastMoveSfx.set(inp.id, now)
       }
       if (inp.grounded === true && prev?.grounded === false && this.moveSfxOk(inp.id, now)) {
-        this.engine.playAt('land', inp.pos); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() })
+        playEv('land'); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() })
         this.lastMoveSfx.set(inp.id, now)
       }
       if (inp.dashReady !== null && inp.shieldReady !== null && prev) {

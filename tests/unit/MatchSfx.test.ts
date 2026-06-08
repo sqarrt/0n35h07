@@ -10,7 +10,7 @@ function input(over: Partial<PlayerSfxInput> = {}): PlayerSfxInput {
   return {
     id: 1, obj: new THREE.Object3D(), pos: new THREE.Vector3(),
     shieldActive: false, dashing: false, grounded: true, justJumped: false,
-    dashReady: null, shieldReady: null, windingUp: false, ...over,
+    dashReady: null, shieldReady: null, windingUp: false, isLocal: false, ...over,
   }
 }
 
@@ -114,5 +114,20 @@ describe('MatchSfx.frame', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ id: 0, justJumped: true }), input({ id: 1, justJumped: true })], 100)
     expect(fake.played('jump')).toBe(2)   // разные игроки — оба слышны
+  })
+
+  it('свои звуки — 2D, соперника — позиционные', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ id: 0, isLocal: true, justJumped: true }), input({ id: 1, isLocal: false, justJumped: true })], 100)
+    expect(fake.calls.filter(c => c.event === 'jump' && c.method === 'play2D').length).toBe(1)   // свой — непозиционно
+    expect(fake.calls.filter(c => c.event === 'jump' && c.method === 'playAt').length).toBe(1)   // соперник — позиционно
+  })
+
+  it('свой щит-луп — 2D (target=null), соперника — позиционный', () => {
+    const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
+    sfx.frame([input({ id: 0, isLocal: true, shieldActive: true })])
+    sfx.frame([input({ id: 1, isLocal: false, shieldActive: true })])
+    const loops = fake.calls.filter(c => c.method === 'startLoop' && c.event === 'shield_loop')
+    expect(loops.length).toBe(2)
   })
 })

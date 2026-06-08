@@ -15,7 +15,7 @@ export interface ISfxEngine {
   detach(): void
   playAt(event: SfxEvent, pos: THREE.Vector3, gain?: number): void
   play2D(event: SfxEvent, gain?: number): void
-  startLoop(event: SfxEvent, key: string, target: THREE.Object3D): void
+  startLoop(event: SfxEvent, key: string, target: THREE.Object3D | null): void   // null → 2D-луп (свой игрок)
   stopLoop(key: string): void
   setMasterGain(gain: number): void
   dispose(): void

@@ -371,6 +371,7 @@ export class Match {
       dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
       shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
       windingUp: p.isWindingUp,
+      isLocal: p.id === this.localId,
     }))
     const moves = this.sfx.frame(inputs)
     for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
@@ -384,7 +385,7 @@ export class Match {
       id: me.id, obj: me.bodyGroup, pos: me.position,
       shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
       dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
-      windingUp: me.isWindingUp,
+      windingUp: me.isWindingUp, isLocal: true,
     }])
   }
 
@@ -565,7 +566,7 @@ export class Match {
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
           shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
-          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0,
+          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, isLocal: false,
         }])
       }
     }

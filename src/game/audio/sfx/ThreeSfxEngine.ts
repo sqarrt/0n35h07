@@ -23,7 +23,7 @@ export class ThreeSfxEngine implements ISfxEngine {
   private listener = new THREE.AudioListener()
   private buffers = new Map<SfxEvent, AudioBuffer>()
   private parent: THREE.Object3D | null = null
-  private loops = new Map<string, THREE.PositionalAudio>()
+  private loops = new Map<string, THREE.Audio | THREE.PositionalAudio>()
 
   constructor() { this.setMasterGain(1) }
 
@@ -99,15 +99,17 @@ export class ThreeSfxEngine implements ISfxEngine {
     this.playOneShot(a, buf, (SFX_GAIN[event] ?? 1) * gain)
   }
 
-  startLoop(event: SfxEvent, key: string, target: THREE.Object3D): void {
+  startLoop(event: SfxEvent, key: string, target: THREE.Object3D | null): void {
     if (this.loops.has(key)) return
     const buf = this.buffers.get(event)
     if (!buf) return
     this.resume()
-    const a = this.makePositional(buf)
+    // target=null → свой игрок: 2D-луп (источник у listener → позиционный panner вырождается, кряк).
+    const a = target ? this.makePositional(buf) : new THREE.Audio(this.listener)
+    if (!target) a.setBuffer(buf)
     a.setLoop(true)
     a.setVolume(SFX_GAIN[event] ?? 0.5)
-    target.add(a)
+    if (target) target.add(a)
     a.play()
     this.loops.set(key, a)
   }
