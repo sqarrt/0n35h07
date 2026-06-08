@@ -14,6 +14,8 @@ const DAMP_TAU = MENU_ANIM_TAU // переезд позиции/масштаба
 const FADE_TAU = 0.13          // появление (opacity) чуть дольше переезда — мягче выходит из фейда (~0.4с)
 const COLOR_TAU = 0.067        // плавная смена цвета модельки (~0.2с до 95%) — основной↔резервный на «войти»
 const EXIT_MS = 400            // сколько держим выходящий шар смонтированным, пока он уезжает за край
+const WARMUP_FRAMES = 4        // кадров прогрева (компиляция дешёвых шейдеров шара за невидимым шаром) до старта фейда
+const GLOW_MOUNT_DELAY_MS = 600 // отложенный монтаж glow-композера: после появления шара, чтобы компиляция его шейдеров не морозила вход
 const BIG_FRACTION = 0.4       // радиус крупного шара = доля высоты viewport (диаметр ≈ 0.8 высоты)
 const SETTINGS_X_FRACTION = 0.26   // смещение влево на экране настроек (доля ширины)
 const SETTINGS_H_FRACTION = 0.32   // и масштаб поменьше, чтобы шар влез целиком слева
@@ -62,7 +64,7 @@ function OrbitingLight() {
  * из-за кадра к своей кромке; при `exiting` — уезжает за край и гаснет (перед размонтированием). Тот же
  * инстанс при смене `pos` едет к новой цели, при смене `spec.color` — плавно перекрашивается.
  */
-function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec; pos: Pos; slideIn: boolean; exiting?: boolean }) {
+function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { spec: BallSpec; pos: Pos; slideIn: boolean; exiting?: boolean; hold?: boolean }) {
   const viewport = useThree(s => s.viewport)
   const groupRef = useRef<Group>(null)
   // Материал мемоизируем по МОДЕЛИ (не цвету): смена цвета не пересоздаёт материал, цвет лерпим в кадре.
@@ -93,6 +95,19 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false }: { spec: BallSpec;
     const targetOpacity = exiting ? 0 : 1
     if (!cur.current) {
       cur.current = { x: slideIn ? offscreenX(pos, viewport) : t.x, scale: t.scale, opacity: 0 }
+    }
+    // Прогрев: держим шар невидимым, пока компилируются шейдеры/постпроцесс-композер (фриз прячется за
+    // opacity 0). Позиционируем и крутим время, но фейд НЕ запускаем — появление выйдет чистым, без рывка.
+    if (hold) {
+      const c0 = cur.current
+      material.color.copy(targetColor)
+      material.opacity = 0
+      ring?.setOpacity(0)
+      ring?.setColor(targetRingColor)
+      tick(dt); ring?.tick(dt)
+      const g0 = groupRef.current
+      if (g0) { g0.position.x = c0.x; g0.scale.setScalar(c0.scale) }
+      return
     }
     const k = 1 - Math.exp(-dt / DAMP_TAU)
     const kf = 1 - Math.exp(-dt / FADE_TAU)
@@ -157,6 +172,16 @@ function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobb
   const [rendered, setRendered] = useState<RenderedBall[]>(active)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
+  // Прогрев сцены: первые кадры компилируются шейдеры моделей и постпроцесс-композер (фриз). Держим шары
+  // невидимыми (hold), пока это не пройдёт, затем разрешаем фейд — появление получается плавным, без рывка.
+  const [warm, setWarm] = useState(false)
+  const warmFrames = useRef(0)
+  useFrame(() => {
+    if (warmFrames.current >= WARMUP_FRAMES) return
+    warmFrames.current += 1
+    if (warmFrames.current >= WARMUP_FRAMES) setWarm(true)
+  })
+
   useEffect(() => {
     const activeKeys = new Set(active.map(b => b.key))
     setRendered(prev => {
@@ -185,7 +210,7 @@ function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobb
 
   return (
     <>
-      {rendered.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} exiting={b.exiting} />)}
+      {rendered.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} exiting={b.exiting} hold={!warm} />)}
     </>
   )
 }
@@ -198,6 +223,22 @@ interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyVie
  * Монтируется на уровне App для всех экранов кроме игры (при возврате из игры — заново → фейд-ин).
  */
 export function MenuBackdrop({ mode, player, lobby, analysis, glow = true }: MenuBackdropProps) {
+  // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
+  // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
+  // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
+  // (музыка только начинает фейдиться) — компиляция проходит незаметно. requestIdleCallback — в свободном слоте.
+  const [glowReady, setGlowReady] = useState(false)
+  useEffect(() => {
+    if (!glow) { setGlowReady(false); return }
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void }
+    let idle = 0
+    const t = setTimeout(() => {
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(() => setGlowReady(true))
+      else setGlowReady(true)
+    }, GLOW_MOUNT_DELAY_MS)
+    return () => { clearTimeout(t); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle) }
+  }, [glow])
+
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
       <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: [0, 3.02, 5.18], fov: 45 }}
@@ -206,8 +247,8 @@ export function MenuBackdrop({ mode, player, lobby, analysis, glow = true }: Men
         <OrbitingLight />
         <Scene mode={mode} player={player} lobby={lobby ?? null} />
         {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
-            Можно отключить галкой в настройках графики (тогда композер вовсе не монтируется). */}
-        {glow && <MenuEdgeGlow analysis={analysis} />}
+            Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
+        {glow && glowReady && <MenuEdgeGlow analysis={analysis} />}
       </Canvas>
     </div>
   )

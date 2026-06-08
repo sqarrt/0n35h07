@@ -40,12 +40,10 @@ uniform float uGain;
 uniform float uWhite;
 uniform float uIntensity;
 
-const int K = 16;
-const vec2 DISK[16] = vec2[16](
+const int K = 8;   // одно кольцо выборок (производительность: фуллскрин-шейдер каждый кадр)
+const vec2 DISK[8] = vec2[8](
   vec2(1.0,0.0), vec2(0.7071,0.7071), vec2(0.0,1.0), vec2(-0.7071,0.7071),
-  vec2(-1.0,0.0), vec2(-0.7071,-0.7071), vec2(0.0,-1.0), vec2(0.7071,-0.7071),
-  vec2(0.5,0.0), vec2(0.3536,0.3536), vec2(0.0,0.5), vec2(-0.3536,0.3536),
-  vec2(-0.5,0.0), vec2(-0.3536,-0.3536), vec2(0.0,-0.5), vec2(0.3536,-0.3536)
+  vec2(-1.0,0.0), vec2(-0.7071,-0.7071), vec2(0.0,-1.0), vec2(0.7071,-0.7071)
 );
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {

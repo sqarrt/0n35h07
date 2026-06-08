@@ -7,6 +7,7 @@ import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
+import { STEM_LIBRARY } from './game/audio/stems'
 import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
@@ -68,6 +69,10 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
 
   // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
   useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
+
+  // Предзагрузка (декод) стемов музыки на маунте — во время ритуала готовности/отсчёта, чтобы старт боя
+  // (live) не ловил спайк декодирования ~58 буферов. start() на live тогда лишь планирует (буферы готовы).
+  useEffect(() => { void musicEngine.load(STEM_LIBRARY) }, [musicEngine])
 
   // Регистрируем уровень+спектр музыки матча в общий анализ (для визуализатора); снимаем на анмаунте.
   useEffect(() => {
