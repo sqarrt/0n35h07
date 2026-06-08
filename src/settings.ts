@@ -35,12 +35,15 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, volumeMaster: 1, volumeMusic: 1, volumeSfx: 1, volumeMenuMusic: 1 }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic }
 }
 
-/** Громкость к валидному виду: число в [0,1]; отсутствует/мусор → 1. */
-function clampVolume(v: unknown): number {
-  return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1
+// Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
+const VOL_DEFAULT = { master: 1, sfx: 1, music: 0.3, menuMusic: 0.3 }
+
+/** Громкость к валидному виду: число в [0,1]; отсутствует/мусор → дефолт. */
+function clampVolume(v: unknown, dflt: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : dflt
 }
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
@@ -54,10 +57,10 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const postProcessing = typeof p.postProcessing === 'boolean' ? p.postProcessing : true   // по умолчанию вкл
   const showFps = typeof p.showFps === 'boolean' ? p.showFps : false       // по умолчанию выкл
   const showSpeed = typeof p.showSpeed === 'boolean' ? p.showSpeed : false  // по умолчанию выкл
-  const volumeMaster = clampVolume(p.volumeMaster)
-  const volumeMusic = clampVolume(p.volumeMusic)
-  const volumeSfx = clampVolume(p.volumeSfx)
-  const volumeMenuMusic = clampVolume(p.volumeMenuMusic)
+  const volumeMaster = clampVolume(p.volumeMaster, VOL_DEFAULT.master)
+  const volumeMusic = clampVolume(p.volumeMusic, VOL_DEFAULT.music)
+  const volumeSfx = clampVolume(p.volumeSfx, VOL_DEFAULT.sfx)
+  const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
   return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic }
 }
 

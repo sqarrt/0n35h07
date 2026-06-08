@@ -20,12 +20,12 @@ describe('settings / PlayerProfile', () => {
     expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6 })
   })
 
-  it('громкости сохраняются; отсутствуют → 1; вне [0,1] → клампятся', () => {
+  it('громкости сохраняются; отсутствуют → дефолты; вне [0,1] → клампятся', () => {
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без полей
-    expect(loadProfile().volumeMaster).toBe(1)
-    expect(loadProfile().volumeMusic).toBe(1)
-    expect(loadProfile().volumeSfx).toBe(1)
-    expect(loadProfile().volumeMenuMusic).toBe(1)
+    expect(loadProfile().volumeMaster).toBe(1)        // мастер по умолчанию 100%
+    expect(loadProfile().volumeMusic).toBe(0.3)       // музыка матча 30%
+    expect(loadProfile().volumeSfx).toBe(1)           // эффекты 100%
+    expect(loadProfile().volumeMenuMusic).toBe(0.3)   // музыка меню 30%
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', volumeMaster: 1.7, volumeMusic: -0.3, volumeSfx: 0.42, volumeMenuMusic: 2 })
     expect(loadProfile().volumeMaster).toBe(1)     // > 1 → 1
     expect(loadProfile().volumeMusic).toBe(0)      // < 0 → 0
