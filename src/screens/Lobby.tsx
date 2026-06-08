@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { BotDifficulty, MapId } from '../constants'
 import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
 import { MAPS, MAP_IDS, MAP_PREVIEW } from '../game/maps'
@@ -6,6 +6,7 @@ import type { LobbyView } from '../net/LobbySession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
 import { MapPreview } from '../components/MapPreview'
+import { useSfx } from '../sfx/SfxContext'
 
 interface LobbyProps {
   lobbyCode: string
@@ -25,6 +26,15 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
   const [copied, setCopied] = useState(false)
+  const sfx = useSfx()
+
+  // Звук появления соперника в слоте (переход «пусто → занято»).
+  const hadOpponent = useRef(false)
+  useEffect(() => {
+    const has = opponent !== null
+    if (has && !hadOpponent.current) sfx.play2D('lobby_join')
+    hadOpponent.current = has
+  }, [opponent, sfx])
 
   const copyCode = async () => {
     try {
@@ -60,8 +70,8 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
         {entry.kind === 'bot' && isHost && (
           <>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button className={`seg${entry.difficulty === 'normal' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('normal')}>НОРМАЛЬНЫЙ</button>
-              <button className={`seg${entry.difficulty === 'passive' ? ' seg--on' : ''}`} onClick={() => onSetDifficulty('passive')}>ПАССИВНЫЙ</button>
+              <button className={`seg${entry.difficulty === 'normal' ? ' seg--on' : ''}`} onClick={() => { if (entry.difficulty !== 'normal') sfx.play2D('ui_toggle'); onSetDifficulty('normal') }}>НОРМАЛЬНЫЙ</button>
+              <button className={`seg${entry.difficulty === 'passive' ? ' seg--on' : ''}`} onClick={() => { if (entry.difficulty !== 'passive') sfx.play2D('ui_toggle'); onSetDifficulty('passive') }}>ПАССИВНЫЙ</button>
             </div>
             <button
               aria-label="×"
@@ -101,7 +111,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
                 className={`map-tile${mapId === id ? ' map-tile--on' : ''}`}
                 style={{ cursor: isHost ? 'pointer' : 'default' }}
                 aria-pressed={mapId === id}
-                onClick={isHost ? () => onSetMap(id) : undefined}
+                onClick={isHost ? () => { if (mapId !== id) sfx.play2D('ui_toggle'); onSetMap(id) } : undefined}
               >
                 {/* Готовый рендер (preview.png) — мгновенно; фолбэк — живой превью-канвас. */}
                 {MAP_PREVIEW[id]
@@ -117,7 +127,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
           {isHost ? (
             <div style={{ display: 'flex', gap: 9 }}>
               {MATCH_DURATIONS_MIN.map(m => (
-                <button key={m} className={`seg${durationMin === m ? ' seg--on' : ''}`} onClick={() => onSetDuration(m)}>{m} МИН</button>
+                <button key={m} className={`seg${durationMin === m ? ' seg--on' : ''}`} onClick={() => { if (durationMin !== m) sfx.play2D('ui_toggle'); onSetDuration(m) }}>{m} МИН</button>
               ))}
             </div>
           ) : (

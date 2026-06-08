@@ -2,6 +2,7 @@ import type { RosterEntry } from '../net/protocol'
 import type { MatchRole } from '../constants'
 import { HOST_ID, OPPONENT_ID } from '../constants'
 import { ControlsLegend } from './ControlsLegend'
+import { useSfx } from '../sfx/SfxContext'
 
 interface ReadyOverlayProps {
   roster: RosterEntry[]
@@ -24,10 +25,15 @@ function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolea
 
 /** Лёгкий оверлей готовности над ареной. Клик в любом месте = готов. */
 export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayProps) {
+  const sfx = useSfx()
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID)
+  const handleReady = () => {
+    if (!ready.includes(localId)) sfx.play2D('ready')   // звук только на переходе в «готов»
+    onReady()
+  }
   return (
-    <div className="ready-overlay" onClick={onReady}>
+    <div className="ready-overlay" onClick={handleReady}>
       <div className="ready-tint-l" />
       <div className="ready-tint-r" />
       {corner(host, 'l', !!host && ready.includes(host.id), host?.id === localId)}

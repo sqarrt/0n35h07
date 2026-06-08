@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- провайдер + хук в одном модуле; fast-refresh здесь некритичен */
 import { createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import type { ISfxEngine } from '../game/audio/sfx/types'

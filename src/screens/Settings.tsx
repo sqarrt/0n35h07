@@ -7,6 +7,7 @@ import type { PlayerProfile, DefaultView } from '../settings'
 import { Button } from '../ui/Button'
 import { Toggle } from '../ui/Toggle'
 import { RelaysSection } from './RelaysSection'
+import { useSfx } from '../sfx/SfxContext'
 
 interface SettingsProps {
   profile: PlayerProfile
@@ -33,6 +34,7 @@ const SECTIONS: { id: Section; label: string }[] = [
 ]
 
 export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps) {
+  const sfx = useSfx()
   const [section, setSection] = useState<Section>('player')
   const [name, setName] = useState(profile.name)
   const [primary, setPrimary] = useState(profile.primaryColor)
@@ -53,6 +55,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
     commit({ ...base(), name: next })
   }
   const handlePrimary = (c: string) => {
+    if (c !== primary) sfx.play2D('ui_toggle')
     setEditing('primary')
     setPrimary(c)
     const nextReserve = c === reserve ? (PLAYER_COLORS.find(x => x !== c) ?? reserve) : reserve
@@ -62,14 +65,17 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handleReserve = (c: string) => {
     setEditing('reserve')
     if (c === primary) return
+    if (c !== reserve) sfx.play2D('ui_toggle')
     setReserve(c)
     commit({ ...base(), primaryColor: primary, reserveColor: c })
   }
   const handleView = (v: DefaultView) => {
+    if (v !== view) sfx.play2D('ui_toggle')
     setView(v)
     commit({ ...base(), defaultView: v })
   }
   const handleModel = (m: BallModel) => {
+    if (m !== model) sfx.play2D('ui_toggle')
     setModel(m)
     commit({ ...base(), ballModel: m })
   }
@@ -101,7 +107,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
       {/* Разделы */}
       <div style={{ ...row, marginBottom: '1.8rem' }}>
         {SECTIONS.map(s => (
-          <button key={s.id} className={`seg${section === s.id ? ' seg--on' : ''}`} onClick={() => setSection(s.id)}>
+          <button key={s.id} className={`seg${section === s.id ? ' seg--on' : ''}`} onClick={() => { if (s.id !== section) sfx.play2D('ui_toggle'); setSection(s.id) }}>
             {s.label}
           </button>
         ))}

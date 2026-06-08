@@ -95,10 +95,8 @@ export default function App() {
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
 
-  // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз.
-  const sfxRef = useRef<ThreeSfxEngine | null>(null)
-  if (sfxRef.current === null) sfxRef.current = new ThreeSfxEngine()
-  const sfx = sfxRef.current
+  // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
+  const [sfx] = useState(() => new ThreeSfxEngine())
   useEffect(() => { void sfx.load() }, [sfx])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
