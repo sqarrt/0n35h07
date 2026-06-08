@@ -27,6 +27,8 @@ import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
+import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
+import { MenuMusic } from './game/audio/MenuMusic'
 import { POINTERLOCK_COOLDOWN, CONNECT_TIMEOUT_MS } from './constants'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
@@ -100,6 +102,19 @@ export default function App() {
   useEffect(() => { void sfx.load() }, [sfx])
   // Громкость эффектов = общий × эффекты (живьём: UI-звуки в меню сразу реагируют на ползунок).
   useEffect(() => { sfx.setMasterGain(profile.volumeMaster * profile.volumeSfx) }, [sfx, profile.volumeMaster, profile.volumeSfx])
+
+  // Музыка меню (отдельный движок/контекст). Громкость = общий × музыка_меню (живьём).
+  const [menuMusic] = useState(() => new MenuMusic(new WebAudioMusicEngine()))
+  useEffect(() => { menuMusic.setVolume(profile.volumeMaster * profile.volumeMenuMusic) }, [menuMusic, profile.volumeMaster, profile.volumeMenuMusic])
+  // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
+  const gesturedRef = useRef(false)
+  useEffect(() => {
+    if (screen === 'game') { menuMusic.stop(); return }
+    if (gesturedRef.current) { void menuMusic.start(); return }
+    const onGesture = () => { gesturedRef.current = true; void menuMusic.start() }
+    window.addEventListener('pointerdown', onGesture, { once: true })
+    return () => window.removeEventListener('pointerdown', onGesture)
+  }, [screen, menuMusic])
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 

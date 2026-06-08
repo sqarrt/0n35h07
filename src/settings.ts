@@ -13,8 +13,9 @@ export interface PlayerProfile {
   showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
   showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
   volumeMaster: number       // звук: общий уровень 0..1 (множит музыку и эффекты); локальное предпочтение
-  volumeMusic: number        // звук: музыка 0..1; локальное предпочтение
+  volumeMusic: number        // звук: музыка матча 0..1; локальное предпочтение
   volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
+  volumeMenuMusic: number    // звук: музыка в меню 0..1; локальное предпочтение
 }
 
 const KEY = 'oneshot:profile'
@@ -34,7 +35,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, volumeMaster: 1, volumeMusic: 1, volumeSfx: 1 }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, volumeMaster: 1, volumeMusic: 1, volumeSfx: 1, volumeMenuMusic: 1 }
 }
 
 /** Громкость к валидному виду: число в [0,1]; отсутствует/мусор → 1. */
@@ -56,7 +57,8 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMaster = clampVolume(p.volumeMaster)
   const volumeMusic = clampVolume(p.volumeMusic)
   const volumeSfx = clampVolume(p.volumeSfx)
-  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed, volumeMaster, volumeMusic, volumeSfx }
+  const volumeMenuMusic = clampVolume(p.volumeMenuMusic)
+  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */

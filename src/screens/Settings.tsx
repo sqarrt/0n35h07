@@ -49,10 +49,11 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [volMaster, setVolMaster] = useState(profile.volumeMaster)
   const [volMusic, setVolMusic] = useState(profile.volumeMusic)
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
+  const [volMenuMusic, setVolMenuMusic] = useState(profile.volumeMenuMusic)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -107,6 +108,10 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handleVolSfx = (v: number) => {
     setVolSfx(v)
     commit({ ...base(), volumeSfx: v })
+  }
+  const handleVolMenuMusic = (v: number) => {
+    setVolMenuMusic(v)
+    commit({ ...base(), volumeMenuMusic: v })
   }
 
   const previewColor = editing === 'primary' ? primary : reserve
@@ -196,6 +201,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
           <div style={subHeader}>ГРОМКОСТЬ</div>
           <Slider label="ОБЩАЯ ГРОМКОСТЬ" value={volMaster} onChange={handleVolMaster} />
           <Slider label="МУЗЫКА" value={volMusic} onChange={handleVolMusic} />
+          <Slider label="МУЗЫКА В МЕНЮ" value={volMenuMusic} onChange={handleVolMenuMusic} />
           <Slider label="ЭФФЕКТЫ" value={volSfx} onChange={handleVolSfx} />
         </>
       )}
