@@ -20,22 +20,20 @@ describe('MusicDirector.compose — песенная форма', () => {
     expect(d.compose(42, 9, LIB, FAR)).toEqual(d.compose(42, 9, LIB, FAR))
   })
 
-  it('интро: kicks+bass; кик-опора стабилен, бас меняется каждые 2 лупа', () => {
+  it('интро: kicks+bass; кик-опора стабилен, бас меняется', () => {
     for (const loop of [0, 1, 2, 3]) expect(rolesOf(d.compose(42, loop, LIB, FAR))).toEqual(['bass', 'kicks'])
     const kick = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'kicks')!.stemId
     const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')!.stemId
-    expect(kick(0)).toBe(kick(3))      // кик — опора, стабилен весь интро
-    expect(bass(0)).toBe(bass(1))      // первый 2-луповый блок
-    expect(bass(0)).not.toBe(bass(2))  // смена баса на 3-м лупе
-    expect(bass(2)).toBe(bass(3))      // второй блок
+    expect(kick(0)).toBe(kick(3))                                   // кик — опора, стабилен весь интро
+    expect(new Set([0, 1, 2, 3].map(bass)).size).toBeGreaterThan(1) // бас не один на всё интро
   })
 
-  it('бас не звучит дольше 2 лупов подряд: смена внутри куплета и припева', () => {
-    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')!.stemId
-    // куплет абс 4..7
-    expect(bass(4)).toBe(bass(5)); expect(bass(4)).not.toBe(bass(6)); expect(bass(6)).toBe(bass(7))
-    // припев абс 8..11
-    expect(bass(8)).toBe(bass(9)); expect(bass(8)).not.toBe(bass(10)); expect(bass(10)).toBe(bass(11))
+  it('бас не звучит дольше 2 лупов подряд', () => {
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')?.stemId
+    for (let l = 0; l <= 58; l++) {
+      const a = bass(l), b = bass(l + 1), c = bass(l + 2)
+      if (a !== undefined && a === b && a === c) throw new Error(`бас залип на лупах ${l}..${l + 2}`)
+    }
   })
 
   it('аутро по остатку времени: kicks+lead (независимо от loopIndex)', () => {
@@ -67,6 +65,17 @@ describe('MusicDirector.compose — песенная форма', () => {
     // интро(0), куплет(4), припев(8), бридж(20) — все с басом, но разные секции
     const distinct = new Set([0, 4, 8, 20].map(bassId))
     expect(distinct.size).toBeGreaterThan(1)
+  })
+
+  it('лид и бас не сменяются одновременно (когда оба звучат) ни на одном лупе', () => {
+    const lead = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'lead')?.stemId ?? null
+    const bass = (l: number) => d.compose(42, l, LIB, FAR).find(v => v.role === 'bass')?.stemId ?? null
+    for (let l = 1; l <= 60; l++) {
+      const lp = lead(l - 1), lc = lead(l), bp = bass(l - 1), bc = bass(l)
+      const leadSwapped = lp !== null && lc !== null && lp !== lc   // оба лупа со звучащим лидом, стем сменился
+      const bassSwapped = bp !== null && bc !== null && bp !== bc   // (вход/выход роли на границе секции — не «смена»)
+      expect(leadSwapped && bassSwapped, `луп ${l}: лид и бас сменились одновременно`).toBe(false)
+    }
   })
 
   it('лид куплета и лид припева различны (узнаваемость секций)', () => {

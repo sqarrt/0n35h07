@@ -28,7 +28,10 @@ const FOUNDATION_ROLES: Role[] = ['kicks']   // фундамент (опора):
                                              // Бас НЕ фундамент — он «цвет», меняется по секциям (иначе залипает)
 const FOUNDATION_POOL = 2      // вариантов фундамента (ротация раз в проход паттерна тела)
 const COLOR_POOL = 3           // вариантов цвета (lead/sfx) на тип секции
-const BASS_BLOCK_LOOPS = 2     // бас не звучит дольше N лупов подряд — внутри секции меняется на блоках
+const BASS_BLOCK_LOOPS = 2     // бас не звучит дольше N лупов подряд (катящаяся смена)
+const BASS_PHASE = 1           // сдвиг фазы баса: смена приходится на НЕЧЁТНЫЕ лупы. Границы секций
+                               // (где меняется лид) всегда на ЧЁТНЫХ лупах (INTRO_LOOPS и все длины
+                               // секций чётные) → бас и лид никогда не сменяются одновременно.
 const ORNAMENT_GAIN = 0.5      // гейн второго лида на одно-луповом орнаменте
 
 const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.7, sfx: 0.5 }
@@ -63,14 +66,14 @@ function pickStem(seed: number, role: Role, key: string, variant: number, librar
 }
 
 /** Голос роли для секции: кик (фундамент) — единый по матчу; лид/sfx — по типу секции;
- *  бас — по типу секции, но дополнительно меняется внутри секции на 2-луповых блоках (иначе надоедает);
+ *  бас — катящаяся смена каждые 2 лупа на нечётной фазе (не привязан к секции, не совпадает с лидом);
  *  лид аутро заимствует хук припева (вариант 0). */
-function voiceFor(role: Role, pos: SectionPos, foundationVariant: number, seed: number, library: StemLibrary): VoiceSpec | null {
+function voiceFor(role: Role, pos: SectionPos, loopIndex: number, foundationVariant: number, seed: number, library: StemLibrary): VoiceSpec | null {
   if (role === 'lead' && pos.type === 'outro') return pickStem(seed, 'lead', 'chorus', 0, library, ROLE_GAIN.lead)
   if (FOUNDATION_ROLES.includes(role)) return pickStem(seed, role, 'foundation', foundationVariant, library, ROLE_GAIN[role])
   if (role === 'bass') {
-    const block = Math.floor(pos.loopInSection / BASS_BLOCK_LOOPS)   // 2-луповый блок внутри секции
-    return pickStem(seed, 'bass', pos.type, (pos.occurrence % COLOR_POOL) + block, library, ROLE_GAIN.bass)
+    const block = Math.floor((loopIndex + BASS_PHASE) / BASS_BLOCK_LOOPS)   // катящийся 2-луповый блок, нечётная фаза
+    return pickStem(seed, 'bass', 'bass', block, library, ROLE_GAIN.bass)
   }
   return pickStem(seed, role, pos.type, pos.occurrence % COLOR_POOL, library, ROLE_GAIN[role])
 }
@@ -100,7 +103,7 @@ export class MusicDirector {
     const foundationVariant = Math.floor(loopIndex / PATTERN_LOOPS) % FOUNDATION_POOL
     const voices: VoiceSpec[] = []
     for (const role of SECTION_ROLES[pos.type]) {
-      const v = voiceFor(role, pos, foundationVariant, seed, library)
+      const v = voiceFor(role, pos, loopIndex, foundationVariant, seed, library)
       if (v) voices.push(v)
     }
     const orn = ornamentLead(pos, voices.find(v => v.role === 'lead')?.stemId, seed, library)
