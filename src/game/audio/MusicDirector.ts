@@ -32,10 +32,12 @@ const BASS_BLOCK_LOOPS = 2     // бас не звучит дольше N луп
 const BASS_PHASE = 1           // сдвиг фазы баса: смена приходится на НЕЧЁТНЫЕ лупы. Границы секций
                                // (где меняется лид) всегда на ЧЁТНЫХ лупах (INTRO_LOOPS и все длины
                                // секций чётные) → бас и лид никогда не сменяются одновременно.
-const ORNAMENT_GAIN = 0.3      // гейн второго лида на одно-луповом орнаменте (ниже основного лида)
+const ORNAMENT_GAIN = 0.2      // гейн второго лида на одно-луповом орнаменте (ниже основного лида)
 
-const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.45, sfx: 0.5 }
+const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.32, sfx: 0.5 }
 const ROLE_SALT: Record<Role, number> = { bass: 0x1111, kicks: 0x2222, lead: 0x3333, sfx: 0x4444 }
+
+const LEAD_SECTIONS: SectionType[] = ['verse', 'chorus', 'solo']   // секции тела с основным лидом
 
 interface SectionPos { type: SectionType; occurrence: number; loopInSection: number; loops: number }
 
@@ -96,13 +98,23 @@ function ornamentLead(pos: SectionPos, primaryLeadId: string | undefined, seed: 
   return { role: 'lead', stemId, gain: ORNAMENT_GAIN }
 }
 
+/** Пауза лида на ПЕРВОМ лупе лид-секции, если в предыдущей секции лид уже звучал: между двумя
+ *  разными лидами нужен хотя бы 1 луп тишины (бесшовный переход лид→лид режет слух). Аутро/интро —
+ *  не считаются (интро без лида; аутро — финал, хук вступает сразу). Два лида внахлёст (орнамент) — ок. */
+function leadRests(loopIndex: number, remainingMs: number, pos: SectionPos): boolean {
+  if (pos.loopInSection !== 0 || !LEAD_SECTIONS.includes(pos.type)) return false
+  return SECTION_ROLES[sectionAt(loopIndex - 1, remainingMs).type].includes('lead')
+}
+
 /** Чистая детерминированная композиция. Единственное место музыкальных правил. */
 export class MusicDirector {
   compose(seed: number, loopIndex: number, library: StemLibrary, remainingMs: number): Arrangement {
     const pos = sectionAt(loopIndex, remainingMs)
     const foundationVariant = Math.floor(loopIndex / PATTERN_LOOPS) % FOUNDATION_POOL
+    const restLead = leadRests(loopIndex, remainingMs, pos)
     const voices: VoiceSpec[] = []
     for (const role of SECTION_ROLES[pos.type]) {
+      if (role === 'lead' && restLead) continue   // пауза между разными лидами
       const v = voiceFor(role, pos, loopIndex, foundationVariant, seed, library)
       if (v) voices.push(v)
     }

@@ -52,10 +52,10 @@ describe('MusicDirector.compose — песенная форма', () => {
   })
 
   it('вариация: куплеты ротируют лид по пулу (occ0≠occ1, occ0==occ3)', () => {
-    // куплеты начинаются на абс. лупах: 4 (occ0), 12 (occ1), затем +26: 30 (occ2), 38 (occ3)
-    const o0 = leadId(d.compose(42, 4, LIB, FAR))
-    const o1 = leadId(d.compose(42, 12, LIB, FAR))
-    const o3 = leadId(d.compose(42, 38, LIB, FAR))
+    // куплеты на абс. лупах 4(occ0),12(occ1),30(occ2),38(occ3); берём 2-й луп секции (1-й — пауза лида)
+    const o0 = leadId(d.compose(42, 5, LIB, FAR))
+    const o1 = leadId(d.compose(42, 13, LIB, FAR))
+    const o3 = leadId(d.compose(42, 39, LIB, FAR))
     expect(o0).not.toBe(o1)   // соседние повторы — разные варианты
     expect(o0).toBe(o3)       // период пула (COLOR_POOL=3) → occ0 и occ3 совпадают
   })
@@ -78,13 +78,32 @@ describe('MusicDirector.compose — песенная форма', () => {
     }
   })
 
+  it('между разными лидами — пауза ≥1 луп (нет бесшовного перехода лид→лид)', () => {
+    const hasLead = (l: number) => d.compose(42, l, LIB, FAR).some(v => v.role === 'lead')
+    // куплет(4-7) → припев(8-11): первый луп припева (8) — без лида (пауза), лид вступает с 9-го
+    expect(hasLead(7)).toBe(true)    // конец куплета — лид звучит
+    expect(hasLead(8)).toBe(false)   // первый луп припева — пауза
+    expect(hasLead(9)).toBe(true)    // лид припева вступил
+  })
+
+  it('нет прямого перехода между двумя РАЗНЫМИ лидами (сначала пауза)', () => {
+    const primary = (l: number) => {
+      const ls = d.compose(42, l, LIB, FAR).filter(v => v.role === 'lead')
+      return ls.length ? ls[0].stemId : null   // основной лид секции (орнамент — второй, идёт после)
+    }
+    for (let l = 5; l <= 60; l++) {
+      const a = primary(l - 1), b = primary(l)
+      if (a !== null && b !== null && a !== b) throw new Error(`прямой переход лида на лупе ${l}: ${a}→${b}`)
+    }
+  })
+
   it('лид куплета и лид припева различны (узнаваемость секций)', () => {
-    expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 8, LIB, FAR)))
+    expect(leadId(d.compose(42, 4, LIB, FAR))).not.toBe(leadId(d.compose(42, 9, LIB, FAR)))  // 8 — пауза, берём 9
   })
 
   it('орнамент: на последнем лупе припева — второй (отличный) лид, в середине — один', () => {
     const leads = (loop: number) => d.compose(42, loop, LIB, FAR).filter(v => v.role === 'lead')
-    expect(leads(8).length).toBe(1)             // начало первого припева (абс 8) — один лид
+    expect(leads(9).length).toBe(1)             // середина припева (8 — пауза) — один лид
     expect(leads(11).length).toBe(2)            // последний луп припева (абс 11) — добавлен второй лид
     expect(new Set(leads(11).map(v => v.stemId)).size).toBe(2)   // два разных лида
   })
