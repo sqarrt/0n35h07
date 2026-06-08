@@ -24,12 +24,17 @@ function arrangements(seed: number, loops: number) {
 }
 
 describe('MenuMusic.arrange', () => {
-  it('фундамент звучит каждый луп: kick sub_long + bass kutting', () => {
+  it('кик sub_long звучит каждый луп (постоянный фундамент)', () => {
     for (const arr of arrangements(1, 40)) {
-      const ids = arr.map(v => v.stemId)
-      expect(ids).toContain(KICK)
-      expect(ids).toContain(BASS)
+      expect(arr.map(v => v.stemId)).toContain(KICK)
     }
+  })
+
+  it('бас kutting иногда гаснет, но звучит в большинстве лупов', () => {
+    const arrs = arrangements(123, 200)
+    const onCount = arrs.filter(a => a.some(v => v.stemId === BASS)).length
+    expect(onCount).toBeLessThan(arrs.length)   // иногда паузы
+    expect(onCount).toBeGreaterThan(arrs.length / 2)   // но в основном звучит
   })
 
   it('каждый цветной слой иногда звучит, но НЕ всегда (независимо)', () => {

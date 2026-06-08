@@ -11,6 +11,8 @@ const BASS_GAIN = 0.9
 const COLOR_GAIN = 0.5
 const COLOR_ON_PROB = 0.25   // шанс за луп завести простаивающий цветной слой
 const COLOR_ON_LOOPS = 3     // сколько лупов слой держится включённым
+const BASS_OFF_PROB = 0.12   // шанс за луп увести бас в короткую паузу (в основном он звучит)
+const BASS_OFF_LOOPS = 2     // сколько лупов бас держится выключенным
 
 /** Минимальная библиотека: только нужные меню-стемы (по id из полной STEM_LIBRARY). */
 function menuLibrary(): StemLibrary {
@@ -35,6 +37,7 @@ export class MenuMusic {
   private readonly rng: () => number
   private started = false
   private colorOn: number[]   // по каждому цветному слою: оставшиеся лупы «включённости»
+  private bassOff = 0         // оставшиеся лупы паузы баса (0 = бас звучит)
 
   constructor(engine: IMusicEngine, rng: () => number = Math.random) {
     this.engine = engine
@@ -57,17 +60,17 @@ export class MenuMusic {
     this.started = false
     this.engine.fadeOut()
     this.colorOn = COLOR_IDS.map(() => 0)
+    this.bassOff = 0
   }
 
   setVolume(v: number): void { this.engine.setMasterGain(v) }
   dispose(): void { this.engine.dispose() }
 
-  /** Аранжировка лупа: фундамент + независимо «дышащие» цветные слои. */
+  /** Аранжировка лупа: кик (постоянный фундамент) + бас (в основном звучит, иногда пауза) +
+   *  независимо «дышащие» цветные слои. */
   arrange(_loopIndex: number): Arrangement {
-    const voices: Arrangement = [
-      { role: 'kicks', stemId: KICK_ID, gain: KICK_GAIN },
-      { role: 'bass', stemId: BASS_ID, gain: BASS_GAIN },
-    ]
+    const voices: Arrangement = [{ role: 'kicks', stemId: KICK_ID, gain: KICK_GAIN }]
+    if (this.stepBass()) voices.push({ role: 'bass', stemId: BASS_ID, gain: BASS_GAIN })
     COLOR_IDS.forEach((id, i) => {
       if (this.stepColor(i)) voices.push({ role: 'lead', stemId: id, gain: COLOR_GAIN })
     })
@@ -79,5 +82,12 @@ export class MenuMusic {
     if (this.colorOn[i] > 0) { this.colorOn[i]--; return true }
     if (this.rng() < COLOR_ON_PROB) { this.colorOn[i] = COLOR_ON_LOOPS - 1; return true }
     return false
+  }
+
+  /** Состояние баса за луп: в основном звучит, иногда уходит в короткую паузу. */
+  private stepBass(): boolean {
+    if (this.bassOff > 0) { this.bassOff--; return false }
+    if (this.rng() < BASS_OFF_PROB) { this.bassOff = BASS_OFF_LOOPS - 1; return false }
+    return true
   }
 }
