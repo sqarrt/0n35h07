@@ -32,9 +32,9 @@ const BASS_BLOCK_LOOPS = 2     // бас не звучит дольше N луп
 const BASS_PHASE = 1           // сдвиг фазы баса: смена приходится на НЕЧЁТНЫЕ лупы. Границы секций
                                // (где меняется лид) всегда на ЧЁТНЫХ лупах (INTRO_LOOPS и все длины
                                // секций чётные) → бас и лид никогда не сменяются одновременно.
-const ORNAMENT_GAIN = 0.5      // гейн второго лида на одно-луповом орнаменте
+const ORNAMENT_GAIN = 0.3      // гейн второго лида на одно-луповом орнаменте (ниже основного лида)
 
-const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.7, sfx: 0.5 }
+const ROLE_GAIN: Record<Role, number> = { bass: 0.9, kicks: 1.0, lead: 0.45, sfx: 0.5 }
 const ROLE_SALT: Record<Role, number> = { bass: 0x1111, kicks: 0x2222, lead: 0x3333, sfx: 0x4444 }
 
 interface SectionPos { type: SectionType; occurrence: number; loopInSection: number; loops: number }
