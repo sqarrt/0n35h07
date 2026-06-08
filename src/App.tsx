@@ -329,7 +329,7 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={audioAnalysis} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (

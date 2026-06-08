@@ -12,6 +12,7 @@ export interface PlayerProfile {
   postProcessing: boolean    // графика: экранный контур рёбер (постобработка); локальное предпочтение
   showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
   showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
+  menuGlow: boolean          // графика: свечение моделей по звуку в меню; локальное предпочтение
   volumeMaster: number       // звук: общий уровень 0..1 (множит музыку и эффекты); локальное предпочтение
   volumeMusic: number        // звук: музыка матча 0..1; локальное предпочтение
   volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
@@ -35,7 +36,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic }
+  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic }
 }
 
 // Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
@@ -57,11 +58,12 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const postProcessing = typeof p.postProcessing === 'boolean' ? p.postProcessing : true   // по умолчанию вкл
   const showFps = typeof p.showFps === 'boolean' ? p.showFps : false       // по умолчанию выкл
   const showSpeed = typeof p.showSpeed === 'boolean' ? p.showSpeed : false  // по умолчанию выкл
+  const menuGlow = typeof p.menuGlow === 'boolean' ? p.menuGlow : true       // по умолчанию вкл
   const volumeMaster = clampVolume(p.volumeMaster, VOL_DEFAULT.master)
   const volumeMusic = clampVolume(p.volumeMusic, VOL_DEFAULT.music)
   const volumeSfx = clampVolume(p.volumeSfx, VOL_DEFAULT.sfx)
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
-  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic }
+  return { name, primaryColor, reserveColor, defaultView, ballModel, postProcessing, showFps, showSpeed, menuGlow, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */

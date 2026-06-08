@@ -187,14 +187,14 @@ function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobb
   )
 }
 
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis; glow?: boolean }
 
 /**
  * Персистентный прозрачный фон меню-экранов: крупная «живая» моделька игрока, резко (но не мгновенно)
  * переезжающая между позициями при смене экрана; в лобби с двумя игроками — два шара по краям.
  * Монтируется на уровне App для всех экранов кроме игры (при возврате из игры — заново → фейд-ин).
  */
-export function MenuBackdrop({ mode, player, lobby, analysis }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, lobby, analysis, glow = true }: MenuBackdropProps) {
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
       <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: [0, 3.02, 5.18], fov: 45 }}
@@ -202,8 +202,9 @@ export function MenuBackdrop({ mode, player, lobby, analysis }: MenuBackdropProp
         <ambientLight intensity={0.4} />
         <OrbitingLight />
         <Scene mode={mode} player={player} lobby={lobby ?? null} />
-        {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет. */}
-        <MenuEdgeGlow analysis={analysis} />
+        {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
+            Можно отключить галкой в настройках графики (тогда композер вовсе не монтируется). */}
+        {glow && <MenuEdgeGlow analysis={analysis} />}
       </Canvas>
     </div>
   )

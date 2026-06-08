@@ -53,6 +53,16 @@ test('настройки — раздел ЗВУК: 4 ползунка, изме
   expect(volMenu).toBeCloseTo(0.2, 5)
 })
 
+test('настройки — графика: галка «СВЕЧЕНИЕ В МЕНЮ» отключает эффект и сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByRole('button', { name: 'ГРАФИКА' }).click()
+  const sw = page.getByRole('switch', { name: 'Свечение в меню' })
+  await expect(sw).toBeVisible()
+  await sw.click()   // вкл → выкл
+  const glow = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').menuGlow)
+  expect(glow).toBe(false)   // персист в профиль
+})
+
 test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')

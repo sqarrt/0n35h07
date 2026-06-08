@@ -16,8 +16,15 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6 })
-    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6 })
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6 })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6 })
+  })
+
+  it('menuGlow сохраняется; отсутствует/мусор → true', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', menuGlow: false })
+    expect(loadProfile().menuGlow).toBe(false)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без поля
+    expect(loadProfile().menuGlow).toBe(true)
   })
 
   it('громкости сохраняются; отсутствуют → дефолты; вне [0,1] → клампятся', () => {
