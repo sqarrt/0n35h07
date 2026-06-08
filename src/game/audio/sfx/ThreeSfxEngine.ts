@@ -6,6 +6,10 @@ const SFX_MASTER_GAIN = 0.9
 const SFX_REF_DISTANCE = 6
 const SFX_ROLLOFF = 1
 const SFX_MAX_DISTANCE = 60
+// Де-клик: буферы стартуют/кончаются на ненулевом семпле (напр. jump кончается на ~0.023) → старт/обрыв
+// на полном гейне = разрыв сигнала = щелчок. Микро-фейд из нуля на атаке и в ноль на хвосте убирает его.
+const DECLICK_ATTACK_SEC = 0.003   // короткая атака — снап перкуссии почти не страдает
+const DECLICK_RELEASE_SEC = 0.006  // хвост важнее (обрыв на ненулевом семпле — главный источник щелчка)
 // Громкости per-event (звуки НЕ нормализованы): UI заметно тише геймплея.
 const SFX_GAIN: Record<SfxEvent, number> = {
   beam_fire: 0.9, block: 0.9, shield_up: 0.8, shield_down: 0.8, cooldown_ready: 0.5,
@@ -57,17 +61,32 @@ export class ThreeSfxEngine implements ISfxEngine {
     return a
   }
 
+  /** Старт one-shot с де-клик огибающей: gain входит из нуля (атака) и уходит в ноль к концу буфера. */
+  private playOneShot(a: THREE.Audio | THREE.PositionalAudio, buf: AudioBuffer, volume: number): void {
+    const ctx = this.listener.context
+    const t0 = ctx.currentTime
+    const end = t0 + buf.duration
+    const atkEnd = Math.min(t0 + DECLICK_ATTACK_SEC, end)
+    const relStart = Math.max(atkEnd, end - DECLICK_RELEASE_SEC)
+    const g = a.gain.gain
+    g.cancelScheduledValues(t0)
+    g.setValueAtTime(0, t0)
+    g.linearRampToValueAtTime(volume, atkEnd)   // де-клик атака из нуля
+    g.setValueAtTime(volume, relStart)
+    g.linearRampToValueAtTime(0, end)            // де-клик хвост в ноль (обрыв на ненулевом семпле)
+    a.play()
+  }
+
   playAt(event: SfxEvent, pos: THREE.Vector3, gain = 1): void {
     const buf = this.buffers.get(event)
     if (!buf || !this.parent) return
     this.resume()
     const a = this.makePositional(buf)
-    a.setVolume((SFX_GAIN[event] ?? 1) * gain)
     a.position.copy(pos)
     this.parent.add(a)
     a.updateMatrixWorld()
     a.onEnded = () => { a.removeFromParent(); a.disconnect() }
-    a.play()
+    this.playOneShot(a, buf, (SFX_GAIN[event] ?? 1) * gain)
   }
 
   play2D(event: SfxEvent, gain = 1): void {
@@ -76,9 +95,8 @@ export class ThreeSfxEngine implements ISfxEngine {
     this.resume()
     const a = new THREE.Audio(this.listener)
     a.setBuffer(buf)
-    a.setVolume((SFX_GAIN[event] ?? 1) * gain)
     a.onEnded = () => { a.disconnect() }
-    a.play()
+    this.playOneShot(a, buf, (SFX_GAIN[event] ?? 1) * gain)
   }
 
   startLoop(event: SfxEvent, key: string, target: THREE.Object3D): void {
