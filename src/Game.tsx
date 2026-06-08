@@ -69,8 +69,12 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
   // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
   useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
 
-  // Регистрируем уровень музыки матча в общий анализ (для полосы-визуализатора); снимаем на анмаунте.
-  useEffect(() => audioAnalysis.addReader(() => musicEngine.readLevel()), [audioAnalysis, musicEngine])
+  // Регистрируем уровень+спектр музыки матча в общий анализ (для визуализатора); снимаем на анмаунте.
+  useEffect(() => {
+    const offL = audioAnalysis.addReader(() => musicEngine.readLevel())
+    const offB = audioAnalysis.addBandReader(out => musicEngine.readBands(out))
+    return () => { offL(); offB() }
+  }, [audioAnalysis, musicEngine])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])

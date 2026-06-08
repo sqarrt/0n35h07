@@ -1,5 +1,5 @@
 import type { StemLibrary, Arrangement, IMusicEngine } from './types'
-import { ANALYSER_FFT, analyserLevel } from './AudioAnalysis'
+import { ANALYSER_FFT, analyserLevel, fillBands } from './AudioAnalysis'
 
 const LOOP_SECONDS = 8.0          // музыкальная длина лупа (НЕ длина файла 8.0065 — там Opus-паддинг)
 const SCHEDULE_AHEAD_SEC = 2.0    // насколько вперёд планируем источники. С запасом: луп длинный (8с) и
@@ -87,9 +87,12 @@ export class WebAudioMusicEngine implements IMusicEngine {
   private userGain = 1   // пользовательский уровень музыки 0..1 (поверх эталона MASTER_GAIN_DEFAULT)
   private analyser: AnalyserNode | null = null   // отвод мастера для визуализации
   private analyserBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT))
+  private freqBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT / 2))
 
   /** Текущий RMS-уровень музыки 0..1 (для визуализации). */
   readLevel(): number { return this.analyser ? analyserLevel(this.analyser, this.analyserBuf) : 0 }
+  /** Спектр музыки в out[] (макс-комбинирование). */
+  readBands(out: Float32Array): void { if (this.analyser) fillBands(this.analyser, this.freqBuf, out) }
 
   get loopIndex(): number { return Math.max(0, this._loopIndex - 1) }
   activeStemIds(): string[] { return [...this._active] }

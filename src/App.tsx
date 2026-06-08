@@ -115,9 +115,13 @@ export default function App() {
   // регистрирует Game). Питает glow шаров в меню и полосу-визуализатор в матче.
   const [audioAnalysis] = useState(() => new AudioAnalysis())
   useEffect(() => {
-    const offSfx = audioAnalysis.addReader(() => sfx.readLevel())
-    const offMenu = audioAnalysis.addReader(() => menuMusic.readLevel())
-    return () => { offSfx(); offMenu() }
+    const offs = [
+      audioAnalysis.addReader(() => sfx.readLevel()),
+      audioAnalysis.addReader(() => menuMusic.readLevel()),
+      audioAnalysis.addBandReader(out => sfx.readBands(out)),
+      audioAnalysis.addBandReader(out => menuMusic.readBands(out)),
+    ]
+    return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
   // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
   const gesturedRef = useRef(false)
@@ -414,7 +418,7 @@ export default function App() {
               <DashIndicator dashProgress={hud.dashProgress} />
               <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
-              <AudioBar analysis={audioAnalysis} />
+              {profile.audioViz && <AudioBar analysis={audioAnalysis} />}
               <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} />
             </>
           )}

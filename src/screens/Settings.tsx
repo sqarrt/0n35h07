@@ -47,6 +47,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [showFps, setShowFps] = useState(profile.showFps)
   const [showSpeed, setShowSpeed] = useState(profile.showSpeed)
   const [menuGlow, setMenuGlow] = useState(profile.menuGlow)
+  const [audioViz, setAudioViz] = useState(profile.audioViz)
   const [volMaster, setVolMaster] = useState(profile.volumeMaster)
   const [volMusic, setVolMusic] = useState(profile.volumeMusic)
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
@@ -54,7 +55,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, menuGlow, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -101,6 +102,10 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handleMenuGlow = (v: boolean) => {
     setMenuGlow(v)
     commit({ ...base(), menuGlow: v })
+  }
+  const handleAudioViz = (v: boolean) => {
+    setAudioViz(v)
+    commit({ ...base(), audioViz: v })
   }
   const handleVolMaster = (v: number) => {
     setVolMaster(v)
@@ -217,12 +222,16 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
         <>
           <div style={subHeader}>ПОСТПРОЦЕССИНГ</div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={post} onChange={handlePost} aria-label="Подсвечивать контуры" />
-            <span style={{ ...label, marginBottom: 0 }}>ПОДСВЕЧИВАТЬ КОНТУРЫ</span>
+            <Toggle checked={post} onChange={handlePost} aria-label="Подсвечивать контуры блоков" />
+            <span style={{ ...label, marginBottom: 0 }}>ПОДСВЕЧИВАТЬ КОНТУРЫ БЛОКОВ</span>
           </div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
             <Toggle checked={menuGlow} onChange={handleMenuGlow} aria-label="Свечение в меню" />
             <span style={{ ...label, marginBottom: 0 }}>СВЕЧЕНИЕ В МЕНЮ</span>
+          </div>
+          <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
+            <Toggle checked={audioViz} onChange={handleAudioViz} aria-label="Визуализация звука" />
+            <span style={{ ...label, marginBottom: 0 }}>ВИЗУАЛИЗАЦИЯ ЗВУКА</span>
           </div>
 
           <div style={subHeader}>ОВЕРЛЕЙ</div>

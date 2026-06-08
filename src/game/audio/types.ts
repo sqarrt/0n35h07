@@ -26,4 +26,6 @@ export interface IMusicEngine {
   activeStemIds(): string[]
   /** Текущий RMS-уровень 0..1 (для визуализации звука). */
   readLevel(): number
+  /** Заполняет out[] спектром (макс-комбинирование) — для частотной визуализации. */
+  readBands(out: Float32Array): void
 }
