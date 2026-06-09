@@ -249,9 +249,9 @@ export class Player implements IControllable {
     this.body.material.color.copy(this.baseColor)
   }
 
-  /** Масштаб+прозрачность во время призрака/материализации; null — обычная windup-логика. */
+  /** Масштаб+прозрачность анимации пуфа после материализации; null — обычная windup-логика.
+   *  Призрак обрабатывается раньше (ранний return в вызывающих методах) — здесь не проверяется. */
   private lifecycleVisual(): { scale: number; opacity: number } | null {
-    if (this.respawning) return { scale: 1, opacity: GHOST_OPACITY }   // призрак: полупрозрачный
     const st = (Date.now() - this.spawnTime) / SPAWN_ANIM_MS
     if (st >= 0 && st < 1) return { scale: 1 + SPAWN_POP * Math.sin(Math.PI * st), opacity: 1 }   // пуф
     return null
@@ -351,15 +351,14 @@ export class Player implements IControllable {
       return
     }
     const lc = this.lifecycleVisual()
-    if (lc !== null) {   // пуф материализации (в своём цвете)
+    this.body.setOpacity(lc !== null ? lc.opacity : 1)
+    // Порядок как в syncVisuals: сначала windup (масштаб/цвет), затем пуф перезаписывает масштаб поверх.
+    this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
+    if (lc !== null) {   // пуф материализации: масштаб пуфа побеждает, щит скрыт
       this.body.mesh.scale.setScalar(lc.scale)
-      this.body.setOpacity(lc.opacity)
       this.body.material.color.copy(this.baseColor)
       this.shield.object3d.visible = false
-      this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
     } else {
-      this.body.setOpacity(1)
-      this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
       this.shield.object3d.visible = this.netShieldActive && this.bodyVisible
     }
   }

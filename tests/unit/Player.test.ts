@@ -225,4 +225,13 @@ describe('Player + IWindupFx', () => {
     p.update(0.016, dummyWorld, [])
     expect(fx.object3d.visible).toBe(false)
   })
+
+  it('призрак скрывает world-объект и в updateRemote (сетевой путь)', () => {
+    const fx = new FakeWindupFx()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af', fx, 'classic')
+    fx.object3d.visible = true
+    p.receiveHit()
+    p.updateRemote(0.016, dummyWorld)
+    expect(fx.object3d.visible).toBe(false)
+  })
 })
