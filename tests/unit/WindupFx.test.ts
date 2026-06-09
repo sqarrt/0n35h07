@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { ClassicWindupFx } from '../../src/game/fx/windup/ClassicWindupFx'
 import { RageWindupFx } from '../../src/game/fx/windup/RageWindupFx'
 import { SingularityWindupFx } from '../../src/game/fx/windup/SingularityWindupFx'
+import { createWindupFx } from '../../src/game/fx/windup/createWindupFx'
 import type { WindupFrame } from '../../src/game/fx/windup/types'
 import { WINDUP_SCALE_GAIN, BOT_COLOR_WHITE } from '../../src/constants'
 
@@ -142,5 +143,13 @@ describe('SingularityWindupFx', () => {
     const fx = new SingularityWindupFx()
     fx.object3d.traverse(o => { if (o !== fx.object3d) expect(o.userData.noRaycast).toBe(true) })
     expect(() => fx.dispose()).not.toThrow()
+  })
+})
+
+describe('createWindupFx', () => {
+  it('возвращает реализацию по стилю', () => {
+    expect(createWindupFx('classic')).toBeInstanceOf(ClassicWindupFx)
+    expect(createWindupFx('rage')).toBeInstanceOf(RageWindupFx)
+    expect(createWindupFx('singularity')).toBeInstanceOf(SingularityWindupFx)
   })
 })
