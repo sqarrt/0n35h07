@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, Suspense } from 'react'
+import { useRef, useEffect, useMemo, memo, Suspense } from 'react'
 import type { ComponentRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -39,7 +39,10 @@ interface GameProps {
   audioAnalysis: AudioAnalysis   // регистрируем сюда уровень музыки матча (для визуализации)
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
+// memo: HUD-обновления (SET_WINDUP_PROGRESS каждый кадр заряда и т.п.) ре-рендерят App, но НЕ должны
+// трогать Canvas/постпроцесс — иначе EffectComposer пересобирает шейдер каждый кадр (спайк на заряде).
+// Пропсы Game стабильны в течение матча (gameNet/profile), поэтому memo блокирует лишние ре-рендеры.
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
@@ -169,3 +172,5 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, reserveColo
     </Suspense>
   )
 }
+
+export const Game = memo(GameImpl)

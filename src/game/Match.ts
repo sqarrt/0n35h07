@@ -527,8 +527,7 @@ export class Match {
     }
 
     const w = this.human.isWindingUp
-    if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
-    else if (this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })
+    if (!w && this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })   // конец заряда — сразу
     this.prevWindup = w
 
     const s = this.human.shieldActive
@@ -538,6 +537,8 @@ export class Match {
     const now = Date.now()
     if (now - this.lastHud > 50) {
       this.lastHud = now
+      // Прогресс заряда — троттлим (как прочий HUD): каждый кадр он гнал App-ре-рендер → спайк с постпроцессом.
+      if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })

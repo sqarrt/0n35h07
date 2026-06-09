@@ -20,9 +20,14 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
 
   // Геометрия из компила (geo.json), фолбэк — слияние из blocks на лету (кеш по id). Две группы (укрытия/периметр).
   const compiled = useMemo(() => MAP_GEO[map.id] ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
-  const raycast = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
+  // Укрытия — цель боёвки-луча: строим BVH (computeBoundsTree), чтобы raycast на выстреле был O(log n), без спайка.
+  const raycast = useMemo(() => {
+    const g = compiled.raycast ? buildGeometry(compiled.raycast) : null
+    g?.computeBoundsTree()
+    return g
+  }, [compiled])
   const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
-  useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
+  useEffect(() => () => { raycast?.disposeBoundsTree(); raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
 
   const postFx = useMemo(() => loadProfile().postProcessing, [])
 
