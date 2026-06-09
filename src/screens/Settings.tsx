@@ -56,7 +56,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, windupStyle: profile.windupStyle, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
