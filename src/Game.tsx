@@ -28,6 +28,7 @@ interface GameProps {
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
+  reserveColor: string   // «второй» цвет локального игрока (кольцо его планеты)
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
@@ -38,7 +39,7 @@ interface GameProps {
   audioAnalysis: AudioAnalysis   // регистрируем сюда уровень музыки матча (для визуализации)
 }
 
-export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
+export function Game({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
   const { camera, scene } = useThree()
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
@@ -55,6 +56,7 @@ export function Game({ dispatch, role, net, netConfig, peerToPlayer, defaultThir
       dispatch,
       role,
       netConfig,
+      localReserveColor: reserveColor,
       defaultThirdPerson,
       durationMs,
       mapId,

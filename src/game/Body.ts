@@ -50,7 +50,7 @@ export class Body {
   private shaderTick: (dt: number) => void
   private ring: { tick: (dt: number) => void; setOpacity: (o: number) => void; dispose: () => void } | null = null
 
-  constructor(entityId: number, color: string, model: BallModel = 'smooth') {
+  constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color) {
     const ball = createBallMaterial(color, model)   // материал сферы по модели (smooth/waves/planet)
     this.material = ball.material
     this.shaderTick = ball.tick
@@ -60,7 +60,7 @@ export class Body {
     this.mesh.userData.noRaycast = true
 
     if (model === 'planet') {   // кольцо — дочерний меш сферы (масштабируется/гаснет вместе с планетой)
-      const ring = createBallRing(color)
+      const ring = createBallRing(ringColor)   // «второй» цвет (как в меню); по умолчанию = цвет шара
       this.mesh.add(ring.mesh)
       this.ring = ring
     }
