@@ -405,7 +405,8 @@ export default function App() {
               </button>
             </div>
           )}
-          {locked && (hud.matchPhase === 'live' || hud.matchPhase === 'countdown') && (
+          {/* Игровой HUD — только в live; во время отсчёта чистый экран (камеру крутить можно) + сам отсчёт. */}
+          {locked && hud.matchPhase === 'live' && (
             <>
               <WindupOverlay windupProgress={hud.windupProgress} />
               <Crosshair beamProgress={hud.beamProgress} />
