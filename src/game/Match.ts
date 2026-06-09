@@ -22,7 +22,7 @@ import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
-  AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG,
+  AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
 } from '../constants'
 
 const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
@@ -84,6 +84,7 @@ export class Match {
   // Rapier (через RapierBridge)
   private physicsWorld: PhysicsWorld | null = null
   private kcc: Kcc | null = null
+  private kccNoStep: Kcc | null = null   // без автостепа — для пересчёта кадра, где автостеп поднял, но не закрепил
 
   private lastHud = 0
   private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
@@ -193,19 +194,30 @@ export class Match {
   // --- Rapier wiring (вызывается из RapierBridge) ---
   attachWorld(world: PhysicsWorld, _rapier: unknown) {
     this.physicsWorld = world
-    this.kcc = world.createCharacterController(0.01)
-    this.kcc.setApplyImpulsesToDynamicBodies(false)
-    this.kcc.setUp({ x: 0, y: 1, z: 0 })
+    this.kcc = this.makeKcc(world, KCC_OFFSET, true)
+    this.kccNoStep = this.makeKcc(world, KCC_OFFSET, false)   // запасной KCC без автостепа (анти-дрожание ложного шага)
+  }
+
+  /** Создать и настроить KCC. offset — зазор капсула↔мир (численная стабильность); autostep — включать ли автоступень. */
+  private makeKcc(world: PhysicsWorld, offset: number, autostep: boolean): Kcc {
+    const kcc = world.createCharacterController(offset)
+    kcc.setApplyImpulsesToDynamicBodies(false)
+    kcc.setUp({ x: 0, y: 1, z: 0 })
     // Autostep даёт капсуле всходить на ступени (≤AUTOSTEP_MAX_HEIGHT) как по лестнице — в т.ч. на блоки 1×1
     // (высота 1.0); углы склона — для наклонных поверхностей/рамп. Препятствия выше ступени не перешагнуть.
-    this.kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
-    this.kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
-    this.kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
+    kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    if (autostep) kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
     // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
+    return kcc
   }
   detachWorld() {
-    if (this.physicsWorld && this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
+    if (this.physicsWorld) {
+      if (this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
+      if (this.kccNoStep) this.physicsWorld.removeCharacterController(this.kccNoStep)
+    }
     this.kcc = null
+    this.kccNoStep = null
     this.physicsWorld = null
   }
 
@@ -262,13 +274,23 @@ export class Match {
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
       p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
       p.stepDash(dt)                                                  // рывок добавляет к desired
-      this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
-      const c = this.kcc.computedMovement()
+      const desired = p.consumeDesired()
+      this.kcc.computeColliderMovement(rb.collider(0), desired)
+      let c = this.kcc.computedMovement()
+      let grounded = this.kcc.computedGrounded()
+      // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
+      // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
+      // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
+      if (this.kccNoStep && !grounded && c.y - desired.y > AUTOSTEP_LIFT_EPS) {
+        this.kccNoStep.computeColliderMovement(rb.collider(0), desired)
+        c = this.kccNoStep.computedMovement()
+        grounded = this.kccNoStep.computedGrounded()
+      }
       const cur = rb.translation()
       const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
       if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
       rb.setNextKinematicTranslation(next)
-      p.setGrounded(this.kcc.computedGrounded())
+      p.setGrounded(grounded)
     }
   }
 

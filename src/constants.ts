@@ -145,6 +145,8 @@ export const CAPSULE_OFFSET_Y    = -0.85
 export const AUTOSTEP_MAX_HEIGHT = 1.05
 export const AUTOSTEP_MIN_WIDTH  = 0.25
 export const KCC_SLOPE_DEG       = 50    // макс. угол climb/slide
+export const KCC_OFFSET          = 0.01  // зазор капсула↔мир: мал → численная нестабильность KCC (дрожание на высоком FPS)
+export const AUTOSTEP_LIFT_EPS   = 0.02  // порог вертикального подъёма сверх гравитации → автостеп пытался перешагнуть
 
 // Bot colors (hex strings — create THREE.Color locally where needed)
 export const BOT_COLOR_BASE  = '#5af'

@@ -17,6 +17,7 @@ export function intentsFromInput(player: Player, frame: InputFrame, dt: number, 
   const keys = { forward: frame.keys.f, back: frame.keys.b, left: frame.keys.l, right: frame.keys.r }
 
   player.moveIntent(moveVelocity(keys, dir, right, player.isWindingUp), dt)
+  player.setLook(look)   // ориентация модели — по взгляду клиента (как у локального человека)
 
   // Прицел: луч из глаз вдоль полного aimDir (не горизонтального), исключая своё тело.
   const aimDir = look.lengthSq() === 0 ? new THREE.Vector3(0, 0, -1) : look.clone().normalize()

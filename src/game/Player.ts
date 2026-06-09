@@ -38,6 +38,8 @@ export class Player implements IControllable {
   private trail: IDashTrail
   private burst: DeathBurst
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
+  private lookDir = new THREE.Vector3(0, 0, -1)   // направление ВЗГЛЯДА (ориентация модели): стабильно, не зависит
+  //                                                 от дальности точки прицела (в TP камера позади → aimPoint−muzzle переворачивался)
   private spawnTime = -Infinity   // момент начала материализации (респаун)
   private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
@@ -129,6 +131,8 @@ export class Player implements IControllable {
   }
   setJumpInput(held: boolean)  { this.body.setJumpInput(this.canMove() && held) }   // held → auto-bhop/двойной прыжок
   aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира (доступно и в заморозке)
+  /** Направление взгляда (для ориентации модели). Горизонтальную проекцию берёт faceDir; почти-нулевой вектор игнорим. */
+  setLook(dir: THREE.Vector3)  { if (dir.lengthSq() > 1e-8) this.lookDir.copy(dir) }
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
   activateShield()             { if (!this.canAct()) return; this.shield.activate() }
   dash(dir: THREE.Vector3) {
@@ -142,7 +146,7 @@ export class Player implements IControllable {
   update(dt: number, world: World, excludeIds: number[]) {
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
-    this.body.faceDir(aim)   // модель смотрит туда же, куда целится игрок (за камерой)
+    this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
     this.shield.update(dt)
     this.syncVisuals()
@@ -257,7 +261,7 @@ export class Player implements IControllable {
     return {
       id: this.id,
       pos: toVec3(this.body.position),
-      aimDir: toVec3(this.aimPoint.clone().sub(this.muzzle()).normalize()),
+      aimDir: toVec3(this.lookDir),   // направление взгляда (ориентация модели у соперника); стабильнее точки прицела
       alive: this.alive,
       shieldActive: this.shieldActive,
       dashing: this.dashing,

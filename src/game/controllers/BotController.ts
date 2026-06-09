@@ -34,7 +34,9 @@ export class BotController implements Controller {
     if (this.passive) return
     const pos = this.player.position
 
-    this.player.aim(this.getTarget())   // целимся в точку — игрока
+    const target = this.getTarget()
+    this.player.aim(target)              // целимся в точку — игрока (луч)
+    this.player.setLook(target.clone().sub(pos))   // модель смотрит на цель (направление, не точка)
 
     if (!this.player.isWindingUp) {
       const dx = this.waypoint.x - pos.x
