@@ -6,6 +6,7 @@ import { BeamWeapon } from '../../src/game/BeamWeapon'
 import { Shield } from '../../src/game/Shield'
 import type { IWeapon, WeaponContext, FireOutcome } from '../../src/game/abstractions'
 import { MUZZLE_Y, MOVE_SPEED, RESPAWN_SPEED_MULT } from '../../src/constants'
+import type { IWindupFx, WindupTarget, WindupFrame } from '../../src/game/fx/windup/types'
 
 function makePlayer(id = 1) {
   return new Player(id, new Body(id, '#5af'), new BeamWeapon(), new Shield(), '#5af')
@@ -186,5 +187,42 @@ describe('Player', () => {
     expect(p.beamCooldownProgress()).toBe(1)
     expect(p.shieldProgress()).toBe(1)
     expect(p.dashCooldownProgress()).toBe(1)
+  })
+})
+
+/** Фейковая стратегия: записывает последний кадр. */
+class FakeWindupFx implements IWindupFx {
+  object3d = new THREE.Group()
+  lastFrame: WindupFrame | null = null
+  apply(_dt: number, _t: WindupTarget, f: WindupFrame) { this.lastFrame = { ...f } }
+  dispose() {}
+}
+
+describe('Player + IWindupFx', () => {
+  it('дефолт — classic (без явного fx Player создаётся и ведёт себя как раньше)', () => {
+    const p = makePlayer()
+    expect(p.windupStyle).toBe('classic')
+    expect(p.windupFxObject).toBeDefined()
+  })
+
+  it('прокидывает progress заряда в стратегию', () => {
+    const stub = new StubWeapon()
+    const fx = new FakeWindupFx()
+    const p = new Player(0, new Body(0, '#4af'), stub, new Shield(), '#4af', fx, 'rage')
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0))
+    stub.windupProgress = 0.6
+    p.update(0.016, dummyWorld, [])
+    expect(p.windupStyle).toBe('rage')
+    expect(fx.lastFrame!.progress).toBeCloseTo(0.6)
+    expect(fx.lastFrame!.visible).toBe(true)
+  })
+
+  it('призрак (смерть) скрывает world-объект стратегии', () => {
+    const fx = new FakeWindupFx()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af', fx, 'classic')
+    fx.object3d.visible = true
+    p.receiveHit()
+    p.update(0.016, dummyWorld, [])
+    expect(fx.object3d.visible).toBe(false)
   })
 })

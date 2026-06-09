@@ -8,9 +8,12 @@ import { DeathBurst } from './fx/DeathBurst'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
 import {
-  MUZZLE_Y, BODY_MESH_Y, BOT_WINDUP, BOT_COLOR_WHITE, EYE_HEIGHT, WINDUP_SCALE_GAIN,
+  MUZZLE_Y, BODY_MESH_Y, EYE_HEIGHT, WINDUP_SHRINK_MS,
   SPAWN_ANIM_MS, SPAWN_POP, RESPAWN_GHOST_MS, RESPAWN_SPEED_MULT, RESPAWN_SPEED_RAMP, GHOST_OPACITY,
 } from '../constants'
+import type { WindupStyle } from '../constants'
+import { ClassicWindupFx } from './fx/windup/ClassicWindupFx'
+import type { IWindupFx, WindupTarget, WindupFrame } from './fx/windup/types'
 
 const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // фиктивный aim для косметического weapon.update удалённого
 
@@ -46,7 +49,10 @@ export class Player implements IControllable {
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
-  private whiteColor = new THREE.Color(BOT_COLOR_WHITE)
+  readonly windupStyle: WindupStyle
+  private windupFx: IWindupFx
+  private windupTarget: WindupTarget
+  private windupFrame: WindupFrame
   // Сетевое состояние для рендера удалённого игрока на клиенте (без прогона его сима).
   private netShieldActive = false
   private netDashing = false
@@ -61,12 +67,21 @@ export class Player implements IControllable {
     weapon: IWeapon,
     shield: IShield,
     color: string,
+    windupFx: IWindupFx = new ClassicWindupFx(),
+    windupStyle: WindupStyle = 'classic',
   ) {
     this.id = id
     this.body = body
     this.weapon = weapon
     this.shield = shield
     this.baseColor = new THREE.Color(color)
+    this.windupFx = windupFx
+    this.windupStyle = windupStyle
+    this.windupTarget = { mesh: body.mesh, material: body.material }
+    this.windupFrame = {
+      progress: 0, shrink: 1, baseColor: this.baseColor,
+      aimDir: new THREE.Vector3(0, 0, -1), origin: new THREE.Vector3(), visible: true,
+    }
     this.trail = new AfterimageTrail(this.baseColor)   // world-space визуал — кладёт Match в root
     this.burst = new DeathBurst(this.baseColor)        // хлопок частиц на смерти — тоже world-space
     shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
@@ -84,6 +99,9 @@ export class Player implements IControllable {
 
   /** Хлопок частиц на смерти — world-space (живёт в match.root). */
   get burstObject() { return this.burst.object3d }
+
+  /** World-space часть анимации заряда (челюсти/вихрь) — живёт в match.root, как trail/burst. */
+  get windupFxObject() { return this.windupFx.object3d }
 
   // --- Rapier binding (RigidBody = только коллайдер; визуал отдельно в world-space) ---
   bindBody(rb: RapierRigidBody | null) {
@@ -149,7 +167,7 @@ export class Player implements IControllable {
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
     this.shield.update(dt)
-    this.syncVisuals()
+    this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing || this.respawning })
     this.burst.update(dt)
     this.body.tickShader(dt)
@@ -159,33 +177,38 @@ export class Player implements IControllable {
     return this.body.position.clone().add(new THREE.Vector3(0, MUZZLE_Y, 0))
   }
 
-  private syncVisuals() {
+  private syncVisuals(dt: number) {
     if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
     if (this.weapon.justFired) this.fireTime = Date.now()
 
-    const lc = this.lifecycleVisual()
-    if (lc !== null) {   // призрак/материализация диктуют масштаб+прозрачность (в своём цвете)
-      this.body.mesh.scale.setScalar(lc.scale)
-      this.body.setOpacity(lc.opacity)   // сфера + кольцо
+    if (this.respawning) {   // фаза призрака: полупрозрачный, заряд скрыт
+      this.body.mesh.scale.setScalar(1)
+      this.body.setOpacity(GHOST_OPACITY)
       this.body.material.color.copy(this.baseColor)
       this.shield.object3d.visible = false
+      this.windupFx.object3d.visible = false   // призрак не заряжает — проекцию скрыть
       return
     }
-    this.body.setOpacity(1)   // обычное состояние — непрозрачно
-
-    const wp = this.weapon.windupProgress
-    const shrinkP = Math.min((Date.now() - this.fireTime) / (BOT_WINDUP / 3), 1)
-    const mat = this.body.material
-    if (wp > 0) {
-      this.body.mesh.scale.setScalar(1 + wp * WINDUP_SCALE_GAIN)
-      mat.color.lerpColors(this.baseColor, this.whiteColor, wp)
-    } else if (shrinkP < 1) {
-      this.body.mesh.scale.setScalar(1 + WINDUP_SCALE_GAIN * (1 - shrinkP))
-      mat.color.copy(this.baseColor)
-    } else {
-      this.body.mesh.scale.setScalar(1)
-      mat.color.copy(this.baseColor)
+    const lc = this.lifecycleVisual()
+    this.body.setOpacity(lc !== null ? lc.opacity : 1)
+    // applyWindup управляет масштабом/цветом через стратегию; пуф корректирует масштаб поверх
+    this.applyWindup(dt, this.weapon.windupProgress, this.fireTime, this.lookDir)
+    if (lc !== null) {   // пуф материализации: корректируем масштаб поверх windup (свой цвет уже выставлен fx)
+      this.body.mesh.scale.setScalar(lc.scale)
+      this.body.material.color.copy(this.baseColor)
+      this.shield.object3d.visible = false
     }
+  }
+
+  /** Общий путь анимации заряда для локального (weapon/lookDir) и сетевого (netWindup/netAimDir) игрока. */
+  private applyWindup(dt: number, progress: number, fireTime: number, aimDir: THREE.Vector3) {
+    const f = this.windupFrame
+    f.progress = progress
+    f.shrink = Math.min((Date.now() - fireTime) / WINDUP_SHRINK_MS, 1)
+    f.aimDir.copy(aimDir)
+    f.origin.copy(this.body.position).add(this.bodyMeshOffset)
+    f.visible = this.bodyVisible
+    this.windupFx.apply(dt, this.windupTarget, f)
   }
 
   // --- combat (driven by Match, never self-respawn) ---
@@ -315,32 +338,30 @@ export class Player implements IControllable {
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || this.respawning })
     this.burst.update(dt)
     this.body.tickShader(dt)
-    this.applyRemoteVisual()
+    this.applyRemoteVisual(dt)
   }
 
-  private applyRemoteVisual() {
-    const mat = this.body.material
-    const lc = this.lifecycleVisual()
-    if (lc !== null) {   // призрак/материализация (в своём цвете)
-      this.body.mesh.scale.setScalar(lc.scale)
-      this.body.setOpacity(lc.opacity)   // сфера + кольцо
-      mat.color.copy(this.baseColor)
+  private applyRemoteVisual(dt: number) {
+    if (this.respawning) {   // фаза призрака: полупрозрачный, заряд скрыт
+      this.body.mesh.scale.setScalar(1)
+      this.body.setOpacity(GHOST_OPACITY)
+      this.body.material.color.copy(this.baseColor)
       this.shield.object3d.visible = false
+      this.windupFx.object3d.visible = false
       return
     }
-    this.body.setOpacity(1)
-    const shrinkP = Math.min((Date.now() - this.netFireTime) / (BOT_WINDUP / 3), 1)   // как в syncVisuals
-    if (this.netWindup > 0) {
-      this.body.mesh.scale.setScalar(1 + this.netWindup * WINDUP_SCALE_GAIN)
-      mat.color.lerpColors(this.baseColor, this.whiteColor, this.netWindup)
-    } else if (shrinkP < 1) {
-      this.body.mesh.scale.setScalar(1 + WINDUP_SCALE_GAIN * (1 - shrinkP))   // плавное сдувание после выстрела
-      mat.color.copy(this.baseColor)
+    const lc = this.lifecycleVisual()
+    if (lc !== null) {   // пуф материализации (в своём цвете)
+      this.body.mesh.scale.setScalar(lc.scale)
+      this.body.setOpacity(lc.opacity)
+      this.body.material.color.copy(this.baseColor)
+      this.shield.object3d.visible = false
+      this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
     } else {
-      this.body.mesh.scale.setScalar(1)
-      mat.color.copy(this.baseColor)
+      this.body.setOpacity(1)
+      this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
+      this.shield.object3d.visible = this.netShieldActive && this.bodyVisible
     }
-    this.shield.object3d.visible = this.netShieldActive && this.bodyVisible
   }
 
   dispose() {
@@ -349,5 +370,6 @@ export class Player implements IControllable {
     this.body.dispose()
     this.trail.dispose()
     this.burst.dispose()
+    this.windupFx.dispose()
   }
 }
