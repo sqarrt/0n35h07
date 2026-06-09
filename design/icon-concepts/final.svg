@@ -21,7 +21,7 @@
     </linearGradient>
   </defs>
 
-  <!-- фон иконки -->
+  <!-- фон app-иконки -->
   <rect width="256" height="256" rx="54" fill="#070b11"/>
   <rect x="5" y="5" width="246" height="246" rx="50" fill="none" stroke="#13283b" stroke-width="2"/>
 
