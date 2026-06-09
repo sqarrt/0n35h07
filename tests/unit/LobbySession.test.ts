@@ -138,5 +138,6 @@ describe('LobbySession — windupStyle в ростере', () => {
     // стиль клиента берётся из hello-сообщения
     expect(hostView.roster.find(r => r.id === 1)!.windupStyle).toBe('singularity')
     expect(clientView.roster.find(r => r.id === 1)!.windupStyle).toBe('singularity')
+    expect(clientView.roster.find(r => r.id === 0)!.windupStyle).toBe('classic')   // стиль хоста доехал клиенту в ASSIGN
   })
 })

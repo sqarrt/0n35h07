@@ -90,7 +90,7 @@ export class LobbySession {
 
   addBot(difficulty: BotDifficulty = 'normal') {
     if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }
+    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }   // ballModel/windupStyle не задаём: оба optional, Match подставит дефолты ('smooth'/'classic')
     this.broadcastRoster()
   }
 
