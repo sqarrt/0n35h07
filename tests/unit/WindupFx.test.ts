@@ -68,12 +68,14 @@ describe('RageWindupFx', () => {
     const fx = new RageWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 0.3 }))
+    // children[0] — верхняя челюсть (порядок add в конструкторе)
     const openEarly = fx.object3d.children[0].position.y
     fx.apply(0.016, t, makeFrame({ progress: 1 }))
     expect(t.mesh.scale.x).toBeGreaterThan(1)
     expect(t.material.emissive.r).toBeGreaterThan(0)        // раскалённое свечение
     expect(t.material.color.r).toBeLessThan(0.5)            // потемнел (не белеет, как classic)
     expect(fx.object3d.visible).toBe(true)
+    // children[0] — верхняя челюсть (порядок add в конструкторе)
     expect(fx.object3d.children[0].position.y).toBeGreaterThan(openEarly)   // пасть раскрывается дальше
   })
 

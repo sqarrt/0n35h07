@@ -54,6 +54,7 @@ export type BallModel = typeof BALL_MODELS[number]
 // Анимации подготовки выстрела (выбор в настройках; сетевая косметика — видна сопернику).
 export const WINDUP_STYLES = ['classic', 'rage', 'singularity'] as const
 export type WindupStyle = typeof WINDUP_STYLES[number]
+
 // Волны — деформация вершин (вдоль нормали) в шейдере:
 export const BALL_WAVE_COUNT = 10     // число волн по высоте сферы
 export const BALL_WAVE_AMP   = 0.03   // амплитуда волн

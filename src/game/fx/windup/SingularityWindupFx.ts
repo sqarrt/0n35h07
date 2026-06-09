@@ -24,6 +24,7 @@ const FLASH_COLOR = '#ffffff'
 const FLASH_FRAC = 0.45               // доля фазы сдувания, за которую вспышка гаснет
 const FLASH_SCALE = 2.6               // конечный масштаб вспышки (от радиуса шара)
 const FLASH_OPACITY = 0.8
+const FLASH_SEGMENTS = 8              // эфемерному аддитивному шару больше не нужно (ср. DeathBurst)
 
 /** «Сингулярность»: шар коллапсирует, вокруг — светящийся вихрь всасываемых частиц; выстрел = вспышка. */
 export class SingularityWindupFx implements IWindupFx {
@@ -56,7 +57,7 @@ export class SingularityWindupFx implements IWindupFx {
       color: FLASH_COLOR, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false,
     })
-    this.flash = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, 16, 16), this.fmat)
+    this.flash = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, FLASH_SEGMENTS, FLASH_SEGMENTS), this.fmat)
     this.flash.userData.noRaycast = true
     this.flash.visible = false
     this.object3d.add(this.points, this.flash)

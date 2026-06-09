@@ -119,6 +119,7 @@ export class RageWindupFx implements IWindupFx {
     this.forward.normalize()
     this.object3d.position.copy(f.origin).addScaledVector(this.forward, JAW_DISTANCE)
     this.lookTarget.copy(this.object3d.position).add(this.forward)
+    // lookAt корректен, пока родитель object3d (match.root/группа превью) без вращений — иначе ориентация поедет
     this.object3d.lookAt(this.lookTarget)
 
     // Раскрытие: растёт с зарядом; после выстрела пасть ЗАХЛОПЫВАЕТСЯ за JAW_SNAP_FRAC фазы сдувания.
