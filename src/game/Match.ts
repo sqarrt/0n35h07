@@ -55,6 +55,7 @@ interface MatchOptions {
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
+  localReserveColor?: string   // «второй» цвет локального игрока (кольцо его планеты); у соперника второго нет
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
@@ -152,12 +153,14 @@ export class Match {
     for (const e of roster) {
       const isBot = e.kind === 'bot'
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
+      // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
+      const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
       const p = isBot
-        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
+        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
             e.color)
-        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
+        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
       p.name = e.name
 
