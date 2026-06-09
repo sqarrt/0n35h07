@@ -32,6 +32,7 @@ import { MenuMusic } from './game/audio/MenuMusic'
 import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
+import { IS_ELECTRON } from './platform'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
@@ -123,8 +124,9 @@ export default function App() {
     ]
     return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
-  // Играет на всех не-игровых экранах, гаснет в матче. Первый старт — из пользовательского жеста (autoplay).
-  const gesturedRef = useRef(false)
+  // Играет на всех не-игровых экранах, гаснет в матче. В браузере первый старт — из пользовательского жеста
+  // (autoplay-политика); в Electron autoplay разрешён (см. main.ts) → стартуем сразу, без жеста.
+  const gesturedRef = useRef(IS_ELECTRON)
   useEffect(() => {
     if (screen === 'game') { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }

@@ -10,7 +10,12 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-electron
+release
 *.local
+
+# Рендеры превью иконки (генерируются из SVG) — исходники svg/html храним, png нет
+design/icon-concepts/*.png
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>OneShot — концепты иконки</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#4af; --opp:#fa4; --text:#cfe6ff; --muted:#5a6b80; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#06080c; color:var(--text); font-family:'Share Tech Mono',monospace;
+    padding:48px 32px 80px; min-height:100vh;
+    background-image:radial-gradient(1200px 600px at 50% -10%, rgba(68,170,255,.06), transparent);
+  }
+  h1{ font-size:22px; letter-spacing:.32em; font-weight:400; color:var(--accent);
+      text-shadow:0 0 18px rgba(68,170,255,.5); text-align:center; }
+  .sub{ text-align:center; color:var(--muted); letter-spacing:.18em; font-size:12px; margin-top:10px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:28px; margin-top:48px; max-width:1180px; margin-inline:auto; }
+  .card{
+    border:1px solid #16202e; background:linear-gradient(180deg,#0a0e15,#070a0f);
+    padding:26px; display:flex; flex-direction:column; gap:22px;
+  }
+  .card-head{ display:flex; align-items:baseline; gap:12px; }
+  .num{ color:var(--accent); font-size:13px; letter-spacing:.2em; }
+  .name{ font-size:15px; letter-spacing:.22em; }
+  .desc{ color:var(--muted); font-size:12px; line-height:1.6; letter-spacing:.04em; }
+  .row{ display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+  .hero{ width:160px; height:160px; }
+  .scales{ display:flex; align-items:center; gap:20px; }
+  .scales figure{ display:flex; flex-direction:column; align-items:center; gap:7px; }
+  .scales figcaption{ color:var(--muted); font-size:10px; letter-spacing:.1em; }
+  svg.ic{ display:block; }
+</style>
+</head>
+<body>
+  <h1>O N E S H O T</h1>
+  <div class="sub">КОНЦЕПТЫ ИКОНКИ · favicon + Electron · масштаб 512 / 96 / 32 / 16</div>
+
+  <!-- общие фильтры/градиенты -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+    <radialGradient id="sphere" cx="40%" cy="34%" r="72%">
+      <stop offset="0%" stop-color="#cdeeff"/>
+      <stop offset="38%" stop-color="#4ab6ff"/>
+      <stop offset="100%" stop-color="#0a4a86"/>
+    </radialGradient>
+    <radialGradient id="flash" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="35%" stop-color="#d8f1ff"/>
+      <stop offset="100%" stop-color="#4ab6ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flashWarm" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#ffe6c2"/>
+      <stop offset="100%" stop-color="#ffaa44" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beamCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4ab6ff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#9fe0ff"/>
+    </linearGradient>
+    <linearGradient id="beamWarm" x1="1" y1="0" x2="0" y2="0">
+      <stop offset="0%" stop-color="#ffaa44" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ffd49a"/>
+    </linearGradient>
+
+    <!-- ============ КОНЦЕПТ 1: ПРИЦЕЛ-ВЫСТРЕЛ ============ -->
+    <symbol id="c1" viewBox="0 0 256 256">
+      <rect width="256" height="256" rx="52" fill="#070b11"/>
+      <rect x="6" y="6" width="244" height="244" rx="48" fill="none" stroke="#13283b" stroke-width="2"/>
+      <g filter="url(#glow)" stroke="#4ab6ff" fill="none">
+        <!-- кольцо-прицел с разрывами -->
+        <circle cx="128" cy="128" r="74" stroke-width="7" stroke-dasharray="78 38" stroke-dashoffset="19"/>
+        <!-- тики -->
+        <g stroke-width="6" stroke-linecap="round">
+          <path d="M128 38 V58"/><path d="M128 198 V218"/>
+          <path d="M38 128 H58"/><path d="M198 128 H218"/>
+        </g>
+      </g>
+      <!-- угловые HUD-скобки -->
+      <g stroke="#2f6f9e" stroke-width="5" fill="none" stroke-linecap="round">
+        <path d="M34 56 V34 H56"/><path d="M222 56 V34 H200"/>
+        <path d="M34 200 V222 H56"/><path d="M222 200 V222 H200"/>
+      </g>
+      <!-- луч навылет -->
+      <rect x="20" y="124.5" width="108" height="7" fill="url(#beamCyan)" filter="url(#glow)"/>
+      <rect x="128" y="125.5" width="116" height="5" fill="url(#beamCyan)" filter="url(#glow)"/>
+      <!-- вспышка в центре -->
+      <circle cx="128" cy="128" r="34" fill="url(#flash)" opacity=".9"/>
+      <circle cx="128" cy="128" r="9" fill="#fff" filter="url(#glow)"/>
+    </symbol>
+
+    <!-- ============ КОНЦЕПТ 2: ДУЭЛЬ 1v1 ============ -->
+    <symbol id="c2" viewBox="0 0 256 256">
+      <rect width="256" height="256" rx="52" fill="#070b11"/>
+      <rect x="6" y="6" width="244" height="244" rx="48" fill="none" stroke="#13283b" stroke-width="2"/>
+      <!-- лучи -->
+      <g filter="url(#glow)">
+        <polygon points="18,128 110,116 110,140" fill="url(#beamCyan)"/>
+        <polygon points="238,128 146,116 146,140" fill="url(#beamWarm)"/>
+      </g>
+      <!-- игроки на концах -->
+      <circle cx="30" cy="128" r="13" fill="#4ab6ff" filter="url(#glow)"/>
+      <circle cx="226" cy="128" r="13" fill="#ffaa44" filter="url(#glow)"/>
+      <!-- центральная вспышка столкновения -->
+      <circle cx="128" cy="128" r="52" fill="url(#flash)" opacity=".55"/>
+      <circle cx="128" cy="128" r="40" fill="url(#flashWarm)" opacity=".45"/>
+      <g filter="url(#glow)">
+        <circle cx="128" cy="128" r="15" fill="#ffffff"/>
+        <!-- искры -->
+        <g stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".9">
+          <path d="M128 96 V108"/><path d="M128 148 V160"/>
+          <path d="M150 106 L142 114"/><path d="M106 150 L114 142"/>
+          <path d="M150 150 L142 142"/><path d="M106 106 L114 114"/>
+        </g>
+      </g>
+    </symbol>
+
+    <!-- ============ КОНЦЕПТ 3: ПЛАНЕТА НАВЫЛЕТ ============ -->
+    <symbol id="c3" viewBox="0 0 256 256">
+      <rect width="256" height="256" rx="52" fill="#070b11"/>
+      <rect x="6" y="6" width="244" height="244" rx="48" fill="none" stroke="#13283b" stroke-width="2"/>
+      <!-- задняя часть кольца -->
+      <g transform="rotate(-24 128 128)">
+        <path d="M52 128 A76 22 0 0 1 204 128" fill="none" stroke="#1f6fb0" stroke-width="6" opacity=".7"/>
+      </g>
+      <!-- сфера -->
+      <circle cx="128" cy="128" r="48" fill="url(#sphere)" filter="url(#glow)"/>
+      <!-- передняя часть кольца -->
+      <g transform="rotate(-24 128 128)">
+        <path d="M204 128 A76 22 0 0 1 52 128" fill="none" stroke="#7fd0ff" stroke-width="6" filter="url(#glow)"/>
+      </g>
+      <!-- луч навылет + вспышка на выходе -->
+      <rect x="128" y="125" width="120" height="6" fill="url(#beamCyan)" filter="url(#glow)"/>
+      <circle cx="244" cy="128" r="16" fill="url(#flash)"/>
+      <circle cx="240" cy="128" r="6" fill="#fff" filter="url(#glow)"/>
+    </symbol>
+
+    <!-- ============ КОНЦЕПТ 4: МОНОГРАММА «1» ============ -->
+    <symbol id="c4" viewBox="0 0 256 256">
+      <rect width="256" height="256" rx="52" fill="#070b11"/>
+      <rect x="6" y="6" width="244" height="244" rx="48" fill="none" stroke="#13283b" stroke-width="2"/>
+      <!-- кольцо-прицел вокруг -->
+      <circle cx="128" cy="128" r="84" fill="none" stroke="#173247" stroke-width="3"/>
+      <circle cx="128" cy="128" r="84" fill="none" stroke="#2f6f9e" stroke-width="6"
+              stroke-dasharray="20 46" stroke-linecap="round"/>
+      <!-- единица как неоновый ствол -->
+      <g filter="url(#glow)" stroke="#7fe0ff" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M104 92 L132 74 V176" stroke-width="13"/>
+        <path d="M104 176 H160" stroke-width="13"/>
+      </g>
+      <!-- трассер-вспышка на вершине -->
+      <circle cx="132" cy="74" r="22" fill="url(#flash)"/>
+      <circle cx="132" cy="74" r="8" fill="#fff" filter="url(#glow)"/>
+    </symbol>
+  </defs></svg>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-head"><span class="num">01</span><span class="name">ПРИЦЕЛ-ВЫСТРЕЛ</span></div>
+      <div class="row">
+        <svg class="ic hero"><use href="#c1"/></svg>
+        <div class="scales">
+          <figure><svg class="ic" width="96" height="96"><use href="#c1"/></svg><figcaption>96</figcaption></figure>
+          <figure><svg class="ic" width="32" height="32"><use href="#c1"/></svg><figcaption>32</figcaption></figure>
+          <figure><svg class="ic" width="16" height="16"><use href="#c1"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="desc">HUD-прицел с угловыми скобками (как в игре) + луч навылет и вспышка попадания. Моно-cyan, читается в любом размере.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="num">02</span><span class="name">ДУЭЛЬ 1v1</span></div>
+      <div class="row">
+        <svg class="ic hero"><use href="#c2"/></svg>
+        <div class="scales">
+          <figure><svg class="ic" width="96" height="96"><use href="#c2"/></svg><figcaption>96</figcaption></figure>
+          <figure><svg class="ic" width="32" height="32"><use href="#c2"/></svg><figcaption>32</figcaption></figure>
+          <figure><svg class="ic" width="16" height="16"><use href="#c2"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="desc">Встречные лучи — голубой (свой) и оранжевый (соперник) — в одной вспышке. Цвета игроков, строгий 1v1.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="num">03</span><span class="name">ПЛАНЕТА НАВЫЛЕТ</span></div>
+      <div class="row">
+        <svg class="ic hero"><use href="#c3"/></svg>
+        <div class="scales">
+          <figure><svg class="ic" width="96" height="96"><use href="#c3"/></svg><figcaption>96</figcaption></figure>
+          <figure><svg class="ic" width="32" height="32"><use href="#c3"/></svg><figcaption>32</figcaption></figure>
+          <figure><svg class="ic" width="16" height="16"><use href="#c3"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="desc">Фирменная сфера с кольцом (модель игрока), пробитая лучом навылет. Узнаваемо; в 16px кольцо мельчает.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="num">04</span><span class="name">МОНОГРАММА «1»</span></div>
+      <div class="row">
+        <svg class="ic hero"><use href="#c4"/></svg>
+        <div class="scales">
+          <figure><svg class="ic" width="96" height="96"><use href="#c4"/></svg><figcaption>96</figcaption></figure>
+          <figure><svg class="ic" width="32" height="32"><use href="#c4"/></svg><figcaption>32</figcaption></figure>
+          <figure><svg class="ic" width="16" height="16"><use href="#c4"/></svg><figcaption>16</figcaption></figure>
+        </div>
+      </div>
+      <div class="desc">Единица-ствол в кольце-прицеле, вспышка-трассер на вершине. Бренд «One», лаконично.</div>
+    </div>
+  </div>
+</body>
+</html>
