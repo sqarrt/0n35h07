@@ -674,6 +674,7 @@ export class Match {
     }
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
+    w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
   }
 
   dispose() {
@@ -687,6 +688,7 @@ export class Match {
     delete w.__debugScore
     delete w.__debugBodyScale
     delete w.__debugForceEnd
+    delete w.__debugPlayerSpeed
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }
