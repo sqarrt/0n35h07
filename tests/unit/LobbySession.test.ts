@@ -5,9 +5,9 @@ import type { LobbyView } from '../../src/net/LobbySession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID } from '../../src/constants'
 
-const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' }
+const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic' }
 
-const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth' }
+const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic' }
 
 /** Поднимает хост+клиент на loopback (доставка синхронная → хендшейк завершается сразу). */
 function handshake(clientProfile: PlayerProfile) {
@@ -58,19 +58,19 @@ describe('LobbySession выбор карты', () => {
 
 describe('LobbySession — назначение цветов хостом', () => {
   it('клиент с тем же основным цветом, что у хоста, получает свой резервный', () => {
-    const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' })
+    const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic' })
     const clientEntry = hostView.roster.find(r => r.id === 1)!
     expect(clientEntry.color).toBe('#4fa')   // основной #4af занят хостом → резервный
     expect(clientEntry.name).toBe('Гость')
   })
 
   it('клиент со свободным основным цветом получает именно его', () => {
-    const { hostView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' })
+    const { hostView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic' })
     expect(hostView.roster.find(r => r.id === 1)!.color).toBe('#fd4')
   })
 
   it('клиент получает свой id и общий ростер (ASSIGN дошёл)', () => {
-    const { clientView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth' })
+    const { clientView } = handshake({ name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic' })
     expect(clientView.connected).toBe(true)
     expect(clientView.localPlayerId).toBe(1)
     expect(clientView.roster.map(r => r.id).sort()).toEqual([0, 1])
@@ -127,5 +127,16 @@ describe('LobbySession — слот соперника (строго 1v1)', () =
     hostNet.triggerLeave()                                 // клиент ушёл
     expect(view.roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
     expect(view.canStart).toBe(false)
+  })
+})
+
+describe('LobbySession — windupStyle в ростере', () => {
+  it('windupStyle хоста и клиента едут в ростер (hello → assign)', () => {
+    const { hostView, clientView } = handshake({ ...GUEST, windupStyle: 'singularity' })
+    // стиль хоста берётся из его профиля (HOST.windupStyle === 'classic')
+    expect(hostView.roster.find(r => r.id === 0)!.windupStyle).toBe('classic')
+    // стиль клиента берётся из hello-сообщения
+    expect(hostView.roster.find(r => r.id === 1)!.windupStyle).toBe('singularity')
+    expect(clientView.roster.find(r => r.id === 1)!.windupStyle).toBe('singularity')
   })
 })
