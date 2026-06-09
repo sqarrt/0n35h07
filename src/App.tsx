@@ -16,6 +16,7 @@ import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
+import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
@@ -362,6 +363,7 @@ export default function App() {
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} onReady={handleMenuReady} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
+      {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
         <div className="screen">
