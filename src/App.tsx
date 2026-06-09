@@ -193,8 +193,7 @@ export default function App() {
       const isLocked = !!document.pointerLockElement
       setLocked(isLocked)
       if (isLocked) setEverLocked(true)
-      // В Electron нет кулдауна PointerLock → «Продолжить» активна сразу (без таймера); в браузере — кулдаун Chrome.
-      else setLockReadyAt(IS_ELECTRON ? 0 : Date.now() + POINTERLOCK_COOLDOWN)
+      else setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)
     }
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
