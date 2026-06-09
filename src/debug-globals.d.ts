@@ -13,6 +13,7 @@ declare global {
     __debugPlayerPos?: (id: number) => Vec3Lite | null
     __debugScore?: (id: number) => { kills: number; deaths: number } | null
     __debugBodyScale?: (id: number) => number | null
+    __debugPlayerSpeed?: (id: number) => number | null
     __debugForceEnd?: () => void
     __debugPhase?: () => string
     __debugReady?: () => void
