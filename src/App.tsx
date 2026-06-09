@@ -293,6 +293,8 @@ export default function App() {
     if (window.location.hash) window.location.hash = ''
   }
 
+  // Выход из игры: в Electron закрывает окно (→ приложение завершается), в браузере — вкладку.
+  const handleExit = () => window.close()
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
   const handleReady = () => {
     document.querySelector('canvas')?.requestPointerLock()
@@ -344,7 +346,7 @@ export default function App() {
       {screen !== 'game' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} />}
+            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} onExit={handleExit} />}
             {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
             {screen === 'settings' && (
               <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
@@ -460,6 +462,7 @@ export default function App() {
             <span style={{ position: 'relative' }}>ПРОДОЛЖИТЬ</span>
           </button>
           <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
+          {IS_ELECTRON && <Button variant="ghost" onClick={handleExit}>ВЫХОД</Button>}
         </div>
       )}
     </div>
