@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { ClassicWindupFx } from '../../src/game/fx/windup/ClassicWindupFx'
 import { RageWindupFx } from '../../src/game/fx/windup/RageWindupFx'
+import { SingularityWindupFx } from '../../src/game/fx/windup/SingularityWindupFx'
 import type { WindupFrame } from '../../src/game/fx/windup/types'
 import { WINDUP_SCALE_GAIN, BOT_COLOR_WHITE } from '../../src/constants'
 
@@ -97,6 +98,49 @@ describe('RageWindupFx', () => {
     let meshes = 0
     fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh) { meshes++; expect(o.userData.noRaycast).toBe(true) } })
     expect(meshes).toBeGreaterThan(0)
+    expect(() => fx.dispose()).not.toThrow()
+  })
+})
+
+describe('SingularityWindupFx', () => {
+  it('нейтральный кадр: scale=1, цвет=база, вихрь скрыт', () => {
+    const fx = new SingularityWindupFx()
+    const t = makeTarget()
+    fx.apply(0.016, t, makeFrame())
+    expect(t.mesh.scale.x).toBe(1)
+    expect(t.material.color.getHexString()).toBe(new THREE.Color('#4af').getHexString())
+    expect(fx.object3d.visible).toBe(false)
+  })
+
+  it('заряд: шар СЖИМАЕТСЯ (но не в ноль) и темнеет, вихрь видим', () => {
+    const fx = new SingularityWindupFx()
+    const t = makeTarget()
+    fx.apply(0.016, t, makeFrame({ progress: 1 }))
+    expect(t.mesh.scale.x).toBeLessThan(1)
+    expect(t.mesh.scale.x).toBeGreaterThan(0.3)
+    expect(t.material.color.r).toBeLessThan(0.2)             // почти чёрный
+    expect(fx.object3d.visible).toBe(true)
+  })
+
+  it('сдувание (после выстрела): вспышка видима, масштаб возвращается к 1', () => {
+    const fx = new SingularityWindupFx()
+    const t = makeTarget()
+    fx.apply(0.016, t, makeFrame({ progress: 0, shrink: 0.1 }))
+    expect(fx.object3d.visible).toBe(true)                   // вспышка коллапса
+    fx.apply(0.016, t, makeFrame({ progress: 0, shrink: 1 }))
+    expect(t.mesh.scale.x).toBe(1)
+    expect(fx.object3d.visible).toBe(false)
+  })
+
+  it('вихрь центрируется на origin', () => {
+    const fx = new SingularityWindupFx()
+    fx.apply(0.016, makeTarget(), makeFrame({ progress: 0.5, origin: new THREE.Vector3(3, 1, -2) }))
+    expect(fx.object3d.position.toArray()).toEqual([3, 1, -2])
+  })
+
+  it('меши/частицы noRaycast, dispose не бросает', () => {
+    const fx = new SingularityWindupFx()
+    fx.object3d.traverse(o => { if (o !== fx.object3d) expect(o.userData.noRaycast).toBe(true) })
     expect(() => fx.dispose()).not.toThrow()
   })
 })
