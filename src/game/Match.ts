@@ -18,6 +18,7 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import { createWindupFx } from './fx/windup/createWindupFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -155,13 +156,16 @@ export class Match {
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
       // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
       const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
+      // Стиль заряда из ростера; нет поля → 'classic' (безопасное умолчание для старых клиентов).
+      const windupStyle = e.windupStyle ?? 'classic'
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
-            e.color)
+            e.color, createWindupFx(windupStyle), windupStyle)
         : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
-            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
+            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color,
+            createWindupFx(windupStyle), windupStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
@@ -187,7 +191,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 
@@ -471,6 +475,7 @@ export class Match {
       p.bodyGroup.visible = false
       p.weaponObject.visible = false
       p.trailObject.visible = false
+      p.windupFxObject.visible = false
     }
     this.endMatch('disconnect')
   }
