@@ -272,6 +272,13 @@
 .net-chip .dot--probing { color: var(--accent-dim); animation: net-blink 0.9s steps(1) infinite; }
 @keyframes net-blink { 50% { opacity: 0.2; } }
 
+/* Версия игры — зеркально .net-chip, правый нижний угол. */
+.version-chip {
+  position: fixed; right: 16px; bottom: 14px; z-index: 105;
+  font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.16em;
+  color: var(--muted); pointer-events: none; user-select: none;
+}
+
 /* Раздел релеев в настройках — растягивается на всё свободное место до кнопки «Назад». */
 .relays { margin-top: 0.4rem; margin-bottom: 1.2rem; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
 .relays-head {
