@@ -33,6 +33,64 @@
 /* Тонкая акцентная линия под заголовком. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
 
+/* ── Предупреждение (фоточувствительность) ──────────────────────────────────
+   Поверх УЖЕ инициализированного menu-canvas (App ждёт его готовности) — не во время старта WebGL-контекста.
+   Только opacity/анимации на compositor, без тяжёлых CSS-фильтров: фон-canvas за ним спокойно догревается. */
+.warn-screen {
+  position: fixed; inset: 0; z-index: 300; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: #06080c;   /* непрозрачен с первого кадра (без fade-in) — иначе сквозь него мелькает меню */
+  background-image: radial-gradient(1100px 700px at 50% 45%, rgba(68,170,255,0.07), transparent 70%);
+  font-family: var(--ui-font); color: var(--text);
+  opacity: 1; transition: opacity 280ms ease;
+  cursor: default;
+}
+.warn-screen--ready { cursor: pointer; }   /* прогрелось → клик закрывает */
+.warn-screen--out { opacity: 0; pointer-events: none; }
+
+/* Крупная планета — на фоне (за контентом), приглушённо «дышит» прозрачностью.
+   БЕЗ тяжёлых CSS-фильтров (blur/большой drop-shadow): полноэкранное размытие + WebGL-фон перегружают GPU
+   и роняют контекст (чёрный экран). Свечение задаёт лёгкая тень. */
+.warn-planet {
+  position: absolute; top: 50%; left: 50%; margin: -280px 0 0 -280px;
+  opacity: 0.16;
+  animation: warn-bg-pulse 4s ease-in-out infinite;
+}
+
+.warn-content {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 24px;
+  text-align: center;
+  animation: warn-content-in 320ms ease both;   /* контент проявляется поверх непрозрачного фона (меню не видно) */
+}
+
+/* Предупреждение о мерцании/вспышках (фоточувствительность) — по центру, крупно. */
+.warn-box { display: flex; flex-direction: column; align-items: center; gap: 16px; max-width: 720px; }
+.warn-head {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 19px; letter-spacing: 0.24em; color: var(--opp);
+  text-shadow: 0 0 16px rgba(255,170,68,0.4);
+}
+.warn-icon { font-size: 26px; filter: drop-shadow(0 0 8px rgba(255,170,68,0.55)); }
+.warn-text { font-size: 17px; line-height: 1.8; letter-spacing: 0.04em; color: var(--text); }
+
+/* Подсказка «[ЛКМ] чтобы продолжить» — появляется через задержку. Всегда в потоке (opacity), чтобы не прыгало. */
+.warn-hint {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; letter-spacing: 0.16em; color: var(--muted);
+  opacity: 0; transition: opacity 240ms ease;
+}
+.warn-hint--show { opacity: 1; }
+.warn-chip {
+  display: inline-block; padding: 3px 11px; border: 1px solid var(--line); border-radius: 5px;
+  color: var(--accent-dim); background: rgba(40,90,140,0.18);
+  font-size: 13px; letter-spacing: 0.12em;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.4), inset 0 0 0 1px rgba(120,180,255,0.06);
+}
+
+@keyframes warn-bg-pulse { 0%,100% { opacity: 0.13; } 50% { opacity: 0.24; } }
+@keyframes warn-content-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* Полупрозрачная подложка меню: на всю высоту экрана, единой ширины на всех экранах (твёрдость, без скачков).
    Персистентна на уровне App; позиция (переезд в настройки) демпфируется в App с тем же TAU, что и шары. */
 .menu-panel {

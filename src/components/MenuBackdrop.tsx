@@ -166,7 +166,7 @@ function signOf(balls: ActiveBall[]): string {
   return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
 }
 
-function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null }) {
+function Scene({ mode, player, lobby, onReady }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null; onReady?: () => void }) {
   const active = computeBalls(mode, player, lobby)
   const sign = signOf(active)
   const [rendered, setRendered] = useState<RenderedBall[]>(active)
@@ -176,10 +176,15 @@ function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobb
   // невидимыми (hold), пока это не пройдёт, затем разрешаем фейд — появление получается плавным, без рывка.
   const [warm, setWarm] = useState(false)
   const warmFrames = useRef(0)
+  const firedReady = useRef(false)
   useFrame(() => {
     if (warmFrames.current >= WARMUP_FRAMES) return
     warmFrames.current += 1
-    if (warmFrames.current >= WARMUP_FRAMES) setWarm(true)
+    if (warmFrames.current >= WARMUP_FRAMES) {
+      setWarm(true)
+      // Контекст создан и несколько кадров отрисовано → можно безопасно перекрыть оверлеем (без гонки init).
+      if (!firedReady.current) { firedReady.current = true; onReady?.() }
+    }
   })
 
   useEffect(() => {
@@ -215,14 +220,14 @@ function Scene({ mode, player, lobby }: { mode: MenuMode; player: BallSpec; lobb
   )
 }
 
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis; glow?: boolean }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis; glow?: boolean; onReady?: () => void }
 
 /**
  * Персистентный прозрачный фон меню-экранов: крупная «живая» моделька игрока, резко (но не мгновенно)
  * переезжающая между позициями при смене экрана; в лобби с двумя игроками — два шара по краям.
  * Монтируется на уровне App для всех экранов кроме игры (при возврате из игры — заново → фейд-ин).
  */
-export function MenuBackdrop({ mode, player, lobby, analysis, glow = true }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, lobby, analysis, glow = true, onReady }: MenuBackdropProps) {
   // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
   // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
   // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
@@ -245,7 +250,7 @@ export function MenuBackdrop({ mode, player, lobby, analysis, glow = true }: Men
         onCreated={({ camera }) => camera.lookAt(0, 0, 0)}>
         <ambientLight intensity={0.4} />
         <OrbitingLight />
-        <Scene mode={mode} player={player} lobby={lobby ?? null} />
+        <Scene mode={mode} player={player} lobby={lobby ?? null} onReady={onReady} />
         {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
             Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
         {glow && glowReady && <MenuEdgeGlow analysis={analysis} />}

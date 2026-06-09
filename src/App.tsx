@@ -16,6 +16,7 @@ import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
+import { EpilepsyWarning } from './components/EpilepsyWarning'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinLobby } from './screens/JoinLobby'
@@ -36,6 +37,7 @@ import { IS_ELECTRON } from './platform'
 import type { BotDifficulty, BallModel } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
+import { warmTrystero } from './net/TrysteroNet'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
 import { LobbySession } from './net/LobbySession'
@@ -48,6 +50,9 @@ import { DEFAULT_MAP_ID } from './constants'
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
 
 const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
+// Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
+// и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
+const TRYSTERO_WARM_DELAY_MS = 250
 
 // Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
 const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
@@ -99,6 +104,20 @@ export default function App() {
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
+
+  // Предупреждение о фоточувствительности — показываем с ПЕРВОГО рендера (чтобы не мелькнуло меню под ним).
+  // Оно перекрывает прогрев menu-canvas, но это безопасно: вся тяжёлая работа (Trystero) отложена до готовности
+  // canvas (handleMenuReady), а сам init WebGL-контекста лёгкий и проходит за предупреждением чисто. Под ?net=bc
+  // (e2e/локальные 2 вкладки) предупреждение не показываем — иначе оверлей перехватывал бы клики в тестах.
+  const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
+  const trysteroWarmedRef = useRef(false)
+  const handleMenuReady = useCallback(() => {
+    if (trysteroWarmedRef.current || resolveNetKind() !== 'trystero') return
+    trysteroWarmedRef.current = true
+    // Canvas прогрет → теперь безопасно ловить синхронный фриз init Trystero (~860мс): он пройдёт ЗА
+    // предупреждением, до того как игрок его закроет → первое «Создать лобби» открывается мгновенно.
+    setTimeout(() => warmTrystero(), TRYSTERO_WARM_DELAY_MS)
+  }, [])
 
   // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
   const [sfx] = useState(() => new ThreeSfxEngine())
@@ -180,6 +199,7 @@ export default function App() {
   useEffect(() => {
     if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
+
 
   // Дев-маршрут #editor → редактор карт (только при npm run dev).
   useEffect(() => {
@@ -340,7 +360,7 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} onReady={handleMenuReady} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
@@ -466,6 +486,8 @@ export default function App() {
           {IS_ELECTRON && <Button variant="ghost" onClick={handleExit}>ВЫХОД</Button>}
         </div>
       )}
+
+      {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}
     </div>
     </SfxProvider>
   )
