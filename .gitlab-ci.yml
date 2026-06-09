@@ -1,5 +1,5 @@
-# CI/CD: сборка фронтенда по git-тегу + ручной деплой на nginx через explicit FTPS.
-# Пайплайн стартует ТОЛЬКО на тег. build — автоматический, deploy — по кнопке (manual).
+# CI/CD: сборка фронтенда по git-тегу + авто-деплой на nginx через explicit FTPS.
+# Пайплайн стартует ТОЛЬКО на тег. build и deploy — автоматические (deploy идёт сразу после build).
 # FTP-доступ задаётся переменными CI/CD (Settings -> CI/CD -> Variables), НЕ хардкодится:
 #   FTP_HOST, FTP_PORT, FTP_USER, FTP_PASSWORD (masked), FTP_REMOTE_DIR
 
@@ -33,8 +33,7 @@ deploy:
   stage: deploy
   image: alpine:3
   needs:
-    - build           # тянет артефакт dist/ из build
-  when: manual        # кнопка ▶ в GitLab, авто-деплоя нет
+    - build           # тянет артефакт dist/ из build (и держит порядок build -> deploy)
   environment:
     name: production
   before_script:
