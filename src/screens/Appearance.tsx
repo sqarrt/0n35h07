@@ -14,9 +14,9 @@ interface AppearanceProps {
   // Живое превью (App): цвет/модель/стиль + активная подвкладка (позиция шара).
   onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => void
   // Клик по стилю выстрела → один прогон превью. Счётчиком владеет App (монотонный,
-  // переживает перемонтирование экрана) — иначе при повторном заходе счёт с нуля
-  // рассинхронизировался с шаром (призрачный запуск + «мёртвый» первый клик).
-  onShotPreview: () => void
+  // переживает перемонтирование экрана), а стиль едет ВМЕСТЕ с триггером — App обновляет
+  // оба поля атомарно (иначе шар запускает превью со старым стилем и тут же гасит его).
+  onShotPreview: (style: WindupStyle) => void
   onBack: () => void
 }
 
@@ -69,7 +69,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onBack
   const handleWindup = (w: WindupStyle) => {
     if (w !== windup) sfx.play2D('ui_toggle')
     setWindup(w)
-    onShotPreview()   // всегда (даже клик по тому же стилю) — один прогон превью выстрела
+    onShotPreview(w)   // всегда (даже клик по тому же стилю) — один прогон превью выстрела
     commit({ ...base(), windupStyle: w })
   }
 

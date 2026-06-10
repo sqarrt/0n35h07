@@ -106,7 +106,9 @@ export default function App() {
   // windupSeq сохраняем из прежнего стейта: счётчиком кликов превью владеет App (монотонный,
   // переживает перемонтирование экрана «Внешность» — иначе призрачный запуск при повторном заходе).
   const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, part })), [])
-  const handleShotPreview = useCallback(() => setAppearancePreview(p => ({ ...p, windupSeq: p.windupSeq + 1 })), [])
+  // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
+  // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
+  const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()

@@ -28,13 +28,18 @@ describe('Appearance — триггер превью выстрела', () => {
     expect(onShotPreview).not.toHaveBeenCalled()
   })
 
-  it('каждый клик по стилю (включая повторный по тому же) дёргает onShotPreview', () => {
+  it('каждый клик по стилю (включая повторный по тому же) дёргает onShotPreview С выбранным стилем', () => {
     const { onShotPreview } = renderAppearance()
     fireEvent.click(screen.getByRole('button', { name: 'ВЫСТРЕЛ' }))
     fireEvent.click(screen.getByRole('button', { name: 'ЯРОСТЬ' }))
+    // Стиль едет ВМЕСТЕ с триггером (атомарный апдейт в App) — иначе шар запускает превью со старым
+    // стилем, а пересоздание эффекта при доехавшей смене стиля гасит цикл (баг «переключение не играет»).
     expect(onShotPreview).toHaveBeenCalledTimes(1)
+    expect(onShotPreview).toHaveBeenLastCalledWith('rage')
     fireEvent.click(screen.getByRole('button', { name: 'ЯРОСТЬ' }))    // повторный клик — повтор превью
     expect(onShotPreview).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'СИНГУЛЯРНОСТЬ' }))
+    expect(onShotPreview).toHaveBeenLastCalledWith('singularity')
   })
 
   it('onPreview больше НЕ несёт счётчик (им владеет App): 5 аргументов — цвет/модель/кольцо/стиль/подвкладка', () => {
