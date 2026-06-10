@@ -281,3 +281,36 @@ describe('Player + IRespawnFx', () => {
     expect(fx.lastFrame!.sinceRebirthMs).toBeLessThan(1000)
   })
 })
+
+import type { IDashTrail, DashTrailContext } from '../../src/game/abstractions'
+
+/** Фейковый след рывка: пишет dashing-флаги, которые видел. */
+class FakeDashTrail implements IDashTrail {
+  object3d = new THREE.Group()
+  aliveCount = 0
+  dashingLog: boolean[] = []
+  update(_dt: number, ctx: DashTrailContext) { this.dashingLog.push(ctx.dashing) }
+  dispose() {}
+}
+
+describe('Player + IDashTrail (скин следа рывка)', () => {
+  it('дефолт — streak, world-объект доступен', () => {
+    const p = makePlayer()
+    expect(p.dashStyle).toBe('streak')
+    expect(p.trailObject).toBeDefined()
+  })
+
+  it('инжектированный трейл получает dashing=true в кадре рывка', () => {
+    const fx = new FakeDashTrail()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
+      undefined, undefined, undefined, undefined, fx, 'wave')
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0))
+    p.update(0.016, dummyWorld, [])
+    expect(fx.dashingLog).toEqual([false])
+    p.dash(new THREE.Vector3(1, 0, 0))
+    p.update(0.016, dummyWorld, [])
+    expect(fx.dashingLog).toEqual([false, true])
+    expect(p.dashStyle).toBe('wave')
+    expect(p.trailObject).toBe(fx.object3d)
+  })
+})

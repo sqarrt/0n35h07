@@ -10,7 +10,7 @@ import {
   MUZZLE_Y, BODY_MESH_Y, EYE_HEIGHT, WINDUP_SHRINK_MS,
   RESPAWN_GHOST_MS, RESPAWN_SPEED_MULT, RESPAWN_SPEED_RAMP,
 } from '../constants'
-import type { WindupStyle, RespawnStyle } from '../constants'
+import type { WindupStyle, RespawnStyle, DashStyle } from '../constants'
 import { ClassicWindupFx } from './fx/windup/ClassicWindupFx'
 import type { IWindupFx, WindupTarget, WindupFrame } from './fx/windup/types'
 import { EchoRespawnFx } from './fx/respawn/EchoRespawnFx'
@@ -54,6 +54,7 @@ export class Player implements IControllable {
   private windupTarget: WindupTarget
   private windupFrame: WindupFrame
   readonly respawnStyle: RespawnStyle
+  readonly dashStyle: DashStyle
   private respawnFx: IRespawnFx
   private respawnTarget: RespawnTarget
   private respawnFrame: RespawnFrame
@@ -75,6 +76,8 @@ export class Player implements IControllable {
     windupStyle: WindupStyle = 'classic',
     respawnFx: IRespawnFx = new EchoRespawnFx(color),
     respawnStyle: RespawnStyle = 'echo',
+    dashFx: IDashTrail = new AfterimageTrail(new THREE.Color(color)),
+    dashStyle: DashStyle = 'streak',
   ) {
     this.id = id
     this.body = body
@@ -95,7 +98,8 @@ export class Player implements IControllable {
       ghost: null, sinceRebirthMs: Infinity, baseColor: this.baseColor,
       origin: new THREE.Vector3(), visible: true,
     }
-    this.trail = new AfterimageTrail(this.baseColor)   // world-space визуал — кладёт Match в root
+    this.trail = dashFx   // world-space визуал (след рывка И призрака) — кладёт Match в root
+    this.dashStyle = dashStyle
     shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
     this.bodyGroup.add(body.object3d, shield.object3d)
     // Стабильная ссылка для ref={p.bindBody}: иначе инлайн-ref пере-привязывается

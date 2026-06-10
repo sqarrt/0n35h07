@@ -21,6 +21,8 @@ import { MatchSfx } from './audio/sfx/MatchSfx'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
 import { createRespawnFx } from './fx/respawn/createRespawnFx'
+import { createDashFx } from './fx/dash/createDashFx'
+import { createShieldFx } from './fx/shield/createShieldFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -161,16 +163,22 @@ export class Match {
       // Стили косметики из ростера; нет поля → безопасные умолчания для старых клиентов.
       const windupStyle = e.windupStyle ?? 'classic'
       const respawnStyle = e.respawnStyle ?? 'echo'
+      const dashStyle = e.dashStyle ?? 'streak'
+      const shieldStyle = e.shieldStyle ?? 'dome'
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
-            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
+            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION,
+              shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
-            createRespawnFx(respawnStyle, e.color), respawnStyle)
+            createRespawnFx(respawnStyle, e.color), respawnStyle,
+            createDashFx(dashStyle, e.color), dashStyle)
         : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
-            new Shield(), e.color, createWindupFx(windupStyle), windupStyle,
-            createRespawnFx(respawnStyle, e.color), respawnStyle)
+            new Shield({ shieldFx: createShieldFx(shieldStyle) }),
+            e.color, createWindupFx(windupStyle), windupStyle,
+            createRespawnFx(respawnStyle, e.color), respawnStyle,
+            createDashFx(dashStyle, e.color), dashStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
