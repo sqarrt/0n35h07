@@ -152,16 +152,19 @@ function FlyCam({ state }: { state: MenuCameraState }) {
       camera.getWorldDirection(dir)
       camera.position.addScaledVector(dir, -e.deltaY * FLY_WHEEL_STEP)
     }
+    const onBlur = () => { flying.current = false }   // потеря фокуса окна — keyup мог не дойти
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('blur', onBlur)
     return () => {
       flying.current = false
       window.removeEventListener('keydown', onKeyDown)
       window.removeEventListener('keyup', onKeyUp)
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('blur', onBlur)
     }
   }, [camera])
   return null

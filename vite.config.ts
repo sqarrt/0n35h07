@@ -15,5 +15,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    watch: {
+      // Позы камер пишет dev-эндпоинт (vite-plugin-camera-poses) при отпускании J; клиент уже держит
+      // их в памяти — HMR на эту запись не нужен и ломал повторные зажатия J (перемонтирование).
+      ignored: ['**/menuCameraPoses.json'],
+    },
   },
 })
