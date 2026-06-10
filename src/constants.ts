@@ -55,6 +55,10 @@ export type BallModel = typeof BALL_MODELS[number]
 export const WINDUP_STYLES = ['classic', 'rage', 'singularity'] as const
 export type WindupStyle = typeof WINDUP_STYLES[number]
 
+// Анимации респавна (смерть/призрак/возрождение; выбор во «Внешности», сетевая косметика).
+export const RESPAWN_STYLES = ['echo', 'chaos', 'swarm'] as const
+export type RespawnStyle = typeof RESPAWN_STYLES[number]
+
 // Волны — деформация вершин (вдоль нормали) в шейдере:
 export const BALL_WAVE_COUNT = 10     // число волн по высоте сферы
 export const BALL_WAVE_AMP   = 0.03   // амплитуда волн
