@@ -48,8 +48,6 @@ const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
 const RESPAWN_CIRCLE_R = 1.1     // радиус пробежки призрака (мировые единицы — «играем за бота»)
-/** Полная длительность цикла превью респавна — App возвращает ракурс по её истечении. */
-export const RESPAWN_PREVIEW_TOTAL_MS = RESPAWN_PREVIEW_GHOST_MS + RESPAWN_PREVIEW_REBIRTH_MS
 
 // Полёт камеры (dev, зажатая J): мышь — осмотр, колёсико — вперёд/назад. На отпускание поза пишется в файл.
 const FLY_KEY = 'KeyJ'
@@ -115,9 +113,12 @@ function CameraRig({ state }: { state: MenuCameraState }) {
 }
 
 /** Dev-полёт камеры: зажал J — мышь осматривается, колёсико едет вперёд/назад; отпустил —
- *  поза текущего состояния сохраняется в menuCameraPoses.json (vite-plugin-camera-poses). */
+ *  поза текущего состояния сохраняется в menuCameraPoses.json (vite-plugin-camera-poses).
+ *  Подписка ОДНОРАЗОВАЯ (state — через ref): пере-подписка на смену состояния обрывала зажатие J. */
 function FlyCam({ state }: { state: MenuCameraState }) {
   const camera = useThree(s => s.camera)
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state }, [state])
   useEffect(() => {
     const euler = new THREE.Euler(0, 0, 0, 'YXZ')
     const dir = new THREE.Vector3()
@@ -127,7 +128,7 @@ function FlyCam({ state }: { state: MenuCameraState }) {
       flying.current = false
       // Сохранить позу текущего состояния: позиция + точка взгляда по лучу камеры.
       camera.getWorldDirection(dir)
-      poses[state] = {
+      poses[stateRef.current] = {
         position: [camera.position.x, camera.position.y, camera.position.z],
         target: [
           camera.position.x + dir.x * FLY_TARGET_DIST,
@@ -162,7 +163,7 @@ function FlyCam({ state }: { state: MenuCameraState }) {
       window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [camera, state])
+  }, [camera])
   return null
 }
 

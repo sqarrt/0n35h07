@@ -13,7 +13,7 @@ import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
-import { MenuBackdrop, RESPAWN_PREVIEW_TOTAL_MS } from './components/MenuBackdrop'
+import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
@@ -56,7 +56,6 @@ const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от пра
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
 // и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
 const TRYSTERO_WARM_DELAY_MS = 250
-const RESPAWN_RETURN_DELAY_MS = 300   // пауза после конца превью респавна до возврата шара на место
 
 // Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
 const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
@@ -110,17 +109,8 @@ export default function App() {
   // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
   // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
   const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
-  // После завершения цикла превью респавна шар возвращается в стандартную позицию (part → color),
-  // если пользователь не кликнул что-то ещё; повторный клик перезапускает таймер.
-  const respawnReturnTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handleRespawnPreview = useCallback((respawnStyle: RespawnStyle) => {
-    setAppearancePreview(p => ({ ...p, respawnStyle, respawnSeq: p.respawnSeq + 1, part: 'respawn' }))
-    if (respawnReturnTimer.current) clearTimeout(respawnReturnTimer.current)
-    respawnReturnTimer.current = setTimeout(() => {
-      setAppearancePreview(p => (p.part === 'respawn' ? { ...p, part: 'color' } : p))
-    }, RESPAWN_PREVIEW_TOTAL_MS + RESPAWN_RETURN_DELAY_MS)
-  }, [])
-  useEffect(() => () => { if (respawnReturnTimer.current) clearTimeout(respawnReturnTimer.current) }, [])
+  // Ракурс камеры стоит как поставлен (никаких авто-возвратов) — меняется только следующим кликом.
+  const handleRespawnPreview = useCallback((respawnStyle: RespawnStyle) => setAppearancePreview(p => ({ ...p, respawnStyle, respawnSeq: p.respawnSeq + 1, part: 'respawn' })), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
