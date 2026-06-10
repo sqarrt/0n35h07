@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { MatchSfx } from '../../src/game/audio/sfx/MatchSfx'
 import type { PlayerSfxInput } from '../../src/game/audio/sfx/MatchSfx'
 import { FakeSfxEngine } from '../../src/game/audio/sfx/FakeSfxEngine'
+import { windupSfxEvent } from '../../src/game/audio/sfx/windupSfx'
 
 const pos = () => new THREE.Vector3(1, 2, 3)
 
@@ -131,5 +132,34 @@ describe('MatchSfx.frame', () => {
     sfx.frame([input({ id: 1, isLocal: false, shieldActive: true })])
     const loops = fake.calls.filter(c => c.method === 'startLoop' && c.event === 'shield_loop')
     expect(loops.length).toBe(2)
+  })
+})
+
+describe('windup: звук по стилю', () => {
+  it('каждый стиль при наличии ассетов играет свой звук', () => {
+    const fake = new FakeSfxEngine()
+    const sfx = new MatchSfx(fake)
+    sfx.frame([input({ id: 1, windingUp: true, windupStyle: 'rage' })])
+    sfx.frame([input({ id: 2, windingUp: true, windupStyle: 'classic' })])
+    sfx.frame([input({ id: 3, windingUp: true, windupStyle: 'singularity' })])
+    expect(fake.played('beam_fire_rage')).toBe(1)
+    expect(fake.played('beam_fire_singularity')).toBe(1)
+    expect(fake.played('beam_fire')).toBe(1)
+  })
+
+  it('стиль без ассета (буфер не загружен) → фоллбек beam_fire', () => {
+    const fake = new FakeSfxEngine()
+    fake.missing.add('beam_fire_singularity')
+    new MatchSfx(fake).frame([input({ windingUp: true, windupStyle: 'singularity' })])
+    expect(fake.played('beam_fire')).toBe(1)
+    expect(fake.played('beam_fire_singularity')).toBe(0)
+  })
+
+  it('windupSfxEvent: маппинг + фоллбек', () => {
+    const fake = new FakeSfxEngine()
+    expect(windupSfxEvent('rage', fake)).toBe('beam_fire_rage')
+    fake.missing.add('beam_fire_rage')
+    expect(windupSfxEvent('rage', fake)).toBe('beam_fire')
+    expect(windupSfxEvent(undefined, fake)).toBe('beam_fire')
   })
 })
