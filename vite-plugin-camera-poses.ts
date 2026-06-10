@@ -5,8 +5,9 @@ import path from 'node:path'
 
 /**
  * Dev-only мостик редактора камер фона меню (клавиша J в MenuBackdrop).
- * PUT /__camera-poses → перезаписать src/components/menuCameraPoses.json телом запроса
- * (клиент шлёт полный объект поз; Vite HMR подхватывает файл сам).
+ *   GET /__camera-poses → текущее содержимое файла (свежие позы: файл исключён из вотчера,
+ *     модульный кэш Vite может отдавать вкладкам устаревший JSON — клиент перечитывает на старте)
+ *   PUT /__camera-poses → перезаписать src/components/menuCameraPoses.json телом запроса.
  */
 const POSES_FILE = path.resolve(process.cwd(), 'src/components/menuCameraPoses.json')
 
@@ -32,6 +33,12 @@ export function cameraPoses(): Plugin {
     configureServer(server: ViteDevServer) {
       server.middlewares.use('/__camera-poses', async (req, res) => {
         try {
+          if (req.method === 'GET') {
+            const buf = await fs.readFile(POSES_FILE, 'utf8')
+            res.setHeader('content-type', 'application/json')
+            res.end(buf)
+            return
+          }
           if (req.method !== 'PUT') return sendJson(res, 405, { error: 'method not allowed' })
           const body = await readBody(req)
           JSON.parse(body)   // валидация: тело обязано быть корректным JSON

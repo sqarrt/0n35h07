@@ -116,8 +116,10 @@ class EdgeGlowEffect extends Effect {
   }
 }
 
-/** Композер: depth слоя моделей (реальные материалы) → яркая кромка по разрыву глубины → Bloom (свечение). */
-export function MenuEdgeGlow({ analysis }: { analysis?: AudioAnalysis }) {
+/** Композер: depth слоя моделей (реальные материалы) → яркая кромка по разрыву глубины → Bloom (свечение).
+ *  `muted` — мгновенно гасит свечение (интенсивность → 0) БЕЗ размонтирования: композер остаётся
+ *  скомпилированным, обратное включение без задержки (экран «Внешность» глушит обводку). */
+export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnalysis; muted?: boolean }) {
   const scene = useThree(s => s.scene)
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
@@ -139,7 +141,7 @@ export function MenuEdgeGlow({ analysis }: { analysis?: AudioAnalysis }) {
 
   const lvl = useRef(0)
   useFrame(() => {
-    const tgt = Math.min(1, (analysis?.level() ?? 0) * LEVEL_GAIN)
+    const tgt = muted ? 0 : Math.min(1, (analysis?.level() ?? 0) * LEVEL_GAIN)
     lvl.current += (tgt - lvl.current) * GLOW_SMOOTH
     const u = effect.uniforms.get('uIntensity')!
     u.value = INTENSITY_BASE + lvl.current * INTENSITY_GAIN

@@ -447,14 +447,14 @@ function Scene({ mode, player, lobby, appearancePart = 'color', onReady, sfx }: 
 }
 
 // Контекст React не пересекает границу R3F-Canvas — поэтому движок идёт пропом, а не useSfx().
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; onReady?: () => void; sfx?: ISfxEngine }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Персистентный прозрачный фон меню-экранов: настоящая сцена с игроком (Body в натуральную величину,
  * стоит на точке; в лобби — двое). Кадр строит ТОЛЬКО камера (CameraRig, позы из menuCameraPoses.json);
  * единственное «игровое» движение — пробежка призрака в превью респавна. Dev: пол-сетка + полёт по J.
  */
-export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, glow = true, onReady, sfx }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, glow = true, glowMuted = false, onReady, sfx }: MenuBackdropProps) {
   // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
   // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
   // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
@@ -470,6 +470,16 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
     }, GLOW_MOUNT_DELAY_MS)
     return () => { clearTimeout(t); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle) }
   }, [glow])
+
+  // Dev: подтянуть СВЕЖИЕ позы с эндпоинта — файл исключён из вотчера, и модульный кэш Vite
+  // может отдать новой вкладке устаревший JSON (правки J из другой вкладки иначе не видны).
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    void fetch(POSES_ENDPOINT)
+      .then(r => (r.ok ? r.json() : null))
+      .then((fresh: CameraPoses | null) => { if (fresh) Object.assign(poses, fresh) })
+      .catch(() => { /* эндпоинта нет (preview-сборка) — остаёмся на импортированных позах */ })
+  }, [])
 
   const hasOpponent = !!lobby?.roster.find(r => r.id === OPPONENT_ID)
   const camState = cameraStateFor(mode, hasOpponent, appearancePart ?? 'color')
@@ -487,7 +497,7 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
         <Scene mode={mode} player={player} lobby={lobby ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
         {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
             Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
-        {glow && glowReady && <MenuEdgeGlow analysis={analysis} />}
+        {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} />}
       </Canvas>
     </div>
   )

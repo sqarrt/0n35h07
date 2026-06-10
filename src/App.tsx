@@ -382,8 +382,9 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {/* На «Внешности» подсветка контуров выключена: она мешает рассматривать модель/анимации. */}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow && screen !== 'appearance'} onReady={handleMenuReady} sfx={sfx} />}
+      {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
+          на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
