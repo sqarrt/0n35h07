@@ -186,6 +186,7 @@ function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null,
   if (mode === 'appearance') {
     return [{ key: 'player', spec: player, pos: appearancePart === 'shot' ? 'shot-left' : 'settings-left', slideIn: false }]
   }
+  // Дефолт: шар в центре (и при нелобби, и при 'settings' — косметика переехала на экран внешности)
   if (mode !== 'lobby' || !lobby) return [{ key: 'player', spec: player, pos: 'center', slideIn: false }]
 
   const host = lobby.roster.find(r => r.id === HOST_ID)

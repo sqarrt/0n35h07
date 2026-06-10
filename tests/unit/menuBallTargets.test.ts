@@ -9,6 +9,8 @@ describe('resolveTarget', () => {
     expect(resolveTarget('center', vp).z).toBe(0)
     expect(resolveTarget('left-edge', vp).x).toBe(-vp.width / 2)
     expect(resolveTarget('right-edge', vp).x).toBe(vp.width / 2)
+    expect(resolveTarget('left-edge', vp).z).toBe(0)
+    expect(resolveTarget('right-edge', vp).z).toBe(0)
   })
 
   it('settings-left: слева, z=0', () => {
