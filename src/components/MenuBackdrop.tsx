@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS } from '../constants'
 import type { BallModel, WindupStyle, RespawnStyle } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
-import { resolveTarget, offscreenX } from './menuBallTargets'
+import { resolveTarget, offscreenX, MENU_CAMERA_POS } from './menuBallTargets'
 import type { Pos, AppearancePart } from './menuBallTargets'
 import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
@@ -13,6 +13,7 @@ import { createWindupFx } from '../game/fx/windup/createWindupFx'
 import { BeamWeapon } from '../game/BeamWeapon'
 import { createBeamFx } from '../game/fx/beam/createBeamFx'
 import { createRespawnFx } from '../game/fx/respawn/createRespawnFx'
+import { AfterimageTrail } from '../game/fx/AfterimageTrail'
 import type { WeaponContext } from '../game/abstractions'
 import type { World } from '../game/World'
 import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
@@ -44,7 +45,7 @@ const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 // Превью респавна: один прогон по клику — смерть → призрак (проезд по кругу) → возрождение.
 const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
-const RESPAWN_CIRCLE_R = 1.4     // радиус кругового проезда призрака (локальные ед. до масштаба группы)
+const RESPAWN_CIRCLE_R = 2.2     // радиус кругового проезда призрака (локальные ед. группы шара)
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings' | 'appearance'
 // ringColor — «второй» цвет (кольцо планеты); *Seq — счётчики кликов (триггеры одноразовых превью).
@@ -133,6 +134,13 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     }
   }, [rfx, spec.respawnSeq, spec.respawnStyle, sfx])
   const respawnFrameRef = useRef<{ ghost: number | null; sinceRebirthMs: number; baseColor: THREE.Color; origin: THREE.Vector3; visible: boolean } | null>(null)
+  // След призрака (как в матче — AfterimageTrail у Player, общий для всех стилей).
+  const trail = useMemo(() => (isPreviewPos ? new AfterimageTrail(new THREE.Color(spec.color)) : null),
+    [isPreviewPos, spec.color])
+  useEffect(() => () => trail?.dispose(), [trail])
+  // Внутренняя группа «проезда»: круг призрака едет ЛОКАЛЬНО (масштабируется с шаром,
+  // trail и рой видят движение через ride.position).
+  const rideRef = useRef<THREE.Group>(null)
   const meshRef = useRef<THREE.Mesh>(null)
   const dampedColorRef = useRef<THREE.Color | null>(null)
   const aimDirRef = useRef<THREE.Vector3 | null>(null)
@@ -216,10 +224,11 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     }
 
     // Превью респавна: ghost (проезд по кругу) → rebirth → idle. Звук respawn — на старте сборки.
-    if (rfx && meshRef.current && g) {
+    if (rfx && meshRef.current && g && rideRef.current) {
       if (!respawnFrameRef.current) {
-        respawnFrameRef.current = { ghost: null, sinceRebirthMs: Number.MAX_SAFE_INTEGER, baseColor: dampedColor, origin: PREVIEW_ORIGIN, visible: true }
+        respawnFrameRef.current = { ghost: null, sinceRebirthMs: Number.MAX_SAFE_INTEGER, baseColor: dampedColor, origin: new THREE.Vector3(), visible: true }
       }
+      const ride = rideRef.current
       const rc = respawnCycle.current
       const rf = respawnFrameRef.current
       rc.elapsed += dt * 1000
@@ -232,32 +241,38 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
       if (rc.phase === 'ghost') {
         rf.ghost = 1 - rc.elapsed / RESPAWN_PREVIEW_GHOST_MS
         rf.sinceRebirthMs = Number.MAX_SAFE_INTEGER
-        // Круговой проезд: группа объезжает свою позицию и возвращается к началу фазы сборки.
+        // Круговой проезд ЛОКАЛЬНО (внутренняя группа): полный круг с возвратом к точке сборки.
         const theta = (rc.elapsed / RESPAWN_PREVIEW_GHOST_MS) * 2 * Math.PI
-        g.position.x += Math.sin(theta) * RESPAWN_CIRCLE_R
-        g.position.z += (Math.cos(theta) - 1) * RESPAWN_CIRCLE_R
+        ride.position.set(Math.sin(theta) * RESPAWN_CIRCLE_R, 0, (Math.cos(theta) - 1) * RESPAWN_CIRCLE_R)
       } else {
         rf.ghost = null
         rf.sinceRebirthMs = rc.phase === 'rebirth' ? rc.elapsed : Number.MAX_SAFE_INTEGER
+        ride.position.set(0, 0, 0)
       }
+      rf.origin.copy(ride.position)   // рой кружит вокруг едущего шара
       rfx.apply(dt, {
         mesh: meshRef.current, material,
         setOpacity: (o: number) => { material.opacity = o; ring?.setOpacity(o) },
       }, rf)
       rfx.update(dt)
+      // След призрака — как в матче: активен во время фазы ghost, позиция — локальная точка шара.
+      trail?.update(dt, { position: ride.position, dashing: rc.phase === 'ghost' })
     }
   })
 
   return (
     <group ref={groupRef} scale={0.0001}>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS]} />
-        <primitive object={material} attach="material" />
-        {ring && <primitive object={ring.mesh} />}
-      </mesh>
+      <group ref={rideRef}>
+        <mesh ref={meshRef}>
+          <sphereGeometry args={[BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS]} />
+          <primitive object={material} attach="material" />
+          {ring && <primitive object={ring.mesh} />}
+        </mesh>
+      </group>
       {fx && <primitive object={fx.object3d} />}
       {beam && <primitive object={beam.object3d} />}
       {rfx && <primitive object={rfx.object3d} />}
+      {trail && <primitive object={trail.object3d} />}
     </group>
   )
 }
@@ -377,7 +392,7 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-      <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: [0, 3.02, 5.18], fov: 45 }}
+      <Canvas gl={{ alpha: true }} dpr={[1, 2]} camera={{ position: MENU_CAMERA_POS, fov: 45 }}
         onCreated={({ camera }) => camera.lookAt(0, 0, 0)}>
         <ambientLight intensity={0.4} />
         <OrbitingLight />
