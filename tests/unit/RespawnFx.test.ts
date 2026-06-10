@@ -158,10 +158,32 @@ describe('createRespawnFx', () => {
 })
 
 describe('след призрака по стилям', () => {
-  it('флаги: echo/chaos — общий шар-след, swarm — собственный (осколочный)', () => {
-    expect(new EchoRespawnFx('#4af').ownGhostTrail).toBe(false)
-    expect(new ChaosRespawnFx('#4af').ownGhostTrail).toBe(false)
-    expect(new SwarmRespawnFx('#4af').ownGhostTrail).toBe(true)
+  it('echo/chaos: каждый рисует СОБСТВЕННЫЙ след призрака (клоны в своём object3d)', () => {
+    for (const make of [() => new EchoRespawnFx('#4af'), () => new ChaosRespawnFx('#4af')]) {
+      const fx = make()
+      const { target } = makeTarget()
+      // Призрак движется → собственный трейл стратегии эмитит клоны.
+      for (let i = 0; i < 5; i++) fx.apply(0.016, target, makeFrame({ ghost: 0.5, origin: new THREE.Vector3(i, 1, 0) }))
+      let visible = 0
+      fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) visible++ })
+      expect(visible).toBeGreaterThan(0)
+      // Вне призрака клоны гаснут со временем (трейл тикает в apply).
+      for (let i = 0; i < 60; i++) fx.apply(0.016, target, makeFrame())
+      visible = 0
+      fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) visible++ })
+      expect(visible).toBe(0)
+    }
+  })
+
+  it('echo/chaos: в FP (visible=false) собственный след призрака не эмитится', () => {
+    for (const make of [() => new EchoRespawnFx('#4af'), () => new ChaosRespawnFx('#4af')]) {
+      const fx = make()
+      const { target } = makeTarget()
+      for (let i = 0; i < 5; i++) fx.apply(0.016, target, makeFrame({ ghost: 0.5, origin: new THREE.Vector3(i, 1, 0), visible: false }))
+      let visible = 0
+      fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) visible++ })
+      expect(visible).toBe(0)
+    }
   })
 
   it('swarm: в призраке появляются клоны следа (видимых мешей больше, чем 60 осколков)', () => {

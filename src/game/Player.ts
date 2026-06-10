@@ -39,8 +39,7 @@ export class Player implements IControllable {
   private body: Body
   private weapon: IWeapon
   private shield: IShield
-  private trail: IDashTrail        // стилевой след РЫВКА (скин dashStyle)
-  private ghostTrail: IDashTrail   // след ПРИЗРАКА — всегда классический, от скина рывка не зависит
+  private trail: IDashTrail   // стилевой след РЫВКА (скин dashStyle); след призрака рисует respawnFx
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
   private lookDir = new THREE.Vector3(0, 0, -1)   // направление ВЗГЛЯДА (ориентация модели): стабильно, не зависит
   //                                                 от дальности точки прицела (в TP камера позади → aimPoint−muzzle переворачивался)
@@ -100,7 +99,6 @@ export class Player implements IControllable {
       origin: new THREE.Vector3(), visible: true,
     }
     this.trail = dashFx   // world-space визуал следа рывка — кладёт Match в root
-    this.ghostTrail = new AfterimageTrail(this.baseColor)
     this.dashStyle = dashStyle
     shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
     this.bodyGroup.add(body.object3d, shield.object3d)
@@ -114,9 +112,6 @@ export class Player implements IControllable {
 
   /** След рывка — тоже world-space (живёт в match.root, не в RigidBody). */
   get trailObject() { return this.trail.object3d }
-
-  /** След призрака — отдельный классический трейл (скин рывка его не меняет). */
-  get ghostTrailObject() { return this.ghostTrail.object3d }
 
   /** World-часть анимации респавна (осколки/частицы) — живёт в match.root, как trail/windupFx. */
   get respawnFxObject() { return this.respawnFx.object3d }
@@ -190,9 +185,7 @@ export class Player implements IControllable {
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
-    // След призрака — отдельный классический трейл, если стратегия не рисует свой (рой рисует осколочный).
-    this.ghostTrail.update(dt, { position: this.body.position, dashing: this.respawning && !this.respawnFx.ownGhostTrail })
-    this.respawnFx.update(dt)
+    this.respawnFx.update(dt)   // след призрака рисует сама стратегия респавна (внутри apply)
     this.body.tickShader(dt)
   }
 
@@ -278,8 +271,7 @@ export class Player implements IControllable {
   setBodyVisible(v: boolean) {
     this.bodyVisible = v
     this.body.setVisible(v)
-    this.trail.object3d.visible = v        // в FP свой след не показываем (камера внутри тела)
-    this.ghostTrail.object3d.visible = v
+    this.trail.object3d.visible = v   // в FP свой след не показываем (камера внутри тела)
   }
   spawnImpact(point: THREE.Vector3) { this.weapon.spawnImpact(point) }
 
@@ -355,7 +347,6 @@ export class Player implements IControllable {
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
     this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing })
-    this.ghostTrail.update(dt, { position: this.body.position, dashing: this.respawning && !this.respawnFx.ownGhostTrail })
     // Тикаем щит ради анимации скина: фазы удалённого всегда idle (activate не зовём),
     // а видимость группы форсится ниже в applyRemoteVisual из снапшота — скин видит её как active.
     this.shield.update(dt)
@@ -384,7 +375,6 @@ export class Player implements IControllable {
     this.shield.dispose()
     this.body.dispose()
     this.trail.dispose()
-    this.ghostTrail.dispose()
     this.respawnFx.dispose()
     this.windupFx.dispose()
   }

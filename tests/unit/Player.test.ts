@@ -241,7 +241,6 @@ import type { IRespawnFx, RespawnTarget, RespawnFrame } from '../../src/game/fx/
 /** Фейковая стратегия респавна: пишет события и последний кадр. */
 class FakeRespawnFx implements IRespawnFx {
   object3d = new THREE.Group()
-  ownGhostTrail = false
   deaths: THREE.Vector3[] = []
   lastFrame: RespawnFrame | null = null
   onDeath(p: THREE.Vector3) { this.deaths.push(p.clone()) }
@@ -314,14 +313,13 @@ describe('Player + IDashTrail (скин следа рывка)', () => {
     expect(p.trailObject).toBe(fx.object3d)
   })
 
-  it('призрак НЕ переиспользует скин рывка: у призрака свой классический трейл', () => {
+  it('призрак НЕ переиспользует скин рывка: след призрака рисует стратегия респавна', () => {
     const fx = new FakeDashTrail()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
       undefined, undefined, undefined, undefined, fx, 'rift')
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    p.receiveHit()                                  // фаза призрака (echo — общий след)
+    p.receiveHit()                            // фаза призрака (echo — свой след внутри respawnFx)
     p.update(0.016, dummyWorld, [])
-    expect(fx.dashingLog).toEqual([false])          // скин рывка молчит — след призрака рисует ghostTrail
-    expect(p.ghostTrailObject).not.toBe(fx.object3d)
+    expect(fx.dashingLog).toEqual([false])    // скин рывка молчит в фазе призрака
   })
 })

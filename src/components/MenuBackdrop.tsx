@@ -16,7 +16,6 @@ import { createBeamFx } from '../game/fx/beam/createBeamFx'
 import { createRespawnFx } from '../game/fx/respawn/createRespawnFx'
 import { createDashFx } from '../game/fx/dash/createDashFx'
 import { createShieldFx } from '../game/fx/shield/createShieldFx'
-import { AfterimageTrail } from '../game/fx/AfterimageTrail'
 import type { WeaponContext } from '../game/abstractions'
 import type { World } from '../game/World'
 import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
@@ -247,13 +246,10 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     }
   }, [rfx, spec.respawnSeq, spec.respawnStyle, sfx, spot])
   const respawnFrameRef = useRef<{ ghost: number | null; sinceRebirthMs: number; baseColor: THREE.Color; origin: THREE.Vector3; visible: boolean } | null>(null)
-  // Стилевой трейл РЫВКА (скин dashStyle); след призрака — отдельный классический (как у Player).
+  // Стилевой трейл РЫВКА (скин dashStyle); след призрака рисует сама стратегия респавна (rfx).
   const trail = useMemo(() => (isPreview ? createDashFx(spec.dashStyle ?? 'streak', spec.color) : null),
     [isPreview, spec.dashStyle, spec.color])
   useEffect(() => () => trail?.dispose(), [trail])
-  const ghostTrail = useMemo(() => (isPreview ? new AfterimageTrail(new THREE.Color(spec.color)) : null),
-    [isPreview, spec.color])
-  useEffect(() => () => ghostTrail?.dispose(), [ghostTrail])
 
   // Превью рывка: одноразовый прогон по клику — рывок вбок → пауза → рывок обратно (паттерн seq).
   const dashCycle = useRef({ phase: 'idle' as 'out' | 'pause' | 'back' | 'idle', elapsed: 0 })
@@ -445,12 +441,8 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       rfx.update(dt)
     }
 
-    // Как в матче: стилевой трейл — только рывок; призрак — классический (рой рисует свой и общий отключает).
+    // Как в матче: стилевой трейл — только рывок; след призрака рисует rfx внутри apply.
     trail?.update(dt, { position: body.object3d.position, dashing: dashMove })
-    ghostTrail?.update(dt, {
-      position: body.object3d.position,   // позиция ГЛАЗ (эквивалент Body.position сущности)
-      dashing: rc.phase === 'ghost' && !(rfx?.ownGhostTrail ?? false),
-    })
   })
 
   return (
@@ -460,7 +452,6 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       {beam && <primitive object={beam.object3d} />}
       {rfx && <primitive object={rfx.object3d} />}
       {trail && <primitive object={trail.object3d} />}
-      {ghostTrail && <primitive object={ghostTrail.object3d} />}
       {shieldFx && <primitive object={shieldFx.object3d} />}
     </group>
   )

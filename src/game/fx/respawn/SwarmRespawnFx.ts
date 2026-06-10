@@ -30,7 +30,7 @@ const TWO_PI = Math.PI * 2
 /** Стиль «рой»: вместо полупрозрачного призрака — кружащие осколки цвета игрока. */
 export class SwarmRespawnFx implements IRespawnFx {
   readonly object3d = new THREE.Group()
-  readonly ownGhostTrail = true   // след рисуют сами осколки (шар-след выглядел бы чужеродно — шар скрыт)
+  // След призрака рисуют сами осколки (шар-след выглядел бы чужеродно — шар скрыт).
   private frags: THREE.Mesh[] = []
   private mat: THREE.MeshBasicMaterial
   private geo: THREE.TetrahedronGeometry
