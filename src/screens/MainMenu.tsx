@@ -9,7 +9,11 @@ interface MainMenuProps {
   onExit: () => void
 }
 
+// Кнопки главного меню — единая ширина (половина подложки), тексты разной длины их не разъезжают.
+const MENU_BUTTON_WIDTH = '50%'
+
 export function MainMenu({ onCreateRoom, onJoinRoom, onAppearance, onSettings, onExit }: MainMenuProps) {
+  const btn = { width: MENU_BUTTON_WIDTH } as const
   return (
     <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
       <h1 style={{
@@ -21,12 +25,12 @@ export function MainMenu({ onCreateRoom, onJoinRoom, onAppearance, onSettings, o
         ONESHOT
       </h1>
       <div className="accent-rule" style={{ marginBottom: '2rem' }} />
-      <Button variant="primary" onClick={onCreateRoom}>СОЗДАТЬ КОМНАТУ</Button>
-      <Button variant="secondary" onClick={onJoinRoom}>ВОЙТИ В КОМНАТУ</Button>
-      <Button variant="secondary" onClick={onAppearance}>ВНЕШНОСТЬ</Button>
-      <Button variant="secondary" onClick={onSettings}>НАСТРОЙКИ</Button>
+      <Button variant="primary" style={btn} onClick={onCreateRoom}>СОЗДАТЬ КОМНАТУ</Button>
+      <Button variant="secondary" style={btn} onClick={onJoinRoom}>ВОЙТИ В КОМНАТУ</Button>
+      <Button variant="secondary" style={btn} onClick={onAppearance}>ВНЕШНОСТЬ</Button>
+      <Button variant="secondary" style={btn} onClick={onSettings}>НАСТРОЙКИ</Button>
       {/* Выход — только в Electron: в браузере window.close() для обычной вкладки запрещён политикой. */}
-      {IS_ELECTRON && <Button variant="ghost" onClick={onExit}>ВЫХОД</Button>}
+      {IS_ELECTRON && <Button variant="ghost" style={btn} onClick={onExit}>ВЫХОД</Button>}
     </div>
   )
 }
