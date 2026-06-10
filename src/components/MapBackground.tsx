@@ -12,7 +12,7 @@ interface BgProps { mapId: MapId; show: boolean }
 /**
  * Размытое превью выбранной карты на весь экран — атмосферный фон ЗА шарами. Если у карты есть готовый рендер
  * (preview.png) — показываем `<img>` (без живого WebGL, мгновенно); иначе фолбэк — живой Canvas. Вход/выход
- * лобби — opacity-фейд всего слоя (`show`, CSS). Смена карты — кроссфейд без провала в пустоту.
+ * комната — opacity-фейд всего слоя (`show`, CSS). Смена карты — кроссфейд без провала в пустоту.
  */
 export function MapBackground(props: BgProps) {
   return MAP_PREVIEW[props.mapId] ? <MapBackgroundImage {...props} /> : <MapBackgroundCanvas {...props} />

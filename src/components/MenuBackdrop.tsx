@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
-import type { LobbyView } from '../net/LobbySession'
+import type { RoomView } from '../net/RoomSession'
 import { PLAYER_SPOT, OPPONENT_SPOT, cameraStateFor } from './menuStage'
 import type { MenuMode, AppearancePart, MenuCameraState, CameraPoses, CameraPose } from './menuStage'
 import rawPoses from './menuCameraPoses.json'
@@ -472,13 +472,13 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
 
 const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec => ({ color, model: model ?? 'smooth', ringColor })
 
-/** Кто стоит на сцене: свой игрок — всегда на своей точке; в лобби при сопернике — второй на соседней. */
-function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null): ActiveBall[] {
-  if (mode === 'lobby' && lobby) {
-    const host = lobby.roster.find(r => r.id === HOST_ID)
-    const opp = lobby.roster.find(r => r.id === OPPONENT_ID)
+/** Кто стоит на сцене: свой игрок — всегда на своей точке; в комнате при сопернике — второй на соседней. */
+function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): ActiveBall[] {
+  if (mode === 'room' && room) {
+    const host = room.roster.find(r => r.id === HOST_ID)
+    const opp = room.roster.find(r => r.id === OPPONENT_ID)
     if (host && opp) {
-      const selfIsHost = lobby.localPlayerId === HOST_ID
+      const selfIsHost = room.localPlayerId === HOST_ID
       const self = selfIsHost ? host : opp
       const other = selfIsHost ? opp : host
       return [
@@ -498,8 +498,8 @@ function signOf(balls: ActiveBall[]): string {
   return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}`).join('|')
 }
 
-function Scene({ mode, player, lobby, appearancePart = 'color', onReady, sfx }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null; appearancePart?: AppearancePart; onReady?: () => void; sfx?: ISfxEngine }) {
-  const active = computeBalls(mode, player, lobby)
+function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: { mode: MenuMode; player: BallSpec; room: RoomView | null; appearancePart?: AppearancePart; onReady?: () => void; sfx?: ISfxEngine }) {
+  const active = computeBalls(mode, player, room)
   const sign = signOf(active)
   const [rendered, setRendered] = useState<RenderedBall[]>(active)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -553,14 +553,14 @@ function Scene({ mode, player, lobby, appearancePart = 'color', onReady, sfx }: 
 }
 
 // Контекст React не пересекает границу R3F-Canvas — поэтому движок идёт пропом, а не useSfx().
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Персистентный прозрачный фон меню-экранов: настоящая сцена с игроком (Body в натуральную величину,
- * стоит на точке; в лобби — двое). Кадр строит ТОЛЬКО камера (CameraRig, позы из menuCameraPoses.json);
+ * стоит на точке; в комнате — двое). Кадр строит ТОЛЬКО камера (CameraRig, позы из menuCameraPoses.json);
  * единственное «игровое» движение — пробежка призрака в превью респавна. Dev: пол-сетка + полёт по J.
  */
-export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, glow = true, glowMuted = false, onReady, sfx }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, onReady, sfx }: MenuBackdropProps) {
   // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
   // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
   // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
@@ -587,8 +587,8 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
       .catch(() => { /* эндпоинта нет (preview-сборка) — остаёмся на импортированных позах */ })
   }, [])
 
-  const hasOpponent = !!lobby?.roster.find(r => r.id === OPPONENT_ID)
-  const isClient = lobby != null && lobby.localPlayerId !== HOST_ID   // подключился к чужому лобби
+  const hasOpponent = !!room?.roster.find(r => r.id === OPPONENT_ID)
+  const isClient = room != null && room.localPlayerId !== HOST_ID   // подключился к чужой комнате
   const camState = cameraStateFor(mode, hasOpponent, isClient, appearancePart ?? 'color')
 
   return (
@@ -601,7 +601,7 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
         {import.meta.env.DEV && <FlyCam state={camState} />}
         {/* Отладочный пол: видно, что модели стоят на сцене и двигается только камера. Dev-only. */}
         {import.meta.env.DEV && <gridHelper args={[24, 24, '#2a3550', '#141d33']} />}
-        <Scene mode={mode} player={player} lobby={lobby ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
+        <Scene mode={mode} player={player} room={room ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
         {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
             Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
         {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} />}

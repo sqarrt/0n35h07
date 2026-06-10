@@ -155,7 +155,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
 
       {section === 'net' && (
         <>
-          <div style={{ ...label, marginBottom: '0.6rem' }}>ТАЙМАУТ ПОДКЛЮЧЕНИЯ К ЛОББИ</div>
+          <div style={{ ...label, marginBottom: '0.6rem' }}>ТАЙМАУТ ПОДКЛЮЧЕНИЯ К КОМНАТЕ</div>
           <div style={{ ...row, flexWrap: 'wrap' }}>
             {CONNECT_TIMEOUT_OPTIONS.map(s => (
               <button key={s} className={`seg${connTimeout === s ? ' seg--on' : ''}`} onClick={() => handleConnTimeout(s)}>{s} С</button>

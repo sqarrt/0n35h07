@@ -107,11 +107,11 @@ export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед
 // лежат на одной линии-периметре. Плечи скобок занимают ~21–27px от кромки → полосы ставим на тот же отступ.
 export const HUD_FRAME_INSET = 21   // px от кромки экрана до полос дэша/возрождения
 
-// Матч на время (выбор хоста в лобби). Конец матча: таймер ИЛИ отключение соперника.
+// Матч на время (выбор хоста в комнате). Конец матча: таймер ИЛИ отключение соперника.
 export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
 export const DEFAULT_MATCH_DURATION_MIN = 5
 
-// Карта матча (выбор хоста в лобби). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
+// Карта матча (выбор хоста в комнате). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
 // id используется и как подпись в UI.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'

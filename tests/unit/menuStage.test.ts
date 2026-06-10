@@ -12,19 +12,19 @@ describe('cameraStateFor', () => {
     expect(cameraStateFor('appearance', false, false, 'shield')).toBe('appearanceShield')
   })
 
-  it('лобби: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
-    expect(cameraStateFor('lobby', true, false, 'color')).toBe('lobby')
-    expect(cameraStateFor('lobby', true, true, 'color')).toBe('lobbyClient')
-    expect(cameraStateFor('lobby', false, false, 'color')).toBe('default')
+  it('комната: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
+    expect(cameraStateFor('room', true, false, 'color')).toBe('room')
+    expect(cameraStateFor('room', true, true, 'color')).toBe('roomClient')
+    expect(cameraStateFor('room', false, false, 'color')).toBe('default')
     expect(cameraStateFor('menu', false, false, 'color')).toBe('default')
-    expect(cameraStateFor('join', false, true, 'respawn')).toBe('default')   // part/клиент вне лобби не влияют
+    expect(cameraStateFor('join', false, true, 'respawn')).toBe('default')   // part/клиент вне комнаты не влияют
     expect(cameraStateFor('settings', false, false, 'color')).toBe('default')
   })
 })
 
 describe('menuCameraPoses.json', () => {
   it('содержит позу для каждого состояния (position и target — тройки чисел)', () => {
-    const states = ['default', 'lobby', 'lobbyClient', 'appearance', 'appearanceShot', 'appearanceRespawn', 'appearanceDash', 'appearanceShield'] as const
+    const states = ['default', 'room', 'roomClient', 'appearance', 'appearanceShot', 'appearanceRespawn', 'appearanceDash', 'appearanceShield'] as const
     for (const s of states) {
       const pose = (rawPoses as Record<string, { position: number[]; target: number[] }>)[s]
       expect(pose, s).toBeDefined()

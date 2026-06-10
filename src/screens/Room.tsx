@@ -2,15 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import type { BotDifficulty, MapId } from '../constants'
 import { HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from '../constants'
 import { MAPS, MAP_IDS, MAP_PREVIEW } from '../game/maps'
-import type { LobbyView } from '../net/LobbySession'
+import type { RoomView } from '../net/RoomSession'
 import type { RosterEntry } from '../net/protocol'
 import { Button } from '../ui/Button'
 import { MapPreview } from '../components/MapPreview'
 import { useSfx } from '../sfx/SfxContext'
 
-interface LobbyProps {
-  lobbyCode: string
-  view: LobbyView
+interface RoomProps {
+  roomCode: string
+  view: RoomView
   onAddBot: () => void
   onRemoveBot: () => void
   onSetDifficulty: (d: BotDifficulty) => void
@@ -21,7 +21,7 @@ interface LobbyProps {
 }
 
 
-export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onSetMap, onStart, onBack }: LobbyProps) {
+export function Room({ roomCode, view, onAddBot, onRemoveBot, onSetDifficulty, onSetDuration, onSetMap, onStart, onBack }: RoomProps) {
   const { roster, isHost, localPlayerId, connected, canStart, durationMin, mapId } = view
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID) ?? null
@@ -32,16 +32,16 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   const hadOpponent = useRef(false)
   useEffect(() => {
     const has = opponent !== null
-    if (has && !hadOpponent.current) sfx.play2D('lobby_join')
+    if (has && !hadOpponent.current) sfx.play2D('room_join')
     hadOpponent.current = has
   }, [opponent, sfx])
 
   const copyCode = async () => {
     try {
-      await navigator.clipboard.writeText(lobbyCode)
+      await navigator.clipboard.writeText(roomCode)
     } catch {
       const ta = document.createElement('textarea')
-      ta.value = lobbyCode; document.body.appendChild(ta); ta.select()
+      ta.value = roomCode; document.body.appendChild(ta); ta.select()
       try { document.execCommand('copy') } catch { /* ignore */ }
       document.body.removeChild(ta)
     }
@@ -52,7 +52,7 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
   const pane = (entry: RosterEntry | null, side: 'host' | 'opp') => {
     if (!entry) {
       return (
-        <div className="lobby-pane">
+        <div className="room-pane">
           <div style={{ color: 'var(--muted)', fontStyle: 'italic', fontSize: 12, letterSpacing: '0.14em' }}>
             ОЖИДАНИЕ СОПЕРНИКА…
           </div>
@@ -64,9 +64,9 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
     const tag = side === 'host' ? 'ХОСТ' : entry.kind === 'bot' ? 'БОТ' : 'ИГРОК'
     const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
     return (
-      <div className="lobby-pane">
-        <div className="lobby-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.name}</div>
-        <div className="lobby-tag" style={{ color: tagColor }}>{tag}</div>
+      <div className="room-pane">
+        <div className="room-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.name}</div>
+        <div className="room-tag" style={{ color: tagColor }}>{tag}</div>
         {entry.kind === 'bot' && isHost && (
           <>
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -86,19 +86,20 @@ export function Lobby({ lobbyCode, view, onAddBot, onRemoveBot, onSetDifficulty,
 
   return (
     <div className="panel-fill" style={{ justifyContent: 'center' }}>
-      <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>ЛОББИ</div>
-        <div className="lobby-face">
+      {/* textIndent = letterSpacing: компенсирует хвостовой интервал последней буквы при центрировании. */}
+      <div style={{ fontSize: 16, letterSpacing: '0.3em', textIndent: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>КОМНАТА</div>
+        <div className="room-face">
           {pane(host ?? null, 'host')}
-          <div className="lobby-center">
-            {/* подпись центрируется по колонке (=по «ЛОББИ»), а не по кнопке код+глиф (её центр смещён) */}
-            {copied && <span className="lobby-copied">СКОПИРОВАНО</span>}
-            <button className="lobby-code-copy" onClick={copyCode} title="Скопировать код">
-              <span className="lobby-code">{lobbyCode}</span>
+          <div className="room-center">
+            {/* подпись центрируется по колонке (=по «КОМНАТА»), а не по кнопке код+глиф (её центр смещён) */}
+            {copied && <span className="room-copied">СКОПИРОВАНО</span>}
+            <button className="room-code-copy" onClick={copyCode} title="Скопировать код">
+              <span className="room-code">{roomCode}</span>
               <span className="glyph" aria-hidden="true">⧉</span>
             </button>
-            <div className="lobby-vs">— VS —</div>
+            <div className="room-vs">— VS —</div>
             {/* скрытый узел для тестов формата кода */}
-            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {lobbyCode}</div>
+            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>КОД: {roomCode}</div>
           </div>
           {pane(opponent, 'opp')}
         </div>

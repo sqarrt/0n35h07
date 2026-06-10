@@ -109,7 +109,7 @@
 .panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; }
 
 /* Размытое 3D-превью выбранной карты — атмосферный фон за шарами (MenuBackdrop сверху, резкий).
-   Плавный fade in/out по opacity (вход/выход из лобби). Длительность синхронна с MAP_FADE_MS в App. */
+   Плавный fade in/out по opacity (вход/выход из комнаты). Длительность синхронна с MAP_FADE_MS в App. */
 .map-bg {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
   filter: blur(5px) brightness(0.7);
@@ -182,9 +182,9 @@
 }
 .slider:hover::-moz-range-thumb { background: var(--accent-bright); }
 
-/* VS-лобби */
+/* VS-комната */
 /* Карточка полупрозрачная — фоновые модельки просвечивают по краям; поверх фон-канваса (z-index выше). */
-/* Плитки выбора карты в лобби: клик по 3D-превью выбирает карту. */
+/* Плитки выбора карты в комнате: клик по 3D-превью выбирает карту. */
 .map-tiles { display: flex; gap: 12px; justify-content: center; }
 .map-preview { width: 150px; height: 100px; display: block; }
 .map-tile {
@@ -196,21 +196,21 @@
 .map-tile-label { font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
 .map-tile:hover .map-tile-label { color: var(--text); }
 .map-tile--on .map-tile-label { color: var(--accent); }
-.lobby-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.lobby-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
-.lobby-center { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
-.lobby-code-copy { position: relative; background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--ui-font); }
-.lobby-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
-.lobby-code-copy:hover .lobby-code { color: var(--accent-bright); text-shadow: 0 0 24px rgba(68,170,255,0.75); }
+.room-face { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.room-pane { flex: 0 0 200px; width: 200px; display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 130px; padding-top: 8px; }
+.room-center { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 130px; }
+.room-code-copy { position: relative; background: transparent; border: none; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: var(--ui-font); }
+.room-code { font-size: 46px; letter-spacing: 0.22em; color: var(--text); text-shadow: 0 0 18px rgba(68,170,255,0.45); margin-left: 0.22em; }
+.room-code-copy:hover .room-code { color: var(--accent-bright); text-shadow: 0 0 24px rgba(68,170,255,0.75); }
 /* глиф абсолютом справа — не сдвигает код, чтобы код (и подпись «СКОПИРОВАНО») стоял ровно по центру */
-.lobby-code-copy .glyph { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 12px; font-size: 18px; color: var(--muted); }
-.lobby-code-copy:hover .glyph { color: var(--accent-dim); }
-.lobby-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-.lobby-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
-.lobby-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
-.lobby-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
+.room-code-copy .glyph { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 12px; font-size: 18px; color: var(--muted); }
+.room-code-copy:hover .glyph { color: var(--accent-dim); }
+.room-code-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.room-nick { font-size: 18px; letter-spacing: 0.1em; color: var(--text); }
+.room-tag { font-size: 10px; letter-spacing: 0.22em; padding: 2px 8px; border: 1px solid currentColor; }
+.room-vs { font-size: 13px; letter-spacing: 0.2em; color: #3a4655; }
 /* код кликабелен → копирование ссылки; фидбек «СКОПИРОВАНО» абсолютно под кодом — не занимает поток, без сдвигов */
-.lobby-copied { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 0.16em; color: var(--ok); white-space: nowrap; }
+.room-copied { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); font-size: 11px; letter-spacing: 0.16em; color: var(--ok); white-space: nowrap; }
 /* сегменты (сложность бота) */
 .seg { background: transparent; border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 5px 11px; cursor: pointer; }
 .seg:hover { border-color: var(--ghost-line-hover); color: #bcd6ee; }
@@ -241,7 +241,7 @@
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
 
-/* JoinLobby: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
+/* JoinRoom: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
 .code-wrap { position: relative; width: 240px; height: 64px; }
 .code-wrap .input { width: 100%; height: 100%; }
 .code-wrap.is-error .input { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset, 0 0 14px rgba(255,90,90,0.28); }
@@ -255,7 +255,7 @@
 .join-status.found { color: var(--ok); }
 .join-status.failed { color: var(--danger); }
 
-/* «Лобби найдено» — та же бегущая обводка, но цветом подтверждения. */
+/* «Комната найдена» — та же бегущая обводка, но цветом подтверждения. */
 .code-wrap.is-found .code-run { display: block; }
 .code-wrap.is-found .code-run rect { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); animation: code-run-dash 1.2s linear infinite; }
 
