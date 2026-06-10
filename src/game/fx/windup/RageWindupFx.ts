@@ -118,8 +118,10 @@ export class RageWindupFx implements IWindupFx {
     if (this.forward.lengthSq() < 1e-8) this.forward.set(0, 0, -1)
     this.forward.normalize()
     this.object3d.position.copy(f.origin).addScaledVector(this.forward, JAW_DISTANCE)
-    this.lookTarget.copy(this.object3d.position).add(this.forward)
-    // lookAt корректен, пока родитель object3d (match.root/группа превью) без вращений — иначе ориентация поедет
+    // lookAt ждёт МИРОВУЮ точку: в превью родитель (группа шара) сдвинут и отмасштабирован,
+    // поэтому цель строим от мировой позиции (направление у родителей без вращения не искажается).
+    // Инвариант: родители object3d не должны иметь вращений (сдвиг и равномерный масштаб допустимы).
+    this.object3d.getWorldPosition(this.lookTarget).add(this.forward)
     this.object3d.lookAt(this.lookTarget)
 
     // Раскрытие: растёт с зарядом; после выстрела пасть ЗАХЛОПЫВАЕТСЯ за JAW_SNAP_FRAC фазы сдувания.

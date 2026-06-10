@@ -103,6 +103,21 @@ describe('RageWindupFx', () => {
     expect(meshes).toBeGreaterThan(0)
     expect(() => fx.dispose()).not.toThrow()
   })
+
+  it('ориентация челюстей корректна и под смещённым/масштабированным родителем (превью меню)', () => {
+    const fx = new RageWindupFx()
+    const parent = new THREE.Group()           // как группа шара в превью: сдвиг + равномерный масштаб
+    parent.position.set(5, 0, 0)
+    parent.scale.setScalar(3)
+    parent.add(fx.object3d)
+    parent.updateMatrixWorld(true)
+    const forward = new THREE.Vector3(0, 0, -1)
+    fx.apply(0.016, makeTarget(), makeFrame({ progress: 0.5, aimDir: forward.clone() }))
+    parent.updateMatrixWorld(true)
+    // Мировая ось +Z челюстей (lookAt разворачивает +Z на цель) должна совпасть с forward.
+    const worldZ = new THREE.Vector3(0, 0, 1).applyQuaternion(fx.object3d.getWorldQuaternion(new THREE.Quaternion()))
+    expect(worldZ.dot(forward)).toBeGreaterThan(0.99)
+  })
 })
 
 describe('SingularityWindupFx', () => {
