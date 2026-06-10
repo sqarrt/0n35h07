@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { BotDifficulty, MatchPhase, BallModel, MapId, WindupStyle } from '../constants'
+import type { BotDifficulty, MatchPhase, BallModel, MapId, WindupStyle, RespawnStyle } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -26,8 +26,9 @@ export interface RosterEntry {
   difficulty?: BotDifficulty   // только для kind==='bot'
   ballModel?: BallModel        // модель сферы (косметика); нет → 'smooth'
   windupStyle?: WindupStyle    // анимация заряда (косметика); нет → 'classic'
+  respawnStyle?: RespawnStyle  // анимация респавна (косметика); нет → 'echo'
 }
-export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel; windupStyle?: WindupStyle }
+export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle }
 export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId }
 export interface Start { durationMs: number; mapId: MapId }
 
