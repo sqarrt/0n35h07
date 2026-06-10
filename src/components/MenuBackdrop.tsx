@@ -11,6 +11,7 @@ import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 import { MenuEdgeGlow, MENU_GLOW_LAYER } from './MenuEdgeGlow'
 import { createWindupFx } from '../game/fx/windup/createWindupFx'
 import { BeamWeapon } from '../game/BeamWeapon'
+import { createBeamFx } from '../game/fx/beam/createBeamFx'
 import type { WeaponContext } from '../game/abstractions'
 import type { World } from '../game/World'
 import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
@@ -86,9 +87,9 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
   const fx = useMemo(() => (isPreviewPos && spec.windupStyle ? createWindupFx(spec.windupStyle) : null),
     [isPreviewPos, spec.windupStyle])
   useEffect(() => () => fx?.dispose(), [fx])
-  // Луч выстрела превью — тот же BeamWeapon, что в матче (косметический playBeam; цвет луча = цвет игрока).
-  const beam = useMemo(() => (isPreviewPos ? new BeamWeapon({ outerColor: spec.color }) : null),
-    [isPreviewPos, spec.color])
+  // Луч выстрела превью — тот же BeamWeapon, что в матче (косметический playBeam), со стилевым визуалом.
+  const beam = useMemo(() => (isPreviewPos ? new BeamWeapon({ beamFx: createBeamFx(spec.windupStyle ?? 'classic', spec.color) }) : null),
+    [isPreviewPos, spec.color, spec.windupStyle])
   useEffect(() => () => beam?.dispose(), [beam])
   const cycle = useRef({ phase: 'idle' as 'charge' | 'fire' | 'idle', elapsed: 0 })
   const lastSeqRef = useRef(0)   // последний отработанный клик (вход в настройки превью не запускает)

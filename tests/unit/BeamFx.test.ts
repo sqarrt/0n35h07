@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { ClassicBeamFx } from '../../src/game/fx/beam/ClassicBeamFx'
 import { RageBeamFx } from '../../src/game/fx/beam/RageBeamFx'
 import { SingularityBeamFx } from '../../src/game/fx/beam/SingularityBeamFx'
+import { createBeamFx } from '../../src/game/fx/beam/createBeamFx'
 import type { IBeamFx } from '../../src/game/fx/beam/types'
 import { BEAM_DURATION } from '../../src/constants'
 
@@ -130,5 +131,13 @@ describe('SingularityBeamFx', () => {
     fx.reset()
     expect(anyVisible(fx.object3d)).toBe(false)
     expect(() => fx.dispose()).not.toThrow()
+  })
+})
+
+describe('createBeamFx', () => {
+  it('возвращает реализацию по стилю', () => {
+    expect(createBeamFx('classic', '#4af')).toBeInstanceOf(ClassicBeamFx)
+    expect(createBeamFx('rage', '#4af')).toBeInstanceOf(RageBeamFx)
+    expect(createBeamFx('singularity', '#4af')).toBeInstanceOf(SingularityBeamFx)
   })
 })

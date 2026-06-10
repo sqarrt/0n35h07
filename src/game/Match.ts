@@ -19,6 +19,7 @@ import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
 import { createWindupFx } from './fx/windup/createWindupFx'
+import { createBeamFx } from './fx/beam/createBeamFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -164,8 +165,8 @@ export class Match {
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
             e.color, createWindupFx(windupStyle), windupStyle)
         : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
-            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color,
-            createWindupFx(windupStyle), windupStyle)
+            new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
+            new Shield(), e.color, createWindupFx(windupStyle), windupStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
