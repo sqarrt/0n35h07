@@ -1,13 +1,15 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Color } from 'three'
-import type { Group } from 'three'
-import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU } from '../constants'
+import * as THREE from 'three'
+import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS } from '../constants'
 import type { BallModel, WindupStyle } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 import { MenuEdgeGlow, MENU_GLOW_LAYER } from './MenuEdgeGlow'
+import { createWindupFx } from '../game/fx/windup/createWindupFx'
+import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
+import type { ISfxEngine } from '../game/audio/sfx/types'
 
 // Анимация переезда/появления модельки.
 const DAMP_TAU = MENU_ANIM_TAU // переезд позиции/масштаба — общий TAU с подложкой меню (одинаковая скорость)
@@ -20,6 +22,12 @@ const BIG_FRACTION = 0.4       // радиус крупного шара = до�
 const SETTINGS_X_FRACTION = 0.26   // смещение влево на экране настроек (доля ширины)
 const SETTINGS_H_FRACTION = 0.32   // и масштаб поменьше, чтобы шар влез целиком слева
 const SETTINGS_W_FRACTION = 0.22
+
+// Превью анимации заряда в настройках: бесконечный цикл фаз (длительности — как в матче).
+const PREVIEW_CHARGE_MS = BEAM_WINDUP        // зарядка — как у игрока
+const PREVIEW_FIRE_MS = WINDUP_SHRINK_MS     // «сдувание» после выстрела
+const PREVIEW_PAUSE_MS = 900                 // пауза между циклами
+const PREVIEW_ORIGIN = new THREE.Vector3(0, 0, 0)   // центр шара в локальной системе группы
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings'
 type Pos = 'center' | 'left-edge' | 'right-edge' | 'settings-left'
@@ -49,7 +57,7 @@ function offscreenX(pos: Pos, vp: Viewport): number {
 
 /** Свет медленно облетает шары — блик скользит, модели читаются как «живое» 3D. */
 function OrbitingLight() {
-  const ref = useRef<Group>(null)
+  const ref = useRef<THREE.Group>(null)
   useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += PREVIEW_SPIN_SPEED * dt })
   return (
     <group ref={ref}>
@@ -64,9 +72,9 @@ function OrbitingLight() {
  * из-за кадра к своей кромке; при `exiting` — уезжает за край и гаснет (перед размонтированием). Тот же
  * инстанс при смене `pos` едет к новой цели, при смене `spec.color` — плавно перекрашивается.
  */
-function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { spec: BallSpec; pos: Pos; slideIn: boolean; exiting?: boolean; hold?: boolean }) {
+function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }: { spec: BallSpec; pos: Pos; slideIn: boolean; exiting?: boolean; hold?: boolean; sfx?: ISfxEngine }) {
   const viewport = useThree(s => s.viewport)
-  const groupRef = useRef<Group>(null)
+  const groupRef = useRef<THREE.Group>(null)
   // Материал мемоизируем по МОДЕЛИ (не цвету): смена цвета не пересоздаёт материал, цвет лерпим в кадре.
   const { material, tick } = useMemo(() => {
     const m = createBallMaterial(spec.color, spec.model)
@@ -84,8 +92,24 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { s
     if (ring) (ring.mesh.material as { depthWrite: boolean }).depthWrite = true
   }, [ring])
 
-  const targetColor = useMemo(() => new Color(spec.color), [spec.color])
-  const targetRingColor = useMemo(() => new Color(spec.ringColor ?? spec.color), [spec.ringColor, spec.color])
+  // Превью анимации заряда — только в настройках. fx живёт в масштабируемой группе шара →
+  // origin/aimDir в ЛОКАЛЬНЫХ координатах группы (см. контракт WindupFrame).
+  const isSettings = pos === 'settings-left'
+  const fx = useMemo(() => (isSettings && spec.windupStyle ? createWindupFx(spec.windupStyle) : null),
+    [isSettings, spec.windupStyle])
+  useEffect(() => () => fx?.dispose(), [fx])
+  const cycle = useRef({ phase: 'pause' as 'charge' | 'fire' | 'pause', elapsed: 0 })
+  // Смена стиля → начать цикл заново (пауза уже истекла → заряд пойдёт сразу).
+  useEffect(() => { cycle.current = { phase: 'pause', elapsed: PREVIEW_PAUSE_MS } }, [fx])
+  const meshRef = useRef<THREE.Mesh>(null)
+  const dampedColorRef = useRef<THREE.Color | null>(null)
+  const aimDirRef = useRef<THREE.Vector3 | null>(null)
+  // frameRef: заполняется в первом useFrame (до этого не используется, только внутри useFrame)
+  const frameRef = useRef<{ progress: number; shrink: number; baseColor: THREE.Color; aimDir: THREE.Vector3; origin: THREE.Vector3; visible: boolean } | null>(null)
+  const camera = useThree(s => s.camera)
+
+  const targetColor = useMemo(() => new THREE.Color(spec.color), [spec.color])
+  const targetRingColor = useMemo(() => new THREE.Color(spec.ringColor ?? spec.color), [spec.ringColor, spec.color])
   const cur = useRef<{ x: number; scale: number; opacity: number } | null>(null)
 
   useFrame((_, dtRaw) => {
@@ -93,6 +117,11 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { s
     const t = resolveTarget(pos, viewport)
     const targetX = exiting ? offscreenX(pos, viewport) : t.x   // выход — уезжаем за край
     const targetOpacity = exiting ? 0 : 1
+    // Ленивая инициализация мутабельных вспомогательных объектов — за пределами рендера.
+    if (!dampedColorRef.current) dampedColorRef.current = new THREE.Color(spec.color)
+    if (!aimDirRef.current) aimDirRef.current = new THREE.Vector3()
+    const dampedColor = dampedColorRef.current
+    const aimDir = aimDirRef.current
     if (!cur.current) {
       cur.current = { x: slideIn ? offscreenX(pos, viewport) : t.x, scale: t.scale, opacity: 0 }
     }
@@ -101,6 +130,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { s
     if (hold) {
       const c0 = cur.current
       material.color.copy(targetColor)
+      dampedColor.copy(targetColor)
       material.opacity = 0
       ring?.setOpacity(0)
       ring?.setColor(targetRingColor)
@@ -116,22 +146,45 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false }: { s
     c.x += (targetX - c.x) * k
     c.scale += (t.scale - c.scale) * k
     c.opacity += (targetOpacity - c.opacity) * kf
-    material.color.lerp(targetColor, kc)
+    dampedColor.lerp(targetColor, kc)
+    if (!fx) material.color.copy(dampedColor)   // без превью цветом владеем сами (как раньше)
     material.opacity = c.opacity
     ring?.setOpacity(c.opacity)
     ring?.lerpColor(targetRingColor, kc)   // кольцо плавно тянется к «второму» цвету (реактивно)
     tick(dt); ring?.tick(dt)
     const g = groupRef.current
     if (g) { g.position.x = c.x; g.scale.setScalar(c.scale) }
+
+    // Цикл превью заряда: charge → fire → pause → charge…; звук стиля — на старте заряда.
+    if (fx && meshRef.current && g) {
+      // Ленивая инициализация frameRef — нужна только при наличии fx.
+      if (!frameRef.current) {
+        frameRef.current = { progress: 0, shrink: 1, baseColor: dampedColor, aimDir, origin: PREVIEW_ORIGIN, visible: true }
+      }
+      const cy = cycle.current
+      cy.elapsed += dt * 1000
+      if (cy.phase === 'charge' && cy.elapsed >= PREVIEW_CHARGE_MS) { cy.phase = 'fire'; cy.elapsed = 0 }
+      else if (cy.phase === 'fire' && cy.elapsed >= PREVIEW_FIRE_MS) { cy.phase = 'pause'; cy.elapsed = 0 }
+      else if (cy.phase === 'pause' && cy.elapsed >= PREVIEW_PAUSE_MS) {
+        cy.phase = 'charge'; cy.elapsed = 0
+        if (sfx) sfx.play2D(windupSfxEvent(spec.windupStyle, sfx))
+      }
+      const f = frameRef.current
+      f.progress = cy.phase === 'charge' ? Math.min(cy.elapsed / PREVIEW_CHARGE_MS, 1) : 0
+      f.shrink = cy.phase === 'fire' ? Math.min(cy.elapsed / PREVIEW_FIRE_MS, 1) : 1
+      aimDir.copy(camera.position).sub(g.position).normalize()   // челюсти «лицом» к зрителю
+      fx.apply(dt, { mesh: meshRef.current, material }, f)
+    }
   })
 
   return (
     <group ref={groupRef} scale={0.0001}>
-      <mesh>
+      <mesh ref={meshRef}>
         <sphereGeometry args={[BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS]} />
         <primitive object={material} attach="material" />
         {ring && <primitive object={ring.mesh} />}
       </mesh>
+      {fx && <primitive object={fx.object3d} />}
     </group>
   )
 }
@@ -163,10 +216,10 @@ type RenderedBall = ActiveBall & { exiting?: boolean }
 
 /** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
 function signOf(balls: ActiveBall[]): string {
-  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
+  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.pos}:${b.slideIn ? 1 : 0}`).join('|')
 }
 
-function Scene({ mode, player, lobby, onReady }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null; onReady?: () => void }) {
+function Scene({ mode, player, lobby, onReady, sfx }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null; onReady?: () => void; sfx?: ISfxEngine }) {
   const active = computeBalls(mode, player, lobby)
   const sign = signOf(active)
   const [rendered, setRendered] = useState<RenderedBall[]>(active)
@@ -215,19 +268,20 @@ function Scene({ mode, player, lobby, onReady }: { mode: MenuMode; player: BallS
 
   return (
     <>
-      {rendered.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} exiting={b.exiting} hold={!warm} />)}
+      {rendered.map(b => <AnimatedBall key={b.key} spec={b.spec} pos={b.pos} slideIn={b.slideIn} exiting={b.exiting} hold={!warm} sfx={sfx} />)}
     </>
   )
 }
 
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis; glow?: boolean; onReady?: () => void }
+// Контекст React не пересекает границу R3F-Canvas — поэтому движок идёт пропом, а не useSfx().
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; lobby?: LobbyView | null; analysis?: AudioAnalysis; glow?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Персистентный прозрачный фон меню-экранов: крупная «живая» моделька игрока, резко (но не мгновенно)
  * переезжающая между позициями при смене экрана; в лобби с двумя игроками — два шара по краям.
  * Монтируется на уровне App для всех экранов кроме игры (при возврате из игры — заново → фейд-ин).
  */
-export function MenuBackdrop({ mode, player, lobby, analysis, glow = true, onReady }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, lobby, analysis, glow = true, onReady, sfx }: MenuBackdropProps) {
   // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
   // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
   // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
@@ -250,7 +304,7 @@ export function MenuBackdrop({ mode, player, lobby, analysis, glow = true, onRea
         onCreated={({ camera }) => camera.lookAt(0, 0, 0)}>
         <ambientLight intensity={0.4} />
         <OrbitingLight />
-        <Scene mode={mode} player={player} lobby={lobby ?? null} onReady={onReady} />
+        <Scene mode={mode} player={player} lobby={lobby ?? null} onReady={onReady} sfx={sfx} />
         {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
             Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
         {glow && glowReady && <MenuEdgeGlow analysis={analysis} />}
