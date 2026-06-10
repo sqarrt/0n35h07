@@ -5,11 +5,11 @@ import { EYE_HEIGHT } from '../constants'
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings' | 'appearance'
 
 /** Последний кликнутый блок экрана «Внешность» — выбирает ракурс камеры. */
-export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn'
+export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield'
 
 /** Состояния камеры фона меню. Позы хранятся в menuCameraPoses.json (правятся клавишей J в dev).
  *  lobby — ты хост (вдвоём); lobbyClient — ты подключился клиентом (вдвоём, свой ракурс). */
-export type MenuCameraState = 'default' | 'lobby' | 'lobbyClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn'
+export type MenuCameraState = 'default' | 'lobby' | 'lobbyClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield'
 
 export interface CameraPose { position: [number, number, number]; target: [number, number, number] }
 export type CameraPoses = Record<MenuCameraState, CameraPose>
@@ -24,6 +24,8 @@ export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: b
   if (mode === 'appearance') {
     if (part === 'shot') return 'appearanceShot'
     if (part === 'respawn') return 'appearanceRespawn'
+    if (part === 'dash') return 'appearanceDash'
+    if (part === 'shield') return 'appearanceShield'
     return 'appearance'
   }
   if (mode === 'lobby' && hasOpponent) return isClient ? 'lobbyClient' : 'lobby'

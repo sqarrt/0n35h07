@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { CSSProperties } from 'react'
-import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES } from '../constants'
-import type { BallModel, WindupStyle, RespawnStyle } from '../constants'
+import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES, DASH_STYLES, SHIELD_STYLES } from '../constants'
+import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 import { saveProfile } from '../settings'
 import type { PlayerProfile } from '../settings'
 import { Button } from '../ui/Button'
@@ -12,13 +12,17 @@ interface AppearanceProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
   // Живое превью (App): цвет/модель/стили + последний кликнутый блок (позиция шара).
-  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, part: AppearancePart) => void
+  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart) => void
   // Клик по стилю выстрела → один прогон превью. Счётчиком владеет App (монотонный,
   // переживает перемонтирование экрана), а стиль едет ВМЕСТЕ с триггером — App обновляет
   // оба поля атомарно (иначе шар запускает превью со старым стилем и тут же гасит его).
   onShotPreview: (style: WindupStyle) => void
   // Клик по стилю респавна → один прогон превью (та же атомарная схема, свой счётчик).
   onRespawnPreview: (style: RespawnStyle) => void
+  // Клик по скину следа рывка → один прогон превью (рывок туда-обратно).
+  onDashPreview: (style: DashStyle) => void
+  // Клик по скину щита → один прогон превью (включение щита на ~1.5с).
+  onShieldPreview: (style: ShieldStyle) => void
   onBack: () => void
 }
 
@@ -29,7 +33,7 @@ const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6r
 
 /** Экран «Внешность»: вся косметика игрока на одном экране (без подвкладок); позиция шара-превью
  *  слева определяется последним кликнутым блоком. Панель уезжает вправо — анимирует App. */
-export function Appearance({ profile, onChange, onPreview, onShotPreview, onRespawnPreview, onBack }: AppearanceProps) {
+export function Appearance({ profile, onChange, onPreview, onShotPreview, onRespawnPreview, onDashPreview, onShieldPreview, onBack }: AppearanceProps) {
   const sfx = useSfx()
   const [part, setPart] = useState<AppearancePart>('color')   // последний кликнутый блок → позиция шара
   const [primary, setPrimary] = useState(profile.primaryColor)
@@ -37,11 +41,13 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const [model, setModel] = useState<BallModel>(profile.ballModel)
   const [windup, setWindup] = useState<WindupStyle>(profile.windupStyle)
   const [respawn, setRespawn] = useState<RespawnStyle>(profile.respawnStyle)
+  const [dash, setDash] = useState<DashStyle>(profile.dashStyle)
+  const [shield, setShield] = useState<ShieldStyle>(profile.shieldStyle)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — из АКТУАЛЬНОГО профиля: коммит из «Внешности» не затирает правки настроек.
-  const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn })
+  const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn, dashStyle: dash, shieldStyle: shield })
 
   const handlePrimary = (c: string) => {
     if (c !== primary) sfx.play2D('ui_toggle')
@@ -80,15 +86,31 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
     onRespawnPreview(r)   // всегда — один прогон превью респавна
     commit({ ...base(), respawnStyle: r })
   }
+  const handleDash = (d: DashStyle) => {
+    if (d !== dash) sfx.play2D('ui_toggle')
+    setDash(d)
+    setPart('dash')
+    onDashPreview(d)   // всегда — один прогон превью рывка (туда-обратно)
+    commit({ ...base(), dashStyle: d })
+  }
+  const handleShield = (s: ShieldStyle) => {
+    if (s !== shield) sfx.play2D('ui_toggle')
+    setShield(s)
+    setPart('shield')
+    onShieldPreview(s)   // всегда — один прогон превью щита
+    commit({ ...base(), shieldStyle: s })
+  }
 
   const previewColor = editing === 'primary' ? primary : reserve
   const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
   const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
   const windupLabel: Record<WindupStyle, string> = { classic: 'ИМПУЛЬС', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
   const respawnLabel: Record<RespawnStyle, string> = { echo: 'ЭХО', chaos: 'ХАОС', swarm: 'РОЙ' }
+  const dashLabel: Record<DashStyle, string> = { streak: 'ШЛЕЙФ', wave: 'ВОЛНА', rift: 'РАЗРЫВ' }
+  const shieldLabel: Record<ShieldStyle, string> = { dome: 'КУПОЛ', hex: 'СОТЫ', crystal: 'КРИСТАЛЛ' }
 
   // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям блоков.
-  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, part) }, [previewColor, model, previewRingColor, windup, respawn, part, onPreview])
+  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.
@@ -145,6 +167,24 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
         {RESPAWN_STYLES.map(r => (
           <button key={r} className={`seg${respawn === r ? ' seg--on' : ''}`} onClick={() => handleRespawn(r)}>
             {respawnLabel[r]}
+          </button>
+        ))}
+      </div>
+
+      <div style={label}>СЛЕД РЫВКА</div>
+      <div style={row}>
+        {DASH_STYLES.map(d => (
+          <button key={d} className={`seg${dash === d ? ' seg--on' : ''}`} onClick={() => handleDash(d)}>
+            {dashLabel[d]}
+          </button>
+        ))}
+      </div>
+
+      <div style={label}>ЩИТ</div>
+      <div style={row}>
+        {SHIELD_STYLES.map(s => (
+          <button key={s} className={`seg${shield === s ? ' seg--on' : ''}`} onClick={() => handleShield(s)}>
+            {shieldLabel[s]}
           </button>
         ))}
       </div>

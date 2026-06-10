@@ -1,14 +1,15 @@
 import * as THREE from 'three'
 import type { IShield } from './abstractions'
+import type { IShieldFx } from './fx/shield/types'
+import { DomeShieldFx } from './fx/shield/DomeShieldFx'
 import { SHIELD_DURATION, SHIELD_COOLDOWN } from '../constants'
 
-interface ShieldConfig { duration?: number; cooldown?: number }
+interface ShieldConfig { duration?: number; cooldown?: number; shieldFx?: IShieldFx }
 
-/** Щит: idle → active(duration) → cooldown. dt-driven, без setTimeout. Владеет пузырём. */
+/** Щит: idle → active(duration) → cooldown. dt-driven, без setTimeout. Визуал — у скина IShieldFx. */
 export class Shield implements IShield {
   readonly object3d = new THREE.Group()
-  private fillMat: THREE.MeshBasicMaterial
-  private wireMat: THREE.MeshBasicMaterial
+  private fx: IShieldFx
 
   private phase: 'idle' | 'active' | 'cooldown' = 'idle'
   private timer = 0   // мс в текущей фазе
@@ -18,19 +19,8 @@ export class Shield implements IShield {
   constructor(cfg: ShieldConfig = {}) {
     this.duration = cfg.duration ?? SHIELD_DURATION
     this.cooldown = cfg.cooldown ?? SHIELD_COOLDOWN
-
-    this.fillMat = new THREE.MeshBasicMaterial({
-      color: '#4af', transparent: true, opacity: 0.1,
-      side: THREE.DoubleSide, depthWrite: false,
-    })
-    this.wireMat = new THREE.MeshBasicMaterial({
-      color: '#4af', wireframe: true, transparent: true, opacity: 0.4, depthWrite: false,
-    })
-    const fill = new THREE.Mesh(new THREE.SphereGeometry(0.75, 16, 16), this.fillMat)
-    const wire = new THREE.Mesh(new THREE.SphereGeometry(0.76, 12, 8), this.wireMat)
-    fill.userData.noRaycast = true
-    wire.userData.noRaycast = true
-    this.object3d.add(fill, wire)
+    this.fx = cfg.shieldFx ?? new DomeShieldFx()
+    this.object3d.add(this.fx.object3d)
     this.object3d.visible = false
   }
 
@@ -41,6 +31,9 @@ export class Shield implements IShield {
   }
 
   update(dt: number) {
+    // Видимость, форснутая извне (удалённый игрок из снапшота), — до перезаписи ниже:
+    // скин должен анимироваться и когда щит «включён» не нашей фазой.
+    const externallyVisible = this.object3d.visible
     const ms = dt * 1000
     if (this.phase === 'active') {
       this.timer += ms
@@ -52,11 +45,7 @@ export class Shield implements IShield {
 
     const on = this.phase === 'active'
     this.object3d.visible = on
-    if (on) {
-      const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.007)
-      this.fillMat.opacity = 0.08 + 0.1 * pulse
-      this.wireMat.opacity = 0.3 + 0.3 * pulse
-    }
+    this.fx.update(dt, on || externallyVisible)
   }
 
   get isActive() { return this.phase === 'active' }
@@ -75,8 +64,6 @@ export class Shield implements IShield {
   }
 
   dispose() {
-    this.object3d.children.forEach(c => (c as THREE.Mesh).geometry.dispose())
-    this.fillMat.dispose()
-    this.wireMat.dispose()
+    this.fx.dispose()
   }
 }

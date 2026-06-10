@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { RESPAWN_GHOST_MS } from '../../../constants'
+import { RESPAWN_GHOST_MS, BODY_MESH_Y } from '../../../constants'
+import { AfterimageTrail } from '../AfterimageTrail'
 import type { IRespawnFx, RespawnTarget, RespawnFrame } from './types'
 
 // «Хаос»: помехи. Смерть — разрыв; призрак — дёргающийся мерцающий меш; возрождение — глитч-сборка.
@@ -18,10 +19,12 @@ const REBIRTH_MS = 450           // окно глитч-сборки
 const REBIRTH_STEPS = 4          // ступени прозрачности сборки (REBIRTH_OPACITY_FROM → 1)
 const REBIRTH_OPACITY_FROM = 0.4
 
-/** Стиль «хаос»: цифровые помехи вместо плавного призрака. */
+/** Стиль «хаос»: цифровые помехи вместо плавного призрака.
+ *  След призрака — СОБСТВЕННЫЙ классический AfterimageTrail (каждая стратегия владеет своим). */
 export class ChaosRespawnFx implements IRespawnFx {
-  readonly object3d = new THREE.Group()   // world-части нет
-  readonly ownGhostTrail = false   // след призрака — общий AfterimageTrail
+  readonly object3d = new THREE.Group()
+  private ghostTrail: AfterimageTrail
+  private trailEye = new THREE.Vector3()   // scratch: AfterimageTrail ждёт позицию ГЛАЗ, origin — центр шара
   private jitter = new THREE.Vector3()
   private jitterTimer = 0
   private flickerTimer = 0
@@ -30,13 +33,21 @@ export class ChaosRespawnFx implements IRespawnFx {
   private baseSaved = false
   private dirty = false                    // меш смещён/скрыт — нужно восстановление на выходе
 
-  constructor(_color: string) {}           // цвет не нужен (эффект бесцветный), параметр — для единой фабрики
+  constructor(color: string) {             // цвет — для следа призрака (сам эффект помех бесцветный)
+    this.ghostTrail = new AfterimageTrail(new THREE.Color(color))
+    this.object3d.add(this.ghostTrail.object3d)
+  }
 
   onDeath(_pos: THREE.Vector3): void {
     this.jitterTimer = 0                   // разрыв начинается мгновенно
   }
 
   apply(dt: number, t: RespawnTarget, f: RespawnFrame): void {
+    // Собственный след призрака (трейл сам смещает позицию глаз к центру шара).
+    this.trailEye.copy(f.origin)
+    this.trailEye.y -= BODY_MESH_Y
+    this.ghostTrail.update(dt, { position: this.trailEye, dashing: f.ghost !== null && f.visible })
+
     if (f.ghost !== null) {
       this.saveBase(t)
       this.jitterTimer -= dt * 1000
@@ -94,5 +105,5 @@ export class ChaosRespawnFx implements IRespawnFx {
   }
 
   update(_dt: number): void {}
-  dispose(): void {}
+  dispose(): void { this.ghostTrail.dispose() }
 }

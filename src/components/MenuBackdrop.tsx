@@ -1,8 +1,8 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS } from '../constants'
-import type { BallModel, WindupStyle, RespawnStyle } from '../constants'
+import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
+import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import { PLAYER_SPOT, OPPONENT_SPOT, cameraStateFor } from './menuStage'
 import type { MenuMode, AppearancePart, MenuCameraState, CameraPoses, CameraPose } from './menuStage'
@@ -14,7 +14,8 @@ import { createWindupFx } from '../game/fx/windup/createWindupFx'
 import { BeamWeapon } from '../game/BeamWeapon'
 import { createBeamFx } from '../game/fx/beam/createBeamFx'
 import { createRespawnFx } from '../game/fx/respawn/createRespawnFx'
-import { AfterimageTrail } from '../game/fx/AfterimageTrail'
+import { createDashFx } from '../game/fx/dash/createDashFx'
+import { createShieldFx } from '../game/fx/shield/createShieldFx'
 import type { WeaponContext } from '../game/abstractions'
 import type { World } from '../game/World'
 import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
@@ -49,6 +50,15 @@ const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
 const RESPAWN_CIRCLE_R = 2.6     // радиус пробежки призрака (мировые единицы — «играем за бота»)
 
+// Превью рывка: рывок вбок и обратно («играем за модельку» — санкционированное движение №2);
+// в конце ЖЁСТКИЙ снап на точку (position.copy(spot) каждый кадр, смещение — только в активных фазах).
+const DASH_PREVIEW_MS = DASH_DURATION                          // длительность каждого рывка — игровая
+const DASH_PREVIEW_DIST = DASH_SPEED * DASH_DURATION / 1000    // честная игровая дистанция рывка
+const DASH_PREVIEW_PAUSE_MS = 350                              // пауза между «туда» и «обратно»
+
+// Превью щита: скин включается на время и гаснет (звуки shield_up/shield_down).
+const SHIELD_PREVIEW_MS = 1500
+
 // Полёт камеры (dev, зажатая J): мышь — осмотр, колёсико — вперёд/назад. На отпускание поза пишется в файл.
 const FLY_KEY = 'KeyJ'
 const FLY_LOOK_SENS = 0.0032     // рад на пиксель мыши
@@ -70,7 +80,7 @@ const poses: CameraPoses = JSON.parse(JSON.stringify(rawPoses)) as CameraPoses
 const flying = { current: false }
 
 // ringColor — «второй» цвет (кольцо планеты); *Seq — счётчики кликов (триггеры одноразовых превью).
-interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number }
+interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number; dashStyle?: DashStyle; dashSeq?: number; shieldStyle?: ShieldStyle; shieldSeq?: number }
 interface ActiveBall { key: string; spec: BallSpec; spot: THREE.Vector3 }
 
 /** Свет медленно облетает шары — блик скользит, модели читаются как «живое» 3D. */
@@ -219,7 +229,20 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   // Превью респавна — стратегия по стилю; одноразовый прогон по клику (паттерн как у выстрела).
   const rfx = useMemo(() => (isPreview ? createRespawnFx(spec.respawnStyle ?? 'echo', spec.color) : null),
     [isPreview, spec.respawnStyle, spec.color])
-  useEffect(() => () => rfx?.dispose(), [rfx])
+  // Нейтраль меша на момент создания Body (локальная позиция центра сферы относительно глаз).
+  const meshHome = useMemo(() => body.mesh.position.clone(), [body])
+  useEffect(() => {
+    if (!rfx) return
+    return () => {
+      rfx.dispose()
+      // Свап стратегии мог прервать цикл посреди фаз: ХАОС двигает локальную позицию меша
+      // (джиттер) и восстанавливает её только своим выходным кадром, РОЙ прячет меш. Без
+      // нейтрализации остаточное смещение копится — шар (и купол щита по центру) съезжают.
+      body.mesh.position.copy(meshHome)
+      body.mesh.scale.setScalar(1)
+      body.mesh.visible = true
+    }
+  }, [rfx, body, meshHome])
   const respawnCycle = useRef({ phase: 'idle' as 'ghost' | 'rebirth' | 'idle', elapsed: 0 })
   const lastRespawnSeqRef = useRef(spec.respawnSeq ?? 0)
   useEffect(() => {
@@ -236,10 +259,47 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     }
   }, [rfx, spec.respawnSeq, spec.respawnStyle, sfx, spot])
   const respawnFrameRef = useRef<{ ghost: number | null; sinceRebirthMs: number; baseColor: THREE.Color; origin: THREE.Vector3; visible: boolean } | null>(null)
-  // След призрака (как в матче — AfterimageTrail у Player; рой рисует свой и общий отключает).
-  const trail = useMemo(() => (isPreview ? new AfterimageTrail(new THREE.Color(spec.color)) : null),
-    [isPreview, spec.color])
+  // Стилевой трейл РЫВКА (скин dashStyle); след призрака рисует сама стратегия респавна (rfx).
+  const trail = useMemo(() => (isPreview ? createDashFx(spec.dashStyle ?? 'streak', spec.color) : null),
+    [isPreview, spec.dashStyle, spec.color])
   useEffect(() => () => trail?.dispose(), [trail])
+
+  // Превью рывка: одноразовый прогон по клику — рывок вбок → пауза → рывок обратно (паттерн seq).
+  const dashCycle = useRef({ phase: 'idle' as 'out' | 'pause' | 'back' | 'idle', elapsed: 0 })
+  const lastDashSeqRef = useRef(spec.dashSeq ?? 0)
+  useEffect(() => {
+    if (!trail) { if (spec.dashSeq !== undefined) lastDashSeqRef.current = spec.dashSeq; return }
+    const seq = spec.dashSeq ?? 0
+    if (seq !== 0 && seq !== lastDashSeqRef.current) {
+      lastDashSeqRef.current = seq
+      dashCycle.current = { phase: 'out', elapsed: 0 }
+      sfx?.play2D('dash')   // звук рывка — на старте каждого рывка (второй — на «обратно»)
+    } else {
+      dashCycle.current = { phase: 'idle', elapsed: 0 }
+    }
+  }, [trail, spec.dashSeq, spec.dashStyle, sfx])
+
+  // Превью щита: скин по стилю, включение на SHIELD_PREVIEW_MS по клику (паттерн seq).
+  const shieldFx = useMemo(() => {
+    if (!isPreview) return null
+    const f = createShieldFx(spec.shieldStyle ?? 'dome')
+    f.object3d.visible = false
+    return f
+  }, [isPreview, spec.shieldStyle])
+  useEffect(() => () => shieldFx?.dispose(), [shieldFx])
+  const shieldCycle = useRef({ active: false, elapsed: 0 })
+  const lastShieldSeqRef = useRef(spec.shieldSeq ?? 0)
+  useEffect(() => {
+    if (!shieldFx) { if (spec.shieldSeq !== undefined) lastShieldSeqRef.current = spec.shieldSeq; return }
+    const seq = spec.shieldSeq ?? 0
+    if (seq !== 0 && seq !== lastShieldSeqRef.current) {
+      lastShieldSeqRef.current = seq
+      shieldCycle.current = { active: true, elapsed: 0 }
+      sfx?.play2D('shield_up')
+    } else {
+      shieldCycle.current = { active: false, elapsed: 0 }
+    }
+  }, [shieldFx, spec.shieldSeq, spec.shieldStyle, sfx])
 
   const dampedColorRef = useRef<THREE.Color | null>(null)
   const aimDirRef = useRef<THREE.Vector3 | null>(null)
@@ -292,12 +352,56 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       body.faceDir(_tangent)
       ghostRun = true
     }
-    if (!ghostRun) {
+
+    // Превью рывка: смещение вдоль +X в активных фазах; idle → шар уже снапнут copy(spot) выше.
+    // Пробежка призрака приоритетна (part = последний клик, но защищаемся от наложения циклов).
+    const dc = dashCycle.current
+    let dashMove = false
+    if (!ghostRun && dc.phase !== 'idle') {
+      dc.elapsed += dt * 1000
+      if (dc.phase === 'out' && dc.elapsed >= DASH_PREVIEW_MS) { dc.phase = 'pause'; dc.elapsed = 0 }
+      else if (dc.phase === 'pause' && dc.elapsed >= DASH_PREVIEW_PAUSE_MS) {
+        dc.phase = 'back'; dc.elapsed = 0
+        sfx?.play2D('dash')
+      }
+      else if (dc.phase === 'back' && dc.elapsed >= DASH_PREVIEW_MS) { dc.phase = 'idle'; dc.elapsed = 0 }
+      let off = 0
+      if (dc.phase === 'out') off = DASH_SPEED * dc.elapsed / 1000
+      else if (dc.phase === 'pause') off = DASH_PREVIEW_DIST
+      else if (dc.phase === 'back') off = DASH_PREVIEW_DIST - DASH_SPEED * dc.elapsed / 1000
+      body.object3d.position.x += Math.max(0, Math.min(off, DASH_PREVIEW_DIST))
+      if (dc.phase === 'out' || dc.phase === 'back') {
+        _tangent.set(dc.phase === 'out' ? 1 : -1, 0, 0)   // «мордой» по направлению рывка
+        body.faceDir(_tangent)
+        dashMove = true
+      }
+    }
+
+    if (!ghostRun && !dashMove) {
       aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
       if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
       body.faceDir(aimDir)
     }
     _meshCenter.copy(body.object3d.position).y += BODY_MESH_Y   // центр сферы (мир)
+
+    // Превью щита: скин едет с шаром (центр меша), анимируется как активный, гаснет по таймеру.
+    if (shieldFx) {
+      const sc = shieldCycle.current
+      if (sc.active) {
+        sc.elapsed += dt * 1000
+        if (sc.elapsed >= SHIELD_PREVIEW_MS) {
+          sc.active = false
+          shieldFx.object3d.visible = false
+          sfx?.play2D('shield_down')
+        } else {
+          shieldFx.object3d.visible = true
+          shieldFx.object3d.position.copy(_meshCenter)
+          shieldFx.update(dt, true)
+        }
+      } else {
+        shieldFx.object3d.visible = false
+      }
+    }
 
     // Одноразовое превью заряда по клику: charge → fire → idle.
     if (fx) {
@@ -348,9 +452,10 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         setOpacity: (o: number) => body.setOpacity(o),
       }, rf)
       rfx.update(dt)
-      // След призрака — как в матче: позиция ГЛАЗ (Body.position эквивалент — позиция сущности).
-      trail?.update(dt, { position: body.object3d.position, dashing: rc.phase === 'ghost' && !rfx.ownGhostTrail })
     }
+
+    // Как в матче: стилевой трейл — только рывок; след призрака рисует rfx внутри apply.
+    trail?.update(dt, { position: body.object3d.position, dashing: dashMove })
   })
 
   return (
@@ -360,6 +465,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       {beam && <primitive object={beam.object3d} />}
       {rfx && <primitive object={rfx.object3d} />}
       {trail && <primitive object={trail.object3d} />}
+      {shieldFx && <primitive object={shieldFx.object3d} />}
     </group>
   )
 }
@@ -389,7 +495,7 @@ type RenderedBall = ActiveBall & { exiting?: boolean }
 
 /** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
 function signOf(balls: ActiveBall[]): string {
-  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}`).join('|')
+  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}`).join('|')
 }
 
 function Scene({ mode, player, lobby, appearancePart = 'color', onReady, sfx }: { mode: MenuMode; player: BallSpec; lobby: LobbyView | null; appearancePart?: AppearancePart; onReady?: () => void; sfx?: ISfxEngine }) {

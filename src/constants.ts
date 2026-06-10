@@ -59,6 +59,12 @@ export type WindupStyle = typeof WINDUP_STYLES[number]
 export const RESPAWN_STYLES = ['echo', 'chaos', 'swarm'] as const
 export type RespawnStyle = typeof RESPAWN_STYLES[number]
 
+// Скины следа рывка и щита (выбор во «Внешности», сетевая косметика — видны сопернику).
+export const DASH_STYLES = ['streak', 'wave', 'rift'] as const
+export type DashStyle = typeof DASH_STYLES[number]
+export const SHIELD_STYLES = ['dome', 'hex', 'crystal'] as const
+export type ShieldStyle = typeof SHIELD_STYLES[number]
+
 // Волны — деформация вершин (вдоль нормали) в шейдере:
 export const BALL_WAVE_COUNT = 10     // число волн по высоте сферы
 export const BALL_WAVE_AMP   = 0.03   // амплитуда волн

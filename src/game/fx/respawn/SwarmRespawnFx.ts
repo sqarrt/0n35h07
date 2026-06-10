@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { IRespawnFx, RespawnTarget, RespawnFrame } from './types'
 
 // «Рой»: шар рассыпается на осколки; призрак — рой кружит вокруг игрока; возрождение — слетается.
-const FRAGMENTS = 30
+const FRAGMENTS = 60
 const FRAG_SIZE = 0.09             // размер осколка (тетраэдр)
 const SCATTER_MS = 350             // разлёт после смерти, потом орбиты
 const SCATTER_SPEED = 5            // начальная скорость разлёта
@@ -30,7 +30,7 @@ const TWO_PI = Math.PI * 2
 /** Стиль «рой»: вместо полупрозрачного призрака — кружащие осколки цвета игрока. */
 export class SwarmRespawnFx implements IRespawnFx {
   readonly object3d = new THREE.Group()
-  readonly ownGhostTrail = true   // след рисуют сами осколки (шар-след выглядел бы чужеродно — шар скрыт)
+  // След призрака рисуют сами осколки (шар-след выглядел бы чужеродно — шар скрыт).
   private frags: THREE.Mesh[] = []
   private mat: THREE.MeshBasicMaterial
   private geo: THREE.TetrahedronGeometry
