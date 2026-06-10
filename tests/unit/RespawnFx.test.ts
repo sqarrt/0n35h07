@@ -101,3 +101,48 @@ describe('ChaosRespawnFx', () => {
     expect(() => fx.dispose()).not.toThrow()
   })
 })
+
+import { SwarmRespawnFx } from '../../src/game/fx/respawn/SwarmRespawnFx'
+
+describe('SwarmRespawnFx', () => {
+  it('призрак: шар скрыт, рой видим и следует за origin', () => {
+    const fx = new SwarmRespawnFx('#4af')
+    const { target, mesh } = makeTarget()
+    fx.onDeath(new THREE.Vector3(0, 1, 0))
+    fx.apply(0.016, target, makeFrame({ ghost: 0.8, origin: new THREE.Vector3(0, 1, 0) }))
+    expect(mesh.visible).toBe(false)
+    expect(fx.object3d.visible).toBe(true)
+    // Рой следует за игроком: сместить origin → центр масс осколков смещается следом.
+    const centroid = () => {
+      const c = new THREE.Vector3(); let n = 0
+      fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh) { c.add(o.getWorldPosition(new THREE.Vector3())); n++ } })
+      return c.divideScalar(n)
+    }
+    for (let i = 0; i < 30; i++) fx.apply(0.016, target, makeFrame({ ghost: 0.5, origin: new THREE.Vector3(0, 1, 0) }))
+    const before = centroid()
+    for (let i = 0; i < 60; i++) fx.apply(0.016, target, makeFrame({ ghost: 0.3, origin: new THREE.Vector3(6, 1, 0) }))
+    const after = centroid()
+    expect(after.x - before.x).toBeGreaterThan(2)               // рой переехал за origin
+  })
+
+  it('возрождение: к концу окна шар видим, рой скрыт', () => {
+    const fx = new SwarmRespawnFx('#4af')
+    const { target, mesh } = makeTarget()
+    fx.onDeath(new THREE.Vector3())
+    fx.apply(0.016, target, makeFrame({ ghost: 0.1 }))
+    for (let i = 0; i <= 40; i++) fx.apply(0.016, target, makeFrame({ sinceRebirthMs: i * 16 }))
+    fx.apply(0.016, target, makeFrame())                        // первый кадр вне фаз
+    expect(mesh.visible).toBe(true)
+    expect(fx.object3d.visible).toBe(false)
+  })
+
+  it('FP (visible=false): рой скрыт даже в призраке; осколки noRaycast; dispose ок', () => {
+    const fx = new SwarmRespawnFx('#4af')
+    const { target } = makeTarget()
+    fx.onDeath(new THREE.Vector3())
+    fx.apply(0.016, target, makeFrame({ ghost: 0.5, visible: false }))
+    expect(fx.object3d.visible).toBe(false)
+    fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh) expect(o.userData.noRaycast).toBe(true) })
+    expect(() => fx.dispose()).not.toThrow()
+  })
+})
