@@ -29,6 +29,8 @@ export interface RespawnFrame {
  */
 export interface IRespawnFx {
   readonly object3d: THREE.Object3D     // world-часть (осколки/частицы) — живёт в match.root
+  /** true — стратегия рисует СВОЙ след призрака (общий шар-след AfterimageTrail отключается). */
+  readonly ownGhostTrail: boolean
   onDeath(pos: THREE.Vector3): void     // момент смерти (хлопок/разрыв/рассыпание)
   apply(dt: number, target: RespawnTarget, f: RespawnFrame): void
   /** Окно возрождения ещё активно? (Player прячет щит на это время — как прежний «пуф».) */

@@ -180,7 +180,8 @@ export class Player implements IControllable {
     this.weapon.update(dt, { world, muzzle, aim, excludeIds })
     this.shield.update(dt)
     this.syncVisuals(dt)
-    this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing || this.respawning })
+    // След призрака — общий, если стратегия не рисует свой (рой рисует осколочный).
+    this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing || (this.respawning && !this.respawnFx.ownGhostTrail) })
     this.respawnFx.update(dt)
     this.body.tickShader(dt)
   }
@@ -342,7 +343,7 @@ export class Player implements IControllable {
     // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
     this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
-    this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || this.respawning })
+    this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || (this.respawning && !this.respawnFx.ownGhostTrail) })
     this.respawnFx.update(dt)
     this.body.tickShader(dt)
     this.applyRemoteVisual(dt)

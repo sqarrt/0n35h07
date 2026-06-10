@@ -241,6 +241,7 @@ import type { IRespawnFx, RespawnTarget, RespawnFrame } from '../../src/game/fx/
 /** Фейковая стратегия респавна: пишет события и последний кадр. */
 class FakeRespawnFx implements IRespawnFx {
   object3d = new THREE.Group()
+  ownGhostTrail = false
   deaths: THREE.Vector3[] = []
   lastFrame: RespawnFrame | null = null
   onDeath(p: THREE.Vector3) { this.deaths.push(p.clone()) }

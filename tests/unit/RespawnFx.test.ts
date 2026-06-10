@@ -156,3 +156,21 @@ describe('createRespawnFx', () => {
     expect(createRespawnFx('swarm', '#4af')).toBeInstanceOf(SwarmRespawnFx)
   })
 })
+
+describe('след призрака по стилям', () => {
+  it('флаги: echo/chaos — общий шар-след, swarm — собственный (осколочный)', () => {
+    expect(new EchoRespawnFx('#4af').ownGhostTrail).toBe(false)
+    expect(new ChaosRespawnFx('#4af').ownGhostTrail).toBe(false)
+    expect(new SwarmRespawnFx('#4af').ownGhostTrail).toBe(true)
+  })
+
+  it('swarm: в призраке появляются клоны следа (видимых мешей больше, чем 30 осколков)', () => {
+    const fx = new SwarmRespawnFx('#4af')
+    const { target } = makeTarget()
+    fx.onDeath(new THREE.Vector3())
+    for (let i = 0; i < 20; i++) { fx.apply(0.016, target, makeFrame({ ghost: 0.5 })); fx.update(0.016) }
+    let visible = 0
+    fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) visible++ })
+    expect(visible).toBeGreaterThan(30)
+  })
+})

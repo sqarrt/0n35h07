@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS } from '../constants'
+import { BALL_RADIUS, BALL_SEGMENTS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS } from '../constants'
 import type { BallModel, WindupStyle, RespawnStyle } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import { resolveTarget, offscreenX, MENU_CAMERA_POS } from './menuBallTargets'
@@ -37,6 +37,7 @@ const PREVIEW_BEAM_CTX: WeaponContext = {
   muzzle: new THREE.Vector3(), aim: new THREE.Vector3(0, 0, -1), excludeIds: [],
 }
 const _beamEnd = new THREE.Vector3()         // scratch конца луча (без аллокаций в кадре)
+const _trailEye = new THREE.Vector3()        // scratch «позиции глаз» для следа (trail сам смещает на BODY_MESH_Y)
 
 // Подвкладка ВЫСТРЕЛ: шар справа сверху, прицел фиксированный — по диагонали вниз-влево
 // (чуть на зрителя, чтобы пасть читалась в три четверти); луч уходит через свободную зону экрана.
@@ -255,8 +256,12 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
         setOpacity: (o: number) => { material.opacity = o; ring?.setOpacity(o) },
       }, rf)
       rfx.update(dt)
-      // След призрака — как в матче: активен во время фазы ghost, позиция — локальная точка шара.
-      trail?.update(dt, { position: ride.position, dashing: rc.phase === 'ghost' })
+      // След призрака — как в матче: AfterimageTrail ждёт позицию ГЛАЗ (сам смещает вниз на BODY_MESH_Y),
+      // поэтому отдаём центр шара, поднятый на -BODY_MESH_Y. Рой рисует свой след — общий отключён.
+      _trailEye.copy(ride.position).y -= BODY_MESH_Y
+      trail?.update(dt, { position: _trailEye, dashing: rc.phase === 'ghost' && !rfx.ownGhostTrail })
+    } else if (rideRef.current) {
+      rideRef.current.position.set(0, 0, 0)   // вне превью (уход с экрана посреди цикла) — проезд сброшен
     }
   })
 

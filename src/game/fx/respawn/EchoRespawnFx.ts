@@ -7,6 +7,7 @@ import type { IRespawnFx, RespawnTarget, RespawnFrame } from './types'
  *  Поведение перенесено из Player (DeathBurst + GHOST_OPACITY + lifecycleVisual) бит-в-бит. */
 export class EchoRespawnFx implements IRespawnFx {
   readonly object3d: THREE.Object3D
+  readonly ownGhostTrail = false   // след призрака — общий AfterimageTrail
   private burst: DeathBurst
 
   constructor(color: string) {
