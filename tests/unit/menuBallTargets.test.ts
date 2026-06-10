@@ -35,3 +35,12 @@ describe('offscreenX', () => {
     expect(offscreenX('settings-left', vp)).toBe(-vp.width)
   })
 })
+
+describe('respawn-far', () => {
+  it('глубже shot-right, масштаб превью', () => {
+    const s = resolveTarget('shot-right', vp)
+    const t = resolveTarget('respawn-far', vp)
+    expect(t.z).toBeLessThan(s.z)
+    expect(t.scale).toBe(s.scale)
+  })
+})

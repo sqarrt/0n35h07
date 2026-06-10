@@ -1,10 +1,10 @@
 import { BALL_RADIUS } from '../constants'
 
-/** Подвкладка экрана «Внешность» — определяет позицию шара-превью. */
-export type AppearancePart = 'color' | 'model' | 'shot'
+/** Последний кликнутый блок экрана «Внешность» — определяет позицию шара-превью. */
+export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn'
 
 /** Позиции шара на фоне меню-экранов. */
-export type Pos = 'center' | 'left-edge' | 'right-edge' | 'settings-left' | 'shot-right'
+export type Pos = 'center' | 'left-edge' | 'right-edge' | 'settings-left' | 'shot-right' | 'respawn-far'
 
 export interface Viewport { width: number; height: number }
 export interface BallTarget { x: number; y: number; z: number; scale: number }
@@ -19,6 +19,10 @@ const SHOT_X_FRACTION = -0.18      // левее центра — пасть и 
 const SHOT_Y_FRACTION = -0.03      // чуть ниже центра — раскрытая пасть сверху не вылезает за кадр
 const SHOT_Z_OFFSET = -5.5         // вглубь от камеры, чтобы пасть и луч влезали целиком
 const SHOT_SCALE_FACTOR = 1 / 1.5  // шар на ВЫСТРЕЛЕ мельче превью цвета/модели — место под пасть и луч
+// Превью респавна: шар ещё глубже и с запасом от краёв — во время цикла он едет по кругу.
+const RESPAWN_X_FRACTION = -0.10
+const RESPAWN_Y_FRACTION = -0.02
+const RESPAWN_Z_OFFSET = -7.5
 
 /** Масштаб шара-превью на экране внешности (влезает целиком сбоку от панели). */
 function previewScale(vp: Viewport): number {
@@ -34,6 +38,7 @@ export function resolveTarget(pos: Pos, vp: Viewport): BallTarget {
     case 'right-edge':    return { x: vp.width / 2, y: 0, z: 0, scale: big }
     case 'settings-left': return { x: -vp.width * SETTINGS_X_FRACTION, y: 0, z: 0, scale: previewScale(vp) }
     case 'shot-right':    return { x: vp.width * SHOT_X_FRACTION, y: vp.height * SHOT_Y_FRACTION, z: SHOT_Z_OFFSET, scale: previewScale(vp) * SHOT_SCALE_FACTOR }
+    case 'respawn-far':   return { x: vp.width * RESPAWN_X_FRACTION, y: vp.height * RESPAWN_Y_FRACTION, z: RESPAWN_Z_OFFSET, scale: previewScale(vp) * SHOT_SCALE_FACTOR }
   }
 }
 

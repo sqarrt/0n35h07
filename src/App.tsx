@@ -37,7 +37,7 @@ import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
-import type { BotDifficulty, BallModel, WindupStyle } from './constants'
+import type { BotDifficulty, BallModel, WindupStyle, RespawnStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -102,13 +102,14 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, part: 'color' }))
-  // windupSeq сохраняем из прежнего стейта: счётчиком кликов превью владеет App (монотонный,
-  // переживает перемонтирование экрана «Внешность» — иначе призрачный запуск при повторном заходе).
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, part })), [])
+  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, part: 'color' }))
+  // Счётчики кликов превью (windupSeq/respawnSeq) сохраняются из прежнего стейта: ими владеет App
+  // (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, respawnStyle, part })), [])
   // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
   // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
   const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
+  const handleRespawnPreview = useCallback((respawnStyle: RespawnStyle) => setAppearancePreview(p => ({ ...p, respawnStyle, respawnSeq: p.respawnSeq + 1 })), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -346,8 +347,8 @@ export default function App() {
     ? appearancePreview
     // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
     : screen === 'join'
-      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle }
-      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }
+      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
+      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
 
   // Подложка едет вправо на экране «Внешности» (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
@@ -382,7 +383,7 @@ export default function App() {
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
             )}
             {screen === 'appearance' && (
-              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onBack={() => setScreen('menu')} />
+              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onBack={() => setScreen('menu')} />
             )}
             {screen === 'lobby' && lobbyView && (
               <Lobby
