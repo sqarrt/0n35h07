@@ -13,19 +13,11 @@ describe('resolveTarget', () => {
     expect(resolveTarget('right-edge', vp).z).toBe(0)
   })
 
-  it('settings-left: слева, z=0', () => {
+  it('settings-left: слева, z=0 (сценическая позиция «Внешности» — ракурс задаёт камера)', () => {
     const t = resolveTarget('settings-left', vp)
     expect(t.x).toBeLessThan(0)
     expect(t.z).toBe(0)
     expect(t.scale).toBeGreaterThan(0)
-  })
-
-  it('shot-right: отодвинут от камеры (z<0), масштаб как у settings-left', () => {
-    const s = resolveTarget('settings-left', vp)
-    const t = resolveTarget('shot-right', vp)
-    expect(t.z).toBeLessThan(0)         // вглубь сцены — ключевой инвариант позиции
-    expect(t.scale).toBeGreaterThan(0)  // мельче превью цвета/модели; x/y — тюнинговые, не фиксируем
-    expect(t.scale).toBeLessThan(s.scale)
   })
 })
 
@@ -33,14 +25,5 @@ describe('offscreenX', () => {
   it('right-edge стартует справа за кадром, остальные — слева', () => {
     expect(offscreenX('right-edge', vp)).toBe(vp.width)
     expect(offscreenX('settings-left', vp)).toBe(-vp.width)
-  })
-})
-
-describe('respawn-far', () => {
-  it('глубже shot-right, масштаб превью', () => {
-    const s = resolveTarget('shot-right', vp)
-    const t = resolveTarget('respawn-far', vp)
-    expect(t.z).toBeLessThan(s.z)
-    expect(t.scale).toBe(s.scale)
   })
 })
