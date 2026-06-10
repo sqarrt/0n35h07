@@ -20,12 +20,12 @@ describe('resolveTarget', () => {
     expect(t.scale).toBeGreaterThan(0)
   })
 
-  it('shot-left: тот же x/scale, что settings-left, но отодвинут от камеры (z<0)', () => {
+  it('shot-right: отодвинут от камеры (z<0), масштаб как у settings-left', () => {
     const s = resolveTarget('settings-left', vp)
-    const t = resolveTarget('shot-left', vp)
-    expect(t.x).toBe(s.x)
-    expect(t.scale).toBe(s.scale)
-    expect(t.z).toBeLessThan(0)
+    const t = resolveTarget('shot-right', vp)
+    expect(t.z).toBeLessThan(0)         // вглубь сцены — ключевой инвариант позиции
+    expect(t.scale).toBeGreaterThan(0)  // мельче превью цвета/модели; x/y — тюнинговые, не фиксируем
+    expect(t.scale).toBeLessThan(s.scale)
   })
 })
 

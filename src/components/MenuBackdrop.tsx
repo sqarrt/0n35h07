@@ -10,6 +10,9 @@ import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 import { MenuEdgeGlow, MENU_GLOW_LAYER } from './MenuEdgeGlow'
 import { createWindupFx } from '../game/fx/windup/createWindupFx'
+import { BeamWeapon } from '../game/BeamWeapon'
+import type { WeaponContext } from '../game/abstractions'
+import type { World } from '../game/World'
 import { windupSfxEvent } from '../game/audio/sfx/windupSfx'
 import type { ISfxEngine } from '../game/audio/sfx/types'
 
@@ -24,11 +27,17 @@ const GLOW_MOUNT_DELAY_MS = 600 // отложенный монтаж glow-ком
 const PREVIEW_CHARGE_MS = BEAM_WINDUP        // зарядка — как у игрока
 const PREVIEW_FIRE_MS = WINDUP_SHRINK_MS     // «сдувание» после выстрела
 const PREVIEW_ORIGIN = new THREE.Vector3(0, 0, 0)   // центр шара в локальной системе группы
+const PREVIEW_BEAM_LEN = BALL_RADIUS * 16    // длина луча выстрела превью (в локальных единицах группы)
+// Косметический контекст для BeamWeapon превью: фаза оружия всегда idle → fire()/raycast не вызываются.
+const PREVIEW_BEAM_CTX: WeaponContext = {
+  world: { raycast: () => null } as unknown as World,
+  muzzle: new THREE.Vector3(), aim: new THREE.Vector3(0, 0, -1), excludeIds: [],
+}
+const _beamEnd = new THREE.Vector3()         // scratch конца луча (без аллокаций в кадре)
 
-// Подвкладка ВЫСТРЕЛ: прицел повёрнут от «в лоб камере» вокруг Y. Отрицательный знак — влево
-// по отношению к зрителю (челюсти/вихрь уходят к левому краю экрана, видны в три четверти).
-const SHOT_AIM_YAW_RAD = -0.7   // ≈ −40°
-const Y_AXIS = new THREE.Vector3(0, 1, 0)
+// Подвкладка ВЫСТРЕЛ: шар справа сверху, прицел фиксированный — по диагонали вниз-влево
+// (чуть на зрителя, чтобы пасть читалась в три четверти); луч уходит через свободную зону экрана.
+const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings' | 'appearance'
 interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number }   // ringColor — «второй» цвет (для кольца планеты); windupSeq — счётчик кликов (триггер одноразового превью)
@@ -73,10 +82,14 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
 
   // Превью анимации заряда — на экране внешности. fx живёт в масштабируемой группе шара →
   // origin/aimDir в ЛОКАЛЬНЫХ координатах группы (см. контракт WindupFrame).
-  const isPreviewPos = pos === 'settings-left' || pos === 'shot-left'
+  const isPreviewPos = pos === 'settings-left' || pos === 'shot-right'
   const fx = useMemo(() => (isPreviewPos && spec.windupStyle ? createWindupFx(spec.windupStyle) : null),
     [isPreviewPos, spec.windupStyle])
   useEffect(() => () => fx?.dispose(), [fx])
+  // Луч выстрела превью — тот же BeamWeapon, что в матче (косметический playBeam; цвет луча = цвет игрока).
+  const beam = useMemo(() => (isPreviewPos ? new BeamWeapon({ outerColor: spec.color }) : null),
+    [isPreviewPos, spec.color])
+  useEffect(() => () => beam?.dispose(), [beam])
   const cycle = useRef({ phase: 'idle' as 'charge' | 'fire' | 'idle', elapsed: 0 })
   const lastSeqRef = useRef(0)   // последний отработанный клик (вход в настройки превью не запускает)
   // Триггер по клику на стиль: одноразовый прогон charge → fire → idle; звук — один раз на старте заряда.
@@ -100,7 +113,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
 
   const targetColor = useMemo(() => new THREE.Color(spec.color), [spec.color])
   const targetRingColor = useMemo(() => new THREE.Color(spec.ringColor ?? spec.color), [spec.ringColor, spec.color])
-  const cur = useRef<{ x: number; z: number; scale: number; opacity: number } | null>(null)
+  const cur = useRef<{ x: number; y: number; z: number; scale: number; opacity: number } | null>(null)
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
@@ -113,7 +126,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     const dampedColor = dampedColorRef.current
     const aimDir = aimDirRef.current
     if (!cur.current) {
-      cur.current = { x: slideIn ? offscreenX(pos, viewport) : t.x, z: t.z, scale: t.scale, opacity: 0 }
+      cur.current = { x: slideIn ? offscreenX(pos, viewport) : t.x, y: t.y, z: t.z, scale: t.scale, opacity: 0 }
     }
     // Прогрев: держим шар невидимым, пока компилируются шейдеры/постпроцесс-композер (фриз прячется за
     // opacity 0). Позиционируем и крутим время, но фейд НЕ запускаем — появление выйдет чистым, без рывка.
@@ -126,7 +139,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
       ring?.setColor(targetRingColor)
       tick(dt); ring?.tick(dt)
       const g0 = groupRef.current
-      if (g0) { g0.position.x = c0.x; g0.position.z = c0.z; g0.scale.setScalar(c0.scale) }
+      if (g0) { g0.position.x = c0.x; g0.position.y = c0.y; g0.position.z = c0.z; g0.scale.setScalar(c0.scale) }
       return
     }
     const k = 1 - Math.exp(-dt / DAMP_TAU)
@@ -135,6 +148,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     const c = cur.current
     c.x += (targetX - c.x) * k
     c.scale += (t.scale - c.scale) * k
+    c.y += (t.y - c.y) * k
     c.z += (t.z - c.z) * k
     c.opacity += (targetOpacity - c.opacity) * kf
     dampedColor.lerp(targetColor, kc)
@@ -144,7 +158,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     ring?.lerpColor(targetRingColor, kc)   // кольцо плавно тянется к «второму» цвету (реактивно)
     tick(dt); ring?.tick(dt)
     const g = groupRef.current
-    if (g) { g.position.x = c.x; g.position.z = c.z; g.scale.setScalar(c.scale) }
+    if (g) { g.position.x = c.x; g.position.y = c.y; g.position.z = c.z; g.scale.setScalar(c.scale) }
 
     // Одноразовое превью заряда по клику: charge → fire → idle (цикл не перезапускается).
     // Звук воспроизводится один раз в useEffect (не здесь). В idle — нейтральный кадр (progress 0, shrink 1).
@@ -154,16 +168,22 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
         frameRef.current = { progress: 0, shrink: 1, baseColor: dampedColor, aimDir, origin: PREVIEW_ORIGIN, visible: true }
       }
       const cy = cycle.current
+      aimDir.copy(camera.position).sub(g.position).normalize()   // базово — «лицом» к зрителю
+      if (pos === 'shot-right') aimDir.copy(SHOT_AIM_DIR)   // ВЫСТРЕЛ: фиксированная диагональ вниз-влево
       cy.elapsed += dt * 1000
-      if (cy.phase === 'charge' && cy.elapsed >= PREVIEW_CHARGE_MS) { cy.phase = 'fire'; cy.elapsed = 0 }
+      if (cy.phase === 'charge' && cy.elapsed >= PREVIEW_CHARGE_MS) {
+        cy.phase = 'fire'; cy.elapsed = 0
+        // Момент выстрела: луч из центра шара по прицелу (визуализация BeamWeapon — как в матче).
+        _beamEnd.copy(aimDir).multiplyScalar(PREVIEW_BEAM_LEN)
+        beam?.playBeam(PREVIEW_ORIGIN, _beamEnd)
+      }
       else if (cy.phase === 'fire' && cy.elapsed >= PREVIEW_FIRE_MS) { cy.phase = 'idle'; cy.elapsed = 0 }
       // idle остаётся idle — не перезапускается
       const f = frameRef.current
       f.progress = cy.phase === 'charge' ? Math.min(cy.elapsed / PREVIEW_CHARGE_MS, 1) : 0
       f.shrink = cy.phase === 'fire' ? Math.min(cy.elapsed / PREVIEW_FIRE_MS, 1) : 1
-      aimDir.copy(camera.position).sub(g.position).normalize()   // базово — «лицом» к зрителю
-      if (pos === 'shot-left') aimDir.applyAxisAngle(Y_AXIS, SHOT_AIM_YAW_RAD)   // ВЫСТРЕЛ: в три четверти, не в лоб
       fx.apply(dt, { mesh: meshRef.current, material }, f)
+      beam?.update(dt, PREVIEW_BEAM_CTX)   // фаза оружия idle → только рендер луча/афтерглоу
     }
   })
 
@@ -175,6 +195,7 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
         {ring && <primitive object={ring.mesh} />}
       </mesh>
       {fx && <primitive object={fx.object3d} />}
+      {beam && <primitive object={beam.object3d} />}
     </group>
   )
 }
@@ -184,7 +205,7 @@ const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec 
 /** Какие шары активны и куда едут — по текущему режиму/состоянию лобби. Ключ `player` стабилен между экранами. */
 function computeBalls(mode: MenuMode, player: BallSpec, lobby: LobbyView | null, appearancePart: AppearancePart): ActiveBall[] {
   if (mode === 'appearance') {
-    return [{ key: 'player', spec: player, pos: appearancePart === 'shot' ? 'shot-left' : 'settings-left', slideIn: false }]
+    return [{ key: 'player', spec: player, pos: appearancePart === 'shot' ? 'shot-right' : 'settings-left', slideIn: false }]
   }
   // Дефолт: шар в центре (и при нелобби, и при 'settings' — косметика переехала на экран внешности)
   if (mode !== 'lobby' || !lobby) return [{ key: 'player', spec: player, pos: 'center', slideIn: false }]
