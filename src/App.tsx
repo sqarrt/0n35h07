@@ -52,7 +52,7 @@ import { DEFAULT_MAP_ID } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings' | 'appearance'
 
-const APPEARANCE_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо на экране внешности
+const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
 // и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
 const TRYSTERO_WARM_DELAY_MS = 250
@@ -361,10 +361,21 @@ export default function App() {
       ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
       : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
 
-  // Подложка едет вправо на экране «Внешности» (освобождая слева место под модель) — демпфированно, в одном
-  // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
-  const panelSlide = screen === 'appearance' ? Math.round(window.innerWidth * APPEARANCE_PANEL_SHIFT_FRAC) : 0
+  // На «Внешности» панель прибита почти к правому краю (небольшой отступ) — всё остальное пространство
+  // отдано шару-превью. Сдвиг считается из ИЗМЕРЕННОЙ ширины панели и пересчитывается ТОЛЬКО при смене
+  // экрана/ресайзе (никакие ре-рендеры превью не двигают панель). Переезд — демпфер (MENU_ANIM_TAU).
+  const [panelSlide, setPanelSlide] = useState(0)
   const panelRef = useDampedTranslateX(panelSlide)
+  useEffect(() => {
+    const compute = () => {
+      if (screen !== 'appearance') { setPanelSlide(0); return }
+      const w = panelRef.current?.offsetWidth ?? 0
+      setPanelSlide(Math.max(0, Math.round((window.innerWidth - w) / 2 - APPEARANCE_PANEL_MARGIN_PX)))
+    }
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [screen, panelRef])
 
   // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
   // последний mapId фиксируем, чтобы при выходе (lobbyView уже null) фон не мигнул на дефолтную карту.
