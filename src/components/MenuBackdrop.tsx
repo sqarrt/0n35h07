@@ -229,7 +229,20 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   // Превью респавна — стратегия по стилю; одноразовый прогон по клику (паттерн как у выстрела).
   const rfx = useMemo(() => (isPreview ? createRespawnFx(spec.respawnStyle ?? 'echo', spec.color) : null),
     [isPreview, spec.respawnStyle, spec.color])
-  useEffect(() => () => rfx?.dispose(), [rfx])
+  // Нейтраль меша на момент создания Body (локальная позиция центра сферы относительно глаз).
+  const meshHome = useMemo(() => body.mesh.position.clone(), [body])
+  useEffect(() => {
+    if (!rfx) return
+    return () => {
+      rfx.dispose()
+      // Свап стратегии мог прервать цикл посреди фаз: ХАОС двигает локальную позицию меша
+      // (джиттер) и восстанавливает её только своим выходным кадром, РОЙ прячет меш. Без
+      // нейтрализации остаточное смещение копится — шар (и купол щита по центру) съезжают.
+      body.mesh.position.copy(meshHome)
+      body.mesh.scale.setScalar(1)
+      body.mesh.visible = true
+    }
+  }, [rfx, body, meshHome])
   const respawnCycle = useRef({ phase: 'idle' as 'ghost' | 'rebirth' | 'idle', elapsed: 0 })
   const lastRespawnSeqRef = useRef(spec.respawnSeq ?? 0)
   useEffect(() => {
