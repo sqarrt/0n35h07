@@ -35,7 +35,7 @@ import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
-import type { BotDifficulty, BallModel } from './constants'
+import type { BotDifficulty, BallModel, WindupStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -100,8 +100,8 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }))
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string) => setSettingsPreview({ color, model, ringColor }), [])
+  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }))
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle) => setSettingsPreview({ color, model, ringColor, windupStyle }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -338,8 +338,8 @@ export default function App() {
     ? settingsPreview
     // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
     : screen === 'join'
-      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor }
-      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor }
+      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle }
+      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }
 
   // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.

@@ -38,6 +38,14 @@ test('настройки — модель сферы переключается 
   expect(model).toBe('waves')   // персист в профиль
 })
 
+test('настройки — анимация выстрела переключается и сохраняется', async ({ page }) => {
+  await page.getByText('НАСТРОЙКИ').click()
+  await expect(page.getByText('АНИМАЦИЯ ВЫСТРЕЛА')).toBeVisible()
+  await page.getByRole('button', { name: 'ЯРОСТЬ' }).click()
+  const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').windupStyle)
+  expect(style).toBe('rage')   // персист в профиль
+})
+
 test('настройки — раздел ЗВУК: 4 ползунка, изменение сохраняется', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   await page.getByRole('button', { name: 'ЗВУК' }).click()

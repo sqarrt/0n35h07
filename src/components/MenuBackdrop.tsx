@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Color } from 'three'
 import type { Group } from 'three'
 import { BALL_RADIUS, BALL_SEGMENTS, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU } from '../constants'
-import type { BallModel } from '../constants'
+import type { BallModel, WindupStyle } from '../constants'
 import type { LobbyView } from '../net/LobbySession'
 import { createBallMaterial, createBallRing } from '../game/fx/ballMaterial'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
@@ -23,7 +23,7 @@ const SETTINGS_W_FRACTION = 0.22
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings'
 type Pos = 'center' | 'left-edge' | 'right-edge' | 'settings-left'
-interface BallSpec { color: string; model: BallModel; ringColor?: string }   // ringColor — «второй» цвет (для кольца планеты)
+interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle }   // ringColor — «второй» цвет (для кольца планеты)
 interface ActiveBall { key: string; spec: BallSpec; pos: Pos; slideIn: boolean }
 
 interface Viewport { width: number; height: number }

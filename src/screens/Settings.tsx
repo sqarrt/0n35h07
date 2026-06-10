@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { CSSProperties } from 'react'
-import { PLAYER_COLORS, BALL_MODELS } from '../constants'
-import type { BallModel } from '../constants'
+import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES } from '../constants'
+import type { BallModel, WindupStyle } from '../constants'
 import { NAME_MAX, saveProfile, CONNECT_TIMEOUT_OPTIONS } from '../settings'
 import type { PlayerProfile, DefaultView } from '../settings'
 import { Button } from '../ui/Button'
@@ -13,7 +13,7 @@ import { useSfx } from '../sfx/SfxContext'
 interface SettingsProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
-  onPreview: (color: string, model: BallModel, ringColor: string) => void   // живое превью (App); ringColor — второй цвет (кольцо)
+  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle) => void   // живое превью (App); ringColor — второй цвет (кольцо)
   onBack: () => void
 }
 
@@ -43,6 +43,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [reserve, setReserve] = useState(profile.reserveColor)
   const [view, setView] = useState<DefaultView>(profile.defaultView)
   const [model, setModel] = useState<BallModel>(profile.ballModel)
+  const [windup, setWindup] = useState<WindupStyle>(profile.windupStyle)
   const [post, setPost] = useState(profile.postProcessing)
   const [showFps, setShowFps] = useState(profile.showFps)
   const [showSpeed, setShowSpeed] = useState(profile.showSpeed)
@@ -56,7 +57,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, windupStyle: profile.windupStyle, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
+  const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, windupStyle: windup, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -87,6 +88,11 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
     if (m !== model) sfx.play2D('ui_toggle')
     setModel(m)
     commit({ ...base(), ballModel: m })
+  }
+  const handleWindup = (w: WindupStyle) => {
+    if (w !== windup) sfx.play2D('ui_toggle')
+    setWindup(w)
+    commit({ ...base(), windupStyle: w })
   }
   const handlePost = (v: boolean) => {
     setPost(v)
@@ -133,9 +139,10 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const previewColor = editing === 'primary' ? primary : reserve
   const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
   const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
+  const windupLabel: Record<WindupStyle, string> = { classic: 'ДЕФОЛТ', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
 
   // Фоновая моделька (App) отражает редактируемый цвет/модель вживую.
-  useEffect(() => { onPreview(previewColor, model, previewRingColor) }, [previewColor, model, previewRingColor, onPreview])
+  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup) }, [previewColor, model, previewRingColor, windup, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева открывается фоновая 3D-моделька.
@@ -207,6 +214,15 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
             {BALL_MODELS.map(m => (
               <button key={m} className={`seg${model === m ? ' seg--on' : ''}`} onClick={() => handleModel(m)}>
                 {modelLabel[m]}
+              </button>
+            ))}
+          </div>
+
+          <div style={label}>АНИМАЦИЯ ВЫСТРЕЛА</div>
+          <div style={row}>
+            {WINDUP_STYLES.map(w => (
+              <button key={w} className={`seg${windup === w ? ' seg--on' : ''}`} onClick={() => handleWindup(w)}>
+                {windupLabel[w]}
               </button>
             ))}
           </div>
