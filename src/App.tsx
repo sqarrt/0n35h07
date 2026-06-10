@@ -24,6 +24,8 @@ import { JoinLobby } from './screens/JoinLobby'
 import type { JoinStatus } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
 import { Settings } from './screens/Settings'
+import { Appearance } from './screens/Appearance'
+import type { AppearancePart } from './components/menuBallTargets'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
@@ -48,9 +50,9 @@ import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId } from './constants'
 import { DEFAULT_MAP_ID } from './constants'
 
-type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings'
+type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings' | 'appearance'
 
-const SETTINGS_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо в настройках
+const APPEARANCE_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо на экране внешности
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
 // и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
 const TRYSTERO_WARM_DELAY_MS = 250
@@ -100,8 +102,8 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0 }))
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number) => setSettingsPreview({ color, model, ringColor, windupStyle, windupSeq }), [])
+  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, part: 'color' }))
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number, part: AppearancePart) => setAppearancePreview({ color, model, ringColor, windupStyle, windupSeq, part }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -302,6 +304,7 @@ export default function App() {
     }, profile.connectTimeoutSec * 1000)
   }
   const handleSettings = () => setScreen('settings')
+  const handleAppearance = () => setScreen('appearance')
 
   const handleStart = () => sessionRef.current?.start()
 
@@ -334,16 +337,16 @@ export default function App() {
 
   // На экране «войти в лобби» показываем резервный цвет (хост может занять твой основной — превью того,
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
-  const menuPlayer = screen === 'settings'
-    ? settingsPreview
+  const menuPlayer = screen === 'appearance'
+    ? appearancePreview
     // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
     : screen === 'join'
       ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle }
       : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }
 
-  // Подложка едет вправо на экране настроек (освобождая слева место под модель) — демпфированно, в одном
+  // Подложка едет вправо на экране «Внешности» (освобождая слева место под модель) — демпфированно, в одном
   // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
-  const panelSlide = screen === 'settings' ? Math.round(window.innerWidth * SETTINGS_PANEL_SHIFT_FRAC) : 0
+  const panelSlide = screen === 'appearance' ? Math.round(window.innerWidth * APPEARANCE_PANEL_SHIFT_FRAC) : 0
   const panelRef = useDampedTranslateX(panelSlide)
 
   // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
@@ -361,17 +364,20 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onSettings={handleSettings} onExit={handleExit} />}
+            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
             {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
             {screen === 'settings' && (
-              <Settings profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
+              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
+            )}
+            {screen === 'appearance' && (
+              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
             )}
             {screen === 'lobby' && lobbyView && (
               <Lobby
