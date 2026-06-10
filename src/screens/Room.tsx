@@ -86,7 +86,8 @@ export function Room({ roomCode, view, onAddBot, onRemoveBot, onSetDifficulty, o
 
   return (
     <div className="panel-fill" style={{ justifyContent: 'center' }}>
-      <div style={{ fontSize: 16, letterSpacing: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>КОМНАТА</div>
+      {/* textIndent = letterSpacing: компенсирует хвостовой интервал последней буквы при центрировании. */}
+      <div style={{ fontSize: 16, letterSpacing: '0.3em', textIndent: '0.3em', color: '#7fa0c0', textAlign: 'center', marginBottom: 22, fontFamily: 'var(--ui-font)' }}>КОМНАТА</div>
         <div className="room-face">
           {pane(host ?? null, 'host')}
           <div className="room-center">
