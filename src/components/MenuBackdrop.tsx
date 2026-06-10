@@ -92,10 +92,12 @@ function AnimatedBall({ spec, pos, slideIn, exiting = false, hold = false, sfx }
     [isPreviewPos, spec.color, spec.windupStyle])
   useEffect(() => () => beam?.dispose(), [beam])
   const cycle = useRef({ phase: 'idle' as 'charge' | 'fire' | 'idle', elapsed: 0 })
-  const lastSeqRef = useRef(0)   // последний отработанный клик (вход в настройки превью не запускает)
+  // Счётчик кликов превью (windupSeq) монотонный и живёт в App: реагируем только на его ИЗМЕНЕНИЯ
+  // после монтирования — вход на экран со «старым» значением превью не запускает.
+  const lastSeqRef = useRef(spec.windupSeq ?? 0)
   // Триггер по клику на стиль: одноразовый прогон charge → fire → idle; звук — один раз на старте заряда.
   useEffect(() => {
-    if (!fx) { lastSeqRef.current = spec.windupSeq ?? 0; return }
+    if (!fx) { if (spec.windupSeq !== undefined) lastSeqRef.current = spec.windupSeq; return }
     const seq = spec.windupSeq ?? 0
     if (seq !== 0 && seq !== lastSeqRef.current) {
       lastSeqRef.current = seq

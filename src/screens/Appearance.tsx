@@ -11,8 +11,12 @@ import type { AppearancePart } from '../components/menuBallTargets'
 interface AppearanceProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
-  // Живое превью (App): цвет/модель/стиль + счётчик кликов превью выстрела + активная подвкладка (позиция шара).
-  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number, part: AppearancePart) => void
+  // Живое превью (App): цвет/модель/стиль + активная подвкладка (позиция шара).
+  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => void
+  // Клик по стилю выстрела → один прогон превью. Счётчиком владеет App (монотонный,
+  // переживает перемонтирование экрана) — иначе при повторном заходе счёт с нуля
+  // рассинхронизировался с шаром (призрачный запуск + «мёртвый» первый клик).
+  onShotPreview: () => void
   onBack: () => void
 }
 
@@ -29,7 +33,7 @@ const PARTS: { id: AppearancePart; label: string }[] = [
 
 /** Экран «Внешность»: косметика игрока (цвета/модель/анимация выстрела) с шаром-превью слева
  *  (панель уезжает вправо — анимирует App). Контролы перенесены из Settings 1-в-1. */
-export function Appearance({ profile, onChange, onPreview, onBack }: AppearanceProps) {
+export function Appearance({ profile, onChange, onPreview, onShotPreview, onBack }: AppearanceProps) {
   const sfx = useSfx()
   const [part, setPart] = useState<AppearancePart>('color')
   const [primary, setPrimary] = useState(profile.primaryColor)
@@ -37,7 +41,6 @@ export function Appearance({ profile, onChange, onPreview, onBack }: AppearanceP
   const [model, setModel] = useState<BallModel>(profile.ballModel)
   const [windup, setWindup] = useState<WindupStyle>(profile.windupStyle)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
-  const [windupSeq, setWindupSeq] = useState(0)             // счётчик кликов по стилю — триггер одноразового превью
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — из АКТУАЛЬНОГО профиля: коммит из «Внешности» не затирает правки настроек.
@@ -66,7 +69,7 @@ export function Appearance({ profile, onChange, onPreview, onBack }: AppearanceP
   const handleWindup = (w: WindupStyle) => {
     if (w !== windup) sfx.play2D('ui_toggle')
     setWindup(w)
-    setWindupSeq(s => s + 1)   // всегда (даже клик по тому же стилю) — триггер одноразового превью
+    onShotPreview()   // всегда (даже клик по тому же стилю) — один прогон превью выстрела
     commit({ ...base(), windupStyle: w })
   }
 
@@ -76,7 +79,7 @@ export function Appearance({ profile, onChange, onPreview, onBack }: AppearanceP
   const windupLabel: Record<WindupStyle, string> = { classic: 'ДЕФОЛТ', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
 
   // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям подвкладок.
-  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, windupSeq, part) }, [previewColor, model, previewRingColor, windup, windupSeq, part, onPreview])
+  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, part) }, [previewColor, model, previewRingColor, windup, part, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.

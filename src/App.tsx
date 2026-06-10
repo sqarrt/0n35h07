@@ -103,7 +103,10 @@ export default function App() {
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, part: 'color' }))
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number, part: AppearancePart) => setAppearancePreview({ color, model, ringColor, windupStyle, windupSeq, part }), [])
+  // windupSeq сохраняем из прежнего стейта: счётчиком кликов превью владеет App (монотонный,
+  // переживает перемонтирование экрана «Внешность» — иначе призрачный запуск при повторном заходе).
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, part })), [])
+  const handleShotPreview = useCallback(() => setAppearancePreview(p => ({ ...p, windupSeq: p.windupSeq + 1 })), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -377,7 +380,7 @@ export default function App() {
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
             )}
             {screen === 'appearance' && (
-              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onBack={() => setScreen('menu')} />
+              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onBack={() => setScreen('menu')} />
             )}
             {screen === 'lobby' && lobbyView && (
               <Lobby
