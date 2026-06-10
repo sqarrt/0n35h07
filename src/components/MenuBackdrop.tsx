@@ -47,6 +47,8 @@ const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
 const RESPAWN_CIRCLE_R = 2.2     // радиус кругового проезда призрака (локальные ед. группы шара)
+/** Полная длительность цикла превью респавна — App возвращает шар в стандартную позицию по её истечении. */
+export const RESPAWN_PREVIEW_TOTAL_MS = RESPAWN_PREVIEW_GHOST_MS + RESPAWN_PREVIEW_REBIRTH_MS
 
 export type MenuMode = 'menu' | 'join' | 'lobby' | 'settings' | 'appearance'
 // ringColor — «второй» цвет (кольцо планеты); *Seq — счётчики кликов (триггеры одноразовых превью).
