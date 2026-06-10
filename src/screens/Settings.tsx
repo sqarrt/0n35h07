@@ -13,7 +13,7 @@ import { useSfx } from '../sfx/SfxContext'
 interface SettingsProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
-  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle) => void   // живое превью (App); ringColor — второй цвет (кольцо)
+  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number) => void   // живое превью (App); ringColor — второй цвет (кольцо); windupSeq — счётчик кликов для одноразового превью
   onBack: () => void
 }
 
@@ -55,6 +55,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
   const [volMenuMusic, setVolMenuMusic] = useState(profile.volumeMenuMusic)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
+  const [windupSeq, setWindupSeq] = useState(0)             // счётчик кликов по стилю — триггер одноразового превью
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   const base = (): PlayerProfile => ({ name, primaryColor: primary, reserveColor: reserve, defaultView: view, ballModel: model, windupStyle: windup, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
@@ -92,6 +93,7 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const handleWindup = (w: WindupStyle) => {
     if (w !== windup) sfx.play2D('ui_toggle')
     setWindup(w)
+    setWindupSeq(s => s + 1)   // всегда инкрементируем (даже при клике по тому же стилю) — триггер одноразового превью
     commit({ ...base(), windupStyle: w })
   }
   const handlePost = (v: boolean) => {
@@ -141,8 +143,8 @@ export function Settings({ profile, onChange, onPreview, onBack }: SettingsProps
   const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
   const windupLabel: Record<WindupStyle, string> = { classic: 'ДЕФОЛТ', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
 
-  // Фоновая моделька (App) отражает редактируемый цвет/модель вживую.
-  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup) }, [previewColor, model, previewRingColor, windup, onPreview])
+  // Фоновая моделька (App) отражает редактируемый цвет/модель вживую; windupSeq — триггер одноразового превью.
+  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, windupSeq) }, [previewColor, model, previewRingColor, windup, windupSeq, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева открывается фоновая 3D-моделька.

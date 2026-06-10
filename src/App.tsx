@@ -100,8 +100,8 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }))
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle) => setSettingsPreview({ color, model, ringColor, windupStyle }), [])
+  const [settingsPreview, setSettingsPreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0 }))
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, windupSeq: number) => setSettingsPreview({ color, model, ringColor, windupStyle, windupSeq }), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
