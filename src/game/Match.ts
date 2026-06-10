@@ -20,6 +20,7 @@ import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
+import { createRespawnFx } from './fx/respawn/createRespawnFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -157,16 +158,19 @@ export class Match {
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
       // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
       const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
-      // Стиль заряда из ростера; нет поля → 'classic' (безопасное умолчание для старых клиентов).
+      // Стили косметики из ростера; нет поля → безопасные умолчания для старых клиентов.
       const windupStyle = e.windupStyle ?? 'classic'
+      const respawnStyle = e.respawnStyle ?? 'echo'
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
-            e.color, createWindupFx(windupStyle), windupStyle)
+            e.color, createWindupFx(windupStyle), windupStyle,
+            createRespawnFx(respawnStyle, e.color), respawnStyle)
         : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
-            new Shield(), e.color, createWindupFx(windupStyle), windupStyle)
+            new Shield(), e.color, createWindupFx(windupStyle), windupStyle,
+            createRespawnFx(respawnStyle, e.color), respawnStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
@@ -192,7 +196,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject, p.windupFxObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.respawnFxObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 
@@ -477,6 +481,7 @@ export class Match {
       p.weaponObject.visible = false
       p.trailObject.visible = false
       p.windupFxObject.visible = false
+      p.respawnFxObject.visible = false
     }
     this.endMatch('disconnect')
   }

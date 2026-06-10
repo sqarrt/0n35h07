@@ -108,7 +108,7 @@ describe('Match', () => {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
     const roster: RosterEntry[] = [
-      { id: 0, name: 'Вы', color: '#4af', kind: 'human', windupStyle: 'rage' },
+      { id: 0, name: 'Вы', color: '#4af', kind: 'human', windupStyle: 'rage', respawnStyle: 'swarm' },
       { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
     ]
     const match = new Match({
@@ -121,6 +121,9 @@ describe('Match', () => {
     expect(match.bots[0].windupStyle).toBe('classic')           // у бота стиля нет → classic
     expect(match.human.windupFxObject.parent).toBe(match.root)
     expect(match.bots[0].windupFxObject.parent).toBe(match.root)
+    expect(match.human.respawnStyle).toBe('swarm')              // стиль респавна тоже из ростера
+    expect(match.bots[0].respawnStyle).toBe('echo')
+    expect(match.human.respawnFxObject.parent).toBe(match.root)
   })
 
   it('по истечении фазы игрок материализуется НА МЕСТЕ остановки (не на рандоме)', () => {

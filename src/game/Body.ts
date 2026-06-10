@@ -48,7 +48,7 @@ export class Body {
   private dashTimer = 0
   private dashCooldown = 0
   private shaderTick: (dt: number) => void
-  private ring: { tick: (dt: number) => void; setOpacity: (o: number) => void; dispose: () => void } | null = null
+  private ring: ReturnType<typeof createBallRing> | null = null
 
   constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color) {
     const ball = createBallMaterial(color, model)   // материал сферы по модели (smooth/waves/planet)
@@ -272,6 +272,14 @@ export class Body {
 
   /** Прозрачность визуала (призрак/материализация): сфера + кольцо. */
   setOpacity(o: number) { this.material.opacity = o; this.ring?.setOpacity(o) }
+
+  // --- кольцо планеты: доступ для превью в меню (живая смена «второго» цвета, слой свечения) ---
+  /** Меш кольца планеты; null у моделей без кольца. */
+  get ringMesh() { return this.ring?.mesh ?? null }
+  /** Плавная смена цвета кольца (для моделей без кольца — no-op). */
+  lerpRingColor(c: THREE.Color, t: number) { this.ring?.lerpColor(c, t) }
+  /** Мгновенная установка цвета кольца. */
+  setRingColor(c: THREE.Color) { this.ring?.setColor(c) }
 
   /** Вкл/выкл хитбокс как raycast-цель: мёртвый/сдувающийся шар нельзя застрелить повторно. */
   setHittable(v: boolean) {

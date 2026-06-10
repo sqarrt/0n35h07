@@ -25,7 +25,7 @@ import type { JoinStatus } from './screens/JoinLobby'
 import { Lobby } from './screens/Lobby'
 import { Settings } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
-import type { AppearancePart } from './components/menuBallTargets'
+import type { AppearancePart } from './components/menuStage'
 import { loadProfile } from './settings'
 import type { PlayerProfile } from './settings'
 import { Button } from './ui/Button'
@@ -37,7 +37,7 @@ import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
-import type { BotDifficulty, BallModel, WindupStyle } from './constants'
+import type { BotDifficulty, BallModel, WindupStyle, RespawnStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -52,7 +52,7 @@ import { DEFAULT_MAP_ID } from './constants'
 
 type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings' | 'appearance'
 
-const APPEARANCE_PANEL_SHIFT_FRAC = 0.18   // на сколько (доля ширины окна) подложка уезжает вправо на экране внешности
+const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
 // и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
 const TRYSTERO_WARM_DELAY_MS = 250
@@ -102,13 +102,15 @@ export default function App() {
   const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, part: 'color' }))
-  // windupSeq сохраняем из прежнего стейта: счётчиком кликов превью владеет App (монотонный,
-  // переживает перемонтирование экрана «Внешность» — иначе призрачный запуск при повторном заходе).
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, part })), [])
+  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, part: 'color' }))
+  // Счётчики кликов превью (windupSeq/respawnSeq) сохраняются из прежнего стейта: ими владеет App
+  // (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, respawnStyle, part })), [])
   // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
   // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
   const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
+  // Ракурс камеры стоит как поставлен (никаких авто-возвратов) — меняется только следующим кликом.
+  const handleRespawnPreview = useCallback((respawnStyle: RespawnStyle) => setAppearancePreview(p => ({ ...p, respawnStyle, respawnSeq: p.respawnSeq + 1, part: 'respawn' })), [])
   const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
   const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
   const { state: hud, dispatch } = useGameHUD()
@@ -346,13 +348,24 @@ export default function App() {
     ? appearancePreview
     // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
     : screen === 'join'
-      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle }
-      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle }
+      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
+      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
 
-  // Подложка едет вправо на экране «Внешности» (освобождая слева место под модель) — демпфированно, в одном
-  // темпе с фоновыми шарами (та же MENU_ANIM_TAU). Персистентна → переезд туда-обратно плавный.
-  const panelSlide = screen === 'appearance' ? Math.round(window.innerWidth * APPEARANCE_PANEL_SHIFT_FRAC) : 0
+  // На «Внешности» панель прибита почти к правому краю (небольшой отступ) — всё остальное пространство
+  // отдано шару-превью. Сдвиг считается из ИЗМЕРЕННОЙ ширины панели и пересчитывается ТОЛЬКО при смене
+  // экрана/ресайзе (никакие ре-рендеры превью не двигают панель). Переезд — демпфер (MENU_ANIM_TAU).
+  const [panelSlide, setPanelSlide] = useState(0)
   const panelRef = useDampedTranslateX(panelSlide)
+  useEffect(() => {
+    const compute = () => {
+      if (screen !== 'appearance') { setPanelSlide(0); return }
+      const w = panelRef.current?.offsetWidth ?? 0
+      setPanelSlide(Math.max(0, Math.round((window.innerWidth - w) / 2 - APPEARANCE_PANEL_MARGIN_PX)))
+    }
+    compute()
+    window.addEventListener('resize', compute)
+    return () => window.removeEventListener('resize', compute)
+  }, [screen, panelRef])
 
   // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
   // последний mapId фиксируем, чтобы при выходе (lobbyView уже null) фон не мигнул на дефолтную карту.
@@ -369,7 +382,9 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glow={profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
+          на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
@@ -382,7 +397,7 @@ export default function App() {
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
             )}
             {screen === 'appearance' && (
-              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onBack={() => setScreen('menu')} />
+              <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onBack={() => setScreen('menu')} />
             )}
             {screen === 'lobby' && lobbyView && (
               <Lobby
