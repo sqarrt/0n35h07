@@ -64,3 +64,40 @@ describe('EchoRespawnFx', () => {
     expect(() => fx.dispose()).not.toThrow()
   })
 })
+
+import { ChaosRespawnFx } from '../../src/game/fx/respawn/ChaosRespawnFx'
+
+describe('ChaosRespawnFx', () => {
+  it('призрак: меш дёргается в пределах лимита (смещение ≠ 0, ограничено)', () => {
+    const fx = new ChaosRespawnFx('#4af')
+    const { target, mesh } = makeTarget()
+    const base = mesh.position.clone()
+    let moved = false
+    for (let i = 0; i < 40; i++) {                              // ~0.64с — джиттер успевает тикнуть
+      fx.apply(0.016, target, makeFrame({ ghost: 0.5 }))
+      const d = mesh.position.distanceTo(base)
+      expect(d).toBeLessThan(1)                                 // лимит джиттера
+      if (d > 1e-4) moved = true
+    }
+    expect(moved).toBe(true)
+  })
+
+  it('после возрождения смещение меша обнулено, visible/opacity восстановлены', () => {
+    const fx = new ChaosRespawnFx('#4af')
+    const { target, mesh, getOpacity } = makeTarget()
+    const base = mesh.position.clone()
+    for (let i = 0; i < 20; i++) fx.apply(0.016, target, makeFrame({ ghost: 0.3 }))
+    for (let i = 0; i < 60; i++) fx.apply(0.016, target, makeFrame({ sinceRebirthMs: i * 16 }))   // сборка
+    fx.apply(0.016, target, makeFrame())                        // первый кадр вне фаз — восстановление
+    expect(mesh.position.distanceTo(base)).toBeLessThan(1e-6)
+    expect(mesh.visible).toBe(true)
+    expect(getOpacity()).toBe(1)
+  })
+
+  it('isRebirthActive ограничен своим окном; dispose не бросает', () => {
+    const fx = new ChaosRespawnFx('#4af')
+    expect(fx.isRebirthActive(0)).toBe(true)
+    expect(fx.isRebirthActive(10_000)).toBe(false)
+    expect(() => fx.dispose()).not.toThrow()
+  })
+})
