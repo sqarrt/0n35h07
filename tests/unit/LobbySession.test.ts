@@ -5,9 +5,9 @@ import type { LobbyView } from '../../src/net/LobbySession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID } from '../../src/constants'
 
-const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' }
+const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
 
-const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' }
+const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
 
 /** Поднимает хост+клиент на loopback (доставка синхронная → хендшейк завершается сразу). */
 function handshake(clientProfile: PlayerProfile) {
@@ -149,5 +149,17 @@ describe('LobbySession — respawnStyle в ростере', () => {
     expect(hostView.roster.find(r => r.id === 1)!.respawnStyle).toBe('chaos')     // стиль клиента из hello
     expect(clientView.roster.find(r => r.id === 1)!.respawnStyle).toBe('chaos')
     expect(clientView.roster.find(r => r.id === 0)!.respawnStyle).toBe('echo')    // стиль хоста доехал в ASSIGN
+  })
+})
+
+describe('LobbySession — скины рывка и щита в ростере', () => {
+  it('dashStyle/shieldStyle хоста и клиента едут в ростер (hello → assign)', () => {
+    const { hostView, clientView } = handshake({ ...GUEST, dashStyle: 'wave', shieldStyle: 'crystal' })
+    expect(hostView.roster.find(r => r.id === 0)!.dashStyle).toBe('streak')       // скины хоста из его профиля
+    expect(hostView.roster.find(r => r.id === 0)!.shieldStyle).toBe('dome')
+    expect(hostView.roster.find(r => r.id === 1)!.dashStyle).toBe('wave')         // скины клиента из hello
+    expect(hostView.roster.find(r => r.id === 1)!.shieldStyle).toBe('crystal')
+    expect(clientView.roster.find(r => r.id === 1)!.dashStyle).toBe('wave')
+    expect(clientView.roster.find(r => r.id === 0)!.shieldStyle).toBe('dome')     // скин хоста доехал в ASSIGN
   })
 })

@@ -45,7 +45,7 @@ export class LobbySession {
     this.role = role
     this.code = code
     this.profile = profile
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle }
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
@@ -68,7 +68,7 @@ export class LobbySession {
     // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → лобби 1v1 полно.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
     const name = (hello.name || '').trim() || 'Соперник'
-    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo' }
+    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome' }
     this.clientPeer = from
     this.broadcastRoster()
   }
@@ -90,7 +90,7 @@ export class LobbySession {
 
   addBot(difficulty: BotDifficulty = 'normal') {
     if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }   // ballModel/windupStyle/respawnStyle не задаём: optional, Match подставит дефолты ('smooth'/'classic'/'echo')
+    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }   // косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome')
     this.broadcastRoster()
   }
 
@@ -134,8 +134,8 @@ export class LobbySession {
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
-      const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle } = this.profile
-      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle } satisfies Hello)
+      const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } = this.profile
+      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {
