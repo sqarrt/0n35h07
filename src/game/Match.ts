@@ -192,7 +192,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject, p.windupFxObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.respawnFxObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 

@@ -235,3 +235,48 @@ describe('Player + IWindupFx', () => {
     expect(fx.object3d.visible).toBe(false)
   })
 })
+
+import type { IRespawnFx, RespawnTarget, RespawnFrame } from '../../src/game/fx/respawn/types'
+
+/** Фейковая стратегия респавна: пишет события и последний кадр. */
+class FakeRespawnFx implements IRespawnFx {
+  object3d = new THREE.Group()
+  deaths: THREE.Vector3[] = []
+  lastFrame: RespawnFrame | null = null
+  onDeath(p: THREE.Vector3) { this.deaths.push(p.clone()) }
+  apply(_dt: number, _t: RespawnTarget, f: RespawnFrame) { this.lastFrame = { ...f } }
+  isRebirthActive() { return false }
+  update() {}
+  dispose() {}
+}
+
+describe('Player + IRespawnFx', () => {
+  it('дефолт — echo, world-объект доступен', () => {
+    const p = makePlayer()
+    expect(p.respawnStyle).toBe('echo')
+    expect(p.respawnFxObject).toBeDefined()
+  })
+
+  it('смерть дёргает onDeath; кадр призрака прокидывает ghost-прогресс', () => {
+    const fx = new FakeRespawnFx()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
+      undefined, undefined, fx, 'chaos')
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0))
+    p.receiveHit()
+    expect(fx.deaths.length).toBe(1)
+    p.update(0.016, dummyWorld, [])
+    expect(fx.lastFrame!.ghost).toBeGreaterThan(0.9)            // фаза только началась (остаток ~1)
+    expect(p.respawnStyle).toBe('chaos')
+  })
+
+  it('после respawnAt кадр уходит из ghost (ghost=null, sinceRebirthMs мал)', () => {
+    const fx = new FakeRespawnFx()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
+      undefined, undefined, fx, 'echo')
+    p.receiveHit()
+    p.respawnAt(new THREE.Vector3(1, 1.7, 1))
+    p.update(0.016, dummyWorld, [])
+    expect(fx.lastFrame!.ghost).toBeNull()
+    expect(fx.lastFrame!.sinceRebirthMs).toBeLessThan(1000)
+  })
+})
