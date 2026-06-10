@@ -146,3 +146,13 @@ describe('SwarmRespawnFx', () => {
     expect(() => fx.dispose()).not.toThrow()
   })
 })
+
+import { createRespawnFx } from '../../src/game/fx/respawn/createRespawnFx'
+
+describe('createRespawnFx', () => {
+  it('возвращает реализацию по стилю', () => {
+    expect(createRespawnFx('echo', '#4af')).toBeInstanceOf(EchoRespawnFx)
+    expect(createRespawnFx('chaos', '#4af')).toBeInstanceOf(ChaosRespawnFx)
+    expect(createRespawnFx('swarm', '#4af')).toBeInstanceOf(SwarmRespawnFx)
+  })
+})
