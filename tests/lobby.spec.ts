@@ -8,6 +8,8 @@ test.beforeEach(async ({ page }) => {
 test('главное меню — кнопки навигации видны', async ({ page }) => {
   await expect(page.getByText('СОЗДАТЬ ЛОББИ')).toBeVisible()
   await expect(page.getByText('ВОЙТИ В ЛОББИ')).toBeVisible()
+  await expect(page.getByText('ВНЕШНОСТЬ')).toBeVisible()
+  await expect(page.getByText('НАСТРОЙКИ')).toBeVisible()
 })
 
 test('создать лобби — слот соперника пуст, НАЧАТЬ заблокирована', async ({ page }) => {
