@@ -47,7 +47,7 @@ const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 // Превью респавна: один прогон по клику — смерть → призрак (пробежка по кругу) → возрождение.
 const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
-const RESPAWN_CIRCLE_R = 1.1     // радиус пробежки призрака (мировые единицы — «играем за бота»)
+const RESPAWN_CIRCLE_R = 2.6     // радиус пробежки призрака (мировые единицы — «играем за бота»)
 
 // Полёт камеры (dev, зажатая J): мышь — осмотр, колёсико — вперёд/назад. На отпускание поза пишется в файл.
 const FLY_KEY = 'KeyJ'
@@ -277,11 +277,14 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     body.tickShader(dt)
 
     // Позиция: модель стоит на точке; в призраке превью — пробежка по кругу («играем за бота»).
+    // САНКЦИОНИРОВАННОЕ ручное действие: по завершении пробежки шар СТАВИТСЯ на дефолтную точку
+    // (copy(spot) каждый кадр) — бег не обязан идеально замкнуть круг, возрождение всегда на месте.
     const rc = respawnCycle.current
     body.object3d.position.copy(spot)
     let ghostRun = false
     if (rfx && rc.phase === 'ghost') {
-      const theta = (rc.elapsed / RESPAWN_PREVIEW_GHOST_MS) * 2 * Math.PI
+      // theta ограничен полным кругом: рваный кадр в конце фазы не перебегает за точку старта.
+      const theta = Math.min(rc.elapsed / RESPAWN_PREVIEW_GHOST_MS, 1) * 2 * Math.PI
       body.object3d.position.x += Math.sin(theta) * RESPAWN_CIRCLE_R
       body.object3d.position.z += (Math.cos(theta) - 1) * RESPAWN_CIRCLE_R
       // Бежит «мордой вперёд» — по касательной круга.
