@@ -12,6 +12,8 @@ export class FakeSfxEngine implements ISfxEngine {
   stopLoop(key: string) { this.calls.push({ method: 'stopLoop', key }) }
   setMasterGain() {}
   dispose() {}
+  missing = new Set<SfxEvent>()   // тестовая ручка: событие «без ассета»
+  has(event: SfxEvent) { return !this.missing.has(event) }
   /** Сколько раз сыграно событие (любым методом). */
   played(event: SfxEvent) { return this.calls.filter(c => c.event === event).length }
   clear() { this.calls = [] }

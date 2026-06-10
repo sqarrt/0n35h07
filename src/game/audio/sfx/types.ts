@@ -2,7 +2,7 @@ import type * as THREE from 'three'
 
 /** id события SFX = имя файла без расширения. */
 export type SfxEvent =
-  | 'beam_fire' | 'block' | 'shield_up' | 'shield_down' | 'cooldown_ready'
+  | 'beam_fire' | 'beam_fire_rage' | 'beam_fire_singularity' | 'block' | 'shield_up' | 'shield_down' | 'cooldown_ready'
   | 'dash' | 'jump' | 'land' | 'death' | 'respawn'
   | 'ui_click' | 'ui_hover' | 'ui_toggle' | 'ready' | 'lobby_join' | 'count_tick' | 'go'
   | 'shield_loop' | 'ghost_loop'
@@ -15,6 +15,7 @@ export interface ISfxEngine {
   detach(): void
   playAt(event: SfxEvent, pos: THREE.Vector3, gain?: number): void
   play2D(event: SfxEvent, gain?: number): void
+  has(event: SfxEvent): boolean   // буфер события загружен? (фоллбек, пока ассета нет)
   startLoop(event: SfxEvent, key: string, target: THREE.Object3D | null): void   // null → 2D-луп (свой игрок)
   stopLoop(key: string): void
   setMasterGain(gain: number): void

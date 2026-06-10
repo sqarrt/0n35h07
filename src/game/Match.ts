@@ -18,6 +18,8 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import { createWindupFx } from './fx/windup/createWindupFx'
+import { createBeamFx } from './fx/beam/createBeamFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
@@ -155,13 +157,16 @@ export class Match {
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
       // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
       const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
+      // Стиль заряда из ростера; нет поля → 'classic' (безопасное умолчание для старых клиентов).
+      const windupStyle = e.windupStyle ?? 'classic'
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
             new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
-            e.color)
+            e.color, createWindupFx(windupStyle), windupStyle)
         : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
-            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
+            new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
+            new Shield(), e.color, createWindupFx(windupStyle), windupStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
@@ -187,7 +192,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 
@@ -396,7 +401,7 @@ export class Match {
       shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
       dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
       shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
-      windingUp: p.isWindingUp,
+      windingUp: p.isWindingUp, windupStyle: p.windupStyle,
       isLocal: p.id === this.localId,
     }))
     const moves = this.sfx.frame(inputs)
@@ -411,7 +416,7 @@ export class Match {
       id: me.id, obj: me.bodyGroup, pos: me.position,
       shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
       dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
-      windingUp: me.isWindingUp, isLocal: true,
+      windingUp: me.isWindingUp, windupStyle: me.windupStyle, isLocal: true,
     }])
   }
 
@@ -471,6 +476,7 @@ export class Match {
       p.bodyGroup.visible = false
       p.weaponObject.visible = false
       p.trailObject.visible = false
+      p.windupFxObject.visible = false
     }
     this.endMatch('disconnect')
   }
@@ -593,7 +599,7 @@ export class Match {
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
           shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
-          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, isLocal: false,
+          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, windupStyle: p.windupStyle, isLocal: false,
         }])
       }
     }

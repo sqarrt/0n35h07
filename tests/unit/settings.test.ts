@@ -16,8 +16,8 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
-    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
   })
 
   it('connectTimeoutSec: только из вариантов; иначе/нет → 10', () => {
@@ -99,5 +99,12 @@ describe('settings / PlayerProfile', () => {
     const p = loadProfile()
     expect(p.reserveColor).not.toBe('#4af')
     expect(PLAYER_COLORS).toContain(p.reserveColor)
+  })
+
+  it('windupStyle: валидный сохраняется, мусор/отсутствие → classic', () => {
+    saveProfile({ ...loadProfile(), windupStyle: 'rage' })
+    expect(loadProfile().windupStyle).toBe('rage')
+    saveProfile({ ...loadProfile(), windupStyle: 'жуть' as never })
+    expect(loadProfile().windupStyle).toBe('classic')
   })
 })
