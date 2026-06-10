@@ -45,11 +45,11 @@ test('настройки — графика: галка «СВЕЧЕНИЕ В М
   expect(glow).toBe(false)   // персист в профиль
 })
 
-test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
+test('настройки — имя сохраняется и видно в комнате', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')
   await input.fill('ТестБоец')
   await page.getByText('НАЗАД').click()
-  await page.getByText('СОЗДАТЬ ЛОББИ').click()
+  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })

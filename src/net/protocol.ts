@@ -15,7 +15,7 @@ export type NetTag = typeof NET_TAGS[number]
 /** Фаза матча: хост → все (готовность/отсчёт перед боем). */
 export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
-// --- handshake (лобби) ---
+// --- handshake (комната) ---
 export type PlayerKind = 'human' | 'bot'
 /** Один игрок матча (человек или бот). Хост раздаёт весь ростер клиентам. */
 export interface RosterEntry {

@@ -3,7 +3,7 @@ import { STEM_LIBRARY } from './stems'
 import { MusicDirector } from './MusicDirector'
 import { hashSeed } from './rng'
 
-/** Связывает сид (из лобби-кода) + директора с движком; владеет жизненным циклом музыки матча.
+/** Связывает сид (из кода комнаты) + директора с движком; владеет жизненным циклом музыки матча.
  *  Остаток времени матча (для аутро) спрашивает у матча через getRemainingMs — он синхронен у пиров. */
 export class MatchMusic {
   private readonly seed: number

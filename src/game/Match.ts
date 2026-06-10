@@ -59,12 +59,12 @@ interface MatchOptions {
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
-  netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
+  netConfig: NetConfig     // ростер из комнаты: ровно [host, opponent]
   localReserveColor?: string   // «второй» цвет локального игрока (кольцо его планеты); у соперника второго нет
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
-  seedCode?: string        // источник сида музыки (лобби-код); общий у обоих пиров
+  seedCode?: string        // источник сида музыки (код комнаты); общий у обоих пиров
   musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
   sfxEngine?: ISfxEngine      // движок SFX (DIP); нет в юнит-тестах → тишина
 }
@@ -136,7 +136,7 @@ export class Match {
     this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // Ритуал готовности проходят ВСЕ 1v1-матчи (лобби гарантирует двоих). Бот-соперник авто-готов.
+    // Ритуал готовности проходят ВСЕ 1v1-матчи (комната гарантирует двоих). Бот-соперник авто-готов.
     this.phase = 'ready'
     if (opponentIsBot) this.readySet.add(OPPONENT_ID)
 

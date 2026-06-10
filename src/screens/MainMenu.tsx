@@ -2,14 +2,14 @@ import { Button } from '../ui/Button'
 import { IS_ELECTRON } from '../platform'
 
 interface MainMenuProps {
-  onCreateLobby: () => void
-  onJoinLobby: () => void
+  onCreateRoom: () => void
+  onJoinRoom: () => void
   onAppearance: () => void
   onSettings: () => void
   onExit: () => void
 }
 
-export function MainMenu({ onCreateLobby, onJoinLobby, onAppearance, onSettings, onExit }: MainMenuProps) {
+export function MainMenu({ onCreateRoom, onJoinRoom, onAppearance, onSettings, onExit }: MainMenuProps) {
   return (
     <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
       <h1 style={{
@@ -21,8 +21,8 @@ export function MainMenu({ onCreateLobby, onJoinLobby, onAppearance, onSettings,
         ONESHOT
       </h1>
       <div className="accent-rule" style={{ marginBottom: '2rem' }} />
-      <Button variant="primary" onClick={onCreateLobby}>СОЗДАТЬ ЛОББИ</Button>
-      <Button variant="secondary" onClick={onJoinLobby}>ВОЙТИ В ЛОББИ</Button>
+      <Button variant="primary" onClick={onCreateRoom}>СОЗДАТЬ КОМНАТУ</Button>
+      <Button variant="secondary" onClick={onJoinRoom}>ВОЙТИ В КОМНАТУ</Button>
       <Button variant="secondary" onClick={onAppearance}>ВНЕШНОСТЬ</Button>
       <Button variant="secondary" onClick={onSettings}>НАСТРОЙКИ</Button>
       {/* Выход — только в Electron: в браузере window.close() для обычной вкладки запрещён политикой. */}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createLoopbackPair } from '../../src/net/LoopbackNet'
-import { LobbySession } from '../../src/net/LobbySession'
-import type { LobbyView } from '../../src/net/LobbySession'
+import { RoomSession } from '../../src/net/RoomSession'
+import type { RoomView } from '../../src/net/RoomSession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID } from '../../src/constants'
 
@@ -12,20 +12,20 @@ const HOST: PlayerProfile = { name: 'Хост', primaryColor: '#4af', reserveCol
 /** Поднимает хост+клиент на loopback (доставка синхронная → хендшейк завершается сразу). */
 function handshake(clientProfile: PlayerProfile) {
   const [hostNet, clientNet] = createLoopbackPair('H', 'C')
-  const host = new LobbySession(hostNet, 'host', 'AB12', HOST)
-  let hostView: LobbyView | undefined
+  const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+  let hostView: RoomView | undefined
   host.onChange(v => { hostView = v })
-  const client = new LobbySession(clientNet, 'client', 'AB12', clientProfile)
-  let clientView: LobbyView | undefined
+  const client = new RoomSession(clientNet, 'client', 'AB12', clientProfile)
+  let clientView: RoomView | undefined
   client.onChange(v => { clientView = v })
   return { host, client, hostView: hostView!, clientView: clientView! }
 }
 
-describe('LobbySession длительность матча', () => {
+describe('RoomSession длительность матча', () => {
   it('хост задаёт длительность; клиент видит её и получает durationMs в onStart', () => {
     const [a, b] = createLoopbackPair('H', 'C')
-    const host = new LobbySession(a, 'host', 'CODE', HOST)
-    const client = new LobbySession(b, 'client', 'CODE', GUEST)
+    const host = new RoomSession(a, 'host', 'CODE', HOST)
+    const client = new RoomSession(b, 'client', 'CODE', GUEST)
     // После конструкторов клиент уже подключился (HELLO синхронно → ASSIGN)
     host.setDuration(10)
     let started = 0
@@ -38,11 +38,11 @@ describe('LobbySession длительность матча', () => {
   })
 })
 
-describe('LobbySession выбор карты', () => {
+describe('RoomSession выбор карты', () => {
   it('дефолт — arena; хост меняет карту → клиент видит её и получает mapId в onStart', () => {
     const [a, b] = createLoopbackPair('H', 'C')
-    const host = new LobbySession(a, 'host', 'CODE', HOST)
-    const client = new LobbySession(b, 'client', 'CODE', GUEST)
+    const host = new RoomSession(a, 'host', 'CODE', HOST)
+    const client = new RoomSession(b, 'client', 'CODE', GUEST)
     let clientView = client.view()
     client.onChange(v => { clientView = v })
     expect(clientView.mapId).toBe('os_arena')
@@ -56,7 +56,7 @@ describe('LobbySession выбор карты', () => {
   })
 })
 
-describe('LobbySession — назначение цветов хостом', () => {
+describe('RoomSession — назначение цветов хостом', () => {
   it('клиент с тем же основным цветом, что у хоста, получает свой резервный', () => {
     const { hostView } = handshake({ name: 'Гость', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
     const clientEntry = hostView.roster.find(r => r.id === 1)!
@@ -77,12 +77,12 @@ describe('LobbySession — назначение цветов хостом', () =
   })
 })
 
-describe('LobbySession — слот соперника (строго 1v1)', () => {
+describe('RoomSession — слот соперника (строго 1v1)', () => {
   /** host-сессия с подписанным view (для чтения текущего ростера/canStart). */
   function hostWithView() {
     const [hostNet, clientNet] = createLoopbackPair('H', 'C')
-    const host = new LobbySession(hostNet, 'host', 'AB12', HOST)
-    let view!: LobbyView
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    let view!: RoomView
     host.onChange(v => { view = v })
     return { host, hostNet, clientNet, get: () => view }
   }
@@ -114,13 +114,13 @@ describe('LobbySession — слот соперника (строго 1v1)', () =
 
   it('зашедший человек вытесняет бота; уход человека освобождает слот', () => {
     const [hostNet, clientNet] = createLoopbackPair('H', 'C')
-    const host = new LobbySession(hostNet, 'host', 'AB12', HOST)
-    let view!: LobbyView
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    let view!: RoomView
     host.onChange(v => { view = v })
     host.addBot('normal')
     expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('bot')
 
-    new LobbySession(clientNet, 'client', 'AB12', GUEST)   // HELLO синхронно вытесняет бота
+    new RoomSession(clientNet, 'client', 'AB12', GUEST)   // HELLO синхронно вытесняет бота
     expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('human')
     expect(view.canStart).toBe(true)
 
@@ -130,7 +130,7 @@ describe('LobbySession — слот соперника (строго 1v1)', () =
   })
 })
 
-describe('LobbySession — windupStyle в ростере', () => {
+describe('RoomSession — windupStyle в ростере', () => {
   it('windupStyle хоста и клиента едут в ростер (hello → assign)', () => {
     const { hostView, clientView } = handshake({ ...GUEST, windupStyle: 'singularity' })
     // стиль хоста берётся из его профиля (HOST.windupStyle === 'classic')
@@ -142,7 +142,7 @@ describe('LobbySession — windupStyle в ростере', () => {
   })
 })
 
-describe('LobbySession — respawnStyle в ростере', () => {
+describe('RoomSession — respawnStyle в ростере', () => {
   it('respawnStyle хоста и клиента едут в ростер (hello → assign)', () => {
     const { hostView, clientView } = handshake({ ...GUEST, respawnStyle: 'chaos' })
     expect(hostView.roster.find(r => r.id === 0)!.respawnStyle).toBe('echo')      // стиль хоста из его профиля
@@ -152,7 +152,7 @@ describe('LobbySession — respawnStyle в ростере', () => {
   })
 })
 
-describe('LobbySession — скины рывка и щита в ростере', () => {
+describe('RoomSession — скины рывка и щита в ростере', () => {
   it('dashStyle/shieldStyle хоста и клиента едут в ростер (hello → assign)', () => {
     const { hostView, clientView } = handshake({ ...GUEST, dashStyle: 'wave', shieldStyle: 'crystal' })
     expect(hostView.roster.find(r => r.id === 0)!.dashStyle).toBe('streak')       // скины хоста из его профиля

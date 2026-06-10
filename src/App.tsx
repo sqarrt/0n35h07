@@ -20,9 +20,9 @@ import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
-import { JoinLobby } from './screens/JoinLobby'
-import type { JoinStatus } from './screens/JoinLobby'
-import { Lobby } from './screens/Lobby'
+import { JoinRoom } from './screens/JoinRoom'
+import type { JoinStatus } from './screens/JoinRoom'
+import { Room } from './screens/Room'
 import { Settings } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
@@ -43,14 +43,14 @@ import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
-import { LobbySession } from './net/LobbySession'
-import type { LobbyView, LobbyRole } from './net/LobbySession'
+import { RoomSession } from './net/RoomSession'
+import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId } from './constants'
 import { DEFAULT_MAP_ID } from './constants'
 
-type Screen = 'menu' | 'join' | 'lobby' | 'game' | 'settings' | 'appearance'
+type Screen = 'menu' | 'join' | 'room' | 'game' | 'settings' | 'appearance'
 
 const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
@@ -98,8 +98,8 @@ export default function App() {
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
   const [everLocked, setEverLocked] = useState(false)
-  const [lobbyCode, setLobbyCode] = useState('')
-  const [lobbyView, setLobbyView] = useState<LobbyView | null>(null)
+  const [roomCode, setRoomCode] = useState('')
+  const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color' }))
@@ -127,7 +127,7 @@ export default function App() {
     if (trysteroWarmedRef.current || resolveNetKind() !== 'trystero') return
     trysteroWarmedRef.current = true
     // Canvas прогрет → теперь безопасно ловить синхронный фриз init Trystero (~860мс): он пройдёт ЗА
-    // предупреждением, до того как игрок его закроет → первое «Создать лобби» открывается мгновенно.
+    // предупреждением, до того как игрок его закроет → первое «Создать комнату» открывается мгновенно.
     setTimeout(() => warmTrystero(), TRYSTERO_WARM_DELAY_MS)
   }, [])
 
@@ -174,36 +174,36 @@ export default function App() {
 
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
-  const sessionRef = useRef<LobbySession | null>(null)
+  const sessionRef = useRef<RoomSession | null>(null)
   const gameApiRef = useRef<GameApi | null>(null)
   const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const leaveLobby = () => {
+  const leaveRoom = () => {
     sessionRef.current?.dispose()
     sessionRef.current = null
-    setLobbyView(null)
+    setRoomView(null)
     setGameNet(null)
   }
 
-  const enterLobby = (code: string, role: LobbyRole) => {
-    if (sessionRef.current) leaveLobby()
+  const enterRoom = (code: string, role: RoomRole) => {
+    if (sessionRef.current) leaveRoom()
     if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
     const net = createNet(code)
-    const session = new LobbySession(net, role, code, loadProfile())
-    session.onChange(v => setLobbyView(v))
+    const session = new RoomSession(net, role, code, loadProfile())
+    session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
       // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
-      // Копия карты: чистка ростера в LobbySession.onPeerLeave не должна стирать маршрутизацию игры.
+      // Копия карты: чистка ростера в RoomSession.onPeerLeave не должна стирать маршрутизацию игры.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setEverLocked(false)
       setScreen('game')
     })
     sessionRef.current = session
-    setLobbyCode(code)
+    setRoomCode(code)
   }
 
   // На входе в меню прогреваем кеш живых релеев (self-healing сигналинга). Только для интернет-транспорта:
@@ -231,13 +231,13 @@ export default function App() {
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
-  // Hash-routing: /#CODE → войти в лобби клиентом (если ещё не в лобби с этим кодом).
+  // Hash-routing: /#CODE → войти в комнату клиентом (если ещё не в комнате с этим кодом).
   useEffect(() => {
     const handleHash = () => {
       const code = window.location.hash.slice(1).toUpperCase()
       if (/^[A-Z0-9]{4}$/.test(code)) {
         // Свой созданный код и нет живой вкладки-хоста (refresh/reopen) → хост; иначе (живой хост/чужой) → клиент.
-        if (sessionRef.current?.code !== code) { enterLobby(code, shouldHost(code) ? 'host' : 'client'); setScreen('lobby') }
+        if (sessionRef.current?.code !== code) { enterRoom(code, shouldHost(code) ? 'host' : 'client'); setScreen('room') }
       } else if (!code && !sessionRef.current) {
         setScreen('menu')
       }
@@ -265,19 +265,19 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
-  // Экран входа: поиск → лобби найдено (транспорт нашёл пира) → подключён (получен ASSIGN) → в лобби.
+  // Экран входа: поиск → комната найдена (транспорт нашёл пира) → подключён (получен ASSIGN) → в комнате.
   useEffect(() => {
     if (screen !== 'join') return
     const busy = joinStatus === 'searching' || joinStatus === 'found'
     if (!busy) return
-    if (lobbyView?.connected) {
+    if (roomView?.connected) {
       if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
       setJoinStatus('idle')
-      setScreen('lobby')
-    } else if (joinStatus === 'searching' && lobbyView?.foundHost) {
+      setScreen('room')
+    } else if (joinStatus === 'searching' && roomView?.foundHost) {
       setJoinStatus('found')
     }
-  }, [screen, joinStatus, lobbyView])
+  }, [screen, joinStatus, roomView])
 
   // Размонтирование — чистка таймера подключения.
   useEffect(() => () => { if (connectTimer.current) clearTimeout(connectTimer.current) }, [])
@@ -291,25 +291,25 @@ export default function App() {
     return () => clearInterval(iv)
   }, [screen, locked, everLocked])
 
-  const handleCreateLobby = () => {
+  const handleCreateRoom = () => {
     const code = randomCode()
-    rememberHosted(code)   // запомнить, что это лобби создали мы → остаёмся хостом при обновлении
+    rememberHosted(code)   // запомнить, что эту комнату создали мы → остаёмся хостом при обновлении
     window.location.hash = code
-    enterLobby(code, 'host')
-    setScreen('lobby')
+    enterRoom(code, 'host')
+    setScreen('room')
   }
-  const handleJoinLobby = () => { setScreen('join'); setJoinStatus('idle') }
+  const handleJoinRoom = () => { setScreen('join'); setJoinStatus('idle') }
   const handleJoin = (code: string) => {
     if (connectTimer.current) clearTimeout(connectTimer.current)
     setJoinStatus('searching')
     window.location.hash = code
-    enterLobby(code, 'client')   // остаёмся на экране 'join'
+    enterRoom(code, 'client')   // остаёмся на экране 'join'
     connectTimer.current = setTimeout(() => {
       // Классифицируем провал по свежему состоянию сессии: нашли пира, но не завершили хендшейк →
-      // «не удалось подключиться»; пира так и не нашли → «лобби не найдено».
+      // «не удалось подключиться»; пира так и не нашли → «комната не найдена».
       const foundHost = sessionRef.current?.view().foundHost ?? false
       setJoinStatus(foundHost ? 'failed-connect' : 'failed-find')
-      leaveLobby()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
+      leaveRoom()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
     }, profile.connectTimeoutSec * 1000)
   }
   const handleSettings = () => setScreen('settings')
@@ -321,7 +321,7 @@ export default function App() {
     if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
     setJoinStatus('idle')
     forgetHosted()   // явный выход в меню → больше не претендуем на роль хоста этого кода
-    leaveLobby()
+    leaveRoom()
     setScreen('menu')
     if (window.location.hash) window.location.hash = ''
   }
@@ -344,7 +344,7 @@ export default function App() {
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
-  // На экране «войти в лобби» показываем резервный цвет (хост может занять твой основной — превью того,
+  // На экране «войти в комнату» показываем резервный цвет (хост может занять твой основной — превью того,
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'appearance'
     ? appearancePreview
@@ -369,12 +369,12 @@ export default function App() {
     return () => window.removeEventListener('resize', compute)
   }, [screen, panelRef])
 
-  // Размытый фон карты — только в лобби, с fade in/out. Держим смонтированным на время выхода-фейда;
-  // последний mapId фиксируем, чтобы при выходе (lobbyView уже null) фон не мигнул на дефолтную карту.
-  const showMap = screen === 'lobby' && !!lobbyView
+  // Размытый фон карты — только в комнате, с fade in/out. Держим смонтированным на время выхода-фейда;
+  // последний mapId фиксируем, чтобы при выходе (roomView уже null) фон не мигнул на дефолтную карту.
+  const showMap = screen === 'room' && !!roomView
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
-  useEffect(() => { if (lobbyView?.mapId) setLastMapId(lobbyView.mapId) }, [lobbyView?.mapId])
+  useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
 
   if (editorMode) {
     return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
@@ -386,25 +386,25 @@ export default function App() {
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
           на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} lobby={lobbyView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
       {screen !== 'game' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onCreateLobby={handleCreateLobby} onJoinLobby={handleJoinLobby} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
-            {screen === 'join' && <JoinLobby status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
+            {screen === 'menu' && <MainMenu onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
+            {screen === 'join' && <JoinRoom status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
             {screen === 'settings' && (
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
             )}
             {screen === 'appearance' && (
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
             )}
-            {screen === 'lobby' && lobbyView && (
-              <Lobby
-                lobbyCode={lobbyCode}
-                view={lobbyView}
+            {screen === 'room' && roomView && (
+              <Room
+                roomCode={roomCode}
+                view={roomView}
                 onAddBot={handleAddBot}
                 onRemoveBot={handleRemoveBot}
                 onSetDifficulty={handleSetDifficulty}

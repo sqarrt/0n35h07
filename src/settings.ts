@@ -22,7 +22,7 @@ export interface PlayerProfile {
   volumeMusic: number        // звук: музыка матча 0..1; локальное предпочтение
   volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
   volumeMenuMusic: number    // звук: музыка в меню 0..1; локальное предпочтение
-  connectTimeoutSec: number  // сеть: таймаут подключения к лобби (секунды); локальное предпочтение
+  connectTimeoutSec: number  // сеть: таймаут подключения к комнате (секунды); локальное предпочтение
 }
 
 export const CONNECT_TIMEOUT_OPTIONS = [5, 10, 20, 30, 60, 90, 120] as const   // варианты таймаута подключения (с)
