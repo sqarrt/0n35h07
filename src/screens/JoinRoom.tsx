@@ -3,27 +3,27 @@ import { Button } from '../ui/Button'
 
 export type JoinStatus = 'idle' | 'searching' | 'found' | 'failed-find' | 'failed-connect'
 
-interface JoinLobbyProps {
+interface JoinRoomProps {
   status: JoinStatus
   onJoin: (code: string) => void
   onBack: () => void
 }
 
-export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
+export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
   const [code, setCode] = useState('')
   const busy = status === 'searching' || status === 'found'   // идёт попытка — ввод/кнопка заблокированы
   const failed = status === 'failed-find' || status === 'failed-connect'
   const handleJoin = () => { if (!busy && code.trim().length > 0) onJoin(code.trim().toUpperCase()) }
 
-  // Бегущая обводка: акцент при поиске, зелёная при «лобби найдено», красный контур при ошибке.
+  // Бегущая обводка: акцент при поиске, зелёная при «комната найдена», красный контур при ошибке.
   const wrapState = status === 'searching' ? ' is-connecting'
     : status === 'found' ? ' is-found'
     : failed ? ' is-error' : ''
 
   const statusText =
-    status === 'searching' ? 'ПОИСК ЛОББИ…'
-    : status === 'found' ? 'ЛОББИ НАЙДЕНО · ПОДКЛЮЧЕНИЕ…'
-    : status === 'failed-find' ? `ЛОББИ ${code} НЕ НАЙДЕНО`
+    status === 'searching' ? 'ПОИСК КОМНАТЫ…'
+    : status === 'found' ? 'КОМНАТА НАЙДЕНА · ПОДКЛЮЧЕНИЕ…'
+    : status === 'failed-find' ? `КОМНАТА ${code} НЕ НАЙДЕНА`
     : status === 'failed-connect' ? 'НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ'
     : ''
   const statusClass =
@@ -34,11 +34,11 @@ export function JoinLobby({ status, onJoin, onBack }: JoinLobbyProps) {
   return (
     <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
       <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
-        ВОЙТИ В ЛОББИ
+        ВОЙТИ В КОМНАТУ
       </h2>
       <div className="accent-rule" style={{ marginBottom: '1.6rem' }} />
       <div style={{ color: 'var(--muted)', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem', fontFamily: 'var(--ui-font)' }}>
-        КОД ЛОББИ
+        КОД КОМНАТЫ
       </div>
 
       <div className={`code-wrap${wrapState}`}>

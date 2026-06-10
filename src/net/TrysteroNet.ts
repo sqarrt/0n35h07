@@ -55,3 +55,19 @@ export class TrysteroNet implements INet {
   peers(): PeerId[] { return Object.keys(this.room.getPeers()) }
   leave() { void this.room.leave() }
 }
+
+let warmed = false
+/**
+ * Прогрев стека Trystero. Первый joinRoom синхронно инициализирует крипто (secp256k1/WASM), WebRTC и
+ * nostr-сигналинг (~860мс) → фриз на «Создать комнату». Поднимаем «warmup»-комнату заранее (в простое меню)
+ * и сразу выходим — тяжёлая инициализация проходит в фоне, реальное создание комнаты потом мгновенно.
+ * Один раз за сессию.
+ */
+export function warmTrystero(): void {
+  if (warmed) return
+  warmed = true
+  try {
+    const room = joinRoom({ appId: APP_ID }, 'warm-' + Math.random().toString(36).slice(2, 8))
+    setTimeout(() => { try { room.leave() } catch { /* best-effort */ } }, 300)
+  } catch { /* прогрев — best-effort, ошибки игнорируем */ }
+}

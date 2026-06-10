@@ -94,6 +94,7 @@ export class HumanController implements Controller {
 
     // Прицел = точка мира под перекрестием: луч из камеры (исключая своё тело).
     const camDir = this.camera.getWorldDirection(new THREE.Vector3())
+    this.player.setLook(camDir)   // ориентация модели — по взгляду камеры (стабильно, в т.ч. в TP)
     const hit = this.world.raycast(this.camera.position, camDir, [this.player.id])
     const aimPoint = hit
       ? hit.point

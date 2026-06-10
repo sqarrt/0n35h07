@@ -20,7 +20,7 @@ export function resolveNetKind(): NetKind {
   return 'trystero'
 }
 
-/** Фабрика транспорта по коду лобби. */
+/** Фабрика транспорта по коду комнаты. */
 export function createNet(code: string): INet {
   return resolveNetKind() === 'bc'
     ? new BroadcastChannelNet(code)

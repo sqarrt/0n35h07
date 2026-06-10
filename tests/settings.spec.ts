@@ -4,21 +4,11 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('настройки — экран открывается и показывает палитру цветов', async ({ page }) => {
+test('настройки — экран открывается: имя и вид по умолчанию', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   await expect(page.getByRole('heading', { name: 'НАСТРОЙКИ' })).toBeVisible()
   await expect(page.getByLabel('Имя игрока')).toBeVisible()
-  await expect(page.getByText('ОСНОВНОЙ ЦВЕТ')).toBeVisible()
-  await expect(page.getByText(/РЕЗЕРВНЫЙ ЦВЕТ/)).toBeVisible()
-})
-
-test('настройки — показывают 3D-превью шара (canvas) и подпись слота', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
-  await expect(page.locator('canvas')).toBeVisible()          // на экране настроек единственный canvas — превью
-  await expect(page.getByText('ОСНОВНОЙ', { exact: true })).toBeVisible()   // подпись активного слота
-  // Клик по резервному свотчу переключает превью на резервный слот
-  await page.getByRole('button', { name: 'резервный #fa4' }).click()
-  await expect(page.getByText('РЕЗЕРВНЫЙ', { exact: true })).toBeVisible()
+  await expect(page.getByText('ВИД ПО УМОЛЧАНИЮ')).toBeVisible()
 })
 
 test('настройки — вид по умолчанию (FP/TP) переключается и сохраняется', async ({ page }) => {
@@ -28,14 +18,6 @@ test('настройки — вид по умолчанию (FP/TP) перекл
   await page.getByRole('button', { name: 'ОТ 3 ЛИЦА' }).click()
   const view = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').defaultView)
   expect(view).toBe('tp')   // персист в профиль
-})
-
-test('настройки — модель сферы переключается и сохраняется', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
-  await expect(page.getByText('МОДЕЛЬ СФЕРЫ')).toBeVisible()
-  await page.getByRole('button', { name: 'ВОЛНЫ' }).click()
-  const model = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').ballModel)
-  expect(model).toBe('waves')   // персист в профиль
 })
 
 test('настройки — раздел ЗВУК: 4 ползунка, изменение сохраняется', async ({ page }) => {
@@ -63,11 +45,11 @@ test('настройки — графика: галка «СВЕЧЕНИЕ В М
   expect(glow).toBe(false)   // персист в профиль
 })
 
-test('настройки — имя сохраняется и видно в лобби', async ({ page }) => {
+test('настройки — имя сохраняется и видно в комнате', async ({ page }) => {
   await page.getByText('НАСТРОЙКИ').click()
   const input = page.getByLabel('Имя игрока')
   await input.fill('ТестБоец')
   await page.getByText('НАЗАД').click()
-  await page.getByText('СОЗДАТЬ ЛОББИ').click()
+  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })

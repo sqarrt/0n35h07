@@ -18,11 +18,16 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import { createWindupFx } from './fx/windup/createWindupFx'
+import { createBeamFx } from './fx/beam/createBeamFx'
+import { createRespawnFx } from './fx/respawn/createRespawnFx'
+import { createDashFx } from './fx/dash/createDashFx'
+import { createShieldFx } from './fx/shield/createShieldFx'
 import {
   BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
-  AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG,
+  AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
 } from '../constants'
 
 const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
@@ -54,11 +59,12 @@ interface MatchOptions {
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
-  netConfig: NetConfig     // ростер из лобби: ровно [host, opponent]
+  netConfig: NetConfig     // ростер из комнаты: ровно [host, opponent]
+  localReserveColor?: string   // «второй» цвет локального игрока (кольцо его планеты); у соперника второго нет
   defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
   durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
   mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
-  seedCode?: string        // источник сида музыки (лобби-код); общий у обоих пиров
+  seedCode?: string        // источник сида музыки (код комнаты); общий у обоих пиров
   musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
   sfxEngine?: ISfxEngine      // движок SFX (DIP); нет в юнит-тестах → тишина
 }
@@ -84,6 +90,7 @@ export class Match {
   // Rapier (через RapierBridge)
   private physicsWorld: PhysicsWorld | null = null
   private kcc: Kcc | null = null
+  private kccNoStep: Kcc | null = null   // без автостепа — для пересчёта кадра, где автостеп поднял, но не закрепил
 
   private lastHud = 0
   private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
@@ -129,7 +136,7 @@ export class Match {
     this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // Ритуал готовности проходят ВСЕ 1v1-матчи (лобби гарантирует двоих). Бот-соперник авто-готов.
+    // Ритуал готовности проходят ВСЕ 1v1-матчи (комната гарантирует двоих). Бот-соперник авто-готов.
     this.phase = 'ready'
     if (opponentIsBot) this.readySet.add(OPPONENT_ID)
 
@@ -151,13 +158,27 @@ export class Match {
     for (const e of roster) {
       const isBot = e.kind === 'bot'
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
+      // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
+      const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
+      // Стили косметики из ростера; нет поля → безопасные умолчания для старых клиентов.
+      const windupStyle = e.windupStyle ?? 'classic'
+      const respawnStyle = e.respawnStyle ?? 'echo'
+      const dashStyle = e.dashStyle ?? 'streak'
+      const shieldStyle = e.shieldStyle ?? 'dome'
       const p = isBot
-        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
+        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
             new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
-            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
-            e.color)
-        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth'),
-            new BeamWeapon({ outerColor: e.color }), new Shield(), e.color)
+            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION,
+              shieldFx: createShieldFx(shieldStyle) }),
+            e.color, createWindupFx(windupStyle), windupStyle,
+            createRespawnFx(respawnStyle, e.color), respawnStyle,
+            createDashFx(dashStyle, e.color), dashStyle)
+        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
+            new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
+            new Shield({ shieldFx: createShieldFx(shieldStyle) }),
+            e.color, createWindupFx(windupStyle), windupStyle,
+            createRespawnFx(respawnStyle, e.color), respawnStyle,
+            createDashFx(dashStyle, e.color), dashStyle)
       p.name = e.name
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
@@ -183,7 +204,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.burstObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.respawnFxObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 
@@ -193,19 +214,30 @@ export class Match {
   // --- Rapier wiring (вызывается из RapierBridge) ---
   attachWorld(world: PhysicsWorld, _rapier: unknown) {
     this.physicsWorld = world
-    this.kcc = world.createCharacterController(0.01)
-    this.kcc.setApplyImpulsesToDynamicBodies(false)
-    this.kcc.setUp({ x: 0, y: 1, z: 0 })
+    this.kcc = this.makeKcc(world, KCC_OFFSET, true)
+    this.kccNoStep = this.makeKcc(world, KCC_OFFSET, false)   // запасной KCC без автостепа (анти-дрожание ложного шага)
+  }
+
+  /** Создать и настроить KCC. offset — зазор капсула↔мир (численная стабильность); autostep — включать ли автоступень. */
+  private makeKcc(world: PhysicsWorld, offset: number, autostep: boolean): Kcc {
+    const kcc = world.createCharacterController(offset)
+    kcc.setApplyImpulsesToDynamicBodies(false)
+    kcc.setUp({ x: 0, y: 1, z: 0 })
     // Autostep даёт капсуле всходить на ступени (≤AUTOSTEP_MAX_HEIGHT) как по лестнице — в т.ч. на блоки 1×1
     // (высота 1.0); углы склона — для наклонных поверхностей/рамп. Препятствия выше ступени не перешагнуть.
-    this.kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
-    this.kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
-    this.kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
+    kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
+    if (autostep) kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
     // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
+    return kcc
   }
   detachWorld() {
-    if (this.physicsWorld && this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
+    if (this.physicsWorld) {
+      if (this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
+      if (this.kccNoStep) this.physicsWorld.removeCharacterController(this.kccNoStep)
+    }
     this.kcc = null
+    this.kccNoStep = null
     this.physicsWorld = null
   }
 
@@ -262,13 +294,23 @@ export class Match {
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
       p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
       p.stepDash(dt)                                                  // рывок добавляет к desired
-      this.kcc.computeColliderMovement(rb.collider(0), p.consumeDesired())
-      const c = this.kcc.computedMovement()
+      const desired = p.consumeDesired()
+      this.kcc.computeColliderMovement(rb.collider(0), desired)
+      let c = this.kcc.computedMovement()
+      let grounded = this.kcc.computedGrounded()
+      // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
+      // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
+      // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
+      if (this.kccNoStep && !grounded && c.y - desired.y > AUTOSTEP_LIFT_EPS) {
+        this.kccNoStep.computeColliderMovement(rb.collider(0), desired)
+        c = this.kccNoStep.computedMovement()
+        grounded = this.kccNoStep.computedGrounded()
+      }
       const cur = rb.translation()
       const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
       if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
       rb.setNextKinematicTranslation(next)
-      p.setGrounded(this.kcc.computedGrounded())
+      p.setGrounded(grounded)
     }
   }
 
@@ -371,7 +413,7 @@ export class Match {
       shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
       dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
       shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
-      windingUp: p.isWindingUp,
+      windingUp: p.isWindingUp, windupStyle: p.windupStyle,
       isLocal: p.id === this.localId,
     }))
     const moves = this.sfx.frame(inputs)
@@ -386,7 +428,7 @@ export class Match {
       id: me.id, obj: me.bodyGroup, pos: me.position,
       shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
       dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
-      windingUp: me.isWindingUp, isLocal: true,
+      windingUp: me.isWindingUp, windupStyle: me.windupStyle, isLocal: true,
     }])
   }
 
@@ -446,6 +488,8 @@ export class Match {
       p.bodyGroup.visible = false
       p.weaponObject.visible = false
       p.trailObject.visible = false
+      p.windupFxObject.visible = false
+      p.respawnFxObject.visible = false
     }
     this.endMatch('disconnect')
   }
@@ -502,8 +546,7 @@ export class Match {
     }
 
     const w = this.human.isWindingUp
-    if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
-    else if (this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })
+    if (!w && this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })   // конец заряда — сразу
     this.prevWindup = w
 
     const s = this.human.shieldActive
@@ -513,6 +556,8 @@ export class Match {
     const now = Date.now()
     if (now - this.lastHud > 50) {
       this.lastHud = now
+      // Прогресс заряда — троттлим (как прочий HUD): каждый кадр он гнал App-ре-рендер → спайк с постпроцессом.
+      if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
@@ -567,7 +612,7 @@ export class Match {
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
           shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
-          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, isLocal: false,
+          dashReady: null, shieldReady: null, windingUp: ps.windupProgress > 0, windupStyle: p.windupStyle, isLocal: false,
         }])
       }
     }
@@ -649,6 +694,7 @@ export class Match {
     }
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
+    w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
   }
 
   dispose() {
@@ -662,6 +708,7 @@ export class Match {
     delete w.__debugScore
     delete w.__debugBodyScale
     delete w.__debugForceEnd
+    delete w.__debugPlayerSpeed
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }

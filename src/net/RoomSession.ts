@@ -4,11 +4,11 @@ import type { BotDifficulty, MapId } from '../constants'
 import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID } from '../constants'
 import type { PlayerProfile } from '../settings'
 
-export type LobbyRole = 'host' | 'client'
+export type RoomRole = 'host' | 'client'
 
 const HELLO_RETRY_MS = 400   // клиент повторяет HELLO, пока не получит ASSIGN (надёжность под нагрузкой)
 
-export interface LobbyView {
+export interface RoomView {
   roster: RosterEntry[]
   localPlayerId: number   // -1 у клиента, пока хост не назначил
   isHost: boolean
@@ -20,13 +20,13 @@ export interface LobbyView {
 }
 
 /**
- * Хендшейк лобби (строго 1v1). Хост — владелец кода: держит себя (id 0) и ОДИН слот соперника (id 1) —
+ * Хендшейк комнаты (строго 1v1). Хост — владелец кода: держит себя (id 0) и ОДИН слот соперника (id 1) —
  * бот XOR подключившийся человек. Зашедший человек вытесняет бота. Клиент объявляется HELLO и получает
  * свой id + ростер. По START обе стороны строят Match с одинаковым ростером `[host, opponent]`.
  */
-export class LobbySession {
+export class RoomSession {
   readonly net: INet
-  readonly role: LobbyRole
+  readonly role: RoomRole
   readonly code: string
   private hostEntry: RosterEntry
   private opponent: RosterEntry | null = null   // слот соперника: бот | человек | пусто
@@ -35,17 +35,17 @@ export class LobbySession {
   private profile: PlayerProfile
   private durationMin: number = DEFAULT_MATCH_DURATION_MIN
   private mapId: MapId = DEFAULT_MAP_ID
-  private changeCb: (v: LobbyView) => void = () => {}
+  private changeCb: (v: RoomView) => void = () => {}
   private startCb: (durationMs: number, mapId: MapId) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
-  private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «лобби найдено»)
+  private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «комната найдена»)
 
-  constructor(net: INet, role: LobbyRole, code: string, profile: PlayerProfile) {
+  constructor(net: INet, role: RoomRole, code: string, profile: PlayerProfile) {
     this.net = net
     this.role = role
     this.code = code
     this.profile = profile
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel }
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
@@ -65,10 +65,10 @@ export class LobbySession {
 
   // --- host ---
   private onHello(hello: Hello, from: PeerId) {
-    // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → лобби 1v1 полно.
+    // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → комната 1v1 полна.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
     const name = (hello.name || '').trim() || 'Соперник'
-    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth' }
+    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome' }
     this.clientPeer = from
     this.broadcastRoster()
   }
@@ -90,7 +90,7 @@ export class LobbySession {
 
   addBot(difficulty: BotDifficulty = 'normal') {
     if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }
+    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }   // косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome')
     this.broadcastRoster()
   }
 
@@ -134,8 +134,8 @@ export class LobbySession {
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
-      const { name, primaryColor, reserveColor, ballModel } = this.profile
-      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel } satisfies Hello)
+      const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } = this.profile
+      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {
@@ -155,7 +155,7 @@ export class LobbySession {
   }
 
   // --- общий API ---
-  onChange(cb: (v: LobbyView) => void) { this.changeCb = cb; cb(this.view()) }
+  onChange(cb: (v: RoomView) => void) { this.changeCb = cb; cb(this.view()) }
   onStart(cb: (durationMs: number, mapId: MapId) => void) { this.startCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
@@ -164,7 +164,7 @@ export class LobbySession {
     return this.opponent ? [this.hostEntry, this.opponent] : [this.hostEntry]
   }
 
-  view(): LobbyView {
+  view(): RoomView {
     return {
       roster: this.roster(),
       localPlayerId: this.localPlayerId,

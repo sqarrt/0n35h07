@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import type { ISfxEngine } from './types'
 import type { MatchEvent } from '../../../net/protocol'
+import type { WindupStyle } from '../../../constants'
+import { windupSfxEvent } from './windupSfx'
 
 export type MoveKind = 'jump' | 'land'
 
@@ -23,6 +25,7 @@ export interface PlayerSfxInput {
   dashReady: boolean | null     // не-null только для локального игрока (cooldown_ready)
   shieldReady: boolean | null
   windingUp: boolean            // заряд луча идёт (для beam_fire — звук стартует с НАЧАЛА заряда)
+  windupStyle?: WindupStyle     // стиль анимации заряда (звук); нет → classic
   isLocal: boolean              // свой игрок → звуки 2D (идут «от тебя»); соперник → позиционно (слышно откуда)
 }
 
@@ -61,7 +64,7 @@ export class MatchSfx {
       const playEv = inp.isLocal
         ? (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.play2D(ev)
         : (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.playAt(ev, inp.pos)
-      if (inp.windingUp && !(prev?.windingUp)) playEv('beam_fire')   // звук всего выстрела — с начала заряда
+      if (inp.windingUp && !(prev?.windingUp)) playEv(windupSfxEvent(inp.windupStyle, this.engine))   // звук всего выстрела — с начала заряда
       if (inp.shieldActive && !(prev?.shield)) {
         playEv('shield_up')
         this.engine.startLoop('shield_loop', `shield:${inp.id}`, inp.isLocal ? null : inp.obj)

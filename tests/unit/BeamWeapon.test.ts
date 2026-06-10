@@ -83,4 +83,27 @@ describe('BeamWeapon', () => {
     w.interrupt()
     expect(w.cooldownProgress()).toBe(1)
   })
+
+  it('делегирует визуал в инжектированный IBeamFx: play при выстреле/playBeam, update каждый кадр, reset', () => {
+    const fake = {
+      object3d: new THREE.Group(),
+      plays: [] as { start: THREE.Vector3; end: THREE.Vector3 }[],
+      updates: 0, resets: 0,
+      play(s: THREE.Vector3, e: THREE.Vector3) { this.plays.push({ start: s.clone(), end: e.clone() }) },
+      update() { this.updates++ },
+      reset() { this.resets++ },
+      dispose() {},
+    }
+    const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN, beamFx: fake })
+    const c = ctx(() => null)
+    w.beginWindup()
+    advance(w, c, WINDUP + 50)
+    expect(fake.plays.length).toBe(1)                       // выстрел → play
+    expect(fake.plays[0].end.z).toBeCloseTo(-100, 0)        // промах → конец на дальности
+    expect(fake.updates).toBeGreaterThan(0)                 // update — каждый кадр
+    w.playBeam(new THREE.Vector3(), new THREE.Vector3(0, 0, -5))
+    expect(fake.plays.length).toBe(2)                       // косметический выстрел → play
+    w.reset()
+    expect(fake.resets).toBe(1)
+  })
 })

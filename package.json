@@ -1,7 +1,9 @@
 {
   "name": "oneshot",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
+  "description": "OneShot — аркадный шутер от первого лица, строго 1v1 (p2p)",
+  "author": "Dmitry Shatalov",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -27,8 +29,10 @@
     "directories": {
       "output": "release"
     },
+    "icon": "build/icon.png",
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.png"
     }
   },
   "dependencies": {
@@ -40,6 +44,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0",
+    "three-mesh-bvh": "^0.8.3",
     "trystero": "^0.25.1"
   },
   "devDependencies": {

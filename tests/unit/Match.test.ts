@@ -104,6 +104,32 @@ describe('Match', () => {
     expect(match.bots[0].position.distanceTo(botBefore)).toBeLessThan(0.01)
   })
 
+  it('windupFx: world-объекты в root, стиль из ростера попадает в Player', () => {
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'Вы', color: '#4af', kind: 'human', windupStyle: 'rage', respawnStyle: 'swarm',
+        dashStyle: 'rift', shieldStyle: 'hex' },
+      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+    ]
+    const match = new Match({
+      scene, camera,
+      controls: { current: { pointerSpeed: 1 } } as any,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as any,
+      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+    })
+    expect(match.human.windupStyle).toBe('rage')
+    expect(match.bots[0].windupStyle).toBe('classic')           // у бота стиля нет → classic
+    expect(match.human.windupFxObject.parent).toBe(match.root)
+    expect(match.bots[0].windupFxObject.parent).toBe(match.root)
+    expect(match.human.respawnStyle).toBe('swarm')              // стиль респавна тоже из ростера
+    expect(match.bots[0].respawnStyle).toBe('echo')
+    expect(match.human.respawnFxObject.parent).toBe(match.root)
+    expect(match.human.dashStyle).toBe('rift')                  // скины рывка/щита из ростера
+    expect(match.bots[0].dashStyle).toBe('streak')
+    expect(match.human.trailObject.parent).toBe(match.root)
+  })
+
   it('по истечении фазы игрок материализуется НА МЕСТЕ остановки (не на рандоме)', () => {
     const { match, scene } = makeMatch('passive')
     match.human.respawnAt(new THREE.Vector3(2, EYE_HEIGHT, 3))   // в известную точку, alive

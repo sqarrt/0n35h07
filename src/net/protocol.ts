@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { BotDifficulty, MatchPhase, BallModel, MapId } from '../constants'
+import type { BotDifficulty, MatchPhase, BallModel, MapId, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -15,7 +15,7 @@ export type NetTag = typeof NET_TAGS[number]
 /** Фаза матча: хост → все (готовность/отсчёт перед боем). */
 export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
-// --- handshake (лобби) ---
+// --- handshake (комната) ---
 export type PlayerKind = 'human' | 'bot'
 /** Один игрок матча (человек или бот). Хост раздаёт весь ростер клиентам. */
 export interface RosterEntry {
@@ -25,8 +25,12 @@ export interface RosterEntry {
   kind:   PlayerKind
   difficulty?: BotDifficulty   // только для kind==='bot'
   ballModel?: BallModel        // модель сферы (косметика); нет → 'smooth'
+  windupStyle?: WindupStyle    // анимация заряда (косметика); нет → 'classic'
+  respawnStyle?: RespawnStyle  // анимация респавна (косметика); нет → 'echo'
+  dashStyle?: DashStyle        // скин следа рывка (косметика); нет → 'streak'
+  shieldStyle?: ShieldStyle    // скин щита (косметика); нет → 'dome'
 }
-export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel }
+export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle }
 export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId }
 export interface Start { durationMs: number; mapId: MapId }
 

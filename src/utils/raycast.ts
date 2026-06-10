@@ -6,6 +6,11 @@ export interface RaycastOptions {
   excludeEntityIds?: number[]
 }
 
+// Переиспользуемый Raycaster (без аллокации на каждый выстрел). firstHitOnly — режим BVH (three-mesh-bvh):
+// на меше с boundsTree возвращает только ближайший хит, не перебирая остальные треугольники.
+const raycaster = new THREE.Raycaster()
+;(raycaster as unknown as { firstHitOnly: boolean }).firstHitOnly = true
+
 export function performRaycast(
   scene: THREE.Scene,
   origin: THREE.Vector3,
@@ -21,5 +26,6 @@ export function performRaycast(
     if (obj.userData.entityId !== undefined && excludeEntityIds.includes(obj.userData.entityId)) return
     targets.push(obj)
   })
-  return new THREE.Raycaster(origin, direction).intersectObjects(targets)
+  raycaster.set(origin, direction)
+  return raycaster.intersectObjects(targets)
 }

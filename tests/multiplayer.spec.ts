@@ -16,15 +16,15 @@ async function playerZ(page: Page, id: number): Promise<number> {
   return page.evaluate(pid => (window as any).__debugPlayerPos(pid)?.z ?? NaN, id)
 }
 
-/** Хост создаёт лобби, клиент входит по коду, хост стартует → обе страницы в игре. */
-/** Лобби → НАЧАТЬ → обе страницы в игре (фаза 'ready', ритуал не пройден). */
+/** Хост создаёт комнату, клиент входит по коду, хост стартует → обе страницы в игре. */
+/** Комната → НАЧАТЬ → обе страницы в игре (фаза 'ready', ритуал не пройден). */
 async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
   await host.goto('/')
-  await host.getByText('СОЗДАТЬ ЛОББИ').click()
-  await expect(host.getByText('ЛОББИ', { exact: true })).toBeVisible()
+  await host.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await expect(host.getByText('КОМНАТА', { exact: true })).toBeVisible()
   const codeText = await host.getByText(/КОД:/).textContent()
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
 
