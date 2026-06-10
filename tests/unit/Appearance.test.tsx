@@ -74,9 +74,9 @@ describe('Appearance — плоский экран', () => {
 
   it('каждый клик по скину щита дёргает onShieldPreview(style); повторный — снова', () => {
     const { onShieldPreview } = renderAppearance()
-    fireEvent.click(screen.getByRole('button', { name: 'ОРБИТЫ' }))
-    expect(onShieldPreview).toHaveBeenLastCalledWith('gyro')
-    fireEvent.click(screen.getByRole('button', { name: 'ОРБИТЫ' }))
+    fireEvent.click(screen.getByRole('button', { name: 'СОТЫ' }))
+    expect(onShieldPreview).toHaveBeenLastCalledWith('hex')
+    fireEvent.click(screen.getByRole('button', { name: 'СОТЫ' }))
     expect(onShieldPreview).toHaveBeenCalledTimes(2)
   })
 

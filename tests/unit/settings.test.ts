@@ -123,8 +123,8 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('shieldStyle: валидный сохраняется, мусор/отсутствие → dome', () => {
-    saveProfile({ ...loadProfile(), shieldStyle: 'gyro' })
-    expect(loadProfile().shieldStyle).toBe('gyro')
+    saveProfile({ ...loadProfile(), shieldStyle: 'hex' })
+    expect(loadProfile().shieldStyle).toBe('hex')
     saveProfile({ ...loadProfile(), shieldStyle: 'жуть' as never })
     expect(loadProfile().shieldStyle).toBe('dome')
   })

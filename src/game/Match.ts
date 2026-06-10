@@ -204,7 +204,7 @@ export class Match {
   }
 
   private registerPlayer(p: Player) {
-    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.respawnFxObject, p.windupFxObject)
+    this.root.add(p.bodyGroup, p.weaponObject, p.trailObject, p.ghostTrailObject, p.respawnFxObject, p.windupFxObject)
     this.byId.set(p.id, p)
   }
 
@@ -488,6 +488,7 @@ export class Match {
       p.bodyGroup.visible = false
       p.weaponObject.visible = false
       p.trailObject.visible = false
+      p.ghostTrailObject.visible = false
       p.windupFxObject.visible = false
       p.respawnFxObject.visible = false
     }

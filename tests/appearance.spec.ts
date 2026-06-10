@@ -51,9 +51,9 @@ test('внешность — скин следа рывка переключае
 })
 
 test('внешность — скин щита переключается и сохраняется', async ({ page }) => {
-  await page.getByRole('button', { name: 'ОРБИТЫ' }).click()
+  await page.getByRole('button', { name: 'СОТЫ' }).click()
   const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').shieldStyle)
-  expect(style).toBe('gyro')   // персист в профиль
+  expect(style).toBe('hex')   // персист в профиль
 })
 
 test('внешность — назад → главное меню', async ({ page }) => {

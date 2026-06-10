@@ -313,4 +313,15 @@ describe('Player + IDashTrail (скин следа рывка)', () => {
     expect(p.dashStyle).toBe('wave')
     expect(p.trailObject).toBe(fx.object3d)
   })
+
+  it('призрак НЕ переиспользует скин рывка: у призрака свой классический трейл', () => {
+    const fx = new FakeDashTrail()
+    const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
+      undefined, undefined, undefined, undefined, fx, 'rift')
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0))
+    p.receiveHit()                                  // фаза призрака (echo — общий след)
+    p.update(0.016, dummyWorld, [])
+    expect(fx.dashingLog).toEqual([false])          // скин рывка молчит — след призрака рисует ghostTrail
+    expect(p.ghostTrailObject).not.toBe(fx.object3d)
+  })
 })

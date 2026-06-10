@@ -62,7 +62,7 @@ export type RespawnStyle = typeof RESPAWN_STYLES[number]
 // Скины следа рывка и щита (выбор во «Внешности», сетевая косметика — видны сопернику).
 export const DASH_STYLES = ['streak', 'wave', 'rift'] as const
 export type DashStyle = typeof DASH_STYLES[number]
-export const SHIELD_STYLES = ['dome', 'gyro', 'crystal'] as const
+export const SHIELD_STYLES = ['dome', 'hex', 'crystal'] as const
 export type ShieldStyle = typeof SHIELD_STYLES[number]
 
 // Волны — деформация вершин (вдоль нормали) в шейдере:

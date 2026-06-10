@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { DomeShieldFx } from '../../src/game/fx/shield/DomeShieldFx'
-import { GyroShieldFx } from '../../src/game/fx/shield/GyroShieldFx'
+import { HexShieldFx } from '../../src/game/fx/shield/HexShieldFx'
 import { CrystalShieldFx } from '../../src/game/fx/shield/CrystalShieldFx'
 import { createShieldFx } from '../../src/game/fx/shield/createShieldFx'
 
@@ -37,19 +37,33 @@ describe('DomeShieldFx', () => {
   })
 })
 
-describe('GyroShieldFx', () => {
-  it('кольца кувыркаются при active и стоят без active', () => {
-    const fx = new GyroShieldFx()
-    const ring = meshes(fx.object3d)[0]
-    const worldBefore = ring.getWorldQuaternion(new THREE.Quaternion())
-    fx.update(STEP, true)
-    fx.object3d.updateMatrixWorld(true)
-    const worldAfter = ring.getWorldQuaternion(new THREE.Quaternion())
-    expect(worldAfter.angleTo(worldBefore)).toBeGreaterThan(0.001)
+describe('HexShieldFx', () => {
+  const opacity = (m: THREE.Mesh) => (m.material as THREE.MeshBasicMaterial).opacity
+
+  it('волна активации: сразу после включения верхние плитки ярче нижних', () => {
+    const fx = new HexShieldFx()
+    fx.update(0.03, true)   // ~30мс: волна у макушки, низ ещё дежурный
+    const tiles = meshes(fx.object3d)
+    const top = tiles[0]                     // фибоначчи-сфера: плитка 0 у макушки
+    const bottom = tiles[tiles.length - 1]   // последняя — у дна
+    expect(opacity(top)).toBeGreaterThan(opacity(bottom) + 0.2)
+  })
+
+  it('после прохода волны все плитки в дежурном диапазоне; повторная активация — волна заново', () => {
+    const fx = new HexShieldFx()
+    for (let t = 0; t < 0.8; t += STEP) fx.update(STEP, true)   // > WAVE+FLASH — волна отгорела
+    const tiles = meshes(fx.object3d)
+    tiles.forEach(m => expect(opacity(m)).toBeLessThan(0.3))    // дежурное мерцание, без вспышек
+    fx.update(STEP, false)   // деактивация
+    fx.update(0.03, true)    // фронт активации → волна снова у макушки
+    expect(opacity(tiles[0])).toBeGreaterThan(opacity(tiles[tiles.length - 1]) + 0.2)
+  })
+
+  it('без active плитки не анимируются', () => {
+    const fx = new HexShieldFx()
+    const before = opacity(meshes(fx.object3d)[0])
     fx.update(STEP, false)
-    fx.object3d.updateMatrixWorld(true)
-    const worldIdle = ring.getWorldQuaternion(new THREE.Quaternion())
-    expect(worldIdle.angleTo(worldAfter)).toBeLessThan(1e-6)
+    expect(opacity(meshes(fx.object3d)[0])).toBe(before)
   })
 })
 
@@ -68,7 +82,7 @@ describe('CrystalShieldFx', () => {
 
 describe('общие требования и фабрика', () => {
   it('меши noRaycast; dispose не бросает', () => {
-    for (const fx of [new DomeShieldFx(), new GyroShieldFx(), new CrystalShieldFx()]) {
+    for (const fx of [new DomeShieldFx(), new HexShieldFx(), new CrystalShieldFx()]) {
       meshes(fx.object3d).forEach(m => expect(m.userData.noRaycast).toBe(true))
       expect(() => fx.dispose()).not.toThrow()
     }
@@ -76,7 +90,7 @@ describe('общие требования и фабрика', () => {
 
   it('createShieldFx выбирает реализацию по стилю', () => {
     expect(createShieldFx('dome')).toBeInstanceOf(DomeShieldFx)
-    expect(createShieldFx('gyro')).toBeInstanceOf(GyroShieldFx)
+    expect(createShieldFx('hex')).toBeInstanceOf(HexShieldFx)
     expect(createShieldFx('crystal')).toBeInstanceOf(CrystalShieldFx)
   })
 })

@@ -109,7 +109,7 @@ describe('Match', () => {
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
     const roster: RosterEntry[] = [
       { id: 0, name: 'Вы', color: '#4af', kind: 'human', windupStyle: 'rage', respawnStyle: 'swarm',
-        dashStyle: 'rift', shieldStyle: 'gyro' },
+        dashStyle: 'rift', shieldStyle: 'hex' },
       { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
     ]
     const match = new Match({

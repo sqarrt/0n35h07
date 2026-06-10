@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { IRespawnFx, RespawnTarget, RespawnFrame } from './types'
 
 // «Рой»: шар рассыпается на осколки; призрак — рой кружит вокруг игрока; возрождение — слетается.
-const FRAGMENTS = 30
+const FRAGMENTS = 60
 const FRAG_SIZE = 0.09             // размер осколка (тетраэдр)
 const SCATTER_MS = 350             // разлёт после смерти, потом орбиты
 const SCATTER_SPEED = 5            // начальная скорость разлёта

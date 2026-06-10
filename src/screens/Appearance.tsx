@@ -107,7 +107,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const windupLabel: Record<WindupStyle, string> = { classic: 'ИМПУЛЬС', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
   const respawnLabel: Record<RespawnStyle, string> = { echo: 'ЭХО', chaos: 'ХАОС', swarm: 'РОЙ' }
   const dashLabel: Record<DashStyle, string> = { streak: 'ШЛЕЙФ', wave: 'ВОЛНА', rift: 'РАЗРЫВ' }
-  const shieldLabel: Record<ShieldStyle, string> = { dome: 'КУПОЛ', gyro: 'ОРБИТЫ', crystal: 'КРИСТАЛЛ' }
+  const shieldLabel: Record<ShieldStyle, string> = { dome: 'КУПОЛ', hex: 'СОТЫ', crystal: 'КРИСТАЛЛ' }
 
   // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям блоков.
   useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, onPreview])

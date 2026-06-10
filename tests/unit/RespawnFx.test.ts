@@ -164,13 +164,13 @@ describe('след призрака по стилям', () => {
     expect(new SwarmRespawnFx('#4af').ownGhostTrail).toBe(true)
   })
 
-  it('swarm: в призраке появляются клоны следа (видимых мешей больше, чем 30 осколков)', () => {
+  it('swarm: в призраке появляются клоны следа (видимых мешей больше, чем 60 осколков)', () => {
     const fx = new SwarmRespawnFx('#4af')
     const { target } = makeTarget()
     fx.onDeath(new THREE.Vector3())
     for (let i = 0; i < 20; i++) { fx.apply(0.016, target, makeFrame({ ghost: 0.5 })); fx.update(0.016) }
     let visible = 0
     fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) visible++ })
-    expect(visible).toBeGreaterThan(30)
+    expect(visible).toBeGreaterThan(60)
   })
 })
