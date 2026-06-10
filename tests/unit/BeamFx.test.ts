@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { ClassicBeamFx } from '../../src/game/fx/beam/ClassicBeamFx'
 import { RageBeamFx } from '../../src/game/fx/beam/RageBeamFx'
+import { SingularityBeamFx } from '../../src/game/fx/beam/SingularityBeamFx'
 import type { IBeamFx } from '../../src/game/fx/beam/types'
 import { BEAM_DURATION } from '../../src/constants'
 
@@ -92,6 +93,42 @@ describe('RageBeamFx', () => {
     fx.reset()
     expect(anyVisible(fx.object3d)).toBe(false)
     fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh) expect(o.userData.noRaycast).toBe(true) })
+    expect(() => fx.dispose()).not.toThrow()
+  })
+})
+
+describe('SingularityBeamFx', () => {
+  it('до play не видно; play → видим (нить + спираль); к BEAM_DURATION погас', () => {
+    const fx = new SingularityBeamFx('#4af')
+    fx.update(0.016)
+    expect(anyVisible(fx.object3d)).toBe(false)
+    fx.play(start, end)
+    fx.update(0.016)
+    expect(anyVisible(fx.object3d)).toBe(true)
+    advanceFx(fx, BEAM_DURATION + 100)
+    expect(anyVisible(fx.object3d)).toBe(false)
+  })
+
+  it('затухание «втягиванием»: к середине жизни нить короче полной длины и прижата к дулу', () => {
+    const fx = new SingularityBeamFx('#4af')
+    fx.play(start, end)
+    fx.update(0.016)
+    const core = fx.object3d.children[0] as THREE.Mesh    // children[0] — ядро-нить (порядок add в конструкторе)
+    const fullLen = core.scale.y
+    advanceFx(fx, BEAM_DURATION * 0.6)
+    expect(core.scale.y).toBeLessThan(fullLen)            // нить сокращается
+    // Центр нити смещается к началу (дулу): расстояние от start меньше половины полной длины.
+    const mid = core.getWorldPosition(new THREE.Vector3())
+    expect(mid.distanceTo(start)).toBeLessThan(fullLen / 2)
+  })
+
+  it('частицы спирали и меши noRaycast; reset гасит; dispose не бросает', () => {
+    const fx = new SingularityBeamFx('#4af')
+    fx.object3d.traverse(o => { if (o !== fx.object3d) expect(o.userData.noRaycast).toBe(true) })
+    fx.play(start, end)
+    fx.update(0.016)
+    fx.reset()
+    expect(anyVisible(fx.object3d)).toBe(false)
     expect(() => fx.dispose()).not.toThrow()
   })
 })
