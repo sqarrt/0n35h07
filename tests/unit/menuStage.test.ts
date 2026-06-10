@@ -4,24 +4,25 @@ import rawPoses from '../../src/components/menuCameraPoses.json'
 
 describe('cameraStateFor', () => {
   it('внешность: ракурс по последнему кликнутому блоку', () => {
-    expect(cameraStateFor('appearance', false, 'color')).toBe('appearance')
-    expect(cameraStateFor('appearance', false, 'model')).toBe('appearance')
-    expect(cameraStateFor('appearance', false, 'shot')).toBe('appearanceShot')
-    expect(cameraStateFor('appearance', false, 'respawn')).toBe('appearanceRespawn')
+    expect(cameraStateFor('appearance', false, false, 'color')).toBe('appearance')
+    expect(cameraStateFor('appearance', false, false, 'model')).toBe('appearance')
+    expect(cameraStateFor('appearance', false, false, 'shot')).toBe('appearanceShot')
+    expect(cameraStateFor('appearance', false, false, 'respawn')).toBe('appearanceRespawn')
   })
 
-  it('лобби: особый ракурс только вдвоём; остальные экраны — дефолт', () => {
-    expect(cameraStateFor('lobby', true, 'color')).toBe('lobby')
-    expect(cameraStateFor('lobby', false, 'color')).toBe('default')
-    expect(cameraStateFor('menu', false, 'color')).toBe('default')
-    expect(cameraStateFor('join', false, 'respawn')).toBe('default')   // part вне внешности не влияет
-    expect(cameraStateFor('settings', false, 'color')).toBe('default')
+  it('лобби: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
+    expect(cameraStateFor('lobby', true, false, 'color')).toBe('lobby')
+    expect(cameraStateFor('lobby', true, true, 'color')).toBe('lobbyClient')
+    expect(cameraStateFor('lobby', false, false, 'color')).toBe('default')
+    expect(cameraStateFor('menu', false, false, 'color')).toBe('default')
+    expect(cameraStateFor('join', false, true, 'respawn')).toBe('default')   // part/клиент вне лобби не влияют
+    expect(cameraStateFor('settings', false, false, 'color')).toBe('default')
   })
 })
 
 describe('menuCameraPoses.json', () => {
   it('содержит позу для каждого состояния (position и target — тройки чисел)', () => {
-    const states = ['default', 'lobby', 'appearance', 'appearanceShot', 'appearanceRespawn'] as const
+    const states = ['default', 'lobby', 'lobbyClient', 'appearance', 'appearanceShot', 'appearanceRespawn'] as const
     for (const s of states) {
       const pose = (rawPoses as Record<string, { position: number[]; target: number[] }>)[s]
       expect(pose, s).toBeDefined()

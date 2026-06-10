@@ -482,7 +482,8 @@ export function MenuBackdrop({ mode, player, lobby, appearancePart, analysis, gl
   }, [])
 
   const hasOpponent = !!lobby?.roster.find(r => r.id === OPPONENT_ID)
-  const camState = cameraStateFor(mode, hasOpponent, appearancePart ?? 'color')
+  const isClient = lobby != null && lobby.localPlayerId !== HOST_ID   // подключился к чужому лобби
+  const camState = cameraStateFor(mode, hasOpponent, isClient, appearancePart ?? 'color')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
