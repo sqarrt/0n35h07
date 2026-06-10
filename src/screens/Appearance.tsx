@@ -6,7 +6,7 @@ import { saveProfile } from '../settings'
 import type { PlayerProfile } from '../settings'
 import { Button } from '../ui/Button'
 import { useSfx } from '../sfx/SfxContext'
-import type { AppearancePart } from '../components/menuBallTargets'
+import type { AppearancePart } from '../components/menuStage'
 
 interface AppearanceProps {
   profile: PlayerProfile

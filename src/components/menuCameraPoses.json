@@ -1,0 +1,7 @@
+{
+  "default": { "position": [0, 1.55, 1.9], "target": [0, 1.4, 0] },
+  "lobby": { "position": [0.9, 1.6, 3.4], "target": [0.9, 1.35, 0] },
+  "appearance": { "position": [0.9, 1.5, 2.1], "target": [0.9, 1.38, 0] },
+  "appearanceShot": { "position": [2.6, 1.7, 4.4], "target": [0.4, 1.1, 0] },
+  "appearanceRespawn": { "position": [1.2, 4.6, 6.8], "target": [0.5, 1.2, 0] }
+}
