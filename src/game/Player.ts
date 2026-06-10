@@ -344,6 +344,9 @@ export class Player implements IControllable {
     this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
     this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing || (this.respawning && !this.respawnFx.ownGhostTrail) })
+    // Тикаем щит ради анимации скина: фазы удалённого всегда idle (activate не зовём),
+    // а видимость группы форсится ниже в applyRemoteVisual из снапшота — скин видит её как active.
+    this.shield.update(dt)
     this.respawnFx.update(dt)
     this.body.tickShader(dt)
     this.applyRemoteVisual(dt)
