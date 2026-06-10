@@ -8,6 +8,8 @@ describe('cameraStateFor', () => {
     expect(cameraStateFor('appearance', false, false, 'model')).toBe('appearance')
     expect(cameraStateFor('appearance', false, false, 'shot')).toBe('appearanceShot')
     expect(cameraStateFor('appearance', false, false, 'respawn')).toBe('appearanceRespawn')
+    expect(cameraStateFor('appearance', false, false, 'dash')).toBe('appearanceDash')
+    expect(cameraStateFor('appearance', false, false, 'shield')).toBe('appearanceShield')
   })
 
   it('лобби: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
@@ -22,7 +24,7 @@ describe('cameraStateFor', () => {
 
 describe('menuCameraPoses.json', () => {
   it('содержит позу для каждого состояния (position и target — тройки чисел)', () => {
-    const states = ['default', 'lobby', 'lobbyClient', 'appearance', 'appearanceShot', 'appearanceRespawn'] as const
+    const states = ['default', 'lobby', 'lobbyClient', 'appearance', 'appearanceShot', 'appearanceRespawn', 'appearanceDash', 'appearanceShield'] as const
     for (const s of states) {
       const pose = (rawPoses as Record<string, { position: number[]; target: number[] }>)[s]
       expect(pose, s).toBeDefined()
