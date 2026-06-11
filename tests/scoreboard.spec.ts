@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import { unlockPointer, waitForGame } from './helpers'
+import { en } from '../src/i18n/locales/en'
 
 test('счёт и имена игроков видны в HUD без Tab', async ({ page }) => {
   await page.goto('/')
@@ -13,6 +14,6 @@ test('экран конца матча — НИЧЬЯ и ВЫЙТИ при 0:0',
   await page.goto('/')
   await waitForGame(page)   // navigateThroughMenu + __debugForceLive (без pointerLock)
   await page.evaluate(() => (window as any).__debugForceEnd())
-  await expect(page.getByText('НИЧЬЯ')).toBeVisible({ timeout: 5000 })
-  await expect(page.getByText('ВЫЙТИ')).toBeVisible({ timeout: 5000 })
+  await expect(page.getByTestId('match-outcome')).toHaveText(en.matchOutcomeDraw, { timeout: 5000 })
+  await expect(page.getByTestId('match-exit')).toBeVisible({ timeout: 5000 })
 })

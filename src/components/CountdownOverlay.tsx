@@ -1,5 +1,8 @@
+import { useT } from '../i18n'
+
 /** Центральный обратный отсчёт 3-2-1 перед боем (камера крутится, действия заморожены). */
 export function CountdownOverlay({ n }: { n: number }) {
+  const t = useT()
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 12, pointerEvents: 'none',
@@ -12,7 +15,7 @@ export function CountdownOverlay({ n }: { n: number }) {
         textShadow: '0 0 40px rgba(68,170,255,0.6)',
         animation: 'cdPop 1s ease-out',
       }}>
-        {n > 0 ? n : 'В БОЙ!'}
+        {n > 0 ? n : t.countdownGo}
       </div>
       <style>{'@keyframes cdPop{0%{transform:scale(1.6);opacity:0}25%{opacity:1}100%{transform:scale(1);opacity:0.9}}'}</style>
     </div>

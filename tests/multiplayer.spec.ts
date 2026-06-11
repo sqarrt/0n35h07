@@ -139,7 +139,7 @@ test('1v1: шар хоста на клиенте сдувается плавно
 test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
   const { host } = await enterGame(context)
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
-  await expect(host.getByText('Рывок')).toBeVisible()   // легенда управления на экране готовности
+  await expect(host.getByText(en.ctrlDash)).toBeVisible()   // легенда управления на экране готовности
 
   await fakeLock(host)
   await host.evaluate(() => (window as any).__debugReady())   // готов только хост → фаза остаётся 'ready'
@@ -156,14 +156,14 @@ test('1v1: ритуал входа — пока не готовы оба, дви
 test('1v1: клиент отключился — хост видит баннер и (после паузы) ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await client.evaluate(() => (window as any).__debugLeave())   // клиент покидает игру
-  await expect(host.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
-  await expect(host.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
+  await expect(host.getByTestId('match-reason')).toHaveText(en.matchReasonDisconnect, { timeout: 6000 })
+  await expect(host.getByTestId('match-exit')).toBeVisible({ timeout: 6000 })
   expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ended')
 })
 
 test('1v1: хост отключился — клиент видит баннер и ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await host.evaluate(() => (window as any).__debugLeave())
-  await expect(client.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
-  await expect(client.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
+  await expect(client.getByTestId('match-reason')).toHaveText(en.matchReasonDisconnect, { timeout: 6000 })
+  await expect(client.getByTestId('match-exit')).toBeVisible({ timeout: 6000 })
 })
