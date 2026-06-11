@@ -10,4 +10,5 @@ export const pl = {
   warnBody: 'Gra zawiera migające obrazy, stroboskopy i intensywne efekty świetlne. Niezalecane dla osób z fotoczułą epilepsją.',
   warnContinueHint: 'aby kontynuować',
   warnContinueKey: 'LPM',
+  settingsLanguage: 'JĘZYK',
 } satisfies Dict

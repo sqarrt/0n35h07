@@ -10,4 +10,5 @@ export const de = {
   warnBody: 'Das Spiel enthält Blitzlichter, Stroboskopeffekte und intensive Lichteffekte. Nicht empfohlen für Menschen mit photosensitiver Epilepsie.',
   warnContinueHint: 'zum Fortfahren',
   warnContinueKey: 'LMT',
+  settingsLanguage: 'SPRACHE',
 } satisfies Dict

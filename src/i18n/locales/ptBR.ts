@@ -10,4 +10,5 @@ export const ptBR = {
   warnBody: 'O jogo contém imagens piscantes, flashes e efeitos de luz intensos. Não recomendado para pessoas com epilepsia fotossensível.',
   warnContinueHint: 'para continuar',
   warnContinueKey: 'CLIQUE ESQ',
+  settingsLanguage: 'IDIOMA',
 } satisfies Dict

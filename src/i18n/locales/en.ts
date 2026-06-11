@@ -10,4 +10,5 @@ export const en = {
   warnBody: 'This game contains flashing images, strobes and sharp light effects. Not recommended for people with photosensitive epilepsy.',
   warnContinueHint: 'to continue',
   warnContinueKey: 'LMB',
+  settingsLanguage: 'LANGUAGE',
 }

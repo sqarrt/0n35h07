@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures'
+import { ru as ruDict } from '../src/i18n/locales/ru'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -52,4 +53,33 @@ test('настройки — имя сохраняется и видно в ко
   await page.getByText('НАЗАД').click()
   await page.getByTestId('menu-create-room').click()
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
+})
+
+test('настройки — выбор языка применяется сразу и переживает перезагрузку', async ({ page }) => {
+  // Context-level initScript (fixtures) перезаписывает oneshot:profile при каждой навигации.
+  // Чтобы персистентность locale проверялась честно, патчим профиль с locale:'en' через
+  // page-level addInitScript, который выполняется ПОСЛЕ context-level initScript:
+  // он читает профиль (уже перезаписанный fixtures) и добавляет locale из отдельного ключа
+  // oneshot:test-locale, который fixtures не трогает. После смены языка мы пишем в этот ключ.
+  await page.addInitScript(() => {
+    try {
+      const savedLocale = localStorage.getItem('oneshot:test-locale') ?? 'en'
+      const raw = localStorage.getItem('oneshot:profile')
+      const profile = raw ? JSON.parse(raw) : {}
+      localStorage.setItem('oneshot:profile', JSON.stringify({ ...profile, locale: savedLocale }))
+    } catch { /* ignore */ }
+  })
+  await page.reload()
+  await page.getByTestId('menu-settings').click()
+  await expect(page.getByTestId('settings-language-label')).toHaveText('LANGUAGE')
+  await page.getByTestId('settings-lang-ru').click()
+  await expect(page.getByTestId('settings-language-label')).toHaveText(ruDict.settingsLanguage)
+  // Сохраняем выбранный locale в отдельный ключ (переживает перезапись fixtures при reload).
+  await page.evaluate(() => {
+    const profile = JSON.parse(localStorage.getItem('oneshot:profile') ?? '{}')
+    if (profile.locale) localStorage.setItem('oneshot:test-locale', profile.locale)
+  })
+  await page.reload()
+  await page.getByTestId('menu-settings').click()
+  await expect(page.getByTestId('settings-language-label')).toHaveText(ruDict.settingsLanguage)
 })

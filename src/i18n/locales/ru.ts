@@ -10,4 +10,5 @@ export const ru = {
   warnBody: 'Игра содержит мерцающие изображения, вспышки и резкие световые эффекты. Не рекомендуется людям с фоточувствительной эпилепсией.',
   warnContinueHint: 'чтобы продолжить',
   warnContinueKey: 'ЛКМ',
+  settingsLanguage: 'ЯЗЫК',
 } satisfies Dict

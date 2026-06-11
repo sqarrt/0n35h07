@@ -7,6 +7,7 @@ import { Toggle } from '../ui/Toggle'
 import { Slider } from '../ui/Slider'
 import { RelaysSection } from './RelaysSection'
 import { useSfx } from '../sfx/SfxContext'
+import { LOCALES, useLocale, useT } from '../i18n'
 
 interface SettingsProps {
   profile: PlayerProfile
@@ -31,8 +32,15 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: 'graphics', label: 'ГРАФИКА' },
 ]
 
+/** Ширина плитки языка — по самому длинному родному названию «Português (BR)». */
+const LANG_TILE_WIDTH = '9.2rem'
+/** Число колонок в сетке языков. */
+const LANG_GRID_COLS = 5
+
 export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const sfx = useSfx()
+  const t = useT()
+  const [locale, setLocale] = useLocale()
   const [section, setSection] = useState<Section>('player')
   const [name, setName] = useState(profile.name)
   const [view, setView] = useState<DefaultView>(profile.defaultView)
@@ -141,6 +149,27 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
                 {v === 'fp' ? 'ОТ 1 ЛИЦА' : 'ОТ 3 ЛИЦА'}
               </button>
             ))}
+          </div>
+
+          <div style={{ marginBottom: '1.6rem' }}>
+            <div style={label} data-testid="settings-language-label">{t.settingsLanguage}</div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${LANG_GRID_COLS}, ${LANG_TILE_WIDTH})`,
+              gap: '0.4rem',
+            }}>
+              {LOCALES.map(l => (
+                <Button
+                  key={l.id}
+                  variant={locale === l.id ? 'primary' : 'secondary'}
+                  data-testid={`settings-lang-${l.id}`}
+                  onClick={() => setLocale(l.id)}
+                  style={{ width: LANG_TILE_WIDTH }}
+                >
+                  {l.native}
+                </Button>
+              ))}
+            </div>
           </div>
         </>
       )}
