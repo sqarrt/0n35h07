@@ -28,8 +28,9 @@ import { Room } from './screens/Room'
 import { Settings } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
-import { loadProfile } from './settings'
+import { loadProfile, saveProfile } from './settings'
 import type { PlayerProfile } from './settings'
+import { I18nProvider, detectLocale } from './i18n'
 import { Button } from './ui/Button'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
@@ -436,10 +437,18 @@ export default function App() {
   useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
 
   if (editorMode) {
-    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
+    return (
+      <I18nProvider initial={profile.locale ?? detectLocale()}>
+        <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
+      </I18nProvider>
+    )
   }
 
   return (
+    <I18nProvider
+      initial={profile.locale ?? detectLocale()}
+      onChange={id => { saveProfile({ ...profile, locale: id }); setProfile(p => ({ ...p, locale: id })) }}
+    >
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
@@ -562,5 +571,6 @@ export default function App() {
       {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}
     </div>
     </SfxProvider>
+    </I18nProvider>
   )
 }

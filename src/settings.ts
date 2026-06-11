@@ -1,5 +1,7 @@
 import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES, DASH_STYLES, SHIELD_STYLES } from './constants'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
+import { LOCALES } from './i18n'
+import type { LocaleId } from './i18n'
 
 export type DefaultView = 'fp' | 'tp'
 
@@ -23,6 +25,7 @@ export interface PlayerProfile {
   volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
   volumeMenuMusic: number    // звук: музыка в меню 0..1; локальное предпочтение
   connectTimeoutSec: number  // сеть: таймаут подключения к комнате (секунды); локальное предпочтение
+  locale?: LocaleId          // язык интерфейса; undefined = не выбран (определяем системный)
 }
 
 export const CONNECT_TIMEOUT_OPTIONS = [5, 10, 20, 30, 60, 90, 120] as const   // варианты таймаута подключения (с)
@@ -79,7 +82,10 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
   // таймаут подключения: только из разрешённых вариантов, иначе дефолт
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
-  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec }
+  // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
+  const localeIds = LOCALES.map(l => l.id)
+  const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
+  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, ...(locale !== undefined ? { locale } : {}) }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
