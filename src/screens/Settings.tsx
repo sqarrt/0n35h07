@@ -159,12 +159,14 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
               gap: '0.4rem',
             }}>
               {LOCALES.map(l => (
+                // bold всегда — активная и неактивная одинаковые, текст не «прыгает» при переключении;
+                // margin:0 — глушим margin от .btn, иначе он суммируется с grid gap и межрядье распухает
                 <Button
                   key={l.id}
                   variant={locale === l.id ? 'primary' : 'secondary'}
                   data-testid={`settings-lang-${l.id}`}
                   onClick={() => setLocale(l.id)}
-                  style={{ width: LANG_TILE_WIDTH }}
+                  style={{ width: LANG_TILE_WIDTH, margin: 0, fontWeight: 'bold' }}
                 >
                   {l.native}
                 </Button>
