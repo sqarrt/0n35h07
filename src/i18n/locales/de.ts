@@ -7,7 +7,7 @@ export const de = {
   menuSettings: 'EINSTELLUNGEN',
   menuExit: 'BEENDEN',
   warnTitle: 'WARNUNG',
-  warnBody: 'Das Spiel enthält Blitzlichter, Stroboskopeffekte und intensive Lichteffekte. Nicht empfohlen für Menschen mit Photosensitivität.',
+  warnBody: 'Das Spiel enthält Blitzlichter, Stroboskopeffekte und intensive Lichteffekte. Nicht empfohlen für Menschen mit photosensitiver Epilepsie.',
   warnContinueHint: 'zum Fortfahren',
   warnContinueKey: 'LMT',
 } satisfies Dict

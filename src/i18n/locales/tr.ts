@@ -9,5 +9,5 @@ export const tr = {
   warnTitle: 'UYARI',
   warnBody: 'Oyun yanıp sönen görüntüler, stroboskop ve yoğun ışık efektleri içermektedir. Işığa duyarlı epilepsisi olan kişilere önerilmez.',
   warnContinueHint: 'devam etmek için',
-  warnContinueKey: 'FAT',
+  warnContinueKey: 'SOL TIK',
 } satisfies Dict
