@@ -145,7 +145,6 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
-  const [everLocked, setEverLocked] = useState(false)
   const [roomCode, setRoomCode] = useState('')
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
@@ -243,11 +242,10 @@ export default function App() {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
-      // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает live-кнопка «ГОТОВ?».
+      // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает оверлей паузы.
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в RoomSession.onPeerLeave не должна стирать маршрутизацию игры.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
-      setEverLocked(false)
       setScreen('game')
     })
     sessionRef.current = session
@@ -272,8 +270,7 @@ export default function App() {
     const onChange = () => {
       const isLocked = !!document.pointerLockElement
       setLocked(isLocked)
-      if (isLocked) setEverLocked(true)
-      else setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)
+      if (!isLocked) setLockReadyAt(Date.now() + POINTERLOCK_COOLDOWN)
     }
     document.addEventListener('pointerlockchange', onChange)
     return () => document.removeEventListener('pointerlockchange', onChange)
@@ -332,12 +329,12 @@ export default function App() {
 
   // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
   useEffect(() => {
-    const isPaused = screen === 'game' && !locked && everLocked
+    const isPaused = screen === 'game' && !locked && hud.matchPhase === 'live'
     if (!isPaused) return
     setNow(Date.now())
     const iv = setInterval(() => setNow(Date.now()), 100)
     return () => clearInterval(iv)
-  }, [screen, locked, everLocked])
+  }, [screen, locked, hud.matchPhase])
 
   const handleCreateRoom = () => {
     const code = randomCode()
@@ -388,7 +385,9 @@ export default function App() {
   const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
   const handleSetMap = (id: MapId) => sessionRef.current?.setMap(id)
 
-  const paused = screen === 'game' && !locked && everLocked && hud.matchPhase === 'live'
+  // Любой live без захвата мыши — пауза (в т.ч. если первый pointer lock не удался: раньше этот
+  // кейс закрывала отдельная live-кнопка «ГОТОВ?», теперь путь один — оверлей с «ПРОДОЛЖИТЬ»).
+  const paused = screen === 'game' && !locked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
@@ -488,13 +487,6 @@ export default function App() {
             />
           )}
           {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
-          {hud.matchPhase === 'live' && !locked && !everLocked && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <button className="btn" onClick={() => document.querySelector('canvas')?.requestPointerLock()}>
-                ГОТОВ?
-              </button>
-            </div>
-          )}
           {/* Игровой HUD — только в live; во время отсчёта чистый экран (камеру крутить можно) + сам отсчёт. */}
           {locked && hud.matchPhase === 'live' && (
             <>
