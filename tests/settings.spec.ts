@@ -55,31 +55,12 @@ test('настройки — имя сохраняется и видно в ко
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })
 
-test('настройки — выбор языка применяется сразу и переживает перезагрузку', async ({ page }) => {
-  // Context-level initScript (fixtures) перезаписывает oneshot:profile при каждой навигации.
-  // Чтобы персистентность locale проверялась честно, патчим профиль с locale:'en' через
-  // page-level addInitScript, который выполняется ПОСЛЕ context-level initScript:
-  // он читает профиль (уже перезаписанный fixtures) и добавляет locale из отдельного ключа
-  // oneshot:test-locale, который fixtures не трогает. После смены языка мы пишем в этот ключ.
-  await page.addInitScript(() => {
-    try {
-      const savedLocale = localStorage.getItem('oneshot:test-locale') ?? 'en'
-      const raw = localStorage.getItem('oneshot:profile')
-      const profile = raw ? JSON.parse(raw) : {}
-      localStorage.setItem('oneshot:profile', JSON.stringify({ ...profile, locale: savedLocale }))
-    } catch { /* ignore */ }
-  })
-  await page.reload()
+test('настройки — выбор языка применяется сразу и сохраняется в профиль', async ({ page }) => {
   await page.getByTestId('menu-settings').click()
-  await expect(page.getByTestId('settings-language-label')).toHaveText('LANGUAGE')
+  await expect(page.getByTestId('settings-language-label')).toHaveText('LANGUAGE')   // дефолт en (фикстура без locale)
   await page.getByTestId('settings-lang-ru').click()
-  await expect(page.getByTestId('settings-language-label')).toHaveText(ruDict.settingsLanguage)
-  // Сохраняем выбранный locale в отдельный ключ (переживает перезапись fixtures при reload).
-  await page.evaluate(() => {
-    const profile = JSON.parse(localStorage.getItem('oneshot:profile') ?? '{}')
-    if (profile.locale) localStorage.setItem('oneshot:test-locale', profile.locale)
-  })
-  await page.reload()
-  await page.getByTestId('menu-settings').click()
-  await expect(page.getByTestId('settings-language-label')).toHaveText(ruDict.settingsLanguage)
+  await expect(page.getByTestId('settings-language-label')).toHaveText(ruDict.settingsLanguage)  // применился сразу
+  // Персист: setLocale → onChange → saveProfile → поле locale в oneshot:profile
+  const locale = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') ?? '{}').locale)
+  expect(locale).toBe('ru')
 })
