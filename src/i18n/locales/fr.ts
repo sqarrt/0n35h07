@@ -25,6 +25,8 @@ export const fr = {
   roomRemoveBot: '× retirer',
   roomSectionMap: '// CARTE',
   roomSectionDuration: '// PARTIE · DURÉE',
+  roomCopyTooltip: 'Copier le code',
+  roomMapAlt: (id: string) => `Carte ${id}`,
   roomDurationMin: (m: number) => `${m} MIN`,
   roomStart: 'LANCER',
   roomBack: 'RETOUR',

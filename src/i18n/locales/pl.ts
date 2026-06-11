@@ -25,6 +25,8 @@ export const pl = {
   roomRemoveBot: '× usuń',
   roomSectionMap: '// MAPA',
   roomSectionDuration: '// MECZ · CZAS',
+  roomCopyTooltip: 'Kopiuj kod',
+  roomMapAlt: (id: string) => `Mapa ${id}`,
   roomDurationMin: (m: number) => `${m} MIN`,
   roomStart: 'START',
   roomBack: 'WSTECZ',

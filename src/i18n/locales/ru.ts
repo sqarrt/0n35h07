@@ -25,6 +25,8 @@ export const ru = {
   roomRemoveBot: '× убрать',
   roomSectionMap: '// КАРТА',
   roomSectionDuration: '// МАТЧ · ДЛИТЕЛЬНОСТЬ',
+  roomCopyTooltip: 'Скопировать код',
+  roomMapAlt: (id: string) => `Карта ${id}`,
   roomDurationMin: (m: number) => `${m} МИН`,
   roomStart: 'НАЧАТЬ',
   roomBack: 'НАЗАД',

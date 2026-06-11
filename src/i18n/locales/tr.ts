@@ -25,6 +25,8 @@ export const tr = {
   roomRemoveBot: '× kaldır',
   roomSectionMap: '// HARİTA',
   roomSectionDuration: '// MAÇ · SÜRE',
+  roomCopyTooltip: 'Kodu kopyala',
+  roomMapAlt: (id: string) => `Harita ${id}`,
   roomDurationMin: (m: number) => `${m} DAK`,
   roomStart: 'BAŞLAT',
   roomBack: 'GERİ',

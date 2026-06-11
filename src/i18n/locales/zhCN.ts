@@ -26,6 +26,8 @@ export const zhCN = {
   roomRemoveBot: '× 移除',
   roomSectionMap: '// 地图',
   roomSectionDuration: '// 对局 · 时长',
+  roomCopyTooltip: '复制代码',
+  roomMapAlt: (id: string) => `地图 ${id}`,
   roomDurationMin: (m: number) => `${m} 分钟`,
   roomStart: '开始',
   roomBack: '返回',

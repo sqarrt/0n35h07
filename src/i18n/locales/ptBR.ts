@@ -25,6 +25,8 @@ export const ptBR = {
   roomRemoveBot: '× remover',
   roomSectionMap: '// MAPA',
   roomSectionDuration: '// PARTIDA · DURAÇÃO',
+  roomCopyTooltip: 'Copiar código',
+  roomMapAlt: (id: string) => `Mapa ${id}`,
   roomDurationMin: (m: number) => `${m} MIN`,
   roomStart: 'INICIAR',
   roomBack: 'VOLTAR',

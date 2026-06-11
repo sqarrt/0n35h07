@@ -96,13 +96,11 @@ export function Room({ roomCode, view, onAddBot, onRemoveBot, onSetDifficulty, o
           <div className="room-center">
             {/* подпись центрируется по колонке (=по заголовку комнаты), а не по кнопке код+глиф (её центр смещён) */}
             {copied && <span className="room-copied">{t.roomCopied}</span>}
-            <button className="room-code-copy" onClick={copyCode} title="Скопировать код">
+            <button className="room-code-copy" onClick={copyCode} title={t.roomCopyTooltip}>
               <span data-testid="room-code" className="room-code">{roomCode}</span>
               <span className="glyph" aria-hidden="true">⧉</span>
             </button>
             <div className="room-vs">— VS —</div>
-            {/* скрытый узел для тестов формата кода */}
-            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{t.roomCodeLabel} {roomCode}</div>
           </div>
           {pane(opponent, 'opp')}
         </div>
@@ -121,7 +119,7 @@ export function Room({ roomCode, view, onAddBot, onRemoveBot, onSetDifficulty, o
               >
                 {/* Готовый рендер (preview.png) — мгновенно; фолбэк — живой превью-канвас. */}
                 {MAP_PREVIEW[id]
-                  ? <img className="map-preview" src={MAP_PREVIEW[id]} alt={`Карта ${id}`} />
+                  ? <img className="map-preview" src={MAP_PREVIEW[id]} alt={t.roomMapAlt(id)} />
                   : <MapPreview map={MAPS[id]} />}
                 <span className="map-tile-label">{id}</span>
               </button>
