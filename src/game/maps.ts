@@ -77,6 +77,22 @@ export const MAP_PREVIEW: Partial<Record<MapId, string>> = Object.fromEntries(
     .map(([p, url]) => [idOf(p), url]),
 ) as Partial<Record<MapId, string>>
 
+// Держим ссылки на прогретые Image до завершения загрузки — гарантия, что запрос не отменится.
+const warmedPreviews: HTMLImageElement[] = []
+
+/** Прогрев превью карт: дёргаем загрузку картинок заранее (на старте приложения), чтобы плитки
+ *  комнаты и фон не ждали сети при первом заходе — браузер кладёт их в HTTP-кэш. Особенно важно
+ *  клиенту по #CODE: он попадает в комнату сразу, пока сеть занята бандлом/звуком/сигналингом. */
+export function warmMapPreviews(): void {
+  if (warmedPreviews.length) return   // один раз за сессию
+  for (const url of Object.values(MAP_PREVIEW)) {
+    if (!url) continue
+    const img = new Image()
+    img.src = url
+    warmedPreviews.push(img)
+  }
+}
+
 /** Случайная точка в пределах игровой зоны — блуждание бота (без учёта препятствий; KCC не даёт пройти сквозь). */
 export function randomArenaPos(): THREE.Vector3 {
   return new THREE.Vector3(
