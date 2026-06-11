@@ -1,6 +1,7 @@
 import { useRelayStatus } from '../hooks/useRelayStatus'
 import { reprobe } from '../net/relays'
 import type { RelayResult } from '../net/relays'
+import { useT } from '../i18n'
 
 const host = (url: string) => url.replace(/^wss:\/\//, '')
 
@@ -16,6 +17,7 @@ function sortByHealth(results: RelayResult[]): RelayResult[] {
  * Кнопка перепроверки форсит свежую пробу.
  */
 export function RelaysSection() {
+  const t = useT()
   const { phase, results, selected } = useRelayStatus()
   const probing = phase === 'probing'
 
@@ -26,12 +28,12 @@ export function RelaysSection() {
     : selected.map(url => ({ url, alive: true, latencyMs: null }))
 
   const aliveCount = results.filter(r => r.alive).length
-  const summary = probing ? 'ПРОВЕРКА…' : detailed ? `ЖИВЫХ ${aliveCount}/${results.length}` : `В РАБОТЕ ${selected.length}`
+  const summary = probing ? t.relaysProbing : detailed ? t.relaysAlive(aliveCount, results.length) : t.relaysInUse(selected.length)
 
   return (
     <div className="relays">
       <div className="relays-head relays-head--static">
-        <span>РЕЛЕИ</span>
+        <span>{t.relaysTitle}</span>
         <span className="relays-sum">{summary}</span>
       </div>
 
@@ -47,7 +49,7 @@ export function RelaysSection() {
         ))}
       </div>
       <button className="seg" onClick={() => void reprobe()} disabled={probing}>
-        {probing ? 'ПРОВЕРКА…' : 'ПРОВЕРИТЬ ЗАНОВО'}
+        {probing ? t.relaysProbing : t.relaysReprobe}
       </button>
     </div>
   )

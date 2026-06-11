@@ -25,12 +25,7 @@ const subHeader: CSSProperties = {
   marginBottom: '1.1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--surface-line)',
 }
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'player', label: 'ИГРОК' },
-  { id: 'sound', label: 'ЗВУК' },
-  { id: 'net', label: 'СЕТЬ' },
-  { id: 'graphics', label: 'ГРАФИКА' },
-]
+const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics']
 
 /** Ширина плитки языка — по самому длинному родному названию «Português (BR)». */
 const LANG_TILE_WIDTH = '9.2rem'
@@ -54,6 +49,14 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const [volMusic, setVolMusic] = useState(profile.volumeMusic)
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
   const [volMenuMusic, setVolMenuMusic] = useState(profile.volumeMenuMusic)
+
+  // Подписи разделов берём из словаря по id (порядок — SECTIONS).
+  const sectionLabel: Record<Section, string> = {
+    player: t.settingsSecPlayer,
+    sound: t.settingsSecSound,
+    net: t.settingsSecNet,
+    graphics: t.settingsSecGraphics,
+  }
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — косметика теперь живёт в экране «Внешность» и коммитится там.
@@ -115,13 +118,13 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     // Панель настроек не уезжает вправо — сдвиг принадлежит экрану «Внешность».
     // Выравнивание по верху: заголовок и вкладки не двигаются при смене раздела (разная высота контента).
     <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh' }}>
-      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>НАСТРОЙКИ</h2>
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.settingsTitle}</h2>
 
       {/* Разделы */}
       <div style={{ ...row, marginBottom: '1.8rem' }}>
-        {SECTIONS.map(s => (
-          <button key={s.id} className={`seg${section === s.id ? ' seg--on' : ''}`} onClick={() => { if (s.id !== section) sfx.play2D('ui_toggle'); setSection(s.id) }}>
-            {s.label}
+        {SECTIONS.map(id => (
+          <button key={id} className={`seg${section === id ? ' seg--on' : ''}`} data-testid={`settings-section-${id}`} onClick={() => { if (id !== section) sfx.play2D('ui_toggle'); setSection(id) }}>
+            {sectionLabel[id]}
           </button>
         ))}
       </div>
@@ -129,24 +132,25 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
       {section === 'player' && (
         <>
           <div style={{ marginBottom: '1.6rem' }}>
-            <div style={label}>ИМЯ</div>
+            <div style={label}>{t.settingsName}</div>
             <input
               className="input"
               value={name}
               onChange={e => handleName(e.target.value)}
               maxLength={NAME_MAX}
-              aria-label="Имя игрока"
+              aria-label={t.settingsNameAria}
+              data-testid="settings-name-input"
               spellCheck={false}
               autoComplete="off"
               style={{ fontSize: '1.3rem', letterSpacing: '0.1em', padding: '0.5rem 1rem', width: '16rem' }}
             />
           </div>
 
-          <div style={label}>ВИД ПО УМОЛЧАНИЮ</div>
+          <div style={label}>{t.settingsDefaultView}</div>
           <div style={row}>
             {(['fp', 'tp'] as DefaultView[]).map(v => (
-              <button key={v} className={`seg${view === v ? ' seg--on' : ''}`} onClick={() => handleView(v)}>
-                {v === 'fp' ? 'ОТ 1 ЛИЦА' : 'ОТ 3 ЛИЦА'}
+              <button key={v} className={`seg${view === v ? ' seg--on' : ''}`} data-testid={`settings-view-${v}`} onClick={() => handleView(v)}>
+                {v === 'fp' ? t.settingsViewFp : t.settingsViewTp}
               </button>
             ))}
           </div>
@@ -178,20 +182,20 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
 
       {section === 'sound' && (
         <>
-          <div style={subHeader}>ГРОМКОСТЬ</div>
-          <Slider label="ОБЩАЯ ГРОМКОСТЬ" value={volMaster} onChange={handleVolMaster} />
-          <Slider label="МУЗЫКА" value={volMusic} onChange={handleVolMusic} />
-          <Slider label="МУЗЫКА В МЕНЮ" value={volMenuMusic} onChange={handleVolMenuMusic} />
-          <Slider label="ЭФФЕКТЫ" value={volSfx} onChange={handleVolSfx} />
+          <div style={subHeader}>{t.settingsVolumeGroup}</div>
+          <Slider label={t.settingsVolMaster} value={volMaster} onChange={handleVolMaster} />
+          <Slider label={t.settingsVolMusic} value={volMusic} onChange={handleVolMusic} />
+          <Slider label={t.settingsVolMenuMusic} value={volMenuMusic} onChange={handleVolMenuMusic} />
+          <Slider label={t.settingsVolSfx} value={volSfx} onChange={handleVolSfx} />
         </>
       )}
 
       {section === 'net' && (
         <>
-          <div style={{ ...label, marginBottom: '0.6rem' }}>ТАЙМАУТ ПОДКЛЮЧЕНИЯ К КОМНАТЕ</div>
+          <div style={{ ...label, marginBottom: '0.6rem' }}>{t.settingsConnTimeout}</div>
           <div style={{ ...row, flexWrap: 'wrap' }}>
             {CONNECT_TIMEOUT_OPTIONS.map(s => (
-              <button key={s} className={`seg${connTimeout === s ? ' seg--on' : ''}`} onClick={() => handleConnTimeout(s)}>{s} С</button>
+              <button key={s} className={`seg${connTimeout === s ? ' seg--on' : ''}`} onClick={() => handleConnTimeout(s)}>{t.settingsSeconds(s)}</button>
             ))}
           </div>
           <RelaysSection />
@@ -200,34 +204,34 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
 
       {section === 'graphics' && (
         <>
-          <div style={subHeader}>ПОСТПРОЦЕССИНГ</div>
+          <div style={subHeader}>{t.settingsPostproc}</div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={post} onChange={handlePost} aria-label="Подсвечивать контуры блоков" />
-            <span style={{ ...label, marginBottom: 0 }}>ПОДСВЕЧИВАТЬ КОНТУРЫ БЛОКОВ</span>
+            <Toggle checked={post} onChange={handlePost} aria-label={t.settingsOutlineBlocks} data-testid="settings-toggle-outline" />
+            <span style={{ ...label, marginBottom: 0 }}>{t.settingsOutlineBlocks}</span>
           </div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={menuGlow} onChange={handleMenuGlow} aria-label="Свечение в меню" />
-            <span style={{ ...label, marginBottom: 0 }}>СВЕЧЕНИЕ В МЕНЮ</span>
+            <Toggle checked={menuGlow} onChange={handleMenuGlow} aria-label={t.settingsMenuGlow} data-testid="settings-toggle-menu-glow" />
+            <span style={{ ...label, marginBottom: 0 }}>{t.settingsMenuGlow}</span>
           </div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={audioViz} onChange={handleAudioViz} aria-label="Визуализация звука" />
-            <span style={{ ...label, marginBottom: 0 }}>ВИЗУАЛИЗАЦИЯ ЗВУКА</span>
+            <Toggle checked={audioViz} onChange={handleAudioViz} aria-label={t.settingsAudioViz} data-testid="settings-toggle-audio-viz" />
+            <span style={{ ...label, marginBottom: 0 }}>{t.settingsAudioViz}</span>
           </div>
 
-          <div style={subHeader}>ОВЕРЛЕЙ</div>
+          <div style={subHeader}>{t.settingsOverlayGroup}</div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={showFps} onChange={handleShowFps} aria-label="Выводить счётчик кадров" />
-            <span style={{ ...label, marginBottom: 0 }}>ВЫВОДИТЬ СЧЁТЧИК КАДРОВ</span>
+            <Toggle checked={showFps} onChange={handleShowFps} aria-label={t.settingsShowFps} data-testid="settings-toggle-fps" />
+            <span style={{ ...label, marginBottom: 0 }}>{t.settingsShowFps}</span>
           </div>
           <div style={{ ...row, alignItems: 'center', gap: '0.9rem' }}>
-            <Toggle checked={showSpeed} onChange={handleShowSpeed} aria-label="Выводить скорость игрока" />
-            <span style={{ ...label, marginBottom: 0 }}>ВЫВОДИТЬ СКОРОСТЬ ИГРОКА</span>
+            <Toggle checked={showSpeed} onChange={handleShowSpeed} aria-label={t.settingsShowSpeed} data-testid="settings-toggle-speed" />
+            <span style={{ ...label, marginBottom: 0 }}>{t.settingsShowSpeed}</span>
           </div>
         </>
       )}
 
       {/* «НАЗАД» прижата к низу панели (marginTop:auto), не зависит от высоты раздела. */}
-      <Button variant="ghost" onClick={onBack} style={{ marginTop: 'auto' }}>НАЗАД</Button>
+      <Button variant="ghost" onClick={onBack} data-testid="settings-back" style={{ marginTop: 'auto' }}>{t.settingsBack}</Button>
     </div>
   )
 }
