@@ -9,5 +9,5 @@ export const ptBR = {
   warnTitle: 'AVISO',
   warnBody: 'O jogo contém imagens piscantes, flashes e efeitos de luz intensos. Não recomendado para pessoas com epilepsia fotossensível.',
   warnContinueHint: 'para continuar',
-  warnContinueKey: 'CLIQUE ESQUERDO',
+  warnContinueKey: 'CLIQUE ESQ',
 } satisfies Dict

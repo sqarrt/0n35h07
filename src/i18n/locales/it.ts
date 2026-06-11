@@ -9,5 +9,5 @@ export const it = {
   warnTitle: 'AVVERTIMENTO',
   warnBody: 'Il gioco contiene immagini lampeggianti, flash e forti effetti luminosi. Sconsigliato alle persone con epilessia fotosensibile.',
   warnContinueHint: 'per continuare',
-  warnContinueKey: 'TM',
+  warnContinueKey: 'CLIC SIN',
 } satisfies Dict
