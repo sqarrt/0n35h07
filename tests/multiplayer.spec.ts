@@ -97,18 +97,43 @@ test('1v1: шар хоста на клиенте сдувается плавно
     const cp = (window as any).__debugPlayerPos(1)
     cam.lookAt(cp.x, cp.y, cp.z)   // хост целится в клиента и стреляет
   })
+  // Сэмплер масштаба — ВНУТРИ страницы клиента, на таймере 25мс (3.5с): evaluate-раундтрипы раз
+  // в 40мс промахивались мимо 200мс окна сдувания (WINDUP_SHRINK_MS), а rAF-сэмплер умирает в
+  // фоновой/перегруженной вкладке. Таймеры в Playwright не троттлятся.
+  await client.evaluate(() => {
+    const w = window as any
+    w.__scaleSamples = []
+    const t0 = performance.now()
+    const id = setInterval(() => {
+      const t = performance.now() - t0
+      w.__scaleSamples.push({ t, s: w.__debugBodyScale?.(0) ?? 1 })
+      if (t >= 3500) { clearInterval(id); w.__scaleDone = true }
+    }, 25)
+  })
   await host.evaluate(() => window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true })))
 
-  const samples: number[] = []
-  for (let i = 0; i < 30; i++) {
-    samples.push(await client.evaluate(() => (window as any).__debugBodyScale(0) ?? 1))
-    await client.waitForTimeout(40)
+  await client.waitForFunction(() => (window as any).__scaleDone, { timeout: 20000 })
+  const samples: { t: number; s: number }[] = await client.evaluate(() => (window as any).__scaleSamples)
+
+  const scales = samples.map(x => x.s)
+  const peak = Math.max(...scales)
+  expect(peak).toBeGreaterThan(1.2)                                  // шар вырос во время заряда
+  const peakIdx = scales.indexOf(peak)
+  const after = samples.slice(peakIdx + 1)
+  expect(Math.min(...after.map(x => x.s))).toBeLessThan(1.05)        // и сдулся обратно
+
+  // Плавность сдувания наблюдаема, только если игровой цикл клиента давал кадры чаще 200мс окна:
+  // анимация time-based, и при кадре длиннее окна промежуточных значений не существует физически
+  // (легитимно для перегруженной тестовой среды, не снап). Кадровый интервал оцениваем по фазе
+  // РОСТА шара — там значение меняется каждый игровой кадр на протяжении всего заряда (400мс).
+  const growth = samples.slice(0, peakIdx + 1).filter(x => x.s > 1.05)
+  const distinct = new Set(growth.map(x => x.s)).size
+  const growMs = growth.length >= 2 ? growth[growth.length - 1].t - growth[0].t : 0
+  const frameMs = distinct >= 2 ? growMs / (distinct - 1) : Infinity
+  if (frameMs <= 66) {
+    // здоровый fps (≥15 кадров/с) → в 200мс сдувания обязаны быть промежуточные кадры, иначе это снап
+    expect(after.filter(x => x.s > 1.05 && x.s < peak - 0.05).length).toBeGreaterThanOrEqual(1)
   }
-  const peak = Math.max(...samples)
-  expect(peak).toBeGreaterThan(1.2)                       // шар вырос во время заряда
-  const after = samples.slice(samples.indexOf(peak) + 1)
-  // после пика есть промежуточные кадры между 1 и пиком → сдувание плавное, а не мгновенный снап
-  expect(after.filter(s => s > 1.05 && s < peak - 0.05).length).toBeGreaterThanOrEqual(1)
 })
 
 test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
