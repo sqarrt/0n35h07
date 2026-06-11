@@ -32,4 +32,12 @@ export const fr = {
   roomBack: 'RETOUR',
   roomWaitingHost: 'EN ATTENTE DE L\'HÔTE…',
   roomConnecting: 'CONNEXION…',
+  // Écran rejoindre salon
+  joinTitle: 'REJOINDRE SALON',
+  joinCodeLabel: 'CODE DU SALON',
+  joinSubmit: 'REJOINDRE',
+  joinStatusSearching: 'RECHERCHE DU SALON…',
+  joinStatusFound: 'SALON TROUVÉ · CONNEXION…',
+  joinStatusNotFound: (code: string) => `SALON ${code} INTROUVABLE`,
+  joinStatusFailedConnect: 'CONNEXION ÉCHOUÉE',
 } satisfies Dict

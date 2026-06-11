@@ -33,4 +33,12 @@ export const zhCN = {
   roomBack: '返回',
   roomWaitingHost: '等待主机…',
   roomConnecting: '连接中…',
+  // 加入房间界面
+  joinTitle: '加入房间',
+  joinCodeLabel: '房间代码',
+  joinSubmit: '加入',
+  joinStatusSearching: '搜索房间…',
+  joinStatusFound: '房间已找到 · 连接中…',
+  joinStatusNotFound: (code: string) => `房间 ${code} 未找到`,
+  joinStatusFailedConnect: '连接失败',
 } satisfies Dict

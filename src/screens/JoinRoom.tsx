@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '../ui/Button'
+import { useT } from '../i18n'
 
 export type JoinStatus = 'idle' | 'searching' | 'found' | 'failed-find' | 'failed-connect'
 
@@ -10,6 +11,7 @@ interface JoinRoomProps {
 }
 
 export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
+  const t = useT()
   const [code, setCode] = useState('')
   const busy = status === 'searching' || status === 'found'   // идёт попытка — ввод/кнопка заблокированы
   const failed = status === 'failed-find' || status === 'failed-connect'
@@ -21,10 +23,10 @@ export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
     : failed ? ' is-error' : ''
 
   const statusText =
-    status === 'searching' ? 'ПОИСК КОМНАТЫ…'
-    : status === 'found' ? 'КОМНАТА НАЙДЕНА · ПОДКЛЮЧЕНИЕ…'
-    : status === 'failed-find' ? `КОМНАТА ${code} НЕ НАЙДЕНА`
-    : status === 'failed-connect' ? 'НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ'
+    status === 'searching' ? t.joinStatusSearching
+    : status === 'found' ? t.joinStatusFound
+    : status === 'failed-find' ? t.joinStatusNotFound(code)
+    : status === 'failed-connect' ? t.joinStatusFailedConnect
     : ''
   const statusClass =
     status === 'searching' ? ' connecting'
@@ -33,16 +35,17 @@ export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
 
   return (
     <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
-        ВОЙТИ В КОМНАТУ
+      <h2 data-testid="join-title" style={{ color: 'var(--accent)', letterSpacing: '0.2em', margin: '0 0 0.8rem' }}>
+        {t.joinTitle}
       </h2>
       <div className="accent-rule" style={{ marginBottom: '1.6rem' }} />
       <div style={{ color: 'var(--muted)', fontSize: '0.75rem', letterSpacing: '0.15em', marginBottom: '0.8rem', fontFamily: 'var(--ui-font)' }}>
-        КОД КОМНАТЫ
+        {t.joinCodeLabel}
       </div>
 
       <div className={`code-wrap${wrapState}`}>
         <input
+          data-testid="join-code-input"
           className="input"
           value={code}
           onChange={e => setCode(e.target.value.toUpperCase().slice(0, 4))}
@@ -62,10 +65,10 @@ export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
         </svg>
       </div>
 
-      <div className={`join-status${statusClass}`}>{statusText}</div>
+      <div data-testid="join-status" className={`join-status${statusClass}`}>{statusText}</div>
 
-      <Button variant="primary" disabled={busy || code.trim().length === 0} onClick={handleJoin}>ВОЙТИ</Button>
-      <Button variant="ghost" onClick={onBack}>НАЗАД</Button>
+      <Button data-testid="join-submit" variant="primary" disabled={busy || code.trim().length === 0} onClick={handleJoin}>{t.joinSubmit}</Button>
+      <Button data-testid="join-back" variant="ghost" onClick={onBack}>{t.roomBack}</Button>
     </div>
   )
 }

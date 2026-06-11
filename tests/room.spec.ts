@@ -69,34 +69,34 @@ test('комната → назад → главное меню', async ({ page 
 
 test('войти в комнату — показывает ввод кода', async ({ page }) => {
   await page.getByTestId('menu-join-room').click()
-  await expect(page.getByText('КОД КОМНАТЫ')).toBeVisible()
-  await expect(page.locator('input')).toBeVisible()
+  await expect(page.getByTestId('join-title')).toBeVisible()
+  await expect(page.getByTestId('join-code-input')).toBeVisible()
 })
 
 test('войти в комнату → назад → главное меню', async ({ page }) => {
   await page.getByTestId('menu-join-room').click()
-  await page.getByText('НАЗАД').click()
+  await page.getByTestId('join-back').click()
   await expect(page.getByTestId('menu-create-room')).toBeVisible()
 })
 
 test('войти в комнату → ввести код → url меняется', async ({ page }) => {
   await page.getByTestId('menu-join-room').click()
-  await page.locator('.code-wrap input').fill('AB3K')
-  await page.getByRole('button', { name: 'ВОЙТИ' }).click()
+  await page.getByTestId('join-code-input').fill('AB3K')
+  await page.getByTestId('join-submit').click()
   // После клика экран остаётся на join в состоянии поиска комнаты (хост не отвечает)
-  await expect(page.getByText('ПОИСК КОМНАТЫ…')).toBeVisible()
+  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusSearching)
   expect(page.url()).toContain('AB3K')
 })
 
 test('вход по несуществующему коду — таймаут показывает ошибку, ВОЙТИ снова активна', async ({ page }) => {
   await page.goto('/')
   await page.getByTestId('menu-join-room').click()
-  await page.locator('.code-wrap input').fill('ZZZ9')
-  await page.getByRole('button', { name: 'ВОЙТИ' }).click()
-  await expect(page.getByText('ПОИСК КОМНАТЫ…')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'ВОЙТИ' })).toBeDisabled()
-  await expect(page.getByText(/НЕ НАЙДЕНА/)).toBeVisible({ timeout: 13000 })
-  await expect(page.getByRole('button', { name: 'ВОЙТИ' })).toBeEnabled()
+  await page.getByTestId('join-code-input').fill('ZZZ9')
+  await page.getByTestId('join-submit').click()
+  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusSearching)
+  await expect(page.getByTestId('join-submit')).toBeDisabled()
+  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusNotFound('ZZZ9'), { timeout: 13000 })
+  await expect(page.getByTestId('join-submit')).toBeEnabled()
 })
 
 test('копирование кода — клик по коду даёт фидбек', async ({ page, context }) => {

@@ -32,4 +32,12 @@ export const tr = {
   roomBack: 'GERİ',
   roomWaitingHost: 'EV SAHİBİ BEKLENİYOR…',
   roomConnecting: 'BAĞLANIYOR…',
+  // Odaya giriş ekranı
+  joinTitle: 'ODAYA GİR',
+  joinCodeLabel: 'ODA KODU',
+  joinSubmit: 'GİR',
+  joinStatusSearching: 'ODA ARANIYOR…',
+  joinStatusFound: 'ODA BULUNDU · BAĞLANIYOR…',
+  joinStatusNotFound: (code: string) => `${code} ODASI BULUNAMADI`,
+  joinStatusFailedConnect: 'BAĞLANTI BAŞARISIZ',
 } satisfies Dict

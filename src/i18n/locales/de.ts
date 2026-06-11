@@ -32,4 +32,12 @@ export const de = {
   roomBack: 'ZURÜCK',
   roomWaitingHost: 'WARTE AUF HOST…',
   roomConnecting: 'VERBINDE…',
+  // Raum-beitreten-Bildschirm
+  joinTitle: 'RAUM BEITRETEN',
+  joinCodeLabel: 'RAUMCODE',
+  joinSubmit: 'BEITRETEN',
+  joinStatusSearching: 'SUCHE RAUM…',
+  joinStatusFound: 'RAUM GEFUNDEN · VERBINDE…',
+  joinStatusNotFound: (code: string) => `RAUM ${code} NICHT GEFUNDEN`,
+  joinStatusFailedConnect: 'VERBINDUNG FEHLGESCHLAGEN',
 } satisfies Dict

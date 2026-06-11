@@ -32,4 +32,12 @@ export const en = {
   roomBack: 'BACK',
   roomWaitingHost: 'WAITING FOR HOST…',
   roomConnecting: 'CONNECTING…',
+  // Экран входа в комнату
+  joinTitle: 'JOIN ROOM',
+  joinCodeLabel: 'ROOM CODE',
+  joinSubmit: 'JOIN',
+  joinStatusSearching: 'SEARCHING FOR ROOM…',
+  joinStatusFound: 'ROOM FOUND · CONNECTING…',
+  joinStatusNotFound: (code: string) => `ROOM ${code} NOT FOUND`,
+  joinStatusFailedConnect: 'FAILED TO CONNECT',
 }

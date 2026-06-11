@@ -32,4 +32,12 @@ export const ptBR = {
   roomBack: 'VOLTAR',
   roomWaitingHost: 'AGUARDANDO ANFITRIÃO…',
   roomConnecting: 'CONECTANDO…',
+  // Tela entrar na sala
+  joinTitle: 'ENTRAR NA SALA',
+  joinCodeLabel: 'CÓDIGO DA SALA',
+  joinSubmit: 'ENTRAR',
+  joinStatusSearching: 'PROCURANDO SALA…',
+  joinStatusFound: 'SALA ENCONTRADA · CONECTANDO…',
+  joinStatusNotFound: (code: string) => `SALA ${code} NÃO ENCONTRADA`,
+  joinStatusFailedConnect: 'FALHA AO CONECTAR',
 } satisfies Dict

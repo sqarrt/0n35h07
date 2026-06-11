@@ -32,4 +32,12 @@ export const it = {
   roomBack: 'INDIETRO',
   roomWaitingHost: 'IN ATTESA DELL\'HOST…',
   roomConnecting: 'CONNESSIONE…',
+  // Schermata entra stanza
+  joinTitle: 'ENTRA IN STANZA',
+  joinCodeLabel: 'CODICE STANZA',
+  joinSubmit: 'ENTRA',
+  joinStatusSearching: 'RICERCA STANZA…',
+  joinStatusFound: 'STANZA TROVATA · CONNESSIONE…',
+  joinStatusNotFound: (code: string) => `STANZA ${code} NON TROVATA`,
+  joinStatusFailedConnect: 'CONNESSIONE FALLITA',
 } satisfies Dict

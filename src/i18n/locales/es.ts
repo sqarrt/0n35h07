@@ -32,4 +32,12 @@ export const es = {
   roomBack: 'VOLVER',
   roomWaitingHost: 'ESPERANDO ANFITRIÓN…',
   roomConnecting: 'CONECTANDO…',
+  // Pantalla unirse a sala
+  joinTitle: 'UNIRSE A SALA',
+  joinCodeLabel: 'CÓDIGO DE SALA',
+  joinSubmit: 'UNIRSE',
+  joinStatusSearching: 'BUSCANDO SALA…',
+  joinStatusFound: 'SALA ENCONTRADA · CONECTANDO…',
+  joinStatusNotFound: (code: string) => `SALA ${code} NO ENCONTRADA`,
+  joinStatusFailedConnect: 'ERROR AL CONECTAR',
 } satisfies Dict

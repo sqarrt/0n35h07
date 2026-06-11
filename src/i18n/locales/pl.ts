@@ -32,4 +32,12 @@ export const pl = {
   roomBack: 'WSTECZ',
   roomWaitingHost: 'OCZEKIWANIE NA HOSTA…',
   roomConnecting: 'ŁĄCZENIE…',
+  // Ekran dołączania do pokoju
+  joinTitle: 'DOŁĄCZ DO POKOJU',
+  joinCodeLabel: 'KOD POKOJU',
+  joinSubmit: 'DOŁĄCZ',
+  joinStatusSearching: 'SZUKAM POKOJU…',
+  joinStatusFound: 'POKÓJ ZNALEZIONY · ŁĄCZĘ…',
+  joinStatusNotFound: (code: string) => `POKÓJ ${code} NIE ZNALEZIONY`,
+  joinStatusFailedConnect: 'BŁĄD POŁĄCZENIA',
 } satisfies Dict

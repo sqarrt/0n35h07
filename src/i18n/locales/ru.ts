@@ -32,4 +32,12 @@ export const ru = {
   roomBack: 'НАЗАД',
   roomWaitingHost: 'ОЖИДАНИЕ ХОСТА…',
   roomConnecting: 'ПОДКЛЮЧЕНИЕ…',
+  // Экран входа в комнату
+  joinTitle: 'ВОЙТИ В КОМНАТУ',
+  joinCodeLabel: 'КОД КОМНАТЫ',
+  joinSubmit: 'ВОЙТИ',
+  joinStatusSearching: 'ПОИСК КОМНАТЫ…',
+  joinStatusFound: 'КОМНАТА НАЙДЕНА · ПОДКЛЮЧЕНИЕ…',
+  joinStatusNotFound: (code: string) => `КОМНАТА ${code} НЕ НАЙДЕНА`,
+  joinStatusFailedConnect: 'НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ',
 } satisfies Dict
