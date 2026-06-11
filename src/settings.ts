@@ -85,7 +85,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
   const localeIds = LOCALES.map(l => l.id)
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
-  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, ...(locale !== undefined ? { locale } : {}) }
+  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */

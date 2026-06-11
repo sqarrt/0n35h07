@@ -151,6 +151,8 @@ export default function App() {
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
+  // initial читается провайдером один раз — не пересчитываем на каждом рендере
+  const initialLocale = useRef(profile.locale ?? detectLocale()).current
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color' }))
   // Счётчики кликов превью (windupSeq/respawnSeq/dashSeq/shieldSeq) сохраняются из прежнего стейта: ими
   // владеет App (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
@@ -437,8 +439,9 @@ export default function App() {
   useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
 
   if (editorMode) {
+    // Редактор без UI смены языка — onChange не нужен
     return (
-      <I18nProvider initial={profile.locale ?? detectLocale()}>
+      <I18nProvider initial={initialLocale}>
         <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
       </I18nProvider>
     )
@@ -446,8 +449,12 @@ export default function App() {
 
   return (
     <I18nProvider
-      initial={profile.locale ?? detectLocale()}
-      onChange={id => { saveProfile({ ...profile, locale: id }); setProfile(p => ({ ...p, locale: id })) }}
+      initial={initialLocale}
+      onChange={id => setProfile(p => {
+        const next = { ...p, locale: id }
+        saveProfile(next)
+        return next
+      })}
     >
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
