@@ -41,6 +41,7 @@ import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
 import type { BotDifficulty, BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
+import { warmMapPreviews } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
@@ -258,6 +259,8 @@ export default function App() {
     if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
 
+  // Прогрев превью карт на старте: к открытию комнаты картинки уже в HTTP-кэше (см. warmMapPreviews).
+  useEffect(() => { warmMapPreviews() }, [])
 
   // Дев-маршрут #editor → редактор карт (только при npm run dev).
   useEffect(() => {
