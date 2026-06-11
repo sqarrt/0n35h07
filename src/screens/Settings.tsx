@@ -128,6 +128,8 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
               onChange={e => handleName(e.target.value)}
               maxLength={NAME_MAX}
               aria-label="Имя игрока"
+              spellCheck={false}
+              autoComplete="off"
               style={{ fontSize: '1.3rem', letterSpacing: '0.1em', padding: '0.5rem 1rem', width: '16rem' }}
             />
           </div>
