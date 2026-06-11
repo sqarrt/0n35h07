@@ -131,4 +131,10 @@ export const it = {
   ctrlView: 'Vista 1/3',
   ctrlScore: 'Punteggio',
   ctrlPause: 'Pausa',
+  // Pausa ed editor
+  pauseTitle: 'MENU',
+  pauseResume: 'RIPRENDI',
+  pauseToMenu: 'AL MENU',
+  pauseExit: 'ESCI',
+  editorLoading: 'Caricamento editor…',
 } satisfies Dict

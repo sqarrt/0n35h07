@@ -131,4 +131,10 @@ export const de = {
   ctrlView: 'Ansicht 1/3',
   ctrlScore: 'Punkte',
   ctrlPause: 'Pause',
+  // Pause und Editor
+  pauseTitle: 'MENÜ',
+  pauseResume: 'FORTSETZEN',
+  pauseToMenu: 'ZUM MENÜ',
+  pauseExit: 'BEENDEN',
+  editorLoading: 'Editor wird geladen…',
 } satisfies Dict

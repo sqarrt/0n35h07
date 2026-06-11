@@ -131,4 +131,10 @@ export const pl = {
   ctrlView: 'Widok 1/3',
   ctrlScore: 'Wynik',
   ctrlPause: 'Pauza',
+  // Pauza i edytor
+  pauseTitle: 'MENU',
+  pauseResume: 'WZNÓW',
+  pauseToMenu: 'DO MENU',
+  pauseExit: 'WYJDŹ',
+  editorLoading: 'Ładowanie edytora…',
 } satisfies Dict

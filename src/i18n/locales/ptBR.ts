@@ -131,4 +131,10 @@ export const ptBR = {
   ctrlView: 'Visão 1/3',
   ctrlScore: 'Placar',
   ctrlPause: 'Pausa',
+  // Pausa e editor
+  pauseTitle: 'MENU',
+  pauseResume: 'CONTINUAR',
+  pauseToMenu: 'AO MENU',
+  pauseExit: 'SAIR',
+  editorLoading: 'Carregando editor…',
 } satisfies Dict

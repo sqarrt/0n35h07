@@ -132,4 +132,10 @@ export const zhCN = {
   ctrlView: '视角 1/3',
   ctrlScore: '比分',
   ctrlPause: '暂停',
+  // 暂停与编辑器
+  pauseTitle: '菜单',
+  pauseResume: '继续',
+  pauseToMenu: '返回菜单',
+  pauseExit: '退出',
+  editorLoading: '加载编辑器…',
 } satisfies Dict

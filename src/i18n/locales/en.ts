@@ -131,4 +131,10 @@ export const en = {
   ctrlView: 'View 1/3',
   ctrlScore: 'Score',
   ctrlPause: 'Pause',
+  // Пауза и редактор
+  pauseTitle: 'MENU',
+  pauseResume: 'RESUME',
+  pauseToMenu: 'TO MENU',
+  pauseExit: 'QUIT',
+  editorLoading: 'Loading editor…',
 }

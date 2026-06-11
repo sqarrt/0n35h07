@@ -131,4 +131,10 @@ export const ru = {
   ctrlView: 'Вид 1/3',
   ctrlScore: 'Счёт',
   ctrlPause: 'Пауза',
+  // Пауза и редактор
+  pauseTitle: 'МЕНЮ',
+  pauseResume: 'ПРОДОЛЖИТЬ',
+  pauseToMenu: 'В МЕНЮ',
+  pauseExit: 'ВЫХОД',
+  editorLoading: 'Загрузка редактора…',
 } satisfies Dict

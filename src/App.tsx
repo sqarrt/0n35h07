@@ -15,6 +15,7 @@ import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
+import { PauseMenu } from './components/PauseMenu'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
@@ -30,8 +31,7 @@ import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
 import type { PlayerProfile } from './settings'
-import { I18nProvider, detectLocale } from './i18n'
-import { Button } from './ui/Button'
+import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
@@ -141,6 +141,12 @@ function clearHostLive(code: string) { try { if (localStorage.getItem(HOST_LIVE_
 function shouldHost(code: string): boolean {
   try { return localStorage.getItem(HOSTED_KEY) === code && localStorage.getItem(HOST_LIVE_KEY) !== code }
   catch { return false }
+}
+
+/** Fallback Suspense для ленивого редактора — под I18nProvider, отсюда useT. */
+function EditorLoading() {
+  const t = useT()
+  return <div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>{t.editorLoading}</div>
 }
 
 export default function App() {
@@ -442,7 +448,7 @@ export default function App() {
     // Редактор без UI смены языка — onChange не нужен
     return (
       <I18nProvider initial={initialLocale}>
-        <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
+        <Suspense fallback={<EditorLoading />}><EditorRoot /></Suspense>
       </I18nProvider>
     )
   }
@@ -546,33 +552,14 @@ export default function App() {
       )}
 
       {paused && (
-        <div className="screen" style={{ background: 'rgba(10,10,15,0.85)' }}>
-          <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
-            МЕНЮ
-          </h2>
-          <button
-            className="btn btn--primary"
-            style={{
-              position: 'relative', overflow: 'hidden',
-              opacity: resumeDisabled ? 0.5 : 1,
-              cursor: resumeDisabled ? 'default' : 'pointer',
-            }}
-            disabled={resumeDisabled}
-            onClick={handleResume}
-          >
-            {/* индикация кулдауна — заливка слева-направо (без смены текста → кнопка не прыгает) */}
-            {resumeDisabled && (
-              <span style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0,
-                width: `${(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}%`,
-                background: 'rgba(120,180,255,0.28)',
-              }} />
-            )}
-            <span style={{ position: 'relative' }}>ПРОДОЛЖИТЬ</span>
-          </button>
-          <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
-          {IS_ELECTRON && <Button variant="ghost" onClick={handleExit}>ВЫХОД</Button>}
-        </div>
+        <PauseMenu
+          resumeDisabled={resumeDisabled}
+          cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
+          showExit={IS_ELECTRON}
+          onResume={handleResume}
+          onBack={handleBack}
+          onExit={handleExit}
+        />
       )}
 
       {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}

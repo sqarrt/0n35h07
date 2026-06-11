@@ -131,4 +131,10 @@ export const tr = {
   ctrlView: 'Görünüm 1/3',
   ctrlScore: 'Skor',
   ctrlPause: 'Duraklat',
+  // Duraklatma ve düzenleyici
+  pauseTitle: 'MENÜ',
+  pauseResume: 'DEVAM',
+  pauseToMenu: 'MENÜYE',
+  pauseExit: 'ÇIKIŞ',
+  editorLoading: 'Düzenleyici yükleniyor…',
 } satisfies Dict
