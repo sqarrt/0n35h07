@@ -11,3 +11,8 @@ img { -webkit-user-drag: none; }
    без задержки/зума double-tap на гибридных экранах. */
 html, body { overscroll-behavior: none; }
 body { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* CJK: широкий letter-spacing (рассчитан под латиницу) у иероглифов раздувает кнопки/заголовки
+   и ломает вёрстку — поджимаем трекинг для упрощённого китайского. */
+html[lang="zh-CN"] h1, html[lang="zh-CN"] h2,
+html[lang="zh-CN"] .btn, html[lang="zh-CN"] .seg { letter-spacing: 0.05em; }

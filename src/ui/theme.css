@@ -16,7 +16,9 @@
   --text: #cfe6ff;
   --muted: #778;
   --surface-line: #1a2433;
-  --ui-font: 'Share Tech Mono', monospace;
+  /* CJK-фолбэки: 'Share Tech Mono' не содержит иероглифов — для zh-CN подхватываем
+     системные Noto Sans SC / Microsoft YaHei, иначе китайский рендерится квадратами. */
+  --ui-font: 'Share Tech Mono', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', monospace;
 }
 
 /* Полноэкранный оверлей-экран. Фон прозрачный — за ним персистентный MenuBackdrop (тёмный фон на корне App).
