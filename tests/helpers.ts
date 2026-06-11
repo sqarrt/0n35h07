@@ -10,11 +10,11 @@ async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByTestId('menu-create-room').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByTestId('menu-create-room').click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
+  await page.getByTestId('room-add-bot').click()
   if (opts.difficulty === 'passive') {
-    await page.getByText('ПАССИВНЫЙ').first().click()
+    await page.getByTestId('room-difficulty-passive').first().click()
   }
-  await page.getByText('НАЧАТЬ').click()
+  await page.getByTestId('room-start').click()
 }
 
 // Ждём пока R3F инициализируется и смонтирует Game, затем пропускаем ритуал готовности

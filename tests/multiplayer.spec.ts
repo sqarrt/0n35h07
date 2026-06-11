@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
+import { en } from '../src/i18n/locales/en'
 
 // Две страницы в ОДНОМ контексте → BroadcastChannel связывает их (?net=bc по умолчанию).
 // Так проверяем реальный P2P-обмен без внешних трекеров.
@@ -24,17 +25,16 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
 
   await host.goto('/')
   await host.getByTestId('menu-create-room').click()
-  await expect(host.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  const codeText = await host.getByText(/КОД:/).textContent()
-  const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
+  await expect(host.getByTestId('room-title')).toBeVisible()
+  const code = await host.getByTestId('room-code').textContent()
 
   await client.goto(`/#${code}`)
   // Клиент занял слот соперника → у хоста НАЧАТЬ разблокирована.
-  await expect(host.getByRole('button', { name: 'НАЧАТЬ' })).toBeEnabled({ timeout: 20000 })
-  await expect(client.getByText('ОЖИДАНИЕ ХОСТА…')).toBeVisible({ timeout: 20000 })
+  await expect(host.getByTestId('room-start')).toBeEnabled({ timeout: 20000 })
+  await expect(client.getByText(en.roomWaitingHost)).toBeVisible({ timeout: 20000 })
 
   await host.waitForTimeout(300)
-  await host.getByText('НАЧАТЬ').click()
+  await host.getByTestId('room-start').click()
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   return { host, client }

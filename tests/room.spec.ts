@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import { unlockPointer } from './helpers'
+import { en } from '../src/i18n/locales/en'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -14,11 +15,11 @@ test('главное меню — кнопки навигации видны', a
 
 test('создать комнату — слот соперника пуст, НАЧАТЬ заблокирована', async ({ page }) => {
   await page.getByTestId('menu-create-room').click()
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  await expect(page.getByText(/КОД:/)).toBeVisible()
-  await expect(page.getByText('ОЖИДАНИЕ СОПЕРНИКА…')).toBeVisible()   // слот соперника пуст
-  await expect(page.getByText('ДОБАВИТЬ БОТА')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'НАЧАТЬ' })).toBeDisabled()   // без соперника старт нельзя
+  await expect(page.getByTestId('room-title')).toBeVisible()
+  await expect(page.getByTestId('room-code')).toBeVisible()
+  await expect(page.getByText(en.roomWaitingOpponent)).toBeVisible()   // слот соперника пуст
+  await expect(page.getByTestId('room-add-bot')).toBeVisible()
+  await expect(page.getByTestId('room-start')).toBeDisabled()   // без соперника старт нельзя
 })
 
 test('создать комнату — url меняется на /#CODE', async ({ page }) => {
@@ -29,39 +30,39 @@ test('создать комнату — url меняется на /#CODE', async
 
 test('прямой переход по /#CODE — открывает комнату', async ({ page }) => {
   await page.goto('/#AB3K')
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  await expect(page.getByText('КОД: AB3K')).toBeVisible()
+  await expect(page.getByTestId('room-title')).toBeVisible()
+  await expect(page.getByTestId('room-code')).toHaveText('AB3K')
 })
 
 test('прямой переход по /#CODE — заходишь клиентом (ждёшь хоста)', async ({ page }) => {
   await page.goto('/#XY9Z')
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  await expect(page.getByText('ПОДКЛЮЧЕНИЕ…')).toBeVisible()       // хоста нет — клиент ждёт
-  await expect(page.getByText('ДОБАВИТЬ БОТА')).not.toBeVisible()  // клиент не правит ростер
+  await expect(page.getByTestId('room-title')).toBeVisible()
+  await expect(page.getByText(en.roomConnecting)).toBeVisible()       // хоста нет — клиент ждёт
+  await expect(page.getByTestId('room-add-bot')).not.toBeVisible()   // клиент не правит ростер
 })
 
 test('комната — добавить бота → слот занят, второго не добавить, старт доступен', async ({ page }) => {
   await page.getByTestId('menu-create-room').click()
   await expect(page.getByText('Бот', { exact: true })).not.toBeVisible()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
+  await page.getByTestId('room-add-bot').click()
   await expect(page.getByText('Бот', { exact: true })).toBeVisible()
-  await expect(page.getByText('ДОБАВИТЬ БОТА')).not.toBeVisible()   // слот соперника занят
-  await expect(page.getByRole('button', { name: 'НАЧАТЬ' })).toBeEnabled()
+  await expect(page.getByTestId('room-add-bot')).not.toBeVisible()   // слот соперника занят
+  await expect(page.getByTestId('room-start')).toBeEnabled()
 })
 
 test('комната — убрать бота → слот снова пуст, НАЧАТЬ заблокирована', async ({ page }) => {
   await page.getByTestId('menu-create-room').click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
+  await page.getByTestId('room-add-bot').click()
   await expect(page.getByText('Бот', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: '×' }).click()
+  await page.getByTestId('room-remove-bot').click()
   await expect(page.getByText('Бот', { exact: true })).not.toBeVisible()
-  await expect(page.getByText('ОЖИДАНИЕ СОПЕРНИКА…')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'НАЧАТЬ' })).toBeDisabled()
+  await expect(page.getByText(en.roomWaitingOpponent)).toBeVisible()
+  await expect(page.getByTestId('room-start')).toBeDisabled()
 })
 
 test('комната → назад → главное меню', async ({ page }) => {
   await page.getByTestId('menu-create-room').click()
-  await page.getByText('НАЗАД').click()
+  await page.getByTestId('room-back').click()
   await expect(page.getByTestId('menu-create-room')).toBeVisible()
   await expect(page.getByTestId('menu-join-room')).toBeVisible()
 })
@@ -102,9 +103,9 @@ test('копирование кода — клик по коду даёт фид
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   await page.goto('/')
   await page.getByTestId('menu-create-room').click()
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('room-title')).toBeVisible()
   await page.locator('.room-code-copy').click()
-  await expect(page.getByText('СКОПИРОВАНО')).toBeVisible()
+  await expect(page.getByText(en.roomCopied)).toBeVisible()
 })
 
 test('пауза — Escape показывает меню паузы', async ({ page }) => {
