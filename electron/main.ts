@@ -30,6 +30,24 @@ function createWindow() {
   })
   win.setTitle('ONESHOT')   // фиксируем заголовок окна (не даём HTML <title> перебить)
 
+  // --- Game feel: окно игры не должно вести себя как браузер ---
+  // Никаких новых окон (window.open / target=_blank).
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  // Pinch-зум выключен; клавиатурный зум (Ctrl +/-/0) глушим; Chromium помнит zoomFactor
+  // per-origin — сбрасываем на загрузке и при любой попытке зума, чтобы масштаб не «залипал».
+  void win.webContents.setVisualZoomLevelLimits(1, 1)
+  win.webContents.on('did-finish-load', () => { win.webContents.zoomFactor = 1 })
+  win.webContents.on('zoom-changed', () => { win.webContents.zoomFactor = 1 })
+  win.webContents.on('before-input-event', (e, input) => {
+    if ((input.control || input.meta) && ['+', '-', '=', '0'].includes(input.key)) e.preventDefault()
+  })
+  // Боковые кнопки мыши (Windows) листают историю браузера — выкидывало бы из матча/комнаты.
+  win.on('app-command', (e, cmd) => {
+    if (cmd === 'browser-backward' || cmd === 'browser-forward') e.preventDefault()
+  })
+  // Уход со страницы (уроненный файл/ссылка) в упакованном билде недопустим.
+  if (app.isPackaged) win.webContents.on('will-navigate', e => e.preventDefault())
+
   if (!app.isPackaged) {
     win.loadURL('http://localhost:5173')
   } else {

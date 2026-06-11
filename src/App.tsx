@@ -262,6 +262,15 @@ export default function App() {
   // Прогрев превью карт на старте: к открытию комнаты картинки уже в HTTP-кэше (см. warmMapPreviews).
   useEffect(() => { warmMapPreviews() }, [])
 
+  // Случайные F5/Ctrl+W в live-матче не должны молча убивать бой — браузер спросит подтверждение.
+  // В Electron гард не ставим: там beforeunload без диалога просто блокирует закрытие окна.
+  useEffect(() => {
+    if (IS_ELECTRON || screen !== 'game' || hud.matchPhase !== 'live') return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [screen, hud.matchPhase])
+
   // Дев-маршрут #editor → редактор карт (только при npm run dev).
   useEffect(() => {
     const onHash = () => setEditorMode(import.meta.env.DEV && isEditorHash())

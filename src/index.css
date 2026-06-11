@@ -1,2 +1,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body, html, #root { width: 100%; height: 100%; overflow: hidden; background: #000; }
+
+/* Игровой UI не выделяется кликами/драгом (особенно заметно в Electron); поля ввода — исключение,
+   там выделение нужно для редактирования. Картинки не таскаются «призраком». */
+body { user-select: none; }
+input, textarea { user-select: text; }
+img { -webkit-user-drag: none; }
+
+/* Ещё «не веб»: без резинового overscroll на тачпадах, без подсветки тапа,
+   без задержки/зума double-tap на гибридных экранах. */
+html, body { overscroll-behavior: none; }
+body { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }

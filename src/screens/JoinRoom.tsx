@@ -49,6 +49,8 @@ export function JoinRoom({ status, onJoin, onBack }: JoinRoomProps) {
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
           maxLength={4}
           autoFocus
+          spellCheck={false}
+          autoComplete="off"
           disabled={busy}
           style={{
             fontSize: '2rem', letterSpacing: '0.5em', textIndent: code.length > 0 ? '0.5em' : '0',
