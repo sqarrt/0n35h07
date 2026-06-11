@@ -695,6 +695,10 @@ export class Match {
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
     w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
+    // Физика готова = Rapier WASM загружен и мир привязан (до этого applyPhysics — no-op, движения нет).
+    // Для e2e: __debugForceLive входит в live раньше готовности физики (в реальном флоу её прячут
+    // ритуал готовности и отсчёт) — тесты движения обязаны ждать этот флаг, а не только фазу.
+    w.__debugPhysicsReady = () => this.physicsWorld != null
   }
 
   dispose() {
@@ -709,6 +713,7 @@ export class Match {
     delete w.__debugBodyScale
     delete w.__debugForceEnd
     delete w.__debugPlayerSpeed
+    delete w.__debugPhysicsReady
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }

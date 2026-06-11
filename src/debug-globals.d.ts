@@ -15,6 +15,7 @@ declare global {
     __debugBodyScale?: (id: number) => number | null
     __debugPlayerSpeed?: (id: number) => number | null
     __debugForceEnd?: () => void
+    __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
     __debugForceLive?: () => void
