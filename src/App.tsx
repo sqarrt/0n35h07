@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, memo, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
+import type { HUDAction } from './hooks/useGameHUD'
+import type { ISfxEngine } from './game/audio/sfx/types'
 import { Crosshair } from './components/Crosshair'
 import { ShieldBrackets } from './components/ShieldBrackets'
 import { ScreenFlashes } from './components/ScreenFlashes'
@@ -75,6 +77,52 @@ interface GameNet {
 function randomCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase()
 }
+
+// Конфиг камеры — модульная константа: инлайновый объект пересоздавался бы на каждом рендере.
+const GAME_CAMERA = { fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] as [number, number, number] }
+
+interface GameCanvasProps {
+  dispatch: (action: HUDAction) => void
+  gameNet: GameNet
+  reserveColor: string
+  defaultThirdPerson: boolean
+  apiRef: React.MutableRefObject<GameApi | null>
+  sfxEngine: ISfxEngine
+  musicVolume: number
+  audioAnalysis: AudioAnalysis
+}
+
+// HUD-экшены (прогресс заряда, скорость, таймер) ре-рендерят App десятки раз в секунду — Canvas НЕЛЬЗЯ
+// ре-рендерить вместе с ним. Configure-эффект r3f (без deps) на каждом рендере Canvas перезаписывает size
+// в r3f-сторе: rect из useMeasure (8 ключей) сравнивается со state.size (4 ключа), и is.equ в r3f 9 ВСЕГДА
+// видит «изменение». Каждый новый size будит всех подписчиков useThree (весь Game-поддерево), а ре-рендер
+// MapEdges заставляет EffectComposer пересобирать EffectPass с шейдерами каждый кадр — шторм аллокаций
+// (~18 МБ/с) и многосекундные паузы Major GC. memo + стабильные пропсы отсекают каскад в корне.
+// (Тот же класс граблей, что и memo у Game — см. комментарий в Game.tsx.)
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
+  return (
+    /* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
+       всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */
+    <Canvas shadows="percentage" camera={GAME_CAMERA}>
+      <Game
+        dispatch={dispatch}
+        role={gameNet.role}
+        net={gameNet.net}
+        netConfig={gameNet.netConfig}
+        peerToPlayer={gameNet.peerToPlayer}
+        reserveColor={reserveColor}
+        defaultThirdPerson={defaultThirdPerson}
+        apiRef={apiRef}
+        durationMs={gameNet.durationMs}
+        mapId={gameNet.mapId}
+        seedCode={gameNet.code}
+        sfxEngine={sfxEngine}
+        musicVolume={musicVolume}
+        audioAnalysis={audioAnalysis}
+      />
+    </Canvas>
+  )
+})
 
 // Персистентность роли хоста. `HOSTED_KEY` (localStorage) — последний СОЗДАННЫЙ нами код (переживает закрытие
 // вкладки/перезапуск браузера). `HOST_LIVE_KEY` — код, который вкладка-хост держит ПРЯМО СЕЙЧАС (снимается на
@@ -420,26 +468,16 @@ export default function App() {
 
       {screen === 'game' && gameNet && (
         <>
-          {/* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
-              всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */}
-          <Canvas shadows="percentage" camera={{ fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] }}>
-            <Game
-              dispatch={dispatch}
-              role={gameNet.role}
-              net={gameNet.net}
-              netConfig={gameNet.netConfig}
-              peerToPlayer={gameNet.peerToPlayer}
-              reserveColor={profile.reserveColor}
-              defaultThirdPerson={profile.defaultView === 'tp'}
-              apiRef={gameApiRef}
-              durationMs={gameNet.durationMs}
-              mapId={gameNet.mapId}
-              seedCode={gameNet.code}
-              sfxEngine={sfx}
-              musicVolume={profile.volumeMaster * profile.volumeMusic}
-              audioAnalysis={audioAnalysis}
-            />
-          </Canvas>
+          <GameCanvas
+            dispatch={dispatch}
+            gameNet={gameNet}
+            reserveColor={profile.reserveColor}
+            defaultThirdPerson={profile.defaultView === 'tp'}
+            apiRef={gameApiRef}
+            sfxEngine={sfx}
+            musicVolume={profile.volumeMaster * profile.volumeMusic}
+            audioAnalysis={audioAnalysis}
+          />
           {hud.matchPhase === 'ready' && (
             <ReadyOverlay
               roster={gameNet.netConfig.roster}
