@@ -5,5 +5,5 @@ export const pl = {
   menuJoinRoom: 'DOŁĄCZ',
   menuAppearance: 'WYGLĄD',
   menuSettings: 'USTAWIENIA',
-  menuExit: 'WYJŚCIE',
+  menuExit: 'WYJDŹ',
 } satisfies Dict

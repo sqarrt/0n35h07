@@ -1,4 +1,4 @@
-import { createContext, createElement, useContext, useMemo, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Dict } from './dict'
 import { en } from './locales/en'
@@ -36,9 +36,10 @@ export const LOCALES: { id: LocaleId; native: string }[] = [
 const FALLBACK: LocaleId = 'en'
 
 /** Системный язык: точное совпадение → по префиксу (pt-*→pt-BR, zh-*→zh-CN) → en. */
-export function detectLocale(langs: readonly string[] = navigator.languages ?? []): LocaleId {
+export function detectLocale(langs?: readonly string[]): LocaleId {
+  const resolved = langs ?? (typeof navigator !== 'undefined' ? navigator.languages ?? [] : [])
   const ids = LOCALES.map(l => l.id)
-  for (const raw of langs) {
+  for (const raw of resolved) {
     const exact = ids.find(id => id.toLowerCase() === raw.toLowerCase())
     if (exact) return exact
     const prefix = raw.slice(0, 2).toLowerCase()
@@ -58,15 +59,23 @@ export function I18nProvider({ initial, onChange, children }: {
   children: ReactNode
 }) {
   const [locale, setLocaleState] = useState<LocaleId>(initial)
-  const value = useMemo<I18nCtx>(() => ({
-    locale,
-    dict: DICTS[locale],
-    setLocale: (id: LocaleId) => {
-      setLocaleState(id)
-      document.documentElement.lang = id
-      onChange?.(id)
-    },
-  }), [locale, onChange])
+
+  // Устанавливаем lang при первом рендере (initial читается один раз намеренно)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { document.documentElement.lang = initial }, [])
+
+  // Ref нужен, чтобы setLocale оставался стабильной ссылкой (useCallback []),
+  // не вызывая лишних ре-рендеров у потребителей контекста
+  const onChangeRef = useRef(onChange)
+  useEffect(() => { onChangeRef.current = onChange }, [onChange])
+
+  const setLocale = useCallback((id: LocaleId) => {
+    setLocaleState(id)
+    document.documentElement.lang = id
+    onChangeRef.current?.(id)
+  }, [])
+
+  const value = useMemo<I18nCtx>(() => ({ locale, dict: DICTS[locale], setLocale }), [locale, setLocale])
   return createElement(Ctx.Provider, { value }, children)
 }
 

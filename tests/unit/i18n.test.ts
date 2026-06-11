@@ -22,4 +22,7 @@ describe('i18n', () => {
     expect(detectLocale(['ja-JP'])).toBe('en')
     expect(detectLocale([])).toBe('en')
   })
+  it('DICTS и LOCALES синхронны', () => {
+    expect(Object.keys(DICTS).sort()).toEqual(LOCALES.map(l => l.id).sort())
+  })
 })
