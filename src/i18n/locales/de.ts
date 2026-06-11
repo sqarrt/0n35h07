@@ -137,4 +137,10 @@ export const de = {
   pauseToMenu: 'ZUM MENÜ',
   pauseExit: 'BEENDEN',
   editorLoading: 'Editor wird geladen…',
+  botName: 'Bot',
+  netChipProbingTitle: 'Relays werden geprüft',
+  netChipProbing: 'NETZ-TEST',
+  netChipTitle: 'Signaling-Relays',
+  netChipFallback: 'NETZ · RESERVE',
+  netChipOk: (n: number) => `NETZ · ${n}`,
 } satisfies Dict

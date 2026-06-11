@@ -137,4 +137,10 @@ export const tr = {
   pauseToMenu: 'MENÜYE',
   pauseExit: 'ÇIKIŞ',
   editorLoading: 'Düzenleyici yükleniyor…',
+  botName: 'Bot',
+  netChipProbingTitle: 'Röleler kontrol ediliyor',
+  netChipProbing: 'AĞ TESTİ',
+  netChipTitle: 'Sinyal röleleri',
+  netChipFallback: 'AĞ · YEDEK',
+  netChipOk: (n: number) => `AĞ · ${n}`,
 } satisfies Dict

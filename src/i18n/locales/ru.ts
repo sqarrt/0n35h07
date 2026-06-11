@@ -137,4 +137,10 @@ export const ru = {
   pauseToMenu: 'В МЕНЮ',
   pauseExit: 'ВЫХОД',
   editorLoading: 'Загрузка редактора…',
+  botName: 'Бот',
+  netChipProbingTitle: 'Проверка сигналинг-релеев',
+  netChipProbing: 'ПРОВЕРКА СЕТИ',
+  netChipTitle: 'Сигналинг-релеи',
+  netChipFallback: 'СЕТЬ · РЕЗЕРВ',
+  netChipOk: (n: number) => `СЕТЬ · ${n}`,
 } satisfies Dict

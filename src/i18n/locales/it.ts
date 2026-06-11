@@ -137,4 +137,10 @@ export const it = {
   pauseToMenu: 'AL MENU',
   pauseExit: 'ESCI',
   editorLoading: 'Caricamento editor…',
+  botName: 'Bot',
+  netChipProbingTitle: 'Verifica dei relay',
+  netChipProbing: 'TEST RETE',
+  netChipTitle: 'Relay di segnalazione',
+  netChipFallback: 'RETE · RISERVA',
+  netChipOk: (n: number) => `RETE · ${n}`,
 } satisfies Dict

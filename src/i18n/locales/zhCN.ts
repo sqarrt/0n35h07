@@ -138,4 +138,10 @@ export const zhCN = {
   pauseToMenu: '返回菜单',
   pauseExit: '退出',
   editorLoading: '加载编辑器…',
+  botName: '机器人',
+  netChipProbingTitle: '正在检测信令中继',
+  netChipProbing: '检测网络',
+  netChipTitle: '信令中继',
+  netChipFallback: '网络 · 备用',
+  netChipOk: (n: number) => `网络 · ${n}`,
 } satisfies Dict

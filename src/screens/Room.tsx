@@ -67,7 +67,7 @@ export function Room({ roomCode, view, onAddBot, onRemoveBot, onSetDifficulty, o
     const tagColor = side === 'host' ? '#7fa0c0' : entry.kind === 'bot' ? 'var(--opp)' : 'var(--ok)'
     return (
       <div className="room-pane">
-        <div className="room-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.name}</div>
+        <div className="room-nick" style={{ color: entry.color, textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 4 }}>{entry.kind === 'bot' ? t.botName : entry.name}</div>
         <div className="room-tag" style={{ color: tagColor }}>{tag}</div>
         {entry.kind === 'bot' && isHost && (
           <>

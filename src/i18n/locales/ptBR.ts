@@ -137,4 +137,10 @@ export const ptBR = {
   pauseToMenu: 'AO MENU',
   pauseExit: 'SAIR',
   editorLoading: 'Carregando editor…',
+  botName: 'Bot',
+  netChipProbingTitle: 'Verificando relés',
+  netChipProbing: 'TESTANDO REDE',
+  netChipTitle: 'Relés de sinalização',
+  netChipFallback: 'REDE · RESERVA',
+  netChipOk: (n: number) => `REDE · ${n}`,
 } satisfies Dict

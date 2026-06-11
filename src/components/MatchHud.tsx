@@ -23,16 +23,18 @@ export function MatchHud({ scores, matchTime, roster, localId }: MatchHudProps) 
   const me = roster.find(r => r.id === localId)
   const opp = roster.find(r => r.id !== localId)
   const kills = (name?: string) => scores.find(s => s.name === name)?.kills ?? 0
+  // Имя бота локализуем (ростер хранит 'Бот' для совместимости); человек — своё имя.
+  const display = (entry: typeof me, fallback: string) => entry ? (entry.kind === 'bot' ? t.botName : entry.name) : fallback
   return (
     <div className="match-hud">
       <div className="side you" style={{ color: me?.color }}>
-        <span className="dot">●</span><span><div className="nm">{me?.name ?? t.hudYou}</div></span>
+        <span className="dot">●</span><span><div className="nm">{display(me, t.hudYou)}</div></span>
         <span className="frag">{kills(me?.name)}</span>
       </div>
       <div className="timer">{fmt(matchTime)}</div>
       <div className="side opp" style={{ color: opp?.color }}>
         <span className="frag">{kills(opp?.name)}</span>
-        <span><div className="nm">{opp?.name ?? t.hudOpponent}</div></span><span className="dot">●</span>
+        <span><div className="nm">{display(opp, t.hudOpponent)}</div></span><span className="dot">●</span>
       </div>
     </div>
   )

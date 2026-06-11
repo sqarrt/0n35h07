@@ -137,4 +137,10 @@ export const pl = {
   pauseToMenu: 'DO MENU',
   pauseExit: 'WYJDŹ',
   editorLoading: 'Ładowanie edytora…',
+  botName: 'Bot',
+  netChipProbingTitle: 'Sprawdzanie przekaźników',
+  netChipProbing: 'TEST SIECI',
+  netChipTitle: 'Przekaźniki sygnalizacyjne',
+  netChipFallback: 'SIEĆ · ZAPAS',
+  netChipOk: (n: number) => `SIEĆ · ${n}`,
 } satisfies Dict
