@@ -24,6 +24,9 @@ export async function waitForGame(page: Page, opts: NavigateOpts = {}) {
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   await page.evaluate(() => (window as any).__debugForceLive?.())
   await page.waitForFunction(() => (window as any).__debugPhase?.() === 'live', { timeout: 5000 })
+  // forceLive перепрыгивает ритуал+отсчёт, за время которых в реальном флоу успевает загрузиться
+  // Rapier WASM. До привязки мира applyPhysics — no-op (двигаться нельзя) — ждём готовность физики.
+  await page.waitForFunction(() => (window as any).__debugPhysicsReady?.() === true, { timeout: 10000 })
 }
 
 export async function unlockPointer(page: Page, opts: NavigateOpts = {}) {
