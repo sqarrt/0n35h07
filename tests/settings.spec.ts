@@ -5,14 +5,14 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('настройки — экран открывается: имя и вид по умолчанию', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByTestId('menu-settings').click()
   await expect(page.getByRole('heading', { name: 'НАСТРОЙКИ' })).toBeVisible()
   await expect(page.getByLabel('Имя игрока')).toBeVisible()
   await expect(page.getByText('ВИД ПО УМОЛЧАНИЮ')).toBeVisible()
 })
 
 test('настройки — вид по умолчанию (FP/TP) переключается и сохраняется', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByTestId('menu-settings').click()
   await expect(page.getByText('ВИД ПО УМОЛЧАНИЮ')).toBeVisible()
   await expect(page.getByRole('button', { name: 'ОТ 1 ЛИЦА' })).toBeVisible()
   await page.getByRole('button', { name: 'ОТ 3 ЛИЦА' }).click()
@@ -21,7 +21,7 @@ test('настройки — вид по умолчанию (FP/TP) перекл
 })
 
 test('настройки — раздел ЗВУК: 4 ползунка, изменение сохраняется', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByTestId('menu-settings').click()
   await page.getByRole('button', { name: 'ЗВУК' }).click()
   await expect(page.getByRole('slider', { name: 'ОБЩАЯ ГРОМКОСТЬ' })).toBeVisible()
   await expect(page.getByRole('slider', { name: 'МУЗЫКА', exact: true })).toBeVisible()
@@ -36,7 +36,7 @@ test('настройки — раздел ЗВУК: 4 ползунка, изме
 })
 
 test('настройки — графика: галка «СВЕЧЕНИЕ В МЕНЮ» отключает эффект и сохраняется', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByTestId('menu-settings').click()
   await page.getByRole('button', { name: 'ГРАФИКА' }).click()
   const sw = page.getByRole('switch', { name: 'Свечение в меню' })
   await expect(sw).toBeVisible()
@@ -46,10 +46,10 @@ test('настройки — графика: галка «СВЕЧЕНИЕ В М
 })
 
 test('настройки — имя сохраняется и видно в комнате', async ({ page }) => {
-  await page.getByText('НАСТРОЙКИ').click()
+  await page.getByTestId('menu-settings').click()
   const input = page.getByLabel('Имя игрока')
   await input.fill('ТестБоец')
   await page.getByText('НАЗАД').click()
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await page.getByTestId('menu-create-room').click()
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })

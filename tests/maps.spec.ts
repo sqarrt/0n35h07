@@ -2,7 +2,7 @@ import { test, expect } from './fixtures'
 
 test('комната — выбор карты: плитка активна при клике', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await page.getByTestId('menu-create-room').click()
   await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
   await expect(page.getByText('// КАРТА')).toBeVisible()
 
@@ -18,7 +18,7 @@ test('комната — выбор карты: плитка активна пр
 
 test('старт на выбранной карте применяет её спавны (os_pillars)', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await page.getByTestId('menu-create-room').click()
   await page.getByRole('button', { name: /os_pillars/ }).click()
   await page.getByText('ДОБАВИТЬ БОТА').click()
   await page.getByText('НАЧАТЬ').click()
@@ -32,7 +32,7 @@ test('старт на выбранной карте применяет её сп
 
 test('os_india: по рампе можно подняться на центральную площадку', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await page.getByTestId('menu-create-room').click()
   await page.getByRole('button', { name: /os_india/ }).click()
   await page.getByText('ДОБАВИТЬ БОТА').click()
   await page.getByText('НАЧАТЬ').click()

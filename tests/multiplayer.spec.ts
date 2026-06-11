@@ -23,7 +23,7 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const client = await context.newPage()
 
   await host.goto('/')
-  await host.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await host.getByTestId('menu-create-room').click()
   await expect(host.getByText('КОМНАТА', { exact: true })).toBeVisible()
   const codeText = await host.getByText(/КОД:/).textContent()
   const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]

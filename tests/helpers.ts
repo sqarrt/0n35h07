@@ -4,12 +4,12 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто (СОЗДАТЬ КОМНАТУ → +бот → НАЧАТЬ).
+// Проходит главное меню если оно открыто (CREATE ROOM → +бот → НАЧАТЬ).
 // 1v1: соперник обязателен, иначе НАЧАТЬ заблокирована — поэтому всегда добавляем бота.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
-  const menuVisible = await page.getByText('СОЗДАТЬ КОМНАТУ').isVisible().catch(() => false)
+  const menuVisible = await page.getByTestId('menu-create-room').isVisible().catch(() => false)
   if (!menuVisible) return
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
+  await page.getByTestId('menu-create-room').click()
   await page.getByText('ДОБАВИТЬ БОТА').click()
   if (opts.difficulty === 'passive') {
     await page.getByText('ПАССИВНЫЙ').first().click()

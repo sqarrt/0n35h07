@@ -6,4 +6,8 @@ export const ru = {
   menuAppearance: 'ВНЕШНОСТЬ',
   menuSettings: 'НАСТРОЙКИ',
   menuExit: 'ВЫХОД',
+  warnTitle: 'ПРЕДУПРЕЖДЕНИЕ',
+  warnBody: 'Игра содержит мерцающие изображения, вспышки и резкие световые эффекты. Не рекомендуется людям с фоточувствительной эпилепсией.',
+  warnContinueHint: 'чтобы продолжить',
+  warnContinueKey: 'ЛКМ',
 } satisfies Dict
