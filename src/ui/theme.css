@@ -347,13 +347,13 @@
 .lobby-half--take .lobby-half-ic, .lobby-half--take .lobby-half-txt { color: var(--accent); }
 .lobby-half--alt .lobby-half-ic, .lobby-half--alt .lobby-half-txt { color: var(--accent-dim); }
 .lobby-half:hover { background: rgba(68,170,255,0.06); }
-.lobby-opts { width: 100%; border-top: 1px solid var(--surface-line); padding: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.lobby-opts { width: 100%; border-top: 1px solid var(--surface-line); padding: 18px 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
 /* Карты — всегда сетка 4 столбца × N строк (новая карта размещается сама). Плитки компактные. */
 .lobby-maptiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
 .lobby-maptiles .map-tile { width: auto; overflow: hidden; }
 .lobby-maptiles .map-preview { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: contain; border-radius: 2px; }
 .lobby-opts--locked { opacity: 0.5; pointer-events: none; }
-.lobby-ogrp { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.lobby-ogrp { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; }
 .lobby-ol { font-size: 11px; letter-spacing: 0.18em; color: var(--muted); }
 .lobby-tiles { display: flex; gap: 8px; width: 100%; }
 .lobby-tile { flex: 1; border: 1px solid var(--surface-line); border-radius: 4px; padding: 5px 5px 3px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; cursor: pointer; }
