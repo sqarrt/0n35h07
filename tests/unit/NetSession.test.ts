@@ -14,18 +14,19 @@ const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1] }
 
 type Stub = MatchNet & {
   pushed: Array<[number, InputFrame]>; snaps: Snapshot[]; events: MatchEvent[]
-  phases: PhaseMsg[]; leftCalls: number[]; setDirty(v: boolean): void
+  readyCalls: number[]; phases: PhaseMsg[]; leftCalls: number[]; setDirty(v: boolean): void
 }
 
 function stub(role: MatchRole, localId: number): Stub {
   const pushed: Array<[number, InputFrame]> = []
   const snaps: Snapshot[] = []
   const events: MatchEvent[] = []
+  const readyCalls: number[] = []
   const phases: PhaseMsg[] = []
   const leftCalls: number[] = []
   let dirty = false
   return {
-    role, localId, pushed, snaps, events, phases, leftCalls,
+    role, localId, pushed, snaps, events, readyCalls, phases, leftCalls,
     setDirty: v => { dirty = v },
     serializeSnapshot: () => SNAP,
     drainEvents: vi.fn(() => [EVENT]) as unknown as () => MatchEvent[],
@@ -33,6 +34,7 @@ function stub(role: MatchRole, localId: number): Stub {
     applySnapshot: s => { snaps.push(s) },
     applyEvent: e => { events.push(e) },
     localInputFrame: seq => frame(seq),
+    markReady: id => { readyCalls.push(id) },
     applyPhase: p => { phases.push(p) },
     serializePhase: () => PHASE,
     phaseDirty: () => dirty,
@@ -75,6 +77,15 @@ describe('NetSession (host ↔ client через LoopbackNet)', () => {
     hostSession.afterUpdate(1000)
     hostSession.afterUpdate(1000)   // тот же момент — снапшот не повторяется
     expect(client.snaps).toHaveLength(1)
+  })
+
+  it('client sendReady() → host markReady(playerId клиента)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
+    const host = stub('host', 0)
+    new NetSession(hostNet, host, new Map([['client', 1]]))
+    const clientSession = new NetSession(clientNet, stub('client', 1), new Map([['host', 0]]))
+    clientSession.sendReady()
+    expect(host.readyCalls).toEqual([1])
   })
 
   it('host рассылает фазу при phaseDirty → клиент applyPhase', () => {

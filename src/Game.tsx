@@ -20,6 +20,8 @@ import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constan
 import type { MatchRole, MapId } from './constants'
 import { MAPS } from './game/maps'
 
+export interface GameApi { requestReady(): void }
+
 interface GameProps {
   dispatch: (action: HUDAction) => void
   role: MatchRole
@@ -28,6 +30,7 @@ interface GameProps {
   peerToPlayer: Map<PeerId, number>
   reserveColor: string   // «второй» цвет локального игрока (кольцо его планеты)
   defaultThirdPerson?: boolean
+  apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
   seedCode: string
@@ -39,7 +42,7 @@ interface GameProps {
 // memo: HUD-обновления (SET_WINDUP_PROGRESS каждый кадр заряда и т.п.) ре-рендерят App, но НЕ должны
 // трогать Canvas/постпроцесс — иначе EffectComposer пересобирает шейдер каждый кадр (спайк на заряде).
 // Пропсы Game стабильны в течение матча (gameNet/profile), поэтому memo блокирует лишние ре-рендеры.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
   // Селекторы, не useThree() целиком: подписка на весь стор ре-рендерила бы Game (и всё поддерево,
   // включая постпроцесс Arena) на каждое обновление r3f-состояния.
   const camera = useThree(s => s.camera)
@@ -92,13 +95,18 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
+    const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
+    if (apiRef) apiRef.current = { requestReady }
     const w = window
     w.__debugPhase = () => match.phase
+    w.__debugReady = requestReady
     w.__debugForceLive = () => match.forceLiveForTest()
     w.__debugLeave = () => net.leave()
     return () => {
       match.dispose()
+      if (apiRef) apiRef.current = null
       delete w.__debugPhase
+      delete w.__debugReady
       delete w.__debugForceLive
       delete w.__debugLeave
     }

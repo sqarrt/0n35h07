@@ -13,7 +13,7 @@ function unlockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
 }
 
-/** Строит host-матч 1v1 (вы + бот) и пропускает отсчёт (forceLiveForTest) — тестируем боёвку. */
+/** Строит host-матч 1v1 (вы + бот) и пропускает ритуал готовности — тестируем боёвку. */
 function makeMatch(difficulty: BotDifficulty = 'passive', mapId?: MapId) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
@@ -55,22 +55,6 @@ describe('Match', () => {
     unlockPointer()
     const w = window as any
     delete w.__debugCamera; delete w.__debugWindup; delete w.__debugTargetHitCount; delete w.__debugBotPos
-  })
-
-  it('матч стартует сразу с отсчёта (ready-ритуала в матче нет)', () => {
-    const scene = new THREE.Scene()
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
-    const roster: RosterEntry[] = [
-      { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
-    ]
-    const match = new Match({
-      scene, camera,
-      controls: { current: { pointerSpeed: 1 } } as any,
-      keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
-    })
-    expect(match.phase).toBe('countdown')
   })
 
   it('спавнит игроков по слотам выбранной карты (os_pillars)', () => {

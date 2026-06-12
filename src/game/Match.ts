@@ -116,7 +116,8 @@ export class Match {
   private lastTimeSentAt = 0
   private ended = false
 
-  // Отсчёт перед боем (1v1)
+  // Ритуал входа (1v1)
+  private readySet = new Set<number>()
   private countdownEndsAt = 0
   private prevCountTick = 0   // последняя сыгранная секунда отсчёта (дедуп count_tick)
   private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
@@ -147,10 +148,9 @@ export class Match {
     this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // Матч строится, только когда обе стороны согласились (START / оба ГОТОВ в лобби) — поэтому
-    // ритуала готовности в матче нет: сразу отсчёт 3·2·1, затем live.
-    this.phase = 'countdown'
-    this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
+    // Ритуал готовности проходят ВСЕ 1v1-матчи (комната гарантирует двоих). Бот-соперник авто-готов.
+    this.phase = 'ready'
+    if (opponentIsBot) this.readySet.add(OPPONENT_ID)
 
     // Музыка матча: только если переданы сид и движок (в юнит-тестах их нет → тишина).
     if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine, () => this.musicRemainingMs())
@@ -484,15 +484,27 @@ export class Match {
     const countdown = this.phase === 'countdown'
       ? Math.max(0, Math.ceil((this.countdownEndsAt - Date.now()) / 1000))
       : 0
-    const ready: number[] = []
+    const ready = [...this.readySet].sort((a, b) => a - b)
     const sig = `${this.phase}|${ready.join(',')}|${countdown}`
     if (sig === this.prevPhaseSig) return
     this.prevPhaseSig = sig
     this.dispatch({ type: 'SET_MATCH_PHASE', phase: this.phase, ready, countdown })
   }
 
-  /** Тест-хук (e2e): мгновенно в бой без 3с отсчёта. */
+  /** host: отметить игрока готовым; когда готовы оба — старт отсчёта (бот-соперник готов изначально). */
+  markReady(id: number) {
+    if (this.phase !== 'ready' || !this.players.some(p => p.id === id)) return
+    this.readySet.add(id)
+    this.phaseDirtyFlag = true
+    if (this.players.every(p => this.readySet.has(p.id))) {
+      this.phase = 'countdown'
+      this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
+    }
+  }
+
+  /** Тест-хук (e2e): мгновенно в бой без 3с отсчёта. Прод-флоу всегда идёт ready→countdown→live. */
   forceLiveForTest() {
+    this.readySet = new Set(this.players.map(p => p.id))
     this.phase = 'live'
     this.phaseDirtyFlag = true
   }
@@ -501,10 +513,11 @@ export class Match {
   applyPhase(p: PhaseMsg) {
     const enteringCountdown = p.phase === 'countdown' && this.phase !== 'countdown'
     this.phase = p.phase
+    this.readySet = new Set(p.ready)
     if (enteringCountdown) this.countdownEndsAt = Date.now() + READY_COUNTDOWN_MS
   }
 
-  serializePhase(): PhaseMsg { return { phase: this.phase, ready: [] } }
+  serializePhase(): PhaseMsg { return { phase: this.phase, ready: [...this.readySet] } }
   phaseDirty() { return this.phaseDirtyFlag }
   clearPhaseDirty() { this.phaseDirtyFlag = false }
 
