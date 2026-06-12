@@ -21,9 +21,8 @@ import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { MainMenu } from './screens/MainMenu'
-import { JoinRoom } from './screens/JoinRoom'
-import type { JoinStatus } from './screens/JoinRoom'
-import { Room } from './screens/Room'
+import { Lobby } from './screens/Lobby'
+import type { LobbySlot } from './screens/Lobby'
 import { Settings } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
@@ -38,7 +37,7 @@ import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
-import type { BotDifficulty, BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
+import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmMapPreviews } from './game/maps'
 import { warmRelayCache } from './net/relays'
@@ -49,10 +48,15 @@ import { RoomSession } from './net/RoomSession'
 import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole, MapId } from './constants'
-import { DEFAULT_MAP_ID } from './constants'
+import type { MatchRole, MapId, MapFilter, DurationFilter } from './constants'
+import { DEFAULT_MAP_ID, DEFAULT_MATCH_DURATION_MIN, HOST_ID, OPPONENT_ID } from './constants'
+import { createMatchmakingPool } from './net/createMatchmakingPool'
+import type { MatchmakingPool } from './net/matchmaking'
 
-type Screen = 'menu' | 'join' | 'room' | 'game' | 'settings' | 'appearance'
+type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance'
+
+/** Жребий сетевой роли при «Случайно» (модульный — Math.random вне рендера). */
+function randomRole(): RoomRole { return Math.random() < 0.5 ? 'host' : 'client' }
 
 const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
@@ -129,15 +133,9 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
 // при живой первой (или вход по чужому коду) → клиент. На другом устройстве localStorage не общий → клиент.
 const HOSTED_KEY = 'oneshot:hosted'
 const HOST_LIVE_KEY = 'oneshot:hostLive'
-function rememberHosted(code: string) { try { localStorage.setItem(HOSTED_KEY, code) } catch { /* ignore */ } }
 function forgetHosted() { try { localStorage.removeItem(HOSTED_KEY); localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
 function setHostLive(code: string) { try { localStorage.setItem(HOST_LIVE_KEY, code) } catch { /* ignore */ } }
 function clearHostLive(code: string) { try { if (localStorage.getItem(HOST_LIVE_KEY) === code) localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
-/** Наш ли это код и нет живого хоста этого кода сейчас (refresh/reopen) → можем стать хостом. */
-function shouldHost(code: string): boolean {
-  try { return localStorage.getItem(HOSTED_KEY) === code && localStorage.getItem(HOST_LIVE_KEY) !== code }
-  catch { return false }
-}
 
 /** Fallback Suspense для ленивого редактора — под I18nProvider, отсюда useT. */
 function EditorLoading() {
@@ -225,10 +223,12 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
   }, [screen, menuMusic])
 
-  const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
+  const [lobbyRole, setLobbyRole] = useState<RoomRole>('host')
+  const [searching, setSearching] = useState(false)
+  const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: DEFAULT_MAP_ID, durationMin: DEFAULT_MATCH_DURATION_MIN })
+  const poolRef = useRef<MatchmakingPool | null>(null)
 
   const sessionRef = useRef<RoomSession | null>(null)
-  const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leaveRoom = () => {
     sessionRef.current?.dispose()
@@ -237,11 +237,11 @@ export default function App() {
     setGameNet(null)
   }
 
-  const enterRoom = (code: string, role: RoomRole) => {
+  const enterRoom = (code: string, role: RoomRole, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
     if (sessionRef.current) leaveRoom()
     if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
     const net = createNet(code)
-    const session = new RoomSession(net, role, code, loadProfile())
+    const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
@@ -292,23 +292,6 @@ export default function App() {
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
-  // Hash-routing: /#CODE → войти в комнату клиентом (если ещё не в комнате с этим кодом).
-  useEffect(() => {
-    const handleHash = () => {
-      const code = window.location.hash.slice(1).toUpperCase()
-      if (/^[A-Z0-9]{4}$/.test(code)) {
-        // Свой созданный код и нет живой вкладки-хоста (refresh/reopen) → хост; иначе (живой хост/чужой) → клиент.
-        if (sessionRef.current?.code !== code) { enterRoom(code, shouldHost(code) ? 'host' : 'client'); setScreen('room') }
-      } else if (!code && !sessionRef.current) {
-        setScreen('menu')
-      }
-    }
-    handleHash()
-    window.addEventListener('hashchange', handleHash)
-    return () => window.removeEventListener('hashchange', handleHash)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // Матч завершён — освобождаем курсор для клика «ВЫЙТИ».
   useEffect(() => {
     if (hud.matchResult) document.exitPointerLock?.()
@@ -326,23 +309,6 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
-  // Экран входа: поиск → комната найдена (транспорт нашёл пира) → подключён (получен ASSIGN) → в комнате.
-  useEffect(() => {
-    if (screen !== 'join') return
-    const busy = joinStatus === 'searching' || joinStatus === 'found'
-    if (!busy) return
-    if (roomView?.connected) {
-      if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
-      setJoinStatus('idle')
-      setScreen('room')
-    } else if (joinStatus === 'searching' && roomView?.foundHost) {
-      setJoinStatus('found')
-    }
-  }, [screen, joinStatus, roomView])
-
-  // Размонтирование — чистка таймера подключения.
-  useEffect(() => () => { if (connectTimer.current) clearTimeout(connectTimer.current) }, [])
-
   // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
   useEffect(() => {
     const isPaused = screen === 'game' && !locked && hud.matchPhase === 'live'
@@ -352,50 +318,73 @@ export default function App() {
     return () => clearInterval(iv)
   }, [screen, locked, hud.matchPhase])
 
-  const handleCreateRoom = () => {
-    const code = randomCode()
-    rememberHosted(code)   // запомнить, что эту комнату создали мы → остаёмся хостом при обновлении
-    window.location.hash = code
-    enterRoom(code, 'host')
-    setScreen('room')
-  }
-  const handleJoinRoom = () => { setScreen('join'); setJoinStatus('idle') }
-  const handleJoin = (code: string) => {
-    if (connectTimer.current) clearTimeout(connectTimer.current)
-    setJoinStatus('searching')
-    window.location.hash = code
-    enterRoom(code, 'client')   // остаёмся на экране 'join'
-    connectTimer.current = setTimeout(() => {
-      // Классифицируем провал по свежему состоянию сессии: нашли пира, но не завершили хендшейк →
-      // «не удалось подключиться»; пира так и не нашли → «комната не найдена».
-      const foundHost = sessionRef.current?.view().foundHost ?? false
-      setJoinStatus(foundHost ? 'failed-connect' : 'failed-find')
-      leaveRoom()               // гасим сессию (стоп HELLO-ретраи); код остаётся в инпуте для повтора
-    }, profile.connectTimeoutSec * 1000)
-  }
+  // Хост: соперник занял слот → снимаем листинг из пула (хватит искать) и гасим состояние поиска.
+  useEffect(() => {
+    if (lobbyRole === 'host' && searching && roomView && roomView.roster.length > 1) {
+      poolRef.current?.withdraw()
+      setSearching(false)
+    }
+  }, [lobbyRole, searching, roomView])
+
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
-
-  const handleStart = () => sessionRef.current?.start()
-
-  const handleBack = () => {
-    if (connectTimer.current) { clearTimeout(connectTimer.current); connectTimer.current = null }
-    setJoinStatus('idle')
-    forgetHosted()   // явный выход в меню → больше не претендуем на роль хоста этого кода
-    leaveRoom()
-    setScreen('menu')
-    if (window.location.hash) window.location.hash = ''
-  }
-
   // Выход из игры: в Electron закрывает окно (→ приложение завершается), в браузере — вкладку.
   const handleExit = () => window.close()
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
 
-  const handleAddBot = () => sessionRef.current?.addBot('normal')
-  const handleRemoveBot = () => sessionRef.current?.removeBot()
-  const handleSetDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
-  const handleSetDuration = (min: number) => sessionRef.current?.setDuration(min)
-  const handleSetMap = (id: MapId) => sessionRef.current?.setMap(id)
+  const disposePool = () => { poolRef.current?.dispose(); poolRef.current = null }
+
+  // ИГРАТЬ → лобби. Роль из профиля (random → жребий). Хост сразу поднимает RoomSession (виден по коду);
+  // клиент — черновик без сети до ПОИСКа/ввода кода хоста.
+  const handlePlay = () => {
+    disposePool()
+    poolRef.current = createMatchmakingPool()
+    const role: RoomRole = profile.searchRole === 'host' || profile.searchRole === 'client'
+      ? profile.searchRole : randomRole()
+    const sel = { map: DEFAULT_MAP_ID as MapFilter, durationMin: DEFAULT_MATCH_DURATION_MIN as DurationFilter }
+    setDraftSel(sel)
+    setSearching(false)
+    setLobbyRole(role)
+    if (role === 'host') enterRoom(randomCode(), 'host', sel)
+    else leaveRoom()   // клиент-черновик: без сессии до поиска/ввода кода
+    setScreen('lobby')
+  }
+
+  const handleBack = () => {
+    setSearching(false)
+    disposePool()
+    forgetHosted()   // явный выход в меню → больше не претендуем на роль хоста этого кода
+    leaveRoom()
+    setScreen('menu')
+  }
+
+  // --- колбэки лобби ---
+  const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
+  const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
+  const onLobbyAddBot = () => sessionRef.current?.addBot('normal')
+  const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
+  const onLobbyCopyCode = () => { void navigator.clipboard?.writeText(roomCode).catch(() => { /* clipboard недоступен */ }) }
+  const onLobbyEnterCode = (code: string) => { setSearching(false); poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
+
+  // Смена роли (сплит-слот) — только в idle (компонент показывает «Стать…» лишь без оппонента и не в поиске).
+  const onLobbyToggleRole = () => {
+    const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
+    setSearching(false); poolRef.current?.withdraw(); poolRef.current?.cancel()
+    if (lobbyRole === 'host') { leaveRoom(); setDraftSel(sel); setLobbyRole('client') }
+    else { setDraftSel(sel); setLobbyRole('host'); enterRoom(randomCode(), 'host', sel) }
+  }
+
+  const onLobbySearch = () => {
+    const pool = poolRef.current
+    if (!pool) return
+    setSearching(true)
+    if (lobbyRole === 'host') {
+      pool.advertise({ code: roomCode, name: profile.name, color: profile.primaryColor, map: roomView?.mapSel ?? draftSel.map, durationMin: roomView?.durationSel ?? draftSel.durationMin })
+    } else {
+      pool.search({ map: draftSel.map, durationMin: draftSel.durationMin }, code => { setSearching(false); pool.withdraw(); enterRoom(code, 'client', draftSel) })
+    }
+  }
+  const onLobbyStopSearch = () => { setSearching(false); poolRef.current?.withdraw(); poolRef.current?.cancel() }
 
   // Любой live без захвата мыши — пауза (в т.ч. если первый pointer lock не удался: раньше этот
   // кейс закрывала отдельная live-кнопка «ГОТОВ?», теперь путь один — оверлей с «ПРОДОЛЖИТЬ»).
@@ -407,10 +396,7 @@ export default function App() {
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'appearance'
     ? appearancePreview
-    // на «войти» показываем резервный (основной может занять хост) → кольцо в основной; иначе наоборот
-    : screen === 'join'
-      ? { color: profile.reserveColor, model: profile.ballModel, ringColor: profile.primaryColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
-      : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
+    : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
 
   // На «Внешности» панель прибита почти к правому краю (небольшой отступ) — всё остальное пространство
   // отдано шару-превью. Сдвиг считается из ИЗМЕРЕННОЙ ширины панели и пересчитывается ТОЛЬКО при смене
@@ -430,10 +416,40 @@ export default function App() {
 
   // Размытый фон карты — только в комнате, с fade in/out. Держим смонтированным на время выхода-фейда;
   // последний mapId фиксируем, чтобы при выходе (roomView уже null) фон не мигнул на дефолтную карту.
-  const showMap = screen === 'room' && !!roomView
+  const showMap = screen === 'lobby' && !!roomView
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
   useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
+
+  // Пропсы лобби: нормализуем RoomView (или черновик клиента без сессии) в форму Lobby.
+  const buildLobby = () => {
+    const isHost = lobbyRole === 'host'
+    const v = roomView
+    let me: LobbySlot
+    let opponent: LobbySlot | null = null
+    if (v) {
+      const myId = isHost ? HOST_ID : (v.localPlayerId >= 0 ? v.localPlayerId : OPPONENT_ID)
+      const oppId = isHost ? OPPONENT_ID : HOST_ID
+      const meE = v.roster.find(r => r.id === myId)
+      const oppE = v.roster.find(r => r.id === oppId)
+      me = { name: meE?.name ?? profile.name, color: meE?.color ?? profile.primaryColor, ready: v.ready.includes(myId) }
+      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId) } : null
+    } else {
+      me = { name: profile.name, color: profile.primaryColor, ready: false }
+    }
+    return {
+      isHost, me, opponent,
+      mapSel: v?.mapSel ?? draftSel.map,
+      durationSel: v?.durationSel ?? draftSel.durationMin,
+      code: isHost ? roomCode : null,
+      searching,
+      onToggleRole: onLobbyToggleRole, onAddBot: onLobbyAddBot, onEnterCode: onLobbyEnterCode,
+      onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
+      onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
+      onBack: handleBack, onCopyCode: onLobbyCopyCode,
+    }
+  }
+  const lobbyProps = screen === 'lobby' ? buildLobby() : null
 
   if (editorMode) {
     // Редактор без UI смены языка — onChange не нужен
@@ -465,27 +481,14 @@ export default function App() {
       {screen !== 'game' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
-            {screen === 'join' && <JoinRoom status={joinStatus} onJoin={handleJoin} onBack={handleBack} />}
+            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
             {screen === 'settings' && (
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
             )}
             {screen === 'appearance' && (
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
             )}
-            {screen === 'room' && roomView && (
-              <Room
-                roomCode={roomCode}
-                view={roomView}
-                onAddBot={handleAddBot}
-                onRemoveBot={handleRemoveBot}
-                onSetDifficulty={handleSetDifficulty}
-                onSetDuration={handleSetDuration}
-                onSetMap={handleSetMap}
-                onStart={handleStart}
-                onBack={handleBack}
-              />
-            )}
+            {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
       )}
