@@ -17,23 +17,32 @@ async function playerZ(page: Page, id: number): Promise<number> {
   return page.evaluate(pid => (window as any).__debugPlayerPos(pid)?.z ?? NaN, id)
 }
 
-/** Хост создаёт комнату, клиент входит по коду, хост стартует → обе страницы в игре (фаза 'countdown'). */
+/** Хост поднимает лобби, клиент входит по коду, оба жмут ГОТОВ → обе страницы в игре (фаза 'ready'). */
 async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
+  // Хост: ИГРАТЬ → «ПРОЧЕЕ» → роль ХОСТ → читаем код.
   await host.goto('/')
-  await host.getByTestId('menu-create-room').click()
-  await expect(host.getByTestId('room-title')).toBeVisible()
-  const code = await host.getByTestId('room-code').textContent()
+  await host.getByTestId('menu-play').click()
+  await host.getByTestId('lobby-other-toggle').click()
+  await host.getByTestId('lobby-role-host').click()
+  const code = await host.getByTestId('lobby-code-input').inputValue()
 
-  await client.goto(`/#${code}`)
-  // Клиент занял слот соперника → у хоста НАЧАТЬ разблокирована.
-  await expect(host.getByTestId('room-start')).toBeEnabled({ timeout: 20000 })
-  await expect(client.getByText(en.roomWaitingHost)).toBeVisible({ timeout: 20000 })
+  // Клиент: ИГРАТЬ → «ПРОЧЕЕ» → роль КЛИЕНТ → ввод кода → ПОИСК (по коду → конкретная комната).
+  await client.goto('/')
+  await client.getByTestId('menu-play').click()
+  await client.getByTestId('lobby-other-toggle').click()
+  await client.getByTestId('lobby-role-client').click()
+  await client.getByTestId('lobby-code-input').fill(code)
+  await client.getByTestId('lobby-search').click()
 
-  await host.waitForTimeout(300)
-  await host.getByTestId('room-start').click()
+  // Оба видят соперника в слоте → у обоих появляется ГОТОВ (человек-vs-человек: оба подтверждают).
+  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await host.getByTestId('lobby-ready').click()
+  await client.getByTestId('lobby-ready').click()
+
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   return { host, client }

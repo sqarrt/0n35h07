@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { NAME_MAX, saveProfile, CONNECT_TIMEOUT_OPTIONS } from '../settings'
-import type { PlayerProfile, DefaultView } from '../settings'
+import type { PlayerProfile, DefaultView, SearchRole } from '../settings'
 import { Button } from '../ui/Button'
 import { Toggle } from '../ui/Toggle'
 import { Slider } from '../ui/Slider'
@@ -26,6 +26,7 @@ const subHeader: CSSProperties = {
 }
 
 const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics']
+const SEARCH_ROLES: SearchRole[] = ['host', 'client', 'random']
 
 /** Число колонок в сетке языков (10 языков → 2 ряда по 5). */
 const LANG_GRID_COLS = 5
@@ -57,6 +58,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const [menuGlow, setMenuGlow] = useState(profile.menuGlow)
   const [audioViz, setAudioViz] = useState(profile.audioViz)
   const [connTimeout, setConnTimeout] = useState(profile.connectTimeoutSec)
+  const [searchRole, setSearchRole] = useState(profile.searchRole)
   const [volMaster, setVolMaster] = useState(profile.volumeMaster)
   const [volMusic, setVolMusic] = useState(profile.volumeMusic)
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
@@ -72,7 +74,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — косметика теперь живёт в экране «Внешность» и коммитится там.
-  const base = (): PlayerProfile => ({ ...profile, name, defaultView: view, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout })
+  const base = (): PlayerProfile => ({ ...profile, name, defaultView: view, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout, searchRole })
 
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
@@ -108,6 +110,11 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     if (v !== connTimeout) sfx.play2D('ui_toggle')
     setConnTimeout(v)
     commit({ ...base(), connectTimeoutSec: v })
+  }
+  const handleSearchRole = (r: SearchRole) => {
+    if (r !== searchRole) sfx.play2D('ui_toggle')
+    setSearchRole(r)
+    commit({ ...base(), searchRole: r })
   }
   const handleVolMaster = (v: number) => {
     setVolMaster(v)
@@ -203,6 +210,14 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
 
       {section === 'net' && (
         <>
+          <div style={{ ...label, marginBottom: '0.6rem' }}>{t.settingsSearchRoleLabel}</div>
+          <div style={{ ...row, flexWrap: 'wrap' }}>
+            {SEARCH_ROLES.map(r => (
+              <button key={r} className={`seg${searchRole === r ? ' seg--on' : ''}`} data-testid={`settings-searchrole-${r}`} onClick={() => handleSearchRole(r)}>
+                {r === 'host' ? t.settingsSearchRoleHost : r === 'client' ? t.settingsSearchRoleClient : t.settingsSearchRoleRandom}
+              </button>
+            ))}
+          </div>
           <div style={{ ...label, marginBottom: '0.6rem' }}>{t.settingsConnTimeout}</div>
           <div style={{ ...row, flexWrap: 'wrap' }}>
             {CONNECT_TIMEOUT_OPTIONS.map(s => (

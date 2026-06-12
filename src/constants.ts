@@ -121,8 +121,8 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 // id используется и как подпись в UI.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
-export type MapFilter = MapId | 'any'
-export type DurationFilter = number | 'any'
+export type MapFilter = MapId[]        // выбранный набор карт (≥1)
+export type DurationFilter = number[]  // выбранный набор длительностей (≥1)
 
 // Демпфирование анимаций меню (переезд подложки и фоновых шаров) — единая скорость («резко, но не мгновенно»,
 // ~200 мс на ~95% пути). TAU в секундах для cur += (target-cur)*(1-exp(-dt/TAU)).

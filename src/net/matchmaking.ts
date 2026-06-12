@@ -1,52 +1,43 @@
 import type { MapId, MapFilter, DurationFilter } from '../constants'
-import { MATCH_DURATIONS_MIN } from '../constants'
-import { MAP_IDS } from '../game/maps'
 import type { IDiscovery } from './discovery/IDiscovery'
 
 export type { MapFilter, DurationFilter }   // ре-экспорт (совместимость)
 
-/** Объявление хоста в пуле: код его комнаты + предлагаемые параметры (могут быть «any»). */
+/** Объявление хоста в пуле: код его комнаты + наборы готовых карт/длительностей (≥1 в каждом). */
 export interface PoolListing {
   code: string
   name: string
   color: string
-  map: MapFilter
+  map: MapFilter            // набор карт хоста (на коннекте выберется случайная из пересечения с клиентом)
   durationMin: DurationFilter
 }
 
-/** Что хочет найти клиент (любая ось может быть «any»). */
+/** Что готов принять клиент: наборы карт/длительностей (матч есть, если пересекается с набором хоста). */
 export interface PoolFilter {
   map: MapFilter
   durationMin: DurationFilter
 }
 
-/** Ось совместима, если значения равны ИЛИ хотя бы одна сторона = «any». */
-function axisCompatible<T>(a: T | 'any', b: T | 'any'): boolean {
-  return a === 'any' || b === 'any' || a === b
+/** Пересечение наборов (порядок — как в первом). */
+function intersect<T>(a: readonly T[], b: readonly T[]): T[] {
+  return a.filter(x => b.includes(x))
 }
 
-/** Листинг подходит фильтру клиента, если совместимы и карта, и время. */
+/** Листинг подходит фильтру, если пересекаются и карты, и длительности (есть взаимно приемлемый вариант). */
 export function listingMatches(filter: PoolFilter, listing: PoolListing): boolean {
-  return axisCompatible(filter.map, listing.map) && axisCompatible(filter.durationMin, listing.durationMin)
+  return intersect(filter.map, listing.map).length > 0 && intersect(filter.durationMin, listing.durationMin).length > 0
 }
 
-/** Резолв одной оси: конкретное бьёт «any»; обе «any» → значение от rng-функции. */
-function resolveAxis<T>(host: T | 'any', client: T | 'any', randomConcrete: () => T): T {
-  if (host !== 'any') return host as T
-  if (client !== 'any') return client as T
-  return randomConcrete()
-}
-
-/** Финальные параметры матча (host-authoritative): применяет хост при коннекте. */
+/** Финальные параметры матча (host-authoritative): случайные из пересечения наборов хоста и клиента. */
 export function resolveMatchParams(
   host: PoolFilter,
   client: PoolFilter,
-  randomMap: () => MapId,
-  randomDuration: () => number,
+  pickMap: (opts: MapId[]) => MapId,
+  pickDuration: (opts: number[]) => number,
 ): { mapId: MapId; durationMin: number } {
   return {
-    mapId: resolveAxis(host.map, client.map, randomMap),
-    durationMin: resolveAxis(host.durationMin, client.durationMin, randomDuration),
+    mapId: pickMap(intersect(host.map, client.map)),
+    durationMin: pickDuration(intersect(host.durationMin, client.durationMin)),
   }
 }
 
@@ -55,14 +46,9 @@ export function bucketKey(map: MapId, durationMin: number): string {
   return `mm:${map}:${durationMin}`
 }
 
-const MAPS_ALL: MapId[] = MAP_IDS
-const DURS_ALL: number[] = [...MATCH_DURATIONS_MIN]
-
-/** Корзины, в которые ХОСТ публикует листинг: кросс не-«any» осей (concrete→1, any→все значения). */
+/** Корзины, в которые ХОСТ публикует листинг: кросс-произведение выбранных карт × длительностей. */
 export function bucketsForListing(map: MapFilter, durationMin: DurationFilter): string[] {
-  const maps = map === 'any' ? MAPS_ALL : [map]
-  const durs = durationMin === 'any' ? DURS_ALL : [durationMin]
-  return maps.flatMap(m => durs.map(d => bucketKey(m, d)))
+  return map.flatMap(m => durationMin.map(d => bucketKey(m, d)))
 }
 
 /** Корзины, на которые КЛИЕНТ подписывается: те же правила, что у листинга. */

@@ -4,17 +4,17 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто (СОЗДАТЬ КОМНАТУ → +бот → НАЧАТЬ).
-// 1v1: соперник обязателен, иначе НАЧАТЬ заблокирована — поэтому всегда добавляем бота.
+// Проходит главное меню если оно открыто: ИГРАТЬ → лобби → раздел «ПРОЧЕЕ»
+// (роль ХОСТ → сложность → добавить бота) → ГОТОВ. 1v1: соперник обязателен — добавляем бота.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
-  const menuVisible = await page.getByTestId('menu-create-room').isVisible().catch(() => false)
+  const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
-  await page.getByTestId('menu-create-room').click()
-  await page.getByTestId('room-add-bot').click()
-  if (opts.difficulty === 'passive') {
-    await page.getByTestId('room-difficulty-passive').first().click()
-  }
-  await page.getByTestId('room-start').click()
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-other-toggle').click()       // раскрыть «// ПРОЧЕЕ»
+  await page.getByTestId('lobby-role-host').click()          // детерминированно хост (no-op, если уже хост)
+  if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
+  await page.getByTestId('lobby-bot-add').click()            // бот занимает слот (авто-готов)
+  await page.getByTestId('lobby-ready').click()              // хост готов → оба готовы → старт
 }
 
 // Ждём пока R3F инициализируется и смонтирует Game, затем пропускаем ритуал готовности

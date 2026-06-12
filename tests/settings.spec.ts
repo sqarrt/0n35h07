@@ -52,7 +52,7 @@ test('настройки — имя сохраняется и видно в ко
   const input = page.getByTestId('settings-name-input')
   await input.fill('ТестБоец')
   await page.getByTestId('settings-back').click()
-  await page.getByTestId('menu-create-room').click()
+  await page.getByTestId('menu-play').click()   // имя видно в слоте игрока (// ИГРОКИ)
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })
 

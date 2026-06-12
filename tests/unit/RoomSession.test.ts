@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createLoopbackPair } from '../../src/net/LoopbackNet'
 import { RoomSession } from '../../src/net/RoomSession'
 import type { RoomView } from '../../src/net/RoomSession'
@@ -28,7 +28,7 @@ describe('RoomSession длительность матча', () => {
     const host = new RoomSession(a, 'host', 'CODE', HOST)
     const client = new RoomSession(b, 'client', 'CODE', GUEST)
     // После конструкторов клиент уже подключился (HELLO синхронно → ASSIGN)
-    host.setDuration(10)
+    host.setDuration([10])
     let started = 0
     client.onStart(ms => { started = ms })
     let clientView = client.view()
@@ -48,7 +48,7 @@ describe('RoomSession выбор карты', () => {
     client.onChange(v => { clientView = v })
     expect(clientView.mapId).toBe('os_arena')
 
-    host.setMap('os_pillars')
+    host.setMap(['os_pillars'])
     let startedMap = ''
     client.onStart((_ms, mapId) => { startedMap = mapId })
     host.start()
@@ -226,33 +226,33 @@ describe('RoomSession — готовность (гейт в лобби)', () => 
   })
 })
 
-describe('RoomSession — матчинг карты/времени (резолв)', () => {
-  it('хост concrete + бот → matchMap = карта хоста; mapSel показывает её', () => {
+describe('RoomSession — матчинг карты/времени (наборы + резолв)', () => {
+  it('хост concrete + бот → matchMap = карта хоста; mapSel = [неё]', () => {
     const [a] = createLoopbackPair('H', 'C')
-    const host = new RoomSession(a, 'host', 'AB12', HOST, { map: 'os_pillars', durationMin: 5 })
+    const host = new RoomSession(a, 'host', 'AB12', HOST, { map: ['os_pillars'], durationMin: [5] })
     let view = host.view(); host.onChange(v => { view = v })
     let startedMap = ''; host.onStart((_ms, mapId) => { startedMap = mapId })
     host.addBot('normal')
     host.setLocalReady(true)
     expect(view.mapId).toBe('os_pillars')
-    expect(view.mapSel).toBe('os_pillars')
+    expect(view.mapSel).toEqual(['os_pillars'])
     expect(startedMap).toBe('os_pillars')
   })
 
-  it('хост «any» + бот → matchMap случайная валидная карта', () => {
+  it('хост со всеми картами + бот → matchMap случайная валидная карта', () => {
     const [a] = createLoopbackPair('H', 'C')
-    const host = new RoomSession(a, 'host', 'AB12', HOST, { map: 'any', durationMin: 5 })
+    const host = new RoomSession(a, 'host', 'AB12', HOST, { map: MAP_IDS, durationMin: [5] })
     let view = host.view(); host.onChange(v => { view = v })
     host.addBot('normal')
     expect(MAP_IDS).toContain(view.mapId)
     expect(view.durationMin).toBe(5)
   })
 
-  it('хост «any» + клиент хочет os_india → резолв = os_india у обоих', () => {
+  it('хост со всеми + клиент хочет [os_india]/[10] → резолв = os_india/10 у обоих', () => {
     const [hostNet, clientNet] = createLoopbackPair('H', 'C')
-    const host = new RoomSession(hostNet, 'host', 'AB12', HOST, { map: 'any', durationMin: 'any' })
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST, { map: MAP_IDS, durationMin: [3, 5, 10] })
     let hostView = host.view(); host.onChange(v => { hostView = v })
-    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST, { map: 'os_india', durationMin: 10 })
+    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST, { map: ['os_india'], durationMin: [10] })
     let clientView = client.view(); client.onChange(v => { clientView = v })
     expect(hostView.mapId).toBe('os_india')
     expect(hostView.durationMin).toBe(10)
@@ -260,10 +260,47 @@ describe('RoomSession — матчинг карты/времени (резолв
     expect(clientView.durationMin).toBe(10)
   })
 
-  it('клиент видит свой селект до подключения (mapSel/durationSel)', () => {
+  it('клиент видит свой набор до подключения (mapSel/durationSel)', () => {
     const [, clientNet] = createLoopbackPair('H', 'C')
-    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST, { map: 'any', durationMin: 3 })
-    expect(client.view().mapSel).toBe('any')
-    expect(client.view().durationSel).toBe(3)
+    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST, { map: ['os_arena', 'os_india'], durationMin: [3] })
+    expect(client.view().mapSel).toEqual(['os_arena', 'os_india'])
+    expect(client.view().durationSel).toEqual([3])
+  })
+})
+
+describe('RoomSession — разрыв в лобби (клиент)', () => {
+  it('хост ушёл до старта матча → у клиента onClosed (откат до поиска)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    new RoomSession(hostNet, 'host', 'AB12', HOST)
+    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST)
+    let closed = false
+    client.onClosed(() => { closed = true })
+    clientNet.triggerLeave()   // транспорт клиента увидел уход хоста
+    expect(closed).toBe(true)
+  })
+
+  it('после старта матча уход хоста НЕ зовёт onClosed (разрыв ведёт NetSession)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST)
+    let closed = false
+    client.onClosed(() => { closed = true })
+    host.start()               // клиент получает 'start' → started=true
+    clientNet.triggerLeave()
+    expect(closed).toBe(false)
+  })
+
+  it('ASSIGN не пришёл за connectTimeoutSec → onClosed', () => {
+    vi.useFakeTimers()
+    try {
+      const [, clientNet] = createLoopbackPair('H', 'C')   // хост-сессии нет → ASSIGN не придёт
+      const client = new RoomSession(clientNet, 'client', 'AB12', { ...GUEST, connectTimeoutSec: 5 })
+      let closed = false
+      client.onClosed(() => { closed = true })
+      vi.advanceTimersByTime(5000)
+      expect(closed).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

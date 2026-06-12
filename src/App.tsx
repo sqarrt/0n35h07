@@ -41,7 +41,7 @@ import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_ELECTRON } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
-import { warmMapPreviews } from './game/maps'
+import { warmMapPreviews, MAP_IDS } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
@@ -50,8 +50,8 @@ import { RoomSession } from './net/RoomSession'
 import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole, MapId, MapFilter, DurationFilter } from './constants'
-import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID } from './constants'
+import type { MatchRole, MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
+import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from './constants'
 import { createMatchmakingPool } from './net/createMatchmakingPool'
 import type { MatchmakingPool } from './net/matchmaking'
 
@@ -155,8 +155,8 @@ export default function App() {
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  // initial читается провайдером один раз — не пересчитываем на каждом рендере
-  const initialLocale = useRef(profile.locale ?? detectLocale()).current
+  // initial читается провайдером один раз — не пересчитываем на каждом рендере (lazy-init, без чтения ref в рендере)
+  const [initialLocale] = useState(() => profile.locale ?? detectLocale())
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color' }))
   // Счётчики кликов превью (windupSeq/respawnSeq/dashSeq/shieldSeq) сохраняются из прежнего стейта: ими
   // владеет App (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
@@ -229,7 +229,7 @@ export default function App() {
 
   const [lobbyRole, setLobbyRole] = useState<RoomRole>('host')
   const [searching, setSearching] = useState(false)
-  const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: 'any', durationMin: 'any' })
+  const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const lobbyCodeRef = useRef<string>('')   // код хоста на сессию лобби (стабилен при переключении ролей)
 
@@ -258,6 +258,13 @@ export default function App() {
       // Копия карты: чистка ростера в RoomSession.onPeerLeave не должна стирать маршрутизацию игры.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setScreen('game')
+    })
+    // Клиент: хост ушёл из лобби / хендшейк не сложился → откатываем в состояние до поиска (черновик-клиент).
+    session.onClosed(() => {
+      leaveRoom()
+      setSearching(false)
+      poolRef.current?.withdraw()
+      poolRef.current?.cancel()
     })
     sessionRef.current = session
     setRoomCode(code)
@@ -351,7 +358,7 @@ export default function App() {
     poolRef.current = createMatchmakingPool()
     const role: RoomRole = profile.searchRole === 'host' || profile.searchRole === 'client'
       ? profile.searchRole : randomRole()
-    const sel = { map: 'any' as MapFilter, durationMin: 'any' as DurationFilter }
+    const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
     setDraftSel(sel)
     setSearching(false)
     setLobbyRole(role)
@@ -372,10 +379,10 @@ export default function App() {
   // --- колбэки лобби ---
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
-  const onLobbyAddBot = () => sessionRef.current?.addBot('normal')
+  const onLobbyAddBot = (d: BotDifficulty = 'normal') => sessionRef.current?.addBot(d)
   const onLobbyRemoveBot = () => sessionRef.current?.removeBot()
+  const onLobbySetBotDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
-  const onLobbyCopyCode = () => { void navigator.clipboard?.writeText(roomCode).catch(() => { /* clipboard недоступен */ }) }
   const onLobbyEnterCode = (code: string) => { setSearching(true); poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
 
   // Смена роли (сплит-слот) — только в idle (компонент показывает «Стать…» лишь без оппонента и не в поиске).
@@ -432,7 +439,7 @@ export default function App() {
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
   useEffect(() => {
-    const m = roomView?.mapId ?? (draftSel.map !== 'any' ? draftSel.map : undefined)
+    const m = roomView?.mapId ?? draftSel.map[0]
     if (m) setLastMapId(m)
   }, [roomView?.mapId, draftSel.map])
 
@@ -457,10 +464,10 @@ export default function App() {
       durationSel: v?.durationSel ?? draftSel.durationMin,
       code: isHost ? roomCode : null,
       searching,
-      onToggleRole: onLobbyToggleRole, onAddBot: onLobbyAddBot, onRemoveBot: onLobbyRemoveBot, onEnterCode: onLobbyEnterCode,
+      onToggleRole: onLobbyToggleRole, onAddBot: onLobbyAddBot, onRemoveBot: onLobbyRemoveBot, onSetBotDifficulty: onLobbySetBotDifficulty, onEnterCode: onLobbyEnterCode,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
-      onBack: handleBack, onCopyCode: onLobbyCopyCode,
+      onBack: handleBack,
     }
   }
   const lobbyProps = screen === 'lobby' ? buildLobby() : null
