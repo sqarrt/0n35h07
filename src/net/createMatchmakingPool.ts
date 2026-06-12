@@ -1,12 +1,19 @@
 import { MatchmakingPool } from './matchmaking'
-import { createNet } from './createNet'
-import { MM_POOL_ROOM } from '../constants'
+import type { IDiscovery } from './discovery/IDiscovery'
+import { LoopbackDiscovery } from './discovery/LoopbackDiscovery'
+import { BroadcastChannelDiscovery } from './discovery/BroadcastChannelDiscovery'
 
 /**
- * Пул на реальном транспорте (Trystero/BroadcastChannel — по resolveNetKind), комната-пул.
- * Вынесено из matchmaking.ts, чтобы тот оставался browser-free для юнит-тестов
- * (createNet тянет TrysteroNet/BroadcastChannel — браузерные API).
+ * IDiscovery по выбранному транспорту.
+ * TODO(P1b-Task5): интернет-путь (resolveNetKind() !== 'bc') → NostrDiscovery (масштаб через релеи).
+ * До подключения Nostr обе ветки используют BroadcastChannel (same-origin вкладки + e2e).
  */
-export function createMatchmakingPool(): MatchmakingPool {
-  return new MatchmakingPool(createNet(MM_POOL_ROOM))
+export function createDiscovery(): IDiscovery {
+  return new BroadcastChannelDiscovery()
 }
+
+export function createMatchmakingPool(): MatchmakingPool {
+  return new MatchmakingPool(createDiscovery())
+}
+
+export { LoopbackDiscovery }
