@@ -51,7 +51,7 @@ import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId, MapFilter, DurationFilter } from './constants'
-import { DEFAULT_MAP_ID, DEFAULT_MATCH_DURATION_MIN, HOST_ID, OPPONENT_ID } from './constants'
+import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID } from './constants'
 import { createMatchmakingPool } from './net/createMatchmakingPool'
 import type { MatchmakingPool } from './net/matchmaking'
 
@@ -229,7 +229,7 @@ export default function App() {
 
   const [lobbyRole, setLobbyRole] = useState<RoomRole>('host')
   const [searching, setSearching] = useState(false)
-  const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: DEFAULT_MAP_ID, durationMin: DEFAULT_MATCH_DURATION_MIN })
+  const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: 'any', durationMin: 'any' })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const lobbyCodeRef = useRef<string>('')   // код хоста на сессию лобби (стабилен при переключении ролей)
 
@@ -351,7 +351,7 @@ export default function App() {
     poolRef.current = createMatchmakingPool()
     const role: RoomRole = profile.searchRole === 'host' || profile.searchRole === 'client'
       ? profile.searchRole : randomRole()
-    const sel = { map: DEFAULT_MAP_ID as MapFilter, durationMin: DEFAULT_MATCH_DURATION_MIN as DurationFilter }
+    const sel = { map: 'any' as MapFilter, durationMin: 'any' as DurationFilter }
     setDraftSel(sel)
     setSearching(false)
     setLobbyRole(role)
