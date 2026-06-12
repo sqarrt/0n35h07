@@ -1,4 +1,4 @@
-import { useState, useEffect, type CSSProperties } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import type { MapFilter, DurationFilter, MapId } from '../constants'
 import { MATCH_DURATIONS_MIN } from '../constants'
 import { MAP_IDS, MAP_PREVIEW, MAPS } from '../game/maps'
@@ -41,9 +41,9 @@ export function Lobby(props: LobbyProps) {
   const { isHost, me, opponent, mapSel, durationSel, code, searching } = props
   const t = useT()
   const sfx = useSfx()
-  const [entering, setEntering] = useState(false)
   const [codeInput, setCodeInput] = useState('')
   const [copied, setCopied] = useState(false)
+  const codeInputRef = useRef<HTMLInputElement>(null)
 
   // Крутящиеся имена в пустом слоте оппонента во время поиска/подключения.
   const [spin, setSpin] = useState('')
@@ -82,7 +82,7 @@ export function Lobby(props: LobbyProps) {
             <span className="lobby-half-txt">{t.lobbyBot}</span>
           </button>
         ) : (
-          <button className="lobby-half lobby-half--alt" data-testid="lobby-entercode" onClick={() => setEntering(true)}>
+          <button className="lobby-half lobby-half--alt" data-testid="lobby-entercode" onClick={() => codeInputRef.current?.focus()}>
             <span className="lobby-half-ic">⌨</span>
             <span className="lobby-half-txt">{t.lobbyEnterCode}</span>
           </button>
@@ -112,22 +112,24 @@ export function Lobby(props: LobbyProps) {
 
         {/* код под заголовком: хост — свой код; клиент — поле (по «Ввести код»); место зарезервировано */}
         <div className="lobby-code">
-          {copied ? (
-            <span className="lobby-copied" data-testid="lobby-copied">{t.roomCopied}</span>
-          ) : isHost && code ? (
-            <button className="lobby-code-btn" data-testid="lobby-code" onClick={copyCode} title={t.roomCopyTooltip}>
-              <span className="lobby-code-val">{code}</span>
-              <span className="lobby-code-glyph" aria-hidden="true">⧉</span>
-            </button>
-          ) : !isHost && entering ? (
+          {isHost ? (
+            copied
+              ? <span className="lobby-copied" data-testid="lobby-copied">{t.roomCopied}</span>
+              : code
+                ? <button className="lobby-code-btn" data-testid="lobby-code" onClick={copyCode} title={t.roomCopyTooltip}>
+                    <span className="lobby-code-val">{code}</span>
+                    <span className="lobby-code-glyph" aria-hidden="true">⧉</span>
+                  </button>
+                : null
+          ) : (
             <input
-              className="lobby-code-input" data-testid="lobby-code-input" autoFocus
+              ref={codeInputRef}
+              className="lobby-code-input" data-testid="lobby-code-input"
               placeholder={t.lobbyCodePlaceholder} value={codeInput} maxLength={4}
               onChange={e => setCodeInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') submitCode() }}
-              onBlur={() => { if (!codeInput) setEntering(false) }}
             />
-          ) : null}
+          )}
         </div>
 
         <div className="lobby-seats">
@@ -164,7 +166,7 @@ export function Lobby(props: LobbyProps) {
         ) : searching ? (
           <button className="lobby-hero lobby-hero--searching" data-testid="lobby-stop" onClick={props.onStopSearch}>⏹ {t.lobbyStop}</button>
         ) : (
-          <button className="lobby-hero" data-testid="lobby-search" onClick={() => { sfx.play2D('ui_toggle'); props.onSearch() }}>⌕ {t.lobbySearch}</button>
+          <button className="lobby-hero" data-testid="lobby-search" onClick={() => { sfx.play2D('ui_toggle'); if (!isHost && codeInput.trim()) submitCode(); else props.onSearch() }}>⌕ {t.lobbySearch}</button>
         )}
 
         <button className="lobby-back" data-testid="lobby-back" onClick={props.onBack}>{opponent ? t.lobbyLeave : t.roomBack}</button>

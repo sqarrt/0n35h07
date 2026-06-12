@@ -325,7 +325,11 @@
 .lobby-code-glyph { font-size: 14px; color: var(--muted); }
 .lobby-code-btn:hover .lobby-code-glyph { color: var(--accent-dim); }
 .lobby-copied { font-size: 11px; letter-spacing: 0.16em; color: var(--ok); }
-.lobby-code-input { width: 210px; border: 1px solid var(--accent); border-radius: 3px; background: #06121d; color: var(--text); font-family: var(--ui-font); font-size: 15px; letter-spacing: 0.22em; text-align: center; padding: 8px 0; text-transform: uppercase; }
+.lobby-code-input { width: 210px; border: none; outline: none; border-radius: 5px; background: rgba(127,160,192,0.12); color: var(--text); font-family: var(--ui-font); font-size: 15px; letter-spacing: 0.22em; text-align: center; padding: 9px 0; text-transform: uppercase; }
+.lobby-code-input:hover { background: rgba(127,160,192,0.18); }
+.lobby-code-input:focus { background: rgba(127,160,192,0.2); }
+.lobby-code-input::placeholder { color: var(--muted); letter-spacing: 0.08em; text-transform: none; }
+.lobby-code-input:focus::placeholder { color: transparent; }
 .lobby-seats { display: flex; align-items: stretch; justify-content: center; gap: 16px; width: 100%; margin-bottom: 18px; }
 .lobby-seat { flex: 0 0 44%; min-width: 0; box-sizing: border-box; border: 2px dashed var(--pc, var(--surface-line)); border-radius: 7px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #0a0f17; min-height: 108px; }
 .lobby-seat--ready { border-style: solid; box-shadow: 0 0 0 1px var(--pc), 0 0 20px -4px var(--pc); }
