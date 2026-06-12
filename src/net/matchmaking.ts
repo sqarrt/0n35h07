@@ -1,10 +1,9 @@
-import type { MapId } from '../constants'
+import type { MapId, MapFilter, DurationFilter } from '../constants'
 import { MATCH_DURATIONS_MIN } from '../constants'
 import { MAP_IDS } from '../game/maps'
 import type { IDiscovery } from './discovery/IDiscovery'
 
-export type MapFilter = MapId | 'any'
-export type DurationFilter = number | 'any'
+export type { MapFilter, DurationFilter }   // ре-экспорт (совместимость)
 
 /** Объявление хоста в пуле: код его комнаты + предлагаемые параметры (могут быть «any»). */
 export interface PoolListing {
