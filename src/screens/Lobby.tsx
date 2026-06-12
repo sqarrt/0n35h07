@@ -1,24 +1,27 @@
 import { useState, useEffect, type CSSProperties } from 'react'
 import type { MapFilter, DurationFilter, MapId } from '../constants'
 import { MATCH_DURATIONS_MIN } from '../constants'
-import { MAP_IDS, MAP_PREVIEW } from '../game/maps'
+import { MAP_IDS, MAP_PREVIEW, MAPS } from '../game/maps'
+import { MapPreview } from '../components/MapPreview'
 import { generateModelName } from '../names'
 import { useT } from '../i18n'
 import { useSfx } from '../sfx/SfxContext'
 
-/** Один игрок в слоте лобби (имя/цвет/готовность). */
+/** Один игрок в слоте лобби. */
 export interface LobbySlot { name: string; color: string; ready: boolean }
+type OppSlot = LobbySlot & { isBot: boolean }
 
 interface LobbyProps {
-  isHost: boolean                 // ты хост (левый слот) или клиент (правый)
+  isHost: boolean
   me: LobbySlot
-  opponent: LobbySlot | null      // null = слот пуст (idle/поиск)
+  opponent: OppSlot | null
   mapSel: MapFilter
   durationSel: DurationFilter
-  code: string | null             // твой код (если ты хост) — иначе null
+  code: string | null
   searching: boolean
-  onToggleRole: () => void        // «Стать хостом/клиентом»
+  onToggleRole: () => void
   onAddBot: () => void
+  onRemoveBot: () => void
   onEnterCode: (code: string) => void
   onSetMap: (m: MapFilter) => void
   onSetDuration: (d: DurationFilter) => void
@@ -30,6 +33,7 @@ interface LobbyProps {
 }
 
 const NAME_CYCLE_MS = 300
+const COPIED_MS = 1500
 const mapLabel = (id: MapId) => id.replace('os_', '').toUpperCase()
 const pc = (color: string): CSSProperties => ({ ['--pc' as string]: color } as CSSProperties)
 
@@ -39,8 +43,9 @@ export function Lobby(props: LobbyProps) {
   const sfx = useSfx()
   const [entering, setEntering] = useState(false)
   const [codeInput, setCodeInput] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  // Крутящиеся имена в пустом слоте оппонента во время поиска (RX-700 → RX-700. → … → новое имя).
+  // Крутящиеся имена в пустом слоте оппонента во время поиска/подключения.
   const [spin, setSpin] = useState('')
   const spinning = searching && !opponent
   useEffect(() => {
@@ -52,17 +57,19 @@ export function Lobby(props: LobbyProps) {
     return () => clearInterval(id)
   }, [spinning])
 
-  const locked = opponent !== null   // соперник найден → опции зафиксированы
+  const locked = opponent !== null
 
-  const seat = (slot: LobbySlot, mine: boolean) => (
+  const copyCode = () => { props.onCopyCode(); setCopied(true); setTimeout(() => setCopied(false), COPIED_MS) }
+
+  const filledSeat = (slot: LobbySlot, mine: boolean, bot = false) => (
     <div className={`lobby-seat${slot.ready ? ' lobby-seat--ready' : ''}`} style={pc(slot.color)} data-testid={mine ? 'lobby-me' : 'lobby-opponent'}>
       <span className={`lobby-nick${mine ? ' lobby-nick--you' : ''}`}>{slot.name}</span>
+      {bot && <button className="lobby-rmbot" data-testid="lobby-removebot" onClick={() => { sfx.play2D('ui_toggle'); props.onRemoveBot() }}>{t.roomRemoveBot}</button>}
     </div>
   )
 
   const emptyOpponentSeat = () => {
     if (spinning) return <div className="lobby-seat"><span className="lobby-nick lobby-nick--searching" data-testid="lobby-spin">{spin}</span></div>
-    // idle: сплит «Стать <ролью>» + действие (хост: бот; клиент: ввести код хоста)
     return (
       <div className="lobby-split">
         <button className="lobby-half lobby-half--take" data-testid="lobby-become" onClick={() => { sfx.play2D('ui_toggle'); props.onToggleRole() }}>
@@ -84,12 +91,19 @@ export function Lobby(props: LobbyProps) {
     )
   }
 
-  const meSeat = seat(me, true)
-  const oppSeat = opponent ? seat(opponent, false) : emptyOpponentSeat()
+  const meSeat = filledSeat(me, true)
+  const oppSeat = opponent ? filledSeat(opponent, false, opponent.isBot) : emptyOpponentSeat()
   const left = isHost ? meSeat : oppSeat
   const right = isHost ? oppSeat : meSeat
 
   const submitCode = () => { const c = codeInput.trim().toUpperCase(); if (c) props.onEnterCode(c) }
+
+  const mapTile = (id: MapId) => (
+    <button key={id} className={`map-tile${mapSel === id ? ' map-tile--on' : ''}`} data-testid={`lobby-map-${id}`} aria-pressed={mapSel === id} onClick={() => { if (mapSel !== id) sfx.play2D('ui_toggle'); props.onSetMap(id) }}>
+      {MAP_PREVIEW[id] ? <img className="map-preview" src={MAP_PREVIEW[id]} alt={mapLabel(id)} /> : <MapPreview map={MAPS[id]} />}
+      <span className="map-tile-label">{mapLabel(id)}</span>
+    </button>
+  )
 
   return (
     <div className="panel-fill" style={{ justifyContent: 'center' }}>
@@ -98,10 +112,12 @@ export function Lobby(props: LobbyProps) {
 
         {/* код под заголовком: хост — свой код; клиент — поле (по «Ввести код»); место зарезервировано */}
         <div className="lobby-code">
-          {isHost && code ? (
-            <button className="lobby-code-btn" data-testid="lobby-code" onClick={props.onCopyCode} title={t.lobbyCopyHint}>
-              <span className="lobby-code-val">{code} ⧉</span>
-              <span className="lobby-code-hint">{t.lobbyCopyHint}</span>
+          {copied ? (
+            <span className="lobby-copied" data-testid="lobby-copied">{t.roomCopied}</span>
+          ) : isHost && code ? (
+            <button className="lobby-code-btn" data-testid="lobby-code" onClick={copyCode} title={t.roomCopyTooltip}>
+              <span className="lobby-code-val">{code}</span>
+              <span className="lobby-code-glyph" aria-hidden="true">⧉</span>
             </button>
           ) : !isHost && entering ? (
             <input
@@ -122,41 +138,31 @@ export function Lobby(props: LobbyProps) {
 
         <div className={`lobby-opts${locked ? ' lobby-opts--locked' : ''}`}>
           <div className="lobby-ogrp">
-            <span className="lobby-ol">{t.lobbyMap}</span>
-            <div className="lobby-tiles">
-              {MAP_IDS.map(id => (
-                <button key={id} className={`lobby-tile${mapSel === id ? ' lobby-tile--on' : ''}`} data-testid={`lobby-map-${id}`} onClick={() => { if (mapSel !== id) sfx.play2D('ui_toggle'); props.onSetMap(id) }}>
-                  {MAP_PREVIEW[id] ? <img className="lobby-pv" src={MAP_PREVIEW[id]} alt={mapLabel(id)} /> : <span className="lobby-pv" />}
-                  <span className="lobby-tile-label">{mapLabel(id)}</span>
-                </button>
-              ))}
-              <button className={`lobby-tile lobby-tile--any${mapSel === 'any' ? ' lobby-tile--on' : ''}`} data-testid="lobby-map-any" onClick={() => { if (mapSel !== 'any') sfx.play2D('ui_toggle'); props.onSetMap('any') }}>
-                <span className="lobby-pv">✱</span>
-                <span className="lobby-tile-label">{t.lobbyAny}</span>
+            <span className="lobby-ol">// {t.lobbyMap}</span>
+            <div className="map-tiles">
+              {MAP_IDS.map(mapTile)}
+              <button className={`map-tile map-tile--any${mapSel === 'any' ? ' map-tile--on' : ''}`} data-testid="lobby-map-any" aria-pressed={mapSel === 'any'} onClick={() => { if (mapSel !== 'any') sfx.play2D('ui_toggle'); props.onSetMap('any') }}>
+                <span className="map-preview map-preview--any">✱</span>
+                <span className="map-tile-label">{t.lobbyAny}</span>
               </button>
             </div>
           </div>
           <div className="lobby-ogrp">
-            <span className="lobby-ol">{t.lobbyTime}</span>
+            <span className="lobby-ol">// {t.lobbyTime}</span>
             <div className="lobby-segs">
               {MATCH_DURATIONS_MIN.map(m => (
-                <button key={m} className={`lobby-segbtn${durationSel === m ? ' lobby-segbtn--on' : ''}`} data-testid={`lobby-time-${m}`} onClick={() => { if (durationSel !== m) sfx.play2D('ui_toggle'); props.onSetDuration(m) }}>{m}</button>
+                <button key={m} className={`seg${durationSel === m ? ' seg--on' : ''}`} data-testid={`lobby-time-${m}`} onClick={() => { if (durationSel !== m) sfx.play2D('ui_toggle'); props.onSetDuration(m) }}>{m}</button>
               ))}
-              <button className={`lobby-segbtn lobby-segbtn--any${durationSel === 'any' ? ' lobby-segbtn--on' : ''}`} data-testid="lobby-time-any" onClick={() => { if (durationSel !== 'any') sfx.play2D('ui_toggle'); props.onSetDuration('any') }}>{t.lobbyAny}</button>
+              <button className={`seg seg--any${durationSel === 'any' ? ' seg--on' : ''}`} data-testid="lobby-time-any" onClick={() => { if (durationSel !== 'any') sfx.play2D('ui_toggle'); props.onSetDuration('any') }}>{t.lobbyAny}</button>
             </div>
           </div>
         </div>
 
-        {/* нижнее действие: соперник найден → ГОТОВ; иначе → ПОИСК / ПОИСК…+Стоп */}
+        {/* нижнее действие: соперник найден → ГОТОВ; поиск → та же кнопка становится СТОП; иначе → ПОИСК */}
         {opponent ? (
-          <button className={`lobby-hero lobby-hero--go`} data-testid="lobby-ready" onClick={() => { sfx.play2D('ready'); props.onReady() }}>
-            ✓ {t.lobbyReady}
-          </button>
+          <button className="lobby-hero lobby-hero--go" data-testid="lobby-ready" onClick={() => { sfx.play2D('ready'); props.onReady() }}>✓ {t.lobbyReady}</button>
         ) : searching ? (
-          <>
-            <button className="lobby-hero lobby-hero--searching" data-testid="lobby-searching" disabled>⌕ {t.lobbySearching}</button>
-            <button className="lobby-stop" data-testid="lobby-stop" onClick={props.onStopSearch}>⏹ {t.lobbyStop}</button>
-          </>
+          <button className="lobby-hero lobby-hero--searching" data-testid="lobby-stop" onClick={props.onStopSearch}>⏹ {t.lobbyStop}</button>
         ) : (
           <button className="lobby-hero" data-testid="lobby-search" onClick={() => { sfx.play2D('ui_toggle'); props.onSearch() }}>⌕ {t.lobbySearch}</button>
         )}

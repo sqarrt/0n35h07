@@ -227,6 +227,7 @@ export default function App() {
   const [searching, setSearching] = useState(false)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: DEFAULT_MAP_ID, durationMin: DEFAULT_MATCH_DURATION_MIN })
   const poolRef = useRef<MatchmakingPool | null>(null)
+  const lobbyCodeRef = useRef<string>('')   // код хоста на сессию лобби (стабилен при переключении ролей)
 
   const sessionRef = useRef<RoomSession | null>(null)
 
@@ -318,12 +319,11 @@ export default function App() {
     return () => clearInterval(iv)
   }, [screen, locked, hud.matchPhase])
 
-  // Хост: соперник занял слот → снимаем листинг из пула (хватит искать) и гасим состояние поиска.
+  // Соперник появился (хост: слот занят; клиент: получен ASSIGN) → снять листинг и погасить поиск.
   useEffect(() => {
-    if (lobbyRole === 'host' && searching && roomView && roomView.roster.length > 1) {
-      poolRef.current?.withdraw()
-      setSearching(false)
-    }
+    if (!searching || !roomView) return
+    const connected = lobbyRole === 'host' ? roomView.roster.length > 1 : roomView.connected
+    if (connected) { poolRef.current?.withdraw(); poolRef.current?.cancel(); setSearching(false) }
   }, [lobbyRole, searching, roomView])
 
   const handleSettings = () => setScreen('settings')
@@ -345,7 +345,8 @@ export default function App() {
     setDraftSel(sel)
     setSearching(false)
     setLobbyRole(role)
-    if (role === 'host') enterRoom(randomCode(), 'host', sel)
+    lobbyCodeRef.current = randomCode()   // фиксируем код лобби (не меняется при переключении ролей)
+    if (role === 'host') enterRoom(lobbyCodeRef.current, 'host', sel)
     else leaveRoom()   // клиент-черновик: без сессии до поиска/ввода кода
     setScreen('lobby')
   }
@@ -362,16 +363,17 @@ export default function App() {
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
   const onLobbyAddBot = () => sessionRef.current?.addBot('normal')
+  const onLobbyRemoveBot = () => sessionRef.current?.removeBot()
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
   const onLobbyCopyCode = () => { void navigator.clipboard?.writeText(roomCode).catch(() => { /* clipboard недоступен */ }) }
-  const onLobbyEnterCode = (code: string) => { setSearching(false); poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
+  const onLobbyEnterCode = (code: string) => { setSearching(true); poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
 
   // Смена роли (сплит-слот) — только в idle (компонент показывает «Стать…» лишь без оппонента и не в поиске).
   const onLobbyToggleRole = () => {
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
     setSearching(false); poolRef.current?.withdraw(); poolRef.current?.cancel()
     if (lobbyRole === 'host') { leaveRoom(); setDraftSel(sel); setLobbyRole('client') }
-    else { setDraftSel(sel); setLobbyRole('host'); enterRoom(randomCode(), 'host', sel) }
+    else { setDraftSel(sel); setLobbyRole('host'); enterRoom(lobbyCodeRef.current, 'host', sel) }
   }
 
   const onLobbySearch = () => {
@@ -416,26 +418,28 @@ export default function App() {
 
   // Размытый фон карты — только в комнате, с fade in/out. Держим смонтированным на время выхода-фейда;
   // последний mapId фиксируем, чтобы при выходе (roomView уже null) фон не мигнул на дефолтную карту.
-  const showMap = screen === 'lobby' && !!roomView
+  const showMap = screen === 'lobby'
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
-  useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
+  useEffect(() => {
+    const m = roomView?.mapId ?? (draftSel.map !== 'any' ? draftSel.map : undefined)
+    if (m) setLastMapId(m)
+  }, [roomView?.mapId, draftSel.map])
 
   // Пропсы лобби: нормализуем RoomView (или черновик клиента без сессии) в форму Lobby.
   const buildLobby = () => {
     const isHost = lobbyRole === 'host'
     const v = roomView
-    let me: LobbySlot
-    let opponent: LobbySlot | null = null
+    let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
+    let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
-      const myId = isHost ? HOST_ID : (v.localPlayerId >= 0 ? v.localPlayerId : OPPONENT_ID)
+      const myId = isHost ? HOST_ID : OPPONENT_ID
       const oppId = isHost ? OPPONENT_ID : HOST_ID
       const meE = v.roster.find(r => r.id === myId)
-      const oppE = v.roster.find(r => r.id === oppId)
-      me = { name: meE?.name ?? profile.name, color: meE?.color ?? profile.primaryColor, ready: v.ready.includes(myId) }
-      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId) } : null
-    } else {
-      me = { name: profile.name, color: profile.primaryColor, ready: false }
+      if (meE) me = { name: meE.name, color: meE.color, ready: v.ready.includes(myId) }
+      // клиент видит хоста ТОЛЬКО после подключения (ASSIGN), иначе его собственная заглушка-host выглядит как «матч с собой»
+      const oppE = (isHost || v.connected) ? v.roster.find(r => r.id === oppId) : undefined
+      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId), isBot: oppE.kind === 'bot' } : null
     }
     return {
       isHost, me, opponent,
@@ -443,7 +447,7 @@ export default function App() {
       durationSel: v?.durationSel ?? draftSel.durationMin,
       code: isHost ? roomCode : null,
       searching,
-      onToggleRole: onLobbyToggleRole, onAddBot: onLobbyAddBot, onEnterCode: onLobbyEnterCode,
+      onToggleRole: onLobbyToggleRole, onAddBot: onLobbyAddBot, onRemoveBot: onLobbyRemoveBot, onEnterCode: onLobbyEnterCode,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack, onCopyCode: onLobbyCopyCode,
