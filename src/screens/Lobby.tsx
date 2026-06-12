@@ -139,7 +139,7 @@ export function Lobby(props: LobbyProps) {
         <div className={`lobby-opts${locked ? ' lobby-opts--locked' : ''}`}>
           <div className="lobby-ogrp">
             <span className="lobby-ol">// {t.lobbyMap}</span>
-            <div className="map-tiles">
+            <div className="lobby-maptiles">
               {MAP_IDS.map(mapTile)}
               <button className={`map-tile map-tile--any${mapSel === 'any' ? ' map-tile--on' : ''}`} data-testid="lobby-map-any" aria-pressed={mapSel === 'any'} onClick={() => { if (mapSel !== 'any') sfx.play2D('ui_toggle'); props.onSetMap('any') }}>
                 <span className="map-preview map-preview--any">✱</span>

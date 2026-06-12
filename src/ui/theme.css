@@ -343,7 +343,11 @@
 .lobby-half--take .lobby-half-ic, .lobby-half--take .lobby-half-txt { color: var(--accent); }
 .lobby-half--alt .lobby-half-ic, .lobby-half--alt .lobby-half-txt { color: var(--accent-dim); }
 .lobby-half:hover { background: rgba(68,170,255,0.06); }
-.lobby-opts { width: 100%; border-top: 1px solid var(--surface-line); padding-top: 14px; display: flex; flex-direction: column; align-items: center; gap: 13px; }
+.lobby-opts { width: 100%; border-top: 1px solid var(--surface-line); padding-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+/* Карты — всегда сетка 4 столбца × N строк (новая карта размещается сама). Плитки компактные. */
+.lobby-maptiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; }
+.lobby-maptiles .map-tile { width: auto; }
+.lobby-maptiles .map-preview { width: 100%; height: 40px; object-fit: cover; }
 .lobby-opts--locked { opacity: 0.5; pointer-events: none; }
 .lobby-ogrp { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .lobby-ol { font-size: 11px; letter-spacing: 0.18em; color: var(--muted); }
