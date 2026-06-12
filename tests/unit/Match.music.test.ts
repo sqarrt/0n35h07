@@ -56,8 +56,7 @@ describe('Match × музыка', () => {
   it('музыка НЕ стартует на отсчёте — только после него (вход в live)', async () => {
     const eng = new FakeEngine()
     const m = makeMatch({ seedCode: 'AB12', musicEngine: eng })
-    m.markReady(0)                    // оба готовы (бот авто-готов) → фаза countdown
-    expect(m.phase).toBe('countdown') // мы на отсчёте
+    expect(m.phase).toBe('countdown') // матч стартует сразу на отсчёте
     m.update(0.016)
     await Promise.resolve()           // дать асинхронному start() шанс (если бы он был вызван)
     expect(eng.startCalls).toBe(0)    // на отсчёте музыки нет
