@@ -1,4 +1,6 @@
 import type { MapId } from '../constants'
+import { MM_LISTING_HEARTBEAT_MS } from '../constants'
+import type { INet } from './INet'
 
 export type MapFilter = MapId | 'any'
 export type DurationFilter = number | 'any'
@@ -46,4 +48,70 @@ export function resolveMatchParams(
     mapId: resolveAxis(host.map, client.map, randomMap),
     durationMin: resolveAxis(host.durationMin, client.durationMin, randomDuration),
   }
+}
+
+/**
+ * Слой подбора поверх INet (на комнате-пуле). Хост публикует листинг (heartbeat),
+ * клиент слушает и при первом совместимом листинге зовёт onMatch(code).
+ * Реальный матч идёт через обычный RoomSession по этому коду — пул только discovery.
+ */
+export class MatchmakingPool {
+  private net: INet
+  private heartbeatMs: number
+  private timer: ReturnType<typeof setInterval> | null = null
+  private listing: PoolListing | null = null
+  private filter: PoolFilter | null = null
+  private matchHandler: ((code: string) => void) | null = null
+  private rejected = new Set<string>()
+
+  constructor(net: INet, heartbeatMs: number = MM_LISTING_HEARTBEAT_MS) {
+    this.net = net
+    this.heartbeatMs = heartbeatMs
+    this.net.on('list', payload => this.onListing(payload as PoolListing))
+    // новый пир вошёл в пул — переобъявимся, чтобы он нас увидел
+    this.net.onPeerJoin(() => { if (this.listing) this.net.broadcast('list', this.listing) })
+  }
+
+  /** ХОСТ: публиковать листинг (немедленно + heartbeat). */
+  advertise(listing: PoolListing) {
+    this.listing = listing
+    this.net.broadcast('list', listing)
+    if (!this.timer) {
+      this.timer = setInterval(() => { if (this.listing) this.net.broadcast('list', this.listing) }, this.heartbeatMs)
+    }
+  }
+
+  /** ХОСТ: снять листинг (слот занят / поиск остановлен / выход). */
+  withdraw() {
+    if (this.listing) this.net.broadcast('unlist', { code: this.listing.code })
+    this.listing = null
+    this.stopTimer()
+  }
+
+  /** КЛИЕНТ: искать совместимого хоста; onMatch(code) при первом подходящем. */
+  search(filter: PoolFilter, onMatch: (code: string) => void) {
+    this.filter = filter
+    this.matchHandler = onMatch
+    this.rejected.clear()
+  }
+
+  /** КЛИЕНТ: код не сработал (хост занят/исчез) — продолжить поиск, минуя его. */
+  reject(code: string) { this.rejected.add(code) }
+
+  /** КЛИЕНТ: прекратить поиск. */
+  cancel() { this.filter = null; this.matchHandler = null }
+
+  private onListing(listing: PoolListing) {
+    if (!this.filter || !this.matchHandler) return
+    if (this.rejected.has(listing.code)) return
+    if (!listingMatches(this.filter, listing)) return
+    const cb = this.matchHandler
+    this.matchHandler = null   // один матч за вызов; дальнейшее — на стороне клиента
+    this.filter = null
+    cb(listing.code)
+  }
+
+  private stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null } }
+
+  dispose() { this.withdraw(); this.cancel(); this.net.leave() }
 }
