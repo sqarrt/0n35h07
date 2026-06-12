@@ -3,6 +3,7 @@ import type { Hello, Assign, Start, RosterEntry } from './protocol'
 import type { BotDifficulty, MapId } from '../constants'
 import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID } from '../constants'
 import type { PlayerProfile } from '../settings'
+import { generateModelName } from '../names'
 
 export type RoomRole = 'host' | 'client'
 
@@ -90,7 +91,9 @@ export class RoomSession {
 
   addBot(difficulty: BotDifficulty = 'normal') {
     if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    this.opponent = { id: OPPONENT_ID, name: 'Бот', color: BOT_COLOR_BASE, kind: 'bot', difficulty }   // косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome')
+    // Имя-«модель» генерируем заново при каждом добавлении бота (RA9, T-2000, …).
+    // Косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome').
+    this.opponent = { id: OPPONENT_ID, name: generateModelName(), color: BOT_COLOR_BASE, kind: 'bot', difficulty }
     this.broadcastRoster()
   }
 

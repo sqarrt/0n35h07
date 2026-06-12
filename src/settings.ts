@@ -2,6 +2,7 @@ import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES, DASH_STYLES,
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { LOCALES } from './i18n'
 import type { LocaleId } from './i18n'
+import { generateModelName } from './names'
 
 export type DefaultView = 'fp' | 'tp'
 
@@ -34,21 +35,13 @@ const CONNECT_TIMEOUT_DEFAULT = 10
 const KEY = 'oneshot:profile'
 export const NAME_MAX = 16
 
-/** Шуточные имена в стиле игры — назначаются случайно при первом запуске. */
-export const DEFAULT_NAMES = [
-  'Ваншот Мазила', 'Дэш в Стену', 'Кэмпер Поневоле', 'Случайный Хедшот',
-  'Жертва Баланса', 'АФК Профессионал', 'Гроза Ботов', 'Понерфили Меня',
-  'Имба на Минуту', 'Респаун Энджоер', 'Промах Года', 'Один Выстрел',
-  'Тащер (нет)', 'Без Пинга Никак', 'Луч Надежды', 'Шар Судьбы',
-]
-
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
 
-/** Профиль первого запуска: случайное шуточное имя + случайная пара цветов. */
+/** Профиль первого запуска: сгенерированное имя-«модель» + случайная пара цветов. */
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
 // Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
@@ -61,7 +54,7 @@ function clampVolume(v: unknown, dflt: number): number {
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
 function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
-  const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, NAME_MAX) || 'Игрок'
+  const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, NAME_MAX) || generateModelName()
   const primaryColor = PLAYER_COLORS.includes(p.primaryColor as string) ? (p.primaryColor as string) : PLAYER_COLORS[0]
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!

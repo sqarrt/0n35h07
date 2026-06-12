@@ -136,7 +136,6 @@ export const ru = {
   pauseToMenu: 'В МЕНЮ',
   pauseExit: 'ВЫХОД',
   editorLoading: 'Загрузка редактора…',
-  botName: 'Бот',
   netChipProbingTitle: 'Проверка сигналинг-релеев',
   netChipProbing: 'ПРОВЕРКА СЕТИ',
   netChipTitle: 'Сигналинг-релеи',

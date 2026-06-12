@@ -136,7 +136,6 @@ export const tr = {
   pauseToMenu: 'MENÜYE',
   pauseExit: 'ÇIKIŞ',
   editorLoading: 'Düzenleyici yükleniyor…',
-  botName: 'Bot',
   netChipProbingTitle: 'Röleler kontrol ediliyor',
   netChipProbing: 'AĞ TESTİ',
   netChipTitle: 'Sinyal röleleri',

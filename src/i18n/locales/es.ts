@@ -136,7 +136,6 @@ export const es = {
   pauseToMenu: 'AL MENÚ',
   pauseExit: 'SALIR',
   editorLoading: 'Cargando editor…',
-  botName: 'Bot',
   netChipProbingTitle: 'Comprobando relés',
   netChipProbing: 'PROBANDO RED',
   netChipTitle: 'Relés de señalización',
