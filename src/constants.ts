@@ -35,6 +35,12 @@ export const DASH_DURATION = 150   // мс — длительность окна
 export const DASH_COOLDOWN = 1500  // мс
 export const DASH_FOV      = 95    // целевой FOV во время рывка
 
+// Отброс при пересечении игроков (импульс «как рывок, но не рывок»; вектор — 3D между центрами сфер,
+// можно запрыгнуть на соперника и оттолкнуться вверх). Жёсткой коллизии игрок-игрок нет.
+export const KNOCKBACK_SPEED    = 26   // ед/с — горизонтальная сила отброса (чуть мощнее рывка)
+export const KNOCKBACK_DURATION = 150  // мс — длительность горизонтального окна отброса
+export const KNOCKBACK_UP_SPEED = 12   // ед/с — вертикальный импульс скорости (подброс выше прыжка JUMP_FORCE=8)
+
 // Dash trail — «клоны скорости»: полупрозрачные сферы по траектории рывка.
 export const DASH_TRAIL_GHOST_COUNT    = 10    // размер пула клонов
 export const DASH_TRAIL_GHOST_RADIUS   = 0.5   // = радиус сферы-тела

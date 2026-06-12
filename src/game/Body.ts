@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP, NET_RECONCILE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
   MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
@@ -18,6 +18,7 @@ const _faceOrigin = new THREE.Vector3(0, 0, 0)
 const _faceTarget = new THREE.Vector3()
 // Scratch для шага движения (без аллокаций в кадре).
 const _wishDir = new THREE.Vector3()
+const _knock = new THREE.Vector3()   // scratch: нормализованное 3D-направление отброса
 
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
@@ -47,6 +48,8 @@ export class Body {
   private dashDir = new THREE.Vector3()
   private dashTimer = 0
   private dashCooldown = 0
+  private knockDir = new THREE.Vector3()   // импульс-отброс при пересечении с другим игроком (как рывок, но не рывок)
+  private knockTimer = 0
   private shaderTick: (dt: number) => void
   private ring: ReturnType<typeof createBallRing> | null = null
 
@@ -177,6 +180,31 @@ export class Body {
   }
 
   get dashing() { return this.dashTimer > 0 }
+
+  /** Импульс-отброс в направлении `dir` (3D, как рывок, но не рывок): сильный толчок при пересечении игроков.
+   *  Горизонтальная доля — burst в desired (как рывок); вертикальная (вверх) — импульс velocityY,
+   *  перебивающий падение, чтобы запрыгнув сверху реально подбросило вверх с дугой. */
+  knockback(dir: THREE.Vector3) {
+    _knock.copy(dir)
+    if (_knock.lengthSq() === 0) return
+    _knock.normalize()
+    // Горизонтальная часть = горизонтальная проекция единичного вектора (|.|≤1: чем отвеснее контакт, тем слабее вбок).
+    this.knockDir.set(_knock.x, 0, _knock.z)
+    this.knockTimer = KNOCKBACK_DURATION
+    // Вертикальная часть — импульс вверх поверх текущей velocityY (Math.max → перебивает падение, не складывается).
+    if (_knock.y > 0) this.velocityY = Math.max(this.velocityY, _knock.y * KNOCKBACK_UP_SPEED)
+  }
+
+  /** Копит отброс в desired и тикает таймер (зовётся из Match.applyPhysics, как stepDash). */
+  stepKnockback(dt: number) {
+    if (this.knockTimer > 0) {
+      this.desired.addScaledVector(this.knockDir, KNOCKBACK_SPEED * dt)
+      this.knockTimer -= dt * 1000
+    }
+  }
+
+  /** Идёт ли сейчас окно отброса — чтобы Match не перезапускал импульс каждый кадр пересечения. */
+  get knocking() { return this.knockTimer > 0 }
 
   /** Текущая горизонтальная скорость (ед/с) — для оверлея скорости. */
   get horizontalSpeed() { return Math.hypot(this.velH.x, this.velH.z) }

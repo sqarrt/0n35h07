@@ -121,11 +121,11 @@ export class BeamWeapon implements IWeapon {
     }
   }
 
-  /** Отменяет заряд (windup) и переводит оружие в кулдаун без выстрела. Иначе — no-op. */
+  /** Отменяет заряд (windup) БЕЗ выстрела и возвращает в idle: кулдаун НЕ начисляется,
+   *  т.к. луча не было (можно сразу заряжать снова). Вне windup — no-op. */
   interrupt() {
     if (this.phase !== 'windup') return
-    this.phase = 'cooldown'
-    this.cooldownRemaining = this.cooldownDuration
+    this.phase = 'idle'
     this.windupElapsed = 0
   }
 

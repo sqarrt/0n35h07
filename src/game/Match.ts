@@ -28,9 +28,15 @@ import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
+  BALL_RADIUS,
 } from '../constants'
 
 const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+
+// Отброс при пересечении игроков (вместо жёсткой коллизии капсул, которая глитчила у стен и усложняла сеть).
+const PLAYER_OVERLAP_DIST     = BALL_RADIUS * 2   // сферы-тела пересекаются, когда центры ближе этого (3D)
+const PLAYER_OVERLAP_MIN_DIST = 1e-4              // центры почти совпали → толкаем в произвольном направлении
+const _knock = new THREE.Vector3()                // scratch для направления отброса (3D между центрами)
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
 
@@ -44,7 +50,13 @@ interface Kcc {
   setMaxSlopeClimbAngle(rad: number): void
   setMinSlopeSlideAngle(rad: number): void
   enableAutostep(maxHeight: number, minWidth: number, includeDynamic: boolean): void
-  computeColliderMovement(collider: unknown, desired: XYZ3): void
+  computeColliderMovement(
+    collider: unknown,
+    desired: XYZ3,
+    filterFlags?: number,
+    filterGroups?: number,
+    filterPredicate?: (collider: { handle: number }) => boolean,
+  ): void
   computedMovement(): XYZ3
   computedGrounded(): boolean
 }
@@ -279,6 +291,14 @@ export class Match {
   /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
   private applyPhysics(dt: number) {
     if (!this.kcc) return
+    // KCC игнорирует капсулы игроков: жёсткой коллизии игрок-игрок нет (глитч у стен убран,
+    // сеть проще). Пересечение разруливается импульсом-отбросом (maybeKnockback) в desired.
+    const playerHandles = new Set<number>()
+    for (const pp of this.players) {
+      const c = pp.rb?.collider(0) as { handle: number } | undefined
+      if (c) playerHandles.add(c.handle)
+    }
+    const ignorePlayers = (collider: { handle: number }) => !playerHandles.has(collider.handle)
     for (const p of this.players) {
       const rb = p.rb
       if (!rb) continue
@@ -294,15 +314,17 @@ export class Match {
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
       p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
       p.stepDash(dt)                                                  // рывок добавляет к desired
+      this.maybeKnockback(p)                                          // импульс-отброс при пересечении с другим игроком
+      p.stepKnockback(dt)                                             // отброс копится в desired (как рывок → KCC не пустит сквозь стены)
       const desired = p.consumeDesired()
-      this.kcc.computeColliderMovement(rb.collider(0), desired)
+      this.kcc.computeColliderMovement(rb.collider(0), desired, undefined, undefined, ignorePlayers)
       let c = this.kcc.computedMovement()
       let grounded = this.kcc.computedGrounded()
       // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
       // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
       // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
       if (this.kccNoStep && !grounded && c.y - desired.y > AUTOSTEP_LIFT_EPS) {
-        this.kccNoStep.computeColliderMovement(rb.collider(0), desired)
+        this.kccNoStep.computeColliderMovement(rb.collider(0), desired, undefined, undefined, ignorePlayers)
         c = this.kccNoStep.computedMovement()
         grounded = this.kccNoStep.computedGrounded()
       }
@@ -311,6 +333,26 @@ export class Match {
       if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
       rb.setNextKinematicTranslation(next)
       p.setGrounded(grounded)
+    }
+  }
+
+  /** Импульс-отброс игрока `p` от соперника при пересечении сфер-тел (вместо жёсткой коллизии).
+   *  Направление — полный 3D-вектор между центрами (можно запрыгнуть сверху и оттолкнуться вверх).
+   *  Стартует один раз и доигрывает окно (как рывок); пока летит — не перезапускаем. */
+  private maybeKnockback(p: Player) {
+    if (!p.alive || p.knocking) return
+    for (const o of this.players) {
+      if (o === p || !o.alive) continue
+      const dx = p.position.x - o.position.x
+      const dy = p.position.y - o.position.y
+      const dz = p.position.z - o.position.z
+      const d = Math.hypot(dx, dy, dz)
+      if (d >= PLAYER_OVERLAP_DIST) continue                       // сферы не пересекаются
+      if (d < PLAYER_OVERLAP_MIN_DIST) _knock.set(1, 0, 0)         // центры совпали → произвольное направление
+      else _knock.set(dx, dy, dz)                                  // 3D от центра соперника к своему
+      p.knockback(_knock)   // knockback нормализует направление сам
+      window.__debugKnockCount = (window.__debugKnockCount ?? 0) + 1   // e2e: факт события отброса
+      return
     }
   }
 
@@ -678,6 +720,7 @@ export class Match {
     w.__debugCamera = camera
     w.__debugWindup = () => this.human.isWindingUp
     w.__debugTargetHitCount = 0
+    w.__debugKnockCount = 0
     const botPos: Record<number, () => { x: number; y: number; z: number }> = {}
     this.bots.forEach((b, i) => {
       botPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
@@ -706,6 +749,7 @@ export class Match {
     delete w.__debugCamera
     delete w.__debugWindup
     delete w.__debugTargetHitCount
+    delete w.__debugKnockCount
     delete w.__debugBotPos
     delete w.__debugRole
     delete w.__debugPlayerPos
