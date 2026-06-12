@@ -132,6 +132,9 @@ export class Player implements IControllable {
   stepHorizontal(dt: number, groundNormal: THREE.Vector3 | null) { this.body.stepHorizontal(dt, groundNormal) }
   stepDash(dt: number)    { this.body.stepDash(dt) }
   get dashing()           { return this.body.dashing }
+  knockback(dir: THREE.Vector3) { this.body.knockback(dir) }
+  stepKnockback(dt: number)     { this.body.stepKnockback(dt) }
+  get knocking()          { return this.body.knocking }
   get grounded()          { return this.body.grounded }
   get justJumped()        { return this.body.justJumped }
   get speed()             { return this.body.horizontalSpeed }   // горизонтальная скорость (оверлей)
