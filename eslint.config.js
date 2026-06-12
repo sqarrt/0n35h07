@@ -25,6 +25,9 @@ export default defineConfig([
       // setState в эффектах (нормальный React) и императивная мутация ref/объектов в R3F useFrame.
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',
+      // То же: ложно срабатывает на чтении ref в обработчиках событий (sessionRef/poolRef.current),
+      // которые собираются в пропсы через функцию рендера (buildLobby). Чтение ref в хендлерах — валидно.
+      'react-hooks/refs': 'off',
     },
   },
   {

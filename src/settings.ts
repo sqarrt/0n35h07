@@ -5,12 +5,14 @@ import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 
 export type DefaultView = 'fp' | 'tp'
+export type SearchRole = 'host' | 'client' | 'random'
 
 export interface PlayerProfile {
   name: string
   primaryColor: string
   reserveColor: string
   defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
+  searchRole: SearchRole     // сетевая роль по-умолчанию в лобби; локальное предпочтение
   ballModel: BallModel       // модель сферы (сетевая косметика)
   windupStyle: WindupStyle   // анимация подготовки выстрела (сетевая косметика)
   respawnStyle: RespawnStyle // анимация респавна (сетевая косметика)
@@ -41,7 +43,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'random', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
 // Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
@@ -59,6 +61,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
+  const searchRole: SearchRole = p.searchRole === 'host' || p.searchRole === 'client' ? p.searchRole : 'random'
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const windupStyle: WindupStyle = WINDUP_STYLES.includes(p.windupStyle as WindupStyle) ? (p.windupStyle as WindupStyle) : 'classic'
   const respawnStyle: RespawnStyle = RESPAWN_STYLES.includes(p.respawnStyle as RespawnStyle) ? (p.respawnStyle as RespawnStyle) : 'echo'
@@ -78,7 +81,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
   const localeIds = LOCALES.map(l => l.id)
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
-  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */

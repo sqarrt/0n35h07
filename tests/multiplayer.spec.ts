@@ -17,34 +17,42 @@ async function playerZ(page: Page, id: number): Promise<number> {
   return page.evaluate(pid => (window as any).__debugPlayerPos(pid)?.z ?? NaN, id)
 }
 
-/** Хост создаёт комнату, клиент входит по коду, хост стартует → обе страницы в игре. */
-/** Комната → НАЧАТЬ → обе страницы в игре (фаза 'ready', ритуал не пройден). */
+/** Хост поднимает лобби, клиент входит по коду, оба жмут ГОТОВ → обе страницы в игре (фаза 'ready'). */
 async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
+  // Хост: ИГРАТЬ → «ПРОЧЕЕ» → роль ХОСТ → читаем код.
   await host.goto('/')
-  await host.getByTestId('menu-create-room').click()
-  await expect(host.getByTestId('room-title')).toBeVisible()
-  const code = await host.getByTestId('room-code').textContent()
+  await host.getByTestId('menu-play').click()
+  await host.getByTestId('lobby-other-toggle').click()
+  await host.getByTestId('lobby-role-host').click()
+  const code = await host.getByTestId('lobby-code-input').inputValue()
 
-  await client.goto(`/#${code}`)
-  // Клиент занял слот соперника → у хоста НАЧАТЬ разблокирована.
-  await expect(host.getByTestId('room-start')).toBeEnabled({ timeout: 20000 })
-  await expect(client.getByText(en.roomWaitingHost)).toBeVisible({ timeout: 20000 })
+  // Клиент: ИГРАТЬ → «ПРОЧЕЕ» → роль КЛИЕНТ → ввод кода → ПОИСК (по коду → конкретная комната).
+  await client.goto('/')
+  await client.getByTestId('menu-play').click()
+  await client.getByTestId('lobby-other-toggle').click()
+  await client.getByTestId('lobby-role-client').click()
+  await client.getByTestId('lobby-code-input').fill(code)
+  await client.getByTestId('lobby-search').click()
 
-  await host.waitForTimeout(300)
-  await host.getByTestId('room-start').click()
+  // Оба видят соперника в слоте → у обоих появляется ГОТОВ (человек-vs-человек: оба подтверждают).
+  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await host.getByTestId('lobby-ready').click()
+  await client.getByTestId('lobby-ready').click()
+
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   return { host, client }
 }
 
-/** enterGame + ритуал готовности обоих + ожидание конца отсчёта → фаза 'live'. */
+/** enterGame + форс-live (минуя отсчёт) → обе страницы в фазе 'live'. */
 async function startMatch(context: import('@playwright/test').BrowserContext) {
   const { host, client } = await enterGame(context)
-  await host.evaluate(() => (window as any).__debugReady())
-  await client.evaluate(() => (window as any).__debugReady())
+  await host.evaluate(() => (window as any).__debugForceLive())
+  await client.evaluate(() => (window as any).__debugForceLive())
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
   await expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
   return { host, client }
@@ -134,23 +142,6 @@ test('1v1: шар хоста на клиенте сдувается плавно
     // здоровый fps (≥15 кадров/с) → в 200мс сдувания обязаны быть промежуточные кадры, иначе это снап
     expect(after.filter(x => x.s > 1.05 && x.s < peak - 0.05).length).toBeGreaterThanOrEqual(1)
   }
-})
-
-test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
-  const { host } = await enterGame(context)
-  await expect.poll(() => host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
-  await expect(host.getByText(en.ctrlDash)).toBeVisible()   // легенда управления на экране готовности
-
-  await fakeLock(host)
-  await host.evaluate(() => (window as any).__debugReady())   // готов только хост → фаза остаётся 'ready'
-  await host.waitForTimeout(100)
-  const z0 = await playerZ(host, 0)
-  await host.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true })))
-  await host.waitForTimeout(500)
-  await host.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', bubbles: true })))
-
-  expect(Math.abs((await playerZ(host, 0)) - z0)).toBeLessThan(0.3)   // заморожен — не сдвинулся
-  expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
 })
 
 test('1v1: клиент отключился — хост видит баннер и (после паузы) ВЫЙТИ', async ({ context }) => {

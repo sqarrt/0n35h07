@@ -12,12 +12,12 @@ describe('cameraStateFor', () => {
     expect(cameraStateFor('appearance', false, false, 'shield')).toBe('appearanceShield')
   })
 
-  it('комната: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
-    expect(cameraStateFor('room', true, false, 'color')).toBe('room')
-    expect(cameraStateFor('room', true, true, 'color')).toBe('roomClient')
-    expect(cameraStateFor('room', false, false, 'color')).toBe('default')
+  it('лобби: особый ракурс только вдвоём (хост и клиент — разные); остальные экраны — дефолт', () => {
+    expect(cameraStateFor('lobby', true, false, 'color')).toBe('room')
+    expect(cameraStateFor('lobby', true, true, 'color')).toBe('roomClient')
+    expect(cameraStateFor('lobby', false, false, 'color')).toBe('default')
     expect(cameraStateFor('menu', false, false, 'color')).toBe('default')
-    expect(cameraStateFor('join', false, true, 'respawn')).toBe('default')   // part/клиент вне комнаты не влияют
+    expect(cameraStateFor('lobby', false, true, 'respawn')).toBe('default')   // part/клиент без соперника не влияют
     expect(cameraStateFor('settings', false, false, 'color')).toBe('default')
   })
 })

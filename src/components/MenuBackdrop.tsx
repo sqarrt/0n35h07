@@ -474,7 +474,7 @@ const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec 
 
 /** Кто стоит на сцене: свой игрок — всегда на своей точке; в комнате при сопернике — второй на соседней. */
 function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): ActiveBall[] {
-  if (mode === 'room' && room) {
+  if (mode === 'lobby' && room) {
     const host = room.roster.find(r => r.id === HOST_ID)
     const opp = room.roster.find(r => r.id === OPPONENT_ID)
     if (host && opp) {

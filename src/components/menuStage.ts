@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
 
 /** Экраны, которые обслуживает фон меню. */
-export type MenuMode = 'menu' | 'join' | 'room' | 'settings' | 'appearance'
+export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
 
 /** Последний кликнутый блок экрана «Внешность» — выбирает ракурс камеры. */
 export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield'
@@ -28,6 +28,6 @@ export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: b
     if (part === 'shield') return 'appearanceShield'
     return 'appearance'
   }
-  if (mode === 'room' && hasOpponent) return isClient ? 'roomClient' : 'room'
+  if (mode === 'lobby' && hasOpponent) return isClient ? 'roomClient' : 'room'
   return 'default'
 }

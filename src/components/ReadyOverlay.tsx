@@ -31,8 +31,9 @@ export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayPr
   const t = useT()
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID)
+  const iAmReady = ready.includes(localId)   // готов и жду второго → меняем подсказку
   const handleReady = () => {
-    if (!ready.includes(localId)) sfx.play2D('ready')   // звук только на переходе в «готов»
+    if (!iAmReady) sfx.play2D('ready')   // звук только на переходе в «готов»
     onReady()
   }
   return (
@@ -41,7 +42,9 @@ export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayPr
       <div className="ready-tint-r" />
       {corner(host, 'l', !!host && ready.includes(host.id), host?.id === localId, t)}
       {corner(opponent, 'r', !!opponent && ready.includes(opponent.id), opponent?.id === localId, t)}
-      <div className="ready-hint" data-testid="ready-button"><span className="hkey">{t.keyLmb}</span> {t.readyHintAction}</div>
+      <div className="ready-hint" data-testid="ready-button">
+        {iAmReady ? t.readyWaiting : <><span className="hkey">{t.keyLmb}</span> {t.readyHintAction}</>}
+      </div>
       <div className="ready-legend"><ControlsLegend /></div>
     </div>
   )

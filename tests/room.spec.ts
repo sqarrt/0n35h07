@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures'
+import type { Page } from '@playwright/test'
 import { unlockPointer } from './helpers'
 import { en } from '../src/i18n/locales/en'
 
@@ -6,107 +7,61 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
+// Встать хостом в лобби и раскрыть «// ПРОЧЕЕ» (роль/код/бот).
+async function lobbyAsHost(page: Page) {
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-other-toggle').click()
+  await page.getByTestId('lobby-role-host').click()   // детерминированно хост (no-op, если уже хост)
+}
+
 test('главное меню — кнопки навигации видны', async ({ page }) => {
-  await expect(page.getByTestId('menu-create-room')).toBeVisible()
-  await expect(page.getByTestId('menu-join-room')).toBeVisible()
+  await expect(page.getByTestId('menu-play')).toBeVisible()
   await expect(page.getByTestId('menu-appearance')).toBeVisible()
   await expect(page.getByTestId('menu-settings')).toBeVisible()
 })
 
-test('создать комнату — слот соперника пуст, НАЧАТЬ заблокирована', async ({ page }) => {
-  await page.getByTestId('menu-create-room').click()
-  await expect(page.getByTestId('room-title')).toBeVisible()
-  await expect(page.getByTestId('room-code')).toBeVisible()
-  await expect(page.getByText(en.roomWaitingOpponent)).toBeVisible()   // слот соперника пуст
-  await expect(page.getByTestId('room-add-bot')).toBeVisible()
-  await expect(page.getByTestId('room-start')).toBeDisabled()   // без соперника старт нельзя
+test('лобби (хост) — слот соперника пуст, действие = ПОИСК', async ({ page }) => {
+  await lobbyAsHost(page)
+  await expect(page.getByTestId('lobby-opponent')).toHaveText('—')   // соперника нет
+  await expect(page.getByTestId('lobby-search')).toBeVisible()       // не ГОТОВ
+  await expect(page.getByTestId('lobby-ready')).toHaveCount(0)
 })
 
-test('создать комнату — url меняется на /#CODE', async ({ page }) => {
-  await page.getByTestId('menu-create-room').click()
-  const url = page.url()
-  expect(url).toMatch(/#[A-Z0-9]{4}$/)
+test('лобби (хост) — код хоста виден в «ПРОЧЕЕ»', async ({ page }) => {
+  await lobbyAsHost(page)
+  await expect(page.getByTestId('lobby-code-input')).toHaveValue(/^[A-Z0-9]{4}$/)
 })
 
-test('прямой переход по /#CODE — открывает комнату', async ({ page }) => {
-  await page.goto('/#AB3K')
-  await expect(page.getByTestId('room-title')).toBeVisible()
-  await expect(page.getByTestId('room-code')).toHaveText('AB3K')
+test('лобби — добавить бота → слот занят, ГОТОВ; убрать → снова пусто и ПОИСК', async ({ page }) => {
+  await lobbyAsHost(page)
+  await expect(page.getByTestId('lobby-opponent')).toHaveText('—')
+  await page.getByTestId('lobby-bot-add').click()
+  await expect(page.getByTestId('lobby-opponent')).not.toHaveText('—')   // бот занял слот (ник-«модель»)
+  await expect(page.getByTestId('lobby-ready')).toBeVisible()
+  await page.getByTestId('lobby-bot-remove').click()
+  await expect(page.getByTestId('lobby-opponent')).toHaveText('—')
+  await expect(page.getByTestId('lobby-search')).toBeVisible()
 })
 
-test('прямой переход по /#CODE — заходишь клиентом (ждёшь хоста)', async ({ page }) => {
-  await page.goto('/#XY9Z')
-  await expect(page.getByTestId('room-title')).toBeVisible()
-  await expect(page.getByText(en.roomConnecting)).toBeVisible()       // хоста нет — клиент ждёт
-  await expect(page.getByTestId('room-add-bot')).not.toBeVisible()   // клиент не правит ростер
+test('лобби (клиент) — поле ввода кода хоста редактируемо', async ({ page }) => {
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-other-toggle').click()
+  await page.getByTestId('lobby-role-client').click()
+  await expect(page.getByTestId('lobby-code-input')).toBeVisible()
+  await expect(page.getByTestId('lobby-code-input')).toBeEditable()
 })
 
-test('комната — добавить бота → слот занят, второго не добавить, старт доступен', async ({ page }) => {
-  await page.getByTestId('menu-create-room').click()
-  await expect(page.getByTestId('room-nick-opp')).not.toBeVisible()   // слот соперника пуст
-  await page.getByTestId('room-add-bot').click()
-  await expect(page.getByTestId('room-nick-opp')).toBeVisible()       // бот занял слот, показан его ник-«модель»
-  await expect(page.getByTestId('room-nick-opp')).not.toBeEmpty()
-  await expect(page.getByTestId('room-add-bot')).not.toBeVisible()   // слот соперника занят
-  await expect(page.getByTestId('room-start')).toBeEnabled()
+test('лобби → назад → главное меню', async ({ page }) => {
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-back').click()
+  await expect(page.getByTestId('menu-play')).toBeVisible()
 })
 
-test('комната — убрать бота → слот снова пуст, НАЧАТЬ заблокирована', async ({ page }) => {
-  await page.getByTestId('menu-create-room').click()
-  await page.getByTestId('room-add-bot').click()
-  await expect(page.getByTestId('room-nick-opp')).toBeVisible()
-  await page.getByTestId('room-remove-bot').click()
-  await expect(page.getByTestId('room-nick-opp')).not.toBeVisible()
-  await expect(page.getByText(en.roomWaitingOpponent)).toBeVisible()
-  await expect(page.getByTestId('room-start')).toBeDisabled()
-})
-
-test('комната → назад → главное меню', async ({ page }) => {
-  await page.getByTestId('menu-create-room').click()
-  await page.getByTestId('room-back').click()
-  await expect(page.getByTestId('menu-create-room')).toBeVisible()
-  await expect(page.getByTestId('menu-join-room')).toBeVisible()
-})
-
-test('войти в комнату — показывает ввод кода', async ({ page }) => {
-  await page.getByTestId('menu-join-room').click()
-  await expect(page.getByTestId('join-title')).toBeVisible()
-  await expect(page.getByTestId('join-code-input')).toBeVisible()
-})
-
-test('войти в комнату → назад → главное меню', async ({ page }) => {
-  await page.getByTestId('menu-join-room').click()
-  await page.getByTestId('join-back').click()
-  await expect(page.getByTestId('menu-create-room')).toBeVisible()
-})
-
-test('войти в комнату → ввести код → url меняется', async ({ page }) => {
-  await page.getByTestId('menu-join-room').click()
-  await page.getByTestId('join-code-input').fill('AB3K')
-  await page.getByTestId('join-submit').click()
-  // После клика экран остаётся на join в состоянии поиска комнаты (хост не отвечает)
-  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusSearching)
-  expect(page.url()).toContain('AB3K')
-})
-
-test('вход по несуществующему коду — таймаут показывает ошибку, ВОЙТИ снова активна', async ({ page }) => {
-  await page.goto('/')
-  await page.getByTestId('menu-join-room').click()
-  await page.getByTestId('join-code-input').fill('ZZZ9')
-  await page.getByTestId('join-submit').click()
-  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusSearching)
-  await expect(page.getByTestId('join-submit')).toBeDisabled()
-  await expect(page.getByTestId('join-status')).toHaveText(en.joinStatusNotFound('ZZZ9'), { timeout: 13000 })
-  await expect(page.getByTestId('join-submit')).toBeEnabled()
-})
-
-test('копирование кода — клик по коду даёт фидбек', async ({ page, context }) => {
+test('копирование кода — клик по кнопке даёт фидбек (✓)', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await page.goto('/')
-  await page.getByTestId('menu-create-room').click()
-  await expect(page.getByTestId('room-title')).toBeVisible()
-  await page.locator('.room-code-copy').click()
-  await expect(page.getByText(en.roomCopied)).toBeVisible()
+  await lobbyAsHost(page)
+  await page.getByTestId('lobby-code-copy').click()
+  await expect(page.getByTestId('lobby-code-copy')).toHaveText('✓')
 })
 
 test('пауза — Escape показывает меню паузы', async ({ page }) => {
@@ -124,10 +79,10 @@ test('пауза — Escape показывает меню паузы', async ({ 
 test('пауза → В меню → главное меню', async ({ page }) => {
   await unlockPointer(page)
   await page.evaluate(() => {
-    document.exitPointerLock?.()   // освободить реальный лок (авто-PointerLock при входе в игру)
+    document.exitPointerLock?.()
     Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
     document.dispatchEvent(new Event('pointerlockchange'))
   })
   await page.getByTestId('pause-to-menu').click()
-  await expect(page.getByTestId('menu-create-room')).toBeVisible()
+  await expect(page.getByTestId('menu-play')).toBeVisible()
 })
