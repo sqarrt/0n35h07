@@ -1,5 +1,6 @@
 import { Button } from '../ui/Button'
 import { IS_ELECTRON } from '../platform'
+import { useT } from '../i18n'
 
 interface MainMenuProps {
   onCreateRoom: () => void
@@ -13,6 +14,7 @@ interface MainMenuProps {
 const MENU_BUTTON_WIDTH = '50%'
 
 export function MainMenu({ onCreateRoom, onJoinRoom, onAppearance, onSettings, onExit }: MainMenuProps) {
+  const t = useT()
   const btn = { width: MENU_BUTTON_WIDTH } as const
   return (
     <div className="panel-fill" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -25,12 +27,12 @@ export function MainMenu({ onCreateRoom, onJoinRoom, onAppearance, onSettings, o
         ONESHOT
       </h1>
       <div className="accent-rule" style={{ marginBottom: '2rem' }} />
-      <Button variant="primary" style={btn} onClick={onCreateRoom}>СОЗДАТЬ КОМНАТУ</Button>
-      <Button variant="secondary" style={btn} onClick={onJoinRoom}>ВОЙТИ В КОМНАТУ</Button>
-      <Button variant="secondary" style={btn} onClick={onAppearance}>ВНЕШНОСТЬ</Button>
-      <Button variant="secondary" style={btn} onClick={onSettings}>НАСТРОЙКИ</Button>
+      <Button variant="primary" style={btn} onClick={onCreateRoom} data-testid="menu-create-room">{t.menuCreateRoom}</Button>
+      <Button variant="secondary" style={btn} onClick={onJoinRoom} data-testid="menu-join-room">{t.menuJoinRoom}</Button>
+      <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
+      <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
       {/* Выход — только в Electron: в браузере window.close() для обычной вкладки запрещён политикой. */}
-      {IS_ELECTRON && <Button variant="ghost" style={btn} onClick={onExit}>ВЫХОД</Button>}
+      {IS_ELECTRON && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
     </div>
   )
 }

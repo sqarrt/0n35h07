@@ -2,26 +2,25 @@ import { test, expect } from './fixtures'
 
 test('комната — выбор карты: плитка активна при клике', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  await expect(page.getByText('// КАРТА')).toBeVisible()
+  await page.getByTestId('menu-create-room').click()
+  await expect(page.getByTestId('room-title')).toBeVisible()
+  await expect(page.getByTestId('room-map-os_arena')).toBeVisible()
 
   // По умолчанию активна os_arena.
-  const arena = page.getByRole('button', { name: /os_arena/ })
-  await expect(arena).toHaveClass(/map-tile--on/)
+  await expect(page.getByTestId('room-map-os_arena')).toHaveClass(/map-tile--on/)
 
   // Клик по плитке os_india → активной становится она, os_arena гаснет.
-  await page.getByRole('button', { name: /os_india/ }).click()
-  await expect(page.getByRole('button', { name: /os_india/ })).toHaveClass(/map-tile--on/)
-  await expect(arena).not.toHaveClass(/map-tile--on/)
+  await page.getByTestId('room-map-os_india').click()
+  await expect(page.getByTestId('room-map-os_india')).toHaveClass(/map-tile--on/)
+  await expect(page.getByTestId('room-map-os_arena')).not.toHaveClass(/map-tile--on/)
 })
 
 test('старт на выбранной карте применяет её спавны (os_pillars)', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await page.getByRole('button', { name: /os_pillars/ }).click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
-  await page.getByText('НАЧАТЬ').click()
+  await page.getByTestId('menu-create-room').click()
+  await page.getByTestId('room-map-os_pillars').click()
+  await page.getByTestId('room-add-bot').click()
+  await page.getByTestId('room-start').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   // Применились спавны именно os_pillars (хост z ≈ 13, half=15), а не другой карты.
@@ -32,10 +31,10 @@ test('старт на выбранной карте применяет её сп
 
 test('os_india: по рампе можно подняться на центральную площадку', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await page.getByRole('button', { name: /os_india/ }).click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
-  await page.getByText('НАЧАТЬ').click()
+  await page.getByTestId('menu-create-room').click()
+  await page.getByTestId('room-map-os_india').click()
+  await page.getByTestId('room-add-bot').click()
+  await page.getByTestId('room-start').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   await page.evaluate(() => (window as any).__debugForceLive?.())

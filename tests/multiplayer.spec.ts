@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
+import { en } from '../src/i18n/locales/en'
 
 // Две страницы в ОДНОМ контексте → BroadcastChannel связывает их (?net=bc по умолчанию).
 // Так проверяем реальный P2P-обмен без внешних трекеров.
@@ -23,18 +24,17 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const client = await context.newPage()
 
   await host.goto('/')
-  await host.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await expect(host.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  const codeText = await host.getByText(/КОД:/).textContent()
-  const code = codeText!.match(/КОД:\s*([A-Z0-9]{4})/)![1]
+  await host.getByTestId('menu-create-room').click()
+  await expect(host.getByTestId('room-title')).toBeVisible()
+  const code = await host.getByTestId('room-code').textContent()
 
   await client.goto(`/#${code}`)
   // Клиент занял слот соперника → у хоста НАЧАТЬ разблокирована.
-  await expect(host.getByRole('button', { name: 'НАЧАТЬ' })).toBeEnabled({ timeout: 20000 })
-  await expect(client.getByText('ОЖИДАНИЕ ХОСТА…')).toBeVisible({ timeout: 20000 })
+  await expect(host.getByTestId('room-start')).toBeEnabled({ timeout: 20000 })
+  await expect(client.getByText(en.roomWaitingHost)).toBeVisible({ timeout: 20000 })
 
   await host.waitForTimeout(300)
-  await host.getByText('НАЧАТЬ').click()
+  await host.getByTestId('room-start').click()
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   return { host, client }
@@ -139,7 +139,7 @@ test('1v1: шар хоста на клиенте сдувается плавно
 test('1v1: ритуал входа — пока не готовы оба, движение заморожено', async ({ context }) => {
   const { host } = await enterGame(context)
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase())).toBe('ready')
-  await expect(host.getByText('Рывок')).toBeVisible()   // легенда управления на экране готовности
+  await expect(host.getByText(en.ctrlDash)).toBeVisible()   // легенда управления на экране готовности
 
   await fakeLock(host)
   await host.evaluate(() => (window as any).__debugReady())   // готов только хост → фаза остаётся 'ready'
@@ -156,14 +156,14 @@ test('1v1: ритуал входа — пока не готовы оба, дви
 test('1v1: клиент отключился — хост видит баннер и (после паузы) ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await client.evaluate(() => (window as any).__debugLeave())   // клиент покидает игру
-  await expect(host.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
-  await expect(host.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
+  await expect(host.getByTestId('match-reason')).toHaveText(en.matchReasonDisconnect, { timeout: 6000 })
+  await expect(host.getByTestId('match-exit')).toBeVisible({ timeout: 6000 })
   expect(await host.evaluate(() => (window as any).__debugPhase())).toBe('ended')
 })
 
 test('1v1: хост отключился — клиент видит баннер и ВЫЙТИ', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await host.evaluate(() => (window as any).__debugLeave())
-  await expect(client.getByText(/ОТКЛЮЧИЛСЯ/)).toBeVisible({ timeout: 6000 })
-  await expect(client.getByText('ВЫЙТИ')).toBeVisible({ timeout: 6000 })
+  await expect(client.getByTestId('match-reason')).toHaveText(en.matchReasonDisconnect, { timeout: 6000 })
+  await expect(client.getByTestId('match-exit')).toBeVisible({ timeout: 6000 })
 })

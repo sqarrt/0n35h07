@@ -15,6 +15,7 @@ import { MatchHud } from './components/MatchHud'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
+import { PauseMenu } from './components/PauseMenu'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
@@ -28,9 +29,9 @@ import { Room } from './screens/Room'
 import { Settings } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
-import { loadProfile } from './settings'
+import { loadProfile, saveProfile } from './settings'
 import type { PlayerProfile } from './settings'
-import { Button } from './ui/Button'
+import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
@@ -142,6 +143,12 @@ function shouldHost(code: string): boolean {
   catch { return false }
 }
 
+/** Fallback Suspense для ленивого редактора — под I18nProvider, отсюда useT. */
+function EditorLoading() {
+  const t = useT()
+  return <div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>{t.editorLoading}</div>
+}
+
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
@@ -150,6 +157,8 @@ export default function App() {
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
+  // initial читается провайдером один раз — не пересчитываем на каждом рендере
+  const initialLocale = useRef(profile.locale ?? detectLocale()).current
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color' }))
   // Счётчики кликов превью (windupSeq/respawnSeq/dashSeq/shieldSeq) сохраняются из прежнего стейта: ими
   // владеет App (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
@@ -436,10 +445,23 @@ export default function App() {
   useEffect(() => { if (roomView?.mapId) setLastMapId(roomView.mapId) }, [roomView?.mapId])
 
   if (editorMode) {
-    return <Suspense fallback={<div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка редактора…</div>}><EditorRoot /></Suspense>
+    // Редактор без UI смены языка — onChange не нужен
+    return (
+      <I18nProvider initial={initialLocale}>
+        <Suspense fallback={<EditorLoading />}><EditorRoot /></Suspense>
+      </I18nProvider>
+    )
   }
 
   return (
+    <I18nProvider
+      initial={initialLocale}
+      onChange={id => setProfile(p => {
+        const next = { ...p, locale: id }
+        saveProfile(next)
+        return next
+      })}
+    >
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
@@ -530,37 +552,19 @@ export default function App() {
       )}
 
       {paused && (
-        <div className="screen" style={{ background: 'rgba(10,10,15,0.85)' }}>
-          <h2 style={{ color: '#4af', letterSpacing: '0.2em', marginBottom: '2rem', marginTop: 0 }}>
-            МЕНЮ
-          </h2>
-          <button
-            className="btn btn--primary"
-            style={{
-              position: 'relative', overflow: 'hidden',
-              opacity: resumeDisabled ? 0.5 : 1,
-              cursor: resumeDisabled ? 'default' : 'pointer',
-            }}
-            disabled={resumeDisabled}
-            onClick={handleResume}
-          >
-            {/* индикация кулдауна — заливка слева-направо (без смены текста → кнопка не прыгает) */}
-            {resumeDisabled && (
-              <span style={{
-                position: 'absolute', left: 0, top: 0, bottom: 0,
-                width: `${(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}%`,
-                background: 'rgba(120,180,255,0.28)',
-              }} />
-            )}
-            <span style={{ position: 'relative' }}>ПРОДОЛЖИТЬ</span>
-          </button>
-          <Button variant="ghost" onClick={handleBack}>В МЕНЮ</Button>
-          {IS_ELECTRON && <Button variant="ghost" onClick={handleExit}>ВЫХОД</Button>}
-        </div>
+        <PauseMenu
+          resumeDisabled={resumeDisabled}
+          cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
+          showExit={IS_ELECTRON}
+          onResume={handleResume}
+          onBack={handleBack}
+          onExit={handleExit}
+        />
       )}
 
       {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}
     </div>
     </SfxProvider>
+    </I18nProvider>
   )
 }

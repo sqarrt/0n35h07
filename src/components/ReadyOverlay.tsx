@@ -3,6 +3,8 @@ import type { MatchRole } from '../constants'
 import { HOST_ID, OPPONENT_ID } from '../constants'
 import { ControlsLegend } from './ControlsLegend'
 import { useSfx } from '../sfx/SfxContext'
+import { useT } from '../i18n'
+import type { Dict } from '../i18n/dict'
 
 interface ReadyOverlayProps {
   roster: RosterEntry[]
@@ -12,13 +14,13 @@ interface ReadyOverlayProps {
   onReady: () => void
 }
 
-function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolean, mine: boolean) {
+function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolean, mine: boolean, t: Dict) {
   if (!entry) return null
   const pos = side === 'l' ? { left: 18 } : { right: 18, textAlign: 'right' as const }
   return (
     <div className="ready-corner" style={{ ...pos, color: entry.color }}>
-      <span style={{ textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 3 }}>{entry.name}</span>
-      <small style={{ color: isReady ? 'var(--ok)' : 'var(--muted)' }}>{isReady ? 'ГОТОВ ✓' : '○ НЕ ГОТОВ'}</small>
+      <span style={{ textDecoration: mine ? 'underline' : undefined, textUnderlineOffset: 3 }}>{entry.kind === 'bot' ? t.botName : entry.name}</span>
+      <small style={{ color: isReady ? 'var(--ok)' : 'var(--muted)' }}>{isReady ? t.readyStatusReady : t.readyStatusNotReady}</small>
     </div>
   )
 }
@@ -26,6 +28,7 @@ function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolea
 /** Лёгкий оверлей готовности над ареной. Клик в любом месте = готов. */
 export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayProps) {
   const sfx = useSfx()
+  const t = useT()
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID)
   const handleReady = () => {
@@ -36,9 +39,9 @@ export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayPr
     <div className="ready-overlay" onClick={handleReady}>
       <div className="ready-tint-l" />
       <div className="ready-tint-r" />
-      {corner(host, 'l', !!host && ready.includes(host.id), host?.id === localId)}
-      {corner(opponent, 'r', !!opponent && ready.includes(opponent.id), opponent?.id === localId)}
-      <div className="ready-hint"><span className="hkey">ЛКМ</span> чтобы начать</div>
+      {corner(host, 'l', !!host && ready.includes(host.id), host?.id === localId, t)}
+      {corner(opponent, 'r', !!opponent && ready.includes(opponent.id), opponent?.id === localId, t)}
+      <div className="ready-hint" data-testid="ready-button"><span className="hkey">{t.keyLmb}</span> {t.readyHintAction}</div>
       <div className="ready-legend"><ControlsLegend /></div>
     </div>
   )

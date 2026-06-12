@@ -6,6 +6,7 @@ import { saveProfile } from '../settings'
 import type { PlayerProfile } from '../settings'
 import { Button } from '../ui/Button'
 import { useSfx } from '../sfx/SfxContext'
+import { useT } from '../i18n'
 import type { AppearancePart } from '../components/menuStage'
 
 interface AppearanceProps {
@@ -35,6 +36,7 @@ const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6r
  *  слева определяется последним кликнутым блоком. Панель уезжает вправо — анимирует App. */
 export function Appearance({ profile, onChange, onPreview, onShotPreview, onRespawnPreview, onDashPreview, onShieldPreview, onBack }: AppearanceProps) {
   const sfx = useSfx()
+  const t = useT()
   const [part, setPart] = useState<AppearancePart>('color')   // последний кликнутый блок → позиция шара
   const [primary, setPrimary] = useState(profile.primaryColor)
   const [reserve, setReserve] = useState(profile.reserveColor)
@@ -103,11 +105,11 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
 
   const previewColor = editing === 'primary' ? primary : reserve
   const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
-  const modelLabel: Record<BallModel, string> = { smooth: 'РОВНАЯ', waves: 'ВОЛНЫ', planet: 'ПЛАНЕТА' }
-  const windupLabel: Record<WindupStyle, string> = { classic: 'ИМПУЛЬС', rage: 'ЯРОСТЬ', singularity: 'СИНГУЛЯРНОСТЬ' }
-  const respawnLabel: Record<RespawnStyle, string> = { echo: 'ЭХО', chaos: 'ХАОС', swarm: 'РОЙ' }
-  const dashLabel: Record<DashStyle, string> = { streak: 'ШЛЕЙФ', wave: 'ВОЛНА', rift: 'РАЗРЫВ' }
-  const shieldLabel: Record<ShieldStyle, string> = { dome: 'КУПОЛ', hex: 'СОТЫ', crystal: 'КРИСТАЛЛ' }
+  const modelLabel: Record<BallModel, string> = { smooth: t.styleModelSmooth, waves: t.styleModelWaves, planet: t.styleModelPlanet }
+  const windupLabel: Record<WindupStyle, string> = { classic: t.styleWindupClassic, rage: t.styleWindupRage, singularity: t.styleWindupSingularity }
+  const respawnLabel: Record<RespawnStyle, string> = { echo: t.styleRespawnEcho, chaos: t.styleRespawnChaos, swarm: t.styleRespawnSwarm }
+  const dashLabel: Record<DashStyle, string> = { streak: t.styleDashStreak, wave: t.styleDashWave, rift: t.styleDashRift }
+  const shieldLabel: Record<ShieldStyle, string> = { dome: t.styleShieldDome, hex: t.styleShieldHex, crystal: t.styleShieldCrystal }
 
   // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям блоков.
   useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, onPreview])
@@ -115,82 +117,84 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.
     <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh' }}>
-      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>ВНЕШНОСТЬ</h2>
+      <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.appearTitle}</h2>
 
       <div style={{ ...label, marginBottom: '1.8rem' }}>
-        НА МОДЕЛИ:{' '}
+        {t.appearOnModel}{' '}
         <span style={{ color: previewColor, letterSpacing: '0.2em' }}>
-          {editing === 'primary' ? 'ОСНОВНОЙ' : 'РЕЗЕРВНЫЙ'}
+          {editing === 'primary' ? t.appearSlotPrimary : t.appearSlotReserve}
         </span>
       </div>
 
-      <div style={label}>ОСНОВНОЙ ЦВЕТ</div>
+      <div style={label}>{t.appearPrimaryColor}</div>
       <div style={row}>
         {PLAYER_COLORS.map(c => (
-          <div key={c} role="button" aria-label={`основной ${c}`} title={c}
+          <div key={c} role="button" aria-label={`${t.appearSlotPrimary} ${c}`} title={c}
+            data-testid={`appearance-primary-${c}`}
             className={`swatch${c === primary ? ' swatch--sel' : ''}`}
             style={{ background: c, color: c }}
             onClick={() => handlePrimary(c)} />
         ))}
       </div>
 
-      <div style={label}>РЕЗЕРВНЫЙ ЦВЕТ (когда основной занят)</div>
+      <div style={label}>{t.appearReserveColor}</div>
       <div style={row}>
         {PLAYER_COLORS.map(c => (
-          <div key={c} role="button" aria-label={`резервный ${c}`} title={c}
+          <div key={c} role="button" aria-label={`${t.appearSlotReserve} ${c}`} title={c}
+            data-testid={`appearance-reserve-${c}`}
             className={`swatch${c === reserve ? ' swatch--sel' : ''}${c === primary ? ' swatch--dis' : ''}`}
             style={{ background: c, color: c }}
             onClick={() => handleReserve(c)} />
         ))}
       </div>
 
-      <div style={label}>МОДЕЛЬ СФЕРЫ</div>
+      <div style={label}>{t.appearModel}</div>
       <div style={row}>
         {BALL_MODELS.map(m => (
-          <button key={m} className={`seg${model === m ? ' seg--on' : ''}`} onClick={() => handleModel(m)}>
+          <button key={m} className={`seg${model === m ? ' seg--on' : ''}`} data-testid={`appearance-model-${m}`} onClick={() => handleModel(m)}>
             {modelLabel[m]}
           </button>
         ))}
       </div>
 
-      <div style={label}>АНИМАЦИЯ ВЫСТРЕЛА</div>
+      <div style={label}>{t.appearShotAnim}</div>
       <div style={row}>
         {WINDUP_STYLES.map(w => (
-          <button key={w} className={`seg${windup === w ? ' seg--on' : ''}`} onClick={() => handleWindup(w)}>
+          <button key={w} className={`seg${windup === w ? ' seg--on' : ''}`} data-testid={`appearance-windup-${w}`} onClick={() => handleWindup(w)}>
             {windupLabel[w]}
           </button>
         ))}
       </div>
 
-      <div style={label}>АНИМАЦИЯ РЕСПАВНА</div>
+      <div style={label}>{t.appearRespawnAnim}</div>
       <div style={row}>
         {RESPAWN_STYLES.map(r => (
-          <button key={r} className={`seg${respawn === r ? ' seg--on' : ''}`} onClick={() => handleRespawn(r)}>
+          <button key={r} className={`seg${respawn === r ? ' seg--on' : ''}`} data-testid={`appearance-respawn-${r}`} onClick={() => handleRespawn(r)}>
             {respawnLabel[r]}
           </button>
         ))}
       </div>
 
-      <div style={label}>СЛЕД РЫВКА</div>
+      <div style={label}>{t.appearDashTrail}</div>
       <div style={row}>
         {DASH_STYLES.map(d => (
-          <button key={d} className={`seg${dash === d ? ' seg--on' : ''}`} onClick={() => handleDash(d)}>
+          <button key={d} className={`seg${dash === d ? ' seg--on' : ''}`} data-testid={`appearance-dash-${d}`} onClick={() => handleDash(d)}>
             {dashLabel[d]}
           </button>
         ))}
       </div>
 
-      <div style={label}>ЩИТ</div>
+      <div style={label}>{t.appearShield}</div>
       <div style={row}>
         {SHIELD_STYLES.map(s => (
-          <button key={s} className={`seg${shield === s ? ' seg--on' : ''}`} onClick={() => handleShield(s)}>
+          <button key={s} className={`seg${shield === s ? ' seg--on' : ''}`} data-testid={`appearance-shield-${s}`} onClick={() => handleShield(s)}>
             {shieldLabel[s]}
           </button>
         ))}
       </div>
 
       {/* «НАЗАД» прижата к низу панели (marginTop:auto). */}
-      <Button variant="ghost" onClick={onBack} style={{ marginTop: 'auto' }}>НАЗАД</Button>
+      <Button variant="ghost" onClick={onBack} data-testid="appearance-back" style={{ marginTop: 'auto' }}>{t.appearBack}</Button>
     </div>
   )
 }
