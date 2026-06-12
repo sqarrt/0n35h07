@@ -1,5 +1,5 @@
 import type { INet, PeerId } from './INet'
-import type { Hello, Assign, Start, RosterEntry } from './protocol'
+import type { Hello, Assign, Start, RosterEntry, ReadyMsg } from './protocol'
 import type { BotDifficulty, MapId } from '../constants'
 import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID } from '../constants'
 import type { PlayerProfile } from '../settings'
@@ -18,6 +18,7 @@ export interface RoomView {
   canStart: boolean       // host: слот соперника занят → можно стартовать
   durationMin: number
   mapId: MapId            // выбранная карта матча
+  ready: number[]         // id готовых игроков (для индикации в лобби)
 }
 
 /**
@@ -40,6 +41,8 @@ export class RoomSession {
   private startCb: (durationMs: number, mapId: MapId) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
   private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «комната найдена»)
+  private readyIds = new Set<number>()   // id готовых игроков (бот авто-готов; гейт старта в лобби)
+  private started = false                // guard: start() ровно один раз
 
   constructor(net: INet, role: RoomRole, code: string, profile: PlayerProfile) {
     this.net = net
@@ -51,6 +54,7 @@ export class RoomSession {
     if (role === 'host') {
       this.localPlayerId = HOST_ID
       net.on('hello', (payload, from) => this.onHello(payload as Hello, from))
+      net.on('ready', (payload, from) => this.onReady(payload as ReadyMsg, from))
       net.onPeerLeave(peer => this.onPeerLeave(peer))
     } else {
       this.localPlayerId = -1
@@ -71,6 +75,7 @@ export class RoomSession {
     const name = (hello.name || '').trim() || 'Соперник'
     this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome' }
     this.clientPeer = from
+    this.readyIds.delete(OPPONENT_ID)   // новый человек ещё не готов (вытеснил бота)
     this.broadcastRoster()
   }
 
@@ -86,6 +91,7 @@ export class RoomSession {
     if (peer !== this.clientPeer) return
     this.opponent = null
     this.clientPeer = null
+    this.readyIds.delete(OPPONENT_ID)
     this.broadcastRoster()
   }
 
@@ -94,12 +100,14 @@ export class RoomSession {
     // Имя-«модель» генерируем заново при каждом добавлении бота (RA9, T-2000, …).
     // Косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome').
     this.opponent = { id: OPPONENT_ID, name: generateModelName(), color: BOT_COLOR_BASE, kind: 'bot', difficulty }
+    this.readyIds.add(OPPONENT_ID)   // бот авто-готов
     this.broadcastRoster()
   }
 
   removeBot() {
     if (this.role !== 'host' || this.opponent?.kind !== 'bot') return
     this.opponent = null
+    this.readyIds.delete(OPPONENT_ID)
     this.broadcastRoster()
   }
 
@@ -108,7 +116,7 @@ export class RoomSession {
   }
 
   private sendAssign(peer: PeerId) {
-    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds] } satisfies Assign)
   }
   private broadcastRoster() {
     if (this.clientPeer) this.sendAssign(this.clientPeer)
@@ -116,10 +124,36 @@ export class RoomSession {
   }
 
   start() {
-    if (this.role !== 'host' || !this.opponent) return
+    if (this.role !== 'host' || !this.opponent || this.started) return
+    this.started = true
     const durationMs = this.durationMin * 60_000
     this.net.broadcast('start', { durationMs, mapId: this.mapId } satisfies Start)
     this.startCb(durationMs, this.mapId)
+  }
+
+  /** Локальная готовность игрока. Хост — ставит свою и проверяет старт; клиент — шлёт хосту. */
+  setLocalReady(ready: boolean) {
+    if (this.role === 'host') {
+      if (ready) this.readyIds.add(HOST_ID); else this.readyIds.delete(HOST_ID)
+      this.broadcastRoster()
+      this.maybeStart()
+    } else {
+      this.net.broadcast('ready', { ready } satisfies ReadyMsg)
+    }
+  }
+
+  /** host: готовность соперника-человека (бот авто-готов и сюда не ходит). */
+  private onReady(msg: ReadyMsg, from: PeerId) {
+    if (from !== this.clientPeer || this.opponent?.kind !== 'human') return
+    if (msg.ready) this.readyIds.add(OPPONENT_ID); else this.readyIds.delete(OPPONENT_ID)
+    this.broadcastRoster()
+    this.maybeStart()
+  }
+
+  /** host: оба готовы и слот занят → старт матча. */
+  private maybeStart() {
+    if (this.role !== 'host' || !this.opponent) return
+    if (this.readyIds.has(HOST_ID) && this.readyIds.has(OPPONENT_ID)) this.start()
   }
 
   setDuration(min: number) {
@@ -148,6 +182,7 @@ export class RoomSession {
     this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
     this.durationMin = a.durationMin
     this.mapId = a.mapId
+    this.readyIds = new Set(a.ready)
     this.emitChange()
   }
 
@@ -177,6 +212,7 @@ export class RoomSession {
       canStart: this.role === 'host' && this.opponent !== null,
       durationMin: this.durationMin,
       mapId: this.mapId,
+      ready: [...this.readyIds],
     }
   }
 

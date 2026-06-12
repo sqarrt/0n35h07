@@ -3,7 +3,7 @@ import { createLoopbackPair } from '../../src/net/LoopbackNet'
 import { RoomSession } from '../../src/net/RoomSession'
 import type { RoomView } from '../../src/net/RoomSession'
 import type { PlayerProfile } from '../../src/settings'
-import { OPPONENT_ID } from '../../src/constants'
+import { OPPONENT_ID, HOST_ID } from '../../src/constants'
 
 const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
 
@@ -161,5 +161,66 @@ describe('RoomSession — скины рывка и щита в ростере', 
     expect(hostView.roster.find(r => r.id === 1)!.shieldStyle).toBe('crystal')
     expect(clientView.roster.find(r => r.id === 1)!.dashStyle).toBe('wave')
     expect(clientView.roster.find(r => r.id === 0)!.shieldStyle).toBe('dome')     // скин хоста доехал в ASSIGN
+  })
+})
+
+describe('RoomSession — готовность (гейт в лобби)', () => {
+  it('бот авто-готов: addBot → ready содержит OPPONENT_ID', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    let view = host.view()
+    host.onChange(v => { view = v })
+    host.addBot('normal')
+    expect(view.ready).toContain(OPPONENT_ID)
+    expect(view.ready).not.toContain(HOST_ID)
+  })
+
+  it('хост + бот: setLocalReady(true) хоста → оба готовы → start (onStart срабатывает)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    let started = 0
+    host.onStart(ms => { started = ms })
+    host.addBot('normal')
+    expect(started).toBe(0)
+    host.setLocalReady(true)
+    expect(started).toBeGreaterThan(0)
+  })
+
+  it('человек-соперник: оба setLocalReady(true) → start; готовность видна обоим', () => {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    let hostView = host.view(); host.onChange(v => { hostView = v })
+    let started = 0; host.onStart(() => { started++ })
+    const client = new RoomSession(clientNet, 'client', 'AB12', GUEST)
+    let clientView = client.view(); client.onChange(v => { clientView = v })
+
+    client.setLocalReady(true)
+    expect(hostView.ready).toContain(OPPONENT_ID)
+    expect(clientView.ready).toContain(OPPONENT_ID)
+    expect(started).toBe(0)
+    host.setLocalReady(true)
+    expect(started).toBe(1)
+  })
+
+  it('setLocalReady(false) снимает готовность; повторного старта нет (guard)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    let started = 0; host.onStart(() => { started++ })
+    host.addBot('normal')
+    host.setLocalReady(true)
+    expect(started).toBe(1)
+    host.setLocalReady(false)
+    host.setLocalReady(true)
+    expect(started).toBe(1)
+  })
+
+  it('человек вытесняет бота → готовность слота сбрасывается (человек не готов)', () => {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    let view = host.view(); host.onChange(v => { view = v })
+    host.addBot('normal')
+    expect(view.ready).toContain(OPPONENT_ID)
+    new RoomSession(clientNet, 'client', 'AB12', GUEST)
+    expect(view.ready).not.toContain(OPPONENT_ID)
   })
 })
