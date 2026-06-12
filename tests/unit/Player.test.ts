@@ -122,13 +122,13 @@ describe('Player', () => {
     expect(p.trailObject.visible).toBe(true)     // в TP / у других игроков виден
   })
 
-  it('dash во время заряда прерывает выстрел (оружие в кулдаун)', () => {
+  it('dash во время заряда прерывает выстрел БЕЗ кулдауна (луча не было)', () => {
     const p = makePlayer()
     p.startFiring()
     expect(p.isWindingUp).toBe(true)
     p.dash(new THREE.Vector3(0, 0, -1))
     expect(p.isWindingUp).toBe(false)
-    expect(p.beamCooldownProgress()).toBeLessThan(1)
+    expect(p.beamCooldownProgress()).toBe(1)   // заряд прерван без выстрела → кулдаун не начисляется
   })
 
   it('dash без направления — не рвёт и не прерывает заряд', () => {
