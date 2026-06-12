@@ -9,7 +9,7 @@ import type { BotDifficulty, MatchPhase, BallModel, MapId, WindupStyle, RespawnS
 export type Vec3 = [number, number, number]
 
 /** Теги каналов транспорта (короткие — у Trystero лимит ~12 байт на имя action). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'list', 'unlist'] as const
 export type NetTag = typeof NET_TAGS[number]
 
 /** Фаза матча: хост → все (готовность/отсчёт перед боем). */

@@ -144,6 +144,10 @@ export const NET_HUMAN_SPAWN_Z = 5    // 1v1: люди спавнятся дру
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
 // TURN-хук: пусто = только STUN (хватает домашним сетям). Добавь серверы для мобильных/CGNAT.
 export const NET_ICE_SERVERS: RTCIceServer[] = []
+// Общеизвестная комната-пул матчмейкинга: хосты публикуют листинги, клиенты ищут.
+export const MM_POOL_ROOM = 'mm-pool'
+// Период переобъявления листинга хоста в пуле (мс) — чтобы поздно вошедшие клиенты увидели.
+export const MM_LISTING_HEARTBEAT_MS = 1000
 
 // Bot
 export const TARGET_SPEED        = 2.5
