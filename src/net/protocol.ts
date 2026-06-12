@@ -31,7 +31,9 @@ export interface RosterEntry {
   shieldStyle?: ShieldStyle    // скин щита (косметика); нет → 'dome'
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[] }
+/** Клиент → хост: смена готовности в лобби. */
+export interface ReadyMsg { ready: boolean }
 export interface Start { durationMs: number; mapId: MapId }
 
 // --- ввод клиента → хост (часто) ---
