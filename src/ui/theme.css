@@ -373,8 +373,8 @@
 .lobby-hero:active { filter: brightness(0.94); }
 .lobby-hero--go { background: linear-gradient(180deg,#46e3aa,#23b582); box-shadow: 0 0 26px rgba(58,210,159,0.32), 0 6px 16px rgba(0,0,0,0.4); }
 .lobby-hero--go:hover { box-shadow: 0 0 34px rgba(58,210,159,0.5), 0 6px 16px rgba(0,0,0,0.4); }
-.lobby-hero--searching { background: linear-gradient(180deg,#23344a,#16263a); color: #ff9d4a; border: 1px solid #ff9d4a; box-shadow: none; }
-.lobby-hero--searching:hover { filter: brightness(1.12); box-shadow: 0 0 22px rgba(255,157,74,0.25); }
+.lobby-hero--searching { background: #d83a44; color: #fff; border: none; box-shadow: none; }
+.lobby-hero--searching:hover { filter: brightness(1.08); box-shadow: none; }
 .lobby-back { margin-top: 13px; font-size: 10px; letter-spacing: 0.12em; color: var(--muted); background: transparent; border: none; cursor: pointer; font-family: var(--ui-font); }
 .lobby-back:hover { color: var(--text); }
 .map-tile--any .map-preview, .map-preview--any { display: flex; align-items: center; justify-content: center; color: var(--ok); font-size: 18px; background: repeating-linear-gradient(45deg,#0e1622,#0e1622 5px,#121d2c 5px,#121d2c 10px); }
