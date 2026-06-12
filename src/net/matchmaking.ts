@@ -1,5 +1,6 @@
 import type { MapId } from '../constants'
-import { MM_LISTING_HEARTBEAT_MS } from '../constants'
+import { MM_LISTING_HEARTBEAT_MS, MATCH_DURATIONS_MIN } from '../constants'
+import { MAP_IDS } from '../game/maps'
 import type { INet } from './INet'
 
 export type MapFilter = MapId | 'any'
@@ -48,6 +49,26 @@ export function resolveMatchParams(
     mapId: resolveAxis(host.map, client.map, randomMap),
     durationMin: resolveAxis(host.durationMin, client.durationMin, randomDuration),
   }
+}
+
+/** Ключ корзины discovery по конкретным карте+времени. */
+export function bucketKey(map: MapId, durationMin: number): string {
+  return `mm:${map}:${durationMin}`
+}
+
+const MAPS_ALL: MapId[] = MAP_IDS
+const DURS_ALL: number[] = [...MATCH_DURATIONS_MIN]
+
+/** Корзины, в которые ХОСТ публикует листинг: кросс не-«any» осей (concrete→1, any→все значения). */
+export function bucketsForListing(map: MapFilter, durationMin: DurationFilter): string[] {
+  const maps = map === 'any' ? MAPS_ALL : [map]
+  const durs = durationMin === 'any' ? DURS_ALL : [durationMin]
+  return maps.flatMap(m => durs.map(d => bucketKey(m, d)))
+}
+
+/** Корзины, на которые КЛИЕНТ подписывается: те же правила, что у листинга. */
+export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter): string[] {
+  return bucketsForListing(map, durationMin)
 }
 
 /**

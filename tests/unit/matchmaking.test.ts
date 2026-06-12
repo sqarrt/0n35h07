@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { listingMatches, resolveMatchParams, MatchmakingPool } from '../../src/net/matchmaking'
+import { listingMatches, resolveMatchParams, MatchmakingPool, bucketKey, bucketsForListing, bucketsForFilter } from '../../src/net/matchmaking'
 import type { PoolListing } from '../../src/net/matchmaking'
 import { createLoopbackPair } from '../../src/net/LoopbackNet'
 
@@ -90,5 +90,23 @@ describe('MatchmakingPool · интеграция', () => {
     hostPool.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
     expect(matched).toEqual([])
     hostPool.dispose(); clientPool.dispose()
+  })
+})
+
+describe('matchmaking · корзины', () => {
+  it('bucketKey стабилен и по конкретным значениям', () => {
+    expect(bucketKey('os_arena', 5)).toBe('mm:os_arena:5')
+  })
+  it('конкретный листинг → одна корзина', () => {
+    expect(bucketsForListing('os_arena', 5)).toEqual(['mm:os_arena:5'])
+  })
+  it('листинг с «any» по карте → фан во все карты (×1 время)', () => {
+    expect(bucketsForListing('any', 5).sort()).toEqual(['mm:os_arena:5', 'mm:os_india:5', 'mm:os_pillars:5'].sort())
+  })
+  it('обе «any» → полный кросс (3×3 = 9 корзин)', () => {
+    expect(bucketsForListing('any', 'any')).toHaveLength(9)
+  })
+  it('фильтр клиента симметричен листингу (concrete → 1, any → фан)', () => {
+    expect(bucketsForFilter('os_india', 'any')).toEqual(['mm:os_india:3', 'mm:os_india:5', 'mm:os_india:10'])
   })
 })
