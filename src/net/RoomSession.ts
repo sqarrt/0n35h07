@@ -1,13 +1,17 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, Start, RosterEntry, ReadyMsg } from './protocol'
-import type { BotDifficulty, MapId } from '../constants'
-import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID } from '../constants'
+import type { BotDifficulty, MapId, MapFilter, DurationFilter } from '../constants'
+import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { PlayerProfile } from '../settings'
 import { generateModelName } from '../names'
+import { MAP_IDS } from '../game/maps'
+import { resolveMatchParams } from './matchmaking'
 
 export type RoomRole = 'host' | 'client'
 
 const HELLO_RETRY_MS = 400   // клиент повторяет HELLO, пока не получит ASSIGN (надёжность под нагрузкой)
+const randomMap = (): MapId => MAP_IDS[Math.floor(Math.random() * MAP_IDS.length)]
+const randomDuration = (): number => MATCH_DURATIONS_MIN[Math.floor(Math.random() * MATCH_DURATIONS_MIN.length)]
 
 export interface RoomView {
   roster: RosterEntry[]
@@ -17,7 +21,9 @@ export interface RoomView {
   foundHost: boolean      // клиент: транспорт нашёл пира (onPeerJoin) — идёт хендшейк; host: всегда true
   canStart: boolean       // host: слот соперника занят → можно стартовать
   durationMin: number
-  mapId: MapId            // выбранная карта матча
+  mapId: MapId            // концертная карта матча (резолв)
+  mapSel: MapFilter       // выбор стороны (для плиток лобби; может быть 'any')
+  durationSel: DurationFilter
   ready: number[]         // id готовых игроков (для индикации в лобби)
 }
 
@@ -37,6 +43,8 @@ export class RoomSession {
   private profile: PlayerProfile
   private durationMin: number = DEFAULT_MATCH_DURATION_MIN
   private mapId: MapId = DEFAULT_MAP_ID
+  private selMap: MapFilter = DEFAULT_MAP_ID            // выбор стороны (может быть 'any') — UI/Hello/резолв
+  private selDuration: DurationFilter = DEFAULT_MATCH_DURATION_MIN
   private changeCb: (v: RoomView) => void = () => {}
   private startCb: (durationMs: number, mapId: MapId) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
@@ -44,11 +52,16 @@ export class RoomSession {
   private readyIds = new Set<number>()   // id готовых игроков (бот авто-готов; гейт старта в лобби)
   private started = false                // guard: start() ровно один раз
 
-  constructor(net: INet, role: RoomRole, code: string, profile: PlayerProfile) {
+  constructor(net: INet, role: RoomRole, code: string, profile: PlayerProfile, sel?: { map: MapFilter; durationMin: DurationFilter }) {
     this.net = net
     this.role = role
     this.code = code
     this.profile = profile
+    if (sel) {
+      this.selMap = sel.map; this.selDuration = sel.durationMin
+      if (sel.map !== 'any') this.mapId = sel.map
+      if (sel.durationMin !== 'any') this.durationMin = sel.durationMin
+    }
     this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
 
     if (role === 'host') {
@@ -76,6 +89,7 @@ export class RoomSession {
     this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome' }
     this.clientPeer = from
     this.readyIds.delete(OPPONENT_ID)   // новый человек ещё не готов (вытеснил бота)
+    this.resolveAgainst(hello.desiredMap ?? 'any', hello.desiredDuration ?? 'any')
     this.broadcastRoster()
   }
 
@@ -101,6 +115,7 @@ export class RoomSession {
     // Косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome').
     this.opponent = { id: OPPONENT_ID, name: generateModelName(), color: BOT_COLOR_BASE, kind: 'bot', difficulty }
     this.readyIds.add(OPPONENT_ID)   // бот авто-готов
+    this.resolveAgainst('any', 'any')   // бот без предпочтений → концерт из выбора хоста (или random)
     this.broadcastRoster()
   }
 
@@ -156,23 +171,34 @@ export class RoomSession {
     if (this.readyIds.has(HOST_ID) && this.readyIds.has(OPPONENT_ID)) this.start()
   }
 
-  setDuration(min: number) {
-    if (this.role !== 'host') return
-    this.durationMin = min
-    this.broadcastRoster()   // клиент увидит новую длительность в Assign
+  /** host: резолв концертных параметров матча от своего выбора и желаемого соперника. */
+  private resolveAgainst(clientMap: MapFilter, clientDur: DurationFilter) {
+    const r = resolveMatchParams({ map: this.selMap, durationMin: this.selDuration }, { map: clientMap, durationMin: clientDur }, randomMap, randomDuration)
+    this.mapId = r.mapId
+    this.durationMin = r.durationMin
+    this.selMap = r.mapId         // селект показывает резолв (после появления соперника)
+    this.selDuration = r.durationMin
   }
 
-  setMap(mapId: MapId) {
-    if (this.role !== 'host') return
-    this.mapId = mapId
-    this.broadcastRoster()   // клиент увидит новую карту в Assign
+  setDuration(min: DurationFilter) {
+    this.selDuration = min
+    if (min !== 'any') this.durationMin = min
+    if (this.role === 'host') this.broadcastRoster()   // клиент увидит выбор в Assign
+    else this.emitChange()                             // клиент: локальный UI; желаемое уедет в Hello
+  }
+
+  setMap(mapId: MapFilter) {
+    this.selMap = mapId
+    if (mapId !== 'any') this.mapId = mapId
+    if (this.role === 'host') this.broadcastRoster()
+    else this.emitChange()
   }
 
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
       const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } = this.profile
-      this.net.broadcast('hello', { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } satisfies Hello)
+      this.net.broadcast('hello', { name, primaryColor, reserveColor, desiredMap: this.selMap, desiredDuration: this.selDuration, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {
@@ -182,6 +208,8 @@ export class RoomSession {
     this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
     this.durationMin = a.durationMin
     this.mapId = a.mapId
+    this.selMap = a.mapId
+    this.selDuration = a.durationMin
     this.readyIds = new Set(a.ready)
     this.emitChange()
   }
@@ -212,6 +240,8 @@ export class RoomSession {
       canStart: this.role === 'host' && this.opponent !== null,
       durationMin: this.durationMin,
       mapId: this.mapId,
+      mapSel: this.selMap,
+      durationSel: this.selDuration,
       ready: [...this.readyIds],
     }
   }
