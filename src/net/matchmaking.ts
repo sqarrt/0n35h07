@@ -1,7 +1,7 @@
 import type { MapId } from '../constants'
-import { MM_LISTING_HEARTBEAT_MS, MATCH_DURATIONS_MIN } from '../constants'
+import { MATCH_DURATIONS_MIN } from '../constants'
 import { MAP_IDS } from '../game/maps'
-import type { INet } from './INet'
+import type { IDiscovery } from './discovery/IDiscovery'
 
 export type MapFilter = MapId | 'any'
 export type DurationFilter = number | 'any'
@@ -72,67 +72,65 @@ export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter): s
 }
 
 /**
- * Слой подбора поверх INet (на комнате-пуле). Хост публикует листинг (heartbeat),
- * клиент слушает и при первом совместимом листинге зовёт onMatch(code).
+ * Слой подбора поверх IDiscovery (pub/sub по корзинам, без mesh). Хост фанит листинг во все
+ * совместимые корзины; клиент подписывается на корзины фильтра и берёт первый совместимый листинг.
  * Реальный матч идёт через обычный RoomSession по этому коду — пул только discovery.
  */
 export class MatchmakingPool {
-  private net: INet
-  private heartbeatMs: number
-  private timer: ReturnType<typeof setInterval> | null = null
+  private disco: IDiscovery
   private listing: PoolListing | null = null
+  private listingBuckets: string[] = []
+  private unsubs: Array<() => void> = []
   private filter: PoolFilter | null = null
   private matchHandler: ((code: string) => void) | null = null
   private rejected = new Set<string>()
 
-  constructor(net: INet, heartbeatMs: number = MM_LISTING_HEARTBEAT_MS) {
-    this.net = net
-    this.heartbeatMs = heartbeatMs
-    this.net.on('list', payload => this.onListing(payload as PoolListing))
-    // новый пир вошёл в пул — переобъявимся, чтобы он нас увидел
-    this.net.onPeerJoin(() => { if (this.listing) this.net.broadcast('list', this.listing) })
+  constructor(disco: IDiscovery) { this.disco = disco }
+
+  /** ХОСТ: опубликовать листинг во все совместимые корзины (фан по «any»-осям). */
+  advertise(listing: PoolListing) {
+    this.withdraw()
+    this.listing = listing
+    this.listingBuckets = bucketsForListing(listing.map, listing.durationMin)
+    for (const b of this.listingBuckets) this.disco.publish(b, listing)
   }
 
-  /** ХОСТ: публиковать листинг (немедленно + heartbeat). */
-  advertise(listing: PoolListing) {
-    this.listing = listing
-    this.net.broadcast('list', listing)
-    if (!this.timer) {
-      this.timer = setInterval(() => { if (this.listing) this.net.broadcast('list', this.listing) }, this.heartbeatMs)
+  /** ХОСТ: снять листинг из всех корзин (слот занят / поиск остановлен / выход). */
+  withdraw() {
+    if (this.listing) for (const b of this.listingBuckets) this.disco.withdraw(b, this.listing.code)
+    this.listing = null
+    this.listingBuckets = []
+  }
+
+  /** КЛИЕНТ: подписаться на корзины фильтра; onMatch(code) на первом совместимом (минуя отклонённые). */
+  search(filter: PoolFilter, onMatch: (code: string) => void) {
+    this.cancel()
+    this.filter = filter
+    this.matchHandler = onMatch
+    for (const b of bucketsForFilter(filter.map, filter.durationMin)) {
+      this.unsubs.push(this.disco.subscribe(b, l => this.onListing(l)))
     }
   }
 
-  /** ХОСТ: снять листинг (слот занят / поиск остановлен / выход). */
-  withdraw() {
-    if (this.listing) this.net.broadcast('unlist', { code: this.listing.code })
-    this.listing = null
-    this.stopTimer()
-  }
-
-  /** КЛИЕНТ: искать совместимого хоста; onMatch(code) при первом подходящем. */
-  search(filter: PoolFilter, onMatch: (code: string) => void) {
-    this.filter = filter
-    this.matchHandler = onMatch
-    this.rejected.clear()
-  }
-
-  /** КЛИЕНТ: код не сработал (хост занят/исчез) — продолжить поиск, минуя его. */
+  /** КЛИЕНТ: код не сработал (хост занят/исчез) — пропускать его в дальнейшем поиске. */
   reject(code: string) { this.rejected.add(code) }
 
-  /** КЛИЕНТ: прекратить поиск. */
-  cancel() { this.filter = null; this.matchHandler = null }
+  /** КЛИЕНТ: прекратить поиск (отписаться от всех корзин). */
+  cancel() {
+    for (const off of this.unsubs) off()
+    this.unsubs = []
+    this.filter = null
+    this.matchHandler = null
+  }
 
   private onListing(listing: PoolListing) {
     if (!this.filter || !this.matchHandler) return
     if (this.rejected.has(listing.code)) return
-    if (!listingMatches(this.filter, listing)) return
+    if (!listingMatches(this.filter, listing)) return   // подстраховка (корзины уже отфильтровали)
     const cb = this.matchHandler
-    this.matchHandler = null   // один матч за вызов; дальнейшее — на стороне клиента
-    this.filter = null
+    this.cancel()
     cb(listing.code)
   }
 
-  private stopTimer() { if (this.timer) { clearInterval(this.timer); this.timer = null } }
-
-  dispose() { this.withdraw(); this.cancel(); this.net.leave() }
+  dispose() { this.withdraw(); this.cancel() }
 }

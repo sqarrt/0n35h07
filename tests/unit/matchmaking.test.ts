@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { listingMatches, resolveMatchParams, MatchmakingPool, bucketKey, bucketsForListing, bucketsForFilter } from '../../src/net/matchmaking'
 import type { PoolListing } from '../../src/net/matchmaking'
-import { createLoopbackPair } from '../../src/net/LoopbackNet'
+import { LoopbackDiscovery } from '../../src/net/discovery/LoopbackDiscovery'
 
 const listing = (over: Partial<PoolListing> = {}): PoolListing => ({
   code: 'AAAA', name: 'RX-580', color: '#4af', map: 'os_arena', durationMin: 5, ...over,
@@ -41,55 +41,59 @@ describe('matchmaking · резолв параметров', () => {
   })
 })
 
-describe('MatchmakingPool · интеграция', () => {
-  // heartbeat большой, чтобы интервал не дёргался во время синхронного теста
-  const HB = 1_000_000
-
+describe('MatchmakingPool · интеграция (Discovery)', () => {
   it('клиент находит совместимого хоста → onMatch с кодом', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const hostPool = new MatchmakingPool(hostNet, HB)
-    const clientPool = new MatchmakingPool(clientNet, HB)
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    clientPool.search({ map: 'os_arena', durationMin: 5 }, code => matched.push(code))
-    hostPool.advertise({ code: 'WXYZ', name: 'RX-580', color: '#4af', map: 'os_arena', durationMin: 5 })
+    host.advertise({ code: 'WXYZ', name: 'RX-580', color: '#4af', map: 'os_arena', durationMin: 5 })
+    client.search({ map: 'os_arena', durationMin: 5 }, code => matched.push(code))
     expect(matched).toEqual(['WXYZ'])
-    hostPool.dispose(); clientPool.dispose()
   })
 
-  it('несовместимый листинг игнорируется', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const hostPool = new MatchmakingPool(hostNet, HB)
-    const clientPool = new MatchmakingPool(clientNet, HB)
+  it('несовместимая карта → не матчится', () => {
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    clientPool.search({ map: 'os_india', durationMin: 5 }, code => matched.push(code))
-    hostPool.advertise({ code: 'WXYZ', name: 'RX-580', color: '#4af', map: 'os_arena', durationMin: 5 })
+    host.advertise({ code: 'WXYZ', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
+    client.search({ map: 'os_india', durationMin: 5 }, code => matched.push(code))
     expect(matched).toEqual([])
-    hostPool.dispose(); clientPool.dispose()
   })
 
-  it('reject(code) → этот код больше не матчится (ищем следующего)', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const hostPool = new MatchmakingPool(hostNet, HB)
-    const clientPool = new MatchmakingPool(clientNet, HB)
+  it('хост с «any картой» найден клиентом любой конкретной карты (фан по корзинам)', () => {
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    clientPool.search({ map: 'any', durationMin: 'any' }, code => { matched.push(code); clientPool.reject(code) })
-    hostPool.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
-    // повторная публикация того же кода — уже отклонён, второго матча нет
-    hostPool.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
-    expect(matched).toEqual(['AAAA'])
-    hostPool.dispose(); clientPool.dispose()
+    host.advertise({ code: 'ANY1', name: 'RX', color: '#4af', map: 'any', durationMin: 5 })
+    client.search({ map: 'os_pillars', durationMin: 5 }, code => matched.push(code))
+    expect(matched).toEqual(['ANY1'])
+  })
+
+  it('reject(code) + повторный search пропускает отклонённый код', () => {
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
+    host.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
+    const got: string[] = []
+    client.search({ map: 'os_arena', durationMin: 5 }, code => got.push(code))
+    expect(got).toEqual(['AAAA'])     // нашёл
+    client.reject('AAAA')             // коннект не удался → пропустить этот код
+    client.search({ map: 'os_arena', durationMin: 5 }, code => got.push(code))
+    expect(got).toEqual(['AAAA'])     // AAAA отклонён → второго матча нет (ждём другого хоста)
   })
 
   it('cancel() прекращает поиск', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const hostPool = new MatchmakingPool(hostNet, HB)
-    const clientPool = new MatchmakingPool(clientNet, HB)
-    const matched: string[] = []
-    clientPool.search({ map: 'any', durationMin: 'any' }, code => matched.push(code))
-    clientPool.cancel()
-    hostPool.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
-    expect(matched).toEqual([])
-    hostPool.dispose(); clientPool.dispose()
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
+    const got: string[] = []
+    client.search({ map: 'os_arena', durationMin: 5 }, code => got.push(code))
+    client.cancel()
+    host.advertise({ code: 'BBBB', name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
+    expect(got).toEqual([])
   })
 })
 
