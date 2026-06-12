@@ -41,6 +41,7 @@
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
     "@react-three/rapier": "^2.2.0",
+    "nostr-tools": "^2.23.5",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0",
