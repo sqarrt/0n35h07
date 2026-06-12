@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { loadProfile, saveProfile, DEFAULT_NAMES, NAME_MAX } from '../../src/settings'
+import { loadProfile, saveProfile, NAME_MAX } from '../../src/settings'
 import { PLAYER_COLORS } from '../../src/constants'
+import { MODEL_NAME_RE } from '../../src/names'
 
 beforeEach(() => localStorage.clear())
 
 describe('settings / PlayerProfile', () => {
-  it('первый запуск: случайное шуточное имя из списка + цвета из палитры, и сразу сохранён', () => {
+  it('первый запуск: сгенерированное имя-«модель» + цвета из палитры, и сразу сохранён', () => {
     const p = loadProfile()
-    expect(DEFAULT_NAMES).toContain(p.name)
+    expect(p.name).toMatch(MODEL_NAME_RE)
     expect(PLAYER_COLORS).toContain(p.primaryColor)
     expect(PLAYER_COLORS).toContain(p.reserveColor)
     expect(p.reserveColor).not.toBe(p.primaryColor)
@@ -83,10 +84,10 @@ describe('settings / PlayerProfile', () => {
     expect(loadProfile().ballModel).toBe('smooth')
   })
 
-  it('санитайз: имя обрезается, пустое → «Игрок», цвет вне палитры → дефолт', () => {
+  it('санитайз: имя обрезается, пустое → сгенерированное, цвет вне палитры → дефолт', () => {
     saveProfile({ name: '   ', primaryColor: 'not-a-color', reserveColor: '#4fa' })
     const p = loadProfile()
-    expect(p.name).toBe('Игрок')
+    expect(p.name).toMatch(MODEL_NAME_RE)
     expect(p.primaryColor).toBe(PLAYER_COLORS[0])
     expect(p.reserveColor).toBe('#4fa')
 

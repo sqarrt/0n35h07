@@ -137,7 +137,6 @@ export const en = {
   pauseExit: 'QUIT',
   editorLoading: 'Loading editor…',
   // Имя бота-соперника (ростер шлёт name='Бот' для совместимости; UI рендерит это)
-  botName: 'Bot',
   // Индикатор сети (NetStatusChip)
   netChipProbingTitle: 'Probing signaling relays',
   netChipProbing: 'CHECKING NET',
