@@ -18,7 +18,6 @@ declare global {
     __debugForceEnd?: () => void
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
-    __debugReady?: () => void
     __debugForceLive?: () => void
     __debugLeave?: () => void
     __debugMusic?: () => { loopIndex: number; active: string[] }

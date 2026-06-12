@@ -13,7 +13,6 @@ export interface MatchNet {
   applySnapshot(snap: Snapshot): void
   applyEvent(e: MatchEvent): void
   localInputFrame(seq: number): InputFrame
-  markReady(id: number): void
   applyPhase(p: PhaseMsg): void
   serializePhase(): PhaseMsg
   phaseDirty(): boolean
@@ -45,10 +44,6 @@ export class NetSession {
         const pid = this.peerToPlayer.get(from)
         if (pid !== undefined) this.match.pushRemoteInput(pid, payload as InputFrame)
       })
-      net.on('ready', (_payload, from) => {
-        const pid = this.peerToPlayer.get(from)
-        if (pid !== undefined) this.match.markReady(pid)
-      })
     } else if (match.role === 'client') {
       net.on('snapshot', payload => this.match.applySnapshot(payload as Snapshot))
       net.on('event', payload => this.match.applyEvent(payload as MatchEvent))
@@ -64,9 +59,6 @@ export class NetSession {
     if (pid !== undefined) this.match.handlePlayerLeft(pid)
     else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
   }
-
-  /** Клиент объявляет готовность хосту. */
-  sendReady() { this.net.broadcast('ready', {}) }
 
   /** Отправка исходящего после шага симуляции. */
   afterUpdate(now: number = Date.now()) {

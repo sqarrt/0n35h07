@@ -133,7 +133,7 @@ export type MatchRole = typeof MATCH_ROLES[number]
 // Строго 1v1: два фиксированных id игроков — хост и его единственный соперник (бот XOR клиент).
 export const HOST_ID = 0
 export const OPPONENT_ID = 1
-export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
+export const MATCH_PHASES = ['countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
 export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту

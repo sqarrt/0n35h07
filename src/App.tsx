@@ -12,7 +12,6 @@ import { DashIndicator } from './components/DashIndicator'
 import { StatsOverlay } from './components/StatsOverlay'
 import { RespawnOverlay } from './components/RespawnOverlay'
 import { MatchHud } from './components/MatchHud'
-import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { PauseMenu } from './components/PauseMenu'
@@ -21,7 +20,6 @@ import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
-import type { GameApi } from './Game'
 import { MainMenu } from './screens/MainMenu'
 import { JoinRoom } from './screens/JoinRoom'
 import type { JoinStatus } from './screens/JoinRoom'
@@ -88,7 +86,6 @@ interface GameCanvasProps {
   gameNet: GameNet
   reserveColor: string
   defaultThirdPerson: boolean
-  apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
   musicVolume: number
   audioAnalysis: AudioAnalysis
@@ -101,7 +98,7 @@ interface GameCanvasProps {
 // MapEdges заставляет EffectComposer пересобирать EffectPass с шейдерами каждый кадр — шторм аллокаций
 // (~18 МБ/с) и многосекундные паузы Major GC. memo + стабильные пропсы отсекают каскад в корне.
 // (Тот же класс граблей, что и memo у Game — см. комментарий в Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
        всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */
@@ -114,7 +111,6 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         peerToPlayer={gameNet.peerToPlayer}
         reserveColor={reserveColor}
         defaultThirdPerson={defaultThirdPerson}
-        apiRef={apiRef}
         durationMs={gameNet.durationMs}
         mapId={gameNet.mapId}
         seedCode={gameNet.code}
@@ -232,7 +228,6 @@ export default function App() {
   const [joinStatus, setJoinStatus] = useState<JoinStatus>('idle')
 
   const sessionRef = useRef<RoomSession | null>(null)
-  const gameApiRef = useRef<GameApi | null>(null)
   const connectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const leaveRoom = () => {
@@ -252,8 +247,8 @@ export default function App() {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
-      // Матч всегда стартует с ритуала — заранее ставим фазу 'ready', иначе на миг мелькает оверлей паузы.
-      dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
+      // Матч стартует с отсчёта — заранее ставим фазу 'countdown', иначе на миг мелькает оверлей паузы.
+      dispatch({ type: 'SET_MATCH_PHASE', phase: 'countdown', ready: [], countdown: 0 })
       // Копия карты: чистка ростера в RoomSession.onPeerLeave не должна стирать маршрутизацию игры.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setScreen('game')
@@ -395,10 +390,6 @@ export default function App() {
   // Выход из игры: в Electron закрывает окно (→ приложение завершается), в браузере — вкладку.
   const handleExit = () => window.close()
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
-  const handleReady = () => {
-    document.querySelector('canvas')?.requestPointerLock()
-    gameApiRef.current?.requestReady()
-  }
 
   const handleAddBot = () => sessionRef.current?.addBot('normal')
   const handleRemoveBot = () => sessionRef.current?.removeBot()
@@ -506,20 +497,10 @@ export default function App() {
             gameNet={gameNet}
             reserveColor={profile.reserveColor}
             defaultThirdPerson={profile.defaultView === 'tp'}
-            apiRef={gameApiRef}
             sfxEngine={sfx}
             musicVolume={profile.volumeMaster * profile.volumeMusic}
             audioAnalysis={audioAnalysis}
           />
-          {hud.matchPhase === 'ready' && (
-            <ReadyOverlay
-              roster={gameNet.netConfig.roster}
-              localId={gameNet.netConfig.localId}
-              role={gameNet.role}
-              ready={hud.ready}
-              onReady={handleReady}
-            />
-          )}
           {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
           {/* Игровой HUD — только в live; во время отсчёта чистый экран (камеру крутить можно) + сам отсчёт. */}
           {locked && hud.matchPhase === 'live' && (
