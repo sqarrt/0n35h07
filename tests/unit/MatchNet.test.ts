@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { RosterEntry, Snapshot } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
-import { READY_COUNTDOWN_MS, HOST_ID, OPPONENT_ID } from '../../src/constants'
+import { READY_COUNTDOWN_MS } from '../../src/constants'
 
 const ROSTER: RosterEntry[] = [
   { id: 0, name: 'A', color: '#4af', kind: 'human' },
@@ -65,33 +65,19 @@ describe('Match — сетевой режим', () => {
     expect(match.serializeSnapshot().players).toHaveLength(2)
   })
 
-  it('бот-соперник авто-готов: ready содержит OPPONENT_ID, markReady(host) → countdown', () => {
-    const roster: RosterEntry[] = [
-      { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'normal' },
-    ]
-    const { match } = makeMatch('host', 0, roster)
-    expect(match.phase).toBe('ready')
-    expect(match.serializePhase().ready).toContain(OPPONENT_ID)
-    match.markReady(HOST_ID)
-    expect(match.phase).toBe('countdown')   // бот уже готов → достаточно готовности хоста
-  })
-
-  it('1v1 стартует в phase=ready и замораживает игроков', () => {
+  it('1v1 стартует в phase=countdown и замораживает игроков', () => {
     const { match } = makeMatch('host', 0)
-    expect(match.phase).toBe('ready')
-    match.update(0.016)   // tickPhase → заморозка
+    expect(match.phase).toBe('countdown')
+    match.update(0.016)   // tickPhase → заморозка (идёт отсчёт)
     match.human.moveIntent(new THREE.Vector3(5, 0, 0), 1)
     expect(match.human.consumeDesired().x).toBe(0)
   })
 
-  it('оба готовы → countdown; по истечении отсчёта → live и разморозка', () => {
+  it('старт с отсчёта; по истечении countdown → live и разморозка', () => {
     const t0 = 1_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const { match } = makeMatch('host', 0)
-    match.markReady(0)
-    match.markReady(1)
-    expect(match.phase).toBe('countdown')
+    expect(match.phase).toBe('countdown')   // матч стартует сразу с отсчёта
     spy.mockReturnValue(t0 + READY_COUNTDOWN_MS + 1)
     match.update(0.016)   // tickPhase: countdown → live
     expect(match.phase).toBe('live')
@@ -103,9 +89,9 @@ describe('Match — сетевой режим', () => {
 
   it('client applyPhase применяет фазу хоста', () => {
     const { match } = makeMatch('client', 1)
-    expect(match.phase).toBe('ready')
-    match.applyPhase({ phase: 'countdown', ready: [0, 1] })
-    expect(match.phase).toBe('countdown')
+    expect(match.phase).toBe('countdown')   // клиент тоже стартует с отсчёта
+    match.applyPhase({ phase: 'live', ready: [] })
+    expect(match.phase).toBe('live')
   })
 
   it('handlePlayerLeft: фаза ended, аватар скрыт, шлёт SET_MATCH_RESULT disconnect/win', () => {
@@ -141,8 +127,6 @@ describe('Match — сетевой режим', () => {
     const t0 = 2_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const { match } = makeMatch('host', 0)
-    match.markReady(0)
-    match.markReady(1)
     spy.mockReturnValue(t0 + READY_COUNTDOWN_MS + 1)
     match.update(0.016)   // отсчёт прошёл → live (разморозка)
     spy.mockRestore()
