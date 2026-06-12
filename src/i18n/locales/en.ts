@@ -129,7 +129,6 @@ export const en = {
   ctrlShield: 'Shield',
   ctrlLook: 'Look',
   ctrlView: 'View 1/3',
-  ctrlScore: 'Score',
   ctrlPause: 'Pause',
   // Пауза и редактор
   pauseTitle: 'MENU',

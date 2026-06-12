@@ -129,7 +129,6 @@ export const ptBR = {
   ctrlShield: 'Escudo',
   ctrlLook: 'Olhar',
   ctrlView: 'Visão 1/3',
-  ctrlScore: 'Placar',
   ctrlPause: 'Pausa',
   // Pausa e editor
   pauseTitle: 'MENU',

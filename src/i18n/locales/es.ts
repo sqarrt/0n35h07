@@ -129,7 +129,6 @@ export const es = {
   ctrlShield: 'Escudo',
   ctrlLook: 'Mirar',
   ctrlView: 'Vista 1/3',
-  ctrlScore: 'Marcador',
   ctrlPause: 'Pausa',
   // Pausa y editor
   pauseTitle: 'MENÚ',

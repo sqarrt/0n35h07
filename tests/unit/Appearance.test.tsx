@@ -3,6 +3,7 @@ import { render, fireEvent, screen } from '@testing-library/react'
 import { Appearance } from '../../src/screens/Appearance'
 import { SfxProvider } from '../../src/sfx/SfxContext'
 import { FakeSfxEngine } from '../../src/game/audio/sfx/FakeSfxEngine'
+import { I18nProvider } from '../../src/i18n'
 import type { PlayerProfile } from '../../src/settings'
 
 const profile: PlayerProfile = {
@@ -15,11 +16,13 @@ const profile: PlayerProfile = {
 
 function renderAppearance(onShotPreview = vi.fn(), onPreview = vi.fn(), onRespawnPreview = vi.fn(), onDashPreview = vi.fn(), onShieldPreview = vi.fn()) {
   render(
-    <SfxProvider engine={new FakeSfxEngine()}>
-      <Appearance profile={profile} onChange={() => {}} onPreview={onPreview}
-        onShotPreview={onShotPreview} onRespawnPreview={onRespawnPreview}
-        onDashPreview={onDashPreview} onShieldPreview={onShieldPreview} onBack={() => {}} />
-    </SfxProvider>,
+    <I18nProvider initial="ru">
+      <SfxProvider engine={new FakeSfxEngine()}>
+        <Appearance profile={profile} onChange={() => {}} onPreview={onPreview}
+          onShotPreview={onShotPreview} onRespawnPreview={onRespawnPreview}
+          onDashPreview={onDashPreview} onShieldPreview={onShieldPreview} onBack={() => {}} />
+      </SfxProvider>
+    </I18nProvider>,
   )
   return { onShotPreview, onPreview, onRespawnPreview, onDashPreview, onShieldPreview }
 }

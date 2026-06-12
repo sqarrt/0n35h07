@@ -129,7 +129,6 @@ export const fr = {
   ctrlShield: 'Bouclier',
   ctrlLook: 'Regard',
   ctrlView: 'Vue 1/3',
-  ctrlScore: 'Score',
   ctrlPause: 'Pause',
   // Pause et éditeur
   pauseTitle: 'MENU',

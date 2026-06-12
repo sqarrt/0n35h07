@@ -129,7 +129,6 @@ export const pl = {
   ctrlShield: 'Tarcza',
   ctrlLook: 'Rozglądanie',
   ctrlView: 'Widok 1/3',
-  ctrlScore: 'Wynik',
   ctrlPause: 'Pauza',
   // Pauza i edytor
   pauseTitle: 'MENU',

@@ -27,10 +27,22 @@ const subHeader: CSSProperties = {
 
 const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics']
 
-/** Ширина плитки языка — по самому длинному родному названию «Português (BR)». */
-const LANG_TILE_WIDTH = '9.2rem'
-/** Число колонок в сетке языков. */
+/** Число колонок в сетке языков (10 языков → 2 ряда по 5). */
 const LANG_GRID_COLS = 5
+/**
+ * Компактный стиль плитки языка. Колонки сетки — 1fr (всегда вмещаются в панель),
+ * поэтому ширину НЕ фиксируем; критично сбросить min-width от .btn (220px), иначе
+ * кнопки вылезают за свои колонки и наезжают друг на друга. Padding/letter-spacing/шрифт
+ * ужаты, чтобы самое длинное название («Português (BR)») влезало в строку.
+ */
+const langTile = {
+  minWidth: 0,
+  margin: 0,
+  padding: '0.5rem 0.3rem',
+  fontSize: '0.78rem',
+  letterSpacing: '0.02em',
+  fontWeight: 'bold' as const,
+}
 
 export function Settings({ profile, onChange, onBack }: SettingsProps) {
   const sfx = useSfx()
@@ -159,18 +171,17 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
             <div style={label} data-testid="settings-language-label">{t.settingsLanguage}</div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${LANG_GRID_COLS}, ${LANG_TILE_WIDTH})`,
+              gridTemplateColumns: `repeat(${LANG_GRID_COLS}, 1fr)`,
               gap: '0.4rem',
             }}>
               {LOCALES.map(l => (
-                // bold всегда — активная и неактивная одинаковые, текст не «прыгает» при переключении;
-                // margin:0 — глушим margin от .btn, иначе он суммируется с grid gap и межрядье распухает
+                // bold всегда — активная и неактивная одинаковые, текст не «прыгает» при переключении
                 <Button
                   key={l.id}
                   variant={locale === l.id ? 'primary' : 'secondary'}
                   data-testid={`settings-lang-${l.id}`}
                   onClick={() => setLocale(l.id)}
-                  style={{ width: LANG_TILE_WIDTH, margin: 0, fontWeight: 'bold' }}
+                  style={langTile}
                 >
                   {l.native}
                 </Button>

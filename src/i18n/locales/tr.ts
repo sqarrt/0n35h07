@@ -129,7 +129,6 @@ export const tr = {
   ctrlShield: 'Kalkan',
   ctrlLook: 'Bakış',
   ctrlView: 'Görünüm 1/3',
-  ctrlScore: 'Skor',
   ctrlPause: 'Duraklat',
   // Duraklatma ve düzenleyici
   pauseTitle: 'MENÜ',

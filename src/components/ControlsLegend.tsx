@@ -26,7 +26,6 @@ export function ControlsLegend() {
     { keys: [t.keyRmb], action: t.ctrlShield },
     { keys: [t.keyMouse], action: t.ctrlLook },
     { keys: ['V'], action: t.ctrlView },
-    { keys: ['Tab'], action: t.ctrlScore },
     { keys: ['Esc'], action: t.ctrlPause },
   ]
   return (

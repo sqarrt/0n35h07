@@ -129,7 +129,6 @@ export const it = {
   ctrlShield: 'Scudo',
   ctrlLook: 'Visuale',
   ctrlView: 'Vista 1/3',
-  ctrlScore: 'Punteggio',
   ctrlPause: 'Pausa',
   // Pausa ed editor
   pauseTitle: 'MENU',

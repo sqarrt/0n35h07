@@ -129,7 +129,6 @@ export const de = {
   ctrlShield: 'Schild',
   ctrlLook: 'Umsehen',
   ctrlView: 'Ansicht 1/3',
-  ctrlScore: 'Punkte',
   ctrlPause: 'Pause',
   // Pause und Editor
   pauseTitle: 'MENÜ',

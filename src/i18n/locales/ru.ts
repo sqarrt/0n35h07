@@ -129,7 +129,6 @@ export const ru = {
   ctrlShield: 'Щит',
   ctrlLook: 'Обзор',
   ctrlView: 'Вид 1/3',
-  ctrlScore: 'Счёт',
   ctrlPause: 'Пауза',
   // Пауза и редактор
   pauseTitle: 'МЕНЮ',

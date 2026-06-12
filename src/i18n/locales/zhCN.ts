@@ -130,7 +130,6 @@ export const zhCN = {
   ctrlShield: '护盾',
   ctrlLook: '视角',
   ctrlView: '视角 1/3',
-  ctrlScore: '比分',
   ctrlPause: '暂停',
   // 暂停与编辑器
   pauseTitle: '菜单',
