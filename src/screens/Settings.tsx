@@ -26,7 +26,7 @@ const subHeader: CSSProperties = {
 }
 
 const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics']
-const SEARCH_ROLES: SearchRole[] = ['host', 'client', 'random']
+const SEARCH_ROLES: SearchRole[] = ['both', 'host', 'client']
 
 /** Число колонок в сетке языков (10 языков → 2 ряда по 5). */
 const LANG_GRID_COLS = 5
@@ -214,7 +214,7 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
           <div style={{ ...row, flexWrap: 'wrap' }}>
             {SEARCH_ROLES.map(r => (
               <button key={r} className={`seg${searchRole === r ? ' seg--on' : ''}`} data-testid={`settings-searchrole-${r}`} onClick={() => handleSearchRole(r)}>
-                {r === 'host' ? t.settingsSearchRoleHost : r === 'client' ? t.settingsSearchRoleClient : t.settingsSearchRoleRandom}
+                {r === 'both' ? t.settingsSearchRoleBoth : r === 'host' ? t.settingsSearchRoleHost : t.settingsSearchRoleClient}
               </button>
             ))}
           </div>
