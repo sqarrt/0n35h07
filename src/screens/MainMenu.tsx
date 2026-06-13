@@ -23,7 +23,7 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuP
         margin: '0 0 1rem', marginLeft: '0.3em',
         textShadow: '0 0 30px rgba(68,170,255,0.5)',
       }}>
-        ONESHOT
+        0N35H07
       </h1>
       <div className="accent-rule" style={{ marginBottom: '2rem' }} />
       <Button variant="primary" style={btn} onClick={onPlay} data-testid="menu-play">{t.menuPlay}</Button>

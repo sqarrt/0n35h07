@@ -18,7 +18,7 @@ function createWindow() {
     height: 720,            // размер окна в оконном режиме (если выйти из fullscreen)
     fullscreen: true,       // сразу на весь экран
     backgroundColor: '#06080c',   // тёмный фон окна: иначе дефолтный серый просвечивает сквозь прозрачный canvas меню
-    title: 'ONESHOT',
+    title: '0N35H07',
     icon: path.join(__dirname, '../build/icon.png'),   // иконка окна (dev); упакованную ставит electron-builder
     webPreferences: {
       // preload не нужен (Node API рендереру не требуется): пустой preload tsc делает ESM-модулем,
@@ -28,7 +28,7 @@ function createWindow() {
       devTools: !app.isPackaged,   // prod: DevTools недоступен (горячие клавиши и openDevTools() не сработают)
     },
   })
-  win.setTitle('ONESHOT')   // фиксируем заголовок окна (не даём HTML <title> перебить)
+  win.setTitle('0N35H07')   // фиксируем заголовок окна (не даём HTML <title> перебить)
 
   // --- Game feel: окно игры не должно вести себя как браузер ---
   // Никаких новых окон (window.open / target=_blank).
