@@ -171,6 +171,7 @@ export class Player implements IControllable {
     this.moveScale = o.speed
     this.weapon.setCooldownScale(o.beamCd)
     this.shield.setCooldownScale(o.shieldCd)
+    this.body.setSeeThrough(o.seeThrough)
   }
   /** Награда за снятие серии: мгновенно сбросить кулдауны луча/щита/дэша. */
   resetCooldowns() {

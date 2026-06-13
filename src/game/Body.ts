@@ -30,6 +30,10 @@ export class Body {
   readonly object3d = new THREE.Group()                     // локально (origin) — трансформ даёт RigidBody
   readonly mesh:     THREE.Mesh
   readonly material: THREE.MeshStandardMaterial
+  private seeThroughMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(BALL_RADIUS * 1.05, 16, 12),
+    new THREE.MeshBasicMaterial({ color: '#ff3a2a', wireframe: true, transparent: true, opacity: 0.9, depthTest: false }),
+  )
 
   rb: RapierRigidBody | null = null
   velocityY = 0
@@ -61,6 +65,12 @@ export class Body {
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true
     this.mesh.userData.noRaycast = true
+
+    // Силуэт «сквозь стены» (ПЕРЕГРЕВ ×5): красный wireframe поверх геометрии (depthTest off), виден соперником.
+    this.seeThroughMesh.userData.noRaycast = true
+    this.seeThroughMesh.renderOrder = 999
+    this.seeThroughMesh.visible = false
+    this.mesh.add(this.seeThroughMesh)
 
     if (model === 'planet') {   // кольцо — дочерний меш сферы (масштабируется/гаснет вместе с планетой)
       const ring = createBallRing(ringColor)   // «второй» цвет (как в меню); по умолчанию = цвет шара
@@ -285,6 +295,7 @@ export class Body {
   }
 
   setVisible(v: boolean) { this.mesh.visible = v }
+  setSeeThrough(on: boolean) { this.seeThroughMesh.visible = on }
 
   /**
    * Ориентирует визуальную сферу «лицом» по направлению прицела — ТОЛЬКО рысканье (горизонталь):
@@ -321,6 +332,8 @@ export class Body {
   dispose() {
     this.mesh.geometry.dispose()
     this.material.dispose()
+    this.seeThroughMesh.geometry.dispose()
+    ;(this.seeThroughMesh.material as THREE.Material).dispose()
     this.ring?.dispose()
     const hb = this.object3d.children[1] as THREE.Mesh
     hb.geometry.dispose()
