@@ -49,6 +49,7 @@ export interface IShield {
   reset(): void
   readonly object3d:  THREE.Object3D
   readonly isActive:  boolean
+  isPerfectBlock():   boolean  // активирован в окне до попадания → награда сбросом кулдаунов
   progress():         number   // 1 = готов
   setCooldownScale(scale: number): void
   resetCooldown(): void

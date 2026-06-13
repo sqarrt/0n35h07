@@ -383,7 +383,9 @@ export class Match {
         if (victim && victim.alive) {   // мёртвую/сдувающуюся жертву не добиваем
           const res = victim.receiveHit()
           if (res === 'blocked') {
-            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id })
+            const perfect = victim.perfectBlock      // идеальный блок → сброс кулдаунов жертве
+            if (perfect) victim.resetCooldowns()
+            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
@@ -737,6 +739,7 @@ export class Match {
         break
       }
       case 'block': {
+        if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // зеркалим сброс кулдаунов с хоста
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
         this.sfx?.combat(e, this.sfxPos)

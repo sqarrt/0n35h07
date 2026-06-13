@@ -93,6 +93,22 @@ describe('Match', () => {
     expect(hitCount()).toBe(0)
   })
 
+  it('идеальный блок (щит поднят <100мс до луча) → сброс кулдаунов: щит сразу переиспользуем', () => {
+    const { match, scene, camera, dispatch } = makeMatch('passive')
+    aimHumanAtBot(match, camera)
+    match.humanController.onFire()
+    step(match, scene, 23)                 // BEAM_WINDUP=400мс → попадание ~кадр 25; щит ещё не поднят
+    match.bots[0].activateShield()         // подняли «в момент» попадания → идеальный блок
+    step(match, scene, 5)                  // луч прилетает, блок засчитан
+    expect(hitCount()).toBe(0)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
+    // награда: после активного окна щита нет кулдауна — поднимается сразу снова
+    step(match, scene, 55)                 // > SHIELD_DURATION (800мс) с момента активации
+    expect(match.bots[0].shieldActive).toBe(false)
+    match.bots[0].activateShield()
+    expect(match.bots[0].shieldActive).toBe(true)
+  })
+
   it('смерть игрока не трогает соперника (фаза призрака только у погибшего)', () => {
     const { match, scene } = makeMatch('passive')
     const botBefore = match.bots[0].position.clone()
