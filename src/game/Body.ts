@@ -8,6 +8,7 @@ import {
 } from '../constants'
 import type { BallModel } from '../constants'
 import { createBallMaterial, createBallRing } from './fx/ballMaterial'
+import type { BallArt } from './ballArt'
 
 type XYZ = { x: number; y: number; z: number }
 
@@ -51,10 +52,12 @@ export class Body {
   private knockDir = new THREE.Vector3()   // импульс-отброс при пересечении с другим игроком (как рывок, но не рывок)
   private knockTimer = 0
   private shaderTick: (dt: number) => void
+  private ballFx: ReturnType<typeof createBallMaterial>
   private ring: ReturnType<typeof createBallRing> | null = null
 
-  constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color) {
-    const ball = createBallMaterial(color, model)   // материал сферы по модели (smooth/waves/planet)
+  constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color, art?: BallArt) {
+    const ball = createBallMaterial(color, model, art)   // материал сферы по модели (smooth/waves/planet) + рисунок
+    this.ballFx = ball
     this.material = ball.material
     this.shaderTick = ball.tick
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
@@ -301,6 +304,9 @@ export class Body {
   /** Двигает время шейдеров модели (волны / дрейф кольца). Для smooth — no-op. */
   tickShader(dt: number) { this.shaderTick(dt); this.ring?.tick(dt) }
 
+  /** Обновить рисунок на шаре на месте (живое превью в меню; без пересоздания материала). */
+  setArt(art: BallArt | null) { this.ballFx.setArt(art) }
+
   /** Прозрачность визуала (призрак/материализация): сфера + кольцо. */
   setOpacity(o: number) { this.material.opacity = o; this.ring?.setOpacity(o) }
 
@@ -321,6 +327,7 @@ export class Body {
   dispose() {
     this.mesh.geometry.dispose()
     this.material.dispose()
+    this.ballFx.dispose()        // текстура рисунка
     this.ring?.dispose()
     const hb = this.object3d.children[1] as THREE.Mesh
     hb.geometry.dispose()
