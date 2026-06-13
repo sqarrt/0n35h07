@@ -27,6 +27,7 @@ function paintCanvas(ctx: CanvasRenderingContext2D, grid: Uint8Array) {
 interface Props {
   label: string
   grid: Uint8Array
+  rev: number            // тик перерисовки: грид мутируется по ссылке, поэтому обновление сигналим числом
   erasing: boolean
   onPaint: (cx: number, cy: number, value: number) => void
   onClear: () => void
@@ -34,14 +35,14 @@ interface Props {
   testid: string
 }
 
-export function BallPaintField({ label, grid, erasing, onPaint, onClear, clearLabel, testid }: Props) {
+export function BallPaintField({ label, grid, rev, erasing, onPaint, onClear, clearLabel, testid }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d')
     if (ctx) paintCanvas(ctx, grid)
-  }, [grid])
+  }, [grid, rev])
 
   const cellFromEvent = useCallback((e: ReactPointerEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect()

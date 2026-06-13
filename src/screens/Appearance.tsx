@@ -50,7 +50,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
   const [art] = useState(() => decodeBallArt(profile.ballArt) ?? makeEmptyArt())   // рисунок (мутируем гриды на месте)
   const [erasing, setErasing] = useState(false)
-  const [, forceArt] = useState(0)   // тик перерисовки полей/превью после мутации гридов
+  const [artRev, forceArt] = useState(0)   // тик перерисовки полей/превью после мутации гридов
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — из АКТУАЛЬНОГО профиля: коммит из «Внешности» не затирает правки настроек.
@@ -116,10 +116,10 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
     forceArt(n => n + 1)
     commit({ ...base(), ballArt: encoded })
   }
-  const paintFront = (cx: number, cy: number, v: number) => { art.front[cy * BALL_ART_SIZE + cx] = v; commitArt() }
-  const paintBack = (cx: number, cy: number, v: number) => { art.back[cy * BALL_ART_SIZE + cx] = v; commitArt() }
-  const clearFront = () => { art.front.fill(0); sfx.play2D('ui_toggle'); commitArt() }
-  const clearBack = () => { art.back.fill(0); sfx.play2D('ui_toggle'); commitArt() }
+  const paintFront = (cx: number, cy: number, v: number) => { setPart('paintFront'); art.front[cy * BALL_ART_SIZE + cx] = v; commitArt() }
+  const paintBack = (cx: number, cy: number, v: number) => { setPart('paintBack'); art.back[cy * BALL_ART_SIZE + cx] = v; commitArt() }
+  const clearFront = () => { setPart('paintFront'); art.front.fill(0); sfx.play2D('ui_toggle'); commitArt() }
+  const clearBack = () => { setPart('paintBack'); art.back.fill(0); sfx.play2D('ui_toggle'); commitArt() }
   const toggleErase = (v: boolean) => { if (v !== erasing) sfx.play2D('ui_toggle'); setErasing(v) }
 
   const previewColor = editing === 'primary' ? primary : reserve
@@ -137,7 +137,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.
-    <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh' }}>
+    <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh', overflowY: 'auto' }}>
       <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.appearTitle}</h2>
 
       <div style={{ ...label, marginBottom: '1.8rem' }}>
@@ -184,8 +184,8 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
         <button className={`seg${erasing ? ' seg--on' : ''}`} data-testid="paint-eraser" onClick={() => toggleErase(true)}>{t.appearPaintEraser}</button>
       </div>
       <div style={{ ...row, justifyContent: 'space-around' }}>
-        <BallPaintField label={t.appearPaintFront} grid={art.front} erasing={erasing} onPaint={paintFront} onClear={clearFront} clearLabel={t.appearPaintClear} testid="paint-front" />
-        <BallPaintField label={t.appearPaintBack} grid={art.back} erasing={erasing} onPaint={paintBack} onClear={clearBack} clearLabel={t.appearPaintClear} testid="paint-back" />
+        <BallPaintField label={t.appearPaintFront} grid={art.front} rev={artRev} erasing={erasing} onPaint={paintFront} onClear={clearFront} clearLabel={t.appearPaintClear} testid="paint-front" />
+        <BallPaintField label={t.appearPaintBack} grid={art.back} rev={artRev} erasing={erasing} onPaint={paintBack} onClear={clearBack} clearLabel={t.appearPaintClear} testid="paint-back" />
       </div>
 
       <div style={label}>{t.appearShotAnim}</div>

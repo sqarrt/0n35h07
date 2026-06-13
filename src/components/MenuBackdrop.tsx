@@ -381,8 +381,12 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     }
 
     if (!ghostRun && !dashMove) {
-      aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
-      if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
+      if (isPreview && (part === 'paintFront' || part === 'paintBack')) {
+        aimDir.set(0, 0, 1)   // РИСУНОК: фронт-полусфера смотрит в +Z; камера спереди/сзади показывает нужную сторону
+      } else {
+        aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
+        if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
+      }
       body.faceDir(aimDir)
     }
     _meshCenter.copy(body.object3d.position).y += BODY_MESH_Y   // центр сферы (мир)

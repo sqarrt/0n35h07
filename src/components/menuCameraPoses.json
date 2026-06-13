@@ -94,5 +94,29 @@
       1.1347386344238877,
       -1.4306566877045057
     ]
+  },
+  "appearancePaintFront": {
+    "position": [
+      0,
+      1.2,
+      3.4
+    ],
+    "target": [
+      0,
+      1.2,
+      0
+    ]
+  },
+  "appearancePaintBack": {
+    "position": [
+      0,
+      1.2,
+      -3.4
+    ],
+    "target": [
+      0,
+      1.2,
+      0
+    ]
   }
 }

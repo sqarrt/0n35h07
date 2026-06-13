@@ -86,7 +86,8 @@ export function artUvForNormal(nx: number, ny: number, nz: number): { u: number;
   const isFront = nz <= 0 ? 1 : 0
   const ang = Math.acos(Math.min(1, Math.abs(nz)))     // [0, π/2]
   const r = ang / HALF_PI
-  const phi = Math.atan2(ny, isFront ? nx : -nx)       // зад зеркалит x (читается при взгляде сзади)
+  // перёд зеркалит x: полусферу смотрят снаружи, без зеркала рисунок читается отражённым
+  const phi = Math.atan2(ny, isFront ? -nx : nx)
   const dx = 0.5 + 0.5 * r * Math.cos(phi)
   const dy = 0.5 + 0.5 * r * Math.sin(phi)
   return { u: dx * 0.5 + (1 - isFront) * 0.5, v: dy }
