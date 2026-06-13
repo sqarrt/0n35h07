@@ -269,7 +269,7 @@ export class Match {
       this.human.applyOverheat()
       {
         const opp = this.players.find(q => q !== this.human)
-        this.human.pierceTargetId = opp && opp.seeThrough ? opp.id : null
+        this.human.pierceTarget = opp && opp.seeThrough ? { id: opp.id, pos: opp.position } : null
       }
       this.players.forEach(p => {
         if (p.id === this.localId) {
@@ -651,7 +651,7 @@ export class Match {
     for (const p of this.players) p.applyOverheat()
     for (const p of this.players) {           // строго 1v1: цель прострела для p — другой игрок, если seeThrough
       const opp = this.players.find(q => q !== p)
-      p.pierceTargetId = opp && opp.seeThrough ? opp.id : null
+      p.pierceTarget = opp && opp.seeThrough ? { id: opp.id, pos: opp.position } : null
     }
   }
 

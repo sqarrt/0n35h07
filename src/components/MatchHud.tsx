@@ -31,7 +31,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
   // Точки серии (0 → нет, кап 10); цвет наследуется от .side (цвет игрока).
   const dots = (id: number | undefined, testid: string) => {
     const n = id !== undefined ? streakDots(streakCounts[id] ?? 0) : 0
-    return <span className="streak-dots" data-testid={testid} aria-hidden="true">{'•'.repeat(n)}</span>
+    return <span className="streak-dots" data-testid={testid} aria-hidden="true">{'●'.repeat(n)}</span>
   }
   // Имя берём из ростера как есть: у человека — своё, у бота — сгенерированное имя-«модель».
   const display = (entry: RosterEntry | undefined, fallback: string) => entry ? entry.name : fallback

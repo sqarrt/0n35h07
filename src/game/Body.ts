@@ -30,10 +30,8 @@ export class Body {
   readonly object3d = new THREE.Group()                     // локально (origin) — трансформ даёт RigidBody
   readonly mesh:     THREE.Mesh
   readonly material: THREE.MeshStandardMaterial
-  private seeThroughMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_RADIUS * 1.05, 16, 12),
-    new THREE.MeshBasicMaterial({ color: '#ff3a2a', wireframe: true, transparent: true, opacity: 0.9, depthTest: false }),
-  )
+  // Контур «сквозь стены»: френель-свечение по силуэту (яркий край, прозрачный центр), без wireframe.
+  private seeThroughMesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS * 1.08, 24, 16), makeOutlineMaterial())
 
   rb: RapierRigidBody | null = null
   velocityY = 0
@@ -66,7 +64,7 @@ export class Body {
     this.mesh.castShadow = true
     this.mesh.userData.noRaycast = true
 
-    // Силуэт «сквозь стены» (ПЕРЕГРЕВ ×5): красный wireframe поверх геометрии (depthTest off), виден соперником.
+    // Контур «сквозь стены» (ПЕРЕГРЕВ ×5): френель-свечение поверх геометрии (depthTest off), виден соперником.
     this.seeThroughMesh.userData.noRaycast = true
     this.seeThroughMesh.renderOrder = 999
     this.seeThroughMesh.visible = false
@@ -339,4 +337,36 @@ export class Body {
     hb.geometry.dispose()
     ;(hb.material as THREE.Material).dispose()
   }
+}
+
+const OVERHEAT_OUTLINE_COLOR = '#ff3a2a'
+
+/** Френель-материал контура: яркое свечение на силуэте (край), прозрачно в центре. depthTest off → сквозь стены. */
+function makeOutlineMaterial(): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: new THREE.Color(OVERHEAT_OUTLINE_COLOR) },
+      uPower: { value: 2.5 },
+      uIntensity: { value: 1.7 },
+    },
+    vertexShader: /* glsl */`
+      varying vec3 vN; varying vec3 vV;
+      void main(){
+        vN = normalize(normalMatrix * normal);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vV = normalize(-mv.xyz);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: /* glsl */`
+      varying vec3 vN; varying vec3 vV;
+      uniform vec3 uColor; uniform float uPower; uniform float uIntensity;
+      void main(){
+        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), uPower);
+        gl_FragColor = vec4(uColor * uIntensity, f);
+      }`,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  })
 }

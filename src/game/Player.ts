@@ -49,7 +49,7 @@ export class Player implements IControllable {
   private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
   private moveScale = 1            // множитель скорости от ПЕРЕГРЕВА
-  pierceTargetId: number | null = null   // id соперника, по которому бьём сквозь стены (ставит Match)
+  pierceTarget: { id: number; pos: THREE.Vector3 } | null = null   // перегретый соперник (бьём сквозь стены); ставит Match
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
@@ -206,7 +206,7 @@ export class Player implements IControllable {
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    this.weapon.update(dt, { world, muzzle, aim, excludeIds, pierceId: this.pierceTargetId })
+    this.weapon.update(dt, { world, muzzle, aim, excludeIds, pierceTarget: this.pierceTarget })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })

@@ -21,6 +21,7 @@ const IMPACT_LIFE_DECAY = 3      // скорость угасания жизни
 const IMPACT_SCALE = 0.15        // размер частицы = life * IMPACT_SCALE
 const IMPACT_SPREAD_H = 8        // горизонтальный разброс скорости
 const IMPACT_SPREAD_V = 6        // вертикальный разброс скорости
+const PIERCE_RADIUS = 1.0        // радиус «цилиндра» вокруг луча для попадания по перегретой цели сквозь стены
 
 /** Луч: idle → windup → fire → cooldown (dt-driven). Визуал луча — инжектируемый IBeamFx (стилевой). */
 export class BeamWeapon implements IWeapon {
@@ -82,12 +83,7 @@ export class BeamWeapon implements IWeapon {
 
     const origin = ctx.muzzle.clone()
     const dir = ctx.aim.clone().normalize()
-    let hit = ctx.world.raycast(origin, dir, ctx.excludeIds)
-    // ПРОСТРЕЛ: если задана перегретая цель — добиваем её сквозь стены (если луч смотрит в её хитбокс).
-    if (ctx.pierceId != null) {
-      const eHit = ctx.world.raycastEntities(origin, dir, ctx.excludeIds)
-      if (eHit && eHit.object.userData.entityId === ctx.pierceId) hit = eHit
-    }
+    const hit = ctx.world.raycast(origin, dir, ctx.excludeIds)
 
     let hitEntityId: number | null = null
     let hitPoint: THREE.Vector3 | null = null
@@ -98,6 +94,21 @@ export class BeamWeapon implements IWeapon {
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
     } else {
       end.copy(origin).addScaledVector(dir, AIM_RANGE)
+    }
+
+    // ПРОСТРЕЛ: перегретую цель (видна сквозь стены) поражаем, если луч проходит близко к ней —
+    // сквозь любое число препятствий (без raycast: по расстоянию до луча). Перекрывает обычный хит.
+    const pt = ctx.pierceTarget
+    if (pt) {
+      const along = pt.pos.clone().sub(origin).dot(dir)
+      if (along > 0) {
+        const closest = origin.clone().addScaledVector(dir, along)
+        if (pt.pos.distanceTo(closest) < PIERCE_RADIUS) {
+          hitEntityId = pt.id
+          hitPoint = pt.pos.clone()
+          end.copy(pt.pos)
+        }
+      }
     }
     this.beamFx.play(origin, end)
     this.outcome = { end: end.clone(), hitEntityId, hitPoint }

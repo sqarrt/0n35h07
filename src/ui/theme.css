@@ -245,7 +245,7 @@
 .match-hud .frag { font-size: 22px; }
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
-.match-hud .streak-dots { font-size: 9px; letter-spacing: 2px; line-height: 1; color: currentColor; }
+.match-hud .streak-dots { font-size: 10px; letter-spacing: 1px; line-height: 1; color: currentColor; }
 
 /* JoinRoom: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
 .code-wrap { position: relative; width: 240px; height: 64px; }

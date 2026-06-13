@@ -15,7 +15,7 @@ export interface WeaponContext {
   muzzle:     THREE.Vector3
   aim:        THREE.Vector3
   excludeIds: number[]
-  pierceId?:  number | null   // id цели, по которой бьём сквозь стены (ПРОСТРЕЛ); null/undefined — обычно
+  pierceTarget?: { id: number; pos: THREE.Vector3 } | null   // перегретая цель: бьём сквозь стены, если луч проходит рядом
 }
 
 export interface FireOutcome {
