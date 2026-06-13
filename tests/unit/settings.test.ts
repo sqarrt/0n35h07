@@ -2,10 +2,22 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { loadProfile, saveProfile, NAME_MAX } from '../../src/settings'
 import { PLAYER_COLORS } from '../../src/constants'
 import { MODEL_NAME_RE } from '../../src/names'
+import { encodeBallArt, makeEmptyArt } from '../../src/game/ballArt'
 
 beforeEach(() => localStorage.clear())
 
 describe('settings / PlayerProfile', () => {
+  it('ballArt: валидная строка сохраняется, мусор снимается', () => {
+    const art = makeEmptyArt(); art.front[0] = 1
+    const valid = encodeBallArt(art)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballArt: valid })
+    expect(loadProfile().ballArt).toBe(valid)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballArt: 'мусор' })
+    expect(loadProfile().ballArt).toBeUndefined()
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без поля
+    expect(loadProfile().ballArt).toBeUndefined()
+  })
+
   it('первый запуск: сгенерированное имя-«модель» + цвета из палитры, и сразу сохранён', () => {
     const p = loadProfile()
     expect(p.name).toMatch(MODEL_NAME_RE)

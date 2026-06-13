@@ -158,10 +158,10 @@ export default function App() {
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   // initial читается провайдером один раз — не пересчитываем на каждом рендере (lazy-init, без чтения ref в рендере)
   const [initialLocale] = useState(() => profile.locale ?? detectLocale())
-  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color' }))
+  const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart; ballArt: string | undefined }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color', ballArt: profile.ballArt }))
   // Счётчики кликов превью (windupSeq/respawnSeq/dashSeq/shieldSeq) сохраняются из прежнего стейта: ими
   // владеет App (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
-  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, respawnStyle, dashStyle, shieldStyle, part })), [])
+  const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart, ballArt: string | undefined) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, respawnStyle, dashStyle, shieldStyle, part, ballArt })), [])
   // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
   // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
   const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
@@ -427,7 +427,7 @@ export default function App() {
   // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
   const menuPlayer = screen === 'appearance'
     ? appearancePreview
-    : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
+    : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
 
   // На «Внешности» панель прибита почти к правому краю (небольшой отступ) — всё остальное пространство
   // отдано шару-превью. Сдвиг считается из ИЗМЕРЕННОЙ ширины панели и пересчитывается ТОЛЬКО при смене
@@ -508,7 +508,8 @@ export default function App() {
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
           на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {/* part только на экране «Внешность»: иначе ретенция (напр. shot/paint) держит разворот шара в меню. */}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}

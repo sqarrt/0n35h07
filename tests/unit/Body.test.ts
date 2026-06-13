@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { Body } from '../../src/game/Body'
 import { JUMP_FORCE, DASH_DURATION, MOVE_SPEED, MAX_SPEED } from '../../src/constants'
+import { makeEmptyArt, BALL_ART_SIZE } from '../../src/game/ballArt'
 
 // Body больше не интегрирует позицию (это делает Rapier KCC) — он копит НАМЕРЕНИЕ через скоростную модель.
 describe('Body', () => {
@@ -143,5 +144,14 @@ describe('Body', () => {
     expect(b.dashProgress()).toBe(1)
     b.dash(new THREE.Vector3(0, 0, -1))
     expect(b.dashProgress()).toBeLessThan(1)
+  })
+
+  it('принимает рисунок, setArt не падает, dispose чистит текстуру', () => {
+    const art = makeEmptyArt()
+    art.front[8 * BALL_ART_SIZE + 8] = 1
+    const b = new Body(1, '#4af', 'smooth', '#4af', art)
+    expect(() => b.setArt(art)).not.toThrow()
+    expect(() => b.setArt(null)).not.toThrow()
+    expect(() => b.dispose()).not.toThrow()
   })
 })

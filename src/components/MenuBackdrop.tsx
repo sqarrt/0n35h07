@@ -8,6 +8,7 @@ import { PLAYER_SPOT, OPPONENT_SPOT, cameraStateFor } from './menuStage'
 import type { MenuMode, AppearancePart, MenuCameraState, CameraPoses, CameraPose } from './menuStage'
 import rawPoses from './menuCameraPoses.json'
 import { Body } from '../game/Body'
+import { decodeBallArt } from '../game/ballArt'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 import { MenuEdgeGlow, MENU_GLOW_LAYER } from './MenuEdgeGlow'
 import { createWindupFx } from '../game/fx/windup/createWindupFx'
@@ -80,7 +81,7 @@ const poses: CameraPoses = JSON.parse(JSON.stringify(rawPoses)) as CameraPoses
 const flying = { current: false }
 
 // ringColor — «второй» цвет (кольцо планеты); *Seq — счётчики кликов (триггеры одноразовых превью).
-interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number; dashStyle?: DashStyle; dashSeq?: number; shieldStyle?: ShieldStyle; shieldSeq?: number }
+interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number; dashStyle?: DashStyle; dashSeq?: number; shieldStyle?: ShieldStyle; shieldSeq?: number; ballArt?: string }
 interface ActiveBall { key: string; spec: BallSpec; spot: THREE.Vector3 }
 
 /** Свет медленно облетает шары — блик скользит, модели читаются как «живое» 3D. */
@@ -189,13 +190,15 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   const rootRef = useRef<THREE.Group>(null)
   // Реальный игровой Body (меш + кольцо + faceDir): пересоздаём только по модели, цвета лерпаются в кадре.
   const body = useMemo(() => {
-    const b = new Body(PREVIEW_ENTITY_ID, spec.color, spec.model, spec.ringColor ?? spec.color)
+    const b = new Body(PREVIEW_ENTITY_ID, spec.color, spec.model, spec.ringColor ?? spec.color, decodeBallArt(spec.ballArt) ?? undefined)
     b.material.opacity = 0   // без вспышки до первого кадра
     b.object3d.position.copy(spot)
     return b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec.model])
   useEffect(() => () => body.dispose(), [body])
+  // Живое обновление рисунка на месте (без пересоздания Body/материала) — рисует игрок в «Внешности».
+  useEffect(() => { body.setArt(spec.ballArt ? decodeBallArt(spec.ballArt) : null) }, [body, spec.ballArt])
   // Модель — на слой свечения (depth-пасс MenuEdgeGlow); кольцу включаем depthWrite для обводки.
   useEffect(() => {
     rootRef.current?.traverse(o => o.layers.enable(MENU_GLOW_LAYER))
@@ -378,8 +381,12 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     }
 
     if (!ghostRun && !dashMove) {
-      aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
-      if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
+      if (isPreview && (part === 'paintFront' || part === 'paintBack')) {
+        aimDir.set(0, 0, 1)   // РИСУНОК: фронт-полусфера смотрит в +Z; камера спереди/сзади показывает нужную сторону
+      } else {
+        aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
+        if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
+      }
       body.faceDir(aimDir)
     }
     _meshCenter.copy(body.object3d.position).y += BODY_MESH_Y   // центр сферы (мир)
@@ -495,7 +502,7 @@ type RenderedBall = ActiveBall & { exiting?: boolean }
 
 /** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
 function signOf(balls: ActiveBall[]): string {
-  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}`).join('|')
+  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}:${b.spec.ballArt ?? ''}`).join('|')
 }
 
 function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: { mode: MenuMode; player: BallSpec; room: RoomView | null; appearancePart?: AppearancePart; onReady?: () => void; sfx?: ISfxEngine }) {

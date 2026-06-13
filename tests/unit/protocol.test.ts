@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { toVec3, fromVec3, applyVec3 } from '../../src/net/protocol'
-import type { Snapshot } from '../../src/net/protocol'
+import type { Snapshot, RosterEntry } from '../../src/net/protocol'
 
 describe('protocol Vec3', () => {
   it('toVec3/fromVec3 — roundtrip THREE.Vector3', () => {
@@ -26,5 +26,10 @@ describe('protocol Vec3', () => {
     }
     const round = JSON.parse(JSON.stringify(snap)) as Snapshot
     expect(round).toEqual(snap)
+  })
+
+  it('ballArt переживает JSON round-trip в RosterEntry', () => {
+    const e: RosterEntry = { id: 0, name: 'A', color: '#4af', kind: 'human', ballArt: 'x'.repeat(88) }
+    expect((JSON.parse(JSON.stringify(e)) as RosterEntry).ballArt).toBe('x'.repeat(88))
   })
 })

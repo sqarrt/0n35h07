@@ -25,6 +25,7 @@ import { createBeamFx } from './fx/beam/createBeamFx'
 import { createRespawnFx } from './fx/respawn/createRespawnFx'
 import { createDashFx } from './fx/dash/createDashFx'
 import { createShieldFx } from './fx/shield/createShieldFx'
+import { decodeBallArt } from './ballArt'
 import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
@@ -181,14 +182,15 @@ export class Match {
       const respawnStyle = e.respawnStyle ?? 'echo'
       const dashStyle = e.dashStyle ?? 'streak'
       const shieldStyle = e.shieldStyle ?? 'dome'
+      const ballArt = decodeBallArt(e.ballArt) ?? undefined   // рисунок на шаре (null → нет)
       const p = isBot
-        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
+        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor, ballArt),
             new BeamWeapon({ outerColor: '#f44' }),   // боевой профиль идентичен человеку; красный луч — метка «врага»
             new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)
-        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
+        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor, ballArt),
             new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
             new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
