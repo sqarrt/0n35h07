@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 OneShot — аркадный шутер от первого лица. Стек: React 19 + React Three Fiber (@react-three/fiber 9) +
 Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), сборка Vite 8, TypeScript 6,
-опционально Electron.
+десктоп-сборка Tauri 2.
 
 ## Base rules
 
@@ -67,7 +67,7 @@ Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), с
 - Один юнит-тест: `npx vitest run --config vitest.config.ts tests/unit/Shield.test.ts` (или `-t "имя"`).
 - Один e2e: `npx playwright test --project=headless tests/shooting.spec.ts` (или `-g "подстрока"`).
 - Только типы, без сборки: `npx tsc -b --noEmit`.
-- Electron: `npm run electron:dev`, `npm run electron:build`.
+- Tauri: `npm run tauri:dev`, `npm run tauri:build`.
 
 Замечание по типам: включён `erasableSyntaxOnly` — **нельзя** parameter properties (`constructor(private x)`),
 enum'ы, namespace'ы. Поля объявляй явно и присваивай в теле конструктора.

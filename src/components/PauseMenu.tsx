@@ -4,7 +4,7 @@ import { useT } from '../i18n'
 interface PauseMenuProps {
   resumeDisabled: boolean
   cooldownPct: number     // 0..100 — ширина заливки кулдауна (слева-направо)
-  showExit: boolean       // кнопка ВЫХОД только в Electron
+  showExit: boolean       // кнопка ВЫХОД только на десктопе
   onResume: () => void
   onBack: () => void
   onExit: () => void

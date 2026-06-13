@@ -12,7 +12,7 @@ export function installGameFeelGuards(): void {
   document.addEventListener('contextmenu', e => e.preventDefault())
   // Средняя кнопка — иначе поверх игры запускается «компас» автоскролла.
   document.addEventListener('mousedown', e => { if (e.button === 1) e.preventDefault() })
-  // Файл, уроненный на окно, уводит браузер/Electron со страницы игры.
+  // Файл, уроненный на окно, уводит браузер со страницы игры.
   document.addEventListener('dragover', e => e.preventDefault())
   document.addEventListener('drop', e => e.preventDefault())
   // Tab-обход кнопок с обводкой фокуса — не для шутера. Внутри полей ввода Tab живёт.

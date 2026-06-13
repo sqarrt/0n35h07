@@ -1,4 +1,4 @@
-import { IS_ELECTRON } from '../platform'
+import { IS_DESKTOP } from '../platform'
 
 /**
  * Неймспейс матчмейкинга/транспорта: пулы разделяются ТОЧНОЙ версией игры и платформой
@@ -8,6 +8,6 @@ import { IS_ELECTRON } from '../platform'
  */
 export type ClientPlatform = 'desktop' | 'browser'
 
-export const CLIENT_PLATFORM: ClientPlatform = IS_ELECTRON ? 'desktop' : 'browser'
+export const CLIENT_PLATFORM: ClientPlatform = IS_DESKTOP ? 'desktop' : 'browser'
 export const CLIENT_VERSION = __APP_VERSION__
 export const POOL_NAMESPACE = `${CLIENT_VERSION}:${CLIENT_PLATFORM}`
