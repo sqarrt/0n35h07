@@ -3,6 +3,7 @@ import type { RapierRigidBody } from '@react-three/rapier'
 import type { IControllable, IWeapon, IShield, IDashTrail } from './abstractions'
 import type { World } from './World'
 import { Body } from './Body'
+import { overheatMods } from './overheat'
 import { AfterimageTrail } from './fx/AfterimageTrail'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
@@ -47,6 +48,8 @@ export class Player implements IControllable {
   private spawnTime = -Infinity   // момент начала материализации (респаун)
   private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
+  private moveScale = 1            // множитель скорости от ПЕРЕГРЕВА
+  pierceTargetId: number | null = null   // id соперника, по которому бьём сквозь стены (ставит Match)
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
@@ -157,9 +160,26 @@ export class Player implements IControllable {
   private canAct()  { return !this.frozen && this.alive }
   moveIntent(dir: THREE.Vector3, dt: number) {
     if (!this.canMove()) return
-    const m = this.respawning ? this.respawnSpeedMult() : 1
+    const base = this.respawning ? this.respawnSpeedMult() : 1
+    const m = base * this.moveScale
     this.body.move(m === 1 ? dir : dir.clone().multiplyScalar(m), dt)
   }
+
+  /** Применить ПЕРЕГРЕВ по текущей серии: скорость + кулдауны луча/щита + «сквозь стены». */
+  applyOverheat() {
+    const o = overheatMods(this.streak)
+    this.moveScale = o.speed
+    this.weapon.setCooldownScale(o.beamCd)
+    this.shield.setCooldownScale(o.shieldCd)
+  }
+  /** Награда за снятие серии: мгновенно сбросить кулдауны луча/щита/дэша. */
+  resetCooldowns() {
+    this.weapon.resetCooldown()
+    this.shield.resetCooldown()
+    this.body.resetDashCooldown()
+  }
+  /** Перегрет ли до уровня «сквозь стены» (SINGULARITY). */
+  get seeThrough() { return overheatMods(this.streak).seeThrough }
 
   /** Множитель скорости в фазе призрака: полный ×N, плавно спадающий к ×1 в последней RESPAWN_SPEED_RAMP. */
   private respawnSpeedMult(): number {
@@ -185,7 +205,7 @@ export class Player implements IControllable {
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    this.weapon.update(dt, { world, muzzle, aim, excludeIds })
+    this.weapon.update(dt, { world, muzzle, aim, excludeIds, pierceId: this.pierceTargetId })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })

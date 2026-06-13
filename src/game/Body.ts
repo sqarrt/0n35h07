@@ -159,6 +159,9 @@ export class Body {
     this.desired.y += vy * dt
   }
 
+  /** Мгновенно обнулить кулдаун рывка (награда за снятие серии). */
+  resetDashCooldown() { this.dashCooldown = 0 }
+
   /** Старт рывка: true если кулдаун готов и направление ненулевое. */
   dash(dir: THREE.Vector3): boolean {
     if (this.dashCooldown > 0) return false
