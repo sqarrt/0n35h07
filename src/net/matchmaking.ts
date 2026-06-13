@@ -10,6 +10,7 @@ export interface PoolListing {
   color: string
   map: MapFilter            // набор карт хоста (на коннекте выберется случайная из пересечения с клиентом)
   durationMin: DurationFilter
+  dual: boolean             // владелец листинга тоже ищет (режим both) — для разрывателя ничьей
 }
 
 /** Что готов принять клиент: наборы карт/длительностей (матч есть, если пересекается с набором хоста). */
@@ -67,7 +68,7 @@ export class MatchmakingPool {
   private listingBuckets: string[] = []
   private unsubs: Array<() => void> = []
   private filter: PoolFilter | null = null
-  private matchHandler: ((code: string) => void) | null = null
+  private matchHandler: ((listing: PoolListing) => boolean) | null = null
   private rejected = new Set<string>()
 
   constructor(disco: IDiscovery) { this.disco = disco }
@@ -87,8 +88,8 @@ export class MatchmakingPool {
     this.listingBuckets = []
   }
 
-  /** КЛИЕНТ: подписаться на корзины фильтра; onMatch(code) на первом совместимом (минуя отклонённые). */
-  search(filter: PoolFilter, onMatch: (code: string) => void) {
+  /** КЛИЕНТ: подписаться на корзины фильтра; onMatch(listing)→true консьюмит (поиск стоп), →false — слушаем дальше. */
+  search(filter: PoolFilter, onMatch: (listing: PoolListing) => boolean) {
     this.cancel()
     this.filter = filter
     this.matchHandler = onMatch
@@ -112,9 +113,7 @@ export class MatchmakingPool {
     if (!this.filter || !this.matchHandler) return
     if (this.rejected.has(listing.code)) return
     if (!listingMatches(this.filter, listing)) return   // подстраховка (корзины уже отфильтровали)
-    const cb = this.matchHandler
-    this.cancel()
-    cb(listing.code)
+    if (this.matchHandler(listing)) this.cancel()       // консьюм → отписка; иначе продолжаем слушать
   }
 
   dispose() { this.withdraw(); this.cancel() }

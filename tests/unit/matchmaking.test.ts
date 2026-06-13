@@ -4,7 +4,7 @@ import type { PoolListing } from '../../src/net/matchmaking'
 import { LoopbackDiscovery } from '../../src/net/discovery/LoopbackDiscovery'
 
 const listing = (over: Partial<PoolListing> = {}): PoolListing => ({
-  code: 'AAAA', name: 'RX-580', color: '#4af', map: ['os_arena'], durationMin: [5], ...over,
+  code: 'AAAA', name: 'RX-580', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false, ...over,
 })
 
 describe('matchmaking · совместимость (пересечение наборов)', () => {
@@ -58,8 +58,8 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     const host = new MatchmakingPool(disco)
     const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    host.advertise({ code: 'WXYZ', name: 'RX-580', color: '#4af', map: ['os_arena'], durationMin: [5] })
-    client.search({ map: ['os_arena'], durationMin: [5] }, code => matched.push(code))
+    host.advertise({ code: 'WXYZ', name: 'RX-580', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
+    client.search({ map: ['os_arena'], durationMin: [5] }, l => { matched.push(l.code); return true })
     expect(matched).toEqual(['WXYZ'])
   })
 
@@ -68,8 +68,8 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     const host = new MatchmakingPool(disco)
     const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    host.advertise({ code: 'WXYZ', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5] })
-    client.search({ map: ['os_india'], durationMin: [5] }, code => matched.push(code))
+    host.advertise({ code: 'WXYZ', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
+    client.search({ map: ['os_india'], durationMin: [5] }, l => { matched.push(l.code); return true })
     expect(matched).toEqual([])
   })
 
@@ -78,8 +78,8 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     const host = new MatchmakingPool(disco)
     const client = new MatchmakingPool(disco)
     const matched: string[] = []
-    host.advertise({ code: 'XSET', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5] })
-    client.search({ map: ['os_arena', 'os_india'], durationMin: [5] }, code => matched.push(code))
+    host.advertise({ code: 'XSET', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
+    client.search({ map: ['os_arena', 'os_india'], durationMin: [5] }, l => { matched.push(l.code); return true })
     expect(matched).toEqual(['XSET'])
   })
 
@@ -87,12 +87,12 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco)
     const client = new MatchmakingPool(disco)
-    host.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5] })
+    host.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
     const got: string[] = []
-    client.search({ map: ['os_arena'], durationMin: [5] }, code => got.push(code))
+    client.search({ map: ['os_arena'], durationMin: [5] }, l => { got.push(l.code); return true })
     expect(got).toEqual(['AAAA'])
     client.reject('AAAA')
-    client.search({ map: ['os_arena'], durationMin: [5] }, code => got.push(code))
+    client.search({ map: ['os_arena'], durationMin: [5] }, l => { got.push(l.code); return true })
     expect(got).toEqual(['AAAA'])
   })
 
@@ -101,9 +101,22 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     const host = new MatchmakingPool(disco)
     const client = new MatchmakingPool(disco)
     const got: string[] = []
-    client.search({ map: ['os_arena'], durationMin: [5] }, code => got.push(code))
+    client.search({ map: ['os_arena'], durationMin: [5] }, l => { got.push(l.code); return true })
     client.cancel()
-    host.advertise({ code: 'BBBB', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5] })
+    host.advertise({ code: 'BBBB', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
     expect(got).toEqual([])
+  })
+
+  it('search многоразовый: onMatch→false продолжает слушать, →true останавливает', () => {
+    const disco = new LoopbackDiscovery()
+    const host = new MatchmakingPool(disco)
+    const client = new MatchmakingPool(disco)
+    const seen: string[] = []
+    client.search({ map: ['os_arena'], durationMin: [5] }, l => { seen.push(l.code); return false })
+    host.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: true })
+    // не сконсьюмлено → подписка жива; новый листинг той же корзины снова прилетит
+    const host2 = new MatchmakingPool(disco)
+    host2.advertise({ code: 'BBBB', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: true })
+    expect(seen).toEqual(['AAAA', 'BBBB'])
   })
 })

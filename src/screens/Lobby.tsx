@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
+import type { SearchRole } from '../settings'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
 import type { LobbySlot, OppSlot } from './lobby/types'
@@ -21,7 +22,8 @@ interface LobbyProps {
   durationSel: DurationFilter
   code: string | null
   searching: boolean
-  onToggleRole: () => void
+  mode: SearchRole
+  onSetRole: (mode: SearchRole) => void
   onAddBot: (d?: BotDifficulty) => void
   onRemoveBot: () => void
   onSetBotDifficulty: (d: BotDifficulty) => void
@@ -69,7 +71,7 @@ export function Lobby(props: LobbyProps) {
             </button>
             {showOther && (
               <>
-                <RolePicker isHost={isHost} disabled={opponent !== null} onToggleRole={props.onToggleRole} />
+                <RolePicker mode={props.mode} disabled={opponent !== null} onSetRole={props.onSetRole} />
                 <LobbyCode
                   isHost={isHost} code={code} codeInput={codeInput} inputRef={codeInputRef}
                   onCodeInput={setCodeInput} onSubmit={submitCode}

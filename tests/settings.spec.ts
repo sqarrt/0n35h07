@@ -56,6 +56,12 @@ test('настройки — имя сохраняется и видно в ко
   await expect(page.getByText('ТестБоец', { exact: true })).toBeVisible()
 })
 
+test('настройки — сетевая роль по умолчанию ОБА', async ({ page }) => {
+  await page.getByTestId('menu-settings').click()
+  await page.getByTestId('settings-section-net').click()
+  await expect(page.getByTestId('settings-searchrole-both')).toHaveClass(/seg--on/)
+})
+
 test('настройки — выбор языка применяется сразу и сохраняется в профиль', async ({ page }) => {
   await page.getByTestId('menu-settings').click()
   await expect(page.getByTestId('settings-language-label')).toHaveText(en.settingsLanguage)   // дефолт en (фикстура без locale)

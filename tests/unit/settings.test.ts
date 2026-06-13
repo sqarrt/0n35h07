@@ -132,11 +132,14 @@ describe('settings / PlayerProfile', () => {
 })
 
 describe('settings / searchRole', () => {
-  it('дефолт random; валидное сохраняется; мусор → random', () => {
-    expect(loadProfile().searchRole).toBe('random')
+  it('дефолт both; валидное сохраняется; мусор/legacy random → both', () => {
+    expect(loadProfile().searchRole).toBe('both')
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'client' })
     expect(loadProfile().searchRole).toBe('client')
+    // legacy 'random' и любой мусор мигрируют в both
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'random' as never })
+    expect(loadProfile().searchRole).toBe('both')
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'xx' as never })
-    expect(loadProfile().searchRole).toBe('random')
+    expect(loadProfile().searchRole).toBe('both')
   })
 })

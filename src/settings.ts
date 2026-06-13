@@ -5,7 +5,7 @@ import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 
 export type DefaultView = 'fp' | 'tp'
-export type SearchRole = 'host' | 'client' | 'random'
+export type SearchRole = 'both' | 'host' | 'client'
 
 export interface PlayerProfile {
   name: string
@@ -43,7 +43,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'random', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
 // Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
@@ -61,7 +61,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
-  const searchRole: SearchRole = p.searchRole === 'host' || p.searchRole === 'client' ? p.searchRole : 'random'
+  const searchRole: SearchRole = p.searchRole === 'host' || p.searchRole === 'client' ? p.searchRole : 'both'
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const windupStyle: WindupStyle = WINDUP_STYLES.includes(p.windupStyle as WindupStyle) ? (p.windupStyle as WindupStyle) : 'classic'
   const respawnStyle: RespawnStyle = RESPAWN_STYLES.includes(p.respawnStyle as RespawnStyle) ? (p.respawnStyle as RespawnStyle) : 'echo'
