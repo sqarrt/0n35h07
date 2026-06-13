@@ -642,7 +642,8 @@ export class Match {
     const color = this.colorOf.get(shooterId) ?? '#4af'
     this.dispatch({ type: 'ANNOUNCE', name, color, kind })
     this.sfx?.play2D(announceSfx(kind))
-    window.__debugLastAnnounce = kind   // для e2e
+    window.__debugLastAnnounce = kind                 // для e2e
+    ;(window.__debugAnnounces ??= []).push(kind)      // вся история анонсов (первый = catalyst)
   }
 
   /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
