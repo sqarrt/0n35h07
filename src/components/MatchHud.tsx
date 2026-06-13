@@ -12,6 +12,7 @@ interface MatchHudProps {
   localId: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
+  ended?: boolean   // конец матча: бар вырастает и уезжает в центр (итоговый счёт)
 }
 
 function fmt(sec: number | null): string {
@@ -23,7 +24,7 @@ function fmt(sec: number | null): string {
 }
 
 /** Постоянный HUD: ваши фраги · таймер · фраги соперника. Ник на серии подсвечивается эффектом тира. */
-export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts }: MatchHudProps) {
+export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts, ended = false }: MatchHudProps) {
   const t = useT()
   const me = roster.find(r => r.id === localId)
   const opp = roster.find(r => r.id !== localId)
@@ -41,7 +42,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
     return <EffectText text={name} kind={tier} color={entry?.color ?? '#4af'} testid={testid} dataStreak={tier ?? undefined} />
   }
   return (
-    <div className="match-hud">
+    <div className={ended ? 'match-hud ended' : 'match-hud'} data-testid="match-hud">
       <div className="side you" style={{ color: me?.color }}>
         {dots(me?.id, 'streak-dots-you')}<span>{nick(me, t.hudYou, 'hud-name-you')}</span>
         <span className="frag">{kills(me?.name)}</span>
