@@ -29,7 +29,7 @@ describe('protocol Vec3', () => {
   })
 
   it('ballArt переживает JSON round-trip в RosterEntry', () => {
-    const e: RosterEntry = { id: 0, name: 'A', color: '#4af', kind: 'human', ballArt: 'x'.repeat(344) }
-    expect((JSON.parse(JSON.stringify(e)) as RosterEntry).ballArt).toBe('x'.repeat(344))
+    const e: RosterEntry = { id: 0, name: 'A', color: '#4af', kind: 'human', ballArt: 'x'.repeat(88) }
+    expect((JSON.parse(JSON.stringify(e)) as RosterEntry).ballArt).toBe('x'.repeat(88))
   })
 })

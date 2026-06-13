@@ -5,14 +5,14 @@ import * as THREE from 'three'
 // для buildArtTexture (сборка DataTexture). Дисковая (азимутальная) проекция: центр диска = полюс
 // полусферы, край r=1 = силуэт шара; перёд = полусфера, обращённая к прицелу (локальная −Z).
 
-export const BALL_ART_SIZE = 32
-export const BALL_ART_CELLS = BALL_ART_SIZE * BALL_ART_SIZE   // 1024 клетки на сторону
-const BYTES_PER_SIDE = BALL_ART_CELLS / 8                     // 128 байт на сторону
-const BALL_ART_BYTES = BYTES_PER_SIDE * 2                     // 256 байт всего
-const BASE64_LEN = 344                                        // длина base64 от 256 байт
+export const BALL_ART_SIZE = 16
+export const BALL_ART_CELLS = BALL_ART_SIZE * BALL_ART_SIZE   // 256 клеток на сторону
+const BYTES_PER_SIDE = BALL_ART_CELLS / 8                     // 32 байта на сторону
+const BALL_ART_BYTES = BYTES_PER_SIDE * 2                     // 64 байта всего
+const BASE64_LEN = Math.ceil(BALL_ART_BYTES / 3) * 4          // длина base64 (64 байта → 88 символов)
 
-export const ART_TEX_W = BALL_ART_SIZE * 2   // 64: перёд|зад в одной текстуре
-export const ART_TEX_H = BALL_ART_SIZE       // 32
+export const ART_TEX_W = BALL_ART_SIZE * 2   // 32: перёд|зад в одной текстуре
+export const ART_TEX_H = BALL_ART_SIZE       // 16
 
 const HALF = BALL_ART_SIZE / 2               // 16: центр диска в координатах сетки
 const HALF_PI = Math.PI / 2

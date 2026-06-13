@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { createBallMaterial, createBallRing } from '../../src/game/fx/ballMaterial'
-import { makeEmptyArt, BALL_ART_SIZE } from '../../src/game/ballArt'
+import { makeEmptyArt, BALL_ART_SIZE, ART_TEX_W } from '../../src/game/ballArt'
 
 // Шейдер компилит R3F при рендере (GL в jsdom нет) — проверяем конструкцию материала и tick, без рендера.
 describe('createBallMaterial', () => {
@@ -26,12 +26,12 @@ describe('createBallMaterial', () => {
     const ball = createBallMaterial('#4af', 'smooth')
     const before = ball.material
     const art = makeEmptyArt()
-    art.front[16 * BALL_ART_SIZE + 16] = 1
+    art.front[8 * BALL_ART_SIZE + 8] = 1
     ball.setArt(art)
     expect(ball.material).toBe(before)               // материал не пересоздан
-    // клетка (16,16) перёд → texel (16, 31-16=15) = 0 (закрашено) в данных текстуры
+    // клетка (8,8) перёд → texel (8, SIZE-1-8) = 0 (закрашено) в данных текстуры
     const data = ball.artTexture.image.data as Uint8Array
-    expect(data[(15 * 64 + 16) * 4]).toBe(0)
+    expect(data[((BALL_ART_SIZE - 1 - 8) * ART_TEX_W + 8) * 4]).toBe(0)
     expect(() => ball.dispose()).not.toThrow()
   })
 })

@@ -7,17 +7,17 @@ import {
 describe('ballArt codec', () => {
   it('round-trip: encode→decode сохраняет закрашенные клетки', () => {
     const art = makeEmptyArt()
-    art.front[16 * BALL_ART_SIZE + 16] = 1
+    art.front[8 * BALL_ART_SIZE + 8] = 1
     art.back[0] = 1
     const decoded = decodeBallArt(encodeBallArt(art))!
     expect(decoded).not.toBeNull()
-    expect(decoded.front[16 * BALL_ART_SIZE + 16]).toBe(1)
+    expect(decoded.front[8 * BALL_ART_SIZE + 8]).toBe(1)
     expect(decoded.back[0]).toBe(1)
     expect(decoded.front[0]).toBe(0)
   })
 
-  it('encode даёт строку длиной 344 (256 байт base64)', () => {
-    expect(encodeBallArt(makeEmptyArt()).length).toBe(344)
+  it('encode даёт строку длиной 88 (64 байта base64)', () => {
+    expect(encodeBallArt(makeEmptyArt()).length).toBe(88)
   })
 
   it('decode отвергает мусор → null', () => {
@@ -38,9 +38,9 @@ describe('ballArt codec', () => {
 
 describe('ballArt disc geometry', () => {
   it('cellInDisc: центр внутри, угол снаружи', () => {
-    expect(cellInDisc(16, 16)).toBe(true)
+    expect(cellInDisc(8, 8)).toBe(true)
     expect(cellInDisc(0, 0)).toBe(false)        // угол сетки вне вписанного круга
-    expect(cellInDisc(31, 31)).toBe(false)
+    expect(cellInDisc(15, 15)).toBe(false)
   })
 
   it('artUvForNormal: полюс −Z → центр переднего диска (u≈0.25, v≈0.5)', () => {
@@ -62,13 +62,13 @@ describe('ballArt disc geometry', () => {
 })
 
 describe('ballArt texture data', () => {
-  it('writeArtData: закрашенная клетка (16,15) перёд → texel (16,16) = 0, остальное 255', () => {
+  it('writeArtData: закрашенная клетка (8,7) перёд → texel (8,8) = 0, остальное 255', () => {
     const art = makeEmptyArt()
-    art.front[15 * BALL_ART_SIZE + 16] = 1                  // cy=15, cx=16
+    art.front[7 * BALL_ART_SIZE + 8] = 1                    // cy=7, cx=8
     const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)
     writeArtData(art, data)
-    const ty = BALL_ART_SIZE - 1 - 15                       // 16 (флип)
-    const idx = (ty * ART_TEX_W + 16) * 4
+    const ty = BALL_ART_SIZE - 1 - 7                        // 8 (флип)
+    const idx = (ty * ART_TEX_W + 8) * 4
     expect(data[idx]).toBe(0)                               // R закрашенной клетки
     expect(data[idx + 3]).toBe(255)                         // A
     expect(data[0]).toBe(255)                               // незакрашенная клетка — белая
@@ -76,7 +76,7 @@ describe('ballArt texture data', () => {
 
   it('соответствие: artUvForNormal(0,0,-1) указывает на закрашенный texel', () => {
     const art = makeEmptyArt()
-    art.front[15 * BALL_ART_SIZE + 16] = 1
+    art.front[7 * BALL_ART_SIZE + 8] = 1
     const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)
     writeArtData(art, data)
     const uv = artUvForNormal(0, 0, -1)

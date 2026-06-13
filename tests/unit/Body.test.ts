@@ -148,7 +148,7 @@ describe('Body', () => {
 
   it('принимает рисунок, setArt не падает, dispose чистит текстуру', () => {
     const art = makeEmptyArt()
-    art.front[16 * BALL_ART_SIZE + 16] = 1
+    art.front[8 * BALL_ART_SIZE + 8] = 1
     const b = new Body(1, '#4af', 'smooth', '#4af', art)
     expect(() => b.setArt(art)).not.toThrow()
     expect(() => b.setArt(null)).not.toThrow()
