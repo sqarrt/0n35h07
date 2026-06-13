@@ -165,10 +165,10 @@ export class Body {
   /** Мгновенно обнулить кулдаун рывка (награда за снятие серии). */
   resetDashCooldown() { this.dashCooldown = 0 }
 
-  /** Старт рывка: true если кулдаун готов и направление ненулевое. */
+  /** Старт рывка: true если кулдаун готов и направление ненулевое. Направление 3D — рывок учитывает наклон взгляда. */
   dash(dir: THREE.Vector3): boolean {
     if (this.dashCooldown > 0) return false
-    this.dashDir.set(dir.x, 0, dir.z)
+    this.dashDir.set(dir.x, dir.y, dir.z)
     if (this.dashDir.lengthSq() === 0) return false
     this.dashDir.normalize()
     this.dashTimer = DASH_DURATION

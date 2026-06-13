@@ -115,6 +115,13 @@ describe('Body', () => {
     expect(b.consumeDesired().z).toBeLessThan(0)
   })
 
+  it('рывок учитывает вертикаль: dash вверх двигает desired.y вверх (не только горизонталь)', () => {
+    const b = new Body(0, '#4af')
+    b.dash(new THREE.Vector3(0, 1, 0))   // строго вверх
+    b.stepDash(0.016)
+    expect(b.consumeDesired().y).toBeGreaterThan(0)
+  })
+
   it('dashing=false после окончания окна', () => {
     const b = new Body(0, '#4af')
     b.dash(new THREE.Vector3(0, 0, -1))
