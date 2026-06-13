@@ -28,6 +28,7 @@ export interface HUDState {
   matchResult: MatchResult | null
   respawning: { progress: number } | null
   streaks: Record<number, StreakTier | null>   // постоянная подсветка ника по серии (id → тир)
+  streakCounts: Record<number, number>         // число серии (для точек у имён)
   beamFlash: boolean
   playerHit: boolean
   shieldBlock: boolean
@@ -47,7 +48,7 @@ export type HUDAction =
   | { type: 'SET_RESPAWNING';      progress: number | null }
   | { type: 'SET_MATCH_TIME';      seconds: number | null }
   | { type: 'SET_MATCH_RESULT';    result: MatchResult }
-  | { type: 'SET_STREAK';          id: number; tier: StreakTier | null }
+  | { type: 'SET_STREAK';          id: number; tier: StreakTier | null; count: number }
   | { type: 'RESET_MATCH' }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
@@ -73,6 +74,7 @@ export const initialHUD: HUDBase = {
   matchResult: null as MatchResult | null,
   respawning: null as { progress: number } | null,
   streaks: {},
+  streakCounts: {},
 }
 
 /** Действия, идущие в reducer (без transient-флэшей и ANNOUNCE — те перехватывает обёртка dispatch). */
@@ -91,8 +93,10 @@ export function hudReducer(state: HUDBase, action: HUDReducerAction): HUDBase {
     case 'SET_RESPAWNING':      return { ...state, respawning: action.progress === null ? null : { progress: action.progress } }
     case 'SET_MATCH_TIME':      return { ...state, matchTime: action.seconds }
     case 'SET_MATCH_RESULT':    return { ...state, matchResult: action.result }
-    case 'SET_STREAK':          return { ...state, streaks: { ...state.streaks, [action.id]: action.tier } }
-    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [], respawning: null, streaks: {} }
+    case 'SET_STREAK':          return { ...state,
+      streaks: { ...state.streaks, [action.id]: action.tier },
+      streakCounts: { ...state.streakCounts, [action.id]: action.count } }
+    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [], respawning: null, streaks: {}, streakCounts: {} }
     default: return state
   }
 }

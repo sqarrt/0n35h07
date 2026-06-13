@@ -656,8 +656,8 @@ export class Match {
   }
 
   private announceStreak(shooterId: number, victimId: number, streak: number, firstBlood: boolean) {
-    this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak) })
-    this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null })
+    this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak), count: streak })
+    this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null, count: 0 })
     const kind = announceKind(streak, firstBlood)
     if (!kind) return
     const name = this.byId.get(shooterId)?.name ?? ''

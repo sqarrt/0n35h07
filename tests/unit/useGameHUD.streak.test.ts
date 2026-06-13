@@ -9,8 +9,17 @@ describe('useGameHUD · streaks', () => {
     expect(s.streaks[1]).toBeNull()
   })
   it('RESET_MATCH очищает streaks', () => {
-    let s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 0, tier: 'singularity' })
+    let s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 0, tier: 'singularity', count: 5 })
     s = hudReducer(s, { type: 'RESET_MATCH' })
     expect(s.streaks).toEqual({})
+  })
+  it('SET_STREAK сохраняет счётчик серии (для точек)', () => {
+    const s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 1, tier: 'triple', count: 4 })
+    expect(s.streakCounts[1]).toBe(4)
+  })
+  it('RESET_MATCH очищает streakCounts', () => {
+    let s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 0, tier: 'double', count: 2 })
+    s = hudReducer(s, { type: 'RESET_MATCH' })
+    expect(s.streakCounts).toEqual({})
   })
 })
