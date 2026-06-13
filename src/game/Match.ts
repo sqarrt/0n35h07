@@ -26,7 +26,6 @@ import { createRespawnFx } from './fx/respawn/createRespawnFx'
 import { createDashFx } from './fx/dash/createDashFx'
 import { createShieldFx } from './fx/shield/createShieldFx'
 import {
-  BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
@@ -184,9 +183,8 @@ export class Match {
       const shieldStyle = e.shieldStyle ?? 'dome'
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
-            new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
-            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION,
-              shieldFx: createShieldFx(shieldStyle) }),
+            new BeamWeapon({ outerColor: '#f44' }),   // боевой профиль идентичен человеку; красный луч — метка «врага»
+            new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)

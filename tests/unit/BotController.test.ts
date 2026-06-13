@@ -5,12 +5,12 @@ import { Body } from '../../src/game/Body'
 import { BeamWeapon } from '../../src/game/BeamWeapon'
 import { Shield } from '../../src/game/Shield'
 import { BotController } from '../../src/game/controllers/BotController'
-import { BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL, EYE_HEIGHT } from '../../src/constants'
+import { EYE_HEIGHT } from '../../src/constants'
 
 function makeBot(id = 1) {
-  const p = new Player(id, new Body(id, '#5af'),
-    new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0 }),
-    new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION }),
+  const p = new Player(id, new Body(id, '#5af'),   // боевой профиль бота идентичен человеку (дефолтные оружие/щит)
+    new BeamWeapon(),
+    new Shield(),
     '#5af')
   p.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, 0))
   return p
