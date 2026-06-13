@@ -79,7 +79,7 @@ export const pl = {
   settingsViewTp: '3. OSOBA',
   settingsVolumeGroup: 'GŁOŚNOŚĆ',
   settingsVolMaster: 'GŁOŚNOŚĆ OGÓLNA',
-  settingsVolMusic: 'MUZYKA',
+  settingsVolMusic: 'MUZYKA W GRZE',
   settingsVolMenuMusic: 'MUZYKA W MENU',
   settingsVolSfx: 'EFEKTY',
   settingsConnTimeout: 'LIMIT CZASU POŁĄCZENIA',

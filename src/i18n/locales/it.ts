@@ -79,7 +79,7 @@ export const it = {
   settingsViewTp: 'TERZA PERSONA',
   settingsVolumeGroup: 'VOLUME',
   settingsVolMaster: 'VOLUME GENERALE',
-  settingsVolMusic: 'MUSICA',
+  settingsVolMusic: 'MUSICA IN GIOCO',
   settingsVolMenuMusic: 'MUSICA DEL MENU',
   settingsVolSfx: 'EFFETTI',
   settingsConnTimeout: 'TIMEOUT CONNESSIONE STANZA',
