@@ -49,7 +49,7 @@ export class Player implements IControllable {
   private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
   private moveScale = 1            // множитель скорости от ПЕРЕГРЕВА
-  pierceTarget: { id: number; pos: THREE.Vector3 } | null = null   // перегретый соперник (бьём сквозь стены); ставит Match
+  pierceWalls = false              // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты; ставит Match
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
@@ -165,13 +165,12 @@ export class Player implements IControllable {
     this.body.move(m === 1 ? dir : dir.clone().multiplyScalar(m), dt)
   }
 
-  /** Применить ПЕРЕГРЕВ по текущей серии: скорость + кулдауны луча/щита + «сквозь стены». */
+  /** Применить ПЕРЕГРЕВ по текущей серии: скорость + кулдауны луча/щита. */
   applyOverheat() {
     const o = overheatMods(this.streak)
     this.moveScale = o.speed
     this.weapon.setCooldownScale(o.beamCd)
     this.shield.setCooldownScale(o.shieldCd)
-    this.body.setSeeThrough(o.seeThrough)
   }
   /** Награда за снятие серии: мгновенно сбросить кулдауны луча/щита/дэша. */
   resetCooldowns() {
@@ -206,7 +205,7 @@ export class Player implements IControllable {
     const muzzle = this.muzzle()
     const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    this.weapon.update(dt, { world, muzzle, aim, excludeIds, pierceTarget: this.pierceTarget })
+    this.weapon.update(dt, { world, muzzle, aim, excludeIds, pierceWalls: this.pierceWalls })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })

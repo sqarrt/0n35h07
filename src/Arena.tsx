@@ -57,13 +57,13 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
       <RigidBody type="fixed" colliders={false}>
         <MeshCollider type="trimesh">
           {raycast && (
-            // Укрытия — на слое блоков (BLOCK_LAYER) → попадают в контур рёбер.
-            <mesh geometry={raycast} castShadow receiveShadow onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+            // Укрытия — на слое блоков (BLOCK_LAYER) → попадают в контур рёбер. block — для ПРОСТРЕЛА/прозрачности.
+            <mesh geometry={raycast} castShadow receiveShadow userData={{ block: true }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
               <meshStandardMaterial vertexColors />
             </mesh>
           )}
           {noRaycast && (
-            <mesh geometry={noRaycast} castShadow receiveShadow userData={{ noRaycast: true }}>
+            <mesh geometry={noRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true }}>
               <meshStandardMaterial vertexColors />
             </mesh>
           )}

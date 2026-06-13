@@ -15,7 +15,7 @@ export interface WeaponContext {
   muzzle:     THREE.Vector3
   aim:        THREE.Vector3
   excludeIds: number[]
-  pierceTarget?: { id: number; pos: THREE.Vector3 } | null   // перегретая цель: бьём сквозь стены, если луч проходит рядом
+  pierceWalls?: boolean   // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты
 }
 
 export interface FireOutcome {

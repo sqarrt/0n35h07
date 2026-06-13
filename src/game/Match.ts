@@ -95,6 +95,7 @@ export class Match {
   phase: MatchPhase = 'live'           // ритуал входа (1v1): ready → countdown → live
 
   private world: World
+  private singularityActive = false   // режим SINGULARITY: прострел обоим + прозрачные блоки (трекаем для смены)
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: id игрока → его контроллер
   private byId = new Map<number, Player>()
@@ -264,13 +265,9 @@ export class Match {
 
     if (this.role === 'client') {
       // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
+      // ПЕРЕГРЕВ + SINGULARITY (прострел/прозрачные блоки) ДО прицела — иначе aimPoint на кадр отстаёт.
+      this.applyComeback()
       this.humanController.update(dt)
-      // ПЕРЕГРЕВ своему игроку (для предсказания скорости/кулдаунов) + pierce-цель = перегретый соперник.
-      this.human.applyOverheat()
-      {
-        const opp = this.players.find(q => q !== this.human)
-        this.human.pierceTarget = opp && opp.seeThrough ? { id: opp.id, pos: opp.position } : null
-      }
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
@@ -646,12 +643,15 @@ export class Match {
   }
 
   /** Подсветка ника по серии (shooter), сброс у жертвы; на рубеже — баннер + 2D-звук. Зовётся и host, и client. */
-  /** Каждый кадр (host): ПЕРЕГРЕВ по серии у всех + pierce-цель = перегретый соперник на SINGULARITY. */
+  /** Каждый кадр: ПЕРЕГРЕВ по серии у всех + режим SINGULARITY (прострел ОБОИМ + прозрачные блоки),
+   *  если ХОТЬ КТО-ТО достиг ×5. Зовётся и host, и client (визуал/предсказание у обоих одинаковы). */
   private applyComeback() {
     for (const p of this.players) p.applyOverheat()
-    for (const p of this.players) {           // строго 1v1: цель прострела для p — другой игрок, если seeThrough
-      const opp = this.players.find(q => q !== p)
-      p.pierceTarget = opp && opp.seeThrough ? { id: opp.id, pos: opp.position } : null
+    const singularity = this.players.some(p => p.seeThrough)
+    for (const p of this.players) p.pierceWalls = singularity
+    if (singularity !== this.singularityActive) {
+      this.singularityActive = singularity
+      this.world.setBlocksTransparent(singularity)
     }
   }
 
@@ -812,6 +812,7 @@ export class Match {
     delete w.__debugForceEnd
     delete w.__debugPlayerSpeed
     delete w.__debugPhysicsReady
+    if (this.singularityActive) this.world.setBlocksTransparent(false)   // вернуть блоки непрозрачными
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }

@@ -38,5 +38,5 @@ test('фраг засчитывается (kills>=1) и у стрелка поя
   // у стрелка (клиент, id1 = «you» на его странице) появились точки серии
   await client.bringToFront()
   await expect.poll(() => client.evaluate(() => document.querySelector('[data-testid="streak-dots-you"]')?.textContent ?? ''), { timeout: 8000 })
-    .toMatch(/•/)
+    .toMatch(/●/)
 })
