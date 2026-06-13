@@ -86,7 +86,7 @@ describe('Match', () => {
   it('попадание в бота со щитом → BOT_SHIELD_HIT, без хита', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
-    match.bots[0].activateShield()     // щит держится 1500мс > windup
+    match.bots[0].activateShield()     // щит держится 800мс > попадание (~400мс)
     match.humanController.onFire()
     step(match, scene, 45)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
