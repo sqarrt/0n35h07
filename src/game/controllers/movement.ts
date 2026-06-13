@@ -31,11 +31,15 @@ export function moveVelocity(
   return vel
 }
 
-/** Направление рывка из WASD (null — нет нажатых клавиш движения). */
-export function dashDirection(keys: MoveKeys, dir: THREE.Vector3, right: THREE.Vector3): THREE.Vector3 | null {
+/**
+ * Направление рывка из WASD с учётом камеры: forward/back — по ПОЛНОМУ взгляду `look` (с наклоном,
+ * поэтому рывок идёт вверх/вниз когда смотришь вверх/вниз), strafe (A/D) — строго горизонтально по `right`.
+ * `look` ожидается единичным 3D-вектором взгляда. null — нет нажатых клавиш движения (рывок «в пустоту» не делаем).
+ */
+export function dashDirection(keys: MoveKeys, look: THREE.Vector3, right: THREE.Vector3): THREE.Vector3 | null {
   const d = new THREE.Vector3()
-  if (keys.forward) d.add(dir)
-  if (keys.back)    d.sub(dir)
+  if (keys.forward) d.add(look)
+  if (keys.back)    d.sub(look)
   if (keys.right)   d.add(right)
   if (keys.left)    d.sub(right)
   return d.lengthSq() === 0 ? null : d.normalize()

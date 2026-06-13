@@ -30,7 +30,7 @@ export function intentsFromInput(player: Player, frame: InputFrame, dt: number, 
   if (frame.shield) player.activateShield()
   if (frame.fire)   player.startFiring()
   if (frame.dash) {
-    const d = dashDirection(keys, dir, right)
+    const d = dashDirection(keys, aimDir, right)   // aimDir — полный взгляд (с наклоном); right — горизонтальный
     if (d) player.dash(d)
   }
 }

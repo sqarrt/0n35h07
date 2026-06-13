@@ -53,8 +53,9 @@ export class HumanController implements Controller {
   onDash() {
     if (!document.pointerLockElement) return
     this.pending.dash = true
-    const { dir, right } = this.basis()
-    const d = dashDirection(this.keys.current, dir, right)
+    const world = this.camera.getWorldDirection(this.tmp)      // полный взгляд (с наклоном)
+    const { right } = horizontalBasis(world)                   // strafe-ось — горизонтальная
+    const d = dashDirection(this.keys.current, world.clone().normalize(), right)
     if (d) this.player.dash(d)
   }
   shake()     { this.shakeFrames = 5 }
