@@ -19,7 +19,7 @@ export default defineConfig({
         description: 'Аркадный шутер от первого лица, строго 1v1 (p2p)',
         theme_color: '#000000',
         background_color: '#000000',
-        display: 'standalone',
+        display: 'fullscreen',
         start_url: '.',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
