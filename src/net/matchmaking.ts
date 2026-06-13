@@ -42,19 +42,19 @@ export function resolveMatchParams(
   }
 }
 
-/** Ключ корзины discovery по конкретным карте+времени. */
-export function bucketKey(map: MapId, durationMin: number): string {
-  return `mm:${map}:${durationMin}`
+/** Ключ корзины discovery по конкретным карте+времени внутри неймспейса (версия+платформа). */
+export function bucketKey(map: MapId, durationMin: number, namespace: string): string {
+  return `mm:${namespace}:${map}:${durationMin}`
 }
 
-/** Корзины, в которые ХОСТ публикует листинг: кросс-произведение выбранных карт × длительностей. */
-export function bucketsForListing(map: MapFilter, durationMin: DurationFilter): string[] {
-  return map.flatMap(m => durationMin.map(d => bucketKey(m, d)))
+/** Корзины, в которые ХОСТ публикует листинг: кросс-произведение выбранных карт × длительностей (в неймспейсе). */
+export function bucketsForListing(map: MapFilter, durationMin: DurationFilter, namespace: string): string[] {
+  return map.flatMap(m => durationMin.map(d => bucketKey(m, d, namespace)))
 }
 
 /** Корзины, на которые КЛИЕНТ подписывается: те же правила, что у листинга. */
-export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter): string[] {
-  return bucketsForListing(map, durationMin)
+export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter, namespace: string): string[] {
+  return bucketsForListing(map, durationMin, namespace)
 }
 
 /**
@@ -64,6 +64,7 @@ export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter): s
  */
 export class MatchmakingPool {
   private disco: IDiscovery
+  private namespace: string                  // версия+платформа: пулы разных версий/платформ не пересекаются
   private listing: PoolListing | null = null
   private listingBuckets: string[] = []
   private unsubs: Array<() => void> = []
@@ -71,13 +72,13 @@ export class MatchmakingPool {
   private matchHandler: ((listing: PoolListing) => boolean) | null = null
   private rejected = new Set<string>()
 
-  constructor(disco: IDiscovery) { this.disco = disco }
+  constructor(disco: IDiscovery, namespace: string) { this.disco = disco; this.namespace = namespace }
 
   /** ХОСТ: опубликовать листинг во все совместимые корзины (фан по «any»-осям). */
   advertise(listing: PoolListing) {
     this.withdraw()
     this.listing = listing
-    this.listingBuckets = bucketsForListing(listing.map, listing.durationMin)
+    this.listingBuckets = bucketsForListing(listing.map, listing.durationMin, this.namespace)
     for (const b of this.listingBuckets) this.disco.publish(b, listing)
   }
 
@@ -93,7 +94,7 @@ export class MatchmakingPool {
     this.cancel()
     this.filter = filter
     this.matchHandler = onMatch
-    for (const b of bucketsForFilter(filter.map, filter.durationMin)) {
+    for (const b of bucketsForFilter(filter.map, filter.durationMin, this.namespace)) {
       this.unsubs.push(this.disco.subscribe(b, l => this.onListing(l)))
     }
   }
