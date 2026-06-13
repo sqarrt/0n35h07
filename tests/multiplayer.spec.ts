@@ -58,6 +58,23 @@ async function startMatch(context: import('@playwright/test').BrowserContext) {
   return { host, client }
 }
 
+test('1v1: оба в режиме ОБА находят друг друга и стартуют', async ({ context }) => {
+  const host = await context.newPage()
+  const client = await context.newPage()
+  for (const p of [host, client]) {
+    await p.goto('/')
+    await p.getByTestId('menu-play').click()
+    await p.getByTestId('lobby-search').click()   // дефолт ОБА: advertise(dual)+search
+  }
+  // Разрыватель ничьей сведёт их в одно соединение → у обоих появится ГОТОВ.
+  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  await host.getByTestId('lobby-ready').click()
+  await client.getByTestId('lobby-ready').click()
+  await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
+  await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
+})
+
 test('1v1: движение хоста видно у клиента', async ({ context }) => {
   const { host, client } = await startMatch(context)
   await expect.poll(() => host.evaluate(() => (window as any).__debugRole())).toBe('host')
