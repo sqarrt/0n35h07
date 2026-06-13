@@ -12,7 +12,6 @@ interface EffectTextProps {
   text: string
   kind: FxKind | null      // null → обычный текст без эффекта
   color: string            // цвет игрока (--pc)
-  slot?: boolean           // фиксированный слот по ширине (для ника в таймере)
   testid?: string
   dataStreak?: string      // значение data-streak (для e2e на нике)
 }
@@ -28,7 +27,7 @@ export function EffectDefs() {
   )
 }
 
-export function EffectText({ text, kind, color, slot, testid, dataStreak }: EffectTextProps) {
+export function EffectText({ text, kind, color, testid, dataStreak }: EffectTextProps) {
   const [shown, setShown] = useState(text)
   const baseRef = useRef(text)
   baseRef.current = text
@@ -51,8 +50,9 @@ export function EffectText({ text, kind, color, slot, testid, dataStreak }: Effe
     return <div className="nm" data-testid={testid}>{text}</div>
   }
 
-  const style = { '--pc': color, '--w': `${text.length}ch` } as CSSProperties
-  const cls = `fx fx--${kind}${slot ? ' fx--slot' : ''}`
+  const style = { '--pc': color } as CSSProperties
+  // .nm даёт единую HUD-типографику (вне .match-hud класс .nm безвреден); .fx — только оформление.
+  const cls = `nm fx fx--${kind}`
   const isCatalyst = kind === 'catalyst'
 
   return (

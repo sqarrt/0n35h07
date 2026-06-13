@@ -31,7 +31,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks }: MatchH
   const nick = (entry: RosterEntry | undefined, fallback: string, testid: string) => {
     const name = display(entry, fallback)
     const tier = entry ? (streaks[entry.id] ?? null) : null
-    return <EffectText text={name} kind={tier} color={entry?.color ?? '#4af'} slot testid={testid} dataStreak={tier ?? undefined} />
+    return <EffectText text={name} kind={tier} color={entry?.color ?? '#4af'} testid={testid} dataStreak={tier ?? undefined} />
   }
   return (
     <div className="match-hud">
