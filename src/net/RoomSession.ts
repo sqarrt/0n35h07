@@ -66,7 +66,7 @@ export class RoomSession {
       if (sel.map.length) this.mapId = sel.map[0]
       if (sel.durationMin.length) this.durationMin = sel.durationMin[0]
     }
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle }
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
@@ -93,7 +93,7 @@ export class RoomSession {
     // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → комната 1v1 полна.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
     const name = (hello.name || '').trim() || 'Соперник'
-    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome' }
+    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
     this.clientPeer = from
     this.readyIds.delete(OPPONENT_ID)   // новый человек ещё не готов (вытеснил бота)
     this.resolveAgainst(hello.desiredMap ?? ALL_MAPS, hello.desiredDuration ?? ALL_DURS)
@@ -204,8 +204,8 @@ export class RoomSession {
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
-      const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } = this.profile
-      this.net.broadcast('hello', { name, primaryColor, reserveColor, desiredMap: this.selMap, desiredDuration: this.selDuration, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle } satisfies Hello)
+      const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt } = this.profile
+      this.net.broadcast('hello', { name, primaryColor, reserveColor, desiredMap: this.selMap, desiredDuration: this.selDuration, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {

@@ -29,8 +29,9 @@ export interface RosterEntry {
   respawnStyle?: RespawnStyle  // анимация респавна (косметика); нет → 'echo'
   dashStyle?: DashStyle        // скин следа рывка (косметика); нет → 'streak'
   shieldStyle?: ShieldStyle    // скин щита (косметика); нет → 'dome'
+  ballArt?: string             // рисунок на шаре (base64, перёд/зад 32×32); нет → пусто
 }
-export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle }
+export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
 export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[] }
 /** Клиент → хост: смена готовности в лобби. */
 export interface ReadyMsg { ready: boolean }

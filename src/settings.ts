@@ -3,6 +3,7 @@ import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } fro
 import { LOCALES } from './i18n'
 import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
+import { decodeBallArt } from './game/ballArt'
 
 export type DefaultView = 'fp' | 'tp'
 export type SearchRole = 'both' | 'host' | 'client'
@@ -18,6 +19,7 @@ export interface PlayerProfile {
   respawnStyle: RespawnStyle // анимация респавна (сетевая косметика)
   dashStyle: DashStyle       // скин следа рывка (сетевая косметика)
   shieldStyle: ShieldStyle   // скин щита (сетевая косметика)
+  ballArt?: string           // рисунок на шаре (base64, перёд/зад 32×32); undefined = пусто (сетевая косметика)
   postProcessing: boolean    // графика: экранный контур рёбер (постобработка); локальное предпочтение
   showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
   showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
@@ -81,7 +83,9 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
   const localeIds = LOCALES.map(l => l.id)
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
-  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
+  // рисунок на шаре: валидная base64-строка → сохраняем как есть; иначе поле снимается (нет рисунка)
+  const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
