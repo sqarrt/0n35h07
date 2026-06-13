@@ -82,7 +82,12 @@ export class BeamWeapon implements IWeapon {
 
     const origin = ctx.muzzle.clone()
     const dir = ctx.aim.clone().normalize()
-    const hit = ctx.world.raycast(origin, dir, ctx.excludeIds)
+    let hit = ctx.world.raycast(origin, dir, ctx.excludeIds)
+    // ПРОСТРЕЛ: если задана перегретая цель — добиваем её сквозь стены (если луч смотрит в её хитбокс).
+    if (ctx.pierceId != null) {
+      const eHit = ctx.world.raycastEntities(origin, dir, ctx.excludeIds)
+      if (eHit && eHit.object.userData.entityId === ctx.pierceId) hit = eHit
+    }
 
     let hitEntityId: number | null = null
     let hitPoint: THREE.Vector3 | null = null
