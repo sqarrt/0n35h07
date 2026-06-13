@@ -508,7 +508,8 @@ export default function App() {
       {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
           на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={appearancePreview.part} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {/* part только на экране «Внешность»: иначе ретенция (напр. shot/paint) держит разворот шара в меню. */}
+      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
