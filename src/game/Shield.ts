@@ -13,6 +13,7 @@ export class Shield implements IShield {
 
   private phase: 'idle' | 'active' | 'cooldown' = 'idle'
   private timer = 0   // мс в текущей фазе
+  private cooldownScale = 1
   private readonly duration: number
   private readonly cooldown: number
 
@@ -40,7 +41,7 @@ export class Shield implements IShield {
       if (this.timer >= this.duration) { this.phase = 'cooldown'; this.timer = 0 }
     } else if (this.phase === 'cooldown') {
       this.timer += ms
-      if (this.timer >= this.cooldown) { this.phase = 'idle'; this.timer = 0 }
+      if (this.timer >= this.cooldown * this.cooldownScale) { this.phase = 'idle'; this.timer = 0 }
     }
 
     const on = this.phase === 'active'
@@ -52,10 +53,13 @@ export class Shield implements IShield {
 
   progress(): number {
     if (this.phase === 'idle') return 1
-    const total = this.duration + this.cooldown
+    const total = this.duration + this.cooldown * this.cooldownScale
     const elapsed = this.phase === 'active' ? this.timer : this.duration + this.timer
     return Math.max(0, Math.min(1, elapsed / total))
   }
+
+  setCooldownScale(scale: number) { this.cooldownScale = scale > 0 ? scale : 1 }
+  resetCooldown() { if (this.phase === 'cooldown') { this.phase = 'idle'; this.timer = 0 } }
 
   reset() {
     this.phase = 'idle'

@@ -25,7 +25,7 @@ describe('Match.streak · инварианты анонса (логика)', () 
 
 describe('Match.streak · поле события kill переносит серию', () => {
   it('событие kill содержит streak и firstBlood', () => {
-    const e: MatchEvent = { t: 'kill', shooter: 0, victim: 1, streak: 3, firstBlood: false }
+    const e: MatchEvent = { t: 'kill', shooter: 0, victim: 1, streak: 3, firstBlood: false, bounty: 2, resetCd: true }
     expect(e.t === 'kill' && e.streak).toBe(3)
     expect(e.t === 'kill' && e.firstBlood).toBe(false)
   })

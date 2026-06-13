@@ -34,7 +34,7 @@ describe('Match — сетевой режим', () => {
 
   it('client применяет KILL: счёт растёт, шлёт PLAYER_HIT для локальной жертвы', () => {
     const { match, dispatch } = makeMatch('client', 1)
-    match.applyEvent({ t: 'kill', shooter: 0, victim: 1 })
+    match.applyEvent({ t: 'kill', shooter: 0, victim: 1, streak: 1, firstBlood: true, bounty: 1, resetCd: false })
     expect(match.players.find(p => p.id === 1)!.deaths).toBe(1)
     expect(match.players.find(p => p.id === 0)!.kills).toBe(1)
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })

@@ -245,6 +245,7 @@
 .match-hud .frag { font-size: 22px; }
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
+.match-hud .streak-dots { font-size: 10px; letter-spacing: 1px; line-height: 1; color: currentColor; }
 
 /* JoinRoom: ввод кода с бегущей обводкой (подключение) и красным контуром (ошибка) */
 .code-wrap { position: relative; width: 240px; height: 64px; }
@@ -404,3 +405,13 @@
 .streak-banner .fx{letter-spacing:.18em}
 .streak-banner--in{animation:ks-annShow 2.05s steps(1,end) 1}
 @keyframes ks-annShow{0%{opacity:0}2%{opacity:.25}3%{opacity:1}4%{opacity:.4}5%{opacity:1}90%{opacity:1}98%{opacity:.5}100%{opacity:0}}
+
+/* ===== ПЕРЕГРЕВ: виньетка + молнии (своему перегретому игроку) ===== */
+.overheat-vig{position:fixed;inset:0;pointer-events:none;z-index:13;
+  box-shadow:inset 0 0 var(--r) calc(var(--r)*0.28) rgba(255,46,40,var(--a));
+  animation:ov-pulse var(--pulse) ease-in-out infinite}
+@keyframes ov-pulse{0%,100%{opacity:.8}50%{opacity:1}}
+.ov-bolt{position:absolute;z-index:14;opacity:0;filter:drop-shadow(0 0 2px #ff4a36) drop-shadow(0 0 5px #ff2a18)}
+.ov-bolt svg{display:block;overflow:visible}
+.ov-bolt path{stroke:#ffd9cc;fill:none;stroke-linecap:round;stroke-linejoin:round}
+@keyframes ov-strike{0%,100%{opacity:0}4%{opacity:1}8%{opacity:.2}12%{opacity:.9}17%{opacity:0}}

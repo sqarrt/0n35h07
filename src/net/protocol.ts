@@ -68,7 +68,7 @@ export interface Snapshot {
 export interface ScoreLine { name: string; kills: number; deaths: number }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id попавшего (для подавления искр на своей FP-камере)
-  | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean }
+  | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }
   | { t: 'block';   shooter: number; victim: number }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // дискретное движение соперника (host → client)

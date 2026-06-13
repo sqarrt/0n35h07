@@ -95,7 +95,9 @@ export class HumanController implements Controller {
     // Прицел = точка мира под перекрестием: луч из камеры (исключая своё тело).
     const camDir = this.camera.getWorldDirection(new THREE.Vector3())
     this.player.setLook(camDir)   // ориентация модели — по взгляду камеры (стабильно, в т.ч. в TP)
-    const hit = this.world.raycast(this.camera.position, camDir, [this.player.id])
+    // В режиме SINGULARITY прицельный луч тоже простреливает блоки — иначе в TP aimPoint упирается
+    // в ближнюю стену и луч летит в неё, а не сквозь стены в соперника.
+    const hit = this.world.raycast(this.camera.position, camDir, [this.player.id], this.player.pierceWalls)
     const aimPoint = hit
       ? hit.point
       : this.camera.position.clone().addScaledVector(camDir, AIM_RANGE)

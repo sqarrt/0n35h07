@@ -14,6 +14,7 @@ import { RespawnOverlay } from './components/RespawnOverlay'
 import { MatchHud } from './components/MatchHud'
 import { StreakBanner } from './components/StreakBanner'
 import { EffectDefs } from './components/EffectText'
+import { OverheatVignette } from './components/OverheatVignette'
 import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
@@ -569,8 +570,9 @@ export default function App() {
               <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
               {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
               {profile.audioViz && <AudioBar analysis={audioAnalysis} />}
-              <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} />
+              <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} />
               <StreakBanner announce={hud.announce} />
+              <OverheatVignette tier={hud.streaks[gameNet.netConfig.localId] ?? null} />
               <EffectDefs />
             </>
           )}
