@@ -19,6 +19,7 @@ import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
 import { streakTier, announceKind, announceSfx } from './streak'
+import { bountyFrags, breakResetsCooldowns } from './overheat'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
 import { createRespawnFx } from './fx/respawn/createRespawnFx'
@@ -264,6 +265,12 @@ export class Match {
     if (this.role === 'client') {
       // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
       this.humanController.update(dt)
+      // ПЕРЕГРЕВ своему игроку (для предсказания скорости/кулдаунов) + pierce-цель = перегретый соперник.
+      this.human.applyOverheat()
+      {
+        const opp = this.players.find(q => q !== this.human)
+        this.human.pierceTargetId = opp && opp.seeThrough ? opp.id : null
+      }
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
@@ -281,6 +288,7 @@ export class Match {
     }
 
     // local / host — авторитет
+    this.applyComeback()
     this.controllers.forEach(c => c.update(dt))
     this.players.forEach(p => p.update(dt, this.world, this.excludeIds(p)))
     this.applyPhysics(dt)
@@ -383,16 +391,21 @@ export class Match {
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
             victim.deaths++
+            const broken = victim.streak           // тир жертвы ДО сброса (для баунти/сброса)
             victim.streak = 0
             let streak = 0, firstBlood = false
+            let bounty = 0, resetCd = false
             if (shooter !== victim) {
-              shooter.kills++
-              shooter.streak++
+              bounty = bountyFrags(broken)
+              resetCd = breakResetsCooldowns(broken)
+              shooter.kills += bounty               // в счёт (с баунти)
+              shooter.streak++                      // киллстрик — по реальному киллу (+1)
               streak = shooter.streak
               if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+              if (resetCd) shooter.resetCooldowns()
             }
             this.scoresDirty = true
-            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood })
+            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
             this.announceStreak(shooter.id, victim.id, streak, firstBlood)
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
@@ -633,6 +646,15 @@ export class Match {
   }
 
   /** Подсветка ника по серии (shooter), сброс у жертвы; на рубеже — баннер + 2D-звук. Зовётся и host, и client. */
+  /** Каждый кадр (host): ПЕРЕГРЕВ по серии у всех + pierce-цель = перегретый соперник на SINGULARITY. */
+  private applyComeback() {
+    for (const p of this.players) p.applyOverheat()
+    for (const p of this.players) {           // строго 1v1: цель прострела для p — другой игрок, если seeThrough
+      const opp = this.players.find(q => q !== p)
+      p.pierceTargetId = opp && opp.seeThrough ? opp.id : null
+    }
+  }
+
   private announceStreak(shooterId: number, victimId: number, streak: number, firstBlood: boolean) {
     this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak) })
     this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null })
@@ -704,7 +726,11 @@ export class Match {
         victim.applyDeath()
         victim.deaths++
         victim.streak = 0
-        if (shooter && shooter !== victim) { shooter.kills++; shooter.streak = e.streak }
+        if (shooter && shooter !== victim) {
+          shooter.kills += e.bounty
+          shooter.streak = e.streak
+          if (e.resetCd) shooter.resetCooldowns()
+        }
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
         this.sfx?.combat(e, this.sfxPos)
         this.announceStreak(e.shooter, e.victim, e.streak, e.firstBlood)
