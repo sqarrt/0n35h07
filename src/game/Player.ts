@@ -32,6 +32,7 @@ export class Player implements IControllable {
   name = ''            // отображаемое имя (Вы / Бот N) — ставит Match
   kills = 0            // счёт за сессию (не сбрасывается на респавне)
   deaths = 0
+  streak = 0           // подряд-убийства без своей смерти (для анонса серий); сброс при гибели
   readonly id: number
   readonly bodyGroup = new THREE.Group()
   readonly spawn = new THREE.Vector3(0, EYE_HEIGHT, 0)
