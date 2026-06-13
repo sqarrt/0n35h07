@@ -90,4 +90,28 @@ describe('Shield', () => {
       expect(fx.disposed).toBe(1)
     })
   })
+
+  describe('Shield · cooldownScale + resetCooldown', () => {
+    const step = (sh: Shield, ms: number) => { sh.update(ms / 1000) }
+    it('scale 2 удлиняет кулдаун вдвое', () => {
+      const sh = new Shield({ duration: 100, cooldown: 200 })
+      sh.setCooldownScale(2)
+      sh.activate()
+      step(sh, 100)   // active истёк → cooldown
+      expect(sh.isActive).toBe(false)
+      step(sh, 300)   // при scale 2 кулдаун = 400мс, 300 < 400 → ещё cooldown
+      sh.activate()
+      expect(sh.isActive).toBe(false)
+      step(sh, 120)   // суммарно 420 > 400 → idle
+      sh.activate()
+      expect(sh.isActive).toBe(true)
+    })
+    it('resetCooldown → сразу можно активировать', () => {
+      const sh = new Shield({ duration: 100, cooldown: 200 })
+      sh.activate(); step(sh, 100)   // в cooldown
+      sh.resetCooldown()
+      sh.activate()
+      expect(sh.isActive).toBe(true)
+    })
+  })
 })

@@ -15,6 +15,7 @@ export interface WeaponContext {
   muzzle:     THREE.Vector3
   aim:        THREE.Vector3
   excludeIds: number[]
+  pierceId?:  number | null   // id цели, по которой бьём сквозь стены (ПРОСТРЕЛ); null/undefined — обычно
 }
 
 export interface FireOutcome {
@@ -34,6 +35,8 @@ export interface IWeapon {
   readonly isWindingUp:     boolean
   readonly windupProgress:  number   // 0..1
   cooldownProgress():       number   // 1 = готов
+  setCooldownScale(scale: number): void   // множитель длительности кулдауна (ПЕРЕГРЕВ)
+  resetCooldown(): void                    // мгновенно готов (награда за снятие серии)
   readonly justFired:       boolean
   readonly outcome:         FireOutcome | null
   clearJustFired(): void
@@ -47,6 +50,8 @@ export interface IShield {
   readonly object3d:  THREE.Object3D
   readonly isActive:  boolean
   progress():         number   // 1 = готов
+  setCooldownScale(scale: number): void
+  resetCooldown(): void
   dispose(): void
 }
 

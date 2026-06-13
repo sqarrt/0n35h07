@@ -32,6 +32,8 @@ export class BeamWeapon implements IWeapon {
   private phase: 'idle' | 'windup' | 'cooldown' = 'idle'
   private windupElapsed = 0
   private cooldownRemaining = 0
+  private cooldownScale = 1
+  private cooldownTotal = BEAM_COOLDOWN   // фактическая длительность текущего кулдауна (для progress)
   private readonly windupDuration: number
   private readonly cooldownDuration: number
 
@@ -74,7 +76,8 @@ export class BeamWeapon implements IWeapon {
 
   private fire(ctx: WeaponContext) {
     this.phase = 'cooldown'
-    this.cooldownRemaining = this.cooldownDuration
+    this.cooldownTotal = this.cooldownDuration * this.cooldownScale
+    this.cooldownRemaining = this.cooldownTotal
     this.windupElapsed = 0
 
     const origin = ctx.muzzle.clone()
@@ -145,8 +148,13 @@ export class BeamWeapon implements IWeapon {
   }
   cooldownProgress() {
     return this.phase === 'cooldown'
-      ? Math.max(0, 1 - this.cooldownRemaining / this.cooldownDuration)
+      ? Math.max(0, 1 - this.cooldownRemaining / this.cooldownTotal)
       : 1
+  }
+  setCooldownScale(scale: number) { this.cooldownScale = scale > 0 ? scale : 1 }
+  resetCooldown() {
+    this.cooldownRemaining = 0
+    if (this.phase === 'cooldown') this.phase = 'idle'
   }
   clearJustFired() { this.justFired = false }
 
