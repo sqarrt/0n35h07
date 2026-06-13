@@ -2,8 +2,10 @@ import { joinRoom, selfId } from 'trystero'
 import type { MessageAction, DataPayload, JoinRoomConfig } from 'trystero'
 import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
+import { POOL_NAMESPACE } from './poolNamespace'
 
-const APP_ID = 'oneshot-fps-v1'
+// appId разделяет даже ручной вход по коду: несовместимые версия/платформа не подключатся друг к другу.
+const APP_ID = `oneshot-fps-v1:${POOL_NAMESPACE}`
 
 interface Channel { action: MessageAction<DataPayload>; handlers: NetHandler[] }
 

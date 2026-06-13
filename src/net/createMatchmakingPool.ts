@@ -4,6 +4,7 @@ import { LoopbackDiscovery } from './discovery/LoopbackDiscovery'
 import { BroadcastChannelDiscovery } from './discovery/BroadcastChannelDiscovery'
 import { NostrDiscovery } from './discovery/NostrDiscovery'
 import { resolveNetKind } from './createNet'
+import { POOL_NAMESPACE } from './poolNamespace'
 
 /**
  * IDiscovery по выбранному транспорту: `bc` → BroadcastChannel (same-origin вкладки + e2e);
@@ -14,7 +15,7 @@ export function createDiscovery(): IDiscovery {
 }
 
 export function createMatchmakingPool(): MatchmakingPool {
-  return new MatchmakingPool(createDiscovery())
+  return new MatchmakingPool(createDiscovery(), POOL_NAMESPACE)
 }
 
 export { LoopbackDiscovery }
