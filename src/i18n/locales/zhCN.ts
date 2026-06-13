@@ -80,7 +80,7 @@ export const zhCN = {
   settingsViewTp: '第三人称',
   settingsVolumeGroup: '音量',
   settingsVolMaster: '主音量',
-  settingsVolMusic: '音乐',
+  settingsVolMusic: '游戏音乐',
   settingsVolMenuMusic: '菜单音乐',
   settingsVolSfx: '音效',
   settingsConnTimeout: '房间连接超时',

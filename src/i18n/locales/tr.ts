@@ -79,7 +79,7 @@ export const tr = {
   settingsViewTp: '3. ŞAHIS',
   settingsVolumeGroup: 'SES SEVİYESİ',
   settingsVolMaster: 'ANA SES',
-  settingsVolMusic: 'MÜZİK',
+  settingsVolMusic: 'OYUN MÜZİĞİ',
   settingsVolMenuMusic: 'MENÜ MÜZİĞİ',
   settingsVolSfx: 'EFEKTLER',
   settingsConnTimeout: 'ODA BAĞLANTI ZAMAN AŞIMI',

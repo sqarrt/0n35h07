@@ -240,7 +240,8 @@
 .match-hud .side { display: flex; align-items: center; gap: 7px; width: 150px; }
 .match-hud .side.you { justify-content: flex-end; }
 .match-hud .side.opp { justify-content: flex-start; }
-.match-hud .nm { font-size: 11px; letter-spacing: 0.14em; color: #8a93a0; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Имя игрока: единый кегль/трекинг независимо от модификатора серии — меняется только оформление (цвет/свечение/глитч). */
+.match-hud .nm { font-size: 16px; letter-spacing: 0.12em; color: #8a93a0; display: inline-block; white-space: nowrap; }
 .match-hud .frag { font-size: 22px; }
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
@@ -365,3 +366,41 @@
 .btn--go:hover { background: #2bcf96; border-color: #2bcf96; color: var(--ink); }
 .btn--stop { background: #d83a44; border-color: #d83a44; color: #fff; }
 .btn--stop:hover { background: #e44a54; border-color: #e44a54; color: #fff; }
+
+/* ===== kill-streak: эффект текста (ник в HUD + баннер) ===== */
+.fx{position:relative;display:inline-block;white-space:nowrap}   /* кегль/трекинг наследуются (ник: .nm; баннер: .streak-banner) */
+.fx .glitch-a,.fx .glitch-b{position:absolute;left:0;top:0;width:100%;text-align:center;overflow:visible;pointer-events:none}
+.fx .glitch-a{color:#5ff;text-shadow:-1px 0 #5ff}
+.fx .glitch-b{color:#f6a;text-shadow:1px 0 #f6a}
+@keyframes ks-gA{0%,100%{clip-path:inset(0 0 85% 0);transform:translateX(0)}20%{clip-path:inset(20% 0 55% 0);transform:translateX(-2px)}40%{clip-path:inset(60% 0 10% 0);transform:translateX(2px)}60%{clip-path:inset(10% 0 70% 0);transform:translateX(-1px)}}
+@keyframes ks-gB{0%,100%{clip-path:inset(70% 0 5% 0);transform:translateX(0)}25%{clip-path:inset(35% 0 40% 0);transform:translateX(2px)}55%{clip-path:inset(5% 0 80% 0);transform:translateX(-2px)}}
+.fx .arc{position:absolute;height:1px;background:linear-gradient(90deg,transparent,#fff,var(--pc),transparent);opacity:0;filter:drop-shadow(0 0 3px var(--pc))}
+.fx .tick{position:absolute;width:1px;height:6px;background:#fff;box-shadow:0 0 4px var(--pc);opacity:0}
+
+/* DOUBLE — электричество */
+.fx.fx--double{color:var(--pc);text-shadow:0 0 12px var(--pc);filter:url(#ks-el1);animation:ks-flick 2.4s infinite}
+.fx--double .glitch-a{animation:ks-gA 2.1s steps(2) infinite}
+.fx--double .glitch-b{animation:ks-gB 2.5s steps(2) infinite}
+@keyframes ks-flick{0%,100%{opacity:1}50%{opacity:.85}51%{opacity:1}79%{opacity:1}80%{opacity:.55}82%{opacity:1}}
+/* TRIPLE — овердрайв */
+.fx.fx--triple{color:#eaf4ff;text-shadow:0 0 14px var(--pc),0 0 2px #fff;filter:url(#ks-el2);animation:ks-jitter .18s infinite}
+.fx--triple .glitch-a{animation:ks-gA 1.2s steps(2) infinite}
+.fx--triple .glitch-b{animation:ks-gB 1.0s steps(2) infinite}
+@keyframes ks-jitter{0%{transform:translate(0,0)}25%{transform:translate(.6px,-.4px)}50%{transform:translate(-.5px,.5px)}75%{transform:translate(.4px,.3px)}100%{transform:translate(0,0)}}
+/* SINGULARITY — развал */
+.fx.fx--singularity{color:#fff;text-shadow:0 0 6px #fff,0 0 18px var(--pc),0 0 32px var(--pc);filter:url(#ks-el3);animation:ks-burn .9s infinite}
+.fx--singularity .glitch-a{animation:ks-gA .55s steps(2) infinite}
+.fx--singularity .glitch-b{animation:ks-gB .5s steps(2) infinite}
+@keyframes ks-burn{0%,100%{transform:translate(0,0)}20%{transform:translate(1px,-.6px)}40%{transform:translate(-1px,.6px) scale(1.03)}60%{transform:translate(.8px,.5px)}80%{transform:translate(-.6px,-.5px)}}
+
+/* CATALYST — заряженный проводник (сустейн) */
+.fx.fx--catalyst{color:#fff;animation:ks-throb .8s ease-in-out infinite}
+@keyframes ks-throb{0%,100%{text-shadow:0 0 8px var(--pc),0 0 2px #fff}50%{text-shadow:0 0 18px var(--pc),0 0 6px #fff,0 0 30px color-mix(in srgb,var(--pc) 60%,transparent)}}
+@keyframes ks-crack{0%,100%{opacity:0}48%{opacity:0}50%{opacity:1}54%{opacity:0}}
+@keyframes ks-tick{0%,100%{opacity:0}70%{opacity:0}73%{opacity:1}77%{opacity:0}}
+
+/* баннер: контейнер под таймером + появление на месте (глитч-включение), держится ~2с */
+.streak-banner{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:14;pointer-events:none;font-family:var(--ui-font);font-size:24px}
+.streak-banner .fx{letter-spacing:.18em}
+.streak-banner--in{animation:ks-annShow 2.05s steps(1,end) 1}
+@keyframes ks-annShow{0%{opacity:0}2%{opacity:.25}3%{opacity:1}4%{opacity:.4}5%{opacity:1}90%{opacity:1}98%{opacity:.5}100%{opacity:0}}

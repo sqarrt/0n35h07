@@ -79,7 +79,7 @@ export const ptBR = {
   settingsViewTp: '3ª PESSOA',
   settingsVolumeGroup: 'VOLUME',
   settingsVolMaster: 'VOLUME GERAL',
-  settingsVolMusic: 'MÚSICA',
+  settingsVolMusic: 'MÚSICA NO JOGO',
   settingsVolMenuMusic: 'MÚSICA DO MENU',
   settingsVolSfx: 'EFEITOS',
   settingsConnTimeout: 'TEMPO LIMITE DE CONEXÃO',

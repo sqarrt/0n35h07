@@ -19,6 +19,7 @@ const SFX_GAIN: Record<SfxEvent, number> = {
   beam_fire: 0.9, beam_fire_rage: 0.9, beam_fire_singularity: 0.9, block: 0.9, shield_up: 0.8, shield_down: 0.8, cooldown_ready: 0.5,
   dash: 0.8, jump: 0.7, land: 0.6, death: 1.0, respawn: 0.9,
   ui_click: 0.4, ui_hover: 0.3, ui_toggle: 0.4, ready: 0.5, room_join: 0.5, count_tick: 0.6, go: 0.7,
+  catalyst: 0.85, double_kill: 0.85, triple_kill: 0.85, singularity: 0.9,
   shield_loop: 0.5, ghost_loop: 0.5,
 }
 

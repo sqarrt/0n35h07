@@ -79,7 +79,7 @@ export const ru = {
   settingsViewTp: 'ОТ 3 ЛИЦА',
   settingsVolumeGroup: 'ГРОМКОСТЬ',
   settingsVolMaster: 'ОБЩАЯ ГРОМКОСТЬ',
-  settingsVolMusic: 'МУЗЫКА',
+  settingsVolMusic: 'МУЗЫКА В ИГРЕ',
   settingsVolMenuMusic: 'МУЗЫКА В МЕНЮ',
   settingsVolSfx: 'ЭФФЕКТЫ',
   settingsConnTimeout: 'ТАЙМАУТ ПОДКЛЮЧЕНИЯ К КОМНАТЕ',

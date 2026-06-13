@@ -79,7 +79,7 @@ export const de = {
   settingsViewTp: 'VERFOLGER-ANSICHT',
   settingsVolumeGroup: 'LAUTSTÄRKE',
   settingsVolMaster: 'GESAMTLAUTSTÄRKE',
-  settingsVolMusic: 'MUSIK',
+  settingsVolMusic: 'SPIELMUSIK',
   settingsVolMenuMusic: 'MENÜMUSIK',
   settingsVolSfx: 'EFFEKTE',
   settingsConnTimeout: 'RAUM-VERBINDUNGS-TIMEOUT',

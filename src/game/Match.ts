@@ -18,6 +18,7 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import { streakTier, announceKind, announceSfx } from './streak'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
 import { createRespawnFx } from './fx/respawn/createRespawnFx'
@@ -109,6 +110,8 @@ export class Match {
   private prevWindup = false
   private prevShield = false
   private scoresDirty = true   // на старте отправить нулевую таблицу
+  private firstKillDone = false                  // первый фраг матча показан (CATALYST один раз)
+  private colorOf = new Map<number, string>()    // id → hex цвета игрока (для подсветки/баннера)
 
   // Часы матча
   private durationMs: number
@@ -192,6 +195,7 @@ export class Match {
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)
       p.name = e.name
+      this.colorOf.set(e.id, e.color)
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
       p.respawnAt(new THREE.Vector3().fromArray(spawns[e.id === OPPONENT_ID ? 1 : 0]))
@@ -379,9 +383,17 @@ export class Match {
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
             victim.deaths++
-            if (shooter !== victim) shooter.kills++
+            victim.streak = 0
+            let streak = 0, firstBlood = false
+            if (shooter !== victim) {
+              shooter.kills++
+              shooter.streak++
+              streak = shooter.streak
+              if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+            }
             this.scoresDirty = true
-            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
+            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood })
+            this.announceStreak(shooter.id, victim.id, streak, firstBlood)
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
               window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
@@ -620,6 +632,20 @@ export class Match {
     this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
   }
 
+  /** Подсветка ника по серии (shooter), сброс у жертвы; на рубеже — баннер + 2D-звук. Зовётся и host, и client. */
+  private announceStreak(shooterId: number, victimId: number, streak: number, firstBlood: boolean) {
+    this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak) })
+    this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null })
+    const kind = announceKind(streak, firstBlood)
+    if (!kind) return
+    const name = this.byId.get(shooterId)?.name ?? ''
+    const color = this.colorOf.get(shooterId) ?? '#4af'
+    this.dispatch({ type: 'ANNOUNCE', name, color, kind })
+    this.sfx?.play2D(announceSfx(kind))
+    window.__debugLastAnnounce = kind                 // для e2e
+    ;(window.__debugAnnounces ??= []).push(kind)      // вся история анонсов (первый = catalyst)
+  }
+
   /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
   drainEvents(): MatchEvent[] {
     const e = this.pendingEvents
@@ -677,9 +703,11 @@ export class Match {
         if (!victim) break
         victim.applyDeath()
         victim.deaths++
-        if (shooter && shooter !== victim) shooter.kills++
+        victim.streak = 0
+        if (shooter && shooter !== victim) { shooter.kills++; shooter.streak = e.streak }
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
         this.sfx?.combat(e, this.sfxPos)
+        this.announceStreak(e.shooter, e.victim, e.streak, e.firstBlood)
         break
       }
       case 'block': {
