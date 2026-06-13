@@ -1,5 +1,5 @@
 import { Button } from '../ui/Button'
-import { IS_ELECTRON } from '../platform'
+import { IS_DESKTOP } from '../platform'
 import { useT } from '../i18n'
 
 interface MainMenuProps {
@@ -29,8 +29,8 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuP
       <Button variant="primary" style={btn} onClick={onPlay} data-testid="menu-play">{t.menuPlay}</Button>
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
-      {/* Выход — только в Electron: в браузере window.close() для обычной вкладки запрещён политикой. */}
-      {IS_ELECTRON && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
+      {/* Выход — только на десктопе: в браузере window.close() для обычной вкладки запрещён политикой. */}
+      {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
     </div>
   )
 }

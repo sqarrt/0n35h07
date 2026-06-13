@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { CLIENT_PLATFORM, CLIENT_VERSION, POOL_NAMESPACE } from '../../src/net/poolNamespace'
 
 describe('poolNamespace', () => {
-  it('платформа в тестовой среде (jsdom, не Electron) — browser', () => {
+  it('платформа в тестовой среде (jsdom, не Tauri) — browser', () => {
     expect(CLIENT_PLATFORM).toBe('browser')
   })
 

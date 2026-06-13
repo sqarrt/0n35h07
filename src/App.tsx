@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, lazy, memo, Suspense } from 'react'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -41,7 +42,7 @@ import { MenuMusic } from './game/audio/MenuMusic'
 import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
-import { IS_ELECTRON } from './platform'
+import { IS_DESKTOP } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { warmMapPreviews, MAP_IDS } from './game/maps'
@@ -212,8 +213,8 @@ export default function App() {
     return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
   // Играет на всех не-игровых экранах, гаснет в матче. В браузере первый старт — из пользовательского жеста
-  // (autoplay-политика); в Electron autoplay разрешён (см. main.ts) → стартуем сразу, без жеста.
-  const gesturedRef = useRef(IS_ELECTRON)
+  // (autoplay-политика); на десктопе (Tauri) autoplay разрешён → стартуем сразу, без жеста.
+  const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
     if (screen === 'game') { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }
@@ -282,9 +283,9 @@ export default function App() {
   useEffect(() => { warmMapPreviews() }, [])
 
   // Случайные F5/Ctrl+W в live-матче не должны молча убивать бой — браузер спросит подтверждение.
-  // В Electron гард не ставим: там beforeunload без диалога просто блокирует закрытие окна.
+  // На десктопе (Tauri) гард не ставим: там beforeunload без диалога просто блокирует закрытие окна.
   useEffect(() => {
-    if (IS_ELECTRON || screen !== 'game' || hud.matchPhase !== 'live') return
+    if (IS_DESKTOP || screen !== 'game' || hud.matchPhase !== 'live') return
     const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault()
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
@@ -342,8 +343,8 @@ export default function App() {
 
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
-  // Выход из игры: в Electron закрывает окно (→ приложение завершается), в браузере — вкладку.
-  const handleExit = () => window.close()
+  // Выход из игры: на десктопе (Tauri) закрывает окно через API; в браузере — window.close().
+  const handleExit = () => IS_DESKTOP ? getCurrentWindow().close() : window.close()
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
   // Готовность в матче — клик ловит pointer lock (нужен жест) и отмечает игрока готовым (host↔client синк).
   const handleReady = () => {
@@ -590,7 +591,7 @@ export default function App() {
         <PauseMenu
           resumeDisabled={resumeDisabled}
           cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
-          showExit={IS_ELECTRON}
+          showExit={IS_DESKTOP}
           onResume={handleResume}
           onBack={handleBack}
           onExit={handleExit}
