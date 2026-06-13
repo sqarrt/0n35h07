@@ -307,6 +307,8 @@ export class Player implements IControllable {
   dashCooldownProgress()    { return this.body.dashProgress() }
   shieldProgress()          { return this.shield.progress() }
   get shieldActive()        { return this.shield.isActive }
+  /** Идеальный блок: щит активирован в окне до попадания — повод сбросить кулдауны. */
+  get perfectBlock()        { return this.shield.isPerfectBlock() }
   get weaponJustFired()     { return this.weapon.justFired }
   get fireOutcome()         { return this.weapon.outcome }
   clearJustFired()          { this.weapon.clearJustFired() }

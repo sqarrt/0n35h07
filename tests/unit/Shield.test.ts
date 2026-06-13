@@ -113,5 +113,35 @@ describe('Shield', () => {
       sh.activate()
       expect(sh.isActive).toBe(true)
     })
+    it('resetCooldown во время active → после окна сразу idle, без кулдауна', () => {
+      const sh = new Shield({ duration: 100, cooldown: 200 })
+      sh.activate()
+      sh.resetCooldown()   // взводит skipCooldown
+      step(sh, 100)        // active истёк → должен уйти в idle, а не cooldown
+      sh.activate()
+      expect(sh.isActive).toBe(true)
+    })
+  })
+
+  describe('Shield · isPerfectBlock (окно идеального блока 100мс)', () => {
+    it('false в покое и в кулдауне', () => {
+      const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
+      expect(s.isPerfectBlock()).toBe(false)   // idle
+      s.activate(); advance(s, DURATION + 100)  // cooldown
+      expect(s.isPerfectBlock()).toBe(false)
+    })
+    it('true сразу после активации и в пределах окна', () => {
+      const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
+      s.activate()
+      expect(s.isPerfectBlock()).toBe(true)     // timer 0
+      s.update(0.016)
+      expect(s.isPerfectBlock()).toBe(true)     // ~16мс ≤ 100
+    })
+    it('false если щит держат дольше окна', () => {
+      const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
+      s.activate(); advance(s, 150)             // ~150мс > 100, ещё active
+      expect(s.isActive).toBe(true)
+      expect(s.isPerfectBlock()).toBe(false)
+    })
   })
 })
