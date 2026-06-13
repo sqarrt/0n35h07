@@ -5,15 +5,17 @@ import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } fro
 import { saveProfile } from '../settings'
 import type { PlayerProfile } from '../settings'
 import { Button } from '../ui/Button'
+import { BallPaintField } from '../ui/BallPaintField'
 import { useSfx } from '../sfx/SfxContext'
 import { useT } from '../i18n'
 import type { AppearancePart } from '../components/menuStage'
+import { decodeBallArt, encodeBallArt, makeEmptyArt, isEmpty, BALL_ART_SIZE } from '../game/ballArt'
 
 interface AppearanceProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
   // Живое превью (App): цвет/модель/стили + последний кликнутый блок (позиция шара).
-  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart) => void
+  onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart, ballArt: string | undefined) => void
   // Клик по стилю выстрела → один прогон превью. Счётчиком владеет App (монотонный,
   // переживает перемонтирование экрана), а стиль едет ВМЕСТЕ с триггером — App обновляет
   // оба поля атомарно (иначе шар запускает превью со старым стилем и тут же гасит его).
@@ -46,10 +48,14 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const [dash, setDash] = useState<DashStyle>(profile.dashStyle)
   const [shield, setShield] = useState<ShieldStyle>(profile.shieldStyle)
   const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
+  const [art] = useState(() => decodeBallArt(profile.ballArt) ?? makeEmptyArt())   // рисунок (мутируем гриды на месте)
+  const [erasing, setErasing] = useState(false)
+  const [, forceArt] = useState(0)   // тик перерисовки полей/превью после мутации гридов
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
   // Не-косметические поля — из АКТУАЛЬНОГО профиля: коммит из «Внешности» не затирает правки настроек.
-  const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn, dashStyle: dash, shieldStyle: shield })
+  // ballArt тоже из profile — прочие коммиты (цвет/модель) не должны стирать рисунок.
+  const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn, dashStyle: dash, shieldStyle: shield, ballArt: profile.ballArt })
 
   const handlePrimary = (c: string) => {
     if (c !== primary) sfx.play2D('ui_toggle')
@@ -103,6 +109,19 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
     commit({ ...base(), shieldStyle: s })
   }
 
+  // Рисунок: каждый штрих мутирует грид → перекодирует ballArt в профиль → живое превью.
+  // Пустой рисунок сохраняем как undefined (поле снимается), непустой — base64.
+  const commitArt = () => {
+    const encoded = isEmpty(art) ? undefined : encodeBallArt(art)
+    forceArt(n => n + 1)
+    commit({ ...base(), ballArt: encoded })
+  }
+  const paintFront = (cx: number, cy: number, v: number) => { art.front[cy * BALL_ART_SIZE + cx] = v; commitArt() }
+  const paintBack = (cx: number, cy: number, v: number) => { art.back[cy * BALL_ART_SIZE + cx] = v; commitArt() }
+  const clearFront = () => { art.front.fill(0); sfx.play2D('ui_toggle'); commitArt() }
+  const clearBack = () => { art.back.fill(0); sfx.play2D('ui_toggle'); commitArt() }
+  const toggleErase = (v: boolean) => { if (v !== erasing) sfx.play2D('ui_toggle'); setErasing(v) }
+
   const previewColor = editing === 'primary' ? primary : reserve
   const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
   const modelLabel: Record<BallModel, string> = { smooth: t.styleModelSmooth, waves: t.styleModelWaves, planet: t.styleModelPlanet }
@@ -112,7 +131,9 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const shieldLabel: Record<ShieldStyle, string> = { dome: t.styleShieldDome, hex: t.styleShieldHex, crystal: t.styleShieldCrystal }
 
   // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям блоков.
-  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, onPreview])
+  // artSig пересчитывается на каждый штрих (forceArt вызывает ре-рендер) → превью обновляет рисунок.
+  const artSig = isEmpty(art) ? undefined : encodeBallArt(art)
+  useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part, artSig) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, artSig, onPreview])
 
   return (
     // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.
@@ -155,6 +176,16 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
             {modelLabel[m]}
           </button>
         ))}
+      </div>
+
+      <div style={label}>{t.appearPaint}</div>
+      <div style={{ ...row, gap: '0.4rem' }}>
+        <button className={`seg${!erasing ? ' seg--on' : ''}`} data-testid="paint-brush" onClick={() => toggleErase(false)}>{t.appearPaintBrush}</button>
+        <button className={`seg${erasing ? ' seg--on' : ''}`} data-testid="paint-eraser" onClick={() => toggleErase(true)}>{t.appearPaintEraser}</button>
+      </div>
+      <div style={{ ...row, justifyContent: 'space-around' }}>
+        <BallPaintField label={t.appearPaintFront} grid={art.front} erasing={erasing} onPaint={paintFront} onClear={clearFront} clearLabel={t.appearPaintClear} testid="paint-front" />
+        <BallPaintField label={t.appearPaintBack} grid={art.back} erasing={erasing} onPaint={paintBack} onClear={clearBack} clearLabel={t.appearPaintClear} testid="paint-back" />
       </div>
 
       <div style={label}>{t.appearShotAnim}</div>
