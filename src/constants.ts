@@ -15,8 +15,9 @@ export const AIM_RANGE  = 100   // дальность луча прицела/в
 export const EYE_HEIGHT = 1.7
 export const JUMP_FORCE = 8
 export const GRAVITY    = -22
-export const TP_DIST    = 4   // third-person camera distance behind player
-export const TP_HEIGHT  = 2   // third-person camera height above player
+export const TP_DIST       = 4    // third-person camera distance behind player
+export const TP_HEIGHT     = 1.5  // third-person camera height above player
+export const TP_SHOULDER_X = 0.7  // смещение камеры вправо (over-the-shoulder, God-of-War стиль)
 
 // Прыжок / bhop / air-strafe — скоростная (Quake) модель: горизонтальная скорость персистентна (velH),
 // на земле — трение+быстрый разгон к желаемой; в воздухе — air-accelerate с кэпом → разгон стрейфом+мышью;
