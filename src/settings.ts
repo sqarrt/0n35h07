@@ -7,7 +7,7 @@ import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
 
 export type DefaultView = 'fp' | 'tp'
-export type SearchRole = 'both' | 'host' | 'client'
+export type SearchRole = 'both' | 'client'   // 'оба' (хост/клиент как повезёт) | только клиент. Явного host нет (ненадёжен).
 
 export interface PlayerProfile {
   name: string
@@ -64,7 +64,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
-  const searchRole: SearchRole = p.searchRole === 'host' || p.searchRole === 'client' ? p.searchRole : 'both'
+  const searchRole: SearchRole = p.searchRole === 'client' ? 'client' : 'both'   // legacy 'host' → 'both'
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const windupStyle: WindupStyle = WINDUP_STYLES.includes(p.windupStyle as WindupStyle) ? (p.windupStyle as WindupStyle) : 'classic'
   const respawnStyle: RespawnStyle = RESPAWN_STYLES.includes(p.respawnStyle as RespawnStyle) ? (p.respawnStyle as RespawnStyle) : 'echo'

@@ -15,8 +15,7 @@ async function startMatch(context: BrowserContext) {
 
   await host.goto('/')
   await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-other-toggle').click()
-  await host.getByTestId('lobby-role-host').click()
+  await host.getByTestId('lobby-other-toggle').click()   // режим 'оба' по умолчанию уже хостит комнату
   const code = await host.getByTestId('lobby-code-input').inputValue()
 
   await client.goto('/')

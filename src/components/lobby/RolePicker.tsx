@@ -11,7 +11,7 @@ interface RolePickerProps {
   onSetRole: (mode: SearchRole) => void
 }
 
-/** Выбор сетевой роли (ОБА/ХОСТ/КЛИЕНТ): подпись + ряд .seg. ОБА — дефолт (поиск в двух ролях). */
+/** Выбор сетевой роли (ОБА/КЛИЕНТ): подпись + ряд .seg. ОБА — дефолт (хост/клиент как повезёт). */
 export function RolePicker({ mode, disabled, onSetRole }: RolePickerProps) {
   const t = useT()
   const sfx = useSfx()
@@ -25,7 +25,6 @@ export function RolePicker({ mode, disabled, onSetRole }: RolePickerProps) {
       <div style={LABEL}>{t.lobbyRoleLabel}</div>
       <div className="lobby-segs">
         {seg('both', t.lobbyRoleBoth, 'lobby-role-both')}
-        {seg('host', t.settingsSearchRoleHost, 'lobby-role-host')}
         {seg('client', t.settingsSearchRoleClient, 'lobby-role-client')}
       </div>
     </div>

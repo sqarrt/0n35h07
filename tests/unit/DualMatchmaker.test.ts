@@ -29,16 +29,6 @@ describe('DualMatchmaker · разрыватель ничьей', () => {
     expect(b.dm.resolved).toBe('client')
   })
 
-  it('both vs чистый host → both заходит клиентом (даже если его код меньше)', () => {
-    const disco = new LoopbackDiscovery()
-    const host = mk(disco, 'host', 'HHHH')
-    const both = mk(disco, 'both', 'AAAA')   // меньше HHHH, но host.dual=false
-    host.dm.start()
-    both.dm.start()
-    expect(both.joined).toEqual(['HHHH'])
-    expect(host.joined).toEqual([])
-  })
-
   it('both vs чистый client → both остаётся хостом, client заходит к нему', () => {
     const disco = new LoopbackDiscovery()
     const both = mk(disco, 'both', 'BBBB')

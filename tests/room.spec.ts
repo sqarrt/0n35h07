@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
 async function lobbyAsHost(page: Page) {
   await page.getByTestId('menu-play').click()
   await page.getByTestId('lobby-other-toggle').click()
-  await page.getByTestId('lobby-role-host').click()   // детерминированно хост (no-op, если уже хост)
+  // Режим по умолчанию 'оба' уже хостит свою комнату (явной роли ХОСТ больше нет).
 }
 
 test('главное меню — кнопки навигации видны', async ({ page }) => {
