@@ -87,7 +87,7 @@ export const BALL_RING_SCROLL    = 0.4   // скорость дрейфа бан
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
 export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
-export const MUZZLE_Y     = -0.3   // начало луча (грудь) относительно position
+export const MUZZLE_Y     = -0.3   // центр шара относительно position (= BODY_MESH_Y)
 
 export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тела во время заряда выстрела
 export const WINDUP_SHRINK_MS = 200    // длительность «сдувания» шара после выстрела
