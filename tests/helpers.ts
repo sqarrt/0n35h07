@@ -11,7 +11,7 @@ async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   if (!menuVisible) return
   await page.getByTestId('menu-play').click()
   await page.getByTestId('lobby-other-toggle').click()       // раскрыть «// ПРОЧЕЕ»
-  await page.getByTestId('lobby-role-host').click()          // детерминированно хост (no-op, если уже хост)
+  // Режим по умолчанию 'оба' уже хостит свою комнату → бот занимает её слот (явной роли ХОСТ больше нет).
   if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
   await page.getByTestId('lobby-bot-add').click()            // бот занимает слот (авто-готов)
   await page.getByTestId('lobby-ready').click()              // хост готов → оба готовы → старт

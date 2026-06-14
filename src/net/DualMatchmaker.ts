@@ -6,7 +6,7 @@ export type ResolvedRole = 'host' | 'client'
 
 export interface DualMatchmakerOpts {
   pool: MatchmakingPool
-  mode: SearchRole                     // 'both' | 'host' | 'client'
+  mode: SearchRole                     // 'both' (хост/клиент как повезёт) | 'client' (только ищем)
   code: string                         // наш host-код (advertise + разрыватель ничьей)
   listing: Omit<PoolListing, 'dual'>   // что публикуем (флаг dual проставит сам класс)
   filter: PoolFilter                   // что ищем
@@ -42,8 +42,8 @@ export class DualMatchmaker {
   /** Запустить подбор согласно режиму. */
   start() {
     netDiagMark('mm:start', { mode: this.mode, code: this.code })
-    if (this.mode !== 'client') this.pool.advertise({ ...this.listing, dual: this.mode === 'both' })
-    if (this.mode !== 'host') this.pool.search(this.filter, l => this.onCandidate(l))
+    if (this.mode === 'both') this.pool.advertise({ ...this.listing, dual: true })   // 'оба' хостит и ищет
+    this.pool.search(this.filter, l => this.onCandidate(l))                          // и 'оба', и 'client' ищут
   }
 
   /** App: к нашей host-сессии подключился соперник → фиксируем host, гасим листинг/поиск. */

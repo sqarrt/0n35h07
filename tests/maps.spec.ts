@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test'
 async function lobbyAsHost(page: Page) {
   await page.getByTestId('menu-play').click()
   await page.getByTestId('lobby-other-toggle').click()
-  await page.getByTestId('lobby-role-host').click()
+  // режим 'оба' по умолчанию уже хостит комнату (явной роли ХОСТ больше нет)
 }
 
 test('лобби — выбор карты: плитка активна при клике (одиночный выбор)', async ({ page }) => {
