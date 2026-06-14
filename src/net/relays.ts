@@ -1,4 +1,5 @@
 import { defaultRelayUrls } from 'trystero'
+import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure'
 import { lsGet, lsSet } from '../storage'
 
 /**
@@ -8,7 +9,8 @@ import { lsGet, lsSet } from '../storage'
  * щедрый поднабор для гарантии пересечения между пирами.
  */
 
-const PROBE_TIMEOUT_MS = 2000      // дедлайн на одиночный WebSocket-connect
+const PROBE_TIMEOUT_MS = 3000      // дедлайн на одну пробу (open + round-trip публикации/подписки)
+const PROBE_KIND = 20009           // эфемерный kind (NIP-01): релей не хранит, но рассылает активным подписчикам
 const KEEP = 8                     // сколько живых релеев оставить (по возрастанию латентности)
 const CACHE_TTL_MS = 10 * 60_000   // свежесть кеша — повторно не пробим в пределах TTL
 const LS_KEY = 'oneshot:relays'
@@ -49,7 +51,13 @@ export function subscribe(cb: StatusListener): () => void {
   return () => { listeners.delete(cb) }
 }
 
-/** WebSocket-проба: латентность open в мс, либо null (error/close/таймаут). Сокет закрываем сразу. */
+/**
+ * Функциональная проба релея (не только «открылся ли сокет»): открываем WS, подписываемся (REQ) и
+ * публикуем эфемерное событие; «живой» = релей вернул НАШЕ событие в НАШУ подписку, т.е. реально ПРИНИМАЕТ
+ * и ПЕРЕСЫЛАЕТ (ровно это нужно сигналингу Trystero). Релеи, которые открывают сокет, но режут/не пересылают
+ * события, отсекаются — иначе у явных ролей (однонаправленный discovery) единственный путь доставки рвётся.
+ * @returns латентность round-trip в мс, либо null (error/close/отказ/таймаут).
+ */
 function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
   return new Promise(resolve => {
     let ws: WebSocket
@@ -69,7 +77,31 @@ function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
       finish(null)
       return
     }
-    ws.onopen = () => finish(Math.round(performance.now() - started))
+    const subId = crypto.randomUUID()
+    const tag = crypto.randomUUID()   // уникальный 'd'-тег → проба не ловит чужой трафик
+    let evtId = ''
+    ws.onopen = () => {
+      try {
+        const evt = finalizeEvent(
+          { kind: PROBE_KIND, created_at: Math.floor(Date.now() / 1000), tags: [['d', tag]], content: '' },
+          generateSecretKey(),
+        )
+        evtId = evt.id
+        ws.send(JSON.stringify(['REQ', subId, { kinds: [PROBE_KIND], '#d': [tag] }]))
+        ws.send(JSON.stringify(['EVENT', evt]))
+      } catch { finish(null) }
+    }
+    ws.onmessage = (e: MessageEvent) => {
+      let msg: unknown
+      try { msg = JSON.parse(typeof e.data === 'string' ? e.data : '') } catch { return }
+      if (!Array.isArray(msg)) return
+      // Релей вернул наше событие в нашу подписку → принимает и пересылает.
+      if (msg[0] === 'EVENT' && msg[1] === subId && (msg[2] as { id?: string })?.id === evtId) {
+        finish(Math.round(performance.now() - started))
+      } else if ((msg[0] === 'OK' && msg[1] === evtId && msg[2] === false) || (msg[0] === 'CLOSED' && msg[1] === subId)) {
+        finish(null)   // явный отказ публикации/подписки
+      }
+    }
     ws.onerror = () => finish(null)
     ws.onclose = () => finish(null)
   })

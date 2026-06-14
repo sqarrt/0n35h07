@@ -4,13 +4,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 let isAlive: (url: string) => boolean = () => false
 let latencyFor: (url: string) => number = () => 5
 
+// Имитация Nostr-релея: «живой» открывает сокет, принимает REQ+EVENT и эхо-ит наше событие в нашу подписку
+// (round-trip), как настоящий релей. «Мёртвый» — onerror. Латентность считается до эхо (≈ latencyFor).
 class FakeWS {
   onopen: (() => void) | null = null
   onerror: (() => void) | null = null
   onclose: (() => void) | null = null
+  onmessage: ((e: MessageEvent) => void) | null = null
+  private sub: string | null = null
   constructor(public url: string) {
     if (isAlive(url)) setTimeout(() => this.onopen?.(), latencyFor(url))
     else setTimeout(() => this.onerror?.(), 1)
+  }
+  send(raw: string) {
+    const msg = JSON.parse(raw)
+    if (msg[0] === 'REQ') this.sub = msg[1]
+    else if (msg[0] === 'EVENT' && this.sub) {
+      const evt = msg[1], sub = this.sub
+      setTimeout(() => this.onmessage?.({ data: JSON.stringify(['EVENT', sub, evt]) } as MessageEvent), 1)
+    }
   }
   close() { /* no-op */ }
 }
