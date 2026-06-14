@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
+import type { MeshUserData } from '../utils/raycast'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
   DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP, NET_RECONCILE_LERP,
@@ -63,7 +64,7 @@ export class Body {
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true
-    this.mesh.userData.noRaycast = true
+    ;(this.mesh.userData as MeshUserData).noRaycast = true
 
     if (model === 'planet') {   // кольцо — дочерний меш сферы (масштабируется/гаснет вместе с планетой)
       const ring = createBallRing(ringColor)   // «второй» цвет (как в меню); по умолчанию = цвет шара
@@ -77,7 +78,7 @@ export class Body {
     )
     hitbox.position.y = HITBOX_Y
     hitbox.visible = false
-    hitbox.userData.entityId = entityId
+    ;(hitbox.userData as MeshUserData).entityId = entityId
 
     this.object3d.add(this.mesh, hitbox)
   }
@@ -321,7 +322,7 @@ export class Body {
   /** Вкл/выкл хитбокс как raycast-цель: мёртвый/сдувающийся шар нельзя застрелить повторно. */
   setHittable(v: boolean) {
     const hitbox = this.object3d.children[1] as THREE.Mesh
-    hitbox.userData.noRaycast = !v
+    ;(hitbox.userData as MeshUserData).noRaycast = !v
   }
 
   dispose() {
