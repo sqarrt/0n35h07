@@ -5,6 +5,9 @@
   "description": "OneShot — аркадный шутер от первого лица, строго 1v1 (p2p)",
   "author": "Dmitry Shatalov",
   "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
