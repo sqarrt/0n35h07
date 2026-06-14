@@ -1,16 +1,23 @@
 # CI/CD: сборка фронтенда по git-тегу + авто-деплой на nginx через explicit FTPS.
-# Пайплайн стартует ТОЛЬКО на тег. build и deploy — автоматические (deploy идёт сразу после build).
+# Таuri-бинарь (Windows .msi) собирается параллельно и публикуется в Package Registry.
+# GitLab Release создаётся автоматически после успешной сборки бинаря.
+#
+# Пайплайн стартует ТОЛЬКО на тег. Все джобы — автоматические.
 # FTP-доступ задаётся переменными CI/CD (Settings -> CI/CD -> Variables), НЕ хардкодится:
 #   FTP_HOST, FTP_PORT, FTP_USER, FTP_PASSWORD (masked), FTP_REMOTE_DIR
 
 stages:
   - build
   - deploy
+  - tauri
+  - release
 
-# Весь пайплайн (оба джоба) — только при пуше тега.
+# Весь пайплайн (все джобы) — только при пуше тега.
 workflow:
   rules:
     - if: $CI_COMMIT_TAG
+
+# --- фронтенд ---
 
 build:
   stage: build
@@ -48,3 +55,61 @@ deploy:
         open -u '$FTP_USER','$FTP_PASSWORD' 'ftp://$FTP_HOST:$FTP_PORT';
         mirror -R --delete --verbose dist/ '$FTP_REMOTE_DIR';
         bye"
+
+# --- Tauri Windows-бинарь (параллельно с build/deploy) ---
+
+tauri-windows:
+  stage: tauri
+  tags:
+    - saas-windows-medium-amd64
+  variables:
+    CARGO_HOME: .cargo   # кладём cargo-кэш в проектную директорию → GitLab его кэширует
+  cache:
+    key: cargo-windows-$CI_COMMIT_REF_SLUG
+    paths:
+      - .cargo/registry/
+      - .cargo/git/
+      - src-tauri/target/
+  before_script:
+    - |
+      if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+        Write-Host "Installing Rust..."
+        Invoke-WebRequest -Uri "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe" -OutFile rustup-init.exe
+        .\rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc --no-modify-path
+        Remove-Item rustup-init.exe
+        $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+      }
+      cargo --version
+      node --version
+  script:
+    - npm ci
+    - npm run tauri:build
+    - |
+      $msi = Get-ChildItem "src-tauri\target\release\bundle\msi\*.msi" | Select-Object -First 1
+      if (-not $msi) { Write-Error "MSI not found"; exit 1 }
+      $uploadName = "0N35H07-$env:CI_COMMIT_TAG-windows-x64.msi"
+      $uploadUrl  = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/desktop/$env:CI_COMMIT_TAG/$uploadName"
+      Write-Host "Uploading $($msi.Name) -> $uploadUrl"
+      Invoke-RestMethod -Uri $uploadUrl -Method Put -ContentType "application/octet-stream" `
+        -Headers @{ "JOB-TOKEN" = $env:CI_JOB_TOKEN } -InFile $msi.FullName
+      Write-Host "Upload complete."
+  needs: []   # не ждёт build — запускается параллельно
+
+# --- GitLab Release со ссылкой на .msi ---
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - tauri-windows
+  script:
+    - echo "Publishing release $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: "0N35H07 $CI_COMMIT_TAG"
+    description: "## 0N35H07 $CI_COMMIT_TAG\n\nWindows-установщик собран автоматически."
+    assets:
+      links:
+        - name: "Windows installer (.msi)"
+          url: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/desktop/$CI_COMMIT_TAG/0N35H07-$CI_COMMIT_TAG-windows-x64.msi"
+          link_type: package
