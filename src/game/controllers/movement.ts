@@ -6,22 +6,30 @@ export interface MoveKeys { forward: boolean; back: boolean; left: boolean; righ
 
 const UP = new THREE.Vector3(0, 1, 0)
 
-/** Горизонтальный базис (forward/right) из направления взгляда. */
-export function horizontalBasis(look: THREE.Vector3): { dir: THREE.Vector3; right: THREE.Vector3 } {
-  const dir = look.clone()
-  dir.y = 0
-  if (dir.lengthSq() === 0) dir.set(0, 0, -1)
-  dir.normalize()
-  const right = new THREE.Vector3().crossVectors(dir, UP).normalize()
-  return { dir, right }
+/** Горизонтальный базис (forward/right) из направления взгляда.
+ *  out — переиспользуемый scratch (без аллокаций); если не передан, создаёт новые векторы. */
+export function horizontalBasis(
+  look: THREE.Vector3,
+  out?: { dir: THREE.Vector3; right: THREE.Vector3 },
+): { dir: THREE.Vector3; right: THREE.Vector3 } {
+  const o = out ?? { dir: new THREE.Vector3(), right: new THREE.Vector3() }
+  o.dir.copy(look)
+  o.dir.y = 0
+  if (o.dir.lengthSq() === 0) o.dir.set(0, 0, -1)
+  o.dir.normalize()
+  o.right.crossVectors(o.dir, UP).normalize()
+  return o
 }
 
 /** Желаемая скорость WASD: единичное направление × MOVE_SPEED (диагональ НЕ быстрее — нормализуем, чтобы
- *  wishspeed был чётко определён для скоростной модели). Замедление во время заряда выстрела. */
+ *  wishspeed был чётко определён для скоростной модели). Замедление во время заряда выстрела.
+ *  out — переиспользуемый scratch (без аллокаций); если не передан, создаёт новый вектор. */
 export function moveVelocity(
   keys: MoveKeys, dir: THREE.Vector3, right: THREE.Vector3, windingUp: boolean,
+  out?: THREE.Vector3,
 ): THREE.Vector3 {
-  const vel = new THREE.Vector3()
+  const vel = out ?? new THREE.Vector3()
+  vel.set(0, 0, 0)
   if (keys.forward) vel.add(dir)
   if (keys.back)    vel.sub(dir)
   if (keys.left)    vel.sub(right)

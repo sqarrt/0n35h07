@@ -18,6 +18,7 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import type { PlayerSfxInput } from './audio/sfx/MatchSfx'
 import { streakTier, announceKind, announceSfx } from './streak'
 import { bountyFrags, breakResetsCooldowns } from './overheat'
 import { createWindupFx } from './fx/windup/createWindupFx'
@@ -33,7 +34,8 @@ import {
   BALL_RADIUS,
 } from '../constants'
 
-const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+const _desired = new THREE.Vector3()            // scratch: consumeDesired → KCC (ноль-аллок на кадр)
 
 // Отброс при пересечении игроков (вместо жёсткой коллизии капсул, которая глитчила у стен и усложняла сеть).
 const PLAYER_OVERLAP_DIST     = BALL_RADIUS * 2   // сферы-тела пересекаются, когда центры ближе этого (3D)
@@ -135,6 +137,9 @@ export class Match {
   private music: MatchMusic | null = null
   private musicStarted = false
   private sfx: MatchSfx | null = null
+  private _sfxInputsBuf: PlayerSfxInput[] = []   // pre-alloc: обновляем поля на месте, без new каждый кадр
+  private _sfxSelfBuf:   PlayerSfxInput[] = []
+  private _snapBuf: Snapshot | null = null        // pre-alloc снапшот: Vec3-поля обновляем in-place
   private lastRemainingMs = Infinity    // остаток матча (host считает, client получает в 'time') — для аутро музыки
   private lastRemainingAt = 0
 
@@ -325,15 +330,15 @@ export class Match {
       p.stepDash(dt)                                                  // рывок добавляет к desired
       this.maybeKnockback(p)                                          // импульс-отброс при пересечении с другим игроком
       p.stepKnockback(dt)                                             // отброс копится в desired (как рывок → KCC не пустит сквозь стены)
-      const desired = p.consumeDesired()
-      this.kcc.computeColliderMovement(rb.collider(0), desired, undefined, undefined, ignorePlayers)
+      p.consumeDesired(_desired)
+      this.kcc.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
       let c = this.kcc.computedMovement()
       let grounded = this.kcc.computedGrounded()
       // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
       // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
       // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
-      if (this.kccNoStep && !grounded && c.y - desired.y > AUTOSTEP_LIFT_EPS) {
-        this.kccNoStep.computeColliderMovement(rb.collider(0), desired, undefined, undefined, ignorePlayers)
+      if (this.kccNoStep && !grounded && c.y - _desired.y > AUTOSTEP_LIFT_EPS) {
+        this.kccNoStep.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
         c = this.kccNoStep.computedMovement()
         grounded = this.kccNoStep.computedGrounded()
       }
@@ -474,15 +479,24 @@ export class Match {
   /** host: перекличка движений обоих игроков + эмит дискретных move-событий (прыжок/land) клиенту. */
   private sfxFrameHost() {
     if (!this.sfx) return
-    const inputs = this.players.map(p => ({
-      id: p.id, obj: p.bodyGroup, pos: p.position,
-      shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
-      dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
-      shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
-      windingUp: p.isWindingUp, windupStyle: p.windupStyle,
-      isLocal: p.id === this.localId,
-    }))
-    const moves = this.sfx.frame(inputs)
+    // Ленивая инициализация pre-alloc буфера: id/obj/pos/windupStyle стабильны, остальное обновляем per-frame.
+    if (this._sfxInputsBuf.length === 0) {
+      this._sfxInputsBuf = this.players.map(p => ({
+        id: p.id, obj: p.bodyGroup, pos: p.position,   // pos — ссылка на Vector3, обновляемый in-place
+        shieldActive: false, dashing: false, grounded: null, justJumped: false,
+        dashReady: null, shieldReady: null, windingUp: false, windupStyle: p.windupStyle,
+        isLocal: p.id === this.localId,
+      }))
+    }
+    for (let i = 0; i < this.players.length; i++) {
+      const p = this.players[i]; const inp = this._sfxInputsBuf[i]
+      inp.shieldActive = p.shieldActive; inp.dashing = p.dashing
+      inp.grounded = p.grounded; inp.justJumped = p.justJumped
+      inp.dashReady  = p.id === this.localId ? p.dashCooldownProgress() >= 1 : null
+      inp.shieldReady = p.id === this.localId ? p.shieldProgress() >= 1 : null
+      inp.windingUp = p.isWindingUp
+    }
+    const moves = this.sfx.frame(this._sfxInputsBuf)
     for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
   }
 
@@ -490,12 +504,19 @@ export class Match {
   private sfxFrameClientSelf() {
     if (!this.sfx) return
     const me = this.human
-    this.sfx.frame([{
-      id: me.id, obj: me.bodyGroup, pos: me.position,
-      shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
-      dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
-      windingUp: me.isWindingUp, windupStyle: me.windupStyle, isLocal: true,
-    }])
+    if (this._sfxSelfBuf.length === 0) {
+      this._sfxSelfBuf = [{
+        id: me.id, obj: me.bodyGroup, pos: me.position,
+        shieldActive: false, dashing: false, grounded: null, justJumped: false,
+        dashReady: null, shieldReady: null, windingUp: false, windupStyle: me.windupStyle, isLocal: true,
+      }]
+    }
+    const inp = this._sfxSelfBuf[0]
+    inp.shieldActive = me.shieldActive; inp.dashing = me.dashing
+    inp.grounded = me.grounded; inp.justJumped = me.justJumped
+    inp.dashReady = me.dashCooldownProgress() >= 1; inp.shieldReady = me.shieldProgress() >= 1
+    inp.windingUp = me.isWindingUp
+    this.sfx.frame(this._sfxSelfBuf)
   }
 
   /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
@@ -681,7 +702,20 @@ export class Match {
   serializeSnapshot(): Snapshot {
     let ackSeq = 0
     this.remoteControllers.forEach(c => { ackSeq = Math.max(ackSeq, c.ackSeq) })
-    return { ackSeq, players: this.players.map(p => p.serializeState()) }
+    if (!this._snapBuf) {
+      this._snapBuf = {
+        ackSeq: 0,
+        players: this.players.map(p => ({
+          id: p.id,
+          pos: [0, 0, 0] as [number, number, number],
+          aimDir: [0, 0, 0] as [number, number, number],
+          alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false,
+        })),
+      }
+    }
+    this._snapBuf.ackSeq = ackSeq
+    for (let i = 0; i < this.players.length; i++) this.players[i].fillState(this._snapBuf.players[i])
+    return this._snapBuf
   }
 
   /** host: применить присланный кадр ввода к аватару игрока playerId. */

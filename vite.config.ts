@@ -38,6 +38,26 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Разбиваем бандл на кэшируемые чанки: vendor-библиотеки меняются реже игрового кода →
+        // при каждом деплое перезагружается только index.js, остальное остаётся в кэше браузера.
+        codeSplitting: {
+          groups: [
+            // Three.js — самая крупная библиотека; отдельный чанк, меняется редко.
+            { name: 'three',   test: /node_modules[\\/](three|three-mesh-bvh)[\\/]/, priority: 30 },
+            // React Three Fiber + Rapier (physics) — инфраструктура 3D.
+            { name: 'r3f',     test: /node_modules[\\/](@react-three|@dimforge)[\\/]/, priority: 25 },
+            // React core — почти никогда не меняется между версиями игры.
+            { name: 'react',   test: /node_modules[\\/]react(-dom)?[\\/]/, priority: 20 },
+            // Всё остальное из node_modules (trystero, nostr-tools, @tauri-apps, …).
+            { name: 'vendor',  test: /node_modules/, priority: 10 },
+          ],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     strictPort: true,

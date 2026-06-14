@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, lazy, memo, Suspense } from 'react'
-import { getCurrentWindow } from '@tauri-apps/api/window'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
 import { useGameHUD } from './hooks/useGameHUD'
@@ -45,7 +44,7 @@ import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_DESKTOP } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
-import { warmMapPreviews, MAP_IDS } from './game/maps'
+import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
 import { lsGet, lsSet, lsRemove } from './storage'
@@ -256,6 +255,8 @@ export default function App() {
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      // Старт preload geo.json для карты: до монтирования Arena во время отсчёта успеет загрузиться.
+      void ensureMapGeo(mapId)
       // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
       dispatch({ type: 'RESET_MATCH' })
       // Матч стартует с ритуала готовности — заранее ставим фазу 'ready', иначе на миг мелькает оверлей паузы.
@@ -346,7 +347,11 @@ export default function App() {
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
   // Выход из игры: на десктопе (Tauri) закрывает окно через API; в браузере — window.close().
-  const handleExit = () => IS_DESKTOP ? getCurrentWindow().close() : window.close()
+  // Динамический импорт: @tauri-apps/api — отдельный ленивый чанк, в браузер не грузится.
+  const handleExit = () => {
+    if (IS_DESKTOP) void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().close())
+    else window.close()
+  }
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
   // Готовность в матче — клик ловит pointer lock (нужен жест) и отмечает игрока готовым (host↔client синк).
   const handleReady = () => {
