@@ -1,0 +1,445 @@
+{
+  "diagnosis": "ICE_PENDING: соединение зависло в checking/gathering — вероятно H2 (NAT, нужен TURN).",
+  "role": "host",
+  "code": "V2Z9",
+  "selfId": "3M7kE1TSqz2kwsOkJ28g",
+  "appId": "oneshot-fps-v1:0.5.0:browser",
+  "version": "0.5.0",
+  "platform": "browser",
+  "relays": {
+    "phase": "done",
+    "results": [],
+    "selected": [
+      "wss://chorus.almostmachines.dev",
+      "wss://ftp.halifax.rwth-aachen.de/nostr",
+      "wss://basspistol.org",
+      "wss://nos.lol",
+      "wss://nostr-01.uid.ovh",
+      "wss://communities.nos.social",
+      "wss://koru.bitcointxoko.org",
+      "wss://hornetstorage.net/relay"
+    ],
+    "ts": 1781441418586
+  },
+  "peers": [],
+  "handshake": [
+    {
+      "t": 26149,
+      "tag": "helloSent"
+    },
+    {
+      "t": 26554,
+      "tag": "helloSent"
+    },
+    {
+      "t": 26952,
+      "tag": "helloSent"
+    },
+    {
+      "t": 27349,
+      "tag": "helloSent"
+    },
+    {
+      "t": 27750,
+      "tag": "helloSent"
+    },
+    {
+      "t": 28150,
+      "tag": "helloSent"
+    },
+    {
+      "t": 28550,
+      "tag": "helloSent"
+    },
+    {
+      "t": 28952,
+      "tag": "helloSent"
+    },
+    {
+      "t": 29350,
+      "tag": "helloSent"
+    },
+    {
+      "t": 29749,
+      "tag": "helloSent"
+    },
+    {
+      "t": 30150,
+      "tag": "helloSent"
+    },
+    {
+      "t": 30552,
+      "tag": "helloSent"
+    },
+    {
+      "t": 30950,
+      "tag": "helloSent"
+    },
+    {
+      "t": 31352,
+      "tag": "helloSent"
+    },
+    {
+      "t": 31750,
+      "tag": "helloSent"
+    },
+    {
+      "t": 32150,
+      "tag": "helloSent"
+    },
+    {
+      "t": 32552,
+      "tag": "helloSent"
+    },
+    {
+      "t": 32952,
+      "tag": "helloSent"
+    },
+    {
+      "t": 33351,
+      "tag": "helloSent"
+    },
+    {
+      "t": 33750,
+      "tag": "helloSent"
+    },
+    {
+      "t": 34152,
+      "tag": "helloSent"
+    },
+    {
+      "t": 34552,
+      "tag": "helloSent"
+    },
+    {
+      "t": 34950,
+      "tag": "helloSent"
+    },
+    {
+      "t": 35351,
+      "tag": "helloSent"
+    },
+    {
+      "t": 35751,
+      "tag": "helloSent"
+    },
+    {
+      "t": 36150,
+      "tag": "helloSent"
+    }
+  ],
+  "rtc": [
+    {
+      "id": 8,
+      "createdAt": 41186,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41187,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41187,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41188,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41189,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41189,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41190,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "createdAt": 41190,
+      "iceServers": 4,
+      "localCandTypes": {
+        "host": 2,
+        "srflx": 1
+      },
+      "states": [
+        {
+          "t": 41201,
+          "gather": "gathering"
+        },
+        {
+          "t": 81089,
+          "gather": "complete"
+        }
+      ],
+      "errors": [
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.cloudflare.com:3478",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 81089,
+          "code": 701,
+          "url": "stun:stun.l.google.com:19302",
+          "text": "STUN binding request timed out."
+        }
+      ]
+    }
+  ]
+}
