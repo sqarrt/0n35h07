@@ -197,6 +197,7 @@ export class Player implements IControllable {
   /** Направление взгляда (для ориентации модели). Горизонтальную проекцию берёт faceDir; почти-нулевой вектор игнорим. */
   setLook(dir: THREE.Vector3)  { if (dir.lengthSq() > 1e-8) this.lookDir.copy(dir) }
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
+  cancelFiring()               { if (!this.canAct()) return; this.weapon.interrupt() }
   activateShield()             { if (!this.canAct()) return; this.shield.activate() }
   dash(dir: THREE.Vector3) {
     if (!this.canAct()) return

@@ -7,6 +7,7 @@ import { Shield } from './Shield'
 import { HumanController } from './controllers/HumanController'
 import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
+import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
@@ -214,7 +215,13 @@ export class Match {
         controllers.push(humanController)
       } else if (this.role === 'host') {
         if (isBot) {
-          controllers.push(new BotController(p, () => this.human.position, { passive: e.difficulty === 'passive' }))
+          controllers.push(new BotController(
+            p,
+            () => this.human,
+            this.world,
+            e.difficulty === 'passive',
+            botPersonality(e.name),
+          ))
         } else {
           const rc = new RemoteInputController(p, this.world)
           this.remoteControllers.set(e.id, rc)
