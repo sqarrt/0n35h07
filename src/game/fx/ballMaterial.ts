@@ -4,7 +4,7 @@ import {
   BALL_RING_INNER, BALL_RING_OUTER, BALL_RING_TILT_DEG, BALL_RING_SEGMENTS, BALL_RING_BANDS, BALL_RING_SCROLL,
 } from '../../constants'
 import type { BallModel } from '../../constants'
-import { buildArtTexture, writeArtData } from '../ballArt'
+import { buildArtTexture, writeArtData } from './artTexture'
 import type { BallArt } from '../ballArt'
 
 /** GLSL-литерал float из TS-константы (без магических чисел в шейдере). */
@@ -26,7 +26,7 @@ const ART_FRAGMENT_GLSL = `
   vec3 nrm = normalize(vArtNormal);
   float isFront = step(nrm.z, 0.0);
   float ang = acos(clamp(abs(nrm.z), 0.0, 1.0));
-  float rad = ang / 1.5707963;
+  float rad = ang / ${f(Math.PI / 2)};
   float phi = atan(nrm.y, mix(nrm.x, -nrm.x, isFront));
   vec2 disc = vec2(0.5 + 0.5 * rad * cos(phi), 0.5 + 0.5 * rad * sin(phi));
   float au = disc.x * 0.5 + (1.0 - isFront) * 0.5;

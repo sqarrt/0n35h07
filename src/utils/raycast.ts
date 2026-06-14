@@ -1,5 +1,10 @@
 import * as THREE from 'three'
 
+export interface MeshUserData {
+  entityId?: number
+  noRaycast?: boolean
+}
+
 export interface RaycastOptions {
   excludeNames?: string[]
   excludeUserDataKeys?: string[]
@@ -22,8 +27,9 @@ export function performRaycast(
   scene.traverse(obj => {
     if (!(obj instanceof THREE.Mesh)) return
     if (excludeNames.includes(obj.name)) return
+    const ud = obj.userData as MeshUserData
     if (excludeUserDataKeys.some(k => obj.userData[k])) return
-    if (obj.userData.entityId !== undefined && excludeEntityIds.includes(obj.userData.entityId)) return
+    if (ud.entityId !== undefined && excludeEntityIds.includes(ud.entityId)) return
     targets.push(obj)
   })
   raycaster.set(origin, direction)

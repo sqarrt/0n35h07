@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   BALL_ART_SIZE, makeEmptyArt, encodeBallArt, decodeBallArt, isEmpty,
-  cellInDisc, artUvForNormal, writeArtData, ART_TEX_W, ART_TEX_H,
+  cellInDisc, artUvForNormal,
 } from '../../src/game/ballArt'
+import { writeArtData, ART_TEX_W, ART_TEX_H } from '../../src/game/fx/artTexture'
 
 describe('ballArt codec', () => {
   it('round-trip: encode→decode сохраняет закрашенные клетки', () => {

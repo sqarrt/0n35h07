@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { IWeapon, WeaponContext, FireOutcome } from './abstractions'
+import type { MeshUserData } from '../utils/raycast'
 import { BEAM_WINDUP, BEAM_COOLDOWN, BEAM_DURATION, GRAVITY, AIM_RANGE } from '../constants'
 import { ClassicBeamFx } from './fx/beam/ClassicBeamFx'
 import type { IBeamFx } from './fx/beam/types'
@@ -89,7 +90,7 @@ export class BeamWeapon implements IWeapon {
     const end = new THREE.Vector3()
     if (hit) {
       end.copy(hit.point)
-      const eid = hit.object.userData.entityId
+      const eid = (hit.object.userData as MeshUserData).entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
     } else {
       end.copy(origin).addScaledVector(dir, AIM_RANGE)

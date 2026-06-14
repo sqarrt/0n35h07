@@ -3,6 +3,7 @@ import { BroadcastChannelNet } from './BroadcastChannelNet'
 import { TrysteroNet } from './TrysteroNet'
 import { NET_ICE_SERVERS } from '../constants'
 import { resolveRelaysSync } from './relays'
+import { lsGet } from '../storage'
 
 export type NetKind = 'bc' | 'trystero'
 
@@ -13,10 +14,8 @@ export type NetKind = 'bc' | 'trystero'
 export function resolveNetKind(): NetKind {
   const q = new URLSearchParams(window.location.search).get('net')
   if (q === 'bc' || q === 'trystero') return q
-  try {
-    const ls = localStorage.getItem('oneshot:net')
-    if (ls === 'bc' || ls === 'trystero') return ls
-  } catch { /* localStorage недоступен — игнор */ }
+  const ls = lsGet('oneshot:net')
+  if (ls === 'bc' || ls === 'trystero') return ls
   return 'trystero'
 }
 

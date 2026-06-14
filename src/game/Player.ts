@@ -217,16 +217,19 @@ export class Player implements IControllable {
     return this.body.position.clone().add(new THREE.Vector3(0, MUZZLE_Y, 0))
   }
 
+  /** Тик визуалов в фазе призрака. true → вызывающий должен выйти раньше. */
+  private applyGhostVisuals(dt: number): boolean {
+    if (!this.respawning) return false
+    this.shield.object3d.visible = false
+    this.windupFx.object3d.visible = false
+    this.applyRespawn(dt)
+    return true
+  }
+
   private syncVisuals(dt: number) {
     if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
     if (this.weapon.justFired) this.fireTime = Date.now()
-
-    if (this.respawning) {   // призрак: визуалом владеет respawnFx, заряд скрыт
-      this.shield.object3d.visible = false
-      this.windupFx.object3d.visible = false
-      this.applyRespawn(dt)
-      return
-    }
+    if (this.applyGhostVisuals(dt)) return
     this.body.setOpacity(1)   // обычное состояние; окно возрождения ниже перепишет
     this.applyWindup(dt, this.weapon.windupProgress, this.fireTime, this.lookDir)
     this.applyRespawn(dt)     // окно возрождения побеждает масштаб windup (как прежний «пуф»); иначе no-op
@@ -382,12 +385,7 @@ export class Player implements IControllable {
   }
 
   private applyRemoteVisual(dt: number) {
-    if (this.respawning) {   // призрак: визуалом владеет respawnFx, заряд скрыт
-      this.shield.object3d.visible = false
-      this.windupFx.object3d.visible = false
-      this.applyRespawn(dt)
-      return
-    }
+    if (this.applyGhostVisuals(dt)) return
     this.body.setOpacity(1)
     // Порядок как в syncVisuals: сначала windup, затем окно возрождения перепишет масштаб поверх.
     this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)

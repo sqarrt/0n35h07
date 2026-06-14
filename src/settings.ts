@@ -1,3 +1,4 @@
+import { lsGet, lsSet } from './storage'
 import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES, DASH_STYLES, SHIELD_STYLES } from './constants'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { LOCALES } from './i18n'
@@ -91,14 +92,14 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
 export function loadProfile(): PlayerProfile {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = lsGet(KEY)
     if (raw) return sanitize(JSON.parse(raw))
-  } catch { /* недоступно/битый JSON — создаём заново */ }
+  } catch { /* битый JSON — создаём заново */ }
   const fresh = randomProfile()
   saveProfile(fresh)
   return fresh
 }
 
 export function saveProfile(p: Partial<PlayerProfile>): void {
-  try { localStorage.setItem(KEY, JSON.stringify(sanitize(p))) } catch { /* ignore */ }
+  lsSet(KEY, JSON.stringify(sanitize(p)))
 }
