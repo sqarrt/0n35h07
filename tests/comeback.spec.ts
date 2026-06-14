@@ -9,7 +9,7 @@ import type { Page, BrowserContext } from '@playwright/test'
 async function startMatch(context: BrowserContext) {
   const host = await context.newPage(); const client = await context.newPage()
   await host.goto('/'); await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-other-toggle').click(); await host.getByTestId('lobby-role-host').click()
+  await host.getByTestId('lobby-other-toggle').click()   // режим 'оба' по умолчанию уже хостит комнату
   const code = await host.getByTestId('lobby-code-input').inputValue()
   await client.goto('/'); await client.getByTestId('menu-play').click()
   await client.getByTestId('lobby-other-toggle').click(); await client.getByTestId('lobby-role-client').click()

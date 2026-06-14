@@ -22,11 +22,10 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
-  // Хост: ИГРАТЬ → «ПРОЧЕЕ» → роль ХОСТ → читаем код.
+  // Хост: ИГРАТЬ → «ПРОЧЕЕ» → читаем код (режим по умолчанию 'оба' уже хостит свою комнату).
   await host.goto('/')
   await host.getByTestId('menu-play').click()
   await host.getByTestId('lobby-other-toggle').click()
-  await host.getByTestId('lobby-role-host').click()
   const code = await host.getByTestId('lobby-code-input').inputValue()
 
   // Клиент: ИГРАТЬ → «ПРОЧЕЕ» → роль КЛИЕНТ → ввод кода → ПОИСК (по коду → конкретная комната).

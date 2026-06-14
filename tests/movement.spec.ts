@@ -42,8 +42,8 @@ test('Space — прыжок и приземление', async ({ page }) => {
 
   // ОТПУСКАЕМ Space — иначе удержание = auto-bhop, и игрок не приземлится.
   await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', bubbles: true })))
-  await page.waitForTimeout(1200)
-  expect((await getCameraPos(page)).y).toBeCloseTo(1.7, 1)    // вернулся на землю
+  // Приземление ждём ПО УСЛОВИЮ, а не фикс-таймаутом: под нагрузкой падение бывает дольше 1200мс (флак).
+  await expect.poll(async () => (await getCameraPos(page)).y, { timeout: 6000 }).toBeCloseTo(1.7, 1)   // вернулся на землю
 })
 
 test('bhop — удержание Space даёт серию прыжков даже с W+D (без авто-повтора ОС)', async ({ page }) => {
