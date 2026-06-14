@@ -60,13 +60,16 @@ deploy:
 
 tauri-windows:
   stage: tauri
+  timeout: 2h            # холодная компиляция Rust+tauri на Windows-раннере долгая; дефолтного лимита мало
   tags:
     - saas-windows-medium-amd64
   variables:
     CARGO_HOME: .cargo   # кладём cargo-кэш в проектную директорию → GitLab его кэширует
   cache:
-    key: cargo-windows-$CI_COMMIT_REF_SLUG
-    paths:
+    # СТАБИЛЬНЫЙ ключ (НЕ по тегу): иначе каждый релиз-тег = холодный кэш = полная пересборка = таймаут.
+    key: cargo-windows
+    when: always         # сохранять кэш ДАЖЕ при провале/таймауте → частичная компиляция переживает прогон,
+    paths:               # следующий запуск продолжает с неё (иначе вечный холодный билд по кругу)
       - .cargo/registry/
       - .cargo/git/
       - .cargo/bin/        # rustup + cargo-tauri: кэшируем бинарь, иначе ставятся/компилятся каждый прогон
