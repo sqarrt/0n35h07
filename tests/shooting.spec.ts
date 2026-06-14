@@ -1,8 +1,6 @@
 import { test, expect } from './fixtures'
 import { unlockPointer, mouseDown, aimAtBot } from './helpers'
 
-const WINDUP_MS = 400
-
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await unlockPointer(page, { difficulty: 'passive' })
@@ -11,9 +9,8 @@ test.beforeEach(async ({ page }) => {
 
 test('ЛКМ — луч попадает в мишень', async ({ page }) => {
   await mouseDown(page, 0)
-  await page.waitForTimeout(WINDUP_MS + 300)
-  const hits = await page.evaluate(() => (window as any).__debugTargetHitCount ?? 0)
-  expect(hits).toBe(1)
+  // Попадание ждём по условию (фикс-таймаут флакал под нагрузкой). Один выстрел → ровно одно попадание.
+  await expect.poll(() => page.evaluate(() => (window as any).__debugTargetHitCount ?? 0), { timeout: 6000 }).toBe(1)
 })
 
 test('ЛКМ — beam-бар уходит на кулдаун', async ({ page }) => {
