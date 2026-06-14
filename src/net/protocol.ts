@@ -43,6 +43,7 @@ export interface InputFrame {
   seq:    number
   keys:   InputKeys
   aimDir: Vec3       // направление взгляда (для basis движения и прицела)
+  aimOrigin?: Vec3   // позиция камеры клиента — origin прицельного луча (в 3-м лице смещена за спину; хост повторяет ровно её). Нет → хост стреляет из глаз
   jump:   boolean    // held-состояние прыжка (auto-bhop/двойной прыжок считает Body на хосте)
   fire:   boolean    // рёберные действия (fire/shield/dash) — one-shot за кадр
   shield: boolean

@@ -422,7 +422,10 @@ export default function App() {
       listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
       filter: { map: curMap, durationMin: curDur },
     })
-    dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', draftSel) })
+    // Заходим клиентом с РЕАЛЬНО выбранными параметрами поиска (в режиме both выбор живёт в host-сессии,
+    // а draftSel остаётся дефолтным — иначе хост резолвит свой выбор против дефолта клиента: пустое
+    // пересечение → карта-дефолт и время NaN/00:00).
+    dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', { map: curMap, durationMin: curDur }) })
     dmRef.current = dm
     dm.start()
   }

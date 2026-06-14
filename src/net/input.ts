@@ -10,6 +10,7 @@ const _look     = new THREE.Vector3()
 const _basis    = { dir: new THREE.Vector3(), right: new THREE.Vector3() }
 const _vel      = new THREE.Vector3()
 const _aimDir   = new THREE.Vector3()
+const _origin   = new THREE.Vector3()
 const _fallback = new THREE.Vector3()
 
 /**
@@ -25,9 +26,12 @@ export function intentsFromInput(player: Player, frame: InputFrame, dt: number, 
   player.moveIntent(moveVelocity(keys, dir, right, player.isWindingUp, _vel), dt)
   player.setLook(look)   // ориентация модели — по взгляду клиента (как у локального человека)
 
-  // Прицел: луч из глаз вдоль полного aimDir (не горизонтального), исключая своё тело.
+  // Прицел: луч из origin клиента (камера: в TP смещена за спину) вдоль полного aimDir, исключая своё тело.
+  // Origin берём из кадра, чтобы авторитетный луч хоста совпал с тем, что видел клиент (иначе в 3-м лице промах).
   const aimDir = look.lengthSq() === 0 ? _aimDir.set(0, 0, -1) : _aimDir.copy(look).normalize()
-  const origin = player.position
+  const origin = frame.aimOrigin
+    ? _origin.set(frame.aimOrigin[0], frame.aimOrigin[1], frame.aimOrigin[2])
+    : player.position
   const hit = world.raycast(origin, aimDir, [player.id])
   const aimPoint = hit ? hit.point : _fallback.copy(origin).addScaledVector(aimDir, AIM_RANGE)
   player.aim(aimPoint)
