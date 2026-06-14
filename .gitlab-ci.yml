@@ -69,9 +69,21 @@ tauri-windows:
     paths:
       - .cargo/registry/
       - .cargo/git/
+      - .cargo/bin/        # rustup + cargo-tauri: кэшируем бинарь, иначе ставятся/компилятся каждый прогон
       - src-tauri/target/
   before_script:
     - |
+      # Node 22: раннер несёт node 21 (нечётная, не-LTS) — её не поддерживают vite 8/rolldown/vitest
+      # (нужно ^20.19 || >=22.12) → EBADENGINE и падение vite build. Ставим портативный node 22 и кладём в PATH.
+      $nodeVer = "v22.12.0"
+      $nodeDir = Join-Path $env:CI_PROJECT_DIR "node-$nodeVer-win-x64"
+      if (-not (Test-Path (Join-Path $nodeDir "node.exe"))) {
+        Write-Host "Installing Node $nodeVer..."
+        Invoke-WebRequest -Uri "https://nodejs.org/dist/$nodeVer/node-$nodeVer-win-x64.zip" -OutFile node.zip
+        Expand-Archive node.zip -DestinationPath $env:CI_PROJECT_DIR -Force
+        Remove-Item node.zip -ErrorAction SilentlyContinue
+      }
+      $env:PATH = "$nodeDir;$env:PATH"
       # CARGO_HOME=.cargo → cargo ставится в ПРОЕКТНЫЙ .cargo\bin. Добавляем его в PATH БЕЗУСЛОВНО и до
       # проверки: иначе cargo не находится ни при детекте, ни в `cargo tauri build` (старый баг — PATH вёл
       # в $USERPROFILE\.cargo\bin и только внутри if, из-за чего джоба падала с 'cargo' is not recognized).
@@ -83,8 +95,15 @@ tauri-windows:
         .\rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc --no-modify-path
         Remove-Item rustup-init.exe -ErrorAction SilentlyContinue   # exe может быть залочен — не валим джобу
       }
-      cargo --version
+      # Tauri CLI: раннер несёт только rustc/cargo, но не cargo-tauri → `cargo tauri build` падал с
+      # 'no such command: tauri'. Ставим cargo-tauri в .cargo\bin (кэшируется → ставится один раз).
+      if (-not (Test-Path (Join-Path $cargoBin "cargo-tauri.exe"))) {
+        Write-Host "Installing tauri-cli..."
+        cargo install tauri-cli --version "^2.0" --locked
+      }
       node --version
+      cargo --version
+      cargo tauri --version
   script:
     - npm ci
     - |
