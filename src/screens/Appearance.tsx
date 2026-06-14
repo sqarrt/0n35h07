@@ -57,6 +57,21 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   // ballArt тоже из profile — прочие коммиты (цвет/модель) не должны стирать рисунок.
   const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn, dashStyle: dash, shieldStyle: shield, ballArt: profile.ballArt })
 
+  // Фабрика обработчика стиля: sfx при смене + смена части превью + опциональный колбэк превью.
+  const styleField = <T,>(
+    setter: (v: T) => void,
+    key: keyof PlayerProfile,
+    partName: AppearancePart,
+    prev: T,
+    onPreviewCb?: (v: T) => void,
+  ) => (v: T) => {
+    if (v !== prev) sfx.play2D('ui_toggle')
+    setter(v)
+    setPart(partName)
+    onPreviewCb?.(v)
+    commit({ ...base(), [key]: v } as PlayerProfile)
+  }
+
   const handlePrimary = (c: string) => {
     if (c !== primary) sfx.play2D('ui_toggle')
     setEditing('primary')
@@ -74,40 +89,11 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
     setReserve(c)
     commit({ ...base(), primaryColor: primary, reserveColor: c })
   }
-  const handleModel = (m: BallModel) => {
-    if (m !== model) sfx.play2D('ui_toggle')
-    setModel(m)
-    setPart('model')
-    commit({ ...base(), ballModel: m })
-  }
-  const handleWindup = (w: WindupStyle) => {
-    if (w !== windup) sfx.play2D('ui_toggle')
-    setWindup(w)
-    setPart('shot')
-    onShotPreview(w)   // всегда (даже клик по тому же стилю) — один прогон превью выстрела
-    commit({ ...base(), windupStyle: w })
-  }
-  const handleRespawn = (r: RespawnStyle) => {
-    if (r !== respawn) sfx.play2D('ui_toggle')
-    setRespawn(r)
-    setPart('respawn')
-    onRespawnPreview(r)   // всегда — один прогон превью респавна
-    commit({ ...base(), respawnStyle: r })
-  }
-  const handleDash = (d: DashStyle) => {
-    if (d !== dash) sfx.play2D('ui_toggle')
-    setDash(d)
-    setPart('dash')
-    onDashPreview(d)   // всегда — один прогон превью рывка (туда-обратно)
-    commit({ ...base(), dashStyle: d })
-  }
-  const handleShield = (s: ShieldStyle) => {
-    if (s !== shield) sfx.play2D('ui_toggle')
-    setShield(s)
-    setPart('shield')
-    onShieldPreview(s)   // всегда — один прогон превью щита
-    commit({ ...base(), shieldStyle: s })
-  }
+  const handleModel   = styleField(setModel,  'ballModel',    'model',   model)
+  const handleWindup  = styleField(setWindup,  'windupStyle',  'shot',    windup,  v => onShotPreview(v))
+  const handleRespawn = styleField(setRespawn, 'respawnStyle', 'respawn', respawn, v => onRespawnPreview(v))
+  const handleDash    = styleField(setDash,    'dashStyle',    'dash',    dash,    v => onDashPreview(v))
+  const handleShield  = styleField(setShield,  'shieldStyle',  'shield',  shield,  v => onShieldPreview(v))
 
   // Рисунок: каждый штрих мутирует грид → перекодирует ballArt в профиль → живое превью.
   // Пустой рисунок сохраняем как undefined (поле снимается), непустой — base64.

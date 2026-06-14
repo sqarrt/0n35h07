@@ -76,6 +76,10 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
   // Не-косметические поля — косметика теперь живёт в экране «Внешность» и коммитится там.
   const base = (): PlayerProfile => ({ ...profile, name, defaultView: view, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout, searchRole })
 
+  // Фабрика простого обработчика поля профиля (без побочных эффектов).
+  const field = <T,>(setter: (v: T) => void, key: keyof PlayerProfile) =>
+    (v: T) => { setter(v); commit({ ...base(), [key]: v } as PlayerProfile) }
+
   const handleName = (v: string) => {
     const next = v.slice(0, NAME_MAX)
     setName(next)
@@ -85,26 +89,6 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     if (v !== view) sfx.play2D('ui_toggle')
     setView(v)
     commit({ ...base(), defaultView: v })
-  }
-  const handlePost = (v: boolean) => {
-    setPost(v)
-    commit({ ...base(), postProcessing: v })
-  }
-  const handleShowFps = (v: boolean) => {
-    setShowFps(v)
-    commit({ ...base(), showFps: v })
-  }
-  const handleShowSpeed = (v: boolean) => {
-    setShowSpeed(v)
-    commit({ ...base(), showSpeed: v })
-  }
-  const handleMenuGlow = (v: boolean) => {
-    setMenuGlow(v)
-    commit({ ...base(), menuGlow: v })
-  }
-  const handleAudioViz = (v: boolean) => {
-    setAudioViz(v)
-    commit({ ...base(), audioViz: v })
   }
   const handleConnTimeout = (v: number) => {
     if (v !== connTimeout) sfx.play2D('ui_toggle')
@@ -116,22 +100,15 @@ export function Settings({ profile, onChange, onBack }: SettingsProps) {
     setSearchRole(r)
     commit({ ...base(), searchRole: r })
   }
-  const handleVolMaster = (v: number) => {
-    setVolMaster(v)
-    commit({ ...base(), volumeMaster: v })
-  }
-  const handleVolMusic = (v: number) => {
-    setVolMusic(v)
-    commit({ ...base(), volumeMusic: v })
-  }
-  const handleVolSfx = (v: number) => {
-    setVolSfx(v)
-    commit({ ...base(), volumeSfx: v })
-  }
-  const handleVolMenuMusic = (v: number) => {
-    setVolMenuMusic(v)
-    commit({ ...base(), volumeMenuMusic: v })
-  }
+  const handlePost          = field(setPost, 'postProcessing')
+  const handleShowFps       = field(setShowFps, 'showFps')
+  const handleShowSpeed     = field(setShowSpeed, 'showSpeed')
+  const handleMenuGlow      = field(setMenuGlow, 'menuGlow')
+  const handleAudioViz      = field(setAudioViz, 'audioViz')
+  const handleVolMaster     = field<number>(setVolMaster, 'volumeMaster')
+  const handleVolMusic      = field<number>(setVolMusic, 'volumeMusic')
+  const handleVolSfx        = field<number>(setVolSfx, 'volumeSfx')
+  const handleVolMenuMusic  = field<number>(setVolMenuMusic, 'volumeMenuMusic')
 
   return (
     // Панель настроек не уезжает вправо — сдвиг принадлежит экрану «Внешность».
