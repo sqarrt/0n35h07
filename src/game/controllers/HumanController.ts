@@ -7,7 +7,7 @@ import type { MoveKeys } from './movement'
 import { toVec3 } from '../../net/protocol'
 import type { InputFrame } from '../../net/protocol'
 import {
-  WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV, AIM_RANGE,
+  WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, TP_SHOULDER_X, DASH_FOV, AIM_RANGE,
 } from '../../constants'
 
 type Keys = MoveKeys & { jump: boolean }   // + held-прыжок (auto-bhop), обрабатывается за кадр
@@ -27,7 +27,6 @@ export class HumanController implements Controller {
   private _basis       = { dir: this._dir, right: this._right }
   private _vel         = new THREE.Vector3()
   private _aimFallback = new THREE.Vector3()
-  private _lookH       = new THREE.Vector3()
 
   private player: Player
   private camera: THREE.PerspectiveCamera
@@ -115,11 +114,16 @@ export class HumanController implements Controller {
   lateUpdate(dt: number) {
     const pos = this.player.position
     if (this.thirdPerson) {
-      this.camera.getWorldDirection(this._lookH)
-      this._lookH.y = 0
-      this._lookH.normalize()
-      this.camera.position.copy(pos).addScaledVector(this._lookH, -TP_DIST)
-      this.camera.position.y = pos.y + TP_HEIGHT
+      // getWorldDirection принудительно обновляет matrixWorld; после этого колонки матрицы актуальны.
+      this.camera.getWorldDirection(this.tmp)   // tmp = вперёд камеры (с учётом pitch)
+      const m = this.camera.matrixWorld.elements
+      // Смещаем камеру в её ЛОКАЛЬНЫХ осях: m[0..2] = right, m[4..6] = up.
+      // Модель всегда проецируется в одно место экрана при любом pitch и yaw.
+      this.camera.position.set(
+        pos.x - this.tmp.x * TP_DIST + m[0] * TP_SHOULDER_X + m[4] * TP_HEIGHT,
+        pos.y - this.tmp.y * TP_DIST + m[1] * TP_SHOULDER_X + m[5] * TP_HEIGHT,
+        pos.z - this.tmp.z * TP_DIST + m[2] * TP_SHOULDER_X + m[6] * TP_HEIGHT,
+      )
     } else {
       this.camera.position.copy(pos)
     }
