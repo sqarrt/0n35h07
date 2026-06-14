@@ -6,6 +6,7 @@ import type { PlayerProfile } from '../settings'
 import { generateModelName } from '../names'
 import { MAP_IDS } from '../game/maps'
 import { resolveMatchParams } from './matchmaking'
+import { netDiagMark } from './netDiag'
 
 export type RoomRole = 'host' | 'client'
 
@@ -77,7 +78,7 @@ export class RoomSession {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
       net.on('start', payload => { const s = payload as Start; this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
-      net.onPeerJoin(() => { this.peerSeen = true; this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
+      net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
       net.onPeerLeave(() => this.onHostGone())   // хост ушёл в лобби → клиент откатывается до поиска
       this.sayHello()
       // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
@@ -90,6 +91,7 @@ export class RoomSession {
 
   // --- host ---
   private onHello(hello: Hello, from: PeerId) {
+    netDiagMark('helloRecv', { from })
     // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → комната 1v1 полна.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
     const name = (hello.name || '').trim() || 'Соперник'
@@ -138,6 +140,7 @@ export class RoomSession {
   }
 
   private sendAssign(peer: PeerId) {
+    netDiagMark('assignSent', { peer })
     this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds] } satisfies Assign)
   }
   private broadcastRoster() {
@@ -204,11 +207,13 @@ export class RoomSession {
   // --- client ---
   private sayHello() {
     if (this.localPlayerId < 0) {
+      netDiagMark('helloSent')
       const { name, primaryColor, reserveColor, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt } = this.profile
       this.net.broadcast('hello', { name, primaryColor, reserveColor, desiredMap: this.selMap, desiredDuration: this.selDuration, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt } satisfies Hello)
     }
   }
   private onAssign(a: Assign) {
+    netDiagMark('assignRecv')
     this.clearTimers()   // подключились — хватит звать HELLO и сторожить хендшейк
     this.localPlayerId = a.yourId
     this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry

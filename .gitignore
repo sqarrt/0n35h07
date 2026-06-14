@@ -42,3 +42,9 @@ docs/
 TODO.md
 .superpowers
 .mcp.json
+
+# Отладочные артефакты сессий (перф-трейсы, сетевые __netReport, скриншоты)
+Trace-*.json.gz
+*netreport*
+piska*.json
+localhost_*.png

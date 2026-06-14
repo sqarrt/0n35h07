@@ -5,7 +5,7 @@ import type { NetTag } from './protocol'
 import { POOL_NAMESPACE } from './poolNamespace'
 
 // appId разделяет даже ручной вход по коду: несовместимые версия/платформа не подключатся друг к другу.
-const APP_ID = `oneshot-fps-v1:${POOL_NAMESPACE}`
+export const APP_ID = `oneshot-fps-v1:${POOL_NAMESPACE}`
 
 interface Channel { action: MessageAction<DataPayload>; handlers: NetHandler[] }
 

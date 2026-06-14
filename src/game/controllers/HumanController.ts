@@ -83,6 +83,7 @@ export class HumanController implements Controller {
       seq,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
       aimDir: toVec3(look),
+      aimOrigin: toVec3(this.camera.position),   // origin прицела = камера (в TP смещена за спину) — чтобы хост повторил тот же луч
       jump: k.jump,   // held-состояние (не ребро) — auto-bhop/двойной прыжок считает Body на хосте
       fire: this.pending.fire,
       shield: this.pending.shield, dash: this.pending.dash,
