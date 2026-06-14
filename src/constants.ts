@@ -148,10 +148,13 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // TURN-хук: пусто = только STUN (хватает домашним сетям). Добавь серверы для мобильных/CGNAT.
 export const NET_ICE_SERVERS: RTCIceServer[] = []
 
-// Bot
-export const TARGET_SPEED        = 2.5
+// Bot movement & combat
+export const BOT_MOVE_SPEED      = 2.5
 export const BOT_FIRE_INTERVAL   = 2500
 export const BOT_SHIELD_INTERVAL = 5000   // как часто ИИ решает поднять щит (не длительность щита — она как у игрока)
+export const BOT_CHASE_DIST      = 8      // дистанция переключения CHASE ↔ STRAFE (ед.)
+export const BOT_RETREAT_MS      = 500    // мс отхода после собственного выстрела
+export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
 
 // Arena
 export const SPAWN_HALF = 14

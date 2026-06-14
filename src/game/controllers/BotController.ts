@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { Controller } from '../abstractions'
 import type { Player } from '../Player'
 import { randomArenaPos } from '../maps'
-import { TARGET_SPEED, BOT_FIRE_INTERVAL, BOT_SHIELD_INTERVAL } from '../../constants'
+import { BOT_MOVE_SPEED, BOT_FIRE_INTERVAL, BOT_SHIELD_INTERVAL } from '../../constants'
 
 interface BotOptions { passive?: boolean; fireInterval?: number; shieldInterval?: number }
 
@@ -47,7 +47,7 @@ export class BotController implements Controller {
       if (dist < 0.5) {
         this.waypoint = randomArenaPos()
       } else {
-        this.player.moveIntent(this._moveVel.set((dx / dist) * TARGET_SPEED, 0, (dz / dist) * TARGET_SPEED), dt)
+        this.player.moveIntent(this._moveVel.set((dx / dist) * BOT_MOVE_SPEED, 0, (dz / dist) * BOT_MOVE_SPEED), dt)
       }
     }
 
