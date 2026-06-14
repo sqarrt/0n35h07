@@ -5,6 +5,15 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
+## [0.5.2] - 2026-06-14
+
+Багфикс CI: сборка Windows-бинаря (tauri-windows) проходит до конца.
+
+### Fixed
+- CI tauri-windows: на раннере стоял Node 21 (не-LTS, не поддерживается vite 8/rolldown/vitest) и
+  отсутствовал cargo-tauri → `cargo tauri build` падал с «'no such command: tauri'». Джоба теперь ставит
+  портативный Node 22 и cargo-tauri (кэшируется в `.cargo/bin`). Добавлен `engines` в package.json.
+
 ## [0.5.1] - 2026-06-14
 
 Багфикс-релиз: онлайн-соединение через TURN, починка матчмейкинга и прицела клиента, скролл интерфейса,
