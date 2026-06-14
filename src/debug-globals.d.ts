@@ -24,6 +24,7 @@ declare global {
     __debugForceLive?: () => void
     __debugLeave?: () => void
     __debugMusic?: () => { loopIndex: number; active: string[] }
+    __netReport?: () => unknown   // dev-диагностика P2P-коннекта (src/net/netDiag.ts)
   }
 }
 

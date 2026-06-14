@@ -47,6 +47,7 @@ import { createNet, resolveNetKind } from './net/createNet'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
+import { netDiagSetContext, netDiagSetPeers } from './net/netDiag'
 import { lsGet, lsSet, lsRemove } from './storage'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
@@ -251,6 +252,8 @@ export default function App() {
     if (sessionRef.current) leaveRoom()
     if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
     const net = createNet(code)
+    netDiagSetContext({ role, code, selfId: net.selfId })
+    netDiagSetPeers(() => net.peers())
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
