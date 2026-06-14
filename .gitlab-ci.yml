@@ -72,18 +72,25 @@ tauri-windows:
       - src-tauri/target/
   before_script:
     - |
+      # CARGO_HOME=.cargo → cargo ставится в ПРОЕКТНЫЙ .cargo\bin. Добавляем его в PATH БЕЗУСЛОВНО и до
+      # проверки: иначе cargo не находится ни при детекте, ни в `cargo tauri build` (старый баг — PATH вёл
+      # в $USERPROFILE\.cargo\bin и только внутри if, из-за чего джоба падала с 'cargo' is not recognized).
+      $cargoBin = Join-Path $env:CI_PROJECT_DIR ".cargo\bin"
+      $env:PATH = "$cargoBin;$env:PATH"
       if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
         Write-Host "Installing Rust..."
         Invoke-WebRequest -Uri "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe" -OutFile rustup-init.exe
         .\rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc --no-modify-path
-        Remove-Item rustup-init.exe
-        $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+        Remove-Item rustup-init.exe -ErrorAction SilentlyContinue   # exe может быть залочен — не валим джобу
       }
       cargo --version
       node --version
   script:
     - npm ci
-    - npm run tauri:build
+    - |
+      # Дублируем PATH к cargo и здесь — на случай, если окружение before_script не дожило до script-шага.
+      $env:PATH = "$(Join-Path $env:CI_PROJECT_DIR '.cargo\bin');$env:PATH"
+      npm run tauri:build
     - |
       $msi = Get-ChildItem "src-tauri\target\release\bundle\msi\*.msi" | Select-Object -First 1
       if (-not $msi) { Write-Error "MSI not found"; exit 1 }
