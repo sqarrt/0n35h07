@@ -8,7 +8,7 @@ import { AfterimageTrail } from './fx/AfterimageTrail'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
 import {
-  MUZZLE_Y, BODY_MESH_Y, EYE_HEIGHT, WINDUP_SHRINK_MS,
+  MUZZLE_Y, BODY_MESH_Y, BALL_RADIUS, EYE_HEIGHT, WINDUP_SHRINK_MS,
   RESPAWN_GHOST_MS, RESPAWN_SPEED_MULT, RESPAWN_SPEED_RAMP,
 } from '../constants'
 import type { WindupStyle, RespawnStyle, DashStyle } from '../constants'
@@ -207,8 +207,9 @@ export class Player implements IControllable {
 
   // --- simulation (без интеграции позиции — её делает Rapier KCC в Match.applyPhysics) ---
   update(dt: number, world: World, excludeIds: number[]) {
-    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
     const aim = this._aimDir.copy(this.aimPoint).sub(this._muzzle).normalize()
+    this._muzzle.addScaledVector(aim, BALL_RADIUS)   // дуло на поверхности шара, ⊥ к ней
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
     this.weapon.update(dt, { world, muzzle: this._muzzle, aim, excludeIds, pierceWalls: this.pierceWalls })
     this.shield.update(dt)
@@ -371,7 +372,9 @@ export class Player implements IControllable {
 
   /** Косметический выстрел удалённого (клиент, событие FIRED). */
   cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {
-    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
+    this._aimDir.copy(end).sub(this._muzzle).normalize()                // направление к концу луча
+    this._muzzle.addScaledVector(this._aimDir, BALL_RADIUS)             // дуло на поверхности шара
     this.weapon.playBeam(this._muzzle, end, hitPoint)
   }
 
