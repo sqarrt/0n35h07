@@ -1,8 +1,8 @@
 {
   "diagnosis": "ICE_PENDING: соединение зависло в checking/gathering — вероятно H2 (NAT, нужен TURN).",
   "role": "host",
-  "code": "V2Z9",
-  "selfId": "3M7kE1TSqz2kwsOkJ28g",
+  "code": "4OA3",
+  "selfId": "vSbOpgPPTZsOYIlQeWT3",
   "appId": "oneshot-fps-v1:0.5.0:browser",
   "version": "0.5.0",
   "platform": "browser",
@@ -10,128 +10,23 @@
     "phase": "done",
     "results": [],
     "selected": [
-      "wss://chorus.almostmachines.dev",
-      "wss://ftp.halifax.rwth-aachen.de/nostr",
       "wss://basspistol.org",
+      "wss://ftp.halifax.rwth-aachen.de/nostr",
       "wss://nos.lol",
       "wss://nostr-01.uid.ovh",
-      "wss://communities.nos.social",
       "wss://koru.bitcointxoko.org",
-      "wss://hornetstorage.net/relay"
+      "wss://communities.nos.social",
+      "wss://hornetstorage.net/relay",
+      "wss://chorus.pjv.me"
     ],
-    "ts": 1781441418586
+    "ts": 1781442490889
   },
   "peers": [],
-  "handshake": [
-    {
-      "t": 26149,
-      "tag": "helloSent"
-    },
-    {
-      "t": 26554,
-      "tag": "helloSent"
-    },
-    {
-      "t": 26952,
-      "tag": "helloSent"
-    },
-    {
-      "t": 27349,
-      "tag": "helloSent"
-    },
-    {
-      "t": 27750,
-      "tag": "helloSent"
-    },
-    {
-      "t": 28150,
-      "tag": "helloSent"
-    },
-    {
-      "t": 28550,
-      "tag": "helloSent"
-    },
-    {
-      "t": 28952,
-      "tag": "helloSent"
-    },
-    {
-      "t": 29350,
-      "tag": "helloSent"
-    },
-    {
-      "t": 29749,
-      "tag": "helloSent"
-    },
-    {
-      "t": 30150,
-      "tag": "helloSent"
-    },
-    {
-      "t": 30552,
-      "tag": "helloSent"
-    },
-    {
-      "t": 30950,
-      "tag": "helloSent"
-    },
-    {
-      "t": 31352,
-      "tag": "helloSent"
-    },
-    {
-      "t": 31750,
-      "tag": "helloSent"
-    },
-    {
-      "t": 32150,
-      "tag": "helloSent"
-    },
-    {
-      "t": 32552,
-      "tag": "helloSent"
-    },
-    {
-      "t": 32952,
-      "tag": "helloSent"
-    },
-    {
-      "t": 33351,
-      "tag": "helloSent"
-    },
-    {
-      "t": 33750,
-      "tag": "helloSent"
-    },
-    {
-      "t": 34152,
-      "tag": "helloSent"
-    },
-    {
-      "t": 34552,
-      "tag": "helloSent"
-    },
-    {
-      "t": 34950,
-      "tag": "helloSent"
-    },
-    {
-      "t": 35351,
-      "tag": "helloSent"
-    },
-    {
-      "t": 35751,
-      "tag": "helloSent"
-    },
-    {
-      "t": 36150,
-      "tag": "helloSent"
-    }
-  ],
+  "handshake": [],
   "rtc": [
     {
       "id": 8,
-      "createdAt": 41186,
+      "createdAt": 49382,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -139,38 +34,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49596,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49597,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41187,
+      "createdAt": 49383,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -178,38 +63,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49598,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49600,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41187,
+      "createdAt": 49384,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -217,38 +92,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49600,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49602,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41188,
+      "createdAt": 49385,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -256,38 +121,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49599,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49605,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41189,
+      "createdAt": 49386,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -295,38 +150,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49599,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49605,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41189,
+      "createdAt": 49387,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -334,38 +179,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49601,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49605,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41190,
+      "createdAt": 49388,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -373,38 +208,28 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49603,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49604,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 41190,
+      "createdAt": 49389,
       "iceServers": 4,
       "localCandTypes": {
         "host": 2,
@@ -412,32 +237,22 @@
       },
       "states": [
         {
-          "t": 41201,
+          "t": 49415,
           "gather": "gathering"
-        },
-        {
-          "t": 81089,
-          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 81089,
+          "t": 49602,
           "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         },
         {
-          "t": 81089,
+          "t": 49604,
           "code": 701,
-          "url": "stun:stun.cloudflare.com:3478",
-          "text": "STUN binding request timed out."
-        },
-        {
-          "t": 81089,
-          "code": 701,
-          "url": "stun:stun.l.google.com:19302",
-          "text": "STUN binding request timed out."
+          "url": "turn:openrelay.metered.ca:443?transport=tcp",
+          "text": "Failed to establish connection"
         }
       ]
     }
