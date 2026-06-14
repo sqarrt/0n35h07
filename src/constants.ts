@@ -148,19 +148,28 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // ICE-серверы для WebRTC. Передаются в Trystero rtcConfig и ЗАМЕНЯЮТ его дефолты — поэтому держим здесь
 // и STUN, и TURN. STUN хватает домашним сетям; TURN нужен для симметричного NAT/CGNAT и сетей, режущих UDP
 // (там STUN таймаутится — см. диагностику онлайна). turns:443?transport=tcp пробивает UDP-фильтрацию.
-// ВНИМАНИЕ: креды Metered (free 50 ГБ/мес) — для проверки/MVP. Для прода нужен выделенный TURN с лимитами
-// под нагрузку (платный Metered/Twilio/Cloudflare или self-hosted coturn) — free-тариф не даёт гарантий.
-const TURN_USERNAME = 'af2cb5ef0f0bdf6b52f22e88'
-const TURN_CREDENTIAL = 'VyEzyzW20LI7MhQh'
+//
+// Креды TURN — из env (.env, gitignored; в CI — GitLab CI/CD variables), НЕ в репозитории. Хост relay не
+// секрет, секрет — username/credential. Нет кред → STUN-only (домашние сети соединятся, симметричный NAT — нет).
+// ВНИМАНИЕ: env лишь убирает креды из РЕПОЗИТОРИЯ — в собранный клиент они всё равно попадают и видны в
+// DevTools (статичные TURN-креды на фронте скрыть нельзя). Для прода — выделенный TURN с эфемерными кредами
+// (TURN REST/HMAC) либо managed (Metered/Twilio/Cloudflare)/self-hosted coturn с лимитами под нагрузку.
+const TURN_HOST = 'global.relay.metered.ca'
+const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME
+const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL
+const turnServers: RTCIceServer[] = TURN_USERNAME && TURN_CREDENTIAL
+  ? [
+      { urls: `turn:${TURN_HOST}:80`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+      { urls: `turn:${TURN_HOST}:80?transport=tcp`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+      { urls: `turn:${TURN_HOST}:443`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+      { urls: `turns:${TURN_HOST}:443?transport=tcp`, username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+    ]
+  : []
 export const NET_ICE_SERVERS: RTCIceServer[] = [
-  // Публичный STUN (Google/Cloudflare) — даёт srflx-кандидат быстро и надёжно; держим первым, чтобы
-  // прямой путь находился до медленного relay (metered-STUN у части сетей не резолвится — не используем его).
+  // Публичный STUN (Google/Cloudflare) — даёт srflx-кандидат быстро и надёжно; первым, чтобы прямой путь
+  // находился до медленного relay.
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
-  // TURN-relay (Metered free) — fallback для симметричного NAT/UDP-фильтрации. turns:443/tcp пробивает почти всё.
-  { urls: 'turn:global.relay.metered.ca:80', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
-  { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
-  { urls: 'turn:global.relay.metered.ca:443', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
-  { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+  ...turnServers,
 ]
 
 // Bot movement & combat
