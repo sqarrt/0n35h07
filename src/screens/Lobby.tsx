@@ -3,16 +3,16 @@ import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
 import type { SearchRole } from '../settings'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
-import type { LobbySlot, OppSlot } from './lobby/types'
-import { LobbySeats } from './lobby/LobbySeats'
-import { MapPicker } from './lobby/MapPicker'
-import { TimePicker } from './lobby/TimePicker'
-import { LobbyCode } from './lobby/LobbyCode'
-import { LobbyAction } from './lobby/LobbyAction'
-import { RolePicker } from './lobby/RolePicker'
-import { BotPicker } from './lobby/BotPicker'
+import type { LobbySlot, OppSlot } from '../components/lobby/types'
+import { LobbySeats } from '../components/lobby/LobbySeats'
+import { MapPicker } from '../components/lobby/MapPicker'
+import { TimePicker } from '../components/lobby/TimePicker'
+import { LobbyCode } from '../components/lobby/LobbyCode'
+import { LobbyAction } from '../components/lobby/LobbyAction'
+import { RolePicker } from '../components/lobby/RolePicker'
+import { BotPicker } from '../components/lobby/BotPicker'
 
-export type { LobbySlot } from './lobby/types'   // ре-экспорт для App (строит me/opponent)
+export type { LobbySlot } from '../components/lobby/types'   // ре-экспорт для App (строит me/opponent)
 
 interface LobbyProps {
   isHost: boolean

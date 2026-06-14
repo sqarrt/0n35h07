@@ -4,7 +4,7 @@ import {
   BALL_RING_INNER, BALL_RING_OUTER, BALL_RING_TILT_DEG, BALL_RING_SEGMENTS, BALL_RING_BANDS, BALL_RING_SCROLL,
 } from '../../constants'
 import type { BallModel } from '../../constants'
-import { buildArtTexture, writeArtData } from '../ballArt'
+import { buildArtTexture, writeArtData } from './artTexture'
 import type { BallArt } from '../ballArt'
 
 /** GLSL-литерал float из TS-константы (без магических чисел в шейдере). */

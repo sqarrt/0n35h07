@@ -1,18 +1,14 @@
-import * as THREE from 'three'
-
-// Рисунок на шаре: два круглых поля 32×32 (перёд/зад). Бит на клетку (1 = закрашено чёрным).
-// Кодек и дисковая параметризация НЕ зависят от THREE — тестируются без рендера; THREE нужен только
-// для buildArtTexture (сборка DataTexture). Дисковая (азимутальная) проекция: центр диска = полюс
-// полусферы, край r=1 = силуэт шара; перёд = полусфера, обращённая к прицелу (локальная −Z).
+// Рисунок на шаре: два круглых поля 16×16 (перёд/зад). Бит на клетку (1 = закрашено чёрным).
+// Кодек и дисковая параметризация не зависят от THREE — тестируются без рендера.
+// THREE-зависимый код (buildArtTexture, writeArtData) — в fx/artTexture.ts.
+// Дисковая (азимутальная) проекция: центр диска = полюс полусферы, край r=1 = силуэт шара;
+// перёд = полусфера, обращённая к прицелу (локальная −Z).
 
 export const BALL_ART_SIZE = 16
 export const BALL_ART_CELLS = BALL_ART_SIZE * BALL_ART_SIZE   // 256 клеток на сторону
 const BYTES_PER_SIDE = BALL_ART_CELLS / 8                     // 32 байта на сторону
 const BALL_ART_BYTES = BYTES_PER_SIDE * 2                     // 64 байта всего
 const BASE64_LEN = Math.ceil(BALL_ART_BYTES / 3) * 4          // длина base64 (64 байта → 88 символов)
-
-export const ART_TEX_W = BALL_ART_SIZE * 2   // 32: перёд|зад в одной текстуре
-export const ART_TEX_H = BALL_ART_SIZE       // 16
 
 const HALF = BALL_ART_SIZE / 2               // 16: центр диска в координатах сетки
 const HALF_PI = Math.PI / 2
@@ -93,33 +89,3 @@ export function artUvForNormal(nx: number, ny: number, nz: number): { u: number;
   return { u: dx * 0.5 + (1 - isFront) * 0.5, v: dy }
 }
 
-// --- сборка текстуры (THREE) ---
-
-/** Заполнить RGBA-буфер (ART_TEX_W×ART_TEX_H×4) из рисунка: закрашено→0 (чёрный множитель), пусто→255. */
-export function writeArtData(art: BallArt | null, data: Uint8Array) {
-  for (let cy = 0; cy < BALL_ART_SIZE; cy++) {
-    const ty = BALL_ART_SIZE - 1 - cy               // флип: верх редактора = верх шара
-    for (let cx = 0; cx < BALL_ART_SIZE; cx++) {
-      const front = art ? art.front[cy * BALL_ART_SIZE + cx] : 0
-      const back = art ? art.back[cy * BALL_ART_SIZE + cx] : 0
-      const fi = (ty * ART_TEX_W + cx) * 4
-      const bi = (ty * ART_TEX_W + BALL_ART_SIZE + cx) * 4
-      const fv = front ? 0 : 255
-      const bv = back ? 0 : 255
-      data[fi] = data[fi + 1] = data[fi + 2] = fv; data[fi + 3] = 255
-      data[bi] = data[bi + 1] = data[bi + 2] = bv; data[bi + 3] = 255
-    }
-  }
-}
-
-/** DataTexture рисунка (64×32, NearestFilter, без мипмапов). `art=null/пусто` → белая (множитель 1). */
-export function buildArtTexture(art: BallArt | null): THREE.DataTexture {
-  const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)
-  writeArtData(art, data)
-  const tex = new THREE.DataTexture(data, ART_TEX_W, ART_TEX_H, THREE.RGBAFormat)
-  tex.magFilter = THREE.NearestFilter
-  tex.minFilter = THREE.NearestFilter
-  tex.generateMipmaps = false
-  tex.needsUpdate = true
-  return tex
-}
