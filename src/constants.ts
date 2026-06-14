@@ -153,7 +153,10 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 const TURN_USERNAME = 'af2cb5ef0f0bdf6b52f22e88'
 const TURN_CREDENTIAL = 'VyEzyzW20LI7MhQh'
 export const NET_ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.relay.metered.ca:80' },
+  // Публичный STUN (Google/Cloudflare) — даёт srflx-кандидат быстро и надёжно; держим первым, чтобы
+  // прямой путь находился до медленного relay (metered-STUN у части сетей не резолвится — не используем его).
+  { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
+  // TURN-relay (Metered free) — fallback для симметричного NAT/UDP-фильтрации. turns:443/tcp пробивает почти всё.
   { urls: 'turn:global.relay.metered.ca:80', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
   { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
   { urls: 'turn:global.relay.metered.ca:443', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
