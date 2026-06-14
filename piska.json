@@ -1,14 +1,271 @@
+[netReport] (скопировано в буфер)
 {
-  "diagnosis": "ICE_PENDING: соединение зависло в checking/gathering — вероятно H2 (NAT, нужен TURN).",
-  "role": "host",
-  "code": "4OA3",
-  "selfId": "vSbOpgPPTZsOYIlQeWT3",
+  "diagnosis": "RTC_CONNECTED: WebRTC-соединение установлено.",
+  "role": "client",
+  "code": "TJ2M",
+  "selfId": "H0QdDy9dTSIjZl7Mt9RY",
   "appId": "oneshot-fps-v1:0.5.0:browser",
   "version": "0.5.0",
   "platform": "browser",
   "relays": {
     "phase": "done",
-    "results": [],
+    "results": [
+      {
+        "url": "wss://basspistol.org",
+        "alive": true,
+        "latencyMs": 130
+      },
+      {
+        "url": "wss://bucket.coracle.social",
+        "alive": true,
+        "latencyMs": 679
+      },
+      {
+        "url": "wss://chorus.almostmachines.dev",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://chorus.pjv.me",
+        "alive": true,
+        "latencyMs": 577
+      },
+      {
+        "url": "wss://communities.nos.social",
+        "alive": true,
+        "latencyMs": 343
+      },
+      {
+        "url": "wss://ftp.halifax.rwth-aachen.de/nostr",
+        "alive": true,
+        "latencyMs": 141
+      },
+      {
+        "url": "wss://hol.is",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://hornetstorage.net/relay",
+        "alive": true,
+        "latencyMs": 452
+      },
+      {
+        "url": "wss://koru.bitcointxoko.org",
+        "alive": true,
+        "latencyMs": 285
+      },
+      {
+        "url": "wss://nos.lol",
+        "alive": true,
+        "latencyMs": 177
+      },
+      {
+        "url": "wss://nostr-01.uid.ovh",
+        "alive": true,
+        "latencyMs": 256
+      },
+      {
+        "url": "wss://nostr-01.yakihonne.com",
+        "alive": true,
+        "latencyMs": 707
+      },
+      {
+        "url": "wss://nostr-relay.corb.net",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://nostr.data.haus",
+        "alive": true,
+        "latencyMs": 474
+      },
+      {
+        "url": "wss://nostr.islandarea.net",
+        "alive": true,
+        "latencyMs": 1340
+      },
+      {
+        "url": "wss://nostr.sathoarder.com",
+        "alive": true,
+        "latencyMs": 1705
+      },
+      {
+        "url": "wss://nostr.self-determined.de",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://nostr.tegila.com.br",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://nostr.vulpem.com",
+        "alive": true,
+        "latencyMs": 1524
+      },
+      {
+        "url": "wss://purplerelay.com",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay-can.zombi.cloudrodion.com",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay-rpi.edufeed.org",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.agorist.space",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.angor.io",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.artio.inf.unibe.ch",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.binaryrobot.com",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.damus.io",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.froth.zone",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.libernet.app",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.mostr.pub",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.mostro.network",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.nostr.place",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.nostrdice.com",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.notoshi.win",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.sigit.io",
+        "alive": true,
+        "latencyMs": 1359
+      },
+      {
+        "url": "wss://relay02.lnfi.network",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay2.angor.io",
+        "alive": true,
+        "latencyMs": 1341
+      },
+      {
+        "url": "wss://schnorr.me",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://slick.mjex.me",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://social.amanah.eblessing.co",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://staging.yabu.me",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://strfry.openhoofd.nl",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://strfry.shock.network",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://testnet-relay.samt.st",
+        "alive": true,
+        "latencyMs": 1696
+      },
+      {
+        "url": "wss://top.testrelay.top",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://x.kojira.io",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://yabu.me/v2",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.primal.net",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.snort.social",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://relay.nostr.band",
+        "alive": false,
+        "latencyMs": null
+      },
+      {
+        "url": "wss://offchain.pub",
+        "alive": false,
+        "latencyMs": null
+      }
+    ],
     "selected": [
       "wss://basspistol.org",
       "wss://ftp.halifax.rwth-aachen.de/nostr",
@@ -17,242 +274,575 @@
       "wss://koru.bitcointxoko.org",
       "wss://communities.nos.social",
       "wss://hornetstorage.net/relay",
-      "wss://chorus.pjv.me"
+      "wss://nostr.data.haus"
     ],
-    "ts": 1781442490889
+    "ts": 1781443571308
   },
   "peers": [],
-  "handshake": [],
+  "handshake": [
+    {
+      "t": 43941,
+      "tag": "helloSent"
+    },
+    {
+      "t": 44346,
+      "tag": "helloSent"
+    },
+    {
+      "t": 44743,
+      "tag": "helloSent"
+    },
+    {
+      "t": 44783,
+      "tag": "peerSeen"
+    },
+    {
+      "t": 44783,
+      "tag": "helloSent"
+    },
+    {
+      "t": 44906,
+      "tag": "assignRecv"
+    },
+    {
+      "t": 52760,
+      "tag": "assignRecv"
+    },
+    {
+      "t": 54510,
+      "tag": "assignRecv"
+    },
+    {
+      "t": 62737,
+      "tag": "assignRecv"
+    }
+  ],
   "rtc": [
     {
       "id": 8,
-      "createdAt": 49382,
-      "iceServers": 4,
+      "createdAt": 43936,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49596,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49597,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49383,
-      "iceServers": 4,
+      "createdAt": 43937,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49598,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49600,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49384,
-      "iceServers": 4,
+      "createdAt": 43938,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49600,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49602,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49385,
-      "iceServers": 4,
+      "createdAt": 43938,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49599,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49605,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49386,
-      "iceServers": 4,
+      "createdAt": 43939,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49599,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49605,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49387,
-      "iceServers": 4,
+      "createdAt": 43940,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49601,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49605,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44021,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49388,
-      "iceServers": 4,
+      "createdAt": 43941,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 43953,
           "gather": "gathering"
+        },
+        {
+          "t": 83842,
+          "gather": "complete"
         }
       ],
       "errors": [
         {
-          "t": 49603,
+          "t": 43983,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49604,
+          "t": 44020,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44020,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44022,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44022,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 83842,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     },
     {
       "id": 8,
-      "createdAt": 49389,
-      "iceServers": 4,
+      "createdAt": 44162,
+      "iceServers": 5,
       "localCandTypes": {
         "host": 2,
-        "srflx": 1
+        "srflx": 1,
+        "relay": 6
       },
       "states": [
         {
-          "t": 49415,
+          "t": 44165,
           "gather": "gathering"
+        },
+        {
+          "t": 44165,
+          "ice": "checking"
+        },
+        {
+          "t": 44167,
+          "conn": "connecting"
+        },
+        {
+          "t": 44405,
+          "ice": "connected"
+        },
+        {
+          "t": 44406,
+          "gather": "complete"
+        },
+        {
+          "t": 44535,
+          "conn": "connected"
         }
       ],
       "errors": [
         {
-          "t": 49602,
+          "t": 44175,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
         },
         {
-          "t": 49604,
+          "t": 44175,
           "code": 701,
-          "url": "turn:openrelay.metered.ca:443?transport=tcp",
-          "text": "Failed to establish connection"
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44176,
+          "code": 701,
+          "url": "stun:stun.relay.metered.ca:80",
+          "text": "STUN host lookup received error."
+        },
+        {
+          "t": 44229,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:80?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 44229,
+          "code": 701,
+          "url": "turn:global.relay.metered.ca:443?transport=udp",
+          "text": "TURN host lookup received error."
+        },
+        {
+          "t": 84060,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:80",
+          "text": "STUN binding request timed out."
+        },
+        {
+          "t": 84060,
+          "code": 701,
+          "url": "stun:global.relay.metered.ca:443",
+          "text": "STUN binding request timed out."
         }
       ]
     }
