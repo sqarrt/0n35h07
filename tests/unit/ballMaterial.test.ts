@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { createBallMaterial, createBallRing } from '../../src/game/fx/ballMaterial'
-import { makeEmptyArt, BALL_ART_SIZE, ART_TEX_W } from '../../src/game/ballArt'
+import { makeEmptyArt, BALL_ART_SIZE } from '../../src/game/ballArt'
+import { ART_TEX_W } from '../../src/game/fx/artTexture'
 
 // Шейдер компилит R3F при рендере (GL в jsdom нет) — проверяем конструкцию материала и tick, без рендера.
 describe('createBallMaterial', () => {
