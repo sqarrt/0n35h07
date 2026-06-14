@@ -1,18 +1,26 @@
+import { lsGet, lsSet } from './storage'
 import { PLAYER_COLORS, BALL_MODELS, WINDUP_STYLES, RESPAWN_STYLES, DASH_STYLES, SHIELD_STYLES } from './constants'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
+import { LOCALES } from './i18n'
+import type { LocaleId } from './i18n'
+import { generateModelName } from './names'
+import { decodeBallArt } from './game/ballArt'
 
 export type DefaultView = 'fp' | 'tp'
+export type SearchRole = 'both' | 'host' | 'client'
 
 export interface PlayerProfile {
   name: string
   primaryColor: string
   reserveColor: string
   defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
+  searchRole: SearchRole     // сетевая роль по-умолчанию в лобби; локальное предпочтение
   ballModel: BallModel       // модель сферы (сетевая косметика)
   windupStyle: WindupStyle   // анимация подготовки выстрела (сетевая косметика)
   respawnStyle: RespawnStyle // анимация респавна (сетевая косметика)
   dashStyle: DashStyle       // скин следа рывка (сетевая косметика)
   shieldStyle: ShieldStyle   // скин щита (сетевая косметика)
+  ballArt?: string           // рисунок на шаре (base64, перёд/зад 32×32); undefined = пусто (сетевая косметика)
   postProcessing: boolean    // графика: экранный контур рёбер (постобработка); локальное предпочтение
   showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
   showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
@@ -23,6 +31,7 @@ export interface PlayerProfile {
   volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
   volumeMenuMusic: number    // звук: музыка в меню 0..1; локальное предпочтение
   connectTimeoutSec: number  // сеть: таймаут подключения к комнате (секунды); локальное предпочтение
+  locale?: LocaleId          // язык интерфейса; undefined = не выбран (определяем системный)
 }
 
 export const CONNECT_TIMEOUT_OPTIONS = [5, 10, 20, 30, 60, 90, 120] as const   // варианты таймаута подключения (с)
@@ -31,21 +40,13 @@ const CONNECT_TIMEOUT_DEFAULT = 10
 const KEY = 'oneshot:profile'
 export const NAME_MAX = 16
 
-/** Шуточные имена в стиле игры — назначаются случайно при первом запуске. */
-export const DEFAULT_NAMES = [
-  'Ваншот Мазила', 'Дэш в Стену', 'Кэмпер Поневоле', 'Случайный Хедшот',
-  'Жертва Баланса', 'АФК Профессионал', 'Гроза Ботов', 'Понерфили Меня',
-  'Имба на Минуту', 'Респаун Энджоер', 'Промах Года', 'Один Выстрел',
-  'Тащер (нет)', 'Без Пинга Никак', 'Луч Надежды', 'Шар Судьбы',
-]
-
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
 
-/** Профиль первого запуска: случайное шуточное имя + случайная пара цветов. */
+/** Профиль первого запуска: сгенерированное имя-«модель» + случайная пара цветов. */
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: pick(DEFAULT_NAMES), primaryColor, reserveColor, defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
 // Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
@@ -58,11 +59,12 @@ function clampVolume(v: unknown, dflt: number): number {
 
 /** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
 function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
-  const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, NAME_MAX) || 'Игрок'
+  const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, NAME_MAX) || generateModelName()
   const primaryColor = PLAYER_COLORS.includes(p.primaryColor as string) ? (p.primaryColor as string) : PLAYER_COLORS[0]
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
   const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
+  const searchRole: SearchRole = p.searchRole === 'host' || p.searchRole === 'client' ? p.searchRole : 'both'
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const windupStyle: WindupStyle = WINDUP_STYLES.includes(p.windupStyle as WindupStyle) ? (p.windupStyle as WindupStyle) : 'classic'
   const respawnStyle: RespawnStyle = RESPAWN_STYLES.includes(p.respawnStyle as RespawnStyle) ? (p.respawnStyle as RespawnStyle) : 'echo'
@@ -79,20 +81,25 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
   // таймаут подключения: только из разрешённых вариантов, иначе дефолт
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
-  return { name, primaryColor, reserveColor, defaultView, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec }
+  // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
+  const localeIds = LOCALES.map(l => l.id)
+  const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
+  // рисунок на шаре: валидная base64-строка → сохраняем как есть; иначе поле снимается (нет рисунка)
+  const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
 }
 
 /** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
 export function loadProfile(): PlayerProfile {
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = lsGet(KEY)
     if (raw) return sanitize(JSON.parse(raw))
-  } catch { /* недоступно/битый JSON — создаём заново */ }
+  } catch { /* битый JSON — создаём заново */ }
   const fresh = randomProfile()
   saveProfile(fresh)
   return fresh
 }
 
 export function saveProfile(p: Partial<PlayerProfile>): void {
-  try { localStorage.setItem(KEY, JSON.stringify(sanitize(p))) } catch { /* ignore */ }
+  lsSet(KEY, JSON.stringify(sanitize(p)))
 }

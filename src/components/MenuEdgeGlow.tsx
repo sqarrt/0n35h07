@@ -19,7 +19,7 @@ const GRAD_PX = 1.5         // шаг градиента глубины (px) —
 const DEPTH_THRESH = 0.05   // порог градиента глубины: силуэт огромный, склоны волн/ступень кольца — умеренные
 const EDGE_GAIN = 4.0       // яркость обводки в HDR (>1) → Bloom её ловит, поверхность (≤1) нет
 const EDGE_WHITE = 0.15     // немного белого для яркости/видимости; в основном — экранный цвет модели (с градиентами)
-const LEVEL_GAIN = 3.2      // усиление RMS звука
+const LEVEL_GAIN = 3.2      // усиление RMS звука (до перцептивной кривой √x)
 const GLOW_SMOOTH = 0.18    // сглаживание пульсации
 const INTENSITY_BASE = 0.0  // в тишине свечения НЕТ совсем
 const INTENSITY_GAIN = 1.1  // яркость кромки на пике звука
@@ -141,7 +141,8 @@ export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnal
 
   const lvl = useRef(0)
   useFrame(() => {
-    const tgt = muted ? 0 : Math.min(1, (analysis?.level() ?? 0) * LEVEL_GAIN)
+    // √x — перцептивная громкость: тихая музыка заметно подсвечивает кромку, пики не сплющиваются у потолка
+    const tgt = muted ? 0 : Math.min(1, Math.sqrt((analysis?.level() ?? 0) * LEVEL_GAIN))
     lvl.current += (tgt - lvl.current) * GLOW_SMOOTH
     const u = effect.uniforms.get('uIntensity')!
     u.value = INTENSITY_BASE + lvl.current * INTENSITY_GAIN

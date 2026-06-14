@@ -7,6 +7,7 @@ import { Shield } from './Shield'
 import { HumanController } from './controllers/HumanController'
 import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
+import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
@@ -18,19 +19,29 @@ import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
 import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
+import type { PlayerSfxInput } from './audio/sfx/MatchSfx'
+import { streakTier, announceKind, announceSfx } from './streak'
+import { bountyFrags, breakResetsCooldowns } from './overheat'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
 import { createRespawnFx } from './fx/respawn/createRespawnFx'
 import { createDashFx } from './fx/dash/createDashFx'
 import { createShieldFx } from './fx/shield/createShieldFx'
+import { decodeBallArt } from './ballArt'
 import {
-  BOT_WINDUP, BOT_SHIELD_DURATION, BOT_SHIELD_INTERVAL,
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
+  BALL_RADIUS,
 } from '../constants'
 
-const _DOWN = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
+const _desired = new THREE.Vector3()            // scratch: consumeDesired → KCC (ноль-аллок на кадр)
+
+// Отброс при пересечении игроков (вместо жёсткой коллизии капсул, которая глитчила у стен и усложняла сеть).
+const PLAYER_OVERLAP_DIST     = BALL_RADIUS * 2   // сферы-тела пересекаются, когда центры ближе этого (3D)
+const PLAYER_OVERLAP_MIN_DIST = 1e-4              // центры почти совпали → толкаем в произвольном направлении
+const _knock = new THREE.Vector3()                // scratch для направления отброса (3D между центрами)
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
 
@@ -44,7 +55,13 @@ interface Kcc {
   setMaxSlopeClimbAngle(rad: number): void
   setMinSlopeSlideAngle(rad: number): void
   enableAutostep(maxHeight: number, minWidth: number, includeDynamic: boolean): void
-  computeColliderMovement(collider: unknown, desired: XYZ3): void
+  computeColliderMovement(
+    collider: unknown,
+    desired: XYZ3,
+    filterFlags?: number,
+    filterGroups?: number,
+    filterPredicate?: (collider: { handle: number }) => boolean,
+  ): void
   computedMovement(): XYZ3
   computedGrounded(): boolean
 }
@@ -81,6 +98,7 @@ export class Match {
   phase: MatchPhase = 'live'           // ритуал входа (1v1): ready → countdown → live
 
   private world: World
+  private singularityActive = false   // режим SINGULARITY: прострел обоим + прозрачные блоки (трекаем для смены)
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: id игрока → его контроллер
   private byId = new Map<number, Player>()
@@ -97,6 +115,8 @@ export class Match {
   private prevWindup = false
   private prevShield = false
   private scoresDirty = true   // на старте отправить нулевую таблицу
+  private firstKillDone = false                  // первый фраг матча показан (CATALYST один раз)
+  private colorOf = new Map<number, string>()    // id → hex цвета игрока (для подсветки/баннера)
 
   // Часы матча
   private durationMs: number
@@ -118,6 +138,9 @@ export class Match {
   private music: MatchMusic | null = null
   private musicStarted = false
   private sfx: MatchSfx | null = null
+  private _sfxInputsBuf: PlayerSfxInput[] = []   // pre-alloc: обновляем поля на месте, без new каждый кадр
+  private _sfxSelfBuf:   PlayerSfxInput[] = []
+  private _snapBuf: Snapshot | null = null        // pre-alloc снапшот: Vec3-поля обновляем in-place
   private lastRemainingMs = Infinity    // остаток матча (host считает, client получает в 'time') — для аутро музыки
   private lastRemainingAt = 0
 
@@ -165,21 +188,22 @@ export class Match {
       const respawnStyle = e.respawnStyle ?? 'echo'
       const dashStyle = e.dashStyle ?? 'streak'
       const shieldStyle = e.shieldStyle ?? 'dome'
+      const ballArt = decodeBallArt(e.ballArt) ?? undefined   // рисунок на шаре (null → нет)
       const p = isBot
-        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
-            new BeamWeapon({ windupDuration: BOT_WINDUP, cooldownDuration: 0, outerColor: '#f44' }),
-            new Shield({ duration: BOT_SHIELD_DURATION, cooldown: BOT_SHIELD_INTERVAL - BOT_SHIELD_DURATION,
-              shieldFx: createShieldFx(shieldStyle) }),
+        ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor, ballArt),
+            new BeamWeapon({ outerColor: '#f44' }),   // боевой профиль идентичен человеку; красный луч — метка «врага»
+            new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)
-        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor),
+        : new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor, ballArt),
             new BeamWeapon({ outerColor: e.color, beamFx: createBeamFx(windupStyle, e.color) }),
             new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)
       p.name = e.name
+      this.colorOf.set(e.id, e.color)
 
       // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
       p.respawnAt(new THREE.Vector3().fromArray(spawns[e.id === OPPONENT_ID ? 1 : 0]))
@@ -191,7 +215,13 @@ export class Match {
         controllers.push(humanController)
       } else if (this.role === 'host') {
         if (isBot) {
-          controllers.push(new BotController(p, () => this.human.position, { passive: e.difficulty === 'passive' }))
+          controllers.push(new BotController(
+            p,
+            () => this.human,
+            this.world,
+            e.difficulty === 'passive',
+            botPersonality(e.name),
+          ))
         } else {
           const rc = new RemoteInputController(p, this.world)
           this.remoteControllers.set(e.id, rc)
@@ -247,6 +277,8 @@ export class Match {
 
     if (this.role === 'client') {
       // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
+      // ПЕРЕГРЕВ + SINGULARITY (прострел/прозрачные блоки) ДО прицела — иначе aimPoint на кадр отстаёт.
+      this.applyComeback()
       this.humanController.update(dt)
       this.players.forEach(p => {
         if (p.id === this.localId) {
@@ -265,6 +297,7 @@ export class Match {
     }
 
     // local / host — авторитет
+    this.applyComeback()
     this.controllers.forEach(c => c.update(dt))
     this.players.forEach(p => p.update(dt, this.world, this.excludeIds(p)))
     this.applyPhysics(dt)
@@ -279,6 +312,14 @@ export class Match {
   /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
   private applyPhysics(dt: number) {
     if (!this.kcc) return
+    // KCC игнорирует капсулы игроков: жёсткой коллизии игрок-игрок нет (глитч у стен убран,
+    // сеть проще). Пересечение разруливается импульсом-отбросом (maybeKnockback) в desired.
+    const playerHandles = new Set<number>()
+    for (const pp of this.players) {
+      const c = pp.rb?.collider(0) as { handle: number } | undefined
+      if (c) playerHandles.add(c.handle)
+    }
+    const ignorePlayers = (collider: { handle: number }) => !playerHandles.has(collider.handle)
     for (const p of this.players) {
       const rb = p.rb
       if (!rb) continue
@@ -294,15 +335,17 @@ export class Match {
       p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
       p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
       p.stepDash(dt)                                                  // рывок добавляет к desired
-      const desired = p.consumeDesired()
-      this.kcc.computeColliderMovement(rb.collider(0), desired)
+      this.maybeKnockback(p)                                          // импульс-отброс при пересечении с другим игроком
+      p.stepKnockback(dt)                                             // отброс копится в desired (как рывок → KCC не пустит сквозь стены)
+      p.consumeDesired(_desired)
+      this.kcc.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
       let c = this.kcc.computedMovement()
       let grounded = this.kcc.computedGrounded()
       // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
       // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
       // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
-      if (this.kccNoStep && !grounded && c.y - desired.y > AUTOSTEP_LIFT_EPS) {
-        this.kccNoStep.computeColliderMovement(rb.collider(0), desired)
+      if (this.kccNoStep && !grounded && c.y - _desired.y > AUTOSTEP_LIFT_EPS) {
+        this.kccNoStep.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
         c = this.kccNoStep.computedMovement()
         grounded = this.kccNoStep.computedGrounded()
       }
@@ -311,6 +354,26 @@ export class Match {
       if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
       rb.setNextKinematicTranslation(next)
       p.setGrounded(grounded)
+    }
+  }
+
+  /** Импульс-отброс игрока `p` от соперника при пересечении сфер-тел (вместо жёсткой коллизии).
+   *  Направление — полный 3D-вектор между центрами (можно запрыгнуть сверху и оттолкнуться вверх).
+   *  Стартует один раз и доигрывает окно (как рывок); пока летит — не перезапускаем. */
+  private maybeKnockback(p: Player) {
+    if (!p.alive || p.knocking) return
+    for (const o of this.players) {
+      if (o === p || !o.alive) continue
+      const dx = p.position.x - o.position.x
+      const dy = p.position.y - o.position.y
+      const dz = p.position.z - o.position.z
+      const d = Math.hypot(dx, dy, dz)
+      if (d >= PLAYER_OVERLAP_DIST) continue                       // сферы не пересекаются
+      if (d < PLAYER_OVERLAP_MIN_DIST) _knock.set(1, 0, 0)         // центры совпали → произвольное направление
+      else _knock.set(dx, dy, dz)                                  // 3D от центра соперника к своему
+      p.knockback(_knock)   // knockback нормализует направление сам
+      window.__debugKnockCount = (window.__debugKnockCount ?? 0) + 1   // e2e: факт события отброса
+      return
     }
   }
 
@@ -332,14 +395,29 @@ export class Match {
         if (victim && victim.alive) {   // мёртвую/сдувающуюся жертву не добиваем
           const res = victim.receiveHit()
           if (res === 'blocked') {
-            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id })
+            const perfect = victim.perfectBlock      // идеальный блок → сброс кулдаунов жертве
+            if (perfect) victim.resetCooldowns()
+            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
             victim.deaths++
-            if (shooter !== victim) shooter.kills++
+            const broken = victim.streak           // тир жертвы ДО сброса (для баунти/сброса)
+            victim.streak = 0
+            let streak = 0, firstBlood = false
+            let bounty = 0, resetCd = false
+            if (shooter !== victim) {
+              bounty = bountyFrags(broken)
+              resetCd = breakResetsCooldowns(broken)
+              shooter.kills += bounty               // в счёт (с баунти)
+              shooter.streak++                      // киллстрик — по реальному киллу (+1)
+              streak = shooter.streak
+              if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+              if (resetCd) shooter.resetCooldowns()
+            }
             this.scoresDirty = true
-            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
+            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
+            this.announceStreak(shooter.id, victim.id, streak, firstBlood)
             if (shooter === this.human && victim !== this.human) {
               if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
               window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
@@ -408,15 +486,24 @@ export class Match {
   /** host: перекличка движений обоих игроков + эмит дискретных move-событий (прыжок/land) клиенту. */
   private sfxFrameHost() {
     if (!this.sfx) return
-    const inputs = this.players.map(p => ({
-      id: p.id, obj: p.bodyGroup, pos: p.position,
-      shieldActive: p.shieldActive, dashing: p.dashing, grounded: p.grounded, justJumped: p.justJumped,
-      dashReady: p.id === this.localId ? p.dashCooldownProgress() >= 1 : null,
-      shieldReady: p.id === this.localId ? p.shieldProgress() >= 1 : null,
-      windingUp: p.isWindingUp, windupStyle: p.windupStyle,
-      isLocal: p.id === this.localId,
-    }))
-    const moves = this.sfx.frame(inputs)
+    // Ленивая инициализация pre-alloc буфера: id/obj/pos/windupStyle стабильны, остальное обновляем per-frame.
+    if (this._sfxInputsBuf.length === 0) {
+      this._sfxInputsBuf = this.players.map(p => ({
+        id: p.id, obj: p.bodyGroup, pos: p.position,   // pos — ссылка на Vector3, обновляемый in-place
+        shieldActive: false, dashing: false, grounded: null, justJumped: false,
+        dashReady: null, shieldReady: null, windingUp: false, windupStyle: p.windupStyle,
+        isLocal: p.id === this.localId,
+      }))
+    }
+    for (let i = 0; i < this.players.length; i++) {
+      const p = this.players[i]; const inp = this._sfxInputsBuf[i]
+      inp.shieldActive = p.shieldActive; inp.dashing = p.dashing
+      inp.grounded = p.grounded; inp.justJumped = p.justJumped
+      inp.dashReady  = p.id === this.localId ? p.dashCooldownProgress() >= 1 : null
+      inp.shieldReady = p.id === this.localId ? p.shieldProgress() >= 1 : null
+      inp.windingUp = p.isWindingUp
+    }
+    const moves = this.sfx.frame(this._sfxInputsBuf)
     for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
   }
 
@@ -424,12 +511,19 @@ export class Match {
   private sfxFrameClientSelf() {
     if (!this.sfx) return
     const me = this.human
-    this.sfx.frame([{
-      id: me.id, obj: me.bodyGroup, pos: me.position,
-      shieldActive: me.shieldActive, dashing: me.dashing, grounded: me.grounded, justJumped: me.justJumped,
-      dashReady: me.dashCooldownProgress() >= 1, shieldReady: me.shieldProgress() >= 1,
-      windingUp: me.isWindingUp, windupStyle: me.windupStyle, isLocal: true,
-    }])
+    if (this._sfxSelfBuf.length === 0) {
+      this._sfxSelfBuf = [{
+        id: me.id, obj: me.bodyGroup, pos: me.position,
+        shieldActive: false, dashing: false, grounded: null, justJumped: false,
+        dashReady: null, shieldReady: null, windingUp: false, windupStyle: me.windupStyle, isLocal: true,
+      }]
+    }
+    const inp = this._sfxSelfBuf[0]
+    inp.shieldActive = me.shieldActive; inp.dashing = me.dashing
+    inp.grounded = me.grounded; inp.justJumped = me.justJumped
+    inp.dashReady = me.dashCooldownProgress() >= 1; inp.shieldReady = me.shieldProgress() >= 1
+    inp.windingUp = me.isWindingUp
+    this.sfx.frame(this._sfxSelfBuf)
   }
 
   /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
@@ -578,6 +672,32 @@ export class Match {
     this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
   }
 
+  /** Подсветка ника по серии (shooter), сброс у жертвы; на рубеже — баннер + 2D-звук. Зовётся и host, и client. */
+  /** Каждый кадр: ПЕРЕГРЕВ по серии у всех + режим SINGULARITY (прострел ОБОИМ + прозрачные блоки),
+   *  если ХОТЬ КТО-ТО достиг ×5. Зовётся и host, и client (визуал/предсказание у обоих одинаковы). */
+  private applyComeback() {
+    for (const p of this.players) p.applyOverheat()
+    const singularity = this.players.some(p => p.seeThrough)
+    for (const p of this.players) p.pierceWalls = singularity
+    if (singularity !== this.singularityActive) {
+      this.singularityActive = singularity
+      this.world.setBlocksTransparent(singularity)
+    }
+  }
+
+  private announceStreak(shooterId: number, victimId: number, streak: number, firstBlood: boolean) {
+    this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak), count: streak })
+    this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null, count: 0 })
+    const kind = announceKind(streak, firstBlood)
+    if (!kind) return
+    const name = this.byId.get(shooterId)?.name ?? ''
+    const color = this.colorOf.get(shooterId) ?? '#4af'
+    this.dispatch({ type: 'ANNOUNCE', name, color, kind })
+    this.sfx?.play2D(announceSfx(kind))
+    window.__debugLastAnnounce = kind                 // для e2e
+    ;(window.__debugAnnounces ??= []).push(kind)      // вся история анонсов (первый = catalyst)
+  }
+
   /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
   drainEvents(): MatchEvent[] {
     const e = this.pendingEvents
@@ -589,7 +709,20 @@ export class Match {
   serializeSnapshot(): Snapshot {
     let ackSeq = 0
     this.remoteControllers.forEach(c => { ackSeq = Math.max(ackSeq, c.ackSeq) })
-    return { ackSeq, players: this.players.map(p => p.serializeState()) }
+    if (!this._snapBuf) {
+      this._snapBuf = {
+        ackSeq: 0,
+        players: this.players.map(p => ({
+          id: p.id,
+          pos: [0, 0, 0] as [number, number, number],
+          aimDir: [0, 0, 0] as [number, number, number],
+          alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false,
+        })),
+      }
+    }
+    this._snapBuf.ackSeq = ackSeq
+    for (let i = 0; i < this.players.length; i++) this.players[i].fillState(this._snapBuf.players[i])
+    return this._snapBuf
   }
 
   /** host: применить присланный кадр ввода к аватару игрока playerId. */
@@ -635,12 +768,19 @@ export class Match {
         if (!victim) break
         victim.applyDeath()
         victim.deaths++
-        if (shooter && shooter !== victim) shooter.kills++
+        victim.streak = 0
+        if (shooter && shooter !== victim) {
+          shooter.kills += e.bounty
+          shooter.streak = e.streak
+          if (e.resetCd) shooter.resetCooldowns()
+        }
         if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
         this.sfx?.combat(e, this.sfxPos)
+        this.announceStreak(e.shooter, e.victim, e.streak, e.firstBlood)
         break
       }
       case 'block': {
+        if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // зеркалим сброс кулдаунов с хоста
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
         this.sfx?.combat(e, this.sfxPos)
@@ -678,6 +818,7 @@ export class Match {
     w.__debugCamera = camera
     w.__debugWindup = () => this.human.isWindingUp
     w.__debugTargetHitCount = 0
+    w.__debugKnockCount = 0
     const botPos: Record<number, () => { x: number; y: number; z: number }> = {}
     this.bots.forEach((b, i) => {
       botPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
@@ -695,6 +836,10 @@ export class Match {
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
     w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
+    // Физика готова = Rapier WASM загружен и мир привязан (до этого applyPhysics — no-op, движения нет).
+    // Для e2e: __debugForceLive входит в live раньше готовности физики (в реальном флоу её прячут
+    // ритуал готовности и отсчёт) — тесты движения обязаны ждать этот флаг, а не только фазу.
+    w.__debugPhysicsReady = () => this.physicsWorld != null
   }
 
   dispose() {
@@ -702,6 +847,7 @@ export class Match {
     delete w.__debugCamera
     delete w.__debugWindup
     delete w.__debugTargetHitCount
+    delete w.__debugKnockCount
     delete w.__debugBotPos
     delete w.__debugRole
     delete w.__debugPlayerPos
@@ -709,6 +855,8 @@ export class Match {
     delete w.__debugBodyScale
     delete w.__debugForceEnd
     delete w.__debugPlayerSpeed
+    delete w.__debugPhysicsReady
+    if (this.singularityActive) this.world.setBlocksTransparent(false)   // вернуть блоки непрозрачными
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }

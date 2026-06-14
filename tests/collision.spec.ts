@@ -14,20 +14,18 @@ test('не проходит сквозь стену', async ({ page }) => {
   expect(pos.x).toBeGreaterThan(15)          // но дошёл до неё
 })
 
-test('не проходит сквозь бота', async ({ page }) => {
+test('отброс от бота вместо коллизии', async ({ page }) => {
   await page.goto('/')
   await unlockPointer(page, { difficulty: 'passive' })
-  // Подходим к боту, постоянно подправляя прицел (homing), и упираемся в него.
-  // Спавны разнесены (≈32 по Z на os_arena), поэтому идём дольше, пока не упрёмся.
-  for (let i = 0; i < 16; i++) {
+  // Коллизии между игроками нет — вместо неё резкий отброс при пересечении тел (maybeKnockback).
+  // Подходим к боту (homing-прицел) и давим W; срабатывание отброса детерминированно фиксирует
+  // счётчик __debugKnockCount. Спавны разнесены (≈32 по Z на os_arena) — идём дольше, пока не упрёмся.
+  const knockCount = () => page.evaluate(() => window.__debugKnockCount ?? 0)
+  let knocks = 0
+  for (let i = 0; i < 16 && knocks === 0; i++) {
     await aimAtBot(page)
     await holdKey(page, 'KeyW', 500)
+    knocks = await knockCount()
   }
-  const dist = await page.evaluate(() => {
-    const cam = (window as any).__debugCamera
-    const b = (window as any).__debugBotPos[0]()
-    return Math.hypot(cam.position.x - b.x, cam.position.z - b.z)
-  })
-  expect(dist).toBeGreaterThan(0.85)        // капсулы (r=0.5) не накладываются
-  expect(dist).toBeLessThan(1.6)            // но подошли вплотную (контакт ~1.0)
+  expect(knocks).toBeGreaterThan(0)   // пересечение тел дало импульс-отброс, а не залипание/проход насквозь
 })

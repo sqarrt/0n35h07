@@ -4,17 +4,17 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто (СОЗДАТЬ КОМНАТУ → +бот → НАЧАТЬ).
-// 1v1: соперник обязателен, иначе НАЧАТЬ заблокирована — поэтому всегда добавляем бота.
+// Проходит главное меню если оно открыто: ИГРАТЬ → лобби → раздел «ПРОЧЕЕ»
+// (роль ХОСТ → сложность → добавить бота) → ГОТОВ. 1v1: соперник обязателен — добавляем бота.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
-  const menuVisible = await page.getByText('СОЗДАТЬ КОМНАТУ').isVisible().catch(() => false)
+  const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
-  if (opts.difficulty === 'passive') {
-    await page.getByText('ПАССИВНЫЙ').first().click()
-  }
-  await page.getByText('НАЧАТЬ').click()
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-other-toggle').click()       // раскрыть «// ПРОЧЕЕ»
+  await page.getByTestId('lobby-role-host').click()          // детерминированно хост (no-op, если уже хост)
+  if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
+  await page.getByTestId('lobby-bot-add').click()            // бот занимает слот (авто-готов)
+  await page.getByTestId('lobby-ready').click()              // хост готов → оба готовы → старт
 }
 
 // Ждём пока R3F инициализируется и смонтирует Game, затем пропускаем ритуал готовности
@@ -24,6 +24,9 @@ export async function waitForGame(page: Page, opts: NavigateOpts = {}) {
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   await page.evaluate(() => (window as any).__debugForceLive?.())
   await page.waitForFunction(() => (window as any).__debugPhase?.() === 'live', { timeout: 5000 })
+  // forceLive перепрыгивает ритуал+отсчёт, за время которых в реальном флоу успевает загрузиться
+  // Rapier WASM. До привязки мира applyPhysics — no-op (двигаться нельзя) — ждём готовность физики.
+  await page.waitForFunction(() => (window as any).__debugPhysicsReady?.() === true, { timeout: 10000 })
 }
 
 export async function unlockPointer(page: Page, opts: NavigateOpts = {}) {

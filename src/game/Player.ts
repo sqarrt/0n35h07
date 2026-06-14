@@ -3,11 +3,12 @@ import type { RapierRigidBody } from '@react-three/rapier'
 import type { IControllable, IWeapon, IShield, IDashTrail } from './abstractions'
 import type { World } from './World'
 import { Body } from './Body'
+import { overheatMods } from './overheat'
 import { AfterimageTrail } from './fx/AfterimageTrail'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
 import {
-  MUZZLE_Y, BODY_MESH_Y, EYE_HEIGHT, WINDUP_SHRINK_MS,
+  MUZZLE_Y, BODY_MESH_Y, BALL_RADIUS, EYE_HEIGHT, WINDUP_SHRINK_MS,
   RESPAWN_GHOST_MS, RESPAWN_SPEED_MULT, RESPAWN_SPEED_RAMP,
 } from '../constants'
 import type { WindupStyle, RespawnStyle, DashStyle } from '../constants'
@@ -32,6 +33,7 @@ export class Player implements IControllable {
   name = ''            // отображаемое имя (Вы / Бот N) — ставит Match
   kills = 0            // счёт за сессию (не сбрасывается на респавне)
   deaths = 0
+  streak = 0           // подряд-убийства без своей смерти (для анонса серий); сброс при гибели
   readonly id: number
   readonly bodyGroup = new THREE.Group()
   readonly spawn = new THREE.Vector3(0, EYE_HEIGHT, 0)
@@ -46,6 +48,13 @@ export class Player implements IControllable {
   private spawnTime = -Infinity   // момент начала материализации (респаун)
   private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
   private bodyVisible = true
+  private moveScale = 1            // множитель скорости от ПЕРЕГРЕВА
+  // Scratch-вектора — переиспользуются каждый кадр вместо new THREE.Vector3() в горячем пути.
+  private _muzzle      = new THREE.Vector3()
+  private _aimDir      = new THREE.Vector3()
+  private _moveScaled  = new THREE.Vector3()
+  private _deathPos    = new THREE.Vector3()
+  pierceWalls = false              // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты; ставит Match
   private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
   private fireTime = -Infinity
   private baseColor: THREE.Color
@@ -125,13 +134,16 @@ export class Player implements IControllable {
     this.body.bindBody(rb)
   }
   get rb() { return this.body.rb }
-  consumeDesired()        { return this.body.consumeDesired() }
+  consumeDesired(out?: THREE.Vector3) { return this.body.consumeDesired(out) }
   consumeTeleport()       { return this.body.consumeTeleport() }
   stepJump()              { this.body.stepJump() }
   stepVertical(dt: number){ this.body.stepVertical(dt) }
   stepHorizontal(dt: number, groundNormal: THREE.Vector3 | null) { this.body.stepHorizontal(dt, groundNormal) }
   stepDash(dt: number)    { this.body.stepDash(dt) }
   get dashing()           { return this.body.dashing }
+  knockback(dir: THREE.Vector3) { this.body.knockback(dir) }
+  stepKnockback(dt: number)     { this.body.stepKnockback(dt) }
+  get knocking()          { return this.body.knocking }
   get grounded()          { return this.body.grounded }
   get justJumped()        { return this.body.justJumped }
   get speed()             { return this.body.horizontalSpeed }   // горизонтальная скорость (оверлей)
@@ -153,9 +165,26 @@ export class Player implements IControllable {
   private canAct()  { return !this.frozen && this.alive }
   moveIntent(dir: THREE.Vector3, dt: number) {
     if (!this.canMove()) return
-    const m = this.respawning ? this.respawnSpeedMult() : 1
-    this.body.move(m === 1 ? dir : dir.clone().multiplyScalar(m), dt)
+    const base = this.respawning ? this.respawnSpeedMult() : 1
+    const m = base * this.moveScale
+    this.body.move(m === 1 ? dir : this._moveScaled.copy(dir).multiplyScalar(m), dt)
   }
+
+  /** Применить ПЕРЕГРЕВ по текущей серии: скорость + кулдауны луча/щита. */
+  applyOverheat() {
+    const o = overheatMods(this.streak)
+    this.moveScale = o.speed
+    this.weapon.setCooldownScale(o.beamCd)
+    this.shield.setCooldownScale(o.shieldCd)
+  }
+  /** Награда за снятие серии: мгновенно сбросить кулдауны луча/щита/дэша. */
+  resetCooldowns() {
+    this.weapon.resetCooldown()
+    this.shield.resetCooldown()
+    this.body.resetDashCooldown()
+  }
+  /** Перегрет ли до уровня «сквозь стены» (SINGULARITY). */
+  get seeThrough() { return overheatMods(this.streak).seeThrough }
 
   /** Множитель скорости в фазе призрака: полный ×N, плавно спадающий к ×1 в последней RESPAWN_SPEED_RAMP. */
   private respawnSpeedMult(): number {
@@ -168,6 +197,7 @@ export class Player implements IControllable {
   /** Направление взгляда (для ориентации модели). Горизонтальную проекцию берёт faceDir; почти-нулевой вектор игнорим. */
   setLook(dir: THREE.Vector3)  { if (dir.lengthSq() > 1e-8) this.lookDir.copy(dir) }
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
+  cancelFiring()               { if (!this.canAct()) return; this.weapon.interrupt() }
   activateShield()             { if (!this.canAct()) return; this.shield.activate() }
   dash(dir: THREE.Vector3) {
     if (!this.canAct()) return
@@ -178,10 +208,11 @@ export class Player implements IControllable {
 
   // --- simulation (без интеграции позиции — её делает Rapier KCC в Match.applyPhysics) ---
   update(dt: number, world: World, excludeIds: number[]) {
-    const muzzle = this.muzzle()
-    const aim = this.aimPoint.clone().sub(muzzle).normalize()  // луч сходится в точку прицела
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
+    const aim = this._aimDir.copy(this.aimPoint).sub(this._muzzle).normalize()
+    this._muzzle.addScaledVector(aim, BALL_RADIUS)   // дуло на поверхности шара, ⊥ к ней
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    this.weapon.update(dt, { world, muzzle, aim, excludeIds })
+    this.weapon.update(dt, { world, muzzle: this._muzzle, aim, excludeIds, pierceWalls: this.pierceWalls })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
@@ -189,20 +220,19 @@ export class Player implements IControllable {
     this.body.tickShader(dt)
   }
 
-  private muzzle(): THREE.Vector3 {
-    return this.body.position.clone().add(new THREE.Vector3(0, MUZZLE_Y, 0))
+  /** Тик визуалов в фазе призрака. true → вызывающий должен выйти раньше. */
+  private applyGhostVisuals(dt: number): boolean {
+    if (!this.respawning) return false
+    this.shield.object3d.visible = false
+    this.windupFx.object3d.visible = false
+    this.applyRespawn(dt)
+    return true
   }
 
   private syncVisuals(dt: number) {
     if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
     if (this.weapon.justFired) this.fireTime = Date.now()
-
-    if (this.respawning) {   // призрак: визуалом владеет respawnFx, заряд скрыт
-      this.shield.object3d.visible = false
-      this.windupFx.object3d.visible = false
-      this.applyRespawn(dt)
-      return
-    }
+    if (this.applyGhostVisuals(dt)) return
     this.body.setOpacity(1)   // обычное состояние; окно возрождения ниже перепишет
     this.applyWindup(dt, this.weapon.windupProgress, this.fireTime, this.lookDir)
     this.applyRespawn(dt)     // окно возрождения побеждает масштаб windup (как прежний «пуф»); иначе no-op
@@ -245,7 +275,7 @@ export class Player implements IControllable {
     this.respawnTimer = RESPAWN_GHOST_MS
     this.body.setHittable(false)
     this.weapon.interrupt()   // отменяем незавершённый заряд — призрак не достреливает
-    if (this.bodyVisible) this.respawnFx.onDeath(this.body.position.clone().add(this.bodyMeshOffset))
+    if (this.bodyVisible) this.respawnFx.onDeath(this._deathPos.copy(this.body.position).add(this.bodyMeshOffset))
   }
 
   /** Клиент: локально тикаем таймер фазы (для индикации/скорости); финал — событием respawn. */
@@ -283,6 +313,8 @@ export class Player implements IControllable {
   dashCooldownProgress()    { return this.body.dashProgress() }
   shieldProgress()          { return this.shield.progress() }
   get shieldActive()        { return this.shield.isActive }
+  /** Идеальный блок: щит активирован в окне до попадания — повод сбросить кулдауны. */
+  get perfectBlock()        { return this.shield.isPerfectBlock() }
   get weaponJustFired()     { return this.weapon.justFired }
   get fireOutcome()         { return this.weapon.outcome }
   clearJustFired()          { this.weapon.clearJustFired() }
@@ -302,6 +334,16 @@ export class Player implements IControllable {
       windupProgress: this.windupProgress,
       respawning: this.respawning,
     }
+  }
+
+  /** Заполняет pre-alloc снимок in-place (без аллокаций Vec3/объекта). */
+  fillState(out: PlayerSnapshot): void {
+    const p = this.body.position
+    out.pos[0] = p.x; out.pos[1] = p.y; out.pos[2] = p.z
+    out.aimDir[0] = this.lookDir.x; out.aimDir[1] = this.lookDir.y; out.aimDir[2] = this.lookDir.z
+    out.alive = this.alive; out.shieldActive = this.shieldActive
+    out.dashing = this.dashing; out.windupProgress = this.windupProgress
+    out.respawning = this.respawning
   }
 
   /** Применить снимок к удалённому игроку (клиент): цель позиции + визуальные флаги. */
@@ -331,7 +373,10 @@ export class Player implements IControllable {
 
   /** Косметический выстрел удалённого (клиент, событие FIRED). */
   cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {
-    this.weapon.playBeam(this.muzzle(), end, hitPoint)
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
+    this._aimDir.copy(end).sub(this._muzzle).normalize()                // направление к концу луча
+    this._muzzle.addScaledVector(this._aimDir, BALL_RADIUS)             // дуло на поверхности шара
+    this.weapon.playBeam(this._muzzle, end, hitPoint)
   }
 
   /** Смерть удалённого по событию KILL (клиент): авторитет уже решил, щит не проверяем. */
@@ -344,7 +389,8 @@ export class Player implements IControllable {
   /** Кадр удалённого игрока на клиенте: только косметика, без боёвки/физики. */
   updateRemote(dt: number, world: World) {
     // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
-    this.weapon.update(dt, { world, muzzle: this.muzzle(), aim: REMOTE_AIM, excludeIds: [this.id] })
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y
+    this.weapon.update(dt, { world, muzzle: this._muzzle, aim: REMOTE_AIM, excludeIds: [this.id] })
     this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing })
     // Тикаем щит ради анимации скина: фазы удалённого всегда idle (activate не зовём),
@@ -356,12 +402,7 @@ export class Player implements IControllable {
   }
 
   private applyRemoteVisual(dt: number) {
-    if (this.respawning) {   // призрак: визуалом владеет respawnFx, заряд скрыт
-      this.shield.object3d.visible = false
-      this.windupFx.object3d.visible = false
-      this.applyRespawn(dt)
-      return
-    }
+    if (this.applyGhostVisuals(dt)) return
     this.body.setOpacity(1)
     // Порядок как в syncVisuals: сначала windup, затем окно возрождения перепишет масштаб поверх.
     this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)

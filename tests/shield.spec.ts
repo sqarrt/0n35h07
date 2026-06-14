@@ -13,14 +13,15 @@ test('жизненный цикл щита в HUD: активация → гаш
   expect(await ringOffset(page)).toBe(0)                 // бар полный, щит готов
 
   await mouseDown(page, 2)
-  await page.waitForTimeout(100)
-  expect(await ringStroke(page)).toBe('#6af')            // кольцо активно
+  // Активация рендерится асинхронно: жёсткие 100мс под нагрузкой ловили ещё неактивное кольцо (флак).
+  // Активное состояние держится SHIELD_DURATION (800мс) — поллинг его не пропустит.
+  await expect.poll(() => ringStroke(page)).toBe('#6af')             // кольцо активно
 
-  await page.waitForTimeout(950)                         // > 800мс длительности
-  expect(await ringStroke(page)).not.toBe('#6af')        // кольцо погасло
-  expect(await ringOffset(page)).toBeGreaterThan(0)      // бар ушёл на кулдаун
+  await expect.poll(() => ringStroke(page), { timeout: 5000 }).not.toBe('#6af')   // кольцо погасло после 800мс
+  expect(await ringOffset(page)).toBeGreaterThan(0)      // бар ушёл на кулдаун (2000мс — успеваем)
 
   await mouseDown(page, 2)                               // повтор в кулдауне — не активирует (логику ловит Shield.test)
-  await page.waitForTimeout(50)
+  await page.waitForTimeout(150)
   expect(await ringStroke(page)).not.toBe('#6af')        // кольцо не вернулось
+  expect(await ringOffset(page)).toBeGreaterThan(0)      // и мы всё ещё в кулдауне — проверка не выродилась
 })

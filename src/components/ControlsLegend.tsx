@@ -1,18 +1,7 @@
 import type { CSSProperties } from 'react'
+import { useT } from '../i18n'
 
 interface Bind { keys: string[]; action: string }
-
-const CONTROLS: Bind[] = [
-  { keys: ['W', 'A', 'S', 'D'], action: 'Движение' },
-  { keys: ['Space'], action: 'Прыжок' },
-  { keys: ['Shift'], action: 'Рывок' },
-  { keys: ['ЛКМ'], action: 'Выстрел' },
-  { keys: ['ПКМ'], action: 'Щит' },
-  { keys: ['Мышь'], action: 'Обзор' },
-  { keys: ['V'], action: 'Вид 1/3' },
-  { keys: ['Tab'], action: 'Счёт' },
-  { keys: ['Esc'], action: 'Пауза' },
-]
 
 const chip: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -26,6 +15,19 @@ const item: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.45r
 
 /** Сетка управления: клавиша-чип(ы) + действие. Без позиционирования — обёртку даёт место использования. */
 export function ControlsLegend() {
+  const t = useT()
+  // Клавиши с буквенными названиями (W/A/S/D, Space…) — универсальны, не переводятся;
+  // переводятся только подписи действий и кнопки мыши.
+  const CONTROLS: Bind[] = [
+    { keys: ['W', 'A', 'S', 'D'], action: t.ctrlMove },
+    { keys: ['Space'], action: t.ctrlJump },
+    { keys: ['Shift'], action: t.ctrlDash },
+    { keys: [t.keyLmb], action: t.ctrlFire },
+    { keys: [t.keyRmb], action: t.ctrlShield },
+    { keys: [t.keyMouse], action: t.ctrlLook },
+    { keys: ['V'], action: t.ctrlView },
+    { keys: ['Esc'], action: t.ctrlPause },
+  ]
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1.2rem', justifyContent: 'center' }}>
       {CONTROLS.map(({ keys, action }) => (

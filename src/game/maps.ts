@@ -65,17 +65,45 @@ export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars']
 // id извлекаем из пути '../maps/<id>/<file>'.
 const idOf = (p: string): MapId => p.split('/').slice(-2, -1)[0] as MapId
 
-/** Компил геометрии по id (geo.json). Нет файла → undefined → Arena компилирует из blocks (фолбэк). */
-export const MAP_GEO: Partial<Record<MapId, CompiledMap>> = Object.fromEntries(
-  Object.entries(import.meta.glob('../maps/*/geo.json', { eager: true }) as Record<string, { default: unknown }>)
-    .map(([p, m]) => [idOf(p), parseGeo(m.default as never)]),
-) as Partial<Record<MapId, CompiledMap>>
+// Ленивые загрузчики geo.json — Rolldown выносит каждый файл в отдельный чанк, грузим при старте матча.
+const GEO_LOADERS = import.meta.glob('../maps/*/geo.json') as Record<string, () => Promise<{ default: unknown }>>
+const _geoCache: Partial<Record<MapId, CompiledMap>> = {}
+
+/** Старт загрузки geo.json для карты id (no-op если уже в кеше). Вызывать до монтирования Arena. */
+export async function ensureMapGeo(id: MapId): Promise<void> {
+  if (id in _geoCache) return
+  const path = Object.keys(GEO_LOADERS).find(p => idOf(p) === id)
+  if (!path) return
+  const mod = await GEO_LOADERS[path]()
+  _geoCache[id] = parseGeo(mod.default as never)
+}
+
+/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). */
+export function getCachedMapGeo(id: MapId): CompiledMap | undefined {
+  return _geoCache[id]
+}
 
 /** URL картинки превью по id (preview.png). Нет файла → undefined → живой превью-канвас (фолбэк). */
 export const MAP_PREVIEW: Partial<Record<MapId, string>> = Object.fromEntries(
   Object.entries(import.meta.glob('../maps/*/preview.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
     .map(([p, url]) => [idOf(p), url]),
 ) as Partial<Record<MapId, string>>
+
+// Держим ссылки на прогретые Image до завершения загрузки — гарантия, что запрос не отменится.
+const warmedPreviews: HTMLImageElement[] = []
+
+/** Прогрев превью карт: дёргаем загрузку картинок заранее (на старте приложения), чтобы плитки
+ *  комнаты и фон не ждали сети при первом заходе — браузер кладёт их в HTTP-кэш. Особенно важно
+ *  клиенту по #CODE: он попадает в комнату сразу, пока сеть занята бандлом/звуком/сигналингом. */
+export function warmMapPreviews(): void {
+  if (warmedPreviews.length) return   // один раз за сессию
+  for (const url of Object.values(MAP_PREVIEW)) {
+    if (!url) continue
+    const img = new Image()
+    img.src = url
+    warmedPreviews.push(img)
+  }
+}
 
 /** Случайная точка в пределах игровой зоны — блуждание бота (без учёта препятствий; KCC не даёт пройти сквозь). */
 export function randomArenaPos(): THREE.Vector3 {

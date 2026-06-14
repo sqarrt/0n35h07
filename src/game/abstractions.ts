@@ -15,6 +15,7 @@ export interface WeaponContext {
   muzzle:     THREE.Vector3
   aim:        THREE.Vector3
   excludeIds: number[]
+  pierceWalls?: boolean   // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты
 }
 
 export interface FireOutcome {
@@ -34,6 +35,8 @@ export interface IWeapon {
   readonly isWindingUp:     boolean
   readonly windupProgress:  number   // 0..1
   cooldownProgress():       number   // 1 = готов
+  setCooldownScale(scale: number): void   // множитель длительности кулдауна (ПЕРЕГРЕВ)
+  resetCooldown(): void                    // мгновенно готов (награда за снятие серии)
   readonly justFired:       boolean
   readonly outcome:         FireOutcome | null
   clearJustFired(): void
@@ -46,7 +49,10 @@ export interface IShield {
   reset(): void
   readonly object3d:  THREE.Object3D
   readonly isActive:  boolean
+  isPerfectBlock():   boolean  // активирован в окне до попадания → награда сбросом кулдаунов
   progress():         number   // 1 = готов
+  setCooldownScale(scale: number): void
+  resetCooldown(): void
   dispose(): void
 }
 

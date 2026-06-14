@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 OneShot — аркадный шутер от первого лица. Стек: React 19 + React Three Fiber (@react-three/fiber 9) +
 Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), сборка Vite 8, TypeScript 6,
-опционально Electron.
+десктоп-сборка Tauri 2.
 
 ## Base rules
 
@@ -12,6 +12,7 @@ Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), с
 - Избегай лишних cd (change directory) запросов
   - В особенности не делай cd в текущую рабочую директорию (ты уже в ней находишься)
   - Когда захочешь сделать cd - перепроверь себя, не находишься ли ты в этой директории
+- Не читай @TODO.md
 
 ## Development Rules
 
@@ -22,7 +23,6 @@ Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), с
   коммить через `git commit -F <файл>` (надёжно в любом шелле), либо bash-heredoc (`cat > f <<'EOF' … EOF`).
   Синтаксис `@'…'@` допустим ТОЛЬКО в PowerShell-туле, не в Bash.
 - После каждой правки прогоняй тесты в headless режиме (`npm run test`), актуализируй тесты под правки.
-- Когда выполняешь что-то из TODO.md ВСЕГДА зачёркивай выполненное.
 - После правок делай ВДУМЧИВОЕ ревью своего кода, чтобы не доводить до массового рефакторинга.
 - Ты ОБЯЗАН следовать принципам SOLID, DRY и SRP при разработке
 - Ты НИКОГДА не используешь магические числа. Только константы
@@ -54,6 +54,7 @@ Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), с
   - версию уточняешь у пользователя прежде чем создать release-ветку
   - пушить ничего не надо: пользователь сам запушит релиз ветку и вмержит в мастер
 - Версия в package.json в release-ветке должна отражать версию release-ветки
+- Перед мержем в релизную ветку обновляй CHANGELOG.md
 
 ## Команды
 
@@ -66,7 +67,7 @@ Three.js 0.184 + @react-three/rapier 2 (физика), Trystero (WebRTC P2P), с
 - Один юнит-тест: `npx vitest run --config vitest.config.ts tests/unit/Shield.test.ts` (или `-t "имя"`).
 - Один e2e: `npx playwright test --project=headless tests/shooting.spec.ts` (или `-g "подстрока"`).
 - Только типы, без сборки: `npx tsc -b --noEmit`.
-- Electron: `npm run electron:dev`, `npm run electron:build`.
+- Tauri: `npm run tauri:dev`, `npm run tauri:build`.
 
 Замечание по типам: включён `erasableSyntaxOnly` — **нельзя** parameter properties (`constructor(private x)`),
 enum'ы, namespace'ы. Поля объявляй явно и присваивай в теле конструктора.

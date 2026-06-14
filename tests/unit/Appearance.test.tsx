@@ -3,6 +3,7 @@ import { render, fireEvent, screen } from '@testing-library/react'
 import { Appearance } from '../../src/screens/Appearance'
 import { SfxProvider } from '../../src/sfx/SfxContext'
 import { FakeSfxEngine } from '../../src/game/audio/sfx/FakeSfxEngine'
+import { I18nProvider } from '../../src/i18n'
 import type { PlayerProfile } from '../../src/settings'
 
 const profile: PlayerProfile = {
@@ -15,11 +16,13 @@ const profile: PlayerProfile = {
 
 function renderAppearance(onShotPreview = vi.fn(), onPreview = vi.fn(), onRespawnPreview = vi.fn(), onDashPreview = vi.fn(), onShieldPreview = vi.fn()) {
   render(
-    <SfxProvider engine={new FakeSfxEngine()}>
-      <Appearance profile={profile} onChange={() => {}} onPreview={onPreview}
-        onShotPreview={onShotPreview} onRespawnPreview={onRespawnPreview}
-        onDashPreview={onDashPreview} onShieldPreview={onShieldPreview} onBack={() => {}} />
-    </SfxProvider>,
+    <I18nProvider initial="ru">
+      <SfxProvider engine={new FakeSfxEngine()}>
+        <Appearance profile={profile} onChange={() => {}} onPreview={onPreview}
+          onShotPreview={onShotPreview} onRespawnPreview={onRespawnPreview}
+          onDashPreview={onDashPreview} onShieldPreview={onShieldPreview} onBack={() => {}} />
+      </SfxProvider>
+    </I18nProvider>,
   )
   return { onShotPreview, onPreview, onRespawnPreview, onDashPreview, onShieldPreview }
 }
@@ -82,7 +85,7 @@ describe('Appearance — плоский экран', () => {
 
   it('part в onPreview следует за последним кликом (color → shot → respawn → dash → shield → model)', () => {
     const { onPreview } = renderAppearance()
-    const lastPart = () => onPreview.mock.calls.at(-1)!.at(-1)
+    const lastPart = () => onPreview.mock.calls.at(-1)![7]   // part — 8-й аргумент (после него ballArt)
     expect(lastPart()).toBe('color')                              // начальный part — как ЦВЕТ
     fireEvent.click(screen.getByRole('button', { name: 'ИМПУЛЬС' }))
     expect(lastPart()).toBe('shot')
@@ -96,13 +99,36 @@ describe('Appearance — плоский экран', () => {
     expect(lastPart()).toBe('model')
   })
 
-  it('onPreview несёт все стили (8 аргументов: цвет/модель/кольцо/выстрел/респавн/рывок/щит/блок)', () => {
+  it('onPreview несёт все стили (9 аргументов: цвет/модель/кольцо/выстрел/респавн/рывок/щит/блок/рисунок)', () => {
     const { onPreview } = renderAppearance()
     const last = onPreview.mock.calls.at(-1)!
-    expect(last.length).toBe(8)
+    expect(last.length).toBe(9)
     expect(last[3]).toBe('classic')   // windupStyle
     expect(last[4]).toBe('echo')      // respawnStyle
     expect(last[5]).toBe('streak')    // dashStyle
     expect(last[6]).toBe('dome')      // shieldStyle
+    expect(last[8]).toBeUndefined()   // ballArt — пусто по умолчанию
+  })
+
+  it('покраска переднего поля сохраняет ballArt в профиль и в превью', () => {
+    const onChange = vi.fn()
+    const onPreview = vi.fn()
+    render(
+      <I18nProvider initial="ru">
+        <SfxProvider engine={new FakeSfxEngine()}>
+          <Appearance profile={profile} onChange={onChange} onPreview={onPreview}
+            onShotPreview={vi.fn()} onRespawnPreview={vi.fn()} onDashPreview={vi.fn()}
+            onShieldPreview={vi.fn()} onBack={() => {}} />
+        </SfxProvider>
+      </I18nProvider>,
+    )
+    const canvas = screen.getByTestId('paint-front') as HTMLCanvasElement
+    canvas.setPointerCapture = () => {}   // jsdom не реализует pointer capture
+    canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 132, height: 132, right: 132, bottom: 132, x: 0, y: 0, toJSON: () => {} }) as DOMRect
+    fireEvent.pointerDown(canvas, { clientX: 66, clientY: 66, pointerId: 1 })   // центр поля — внутри диска
+    const saved = onChange.mock.calls.at(-1)![0]
+    expect(typeof saved.ballArt).toBe('string')
+    expect(saved.ballArt.length).toBe(88)
+    expect(onPreview.mock.calls.at(-1)![8]).toBe(saved.ballArt)   // превью получило тот же рисунок
   })
 })

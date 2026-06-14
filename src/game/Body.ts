@@ -1,13 +1,15 @@
 import * as THREE from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
+import type { MeshUserData } from '../utils/raycast'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, NET_REMOTE_LERP, NET_RECONCILE_LERP,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP, NET_RECONCILE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
   MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
 import type { BallModel } from '../constants'
 import { createBallMaterial, createBallRing } from './fx/ballMaterial'
+import type { BallArt } from './ballArt'
 
 type XYZ = { x: number; y: number; z: number }
 
@@ -18,6 +20,7 @@ const _faceOrigin = new THREE.Vector3(0, 0, 0)
 const _faceTarget = new THREE.Vector3()
 // Scratch для шага движения (без аллокаций в кадре).
 const _wishDir = new THREE.Vector3()
+const _knock = new THREE.Vector3()   // scratch: нормализованное 3D-направление отброса
 
 /**
  * Тело сущности. Позицию и столкновения держит Rapier (kinematic RigidBody + KCC);
@@ -47,17 +50,21 @@ export class Body {
   private dashDir = new THREE.Vector3()
   private dashTimer = 0
   private dashCooldown = 0
+  private knockDir = new THREE.Vector3()   // импульс-отброс при пересечении с другим игроком (как рывок, но не рывок)
+  private knockTimer = 0
   private shaderTick: (dt: number) => void
+  private ballFx: ReturnType<typeof createBallMaterial>
   private ring: ReturnType<typeof createBallRing> | null = null
 
-  constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color) {
-    const ball = createBallMaterial(color, model)   // материал сферы по модели (smooth/waves/planet)
+  constructor(entityId: number, color: string, model: BallModel = 'smooth', ringColor: string = color, art?: BallArt) {
+    const ball = createBallMaterial(color, model, art)   // материал сферы по модели (smooth/waves/planet) + рисунок
+    this.ballFx = ball
     this.material = ball.material
     this.shaderTick = ball.tick
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(BALL_RADIUS, BALL_SEGMENTS, BALL_SEGMENTS), this.material)
     this.mesh.position.y = BODY_MESH_Y
     this.mesh.castShadow = true
-    this.mesh.userData.noRaycast = true
+    ;(this.mesh.userData as MeshUserData).noRaycast = true
 
     if (model === 'planet') {   // кольцо — дочерний меш сферы (масштабируется/гаснет вместе с планетой)
       const ring = createBallRing(ringColor)   // «второй» цвет (как в меню); по умолчанию = цвет шара
@@ -71,7 +78,7 @@ export class Body {
     )
     hitbox.position.y = HITBOX_Y
     hitbox.visible = false
-    hitbox.userData.entityId = entityId
+    ;(hitbox.userData as MeshUserData).entityId = entityId
 
     this.object3d.add(this.mesh, hitbox)
   }
@@ -156,10 +163,13 @@ export class Body {
     this.desired.y += vy * dt
   }
 
-  /** Старт рывка: true если кулдаун готов и направление ненулевое. */
+  /** Мгновенно обнулить кулдаун рывка (награда за снятие серии). */
+  resetDashCooldown() { this.dashCooldown = 0 }
+
+  /** Старт рывка: true если кулдаун готов и направление ненулевое. Направление 3D — рывок учитывает наклон взгляда. */
   dash(dir: THREE.Vector3): boolean {
     if (this.dashCooldown > 0) return false
-    this.dashDir.set(dir.x, 0, dir.z)
+    this.dashDir.set(dir.x, dir.y, dir.z)
     if (this.dashDir.lengthSq() === 0) return false
     this.dashDir.normalize()
     this.dashTimer = DASH_DURATION
@@ -178,6 +188,31 @@ export class Body {
 
   get dashing() { return this.dashTimer > 0 }
 
+  /** Импульс-отброс в направлении `dir` (3D, как рывок, но не рывок): сильный толчок при пересечении игроков.
+   *  Горизонтальная доля — burst в desired (как рывок); вертикальная (вверх) — импульс velocityY,
+   *  перебивающий падение, чтобы запрыгнув сверху реально подбросило вверх с дугой. */
+  knockback(dir: THREE.Vector3) {
+    _knock.copy(dir)
+    if (_knock.lengthSq() === 0) return
+    _knock.normalize()
+    // Горизонтальная часть = горизонтальная проекция единичного вектора (|.|≤1: чем отвеснее контакт, тем слабее вбок).
+    this.knockDir.set(_knock.x, 0, _knock.z)
+    this.knockTimer = KNOCKBACK_DURATION
+    // Вертикальная часть — импульс вверх поверх текущей velocityY (Math.max → перебивает падение, не складывается).
+    if (_knock.y > 0) this.velocityY = Math.max(this.velocityY, _knock.y * KNOCKBACK_UP_SPEED)
+  }
+
+  /** Копит отброс в desired и тикает таймер (зовётся из Match.applyPhysics, как stepDash). */
+  stepKnockback(dt: number) {
+    if (this.knockTimer > 0) {
+      this.desired.addScaledVector(this.knockDir, KNOCKBACK_SPEED * dt)
+      this.knockTimer -= dt * 1000
+    }
+  }
+
+  /** Идёт ли сейчас окно отброса — чтобы Match не перезапускал импульс каждый кадр пересечения. */
+  get knocking() { return this.knockTimer > 0 }
+
   /** Текущая горизонтальная скорость (ед/с) — для оверлея скорости. */
   get horizontalSpeed() { return Math.hypot(this.velH.x, this.velH.z) }
 
@@ -186,10 +221,11 @@ export class Body {
     return this.dashCooldown > 0 ? Math.max(0, 1 - this.dashCooldown / DASH_COOLDOWN) : 1
   }
 
-  consumeDesired(): THREE.Vector3 {
-    const d = this.desired.clone()
+  consumeDesired(out?: THREE.Vector3): THREE.Vector3 {
+    const target = out ?? new THREE.Vector3()
+    target.copy(this.desired)
     this.desired.set(0, 0, 0)
-    return d
+    return target
   }
 
   setGrounded(g: boolean) {
@@ -270,6 +306,9 @@ export class Body {
   /** Двигает время шейдеров модели (волны / дрейф кольца). Для smooth — no-op. */
   tickShader(dt: number) { this.shaderTick(dt); this.ring?.tick(dt) }
 
+  /** Обновить рисунок на шаре на месте (живое превью в меню; без пересоздания материала). */
+  setArt(art: BallArt | null) { this.ballFx.setArt(art) }
+
   /** Прозрачность визуала (призрак/материализация): сфера + кольцо. */
   setOpacity(o: number) { this.material.opacity = o; this.ring?.setOpacity(o) }
 
@@ -284,12 +323,13 @@ export class Body {
   /** Вкл/выкл хитбокс как raycast-цель: мёртвый/сдувающийся шар нельзя застрелить повторно. */
   setHittable(v: boolean) {
     const hitbox = this.object3d.children[1] as THREE.Mesh
-    hitbox.userData.noRaycast = !v
+    ;(hitbox.userData as MeshUserData).noRaycast = !v
   }
 
   dispose() {
     this.mesh.geometry.dispose()
     this.material.dispose()
+    this.ballFx.dispose()        // текстура рисунка
     this.ring?.dispose()
     const hb = this.object3d.children[1] as THREE.Mesh
     hb.geometry.dispose()

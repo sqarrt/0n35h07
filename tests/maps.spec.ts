@@ -1,27 +1,33 @@
 import { test, expect } from './fixtures'
+import type { Page } from '@playwright/test'
 
-test('комната — выбор карты: плитка активна при клике', async ({ page }) => {
+// Встать хостом в лобби (роль/бот — в «// ПРОЧЕЕ»; карта выбирается в «// КАРТА»).
+async function lobbyAsHost(page: Page) {
+  await page.getByTestId('menu-play').click()
+  await page.getByTestId('lobby-other-toggle').click()
+  await page.getByTestId('lobby-role-host').click()
+}
+
+test('лобби — выбор карты: плитка активна при клике (одиночный выбор)', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await expect(page.getByText('КОМНАТА', { exact: true })).toBeVisible()
-  await expect(page.getByText('// КАРТА')).toBeVisible()
+  await page.getByTestId('menu-play').click()
+  await expect(page.getByTestId('lobby-map-os_arena')).toBeVisible()
 
-  // По умолчанию активна os_arena.
-  const arena = page.getByRole('button', { name: /os_arena/ })
-  await expect(arena).toHaveClass(/map-tile--on/)
+  // По умолчанию активна первая карта (os_arena).
+  await expect(page.getByTestId('lobby-map-os_arena')).toHaveClass(/map-tile--on/)
 
-  // Клик по плитке os_india → активной становится она, os_arena гаснет.
-  await page.getByRole('button', { name: /os_india/ }).click()
-  await expect(page.getByRole('button', { name: /os_india/ })).toHaveClass(/map-tile--on/)
-  await expect(arena).not.toHaveClass(/map-tile--on/)
+  // Клик по плитке os_india → активной становится она, os_arena гаснет (режим одиночного выбора).
+  await page.getByTestId('lobby-map-os_india').click()
+  await expect(page.getByTestId('lobby-map-os_india')).toHaveClass(/map-tile--on/)
+  await expect(page.getByTestId('lobby-map-os_arena')).not.toHaveClass(/map-tile--on/)
 })
 
 test('старт на выбранной карте применяет её спавны (os_pillars)', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await page.getByRole('button', { name: /os_pillars/ }).click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
-  await page.getByText('НАЧАТЬ').click()
+  await lobbyAsHost(page)
+  await page.getByTestId('lobby-map-os_pillars').click()   // до добавления бота «// КАРТА» ещё не залочена
+  await page.getByTestId('lobby-bot-add').click()
+  await page.getByTestId('lobby-ready').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   // Применились спавны именно os_pillars (хост z ≈ 13, half=15), а не другой карты.
@@ -32,10 +38,10 @@ test('старт на выбранной карте применяет её сп
 
 test('os_india: по рампе можно подняться на центральную площадку', async ({ page }) => {
   await page.goto('/')
-  await page.getByText('СОЗДАТЬ КОМНАТУ').click()
-  await page.getByRole('button', { name: /os_india/ }).click()
-  await page.getByText('ДОБАВИТЬ БОТА').click()
-  await page.getByText('НАЧАТЬ').click()
+  await lobbyAsHost(page)
+  await page.getByTestId('lobby-map-os_india').click()
+  await page.getByTestId('lobby-bot-add').click()
+  await page.getByTestId('lobby-ready').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   await page.evaluate(() => (window as any).__debugForceLive?.())

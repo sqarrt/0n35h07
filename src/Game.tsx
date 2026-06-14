@@ -43,7 +43,10 @@ interface GameProps {
 // трогать Canvas/постпроцесс — иначе EffectComposer пересобирает шейдер каждый кадр (спайк на заряде).
 // Пропсы Game стабильны в течение матча (gameNet/profile), поэтому memo блокирует лишние ре-рендеры.
 function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
-  const { camera, scene } = useThree()
+  // Селекторы, не useThree() целиком: подписка на весь стор ре-рендерила бы Game (и всё поддерево,
+  // включая постпроцесс Arena) на каждое обновление r3f-состояния.
+  const camera = useThree(s => s.camera)
+  const scene = useThree(s => s.scene)
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
 

@@ -29,6 +29,28 @@ describe('movement helpers', () => {
     const { dir, right } = horizontalBasis(new THREE.Vector3(0, 0, -1))
     expect(dashDirection({ ...KEYS }, dir, right)).toBeNull()
   })
+
+  it('dashDirection: W при взгляде вверх даёт рывок вверх (учёт наклона)', () => {
+    const look = new THREE.Vector3(0, 1, 0)              // смотрим вертикально вверх
+    const { right } = horizontalBasis(look)
+    const d = dashDirection({ ...KEYS, forward: true }, look, right)!
+    expect(d.y).toBeCloseTo(1)
+  })
+
+  it('dashDirection: strafe (D) горизонтален даже при наклоне взгляда', () => {
+    const look = new THREE.Vector3(0, 0.7, -0.7).normalize()   // смотрим вверх-вперёд
+    const { right } = horizontalBasis(look)
+    const d = dashDirection({ ...KEYS, right: true }, look, right)!
+    expect(d.y).toBeCloseTo(0)
+  })
+
+  it('dashDirection: W+взгляд вверх-вперёд даёт восходящую диагональ (y>0, z<0)', () => {
+    const look = new THREE.Vector3(0, 0.7, -0.7).normalize()
+    const { right } = horizontalBasis(look)
+    const d = dashDirection({ ...KEYS, forward: true }, look, right)!
+    expect(d.y).toBeGreaterThan(0)
+    expect(d.z).toBeLessThan(0)
+  })
 })
 
 function makePlayer() {

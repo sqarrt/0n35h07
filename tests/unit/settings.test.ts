@@ -1,13 +1,26 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { loadProfile, saveProfile, DEFAULT_NAMES, NAME_MAX } from '../../src/settings'
+import { loadProfile, saveProfile, NAME_MAX } from '../../src/settings'
 import { PLAYER_COLORS } from '../../src/constants'
+import { MODEL_NAME_RE } from '../../src/names'
+import { encodeBallArt, makeEmptyArt } from '../../src/game/ballArt'
 
 beforeEach(() => localStorage.clear())
 
 describe('settings / PlayerProfile', () => {
-  it('первый запуск: случайное шуточное имя из списка + цвета из палитры, и сразу сохранён', () => {
+  it('ballArt: валидная строка сохраняется, мусор снимается', () => {
+    const art = makeEmptyArt(); art.front[0] = 1
+    const valid = encodeBallArt(art)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballArt: valid })
+    expect(loadProfile().ballArt).toBe(valid)
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', ballArt: 'мусор' })
+    expect(loadProfile().ballArt).toBeUndefined()
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })   // без поля
+    expect(loadProfile().ballArt).toBeUndefined()
+  })
+
+  it('первый запуск: сгенерированное имя-«модель» + цвета из палитры, и сразу сохранён', () => {
     const p = loadProfile()
-    expect(DEFAULT_NAMES).toContain(p.name)
+    expect(p.name).toMatch(MODEL_NAME_RE)
     expect(PLAYER_COLORS).toContain(p.primaryColor)
     expect(PLAYER_COLORS).toContain(p.reserveColor)
     expect(p.reserveColor).not.toBe(p.primaryColor)
@@ -16,8 +29,8 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
-    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20 })
+    saveProfile({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'host' })
+    expect(loadProfile()).toEqual({ name: 'Боец', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'host' })
   })
 
   it('connectTimeoutSec: только из вариантов; иначе/нет → 10', () => {
@@ -83,10 +96,10 @@ describe('settings / PlayerProfile', () => {
     expect(loadProfile().ballModel).toBe('smooth')
   })
 
-  it('санитайз: имя обрезается, пустое → «Игрок», цвет вне палитры → дефолт', () => {
+  it('санитайз: имя обрезается, пустое → сгенерированное, цвет вне палитры → дефолт', () => {
     saveProfile({ name: '   ', primaryColor: 'not-a-color', reserveColor: '#4fa' })
     const p = loadProfile()
-    expect(p.name).toBe('Игрок')
+    expect(p.name).toMatch(MODEL_NAME_RE)
     expect(p.primaryColor).toBe(PLAYER_COLORS[0])
     expect(p.reserveColor).toBe('#4fa')
 
@@ -127,5 +140,18 @@ describe('settings / PlayerProfile', () => {
     expect(loadProfile().shieldStyle).toBe('hex')
     saveProfile({ ...loadProfile(), shieldStyle: 'жуть' as never })
     expect(loadProfile().shieldStyle).toBe('dome')
+  })
+})
+
+describe('settings / searchRole', () => {
+  it('дефолт both; валидное сохраняется; мусор/legacy random → both', () => {
+    expect(loadProfile().searchRole).toBe('both')
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'client' })
+    expect(loadProfile().searchRole).toBe('client')
+    // legacy 'random' и любой мусор мигрируют в both
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'random' as never })
+    expect(loadProfile().searchRole).toBe('both')
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'xx' as never })
+    expect(loadProfile().searchRole).toBe('both')
   })
 })

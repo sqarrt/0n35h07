@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useT } from '../i18n'
 
 // Длительность fade-out при закрытии (синхронно с transition в .warn-screen). Размонтируем по её истечении.
 const WARN_FADE_MS = 280
-// Через сколько после показа появляется подсказка «ЛКМ чтобы продолжить» и разблокируется закрытие.
+// Через сколько после показа появляется подсказка и разблокируется закрытие.
 // За это время за оверлеем успевает прогреться всё тяжёлое (Trystero ~860мс + glow-контур шара).
 const HINT_DELAY_MS = 1500
 
@@ -14,11 +15,12 @@ const HINT_DELAY_MS = 1500
  * нет (только opacity/анимации на compositor).
  */
 export function EpilepsyWarning({ onDismiss }: { onDismiss: () => void }) {
+  const t = useT()
   const [ready, setReady] = useState(false)   // прошло ли HINT_DELAY_MS → можно закрыть
   const [out, setOut] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => setReady(true), HINT_DELAY_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setReady(true), HINT_DELAY_MS)
+    return () => clearTimeout(timer)
   }, [])
 
   const handleDismiss = () => {
@@ -54,16 +56,13 @@ export function EpilepsyWarning({ onDismiss }: { onDismiss: () => void }) {
 
       <div className="warn-content">
         <div className="warn-box">
-          <div className="warn-head"><span className="warn-icon">⚠</span> ПРЕДУПРЕЖДЕНИЕ</div>
-          <div className="warn-text">
-            Игра содержит мерцающие изображения, вспышки и резкие световые эффекты.
-            Не рекомендуется людям с фоточувствительной эпилепсией.
-          </div>
+          <div className="warn-head"><span className="warn-icon">⚠</span> {t.warnTitle}</div>
+          <div className="warn-text">{t.warnBody}</div>
         </div>
         {/* Подсказка появляется через HINT_DELAY_MS. Место под неё зарезервировано (opacity, не mount) → не прыгает. */}
         <div className={`warn-hint${ready ? ' warn-hint--show' : ''}`}>
-          <span className="warn-chip">ЛКМ</span>
-          <span>чтобы продолжить</span>
+          <span className="warn-chip">{t.warnContinueKey}</span>
+          <span>{t.warnContinueHint}</span>
         </div>
       </div>
     </div>

@@ -69,13 +69,13 @@ describe('BeamWeapon', () => {
     expect(w.isWindingUp).toBe(false)
   })
 
-  it('interrupt() из windup → cooldown без выстрела', () => {
+  it('interrupt() из windup → idle без выстрела и БЕЗ кулдауна (луча не было)', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     w.beginWindup()
     w.interrupt()
     expect(w.isWindingUp).toBe(false)
     expect(w.justFired).toBe(false)
-    expect(w.cooldownProgress()).toBeLessThan(1)
+    expect(w.cooldownProgress()).toBe(1)   // не в кулдауне → можно сразу заряжать снова
   })
 
   it('interrupt() вне windup — no-op', () => {

@@ -1,12 +1,17 @@
 import { useReducer, useCallback } from 'react'
 import { useFlash } from './useFlash'
+import { usePayloadFlash } from './usePayloadFlash'
 import type { MatchPhase } from '../constants'
+import type { StreakTier, AnnounceKind } from '../game/streak'
 
 export interface PlayerScore { name: string; kills: number; deaths: number }
 
 export type MatchOutcome = 'win' | 'lose' | 'draw'
 export type MatchEndReason = 'time' | 'disconnect'
 export interface MatchResult { outcome: MatchOutcome; reason: MatchEndReason; scores: PlayerScore[] }
+
+/** Снимок для transient-баннера серии/CATALYST. */
+export interface AnnounceItem { name: string; color: string; kind: AnnounceKind }
 
 export interface HUDState {
   beamProgress: number
@@ -22,10 +27,13 @@ export interface HUDState {
   matchTime: number | null
   matchResult: MatchResult | null
   respawning: { progress: number } | null
+  streaks: Record<number, StreakTier | null>   // постоянная подсветка ника по серии (id → тир)
+  streakCounts: Record<number, number>         // число серии (для точек у имён)
   beamFlash: boolean
   playerHit: boolean
   shieldBlock: boolean
   botShieldHit: boolean
+  announce: AnnounceItem | null                 // transient-баннер серии/CATALYST
 }
 
 export type HUDAction =
@@ -40,13 +48,18 @@ export type HUDAction =
   | { type: 'SET_RESPAWNING';      progress: number | null }
   | { type: 'SET_MATCH_TIME';      seconds: number | null }
   | { type: 'SET_MATCH_RESULT';    result: MatchResult }
+  | { type: 'SET_STREAK';          id: number; tier: StreakTier | null; count: number }
   | { type: 'RESET_MATCH' }
   | { type: 'BEAM_FLASH' }
   | { type: 'PLAYER_HIT' }
   | { type: 'SHIELD_BLOCK' }
   | { type: 'BOT_SHIELD_HIT' }
+  | { type: 'ANNOUNCE';            name: string; color: string; kind: AnnounceKind }
 
-const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botShieldHit'> = {
+/** Persistent-часть стейта (без transient: флэши + announce живут в хуках). */
+export type HUDBase = Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botShieldHit' | 'announce'>
+
+export const initialHUD: HUDBase = {
   beamProgress: 1,
   shieldProgress: 1,
   dashProgress: 1,
@@ -60,12 +73,14 @@ const initial: Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botSh
   matchTime: null as number | null,
   matchResult: null as MatchResult | null,
   respawning: null as { progress: number } | null,
+  streaks: {},
+  streakCounts: {},
 }
 
-function reducer(
-  state: typeof initial,
-  action: Exclude<HUDAction, { type: 'BEAM_FLASH' | 'PLAYER_HIT' | 'SHIELD_BLOCK' | 'BOT_SHIELD_HIT' }>
-): typeof initial {
+/** Действия, идущие в reducer (без transient-флэшей и ANNOUNCE — те перехватывает обёртка dispatch). */
+export type HUDReducerAction = Exclude<HUDAction, { type: 'BEAM_FLASH' | 'PLAYER_HIT' | 'SHIELD_BLOCK' | 'BOT_SHIELD_HIT' | 'ANNOUNCE' }>
+
+export function hudReducer(state: HUDBase, action: HUDReducerAction): HUDBase {
   switch (action.type) {
     case 'SET_BEAM_PROGRESS':   return { ...state, beamProgress:   action.value }
     case 'SET_SHIELD_PROGRESS': return { ...state, shieldProgress: action.value }
@@ -78,18 +93,22 @@ function reducer(
     case 'SET_RESPAWNING':      return { ...state, respawning: action.progress === null ? null : { progress: action.progress } }
     case 'SET_MATCH_TIME':      return { ...state, matchTime: action.seconds }
     case 'SET_MATCH_RESULT':    return { ...state, matchResult: action.result }
-    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [], respawning: null }
+    case 'SET_STREAK':          return { ...state,
+      streaks: { ...state.streaks, [action.id]: action.tier },
+      streakCounts: { ...state.streakCounts, [action.id]: action.count } }
+    case 'RESET_MATCH':         return { ...state, matchResult: null, matchTime: null, scores: [], respawning: null, streaks: {}, streakCounts: {} }
     default: return state
   }
 }
 
 export function useGameHUD(): { state: HUDState; dispatch: (action: HUDAction) => void } {
-  const [base, baseDispatch] = useReducer(reducer, initial)
+  const [base, baseDispatch] = useReducer(hudReducer, initialHUD)
 
   const [beamFlash,    triggerBeamFlash]    = useFlash(200)
   const [playerHit,    triggerPlayerHit]    = useFlash(350)
   const [shieldBlock,  triggerShieldBlock]  = useFlash(250)
   const [botShieldHit, triggerBotShieldHit] = useFlash(200)
+  const [announce,     triggerAnnounce]     = usePayloadFlash<AnnounceItem>(2000)
 
   const dispatch = useCallback((action: HUDAction) => {
     switch (action.type) {
@@ -97,12 +116,14 @@ export function useGameHUD(): { state: HUDState; dispatch: (action: HUDAction) =
       case 'PLAYER_HIT':     return triggerPlayerHit()
       case 'SHIELD_BLOCK':   return triggerShieldBlock()
       case 'BOT_SHIELD_HIT': return triggerBotShieldHit()
+      case 'ANNOUNCE':       return triggerAnnounce({ name: action.name, color: action.color, kind: action.kind })
+      case 'RESET_MATCH':    triggerAnnounce(null); return baseDispatch(action)
       default:               return baseDispatch(action)
     }
-  }, [triggerBeamFlash, triggerPlayerHit, triggerShieldBlock, triggerBotShieldHit])
+  }, [triggerBeamFlash, triggerPlayerHit, triggerShieldBlock, triggerBotShieldHit, triggerAnnounce])
 
   return {
-    state: { ...base, beamFlash, playerHit, shieldBlock, botShieldHit },
+    state: { ...base, beamFlash, playerHit, shieldBlock, botShieldHit, announce },
     dispatch,
   }
 }

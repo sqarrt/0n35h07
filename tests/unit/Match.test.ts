@@ -5,6 +5,7 @@ import type { BotDifficulty, MapId } from '../../src/constants'
 import { EYE_HEIGHT } from '../../src/constants'
 import type { RosterEntry } from '../../src/net/protocol'
 import { MAPS } from '../../src/game/maps'
+import { encodeBallArt, makeEmptyArt } from '../../src/game/ballArt'
 
 function lockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => document.body, configurable: true })
@@ -49,6 +50,28 @@ function aimHumanAtBot(match: Match, camera: THREE.PerspectiveCamera) {
 
 const hitCount = () => (window as any).__debugTargetHitCount ?? 0
 
+describe('Match ballArt', () => {
+  beforeEach(lockPointer)
+  afterEach(unlockPointer)
+
+  it('рисунок из ростера декодится в Body без падения', () => {
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
+    const art = makeEmptyArt(); art.front[0] = 1
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'Вы', color: '#4af', kind: 'human', ballArt: encodeBallArt(art) },
+      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+    ]
+    const match = new Match({
+      scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as any,
+      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+    })
+    expect(match.human).toBeTruthy()
+    expect(match.bots[0]).toBeTruthy()
+  })
+})
+
 describe('Match', () => {
   beforeEach(lockPointer)
   afterEach(() => {
@@ -86,11 +109,27 @@ describe('Match', () => {
   it('попадание в бота со щитом → BOT_SHIELD_HIT, без хита', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
-    match.bots[0].activateShield()     // щит держится 1500мс > windup
+    match.bots[0].activateShield()     // щит держится 800мс > попадание (~400мс)
     match.humanController.onFire()
     step(match, scene, 45)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
     expect(hitCount()).toBe(0)
+  })
+
+  it('идеальный блок (щит поднят <100мс до луча) → сброс кулдаунов: щит сразу переиспользуем', () => {
+    const { match, scene, camera, dispatch } = makeMatch('passive')
+    aimHumanAtBot(match, camera)
+    match.humanController.onFire()
+    step(match, scene, 23)                 // BEAM_WINDUP=400мс → попадание ~кадр 25; щит ещё не поднят
+    match.bots[0].activateShield()         // подняли «в момент» попадания → идеальный блок
+    step(match, scene, 5)                  // луч прилетает, блок засчитан
+    expect(hitCount()).toBe(0)
+    expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
+    // награда: после активного окна щита нет кулдауна — поднимается сразу снова
+    step(match, scene, 55)                 // > SHIELD_DURATION (800мс) с момента активации
+    expect(match.bots[0].shieldActive).toBe(false)
+    match.bots[0].activateShield()
+    expect(match.bots[0].shieldActive).toBe(true)
   })
 
   it('смерть игрока не трогает соперника (фаза призрака только у погибшего)', () => {

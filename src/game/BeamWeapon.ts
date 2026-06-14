@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { IWeapon, WeaponContext, FireOutcome } from './abstractions'
+import type { MeshUserData } from '../utils/raycast'
 import { BEAM_WINDUP, BEAM_COOLDOWN, BEAM_DURATION, GRAVITY, AIM_RANGE } from '../constants'
 import { ClassicBeamFx } from './fx/beam/ClassicBeamFx'
 import type { IBeamFx } from './fx/beam/types'
@@ -32,11 +33,16 @@ export class BeamWeapon implements IWeapon {
   private phase: 'idle' | 'windup' | 'cooldown' = 'idle'
   private windupElapsed = 0
   private cooldownRemaining = 0
+  private cooldownScale = 1
+  private cooldownTotal = BEAM_COOLDOWN   // фактическая длительность текущего кулдауна (для progress)
   private readonly windupDuration: number
   private readonly cooldownDuration: number
 
   justFired = false
   outcome: FireOutcome | null = null
+  private _origin = new THREE.Vector3()
+  private _dir    = new THREE.Vector3()
+  private _end    = new THREE.Vector3()
 
   constructor(cfg: BeamConfig = {}) {
     this.windupDuration   = cfg.windupDuration   ?? BEAM_WINDUP
@@ -74,25 +80,25 @@ export class BeamWeapon implements IWeapon {
 
   private fire(ctx: WeaponContext) {
     this.phase = 'cooldown'
-    this.cooldownRemaining = this.cooldownDuration
+    this.cooldownTotal = this.cooldownDuration * this.cooldownScale
+    this.cooldownRemaining = this.cooldownTotal
     this.windupElapsed = 0
 
-    const origin = ctx.muzzle.clone()
-    const dir = ctx.aim.clone().normalize()
-    const hit = ctx.world.raycast(origin, dir, ctx.excludeIds)
+    this._origin.copy(ctx.muzzle)
+    this._dir.copy(ctx.aim).normalize()
+    const hit = ctx.world.raycast(this._origin, this._dir, ctx.excludeIds, ctx.pierceWalls ?? false)
 
     let hitEntityId: number | null = null
     let hitPoint: THREE.Vector3 | null = null
-    const end = new THREE.Vector3()
     if (hit) {
-      end.copy(hit.point)
-      const eid = hit.object.userData.entityId
+      this._end.copy(hit.point)
+      const eid = (hit.object.userData as MeshUserData).entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
     } else {
-      end.copy(origin).addScaledVector(dir, AIM_RANGE)
+      this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     }
-    this.beamFx.play(origin, end)
-    this.outcome = { end: end.clone(), hitEntityId, hitPoint }
+    this.beamFx.play(this._origin, this._end)   // play делает .copy() на обоих аргументах → scratch безопасен
+    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint }   // clone: outcome переживает кадр
     this.justFired = true
   }
 
@@ -121,11 +127,11 @@ export class BeamWeapon implements IWeapon {
     }
   }
 
-  /** Отменяет заряд (windup) и переводит оружие в кулдаун без выстрела. Иначе — no-op. */
+  /** Отменяет заряд (windup) БЕЗ выстрела и возвращает в idle: кулдаун НЕ начисляется,
+   *  т.к. луча не было (можно сразу заряжать снова). Вне windup — no-op. */
   interrupt() {
     if (this.phase !== 'windup') return
-    this.phase = 'cooldown'
-    this.cooldownRemaining = this.cooldownDuration
+    this.phase = 'idle'
     this.windupElapsed = 0
   }
 
@@ -145,8 +151,13 @@ export class BeamWeapon implements IWeapon {
   }
   cooldownProgress() {
     return this.phase === 'cooldown'
-      ? Math.max(0, 1 - this.cooldownRemaining / this.cooldownDuration)
+      ? Math.max(0, 1 - this.cooldownRemaining / this.cooldownTotal)
       : 1
+  }
+  setCooldownScale(scale: number) { this.cooldownScale = scale > 0 ? scale : 1 }
+  resetCooldown() {
+    this.cooldownRemaining = 0
+    if (this.phase === 'cooldown') this.phase = 'idle'
   }
   clearJustFired() { this.justFired = false }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
+import { useT } from '../i18n'
 
 // Угол: ниже угловой скобки щита (90px скобка + отступ от кромки) — не перекрывает её и не «прыгает».
 const TOP = 116
@@ -24,6 +25,7 @@ interface StatsOverlayProps { showFps: boolean; showSpeed: boolean; speed: numbe
 
 /** Оверлей отладки: счётчик FPS + график времени кадра (видно спайки) + текущая скорость игрока. */
 export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
+  const t = useT()
   const [fps, setFps] = useState(0)
   const [worstMs, setWorstMs] = useState(0)   // макс время кадра за окно → минимальный FPS (показывает спайк)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -85,11 +87,11 @@ export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
     <div style={wrap}>
       {showFps && (
         <>
-          <div>{fps} FPS · мин {worstFps} ({worstMs.toFixed(1)} мс)</div>
+          <div>{fps} FPS · {t.statsMin} {worstFps} ({worstMs.toFixed(1)} {t.statsMs})</div>
           <canvas ref={canvasRef} style={{ width: GRAPH_W, height: GRAPH_H, display: 'block', marginTop: 3 }} />
         </>
       )}
-      {showSpeed && <div style={{ marginTop: showFps ? 3 : 0 }}>{speed.toFixed(1)} ед/с</div>}
+      {showSpeed && <div style={{ marginTop: showFps ? 3 : 0 }}>{speed.toFixed(1)} {t.statsSpeedUnit}</div>}
     </div>
   )
 }

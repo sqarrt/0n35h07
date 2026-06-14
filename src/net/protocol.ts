@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { BotDifficulty, MatchPhase, BallModel, MapId, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
+import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 
 /**
  * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
@@ -29,9 +29,12 @@ export interface RosterEntry {
   respawnStyle?: RespawnStyle  // анимация респавна (косметика); нет → 'echo'
   dashStyle?: DashStyle        // скин следа рывка (косметика); нет → 'streak'
   shieldStyle?: ShieldStyle    // скин щита (косметика); нет → 'dome'
+  ballArt?: string             // рисунок на шаре (base64, перёд/зад 32×32); нет → пусто
 }
-export interface Hello { name: string; primaryColor: string; reserveColor: string; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId }
+export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[] }
+/** Клиент → хост: смена готовности в лобби. */
+export interface ReadyMsg { ready: boolean }
 export interface Start { durationMs: number; mapId: MapId }
 
 // --- ввод клиента → хост (часто) ---
@@ -66,8 +69,8 @@ export interface Snapshot {
 export interface ScoreLine { name: string; kills: number; deaths: number }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id попавшего (для подавления искр на своей FP-камере)
-  | { t: 'kill';    shooter: number; victim: number }
-  | { t: 'block';   shooter: number; victim: number }
+  | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }
+  | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // дискретное движение соперника (host → client)
   | { t: 'scores';  scores: ScoreLine[] }

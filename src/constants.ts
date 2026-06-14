@@ -15,8 +15,9 @@ export const AIM_RANGE  = 100   // дальность луча прицела/в
 export const EYE_HEIGHT = 1.7
 export const JUMP_FORCE = 8
 export const GRAVITY    = -22
-export const TP_DIST    = 4   // third-person camera distance behind player
-export const TP_HEIGHT  = 2   // third-person camera height above player
+export const TP_DIST       = 4    // third-person camera distance behind player
+export const TP_HEIGHT     = 1.5  // third-person camera height above player
+export const TP_SHOULDER_X = 0.7  // смещение камеры вправо (over-the-shoulder, God-of-War стиль)
 
 // Прыжок / bhop / air-strafe — скоростная (Quake) модель: горизонтальная скорость персистентна (velH),
 // на земле — трение+быстрый разгон к желаемой; в воздухе — air-accelerate с кэпом → разгон стрейфом+мышью;
@@ -34,6 +35,12 @@ export const DASH_SPEED    = 24    // ед/с (~3.4× MOVE_SPEED)
 export const DASH_DURATION = 150   // мс — длительность окна рывка
 export const DASH_COOLDOWN = 1500  // мс
 export const DASH_FOV      = 95    // целевой FOV во время рывка
+
+// Отброс при пересечении игроков (импульс «как рывок, но не рывок»; вектор — 3D между центрами сфер,
+// можно запрыгнуть на соперника и оттолкнуться вверх). Жёсткой коллизии игрок-игрок нет.
+export const KNOCKBACK_SPEED    = 26   // ед/с — горизонтальная сила отброса (чуть мощнее рывка)
+export const KNOCKBACK_DURATION = 150  // мс — длительность горизонтального окна отброса
+export const KNOCKBACK_UP_SPEED = 12   // ед/с — вертикальный импульс скорости (подброс выше прыжка JUMP_FORCE=8)
 
 // Dash trail — «клоны скорости»: полупрозрачные сферы по траектории рывка.
 export const DASH_TRAIL_GHOST_COUNT    = 10    // размер пула клонов
@@ -81,10 +88,10 @@ export const BALL_RING_SCROLL    = 0.4   // скорость дрейфа бан
 // position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
 export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
 export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
-export const MUZZLE_Y     = -0.3   // начало луча (грудь) относительно position
+export const MUZZLE_Y     = -0.3   // центр шара относительно position (= BODY_MESH_Y)
 
 export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тела во время заряда выстрела
-export const WINDUP_SHRINK_MS = 200    // длительность «сдувания» шара после выстрела (ранее BOT_WINDUP/3)
+export const WINDUP_SHRINK_MS = 200    // длительность «сдувания» шара после выстрела
 
 // Фаза «призрака» при респауне: игрок неуязвим и быстро ищет новую точку спавна.
 export const RESPAWN_GHOST_MS   = 1500  // длительность фазы (мс)
@@ -115,6 +122,8 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 // id используется и как подпись в UI.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
+export type MapFilter = MapId[]        // выбранный набор карт (≥1)
+export type DurationFilter = number[]  // выбранный набор длительностей (≥1)
 
 // Демпфирование анимаций меню (переезд подложки и фоновых шаров) — единая скорость («резко, но не мгновенно»,
 // ~200 мс на ~95% пути). TAU в секундах для cur += (target-cur)*(1-exp(-dt/TAU)).
@@ -139,12 +148,13 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // TURN-хук: пусто = только STUN (хватает домашним сетям). Добавь серверы для мобильных/CGNAT.
 export const NET_ICE_SERVERS: RTCIceServer[] = []
 
-// Bot
-export const TARGET_SPEED        = 2.5
+// Bot movement & combat
+export const BOT_MOVE_SPEED      = 2.5
 export const BOT_FIRE_INTERVAL   = 2500
-export const BOT_WINDUP          = 600
-export const BOT_SHIELD_INTERVAL = 5000
-export const BOT_SHIELD_DURATION = 1500
+export const BOT_SHIELD_INTERVAL = 5000   // как часто ИИ решает поднять щит (не длительность щита — она как у игрока)
+export const BOT_CHASE_DIST      = 8      // дистанция переключения CHASE ↔ STRAFE (ед.)
+export const BOT_RETREAT_MS      = 500    // мс отхода после собственного выстрела
+export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
 
 // Arena
 export const SPAWN_HALF = 14

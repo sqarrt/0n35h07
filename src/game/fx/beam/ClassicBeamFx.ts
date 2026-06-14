@@ -23,6 +23,7 @@ export class ClassicBeamFx implements IBeamFx {
   private elapsed = 0          // мс с момента выстрела
   private start = new THREE.Vector3()
   private end = new THREE.Vector3()
+  private _dir = new THREE.Vector3()
   private afterglowOpacity = 0
   private beamDuration: number
 
@@ -70,10 +71,10 @@ export class ClassicBeamFx implements IBeamFx {
     this.elapsed += ms
     const t = Math.min(this.elapsed / this.beamDuration, 1)
     if (t >= 1) { this.active = false; this.beamGroup.visible = false; return }
-    const dir = this.end.clone().sub(this.start)
-    const len = dir.length()
+    this._dir.copy(this.end).sub(this.start)
+    const len = this._dir.length()
     this.beamGroup.position.copy(this.start).lerp(this.end, 0.5)
-    this.beamGroup.quaternion.setFromUnitVectors(UP, dir.normalize())
+    this.beamGroup.quaternion.setFromUnitVectors(UP, this._dir.normalize())
     this.beamGroup.scale.set(1 - t, len, 1 - t)
     this.beamGroup.visible = true
   }
@@ -82,10 +83,10 @@ export class ClassicBeamFx implements IBeamFx {
     if (this.afterglowOpacity <= 0) { this.afterglowMesh.visible = false; return }
     this.afterglowOpacity -= dt * AFTERGLOW_FADE
     if (this.afterglowOpacity <= 0) { this.afterglowMesh.visible = false; return }
-    const dir = this.end.clone().sub(this.start)
-    const len = dir.length()
+    this._dir.copy(this.end).sub(this.start)
+    const len = this._dir.length()
     this.afterglowMesh.position.copy(this.start).lerp(this.end, 0.5)
-    this.afterglowMesh.quaternion.setFromUnitVectors(UP, dir.normalize())
+    this.afterglowMesh.quaternion.setFromUnitVectors(UP, this._dir.normalize())
     this.afterglowMesh.scale.set(1, len, 1)
     ;(this.afterglowMesh.material as THREE.MeshBasicMaterial).opacity = this.afterglowOpacity * AFTERGLOW_OPACITY_K
     this.afterglowMesh.visible = true

@@ -7,7 +7,7 @@ import type { MoveKeys } from './movement'
 import { toVec3 } from '../../net/protocol'
 import type { InputFrame } from '../../net/protocol'
 import {
-  WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, DASH_FOV, AIM_RANGE,
+  WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, TP_SHOULDER_X, DASH_FOV, AIM_RANGE,
 } from '../../constants'
 
 type Keys = MoveKeys & { jump: boolean }   // + held-прыжок (auto-bhop), обрабатывается за кадр
@@ -20,7 +20,13 @@ export class HumanController implements Controller {
   private thirdPerson = false
   private shakeFrames = 0
   private fov = 75
-  private tmp = new THREE.Vector3()
+  // Scratch-вектора: tmp — scratch общего назначения (getWorldDirection); остальные — per-purpose.
+  private tmp          = new THREE.Vector3()
+  private _dir         = new THREE.Vector3()
+  private _right       = new THREE.Vector3()
+  private _basis       = { dir: this._dir, right: this._right }
+  private _vel         = new THREE.Vector3()
+  private _aimFallback = new THREE.Vector3()
 
   private player: Player
   private camera: THREE.PerspectiveCamera
@@ -53,8 +59,9 @@ export class HumanController implements Controller {
   onDash() {
     if (!document.pointerLockElement) return
     this.pending.dash = true
-    const { dir, right } = this.basis()
-    const d = dashDirection(this.keys.current, dir, right)
+    const world = this.camera.getWorldDirection(this.tmp)      // полный взгляд (с наклоном); уже нормализован
+    horizontalBasis(world, this._basis)                        // strafe-ось горизонтальная; tmp не меняется
+    const d = dashDirection(this.keys.current, world, this._right)   // world не меняется в dashDirection
     if (d) this.player.dash(d)
   }
   shake()     { this.shakeFrames = 5 }
@@ -65,13 +72,13 @@ export class HumanController implements Controller {
 
   /** Камера-относительные горизонтальные оси (для движения и направления рывка). */
   private basis() {
-    return horizontalBasis(this.camera.getWorldDirection(this.tmp))
+    return horizontalBasis(this.camera.getWorldDirection(this.tmp), this._basis)
   }
 
   /** Собрать кадр ввода для отправки хосту (клиент). Сбрасывает рёберные защёлки. */
   currentInputFrame(seq: number): InputFrame {
     const k = this.keys.current
-    const look = this.camera.getWorldDirection(new THREE.Vector3())
+    const look = this.camera.getWorldDirection(this.tmp)
     const frame: InputFrame = {
       seq,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
@@ -88,17 +95,18 @@ export class HumanController implements Controller {
   update(dt: number) {
     // Меню открыто (указатель не захвачен) — игрок не двигается, не целится, прыжок сбрасываем (без застрявшего bhop).
     if (!document.pointerLockElement) { this.player.setJumpInput(false); return }
-    const { dir, right } = this.basis()
-    this.player.moveIntent(moveVelocity(this.keys.current, dir, right, this.player.isWindingUp), dt)
+    const { dir, right } = this.basis()   // заполняет _dir/_right; this.tmp = направление камеры
+    this.player.moveIntent(moveVelocity(this.keys.current, dir, right, this.player.isWindingUp, this._vel), dt)
     this.player.setJumpInput(this.keys.current.jump)   // held → auto-bhop/двойной прыжок (решает Body)
 
-    // Прицел = точка мира под перекрестием: луч из камеры (исключая своё тело).
-    const camDir = this.camera.getWorldDirection(new THREE.Vector3())
-    this.player.setLook(camDir)   // ориентация модели — по взгляду камеры (стабильно, в т.ч. в TP)
-    const hit = this.world.raycast(this.camera.position, camDir, [this.player.id])
+    // this.tmp уже содержит направление камеры из basis() — повторный getWorldDirection не нужен.
+    this.player.setLook(this.tmp)
+    // В режиме SINGULARITY прицельный луч тоже простреливает блоки — иначе в TP aimPoint упирается
+    // в ближнюю стену и луч летит в неё, а не сквозь стены в соперника.
+    const hit = this.world.raycast(this.camera.position, this.tmp, [this.player.id], this.player.pierceWalls)
     const aimPoint = hit
       ? hit.point
-      : this.camera.position.clone().addScaledVector(camDir, AIM_RANGE)
+      : this._aimFallback.copy(this.camera.position).addScaledVector(this.tmp, AIM_RANGE)
     this.player.aim(aimPoint)
   }
 
@@ -106,11 +114,16 @@ export class HumanController implements Controller {
   lateUpdate(dt: number) {
     const pos = this.player.position
     if (this.thirdPerson) {
-      const lookH = this.camera.getWorldDirection(this.tmp).clone()
-      lookH.y = 0
-      lookH.normalize()
-      this.camera.position.copy(pos).addScaledVector(lookH, -TP_DIST)
-      this.camera.position.y = pos.y + TP_HEIGHT
+      // getWorldDirection принудительно обновляет matrixWorld; после этого колонки матрицы актуальны.
+      this.camera.getWorldDirection(this.tmp)   // tmp = вперёд камеры (с учётом pitch)
+      const m = this.camera.matrixWorld.elements
+      // Смещаем камеру в её ЛОКАЛЬНЫХ осях: m[0..2] = right, m[4..6] = up.
+      // Модель всегда проецируется в одно место экрана при любом pitch и yaw.
+      this.camera.position.set(
+        pos.x - this.tmp.x * TP_DIST + m[0] * TP_SHOULDER_X + m[4] * TP_HEIGHT,
+        pos.y - this.tmp.y * TP_DIST + m[1] * TP_SHOULDER_X + m[5] * TP_HEIGHT,
+        pos.z - this.tmp.z * TP_DIST + m[2] * TP_SHOULDER_X + m[6] * TP_HEIGHT,
+      )
     } else {
       this.camera.position.copy(pos)
     }

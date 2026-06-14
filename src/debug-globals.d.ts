@@ -8,6 +8,9 @@ declare global {
     __debugCamera?: THREE.Camera
     __debugWindup?: () => boolean
     __debugTargetHitCount?: number
+    __debugLastAnnounce?: string
+    __debugAnnounces?: string[]
+    __debugKnockCount?: number
     __debugBotPos?: Record<number, () => Vec3Lite>
     __debugRole?: () => string
     __debugPlayerPos?: (id: number) => Vec3Lite | null
@@ -15,6 +18,7 @@ declare global {
     __debugBodyScale?: (id: number) => number | null
     __debugPlayerSpeed?: (id: number) => number | null
     __debugForceEnd?: () => void
+    __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
     __debugForceLive?: () => void

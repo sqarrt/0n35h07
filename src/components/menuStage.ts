@@ -2,14 +2,15 @@ import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
 
 /** Экраны, которые обслуживает фон меню. */
-export type MenuMode = 'menu' | 'join' | 'room' | 'settings' | 'appearance'
+export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
 
-/** Последний кликнутый блок экрана «Внешность» — выбирает ракурс камеры. */
-export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield'
+/** Последний кликнутый блок экрана «Внешность» — выбирает ракурс камеры.
+ *  paintFront/paintBack — рисование спереди/сзади (камера облетает шар на нужную сторону). */
+export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield' | 'paintFront' | 'paintBack'
 
 /** Состояния камеры фона меню. Позы хранятся в menuCameraPoses.json (правятся клавишей J в dev).
  *  room — ты хост (вдвоём); roomClient — ты подключился клиентом (вдвоём, свой ракурс). */
-export type MenuCameraState = 'default' | 'room' | 'roomClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield'
+export type MenuCameraState = 'default' | 'room' | 'roomClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield' | 'appearancePaintFront' | 'appearancePaintBack'
 
 export interface CameraPose { position: [number, number, number]; target: [number, number, number] }
 export type CameraPoses = Record<MenuCameraState, CameraPose>
@@ -26,8 +27,10 @@ export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: b
     if (part === 'respawn') return 'appearanceRespawn'
     if (part === 'dash') return 'appearanceDash'
     if (part === 'shield') return 'appearanceShield'
+    if (part === 'paintFront') return 'appearancePaintFront'
+    if (part === 'paintBack') return 'appearancePaintBack'
     return 'appearance'
   }
-  if (mode === 'room' && hasOpponent) return isClient ? 'roomClient' : 'room'
+  if (mode === 'lobby' && hasOpponent) return isClient ? 'roomClient' : 'room'
   return 'default'
 }

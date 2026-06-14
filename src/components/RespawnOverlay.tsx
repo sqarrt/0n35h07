@@ -1,4 +1,5 @@
 import { HUD_FRAME_INSET } from '../constants'
+import { useT } from '../i18n'
 
 const GHOST = '#9cf'
 
@@ -25,6 +26,7 @@ function Bar({ edge, pct }: { edge: 'top' | 'bottom'; pct: number }) {
  * а остаток времени — полосы сверху и снизу HUD. `progress` 1→0.
  */
 export function RespawnOverlay({ progress }: { progress: number }) {
+  const t = useT()
   const pct = Math.min(1, Math.max(0, progress)) * 100
   return (
     <>
@@ -41,7 +43,7 @@ export function RespawnOverlay({ progress }: { progress: number }) {
         color: GHOST, fontFamily: 'var(--ui-font)', fontSize: '0.75rem', letterSpacing: '0.25em',
         textShadow: `0 0 8px ${GHOST}`, pointerEvents: 'none', zIndex: 14,
       }}>
-        ВОЗРОЖДЕНИЕ
+        {t.respawning}
       </div>
     </>
   )
