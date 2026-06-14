@@ -1,5 +1,6 @@
 import type { MatchmakingPool, PoolListing, PoolFilter } from './matchmaking'
 import type { SearchRole } from '../settings'
+import { netDiagMark } from './netDiag'
 
 export type ResolvedRole = 'host' | 'client'
 
@@ -40,6 +41,7 @@ export class DualMatchmaker {
 
   /** Запустить подбор согласно режиму. */
   start() {
+    netDiagMark('mm:start', { mode: this.mode, code: this.code })
     if (this.mode !== 'client') this.pool.advertise({ ...this.listing, dual: this.mode === 'both' })
     if (this.mode !== 'host') this.pool.search(this.filter, l => this.onCandidate(l))
   }
@@ -59,6 +61,7 @@ export class DualMatchmaker {
 
   /** @returns true — кандидат поглощён (поиск стоп); false — отложен (ищем дальше, остаёмся хостом). */
   private onCandidate(listing: PoolListing): boolean {
+    netDiagMark('mm:candidate', { code: listing.code, dual: listing.dual })
     if (this.committed) return true
     if (listing.code === this.code) return false   // свой же листинг (эхо шины) — игнорируем, слушаем дальше
     // both + dual-пир + наш код меньше → остаёмся хостом, ждём его как клиента.
@@ -67,6 +70,7 @@ export class DualMatchmaker {
       return false
     }
     this.committed = 'client'
+    netDiagMark('mm:join', { code: listing.code })
     this.pool.withdraw()
     this.joinCb(listing.code)
     return true
