@@ -48,6 +48,7 @@ import { createNet, resolveNetKind } from './net/createNet'
 import { warmMapPreviews, MAP_IDS } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
+import { lsGet, lsSet, lsRemove } from './storage'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
 import { RoomSession } from './net/RoomSession'
@@ -139,9 +140,9 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
 // при живой первой (или вход по чужому коду) → клиент. На другом устройстве localStorage не общий → клиент.
 const HOSTED_KEY = 'oneshot:hosted'
 const HOST_LIVE_KEY = 'oneshot:hostLive'
-function forgetHosted() { try { localStorage.removeItem(HOSTED_KEY); localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
-function setHostLive(code: string) { try { localStorage.setItem(HOST_LIVE_KEY, code) } catch { /* ignore */ } }
-function clearHostLive(code: string) { try { if (localStorage.getItem(HOST_LIVE_KEY) === code) localStorage.removeItem(HOST_LIVE_KEY) } catch { /* ignore */ } }
+function forgetHosted() { lsRemove(HOSTED_KEY, HOST_LIVE_KEY) }
+function setHostLive(code: string) { lsSet(HOST_LIVE_KEY, code) }
+function clearHostLive(code: string) { if (lsGet(HOST_LIVE_KEY) === code) lsRemove(HOST_LIVE_KEY) }
 
 /** Fallback Suspense для ленивого редактора — под I18nProvider, отсюда useT. */
 function EditorLoading() {
@@ -179,14 +180,15 @@ export default function App() {
   // canvas (handleMenuReady), а сам init WebGL-контекста лёгкий и проходит за предупреждением чисто. Под ?net=bc
   // (e2e/локальные 2 вкладки) предупреждение не показываем — иначе оверлей перехватывал бы клики в тестах.
   const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
-  const trysteroWarmedRef = useRef(false)
-  const handleMenuReady = useCallback(() => {
-    if (trysteroWarmedRef.current || resolveNetKind() !== 'trystero') return
-    trysteroWarmedRef.current = true
-    // Canvas прогрет → теперь безопасно ловить синхронный фриз init Trystero (~860мс): он пройдёт ЗА
-    // предупреждением, до того как игрок его закроет → первое «Создать комнату» открывается мгновенно.
-    setTimeout(() => warmTrystero(), TRYSTERO_WARM_DELAY_MS)
-  }, [])
+  const [menuReady, setMenuReady] = useState(false)
+  const handleMenuReady = useCallback(() => setMenuReady(true), [])
+  // Canvas прогрет → теперь безопасно ловить синхронный фриз init Trystero (~860мс): он пройдёт ЗА
+  // предупреждением, до того как игрок его закроет → первое «Создать комнату» открывается мгновенно.
+  useEffect(() => {
+    if (!menuReady || resolveNetKind() !== 'trystero') return
+    const timer = setTimeout(warmTrystero, TRYSTERO_WARM_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [menuReady])
 
   // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
   const [sfx] = useState(() => new ThreeSfxEngine())

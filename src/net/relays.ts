@@ -1,4 +1,5 @@
 import { defaultRelayUrls } from 'trystero'
+import { lsGet, lsSet } from '../storage'
 
 /**
  * Живая проба Nostr-релеев сигналинга. Trystero по умолчанию выбирает фиксированную пятёрку релеев по
@@ -76,7 +77,7 @@ function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
 
 function readCache(): RelayStatus | null {
   try {
-    const raw = localStorage.getItem(LS_KEY)
+    const raw = lsGet(LS_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as { urls: string[]; ts: number }
     if (!Array.isArray(parsed.urls) || !parsed.urls.length) return null
@@ -85,7 +86,7 @@ function readCache(): RelayStatus | null {
 }
 
 function writeCache(urls: string[], ts: number) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ urls, ts })) } catch { /* недоступно — игнор */ }
+  lsSet(LS_KEY, JSON.stringify({ urls, ts }))
 }
 
 function isFresh(ts: number): boolean { return Date.now() - ts < CACHE_TTL_MS }

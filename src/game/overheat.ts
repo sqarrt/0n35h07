@@ -1,4 +1,5 @@
-const T_DOUBLE = 2, T_TRIPLE = 3, T_SINGULARITY = 5
+import { STREAK_DOUBLE, STREAK_TRIPLE, STREAK_SINGULARITY } from './streakConfig'
+
 const DOT_CAP = 10
 
 export interface OverheatMods {
@@ -12,22 +13,22 @@ const NEUTRAL: OverheatMods = { speed: 1, beamCd: 1, shieldCd: 1, seeThrough: fa
 
 /** Модификаторы ПЕРЕГРЕВА по числу серии. */
 export function overheatMods(streak: number): OverheatMods {
-  if (streak >= T_SINGULARITY) return { speed: 1.3, beamCd: 1.5, shieldCd: 1.5, seeThrough: true }
-  if (streak >= T_TRIPLE)      return { speed: 1.2, beamCd: 1.3, shieldCd: 1.3, seeThrough: false }
-  if (streak >= T_DOUBLE)      return { speed: 1.1, beamCd: 1.15, shieldCd: 1.15, seeThrough: false }
+  if (streak >= STREAK_SINGULARITY) return { speed: 1.3, beamCd: 1.5, shieldCd: 1.5, seeThrough: true }
+  if (streak >= STREAK_TRIPLE)      return { speed: 1.2, beamCd: 1.3, shieldCd: 1.3, seeThrough: false }
+  if (streak >= STREAK_DOUBLE)      return { speed: 1.1, beamCd: 1.15, shieldCd: 1.15, seeThrough: false }
   return NEUTRAL
 }
 
 /** Фраги за килл по серии ЖЕРТВЫ (до сброса): TRIPLE→2, SINGULARITY→3, иначе 1. */
 export function bountyFrags(victimStreak: number): number {
-  if (victimStreak >= T_SINGULARITY) return 3
-  if (victimStreak >= T_TRIPLE) return 2
+  if (victimStreak >= STREAK_SINGULARITY) return 3
+  if (victimStreak >= STREAK_TRIPLE) return 2
   return 1
 }
 
 /** Снятие серии TRIPLE+ сбрасывает кулдауны убийцы. */
 export function breakResetsCooldowns(victimStreak: number): boolean {
-  return victimStreak >= T_TRIPLE
+  return victimStreak >= STREAK_TRIPLE
 }
 
 /** Точек у имени = серия, кап 10. */

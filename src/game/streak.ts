@@ -5,22 +5,22 @@ export type StreakTier = 'double' | 'triple' | 'singularity'
 /** Что анонсировать баннером (тир серии ЛИБО первое убийство). */
 export type AnnounceKind = 'catalyst' | StreakTier
 
-const TIER_DOUBLE = 2, TIER_TRIPLE = 3, TIER_SINGULARITY = 5
+import { STREAK_DOUBLE, STREAK_TRIPLE, STREAK_SINGULARITY } from './streakConfig'
 
 /** Тир для постоянной подсветки ника; 0–1 → null. */
 export function streakTier(streak: number): StreakTier | null {
-  if (streak >= TIER_SINGULARITY) return 'singularity'
-  if (streak >= TIER_TRIPLE) return 'triple'
-  if (streak >= TIER_DOUBLE) return 'double'
+  if (streak >= STREAK_SINGULARITY) return 'singularity'
+  if (streak >= STREAK_TRIPLE) return 'triple'
+  if (streak >= STREAK_DOUBLE) return 'double'
   return null
 }
 
 /** Нужен ли баннер на этом фраге: первая кровь ИЛИ точный порог смены слова тира. */
 export function announceKind(streak: number, firstBlood: boolean): AnnounceKind | null {
   if (firstBlood) return 'catalyst'
-  if (streak === TIER_SINGULARITY) return 'singularity'
-  if (streak === TIER_TRIPLE) return 'triple'
-  if (streak === TIER_DOUBLE) return 'double'
+  if (streak === STREAK_SINGULARITY) return 'singularity'
+  if (streak === STREAK_TRIPLE) return 'triple'
+  if (streak === STREAK_DOUBLE) return 'double'
   return null
 }
 

@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import { editorMaps } from './vite-plugin-editor-maps'
-import { cameraPoses } from './vite-plugin-camera-poses'
+import { editorMaps } from './build/vite-plugins/editorMaps'
+import { cameraPoses } from './build/vite-plugins/cameraPoses'
 import pkg from './package.json'
 
 // https://vite.dev/config/
