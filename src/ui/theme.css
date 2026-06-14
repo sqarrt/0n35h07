@@ -32,6 +32,13 @@
   z-index: 100;
 }
 
+/* Тематический скролл во всём приложении (вписан в стиль вместо системного — единый вид на всех экранах). */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }   /* Firefox */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
 /* Тонкая акцентная линия под заголовком. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
 
@@ -107,8 +114,9 @@
   height: 100dvh;
   display: flex;
 }
-/* Внутренний слой экрана: заполняет подложку, каждый экран сам задаёт выравнивание (center / stretch). */
-.panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; }
+/* Внутренний слой экрана: заполняет подложку, каждый экран сам задаёт выравнивание (center / stretch).
+   overflow-y:auto — скролл на всех экранах, если контент выше панели (тематический скроллбар — см. выше). */
+.panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 
 /* Размытое 3D-превью выбранной карты — атмосферный фон за шарами (MenuBackdrop сверху, резкий).
    Плавный fade in/out по opacity (вход/выход из комнаты). Длительность синхронна с MAP_FADE_MS в App. */

@@ -36,9 +36,13 @@ export function resolveMatchParams(
   pickMap: (opts: MapId[]) => MapId,
   pickDuration: (opts: number[]) => number,
 ): { mapId: MapId; durationMin: number } {
+  // Пустое пересечение (клиент пришёл с несовместимым набором) → берём выбор хоста: он авторитет, и это
+  // защищает от undefined → дефолтной карты / durationMs=NaN. В норме пересечение непустое (см. listingMatches).
+  const maps = intersect(host.map, client.map)
+  const durs = intersect(host.durationMin, client.durationMin)
   return {
-    mapId: pickMap(intersect(host.map, client.map)),
-    durationMin: pickDuration(intersect(host.durationMin, client.durationMin)),
+    mapId: pickMap(maps.length ? maps : host.map),
+    durationMin: pickDuration(durs.length ? durs : host.durationMin),
   }
 }
 

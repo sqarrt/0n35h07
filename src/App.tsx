@@ -47,6 +47,7 @@ import { createNet, resolveNetKind } from './net/createNet'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
+import { netDiagSetContext, netDiagSetPeers } from './net/netDiag'
 import { lsGet, lsSet, lsRemove } from './storage'
 import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
@@ -251,6 +252,8 @@ export default function App() {
     if (sessionRef.current) leaveRoom()
     if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
     const net = createNet(code)
+    netDiagSetContext({ role, code, selfId: net.selfId })
+    netDiagSetPeers(() => net.peers())
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
@@ -419,7 +422,10 @@ export default function App() {
       listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
       filter: { map: curMap, durationMin: curDur },
     })
-    dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', draftSel) })
+    // Заходим клиентом с РЕАЛЬНО выбранными параметрами поиска (в режиме both выбор живёт в host-сессии,
+    // а draftSel остаётся дефолтным — иначе хост резолвит свой выбор против дефолта клиента: пустое
+    // пересечение → карта-дефолт и время NaN/00:00).
+    dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', { map: curMap, durationMin: curDur }) })
     dmRef.current = dm
     dm.start()
   }
