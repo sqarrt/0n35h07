@@ -17,6 +17,8 @@ export class BotController implements Controller {
 
   private player: Player
   private getTarget: () => THREE.Vector3
+  private _lookDir = new THREE.Vector3()
+  private _moveVel = new THREE.Vector3()
 
   constructor(
     player: Player,
@@ -35,8 +37,8 @@ export class BotController implements Controller {
     const pos = this.player.position
 
     const target = this.getTarget()
-    this.player.aim(target)              // целимся в точку — игрока (луч)
-    this.player.setLook(target.clone().sub(pos))   // модель смотрит на цель (направление, не точка)
+    this.player.aim(target)
+    this.player.setLook(this._lookDir.copy(target).sub(pos))
 
     if (!this.player.isWindingUp) {
       const dx = this.waypoint.x - pos.x
@@ -45,10 +47,7 @@ export class BotController implements Controller {
       if (dist < 0.5) {
         this.waypoint = randomArenaPos()
       } else {
-        this.player.moveIntent(
-          new THREE.Vector3((dx / dist) * TARGET_SPEED, 0, (dz / dist) * TARGET_SPEED),
-          dt,
-        )
+        this.player.moveIntent(this._moveVel.set((dx / dist) * TARGET_SPEED, 0, (dz / dist) * TARGET_SPEED), dt)
       }
     }
 

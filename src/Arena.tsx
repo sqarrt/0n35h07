@@ -1,6 +1,6 @@
 import { useMemo, useEffect } from 'react'
 import { CuboidCollider, RigidBody, MeshCollider } from '@react-three/rapier'
-import { MAPS, MAP_GEO } from './game/maps'
+import { MAPS, getCachedMapGeo } from './game/maps'
 import type { GameMap } from './game/maps'
 import { DEFAULT_MAP_ID } from './constants'
 import { gridGeometry } from './game/grid'
@@ -18,8 +18,8 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
 
-  // Геометрия из компила (geo.json), фолбэк — слияние из blocks на лету (кеш по id). Две группы (укрытия/периметр).
-  const compiled = useMemo(() => MAP_GEO[map.id] ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
+  // Геометрия из компила (geo.json, preload через ensureMapGeo до монтирования), фолбэк — слияние из blocks.
+  const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
   // Укрытия — цель боёвки-луча: строим BVH (computeBoundsTree), чтобы raycast на выстреле был O(log n), без спайка.
   const raycast = useMemo(() => {
     const g = compiled.raycast ? buildGeometry(compiled.raycast) : null

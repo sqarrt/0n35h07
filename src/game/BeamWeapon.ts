@@ -40,6 +40,9 @@ export class BeamWeapon implements IWeapon {
 
   justFired = false
   outcome: FireOutcome | null = null
+  private _origin = new THREE.Vector3()
+  private _dir    = new THREE.Vector3()
+  private _end    = new THREE.Vector3()
 
   constructor(cfg: BeamConfig = {}) {
     this.windupDuration   = cfg.windupDuration   ?? BEAM_WINDUP
@@ -81,22 +84,21 @@ export class BeamWeapon implements IWeapon {
     this.cooldownRemaining = this.cooldownTotal
     this.windupElapsed = 0
 
-    const origin = ctx.muzzle.clone()
-    const dir = ctx.aim.clone().normalize()
-    const hit = ctx.world.raycast(origin, dir, ctx.excludeIds, ctx.pierceWalls ?? false)
+    this._origin.copy(ctx.muzzle)
+    this._dir.copy(ctx.aim).normalize()
+    const hit = ctx.world.raycast(this._origin, this._dir, ctx.excludeIds, ctx.pierceWalls ?? false)
 
     let hitEntityId: number | null = null
     let hitPoint: THREE.Vector3 | null = null
-    const end = new THREE.Vector3()
     if (hit) {
-      end.copy(hit.point)
+      this._end.copy(hit.point)
       const eid = (hit.object.userData as MeshUserData).entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
     } else {
-      end.copy(origin).addScaledVector(dir, AIM_RANGE)
+      this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     }
-    this.beamFx.play(origin, end)
-    this.outcome = { end: end.clone(), hitEntityId, hitPoint }
+    this.beamFx.play(this._origin, this._end)   // play делает .copy() на обоих аргументах → scratch безопасен
+    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint }   // clone: outcome переживает кадр
     this.justFired = true
   }
 

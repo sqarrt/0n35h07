@@ -221,10 +221,11 @@ export class Body {
     return this.dashCooldown > 0 ? Math.max(0, 1 - this.dashCooldown / DASH_COOLDOWN) : 1
   }
 
-  consumeDesired(): THREE.Vector3 {
-    const d = this.desired.clone()
+  consumeDesired(out?: THREE.Vector3): THREE.Vector3 {
+    const target = out ?? new THREE.Vector3()
+    target.copy(this.desired)
     this.desired.set(0, 0, 0)
-    return d
+    return target
   }
 
   setGrounded(g: boolean) {
