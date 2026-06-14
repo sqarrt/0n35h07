@@ -147,14 +147,17 @@ export const NET_HUMAN_SPAWN_Z = 5    // 1v1: люди спавнятся дру
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
 // ICE-серверы для WebRTC. Передаются в Trystero rtcConfig и ЗАМЕНЯЮТ его дефолты — поэтому держим здесь
 // и STUN, и TURN. STUN хватает домашним сетям; TURN нужен для симметричного NAT/CGNAT и сетей, режущих UDP
-// (там STUN таймаутится — см. диагностику онлайна). TURN по TCP/TLS:443 пробивает UDP-фильтрацию.
-// ВНИМАНИЕ: TURN ниже — публичный OpenRelay, ВРЕМЕННО для проверки. Для прода нужен выделенный TURN
-// (self-hosted coturn или managed: Metered/Twilio/Cloudflare) — публичные релеи не дают гарантий и лимитов.
+// (там STUN таймаутится — см. диагностику онлайна). turns:443?transport=tcp пробивает UDP-фильтрацию.
+// ВНИМАНИЕ: креды Metered (free 50 ГБ/мес) — для проверки/MVP. Для прода нужен выделенный TURN с лимитами
+// под нагрузку (платный Metered/Twilio/Cloudflare или self-hosted coturn) — free-тариф не даёт гарантий.
+const TURN_USERNAME = 'af2cb5ef0f0bdf6b52f22e88'
+const TURN_CREDENTIAL = 'VyEzyzW20LI7MhQh'
 export const NET_ICE_SERVERS: RTCIceServer[] = [
-  { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
-  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  { urls: 'turn:global.relay.metered.ca:80', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+  { urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+  { urls: 'turn:global.relay.metered.ca:443', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
+  { urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: TURN_USERNAME, credential: TURN_CREDENTIAL },
 ]
 
 // Bot movement & combat
