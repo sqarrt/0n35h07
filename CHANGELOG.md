@@ -5,6 +5,17 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
 
+## [0.5.5] - 2026-06-15
+
+Багфикс CI: сборка Windows-бинаря (tauri-windows) проходит до конца.
+
+### Fixed
+- CI tauri-windows падала на `cargo --version`: `rustup could not choose a version of cargo... no default
+  is configured`. В кэше `.cargo\bin` лежат лишь прокси rustup, а сам тулчейн (RUSTUP_HOME) не кэшируется
+  → на свежей VM прокси из кэша проходил проверку `Get-Command cargo`, установка Rust пропускалась, и
+  прокси падал без тулчейна. Теперь детект по `rustup` (не `cargo`) + безусловный `rustup default stable`,
+  который ставит/фиксирует тулчейн на свежей VM.
+
 ## [0.5.4] - 2026-06-15
 
 Багфикс: версия в установщике Tauri синхронизирована с релизной.
