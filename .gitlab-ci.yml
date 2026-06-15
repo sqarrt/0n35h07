@@ -92,12 +92,19 @@ tauri-windows:
       # в $USERPROFILE\.cargo\bin и только внутри if, из-за чего джоба падала с 'cargo' is not recognized).
       $cargoBin = Join-Path $env:CI_PROJECT_DIR ".cargo\bin"
       $env:PATH = "$cargoBin;$env:PATH"
-      if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
-        Write-Host "Installing Rust..."
+      # Детект по rustup, НЕ по cargo: в кэше .cargo\bin лежат лишь ПРОКСИ rustup (cargo.exe/rustup.exe),
+      # а сам тулчейн живёт в RUSTUP_HOME ($USERPROFILE\.rustup), который НЕ кэшируется. На свежей VM
+      # прокси из кэша есть → старая проверка `Get-Command cargo` проходила, установка пропускалась, и
+      # `cargo` (прокси) падал: 'could not choose a version of cargo... no default is configured'.
+      if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+        Write-Host "Installing Rust (rustup)..."
         Invoke-WebRequest -Uri "https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe" -OutFile rustup-init.exe
         .\rustup-init.exe -y --default-toolchain stable-x86_64-pc-windows-msvc --no-modify-path
         Remove-Item rustup-init.exe -ErrorAction SilentlyContinue   # exe может быть залочен — не валим джобу
       }
+      # ВСЕГДА фиксируем дефолтный тулчейн: на свежей VM (прокси из кэша, RUSTUP_HOME пуст) его нет —
+      # ставит stable и делает дефолтным; если уже есть — идемпотентный no-op.
+      rustup default stable-x86_64-pc-windows-msvc
       # Tauri CLI: раннер несёт только rustc/cargo, но не cargo-tauri → `cargo tauri build` падал с
       # 'no such command: tauri'. Ставим cargo-tauri в .cargo\bin (кэшируется → ставится один раз).
       if (-not (Test-Path (Join-Path $cargoBin "cargo-tauri.exe"))) {
