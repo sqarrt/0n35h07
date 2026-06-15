@@ -29,6 +29,7 @@ import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
+import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
@@ -60,8 +61,10 @@ import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from './con
 import { createMatchmakingPool } from './net/createMatchmakingPool'
 import type { MatchmakingPool } from './net/matchmaking'
 import { DualMatchmaker } from './net/DualMatchmaker'
+import { TrailerScreen } from './components/trailer/TrailerScreen'
+import type { DemoFile } from './game/demo/demoTypes'
 
-type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance'
+type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
 
 const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
@@ -85,6 +88,17 @@ interface GameNet {
 
 function randomCode() {
   return Math.random().toString(36).slice(2, 6).toUpperCase()
+}
+
+// Dev: скачать записанное демо в файл (кладётся в репо, потом секвенсируется в трейлер).
+function downloadDemo(demo: DemoFile) {
+  const blob = new Blob([JSON.stringify(demo)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `oneshot-${Date.now()}.demo.json`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 // Конфиг камеры — модульная константа: инлайновый объект пересоздавался бы на каждом рендере.
@@ -152,6 +166,8 @@ function EditorLoading() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
+  // Активная вкладка настроек живёт здесь, чтобы пережить заход в трейлер и вернуться на ту же вкладку.
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>('player')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
   const [roomCode, setRoomCode] = useState('')
@@ -218,7 +234,7 @@ export default function App() {
   // (autoplay-политика); на десктопе (Tauri) autoplay разрешён → стартуем сразу, без жеста.
   const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
-    if (screen === 'game') { menuMusic.stop(); return }
+    if (screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }   // трейлер ведёт свою музыку
     if (gesturedRef.current) { void menuMusic.start(); return }
     const onGesture = () => {
       gesturedRef.current = true
@@ -318,6 +334,24 @@ export default function App() {
   useEffect(() => {
     if (hud.matchResult) document.exitPointerLock?.()
   }, [hud.matchResult])
+
+  // Запись демо для трейлера — ТОЛЬКО dev: F9 старт/стоп (в матче), на стоп скачивается .demo.json.
+  // Позитивная ветка import.meta.env.DEV → в прод-сборке весь блок (и downloadDemo) вырезается DCE.
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      const onKey = (e: KeyboardEvent) => {
+        if (e.code !== 'F9') return
+        const api = gameApiRef.current
+        if (!api) return
+        if (api.isRecordingDemo()) {
+          const demo = api.stopDemo()
+          if (demo) { downloadDemo(demo); console.log(`[demo] записано кадров: ${demo.frames.length}`) }
+        } else { api.startDemo(); console.log('[demo] запись начата (F9 — стоп)') }
+      }
+      window.addEventListener('keydown', onKey)
+      return () => window.removeEventListener('keydown', onKey)
+    }
+  }, [])
 
   // Закрытие/обновление вкладки → мгновенный 'bye' соседу (иначе детект по presence-таймауту) + снимаем флаг
   // живого хоста этого кода (refresh/reopen этой же вкладки потом снова станет хостом; вторая живая — клиентом).
@@ -519,20 +553,20 @@ export default function App() {
     >
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
-      {screen !== 'game' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
+      {screen !== 'game' && screen !== 'trailer' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
       {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
           на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
       {/* part только на экране «Внешность»: иначе ретенция (напр. shot/paint) держит разворот шара в меню. */}
-      {screen !== 'game' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
-      {screen !== 'game' && resolveNetKind() === 'trystero' && <NetStatusChip />}
-      {screen !== 'game' && <VersionChip />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && resolveNetKind() === 'trystero' && <NetStatusChip />}
+      {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
-      {screen !== 'game' && (
+      {screen !== 'game' && screen !== 'trailer' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
             {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
             {screen === 'settings' && (
-              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} />
+              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} section={settingsSection} onSectionChange={setSettingsSection} />
             )}
             {screen === 'appearance' && (
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
@@ -540,6 +574,10 @@ export default function App() {
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
+      )}
+
+      {screen === 'trailer' && (
+        <TrailerScreen masterVolume={profile.volumeMaster} onDone={() => setScreen('settings')} />
       )}
 
       {screen === 'game' && gameNet && (

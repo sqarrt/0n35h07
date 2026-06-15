@@ -10,8 +10,9 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --config vite.trailer.config.ts",
     "build:desktop": "tsc -b && vite build --mode tauri",
+    "build:trailer": "vite build --config vite.trailer.config.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts && playwright test --project=headless",

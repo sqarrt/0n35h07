@@ -28,6 +28,7 @@ import { createRespawnFx } from './fx/respawn/createRespawnFx'
 import { createDashFx } from './fx/dash/createDashFx'
 import { createShieldFx } from './fx/shield/createShieldFx'
 import { decodeBallArt } from './ballArt'
+import type { DemoRecorder } from './demo/DemoRecorder'
 import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
@@ -96,6 +97,7 @@ export class Match {
   readonly role: MatchRole
   readonly localId: number
   phase: MatchPhase = 'live'           // ритуал входа (1v1): ready → countdown → live
+  recorder: DemoRecorder | null = null // dev: запись демо (хук в emit + захват кадра из Game-цикла)
 
   private world: World
   private singularityActive = false   // режим SINGULARITY: прострел обоим + прозрачные блоки (трекаем для смены)
@@ -532,6 +534,12 @@ export class Match {
     return Math.max(0, this.lastRemainingMs - (Date.now() - this.lastRemainingAt))
   }
 
+  /** Остаток таймера в мс для записи демо (до старта часов — полная длительность). */
+  getRemainingMs(): number {
+    const r = this.musicRemainingMs()
+    return Number.isFinite(r) ? r : this.durationMs
+  }
+
   private syncPhaseHud() {
     const countdown = this.phase === 'countdown'
       ? Math.max(0, Math.ceil((this.countdownEndsAt - Date.now()) / 1000))
@@ -669,6 +677,7 @@ export class Match {
   private emit(e: MatchEvent) {
     if (this.role !== 'host') return
     this.pendingEvents.push(e)
+    this.recorder?.event(e)            // dev: транзиентные FX в демо (не потребляет очередь сети)
     this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
   }
 
