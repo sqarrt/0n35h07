@@ -32,6 +32,7 @@ export const en = {
   menuAppearance: 'APPEARANCE',
   menuSettings: 'SETTINGS',
   menuExit: 'QUIT',
+  menuFullscreenHint: 'F11 — fullscreen',
   warnTitle: 'WARNING',
   warnBody: 'This game contains flashing images, strobes and sharp light effects. Not recommended for people with photosensitive epilepsy.',
   warnContinueHint: 'to continue',

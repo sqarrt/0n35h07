@@ -32,6 +32,7 @@ export const tr = {
   menuAppearance: 'GÖRÜNÜM',
   menuSettings: 'AYARLAR',
   menuExit: 'ÇIKIŞ',
+  menuFullscreenHint: 'F11 — tam ekran',
   warnTitle: 'UYARI',
   warnBody: 'Oyun yanıp sönen görüntüler, stroboskop ve yoğun ışık efektleri içermektedir. Işığa duyarlı epilepsisi olan kişilere önerilmez.',
   warnContinueHint: 'devam etmek için',

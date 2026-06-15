@@ -32,6 +32,7 @@ export const de = {
   menuAppearance: 'AUSSEHEN',
   menuSettings: 'EINSTELLUNGEN',
   menuExit: 'BEENDEN',
+  menuFullscreenHint: 'F11 — Vollbild',
   warnTitle: 'WARNUNG',
   warnBody: 'Das Spiel enthält Blitzlichter, Stroboskopeffekte und intensive Lichteffekte. Nicht empfohlen für Menschen mit photosensitiver Epilepsie.',
   warnContinueHint: 'zum Fortfahren',

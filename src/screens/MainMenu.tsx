@@ -31,6 +31,9 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuP
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
       {/* Выход — только на десктопе: в браузере window.close() для обычной вкладки запрещён политикой. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
+      {/* Подсказка про F11 — только в браузере (на десктопе и так fullscreen). F11 — нативный хоткей браузера,
+          обработчик не нужен, только текст. */}
+      {!IS_DESKTOP && <p className="menu-hint">{t.menuFullscreenHint}</p>}
     </div>
   )
 }

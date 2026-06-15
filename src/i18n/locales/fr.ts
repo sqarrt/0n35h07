@@ -32,6 +32,7 @@ export const fr = {
   menuAppearance: 'APPARENCE',
   menuSettings: 'PARAMÈTRES',
   menuExit: 'QUITTER',
+  menuFullscreenHint: 'F11 — plein écran',
   warnTitle: 'AVERTISSEMENT',
   warnBody: 'Ce jeu contient des images clignotantes, des flashs et des effets lumineux intenses. Déconseillé aux personnes épileptiques photosensibles.',
   warnContinueHint: 'pour continuer',
