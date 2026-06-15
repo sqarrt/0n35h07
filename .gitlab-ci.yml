@@ -1,5 +1,5 @@
 # CI/CD: сборка фронтенда по git-тегу + авто-деплой на nginx через explicit FTPS.
-# Таuri-бинарь (Windows .msi) собирается параллельно и публикуется в Package Registry.
+# Таuri-сборка (Windows .msi + portable .exe) идёт параллельно и публикуется в Package Registry.
 # GitLab Release создаётся автоматически после успешной сборки бинаря.
 #
 # Пайплайн стартует ТОЛЬКО на тег. Все джобы — автоматические.
@@ -119,19 +119,38 @@ tauri-windows:
     - |
       # Дублируем PATH к cargo и здесь — на случай, если окружение before_script не дожило до script-шага.
       $env:PATH = "$(Join-Path $env:CI_PROJECT_DIR '.cargo\bin');$env:PATH"
+      # Чистим ВЫХОД бандла (но НЕ target/release/deps) перед сборкой: src-tauri\target кэшируется
+      # с when:always, поэтому старые установщики (0N35H07_0.5.0_x64.msi и т.п.) копятся в кэше.
+      # Без чистки `Get-ChildItem ...*.msi` видит и их → раньше заливался устаревший артефакт.
+      Remove-Item "src-tauri\target\release\bundle" -Recurse -Force -ErrorAction SilentlyContinue
       npm run tauri:build
     - |
-      $msi = Get-ChildItem "src-tauri\target\release\bundle\msi\*.msi" | Select-Object -First 1
-      if (-not $msi) { Write-Error "MSI not found"; exit 1 }
-      $uploadName = "0N35H07-$env:CI_COMMIT_TAG-windows-x64.msi"
-      $uploadUrl  = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/desktop/$env:CI_COMMIT_TAG/$uploadName"
-      Write-Host "Uploading $($msi.Name) -> $uploadUrl"
-      Invoke-RestMethod -Uri $uploadUrl -Method Put -ContentType "application/octet-stream" `
-        -Headers @{ "JOB-TOKEN" = $env:CI_JOB_TOKEN } -InFile $msi.FullName
+      # Аплоад в Package Registry: установщик (.msi) + portable-бинарь (.exe).
+      # Бандл-папка только что пересобрана с нуля → в ней лежат ровно свежие артефакты. На всякий
+      # случай берём НОВЕЙШИЙ по времени записи (а не первый по алфавиту, как было — это и давало 0.5.0).
+      $base = "$env:CI_API_V4_URL/projects/$env:CI_PROJECT_ID/packages/generic/desktop/$env:CI_COMMIT_TAG"
+      function Publish-Asset($file, $uploadName) {
+        if (-not $file) { Write-Error "Asset not found: $uploadName"; exit 1 }
+        $url = "$base/$uploadName"
+        Write-Host "Uploading $($file.Name) -> $url"
+        Invoke-RestMethod -Uri $url -Method Put -ContentType "application/octet-stream" `
+          -Headers @{ "JOB-TOKEN" = $env:CI_JOB_TOKEN } -InFile $file.FullName
+      }
+      $msi = Get-ChildItem "src-tauri\target\release\bundle\msi\*.msi" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      # Страховка от публикации кривой версии: WiX зашивает версию в имя (0N35H07_<ver>_x64_en-US.msi).
+      # Если версия != тег (рассинхрон package.json/тег ИЛИ устаревший артефакт) — падаем, НЕ публикуем.
+      if (-not $msi -or ($msi.Name -notlike "*$($env:CI_COMMIT_TAG)*")) {
+        Write-Error "MSI version mismatch: '$($msi.Name)' не содержит тег '$env:CI_COMMIT_TAG'"; exit 1
+      }
+      Publish-Asset $msi "0N35H07-$env:CI_COMMIT_TAG-windows-x64.msi"
+      # Portable: самодостаточный игровой .exe (запуск без установки; нужен системный WebView2).
+      # Имя бинаря = имя crate из Cargo.toml ([package] name = "app") → app.exe.
+      $exe = Get-ChildItem "src-tauri\target\release\app.exe" | Select-Object -First 1
+      Publish-Asset $exe "0N35H07-$env:CI_COMMIT_TAG-windows-x64.exe"
       Write-Host "Upload complete."
   needs: []   # не ждёт build — запускается параллельно
 
-# --- GitLab Release со ссылкой на .msi ---
+# --- GitLab Release со ссылками на .msi и portable .exe ---
 
 release:
   stage: release
@@ -151,4 +170,7 @@ release:
       links:
         - name: "Windows installer (.msi)"
           url: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/desktop/$CI_COMMIT_TAG/0N35H07-$CI_COMMIT_TAG-windows-x64.msi"
+          link_type: package
+        - name: "Windows portable (.exe)"
+          url: "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/desktop/$CI_COMMIT_TAG/0N35H07-$CI_COMMIT_TAG-windows-x64.exe"
           link_type: package

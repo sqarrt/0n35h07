@@ -1,7 +1,7 @@
 {
   "name": "oneshot",
   "private": true,
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "OneShot — аркадный шутер от первого лица, строго 1v1 (p2p)",
   "author": "Dmitry Shatalov",
   "type": "module",
@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:desktop": "tsc -b && vite build --mode tauri",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.ts && playwright test --project=headless",
