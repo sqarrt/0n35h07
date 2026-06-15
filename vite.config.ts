@@ -5,6 +5,11 @@ import { editorMaps } from './build/vite-plugins/editorMaps'
 import { cameraPoses } from './build/vite-plugins/cameraPoses'
 import pkg from './package.json'
 
+// Tauri выставляет TAURI_ENV_* при запуске beforeBuildCommand (`npm run build`) — так отличаем
+// desktop-сборку от веб-сборки. В desktop PWA не нужен: ассеты уже локальные, а service worker в
+// WebView2 кэширует их персистентно и после апдейта отдаёт СТАРУЮ версию (залипание на прошлой сборке).
+const isTauriBuild = !!process.env.TAURI_ENV_PLATFORM
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -12,6 +17,9 @@ export default defineConfig({
     editorMaps(),
     cameraPoses(),
     VitePWA({
+      // В Tauri-сборке — самоуничтожающийся SW: удаляет ранее зарегистрированный SW и чистит кэши
+      // (лечит уже установленные копии), сам ничего не кэширует. В вебе остаётся обычный PWA.
+      selfDestroying: isTauriBuild,
       registerType: 'autoUpdate',
       manifest: {
         name: '0N35H07',
