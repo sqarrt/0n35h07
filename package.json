@@ -1,7 +1,7 @@
 {
   "name": "oneshot",
   "private": true,
-  "version": "0.5.6",
+  "version": "0.5.7",
   "description": "OneShot — аркадный шутер от первого лица, строго 1v1 (p2p)",
   "author": "Dmitry Shatalov",
   "type": "module",
