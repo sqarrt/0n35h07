@@ -79,6 +79,16 @@ export function I18nProvider({ initial, onChange, children }: {
   return createElement(Ctx.Provider, { value }, children)
 }
 
+/**
+ * Жёстко задаёт язык поддерева (без записи в профиль и без смены document.lang).
+ * Нужен трейлеру: на Steam аудитория англоязычная → весь HUD трейлера всегда на en,
+ * независимо от выбранного в настройках языка.
+ */
+export function ForceLocale({ id, children }: { id: LocaleId; children: ReactNode }) {
+  const value = useMemo<I18nCtx>(() => ({ locale: id, dict: DICTS[id], setLocale: () => {} }), [id])
+  return createElement(Ctx.Provider, { value }, children)
+}
+
 function useI18n(): I18nCtx {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useT/useLocale вне I18nProvider')

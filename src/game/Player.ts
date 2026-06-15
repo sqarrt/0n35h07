@@ -305,6 +305,12 @@ export class Player implements IControllable {
   }
   spawnImpact(point: THREE.Vector3) { this.weapon.spawnImpact(point) }
 
+  /** Реплей демо: жёстко выставить визуальную позицию (без физики/Rapier — bodyGroup ведём сами). */
+  setReplayPose(pos: THREE.Vector3) {
+    this.body.position.copy(pos)
+    this.bodyGroup.position.copy(pos)
+  }
+
   // --- getters for Match / HUD / debug ---
   get position()            { return this.body.position }
   get isWindingUp()         { return this.weapon.isWindingUp }

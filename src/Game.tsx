@@ -11,6 +11,7 @@ import { STEM_LIBRARY } from './game/audio/stems'
 import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
+import type { DemoFile } from './game/demo/demoTypes'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { ISfxEngine } from './game/audio/sfx/types'
@@ -20,7 +21,12 @@ import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constan
 import type { MatchRole, MapId } from './constants'
 import { MAPS } from './game/maps'
 
-export interface GameApi { requestReady(): void }
+export interface GameApi {
+  requestReady(): void
+  startDemo(): void
+  stopDemo(): DemoFile | null
+  isRecordingDemo(): boolean
+}
 
 interface GameProps {
   dispatch: (action: HUDAction) => void
@@ -96,7 +102,24 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
     const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
-    if (apiRef) apiRef.current = { requestReady }
+    // Запись демо — ТОЛЬКО dev (исходник трейлера). Ветка под import.meta.env.DEV вырезается из прод-сборки
+    // (DCE), а DemoRecorder грузится динамически — в прод-бандл игры не попадает.
+    let demoApi: Pick<GameApi, 'startDemo' | 'stopDemo' | 'isRecordingDemo'> = {
+      startDemo: () => {}, stopDemo: () => null, isRecordingDemo: () => false,
+    }
+    if (import.meta.env.DEV) {
+      demoApi = {
+        startDemo: () => {
+          if (match.role !== 'host') return   // только хост: он эмитит события и владеет авторитетным состоянием
+          void import('./game/demo/DemoRecorder').then(({ DemoRecorder }) => {
+            match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId, reserveColor })
+          })
+        },
+        stopDemo: () => { const f = match.recorder ? match.recorder.build() : null; match.recorder = null; return f },
+        isRecordingDemo: () => !!match.recorder,
+      }
+    }
+    if (apiRef) apiRef.current = { requestReady, ...demoApi }
     const w = window
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
@@ -146,7 +169,9 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   // Клампим dt: скачок кадра (загрузка WASM, возврат во вкладку) не должен
   // «промотать» заряд/кулдаун/физику за один шаг.
   useFrame((_, dt) => {
-    match.update(Math.min(dt, 0.1))
+    const d = Math.min(dt, 0.1)
+    match.update(d)
+    if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, d)   // dev: захват кадра демо
     session.afterUpdate()
   })
 

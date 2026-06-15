@@ -1,0 +1,3 @@
+npm run build:trailer
+git add trailer-dist
+npx serve trailer-dist
