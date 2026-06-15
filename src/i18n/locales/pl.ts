@@ -32,6 +32,7 @@ export const pl = {
   menuAppearance: 'WYGLĄD',
   menuSettings: 'USTAWIENIA',
   menuExit: 'WYJDŹ',
+  menuFullscreenHint: 'F11 — pełny ekran',
   warnTitle: 'OSTRZEŻENIE',
   warnBody: 'Gra zawiera migające obrazy, stroboskopy i intensywne efekty świetlne. Niezalecane dla osób z fotoczułą epilepsją.',
   warnContinueHint: 'aby kontynuować',

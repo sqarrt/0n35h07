@@ -28,18 +28,34 @@ async function getConnectedPage(): Promise<Page> {
   return _page
 }
 
+// Транспорт bc форсим через URL (?net=bc) — приложение больше не читает net из localStorage.
+// Относительные '/'-навигации теста получают net=bc (если явно не задано иное).
+function withBcNet(url: string): string {
+  if (/^https?:\/\//.test(url)) return url   // абсолютные URL не трогаем
+  const [path, query = ''] = url.split('?')
+  const params = new URLSearchParams(query)
+  if (!params.has('net')) params.set('net', 'bc')
+  const qs = params.toString()
+  return qs ? `${path}?${qs}` : path
+}
+
 // Custom fixtures: 'connected' project reuses a single CDP tab; иначе — детерминированная среда e2e.
 export const test = base.extend<{ page: Page }>({
   // Init-скрипт на контексте → применяется и к `page`, и к `context.newPage()` (multiplayer.spec):
-  // BroadcastChannel вместо трекеров Trystero + профиль с выключенным постпроцессингом (контур рёбер
-  // роняет FPS в двухинстансном headless и ломает тайминг-зависимые проверки; в e2e он не нужен).
+  // профиль с выключенным постпроцессингом (контур рёбер роняет FPS в двухинстансном headless и ломает
+  // тайминг-зависимые проверки; в e2e он не нужен). Транспорт bc — через URL (см. context.on('page')).
   context: async ({ context }, use, testInfo) => {
     if (testInfo.project.name !== 'connected') {
       await context.addInitScript(() => {
         try {
-          localStorage.setItem('oneshot:net', 'bc')
           localStorage.setItem('oneshot:profile', JSON.stringify({ name: 'Игрок', primaryColor: '#4af', reserveColor: '#fa4', postProcessing: false }))
         } catch { /* ignore */ }
+      })
+      // Любая страница контекста (фикстурная `page` + context.newPage в multiplayer/killstreak/comeback)
+      // навигируется с ?net=bc — оборачиваем goto один раз здесь.
+      context.on('page', (p) => {
+        const origGoto = p.goto.bind(p)
+        p.goto = ((url: string, opts?: Parameters<typeof origGoto>[1]) => origGoto(withBcNet(url), opts)) as typeof p.goto
       })
     }
     await use(context)

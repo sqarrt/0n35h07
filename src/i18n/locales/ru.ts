@@ -32,6 +32,7 @@ export const ru = {
   menuAppearance: 'ВНЕШНОСТЬ',
   menuSettings: 'НАСТРОЙКИ',
   menuExit: 'ВЫХОД',
+  menuFullscreenHint: 'F11 — на весь экран',
   warnTitle: 'ПРЕДУПРЕЖДЕНИЕ',
   warnBody: 'Игра содержит мерцающие изображения, вспышки и резкие световые эффекты. Не рекомендуется людям с фоточувствительной эпилепсией.',
   warnContinueHint: 'чтобы продолжить',

@@ -32,6 +32,7 @@ export const es = {
   menuAppearance: 'APARIENCIA',
   menuSettings: 'AJUSTES',
   menuExit: 'SALIR',
+  menuFullscreenHint: 'F11 — pantalla completa',
   warnTitle: 'ADVERTENCIA',
   warnBody: 'El juego contiene imágenes parpadeantes, destellos y efectos de luz intensos. No recomendado para personas con epilepsia fotosensible.',
   warnContinueHint: 'para continuar',

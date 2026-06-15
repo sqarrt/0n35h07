@@ -32,6 +32,7 @@ export const it = {
   menuAppearance: 'ASPETTO',
   menuSettings: 'IMPOSTAZIONI',
   menuExit: 'ESCI',
+  menuFullscreenHint: 'F11 — schermo intero',
   warnTitle: 'AVVERTIMENTO',
   warnBody: 'Il gioco contiene immagini lampeggianti, flash e forti effetti luminosi. Sconsigliato alle persone con epilessia fotosensibile.',
   warnContinueHint: 'per continuare',
