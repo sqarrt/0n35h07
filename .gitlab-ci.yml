@@ -136,7 +136,10 @@ release:
   release:
     tag_name: $CI_COMMIT_TAG
     name: "0N35H07 $CI_COMMIT_TAG"
-    description: "## 0N35H07 $CI_COMMIT_TAG\n\nWindows-установщик собран автоматически."
+    # Описание релиза = сообщение аннотированного тега, на котором гоняется пайплайн.
+    # CI_COMMIT_TAG_MESSAGE — предопределённая переменная (доступна в тег-пайплайнах).
+    # Тег должен быть аннотированным (git tag -a ... -m "..."): у lightweight-тега сообщение пустое.
+    description: $CI_COMMIT_TAG_MESSAGE
     assets:
       links:
         - name: "Windows installer (.msi)"
