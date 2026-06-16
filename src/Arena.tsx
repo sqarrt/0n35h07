@@ -11,6 +11,7 @@ import { loadProfile } from './settings'
 
 const BOUND_H = 32      // полу-высота невидимых периметровых стен (не выпрыгнуть за арену; с большим запасом)
 const BOUND_T = 0.5     // полу-толщина невидимых стен
+const BLOCK_TRANSPARENT_OPACITY = 0.4   // полупрозрачные блоки карты
 
 /** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + блоки карты (батч: 2 меша + trimesh). */
 export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
@@ -20,14 +21,25 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
 
   // Геометрия из компила (geo.json, preload через ensureMapGeo до монтирования), фолбэк — слияние из blocks.
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
-  // Укрытия — цель боёвки-луча: строим BVH (computeBoundsTree), чтобы raycast на выстреле был O(log n), без спайка.
-  const raycast = useMemo(() => {
-    const g = compiled.raycast ? buildGeometry(compiled.raycast) : null
-    g?.computeBoundsTree()
-    return g
+  // Визуал-группы + collider. raycast-группы (цели луча) получают BVH (computeBoundsTree) — raycast выстрела O(log n).
+  const geos = useMemo(() => {
+    const mk = (a: typeof compiled.opaqueRaycast, bvh: boolean) => {
+      const g = a ? buildGeometry(a) : null
+      if (g && bvh) g.computeBoundsTree()
+      return g
+    }
+    return {
+      opaqueRaycast: mk(compiled.opaqueRaycast, true),
+      opaqueNoRaycast: mk(compiled.opaqueNoRaycast, false),
+      transparentRaycast: mk(compiled.transparentRaycast, true),
+      transparentNoRaycast: mk(compiled.transparentNoRaycast, false),
+      collider: mk(compiled.collider, false),
+    }
   }, [compiled])
-  const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
-  useEffect(() => () => { raycast?.disposeBoundsTree(); raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
+  useEffect(() => () => {
+    geos.opaqueRaycast?.disposeBoundsTree(); geos.transparentRaycast?.disposeBoundsTree()
+    Object.values(geos).forEach(g => g?.dispose())
+  }, [geos])
 
   const postFx = useMemo(() => loadProfile().postProcessing, [])
 
@@ -53,22 +65,34 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Блоки карты: два слитых меша (укрытия + периметр), trimesh-коллайдеры из той же геометрии. */}
+      {/* Коллайдер карты: trimesh из непроходимых блоков (невидимый меш — только для физики). */}
       <RigidBody type="fixed" colliders={false}>
         <MeshCollider type="trimesh">
-          {raycast && (
-            // Укрытия — на слое блоков (BLOCK_LAYER) → попадают в контур рёбер. block — для ПРОСТРЕЛА/прозрачности.
-            <mesh geometry={raycast} castShadow receiveShadow userData={{ block: true }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-              <meshStandardMaterial vertexColors />
-            </mesh>
-          )}
-          {noRaycast && (
-            <mesh geometry={noRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true }}>
-              <meshStandardMaterial vertexColors />
-            </mesh>
-          )}
+          {geos.collider && <mesh geometry={geos.collider} visible={false} />}
         </MeshCollider>
       </RigidBody>
+
+      {/* Визуал блоков: до 4 слитых мешей. raycast-группы — цели луча (нет noRaycast). baseOpacity — для World.setBlocksTransparent. */}
+      {geos.opaqueRaycast && (
+        <mesh geometry={geos.opaqueRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: 1 }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+          <meshStandardMaterial vertexColors />
+        </mesh>
+      )}
+      {geos.transparentRaycast && (
+        <mesh geometry={geos.transparentRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+          <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
+        </mesh>
+      )}
+      {geos.opaqueNoRaycast && (
+        <mesh geometry={geos.opaqueNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: 1 }}>
+          <meshStandardMaterial vertexColors />
+        </mesh>
+      )}
+      {geos.transparentNoRaycast && (
+        <mesh geometry={geos.transparentNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }}>
+          <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
+        </mesh>
+      )}
 
       {/* Экранный контур видимых рёбер укрытий (постпроцессинг — переключается в настройках) */}
       {postFx && <MapEdges />}

@@ -33,18 +33,37 @@ function blockGeometry(b: MapBlock, wedgeGeo: BufferGeometry, wedgeGeoFlip: Buff
   return g
 }
 
-/** Две объединённые геометрии блоков карты: raycast (укрытия) и noRaycast (периметр). null если группа пуста. */
-export function mergedBlockGeometries(
+export interface BlockBuckets {
+  opaqueRaycast: BufferGeometry | null
+  opaqueNoRaycast: BufferGeometry | null
+  transparentRaycast: BufferGeometry | null
+  transparentNoRaycast: BufferGeometry | null
+  collider: BufferGeometry | null
+}
+
+/** Блоки → 4 визуальные слитые группы (blocksBeam × transparent) + collider (непроходимые). null если пусто. */
+export function bucketedBlockGeometries(
   blocks: MapBlock[], wedgeGeo: BufferGeometry, wedgeGeoFlip: BufferGeometry,
-): { raycast: BufferGeometry | null; noRaycast: BufferGeometry | null } {
-  const ray: BufferGeometry[] = []
-  const noray: BufferGeometry[] = []
+): BlockBuckets {
+  const opaqueRay: BufferGeometry[] = [], opaqueNoRay: BufferGeometry[] = []
+  const transpRay: BufferGeometry[] = [], transpNoRay: BufferGeometry[] = []
+  const collide: BufferGeometry[] = []
   for (const b of blocks) {
     const g = blockGeometry(b, wedgeGeo, wedgeGeoFlip)
-    ;(b.blocksBeam === false ? noray : ray).push(g)
+    const beam = b.blocksBeam !== false
+    const transp = b.transparent === true
+    const visual = transp ? (beam ? transpRay : transpNoRay) : (beam ? opaqueRay : opaqueNoRay)
+    visual.push(g)
+    if (b.passable !== true) collide.push(g.clone())   // collider — копия (визуал диспозим ниже)
   }
   const merge = (arr: BufferGeometry[]) => (arr.length ? mergeGeometries(arr) : null)
-  const result = { raycast: merge(ray), noRaycast: merge(noray) }
-  for (const g of [...ray, ...noray]) g.dispose()
+  const result: BlockBuckets = {
+    opaqueRaycast: merge(opaqueRay),
+    opaqueNoRaycast: merge(opaqueNoRay),
+    transparentRaycast: merge(transpRay),
+    transparentNoRaycast: merge(transpNoRay),
+    collider: merge(collide),
+  }
+  for (const g of [...opaqueRay, ...opaqueNoRay, ...transpRay, ...transpNoRay, ...collide]) g.dispose()
   return result
 }
