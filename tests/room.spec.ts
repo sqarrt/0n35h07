@@ -67,6 +67,14 @@ test('лобби (С другом) — ввод кода вручную разб
   await expect(page.getByTestId('lobby-search')).toBeEnabled()
 })
 
+test('лобби (С другом) — копирование кода даёт фидбек (✓)', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'])
+  await lobbyFriend(page)
+  await page.getByTestId('lobby-room-code').fill('WOLF')
+  await page.getByTestId('lobby-code-copy').click()
+  await expect(page.getByTestId('lobby-code-copy')).toHaveText('✓')
+})
+
 test('пауза — Escape показывает меню паузы', async ({ page }) => {
   await unlockPointer(page)
   await page.evaluate(() => {

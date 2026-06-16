@@ -42,8 +42,10 @@ export function Lobby(props: LobbyProps) {
 
   const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
-  // Карта/время блокируются только во время активного поиска (матчмейкинг или рандеву «С другом»).
-  const optsLocked = searching
+  // Карта/время блокируются во время активного поиска И когда в слоте человек-соперник:
+  // у клиента соперник — это всегда хост (параметры — прерогатива хоста), у хоста — подключившийся человек
+  // (параметры уже зарезолвлены). Бот настройки не блокирует (он под контролем хоста).
+  const optsLocked = searching || (opponent != null && !opponent.isBot)
   // ПОИСК: на «С другом» доступен только при введённом коде; на матчмейкинге — всегда.
   const canSearch = tab === 'friend' ? !!roomCode.trim() : true
   const doSearch = tab === 'friend' ? startFriend : props.onSearch
