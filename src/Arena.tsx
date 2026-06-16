@@ -64,11 +64,12 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Коллайдер карты: trimesh из непроходимых блоков. Меш невидимый (луч его не цепляет), но
-          includeInvisible нужен — иначе MeshCollider обходит через traverseVisible и пропускает его. */}
+      {/* Коллайдер карты: trimesh из непроходимых блоков. Меш ТОЛЬКО для физики → noRaycast (иначе луч бил бы
+          в невидимый коллайдер: Raycaster видит invisible-объекты). includeInvisible нужен, иначе MeshCollider
+          обходит через traverseVisible и пропускает невидимый меш. Цели луча — визуальные block-меши ниже. */}
       <RigidBody type="fixed" colliders={false} includeInvisible>
         <MeshCollider type="trimesh">
-          {geos.collider && <mesh geometry={geos.collider} visible={false} />}
+          {geos.collider && <mesh geometry={geos.collider} visible={false} userData={{ noRaycast: true }} />}
         </MeshCollider>
       </RigidBody>
 
