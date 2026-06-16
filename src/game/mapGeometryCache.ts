@@ -45,6 +45,11 @@ export function compileBlocks(blocks: MapBlock[]): CompiledMap {
   return out
 }
 
+/** Все группы пусты (нет геометрии) — напр. карта без блоков ИЛИ устаревший формат geo.json (старые ключи). */
+export function isEmptyCompiled(c: CompiledMap): boolean {
+  return !c.opaqueRaycast && !c.opaqueNoRaycast && !c.transparentRaycast && !c.transparentNoRaycast && !c.collider
+}
+
 /** BufferGeometry из готовых массивов (дёшево, per-context). */
 export function buildGeometry(a: GeoArrays): BufferGeometry {
   const g = new BufferGeometry()

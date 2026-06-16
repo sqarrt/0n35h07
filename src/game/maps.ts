@@ -4,7 +4,7 @@ import type { MapId } from '../constants'
 import os_arena from '../maps/os_arena/raw.json'
 import os_india from '../maps/os_india/raw.json'
 import os_pillars from '../maps/os_pillars/raw.json'
-import { parseGeo } from './mapGeometryCache'
+import { parseGeo, isEmptyCompiled } from './mapGeometryCache'
 import type { CompiledMap } from './mapGeometryCache'
 
 /**
@@ -81,9 +81,11 @@ export async function ensureMapGeo(id: MapId): Promise<void> {
   _geoCache[id] = parseGeo(mod.default as never)
 }
 
-/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). */
+/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). Пустую/устаревшую гео считаем
+ * отсутствующей → потребитель скомпилит из map.blocks (fallback), карта не ломается без свежего geo.json. */
 export function getCachedMapGeo(id: MapId): CompiledMap | undefined {
-  return _geoCache[id]
+  const c = _geoCache[id]
+  return c && !isEmptyCompiled(c) ? c : undefined
 }
 
 /** URL картинки превью по id (preview.png). Нет файла → undefined → живой превью-канвас (фолбэк). */
