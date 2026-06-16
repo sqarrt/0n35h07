@@ -64,8 +64,9 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Коллайдер карты: trimesh из непроходимых блоков (невидимый меш — только для физики). */}
-      <RigidBody type="fixed" colliders={false}>
+      {/* Коллайдер карты: trimesh из непроходимых блоков. Меш невидимый (луч его не цепляет), но
+          includeInvisible нужен — иначе MeshCollider обходит через traverseVisible и пропускает его. */}
+      <RigidBody type="fixed" colliders={false} includeInvisible>
         <MeshCollider type="trimesh">
           {geos.collider && <mesh geometry={geos.collider} visible={false} />}
         </MeshCollider>
