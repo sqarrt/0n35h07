@@ -121,7 +121,7 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 
 // Карта матча (выбор хоста в комнате). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
 // id используется и как подпись в UI.
-export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
+export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export type MapFilter = MapId[]        // выбранный набор карт (≥1)
 export type DurationFilter = number[]  // выбранный набор длительностей (≥1)

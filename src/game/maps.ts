@@ -4,6 +4,7 @@ import type { MapId } from '../constants'
 import os_arena from '../maps/os_arena/raw.json'
 import os_india from '../maps/os_india/raw.json'
 import os_pillars from '../maps/os_pillars/raw.json'
+import os_pool_day from '../maps/os_pool_day/raw.json'
 import { parseGeo, isEmptyCompiled } from './mapGeometryCache'
 import type { CompiledMap } from './mapGeometryCache'
 
@@ -60,9 +61,10 @@ export const MAPS: Record<MapId, GameMap> = {
   os_arena: os_arena as unknown as GameMap,
   os_india: os_india as unknown as GameMap,
   os_pillars: os_pillars as unknown as GameMap,
+  os_pool_day: os_pool_day as unknown as GameMap,
 }
 
-export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars']
+export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars', 'os_pool_day']
 
 // Артефакты карт (опциональны — генерируются редактором при сохранении; бандлятся Vite, работают в проде).
 // id извлекаем из пути '../maps/<id>/<file>'.
