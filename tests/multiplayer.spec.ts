@@ -22,19 +22,18 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
-  // Хост: ИГРАТЬ → «ПРОЧЕЕ» → читаем код (режим по умолчанию 'оба' уже хостит свою комнату).
+  // Хост: ИГРАТЬ → вкладка «С другом» → читаем свой код.
   await host.goto('/')
   await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-other-toggle').click()
-  const code = await host.getByTestId('lobby-code-input').inputValue()
+  await host.getByTestId('lobby-tab-friend').click()
+  const code = await host.getByTestId('lobby-my-code').inputValue()
 
-  // Клиент: ИГРАТЬ → «ПРОЧЕЕ» → роль КЛИЕНТ → ввод кода → ПОИСК (по коду → конкретная комната).
+  // Клиент: ИГРАТЬ → вкладка «С другом» → ввод кода друга → ВОЙТИ (по коду → конкретная комната).
   await client.goto('/')
   await client.getByTestId('menu-play').click()
-  await client.getByTestId('lobby-other-toggle').click()
-  await client.getByTestId('lobby-role-client').click()
-  await client.getByTestId('lobby-code-input').fill(code)
-  await client.getByTestId('lobby-search').click()
+  await client.getByTestId('lobby-tab-friend').click()
+  await client.getByTestId('lobby-friend-code').fill(code)
+  await client.getByTestId('lobby-join').click()
 
   // Оба видят соперника в слоте → у обоих появляется ГОТОВ (человек-vs-человек: оба подтверждают).
   await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })

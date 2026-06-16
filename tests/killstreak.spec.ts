@@ -15,15 +15,14 @@ async function startMatch(context: BrowserContext) {
 
   await host.goto('/')
   await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-other-toggle').click()   // режим 'оба' по умолчанию уже хостит комнату
-  const code = await host.getByTestId('lobby-code-input').inputValue()
+  await host.getByTestId('lobby-tab-friend').click()   // вкладка «С другом»: свой код виден
+  const code = await host.getByTestId('lobby-my-code').inputValue()
 
   await client.goto('/')
   await client.getByTestId('menu-play').click()
-  await client.getByTestId('lobby-other-toggle').click()
-  await client.getByTestId('lobby-role-client').click()
-  await client.getByTestId('lobby-code-input').fill(code)
-  await client.getByTestId('lobby-search').click()
+  await client.getByTestId('lobby-tab-friend').click()
+  await client.getByTestId('lobby-friend-code').fill(code)
+  await client.getByTestId('lobby-join').click()
 
   await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
   await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })

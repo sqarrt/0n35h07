@@ -4,16 +4,14 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто: ИГРАТЬ → лобби → раздел «ПРОЧЕЕ»
-// (роль ХОСТ → сложность → добавить бота) → ГОТОВ. 1v1: соперник обязателен — добавляем бота.
+// Проходит главное меню если оно открыто: ИГРАТЬ → вкладка «С ботом» (бот сразу в слоте) →
+// (опц. сложность) → ГОТОВ. 1v1: соперник обязателен — его роль играет бот.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-other-toggle').click()       // раскрыть «// ПРОЧЕЕ»
-  // Режим по умолчанию 'оба' уже хостит свою комнату → бот занимает её слот (явной роли ХОСТ больше нет).
+  await page.getByTestId('lobby-tab-bot').click()            // вкладка «С ботом»: бот авто-добавлен в слот
   if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
-  await page.getByTestId('lobby-bot-add').click()            // бот занимает слот (авто-готов)
   await page.getByTestId('lobby-ready').click()              // хост готов → оба готовы → старт
 }
 
