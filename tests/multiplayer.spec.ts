@@ -45,7 +45,16 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
 
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-  return { host, client }
+  // Роль (host/client) выбирается по selfId транспорта — заранее неизвестно, какая страница какой стала.
+  // Сопоставляем переменные с фактическими ролями (id 0 = host), иначе геометрия/авторитет «перепутаны».
+  return resolveRoles(host, client)
+}
+
+/** По фактическим ролям (`__debugRole`) сопоставить страницы: { host, client }. */
+async function resolveRoles(a: Page, b: Page) {
+  await expect.poll(() => a.evaluate(() => (window as any).__debugRole?.() ?? null), { timeout: 8000 }).not.toBeNull()
+  const roleA = await a.evaluate(() => (window as any).__debugRole())
+  return roleA === 'host' ? { host: a, client: b } : { host: b, client: a }
 }
 
 /** enterGame + форс-live (минуя отсчёт) → обе страницы в фазе 'live'. */

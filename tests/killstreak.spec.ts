@@ -8,7 +8,7 @@ import type { Page, BrowserContext } from '@playwright/test'
 // через две фоново-троттлящиеся Chromium-вкладки нестабильны по таймингу (особенно несколько подряд).
 // Числовая логика серий (streakTier/announceKind/слова/звуки) полностью покрыта юнитами (tests/unit/streak.test.ts).
 
-// Явные роли (host=id0, client=id1) — детерминированно, как в multiplayer.spec (а не режим ОБА по коду).
+// Роль (host=id0, client=id1) в рандеву «С другом» выбирается по selfId → после старта сопоставляем страницы.
 async function startMatch(context: BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
@@ -35,7 +35,9 @@ async function startMatch(context: BrowserContext) {
   await host.evaluate(() => (window as any).__debugForceLive()); await client.evaluate(() => (window as any).__debugForceLive())
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
   await expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
-  return { host, client }
+  // Роль решает selfId → сопоставляем переменные с фактическими ролями (host = id 0, авторитет).
+  const roleA = await host.evaluate(() => (window as any).__debugRole())
+  return roleA === 'host' ? { host, client } : { host: client, client: host }
 }
 
 async function fakeLock(page: Page) {

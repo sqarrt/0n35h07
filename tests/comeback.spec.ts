@@ -21,7 +21,9 @@ async function startMatch(context: BrowserContext) {
   await host.evaluate(() => (window as any).__debugForceLive()); await client.evaluate(() => (window as any).__debugForceLive())
   await expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
   await expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
-  return { host, client }
+  // Роль решает selfId → сопоставляем переменные с фактическими ролями (host = id 0, авторитет).
+  const roleA = await host.evaluate(() => (window as any).__debugRole())
+  return roleA === 'host' ? { host, client } : { host: client, client: host }
 }
 async function fakeLock(p: Page) {
   await p.evaluate(() => { const c = document.querySelector('canvas')!; Object.defineProperty(document, 'pointerLockElement', { get: () => c, configurable: true }); document.dispatchEvent(new Event('pointerlockchange')) })
