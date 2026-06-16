@@ -96,10 +96,10 @@ export function MapEditor({ name }: { name: string }) {
   }, [])
 
   // Спавн — привязанная к полусетке точка (X/Z из сцены), на уровень глаз.
-  const onSpawn = useCallback((idx: 0 | 1, x: number, z: number) => {
+  const onSpawn = useCallback((idx: 0 | 1, x: number, z: number, surfaceY: number) => {
     setSpawns(prev => {
       const next: [Vec3, Vec3] = [prev[0], prev[1]]
-      next[idx] = [x, EYE_HEIGHT, z]
+      next[idx] = [x, surfaceY + EYE_HEIGHT, z]   // глаза на росте над поверхностью (пол или верх куба)
       return next
     })
   }, [])

@@ -73,7 +73,7 @@ interface Props {
   brushPassable: boolean        // кисть: проходимый (без коллайдера)
   onPlace: (cell: CellCoord, data: Cell) => void
   onRemove: (cell: CellCoord) => void
-  onSpawn: (idx: 0 | 1, x: number, z: number) => void
+  onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
 }
 
 const cellCenter = (x: number, y: number, z: number): [number, number, number] =>
@@ -256,7 +256,7 @@ export function EditorScene(props: Props) {
       const c = pick()
       if (!c) return
       if (e.button === 0) {
-        if (isSpawnTool(tool)) onSpawn(tool === 'spawn0' ? 0 : 1, snapHalf(c.point.x), snapHalf(c.point.z))
+        if (isSpawnTool(tool)) onSpawn(tool === 'spawn0' ? 0 : 1, snapHalf(c.point.x), snapHalf(c.point.z), c.place[1] * VOXEL)
         else {
           const f = camera.getWorldDirection(new THREE.Vector3())
           const isWedge = tool === 'wedge'
@@ -376,7 +376,7 @@ export function EditorScene(props: Props) {
       if (isSpawnTool(tool)) {
         // спавн — цилиндр в привязанной к полусетке точке (низ на полу)
         g.visible = false; gw.visible = false; gs.visible = true
-        gs.position.set(snapHalf(c.point.x), SPAWN_CYL_H / 2, snapHalf(c.point.z));
+        gs.position.set(snapHalf(c.point.x), c.place[1] * VOXEL + SPAWN_CYL_H / 2, snapHalf(c.point.z));
         (gs.material as THREE.MeshBasicMaterial).color.set(SPAWN_COLORS[tool === 'spawn0' ? 0 : 1])
       } else if (tool === 'wedge') {
         g.visible = false; gw.visible = true; gs.visible = false
@@ -447,7 +447,7 @@ export function EditorScene(props: Props) {
 
       {/* Маркеры спавнов: цилиндр, к верху уходящий в прозрачность (хост/гость — цветом). */}
       {spawns.map((s, i) => (
-        <mesh key={i} position={[s[0], SPAWN_CYL_H / 2, s[2]]}>
+        <mesh key={i} position={[s[0], s[1] - EYE_HEIGHT + SPAWN_CYL_H / 2, s[2]]}>
           <cylinderGeometry args={[SPAWN_CYL_R, SPAWN_CYL_R, SPAWN_CYL_H, 24, 1, true]} />
           <meshBasicMaterial color={SPAWN_COLORS[i]} alphaMap={spawnAlpha} transparent opacity={0.55} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
