@@ -42,10 +42,13 @@ export function Lobby(props: LobbyProps) {
 
   const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
-  // Карта/время блокируются во время активного поиска И когда в слоте человек-соперник:
-  // у клиента соперник — это всегда хост (параметры — прерогатива хоста), у хоста — подключившийся человек
-  // (параметры уже зарезолвлены). Бот настройки не блокирует (он под контролем хоста).
-  const optsLocked = searching || (opponent != null && !opponent.isBot)
+  // Блокировка карты/времени:
+  //  • во время активного поиска;
+  //  • у клиента (соперник-человек = хост) — настройки всегда чужие;
+  //  • у хоста с человеком в слоте — только на матчмейкинге (параметры зарезолвлены); на «С другом» хост
+  //    может менять параметры вживую (RoomSession шлёт обновлённый Assign клиенту). Бот не блокирует.
+  const humanOpp = opponent != null && !opponent.isBot
+  const optsLocked = searching || (humanOpp && !isHost) || (humanOpp && isHost && tab !== 'friend')
   // ПОИСК: на «С другом» доступен только при введённом коде; на матчмейкинге — всегда.
   const canSearch = tab === 'friend' ? !!roomCode.trim() : true
   const doSearch = tab === 'friend' ? startFriend : props.onSearch
