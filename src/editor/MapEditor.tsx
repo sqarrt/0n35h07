@@ -14,7 +14,7 @@ import './editor.css'
 type CellCoord = [number, number, number]
 
 // Палитра строителя: камень/песок/дерево/металл + акценты. Используется для блоков, пола и стен.
-const EDITOR_COLORS = ['#8a8f98', '#5a6678', '#b89863', '#8a5a2b', '#c2a878', '#9a7b46', '#4af', '#fa4', '#4fa', '#f66', '#f9c', '#222', '#ddd', '#fff']
+const EDITOR_COLORS = ['#8a8f98', '#5a6678', '#b89863', '#8a5a2b', '#c2a878', '#9a7b46', '#4af', '#cdf', '#fa4', '#4fa', '#f66', '#f9c', '#222', '#ddd', '#fff']
 
 // Инструменты хотбара (клавиши 1–4). Ориентация клина — авто по взгляду.
 const TOOLS: { tool: EditorTool; label: string }[] = [
