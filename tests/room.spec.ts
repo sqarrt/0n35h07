@@ -7,11 +7,14 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-// Встать хостом в лобби и раскрыть «// ПРОЧЕЕ» (роль/код/бот).
-async function lobbyAsHost(page: Page) {
+// Встать в лобби (дефолт — вкладка Матчмейкинг, host-сессия поднята).
+async function lobby(page: Page) {
   await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-other-toggle').click()
-  // Режим по умолчанию 'оба' уже хостит свою комнату (явной роли ХОСТ больше нет).
+}
+// Открыть вкладку «С другом».
+async function lobbyFriend(page: Page) {
+  await lobby(page)
+  await page.getByTestId('lobby-tab-friend').click()
 }
 
 test('главное меню — кнопки навигации видны', async ({ page }) => {
@@ -20,35 +23,36 @@ test('главное меню — кнопки навигации видны', a
   await expect(page.getByTestId('menu-settings')).toBeVisible()
 })
 
-test('лобби (хост) — слот соперника пуст, действие = ПОИСК', async ({ page }) => {
-  await lobbyAsHost(page)
+test('лобби — дефолт Матчмейкинг: слот пуст, действие = ПОИСК', async ({ page }) => {
+  await lobby(page)
+  await expect(page.getByTestId('lobby-tab-matchmaking')).toHaveClass(/lobby-tab--on/)
   await expect(page.getByTestId('lobby-opponent')).toHaveText('—')   // соперника нет
   await expect(page.getByTestId('lobby-search')).toBeVisible()       // не ГОТОВ
   await expect(page.getByTestId('lobby-ready')).toHaveCount(0)
 })
 
-test('лобби (хост) — код хоста виден в «ПРОЧЕЕ»', async ({ page }) => {
-  await lobbyAsHost(page)
-  await expect(page.getByTestId('lobby-code-input')).toHaveValue(/^[A-Z0-9]{4}$/)
+test('лобби (С другом) — поле кода комнаты пустое и редактируемо; ПОИСК заблокирован', async ({ page }) => {
+  await lobbyFriend(page)
+  await expect(page.getByTestId('lobby-room-code')).toHaveValue('')
+  await expect(page.getByTestId('lobby-room-code')).toBeEditable()
+  await expect(page.getByTestId('lobby-search')).toBeDisabled()   // без кода искать нечего
 })
 
-test('лобби — добавить бота → слот занят, ГОТОВ; убрать → снова пусто и ПОИСК', async ({ page }) => {
-  await lobbyAsHost(page)
-  await expect(page.getByTestId('lobby-opponent')).toHaveText('—')
-  await page.getByTestId('lobby-bot-add').click()
+test('лобби (С ботом) — бот в слоте и ГОТОВ; уход с вкладки → снова пусто и ПОИСК', async ({ page }) => {
+  await lobby(page)
+  await page.getByTestId('lobby-tab-bot').click()
   await expect(page.getByTestId('lobby-opponent')).not.toHaveText('—')   // бот занял слот (ник-«модель»)
-  await expect(page.getByTestId('lobby-ready')).toBeVisible()
-  await page.getByTestId('lobby-bot-remove').click()
+  await expect(page.getByTestId('lobby-ready')).toBeEnabled()
+  await page.getByTestId('lobby-tab-matchmaking').click()
   await expect(page.getByTestId('lobby-opponent')).toHaveText('—')
   await expect(page.getByTestId('lobby-search')).toBeVisible()
 })
 
-test('лобби (клиент) — поле ввода кода хоста редактируемо', async ({ page }) => {
-  await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-other-toggle').click()
-  await page.getByTestId('lobby-role-client').click()
-  await expect(page.getByTestId('lobby-code-input')).toBeVisible()
-  await expect(page.getByTestId('lobby-code-input')).toBeEditable()
+test('лобби (С другом) — кнопка рандома заполняет код, ПОИСК разблокируется', async ({ page }) => {
+  await lobbyFriend(page)
+  await page.getByTestId('lobby-room-random').click()
+  await expect(page.getByTestId('lobby-room-code')).toHaveValue(/^[A-Z0-9]{4}$/)
+  await expect(page.getByTestId('lobby-search')).toBeEnabled()
 })
 
 test('лобби → назад → главное меню', async ({ page }) => {
@@ -57,9 +61,16 @@ test('лобби → назад → главное меню', async ({ page }) =
   await expect(page.getByTestId('menu-play')).toBeVisible()
 })
 
-test('копирование кода — клик по кнопке даёт фидбек (✓)', async ({ page, context }) => {
+test('лобби (С другом) — ввод кода вручную разблокирует ПОИСК', async ({ page }) => {
+  await lobbyFriend(page)
+  await page.getByTestId('lobby-room-code').fill('WOLF')
+  await expect(page.getByTestId('lobby-search')).toBeEnabled()
+})
+
+test('лобби (С другом) — копирование кода даёт фидбек (✓)', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await lobbyAsHost(page)
+  await lobbyFriend(page)
+  await page.getByTestId('lobby-room-code').fill('WOLF')
   await page.getByTestId('lobby-code-copy').click()
   await expect(page.getByTestId('lobby-code-copy')).toHaveText('✓')
 })

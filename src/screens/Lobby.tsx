@@ -1,33 +1,30 @@
 import { useState, useRef } from 'react'
 import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
-import type { SearchRole } from '../settings'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
-import type { LobbySlot, OppSlot } from '../components/lobby/types'
+import type { LobbySlot, OppSlot, LobbyTab } from '../components/lobby/types'
+import { LobbyTabs } from '../components/lobby/LobbyTabs'
 import { LobbySeats } from '../components/lobby/LobbySeats'
 import { MapPicker } from '../components/lobby/MapPicker'
 import { TimePicker } from '../components/lobby/TimePicker'
-import { LobbyCode } from '../components/lobby/LobbyCode'
 import { LobbyAction } from '../components/lobby/LobbyAction'
-import { RolePicker } from '../components/lobby/RolePicker'
-import { BotPicker } from '../components/lobby/BotPicker'
+import { RoomCodeField } from '../components/lobby/RoomCodeField'
+import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
 
 export type { LobbySlot } from '../components/lobby/types'   // ре-экспорт для App (строит me/opponent)
 
 interface LobbyProps {
   isHost: boolean
+  tab: LobbyTab
   me: LobbySlot
   opponent: OppSlot | null
   mapSel: MapFilter
   durationSel: DurationFilter
-  code: string | null
   searching: boolean
-  mode: SearchRole
-  onSetRole: (mode: SearchRole) => void
-  onAddBot: (d?: BotDifficulty) => void
-  onRemoveBot: () => void
+  botDifficulty: BotDifficulty
+  onSetTab: (tab: LobbyTab) => void
   onSetBotDifficulty: (d: BotDifficulty) => void
-  onEnterCode: (code: string) => void
+  onFriendSearch: (code: string) => void
   onSetMap: (m: MapFilter) => void
   onSetDuration: (d: DurationFilter) => void
   onSearch: () => void
@@ -36,16 +33,25 @@ interface LobbyProps {
   onBack: () => void
 }
 
-/** Экран лобби: разделы карты/времени, код хоста, слоты VS, нижнее действие. Состоит из под-компонентов lobby/*. */
+/** Экран лобби с подвкладками Матчмейкинг/С другом/С ботом. Карта/время/слоты — общие; меняется блок режима + действие. */
 export function Lobby(props: LobbyProps) {
-  const { isHost, me, opponent, mapSel, durationSel, code, searching } = props
+  const { isHost, tab, me, opponent, mapSel, durationSel, searching } = props
   const t = useT()
-  const [codeInput, setCodeInput] = useState('')
-  const [showOther, setShowOther] = useState(false)   // раздел «// ПРОЧЕЕ» (код + слоты) скрыт по умолчанию
+  const [roomCode, setRoomCode] = useState('')
   const codeInputRef = useRef<HTMLInputElement>(null)
-  const locked = opponent !== null
 
-  const submitCode = () => { const c = codeInput.trim().toUpperCase(); if (c) props.onEnterCode(c) }
+  const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
+
+  // Блокировка карты/времени:
+  //  • во время активного поиска;
+  //  • у клиента (соперник-человек = хост) — настройки всегда чужие;
+  //  • у хоста с человеком в слоте — только на матчмейкинге (параметры зарезолвлены); на «С другом» хост
+  //    может менять параметры вживую (RoomSession шлёт обновлённый Assign клиенту). Бот не блокирует.
+  const humanOpp = opponent != null && !opponent.isBot
+  const optsLocked = searching || (humanOpp && !isHost) || (humanOpp && isHost && tab !== 'friend')
+  // ПОИСК: на «С другом» доступен только при введённом коде; на матчмейкинге — всегда.
+  const canSearch = tab === 'friend' ? !!roomCode.trim() : true
+  const doSearch = tab === 'friend' ? startFriend : props.onSearch
 
   return (
     <div className="panel-fill" style={{ justifyContent: 'flex-start' }}>
@@ -53,42 +59,29 @@ export function Lobby(props: LobbyProps) {
         <div className="lobby-body">
           <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.menuPlay}</h2>
 
-          <div className={`lobby-opts${locked ? ' lobby-opts--locked' : ''}`}>
+          <LobbyTabs tab={tab} onSetTab={props.onSetTab} />
+
+          <div className={`lobby-opts${optsLocked ? ' lobby-opts--locked' : ''}`}>
             <MapPicker mapSel={mapSel} onSetMap={props.onSetMap} />
             <TimePicker durationSel={durationSel} onSetDuration={props.onSetDuration} />
           </div>
 
-          {/* // ИГРОКИ — слоты VS (только показ; управление ролью/ботом/кодом — в «// ПРОЧЕЕ») */}
           <div className="lobby-ogrp">
             <span className="lobby-ol">// {t.lobbyPlayers}</span>
             <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching} />
           </div>
 
-          {/* // ПРОЧЕЕ — сетевая роль, код хоста, бот; свёрнут по умолчанию */}
-          <div className="lobby-ogrp lobby-other">
-            <button className="lobby-ol-toggle" data-testid="lobby-other-toggle" onClick={() => setShowOther(v => !v)}>
-              <span className="lobby-ol-chevron" aria-hidden="true">{showOther ? '▾' : '▸'}</span> // {t.lobbyOther}
-            </button>
-            {showOther && (
-              <>
-                <RolePicker mode={props.mode} disabled={opponent !== null} onSetRole={props.onSetRole} />
-                <LobbyCode
-                  isHost={isHost} code={code} codeInput={codeInput} inputRef={codeInputRef}
-                  onCodeInput={setCodeInput} onSubmit={submitCode}
-                />
-                <BotPicker
-                  disabled={!isHost} slotTaken={opponent !== null} hasBot={opponent?.isBot ?? false}
-                  onAdd={props.onAddBot} onRemove={props.onRemoveBot} onSetDifficulty={props.onSetBotDifficulty}
-                />
-              </>
-            )}
-          </div>
+          {tab === 'friend' && (
+            <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
+          )}
+          {tab === 'bot' && (
+            <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
+          )}
         </div>
 
-        {/* нижний блок прижат к низу подложки: действие (ПОИСК/ГОТОВ/СТОП) сверху, «Назад» под ним */}
         <LobbyAction
-          opponent={opponent} searching={searching} isHost={isHost} hasCode={!!codeInput.trim()}
-          onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={props.onSearch} onSubmitCode={submitCode}
+          tab={tab} opponent={opponent} searching={searching} canSearch={canSearch}
+          onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={doSearch}
         />
 
         <Button variant="ghost" data-testid="lobby-back" onClick={props.onBack} style={{ width: '100%' }}>{opponent ? t.lobbyLeave : t.roomBack}</Button>

@@ -80,6 +80,7 @@ export class RoomSession {
       net.on('start', payload => { const s = payload as Start; this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
       net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
       net.onPeerLeave(() => this.onHostGone())   // хост ушёл в лобби → клиент откатывается до поиска
+      if (net.peers().length) this.peerSeen = true   // рандеву «С другом»: пир уже виден до построения сессии
       this.sayHello()
       // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
       // хоста). В loopback хендшейк уже синхронно завершён — таймер не нужен.

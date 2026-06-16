@@ -1,22 +1,27 @@
 import { Button } from '../../ui/Button'
 import { useT } from '../../i18n'
-import type { OppSlot } from './types'
+import type { LobbyTab, OppSlot } from './types'
 
 interface LobbyActionProps {
+  tab: LobbyTab
   opponent: OppSlot | null
   searching: boolean
-  isHost: boolean
-  hasCode: boolean              // клиент ввёл код хоста → ПОИСК ведёт в конкретную комнату
+  canSearch: boolean            // ПОИСК доступен (на «С другом» — только когда введён код)
   onReady: () => void
   onStopSearch: () => void
   onSearch: () => void
-  onSubmitCode: () => void
 }
 
 const FULL = { width: '100%' } as const
 
-/** Нижнее действие: соперник найден → ГОТОВ; идёт поиск → СТОП; иначе → ПОИСК. Тот же Button, что и «Назад». */
-export function LobbyAction({ opponent, searching, isHost, hasCode, onReady, onStopSearch, onSearch, onSubmitCode }: LobbyActionProps) {
+/**
+ * Нижнее действие:
+ * - соперник в слоте → ГОТОВ;
+ * - идёт поиск → СТОП;
+ * - вкладка «С ботом» (бот вот-вот в слоте) → ГОТОВ (disabled до addBot);
+ * - иначе (Матчмейкинг / С другом) → ПОИСК (disabled, если искать пока нечем).
+ */
+export function LobbyAction({ tab, opponent, searching, canSearch, onReady, onStopSearch, onSearch }: LobbyActionProps) {
   const t = useT()
 
   if (opponent) {
@@ -25,7 +30,8 @@ export function LobbyAction({ opponent, searching, isHost, hasCode, onReady, onS
   if (searching) {
     return <Button variant="primary" className="btn--stop" data-testid="lobby-stop" style={FULL} onClick={onStopSearch}>{t.lobbyStop}</Button>
   }
-  return (
-    <Button variant="primary" data-testid="lobby-search" style={FULL} onClick={() => { if (!isHost && hasCode) onSubmitCode(); else onSearch() }}>{t.lobbySearch}</Button>
-  )
+  if (tab === 'bot') {
+    return <Button variant="primary" data-testid="lobby-ready" style={FULL} disabled onClick={onReady}>{t.lobbyReady}</Button>
+  }
+  return <Button variant="primary" data-testid="lobby-search" style={FULL} disabled={!canSearch} onClick={onSearch}>{t.lobbySearch}</Button>
 }
