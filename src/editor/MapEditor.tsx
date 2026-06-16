@@ -50,6 +50,9 @@ export function MapEditor({ name }: { name: string }) {
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: клин вверх ногами (скос снизу)
   const [showCubeGrid, setShowCubeGrid] = useState(true)   // L: подсветка границ всех клеток (стройка)
   const [color, setColor] = useState(EDITOR_COLORS[2])
+  const [brushBeam, setBrushBeam] = useState(true)    // непростреливаемый по умолчанию (blocksBeam=true)
+  const [brushTransparent, setBrushTransparent] = useState(false)
+  const [brushPassable, setBrushPassable] = useState(false)
   const [locked, setLocked] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [status, setStatus] = useState('')
@@ -151,6 +154,7 @@ export function MapEditor({ name }: { name: string }) {
           voxels={voxels}
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
           tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
+          brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
         />
       </Canvas>
@@ -171,6 +175,17 @@ export function MapEditor({ name }: { name: string }) {
         {EDITOR_COLORS.map(c => (
           <span key={c} className={`swatch${c === color ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => setColor(c)} />
         ))}
+        <span className="editor-sep" />
+        {/* Свойства кисти: действуют на следующие ставимые блоки */}
+        <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => setBrushTransparent(v => !v)}>
+          {brushTransparent ? 'Полупрозрачный' : 'Непрозрачный'}
+        </button>
+        <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => setBrushBeam(v => !v)}>
+          {brushBeam ? 'Непростреливаемый' : 'Простреливаемый'}
+        </button>
+        <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => setBrushPassable(v => !v)}>
+          {brushPassable ? 'Проходимый' : 'Непроходимый'}
+        </button>
       </div>
 
       {/* Боковая панель */}

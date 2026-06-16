@@ -68,6 +68,9 @@ interface Props {
   wedgeFlip: boolean            // клин перевёрнут по Y (T) — скос снизу
   showCubeGrid: boolean         // подсветка границ всех клеток (L) — строительный режим
   color: string
+  brushBeam: boolean            // кисть: blocksBeam (true=непростреливаемый)
+  brushTransparent: boolean     // кисть: полупрозрачный
+  brushPassable: boolean        // кисть: проходимый (без коллайдера)
   onPlace: (cell: CellCoord, data: Cell) => void
   onRemove: (cell: CellCoord) => void
   onSpawn: (idx: 0 | 1, x: number, z: number) => void
@@ -120,30 +123,36 @@ function useEdgesGeometry(voxels: Map<string, Cell>): THREE.BufferGeometry {
 }
 
 /** Инстансовый меш кубов (t==='cube'); цвет на инстанс. Пересобирается при смене Map. */
-function useCubeMesh(voxels: Map<string, Cell>): THREE.InstancedMesh {
+function useCubeMeshes(voxels: Map<string, Cell>): { opaque: THREE.InstancedMesh; transparent: THREE.InstancedMesh } {
   return useMemo(() => {
-    const cubes = [...voxels].filter(([, cell]) => cell.t === 'cube')
-    const geo = new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL)
-    const mat = new THREE.MeshStandardMaterial()
-    const mesh = new THREE.InstancedMesh(geo, mat, Math.max(cubes.length, 1))
-    mesh.layers.enable(BLOCK_LAYER)   // в контур рёбер
-    mesh.count = cubes.length
-    const m = new THREE.Matrix4()
-    const c = new THREE.Color()
-    let i = 0
-    for (const [k, cell] of cubes) {
-      const [x, y, z] = parseCellKey(k)
-      m.setPosition(...cellCenter(x, y, z))
-      mesh.setMatrixAt(i, m)
-      mesh.setColorAt(i, c.set(cell.c))
-      i++
+    const build = (cells: [string, Cell][], transparent: boolean) => {
+      const geo = new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL)
+      const mat = new THREE.MeshStandardMaterial(transparent ? { transparent: true, opacity: 0.4, depthWrite: false } : {})
+      const mesh = new THREE.InstancedMesh(geo, mat, Math.max(cells.length, 1))
+      mesh.layers.enable(BLOCK_LAYER)   // в контур рёбер
+      mesh.count = cells.length
+      const m = new THREE.Matrix4()
+      const c = new THREE.Color()
+      let i = 0
+      for (const [k, cell] of cells) {
+        const [x, y, z] = parseCellKey(k)
+        m.setPosition(...cellCenter(x, y, z))
+        mesh.setMatrixAt(i, m)
+        mesh.setColorAt(i, c.set(cell.c))
+        i++
+      }
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.userData.editorTarget = true
+      return mesh
     }
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    mesh.userData.editorTarget = true
-    return mesh
+    const cubes = [...voxels].filter(([, cell]) => cell.t === 'cube')
+    return {
+      opaque: build(cubes.filter(([, c]) => !c.tr), false),
+      transparent: build(cubes.filter(([, c]) => c.tr), true),
+    }
   }, [voxels])
 }
 
@@ -164,7 +173,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
         <mesh key={key} position={b.pos} rotation={[0, wedgeRotationY(b.dir ?? 0), 0]} geometry={b.flip ? wedgeGeoFlip : wedgeGeo}
           scale={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} castShadow receiveShadow
           userData={{ editorTarget: true, cellKey: key }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial color={b.color} />
+          <meshStandardMaterial color={b.color} transparent={b.transparent === true} opacity={b.transparent ? 0.4 : 1} depthWrite={b.transparent !== true} />
         </mesh>
       ))}
     </>
@@ -173,12 +182,14 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
 
 /** Сцена редактора + управление (ходьба с гравитацией + установка/удаление блоков по прицелу). */
 export function EditorScene(props: Props) {
-  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, onPlace, onRemove, onSpawn } = props
+  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn } = props
   const { camera, scene, raycaster } = useThree()
   const [hx, hz] = half
 
-  const cubeMesh = useCubeMesh(voxels)
-  useEffect(() => () => { cubeMesh.geometry.dispose(); (cubeMesh.material as THREE.Material).dispose() }, [cubeMesh])
+  const cubeMeshes = useCubeMeshes(voxels)
+  useEffect(() => () => {
+    for (const mesh of [cubeMeshes.opaque, cubeMeshes.transparent]) { mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose() }
+  }, [cubeMeshes])
   const wedgeGeo = useMemo(() => unitWedgeGeometry(), [])
   useEffect(() => () => wedgeGeo.dispose(), [wedgeGeo])
   const wedgeGeoFlip = useMemo(() => unitWedgeGeometry(true), [])
@@ -249,7 +260,7 @@ export function EditorScene(props: Props) {
         else {
           const f = camera.getWorldDirection(new THREE.Vector3())
           const isWedge = tool === 'wedge'
-          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip })
+          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
         }
       } else if (e.button === 2) onRemove(c.remove)
     }
@@ -264,7 +275,7 @@ export function EditorScene(props: Props) {
       window.removeEventListener('mousedown', onMouseDown)
       window.removeEventListener('contextmenu', onCtx)
     }
-  }, [tool, color, wedgeRot, wedgeFlip, onPlace, onRemove, onSpawn]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Высота верха клетки в точке (px,pz): клин (не перевёрнутый) — наклон heightfield; куб/перевёрнутый — плоский верх.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
@@ -370,7 +381,7 @@ export function EditorScene(props: Props) {
       } else if (tool === 'wedge') {
         g.visible = false; gw.visible = true; gs.visible = false
         const d = wedgeDir(f.x, f.z, wedgeRot)
-        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip })
+        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
         gw.geometry = wedgeFlip ? wedgeGeoFlip : wedgeGeo
         gw.position.set(...b.pos)
         gw.rotation.set(0, wedgeRotationY(d), 0)
@@ -411,7 +422,8 @@ export function EditorScene(props: Props) {
       ))}
 
       {/* Кубы (инстансы) + формы (отдельные меши) */}
-      <primitive object={cubeMesh} />
+      <primitive object={cubeMeshes.opaque} />
+      <primitive object={cubeMeshes.transparent} />
       <ShapeMeshes voxels={voxels} wedgeGeo={wedgeGeo} wedgeGeoFlip={wedgeGeoFlip} />
       {postFx && <MapEdges />}
 
