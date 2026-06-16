@@ -11,10 +11,13 @@ test.describe('Подвкладки Играть', () => {
     await expect(page.getByTestId('lobby-search')).toBeVisible()
   })
 
-  test('С другом: свой код + поле кода друга', async ({ page }) => {
+  test('С другом: поле кода комнаты + рандом-заполнение, ПОИСК по коду', async ({ page }) => {
     await page.getByTestId('lobby-tab-friend').click()
-    await expect(page.getByTestId('lobby-my-code')).toHaveValue(/^[A-Z0-9]{4}$/)
-    await expect(page.getByTestId('lobby-friend-code')).toBeEditable()
+    await expect(page.getByTestId('lobby-room-code')).toBeEditable()
+    await expect(page.getByTestId('lobby-search')).toBeDisabled()   // без кода нельзя искать
+    await page.getByTestId('lobby-room-random').click()
+    await expect(page.getByTestId('lobby-room-code')).toHaveValue(/^[A-Z0-9]{4}$/)
+    await expect(page.getByTestId('lobby-search')).toBeEnabled()
   })
 
   test('С ботом: авто-бот в слоте, ГОТОВ активен, смена сложности', async ({ page }) => {

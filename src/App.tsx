@@ -34,7 +34,7 @@ import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
-import type { PlayerProfile, SearchRole } from './settings'
+import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
 import { SfxProvider } from './sfx/SfxContext'
@@ -46,6 +46,7 @@ import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_DESKTOP } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
+import { randomRoomCode } from './net/roomCode'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -87,10 +88,6 @@ interface GameNet {
   durationMs: number
   mapId: MapId
   code: string
-}
-
-function randomCode() {
-  return Math.random().toString(36).slice(2, 6).toUpperCase()
 }
 
 // Dev: скачать записанное демо в файл (кладётся в репо, потом секвенсируется в трейлер).
@@ -173,7 +170,6 @@ export default function App() {
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('player')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
-  const [roomCode, setRoomCode] = useState('')
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
@@ -259,24 +255,23 @@ export default function App() {
   const lobbyCodeRef = useRef<string>('')   // код хоста на сессию лобби (стабилен при переключении ролей)
 
   const sessionRef = useRef<RoomSession | null>(null)
+  const negotiateNetRef = useRef<INet | null>(null)   // «С другом»: транспорт во время рандеву по коду до выбора роли
   const gameApiRef = useRef<GameApi | null>(null)
 
-  // Сетевая роль по вкладке: матчмейкинг — из профиля (both/client), друг/бот — всегда host.
-  const roleForTab = (tab: LobbyTab): SearchRole => (tab === 'matchmaking' ? profile.searchRole : 'both')
+  // Является ли idle-состояние вкладки хостом (без активного поиска/коннекта):
+  // бот — всегда host; матчмейкинг — host, если профиль не вынуждает роль 'client'; друг — черновик до поиска.
+  const idleIsHost = (tab: LobbyTab): boolean => tab === 'bot' || (tab === 'matchmaking' && profile.searchRole !== 'client')
 
   const leaveRoom = () => {
     sessionRef.current?.dispose()
     sessionRef.current = null
+    if (negotiateNetRef.current) { negotiateNetRef.current.leave(); negotiateNetRef.current = null }
     setRoomView(null)
     setGameNet(null)
   }
 
-  const enterRoom = (code: string, role: RoomRole, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
-    if (sessionRef.current) leaveRoom()
-    if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
-    const net = createNet(code)
-    netDiagSetContext({ role, code, selfId: net.selfId })
-    netDiagSetPeers(() => net.peers())
+  // Привязать RoomSession к транспорту: общие onChange/onStart/onClosed (для enterRoom и enterRoomNegotiated).
+  const bindSession = (net: INet, role: RoomRole, code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
@@ -291,15 +286,59 @@ export default function App() {
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setScreen('game')
     })
-    // Клиент: хост ушёл из лобби / хендшейк не сложился → откат в idle согласно режиму.
+    // Клиент: хост ушёл из лобби / хендшейк не сложился → откат в idle-состояние текущей вкладки.
     session.onClosed(() => {
       setSearching(false)
       dmRef.current?.stop(); dmRef.current = null
-      if (roleForTab(lobbyTab) !== 'client') enterRoom(lobbyCodeRef.current, 'host', draftSel)   // both/host: снова поднять host-сессию
-      else leaveRoom()
+      enterTabIdle(lobbyTab, draftSel)
     })
     sessionRef.current = session
-    setRoomCode(code)
+  }
+
+  const enterRoom = (code: string, role: RoomRole, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
+    leaveRoom()   // чистим прежнюю сессию И незавершённый рандеву-транспорт
+    if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
+    const net = createNet(code)
+    netDiagSetContext({ role, code, selfId: net.selfId })
+    netDiagSetPeers(() => net.peers())
+    bindSession(net, role, code, sel)
+  }
+
+  // «С другом»: оба пира входят в комнату = code; роль решается детерминированно по selfId (меньший = хост).
+  // До появления соперника висим в рандеву (negotiateNetRef), затем строим сессию резолвнутой роли на ТОМ ЖЕ транспорте.
+  const enterRoomNegotiated = (code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
+    leaveRoom()   // чистим прежнюю сессию И прошлый рандеву-транспорт
+    const net = createNet(code)
+    netDiagSetContext({ role: 'negotiate', code, selfId: net.selfId })
+    netDiagSetPeers(() => net.peers())
+    negotiateNetRef.current = net
+    let resolved = false
+    const tryResolve = () => {
+      if (resolved || sessionRef.current) return
+      const others = net.peers()
+      if (!others.length) return
+      resolved = true
+      negotiateNetRef.current = null   // транспорт переходит во владение сессии
+      const peerMin = others.reduce((a, b) => (a < b ? a : b))
+      const role: RoomRole = net.selfId < peerMin ? 'host' : 'client'
+      if (role === 'host') setHostLive(code)
+      netDiagSetContext({ role, code, selfId: net.selfId })
+      bindSession(net, role, code, sel)
+    }
+    net.onPeerJoin(() => tryResolve())
+    tryResolve()   // вдруг соперник уже виден
+  }
+
+  // Привести сессию в idle-состояние вкладки (без активного поиска/коннекта).
+  const enterTabIdle = (tab: LobbyTab, sel: { map: MapFilter; durationMin: DurationFilter }) => {
+    if (tab === 'bot') {
+      enterRoom(lobbyCodeRef.current, 'host', sel)
+      sessionRef.current?.addBot(botDifficulty)   // бот сразу в слоте
+    } else if (idleIsHost(tab)) {
+      enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host-сессия для анонса
+    } else {
+      leaveRoom()   // matchmaking+client / friend → черновик до поиска
+    }
   }
 
   // На входе в меню прогреваем кеш живых релеев (self-healing сигналинга). Только для интернет-транспорта:
@@ -405,8 +444,8 @@ export default function App() {
 
   const disposePool = () => { poolRef.current?.dispose(); poolRef.current = null }
 
-  // ИГРАТЬ → лобби. Дефолт — вкладка Матчмейкинг, роль из профиля (both/client). both сразу поднимает
-  // host-сессию (виден код+слот); client — черновик без сети до ПОИСКа.
+  // ИГРАТЬ → лобби. Дефолт — вкладка Матчмейкинг. both сразу поднимает host-сессию (для анонса);
+  // client — черновик без сети до ПОИСКа.
   const handlePlay = () => {
     disposePool()
     poolRef.current = createMatchmakingPool()
@@ -415,9 +454,8 @@ export default function App() {
     setSearching(false)
     setLobbyTab('matchmaking')
     setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
-    lobbyCodeRef.current = randomCode()   // фиксируем код лобби (не меняется при переключении вкладок)
-    if (roleForTab('matchmaking') !== 'client') enterRoom(lobbyCodeRef.current, 'host', sel)
-    else leaveRoom()   // matchmaking+client: без сессии до поиска
+    lobbyCodeRef.current = randomRoomCode()   // фиксируем код лобби (не меняется при переключении вкладок)
+    enterTabIdle('matchmaking', sel)
     setScreen('lobby')
   }
 
@@ -435,9 +473,18 @@ export default function App() {
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
   const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
-  const onLobbyEnterCode = (code: string) => { setSearching(true); dmRef.current?.stop(); dmRef.current = null; poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
 
-  // Смена вкладки: сброс транзиентного состояния + пересборка сессии под роль вкладки. Доступна всегда.
+  // «С другом»: симметричный рандеву — оба вводят один код и жмут ПОИСК; роль решает selfId.
+  const onLobbyFriendSearch = (code: string) => {
+    const c = code.trim().toUpperCase()
+    if (!c) return
+    setSearching(true)
+    dmRef.current?.stop(); dmRef.current = null
+    poolRef.current?.withdraw(); poolRef.current?.cancel()
+    enterRoomNegotiated(c, draftSel)
+  }
+
+  // Смена вкладки: сброс транзиентного состояния + пересборка сессии под idle-состояние вкладки. Доступна всегда.
   const onLobbySetTab = (tab: LobbyTab) => {
     if (tab === lobbyTab) return
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
@@ -446,12 +493,7 @@ export default function App() {
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     setDraftSel(sel)
     setLobbyTab(tab)
-    if (roleForTab(tab) !== 'client') {
-      enterRoom(lobbyCodeRef.current, 'host', sel)   // друг/бот/матч-both: host-сессия (свежая → прежний бот сброшен)
-      if (tab === 'bot') sessionRef.current?.addBot(botDifficulty)   // бот сразу в слоте
-    } else {
-      leaveRoom()   // matchmaking+client: черновик
-    }
+    enterTabIdle(tab, sel)
   }
 
   const onLobbySearch = () => {
@@ -461,7 +503,7 @@ export default function App() {
     const curMap = roomView?.mapSel ?? draftSel.map
     const curDur = roomView?.durationSel ?? draftSel.durationMin
     const dm = new DualMatchmaker({
-      pool, mode: roleForTab('matchmaking'), code: lobbyCodeRef.current,
+      pool, mode: profile.searchRole, code: lobbyCodeRef.current,
       listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
       filter: { map: curMap, durationMin: curDur },
     })
@@ -472,7 +514,12 @@ export default function App() {
     dmRef.current = dm
     dm.start()
   }
-  const onLobbyStopSearch = () => { setSearching(false); dmRef.current?.stop(); dmRef.current = null; poolRef.current?.withdraw(); poolRef.current?.cancel() }
+  const onLobbyStopSearch = () => {
+    setSearching(false)
+    dmRef.current?.stop(); dmRef.current = null
+    poolRef.current?.withdraw(); poolRef.current?.cancel()
+    if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // друг: бросить рандеву → черновик
+  }
 
   // Любой live без захвата мыши — пауза (в т.ч. если первый pointer lock не удался: раньше этот
   // кейс закрывала отдельная live-кнопка «ГОТОВ?», теперь путь один — оверлей с «ПРОДОЛЖИТЬ»).
@@ -515,7 +562,7 @@ export default function App() {
   // Пропсы лобби: нормализуем RoomView (или черновик клиента без сессии) в форму Lobby.
   const buildLobby = () => {
     const v = roomView
-    const isHost = v ? v.isHost : roleForTab(lobbyTab) !== 'client'   // both/host визуально как хост (код+слот); client — черновик
+    const isHost = v ? v.isHost : idleIsHost(lobbyTab)   // без сессии: host только если idle-состояние вкладки хостовое
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
@@ -531,11 +578,10 @@ export default function App() {
       isHost, me, opponent,
       mapSel: v?.mapSel ?? draftSel.map,
       durationSel: v?.durationSel ?? draftSel.durationMin,
-      code: isHost ? roomCode : null,
       searching,
       botDifficulty,
       tab: lobbyTab, onSetTab: onLobbySetTab,
-      onSetBotDifficulty: onLobbySetBotDifficulty, onEnterCode: onLobbyEnterCode,
+      onSetBotDifficulty: onLobbySetBotDifficulty, onFriendSearch: onLobbyFriendSearch,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,

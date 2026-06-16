@@ -22,18 +22,20 @@ async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
-  // Хост: ИГРАТЬ → вкладка «С другом» → читаем свой код.
+  // Оба: ИГРАТЬ → вкладка «С другом» → один и тот же код комнаты → ПОИСК (роль решает selfId).
+  const room = 'WOLF'
   await host.goto('/')
   await host.getByTestId('menu-play').click()
   await host.getByTestId('lobby-tab-friend').click()
-  const code = await host.getByTestId('lobby-my-code').inputValue()
+  await host.getByTestId('lobby-room-code').fill(room)
 
-  // Клиент: ИГРАТЬ → вкладка «С другом» → ввод кода друга → ВОЙТИ (по коду → конкретная комната).
   await client.goto('/')
   await client.getByTestId('menu-play').click()
   await client.getByTestId('lobby-tab-friend').click()
-  await client.getByTestId('lobby-friend-code').fill(code)
-  await client.getByTestId('lobby-join').click()
+  await client.getByTestId('lobby-room-code').fill(room)
+
+  await host.getByTestId('lobby-search').click()
+  await client.getByTestId('lobby-search').click()
 
   // Оба видят соперника в слоте → у обоих появляется ГОТОВ (человек-vs-человек: оба подтверждают).
   await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })

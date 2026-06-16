@@ -8,12 +8,12 @@ import type { Page, BrowserContext } from '@playwright/test'
 
 async function startMatch(context: BrowserContext) {
   const host = await context.newPage(); const client = await context.newPage()
+  const room = 'WOLF'
   await host.goto('/'); await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-tab-friend').click()   // вкладка «С другом»: свой код виден
-  const code = await host.getByTestId('lobby-my-code').inputValue()
+  await host.getByTestId('lobby-tab-friend').click(); await host.getByTestId('lobby-room-code').fill(room)
   await client.goto('/'); await client.getByTestId('menu-play').click()
-  await client.getByTestId('lobby-tab-friend').click()
-  await client.getByTestId('lobby-friend-code').fill(code); await client.getByTestId('lobby-join').click()
+  await client.getByTestId('lobby-tab-friend').click(); await client.getByTestId('lobby-room-code').fill(room)
+  await host.getByTestId('lobby-search').click(); await client.getByTestId('lobby-search').click()
   await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
   await host.getByTestId('lobby-ready').click(); await client.getByTestId('lobby-ready').click()
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })

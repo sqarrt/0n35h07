@@ -8,7 +8,7 @@ import { LobbySeats } from '../components/lobby/LobbySeats'
 import { MapPicker } from '../components/lobby/MapPicker'
 import { TimePicker } from '../components/lobby/TimePicker'
 import { LobbyAction } from '../components/lobby/LobbyAction'
-import { FriendCodes } from '../components/lobby/FriendCodes'
+import { RoomCodeField } from '../components/lobby/RoomCodeField'
 import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
 
 export type { LobbySlot } from '../components/lobby/types'   // ре-экспорт для App (строит me/opponent)
@@ -20,12 +20,11 @@ interface LobbyProps {
   opponent: OppSlot | null
   mapSel: MapFilter
   durationSel: DurationFilter
-  code: string | null
   searching: boolean
   botDifficulty: BotDifficulty
   onSetTab: (tab: LobbyTab) => void
   onSetBotDifficulty: (d: BotDifficulty) => void
-  onEnterCode: (code: string) => void
+  onFriendSearch: (code: string) => void
   onSetMap: (m: MapFilter) => void
   onSetDuration: (d: DurationFilter) => void
   onSearch: () => void
@@ -36,15 +35,18 @@ interface LobbyProps {
 
 /** Экран лобби с подвкладками Матчмейкинг/С другом/С ботом. Карта/время/слоты — общие; меняется блок режима + действие. */
 export function Lobby(props: LobbyProps) {
-  const { isHost, tab, me, opponent, mapSel, durationSel, code, searching } = props
+  const { isHost, tab, me, opponent, mapSel, durationSel, searching } = props
   const t = useT()
-  const [friendInput, setFriendInput] = useState('')
+  const [roomCode, setRoomCode] = useState('')
   const codeInputRef = useRef<HTMLInputElement>(null)
 
-  const submitFriend = () => { const c = friendInput.trim().toUpperCase(); if (c) props.onEnterCode(c) }
+  const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
-  // Блокировка карты/времени — только во время поиска на вкладке Матчмейкинг (см. spec).
-  const optsLocked = tab === 'matchmaking' && searching
+  // Карта/время блокируются только во время активного поиска (матчмейкинг или рандеву «С другом»).
+  const optsLocked = searching
+  // ПОИСК: на «С другом» доступен только при введённом коде; на матчмейкинге — всегда.
+  const canSearch = tab === 'friend' ? !!roomCode.trim() : true
+  const doSearch = tab === 'friend' ? startFriend : props.onSearch
 
   return (
     <div className="panel-fill" style={{ justifyContent: 'flex-start' }}>
@@ -65,10 +67,7 @@ export function Lobby(props: LobbyProps) {
           </div>
 
           {tab === 'friend' && (
-            <FriendCodes
-              isHost={isHost} myCode={code} friendInput={friendInput} inputRef={codeInputRef}
-              onFriendInput={setFriendInput} onSubmit={submitFriend}
-            />
+            <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
           )}
           {tab === 'bot' && (
             <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
@@ -76,8 +75,8 @@ export function Lobby(props: LobbyProps) {
         </div>
 
         <LobbyAction
-          tab={tab} opponent={opponent} searching={searching} hasFriendCode={!!friendInput.trim()}
-          onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={props.onSearch} onJoin={submitFriend}
+          tab={tab} opponent={opponent} searching={searching} canSearch={canSearch}
+          onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={doSearch}
         />
 
         <Button variant="ghost" data-testid="lobby-back" onClick={props.onBack} style={{ width: '100%' }}>{opponent ? t.lobbyLeave : t.roomBack}</Button>
