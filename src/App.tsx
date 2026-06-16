@@ -27,6 +27,7 @@ import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
+import type { LobbyTab } from './components/lobby/types'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
 import type { SettingsSection } from './screens/Settings'
@@ -65,6 +66,8 @@ import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
 
 type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
+
+const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // сложность бота по умолчанию на вкладке «С ботом»
 
 const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
 // Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
@@ -247,7 +250,8 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
   }, [screen, menuMusic])
 
-  const [lobbyMode, setLobbyMode] = useState<SearchRole>('both')
+  const [lobbyTab, setLobbyTab] = useState<LobbyTab>('matchmaking')
+  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
   const [searching, setSearching] = useState(false)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
@@ -256,6 +260,9 @@ export default function App() {
 
   const sessionRef = useRef<RoomSession | null>(null)
   const gameApiRef = useRef<GameApi | null>(null)
+
+  // Сетевая роль по вкладке: матчмейкинг — из профиля (both/client), друг/бот — всегда host.
+  const roleForTab = (tab: LobbyTab): SearchRole => (tab === 'matchmaking' ? profile.searchRole : 'both')
 
   const leaveRoom = () => {
     sessionRef.current?.dispose()
@@ -288,7 +295,7 @@ export default function App() {
     session.onClosed(() => {
       setSearching(false)
       dmRef.current?.stop(); dmRef.current = null
-      if (lobbyMode !== 'client') enterRoom(lobbyCodeRef.current, 'host', draftSel)   // both/host: снова поднять host-сессию
+      if (roleForTab(lobbyTab) !== 'client') enterRoom(lobbyCodeRef.current, 'host', draftSel)   // both/host: снова поднять host-сессию
       else leaveRoom()
     })
     sessionRef.current = session
@@ -398,19 +405,19 @@ export default function App() {
 
   const disposePool = () => { poolRef.current?.dispose(); poolRef.current = null }
 
-  // ИГРАТЬ → лобби. Режим из профиля (дефолт both). both/host сразу поднимают host-сессию (виден код+слот);
-  // client — черновик без сети до ПОИСКа/ввода кода хоста.
+  // ИГРАТЬ → лобби. Дефолт — вкладка Матчмейкинг, роль из профиля (both/client). both сразу поднимает
+  // host-сессию (виден код+слот); client — черновик без сети до ПОИСКа.
   const handlePlay = () => {
     disposePool()
     poolRef.current = createMatchmakingPool()
-    const mode: SearchRole = profile.searchRole
     const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
     setDraftSel(sel)
     setSearching(false)
-    setLobbyMode(mode)
-    lobbyCodeRef.current = randomCode()   // фиксируем код лобби (не меняется при переключении ролей)
-    if (mode !== 'client') enterRoom(lobbyCodeRef.current, 'host', sel)
-    else leaveRoom()   // клиент-черновик: без сессии до поиска/ввода кода
+    setLobbyTab('matchmaking')
+    setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
+    lobbyCodeRef.current = randomCode()   // фиксируем код лобби (не меняется при переключении вкладок)
+    if (roleForTab('matchmaking') !== 'client') enterRoom(lobbyCodeRef.current, 'host', sel)
+    else leaveRoom()   // matchmaking+client: без сессии до поиска
     setScreen('lobby')
   }
 
@@ -426,23 +433,25 @@ export default function App() {
   // --- колбэки лобби ---
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
-  const onLobbyAddBot = (d: BotDifficulty = 'normal') => sessionRef.current?.addBot(d)
-  const onLobbyRemoveBot = () => sessionRef.current?.removeBot()
-  const onLobbySetBotDifficulty = (d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d)
+  const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
   const onLobbyEnterCode = (code: string) => { setSearching(true); dmRef.current?.stop(); dmRef.current = null; poolRef.current?.cancel(); enterRoom(code, 'client', draftSel) }
 
-  // Смена режима (only idle: RolePicker disabled при сопернике в слоте).
-  const onLobbySetRole = (mode: SearchRole) => {
-    if (mode === lobbyMode) return
+  // Смена вкладки: сброс транзиентного состояния + пересборка сессии под роль вкладки. Доступна всегда.
+  const onLobbySetTab = (tab: LobbyTab) => {
+    if (tab === lobbyTab) return
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
     setSearching(false)
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     setDraftSel(sel)
-    setLobbyMode(mode)
-    if (mode !== 'client') enterRoom(lobbyCodeRef.current, 'host', sel)   // both/host: host-сессия
-    else leaveRoom()   // client: черновик
+    setLobbyTab(tab)
+    if (roleForTab(tab) !== 'client') {
+      enterRoom(lobbyCodeRef.current, 'host', sel)   // друг/бот/матч-both: host-сессия (свежая → прежний бот сброшен)
+      if (tab === 'bot') sessionRef.current?.addBot(botDifficulty)   // бот сразу в слоте
+    } else {
+      leaveRoom()   // matchmaking+client: черновик
+    }
   }
 
   const onLobbySearch = () => {
@@ -452,7 +461,7 @@ export default function App() {
     const curMap = roomView?.mapSel ?? draftSel.map
     const curDur = roomView?.durationSel ?? draftSel.durationMin
     const dm = new DualMatchmaker({
-      pool, mode: lobbyMode, code: lobbyCodeRef.current,
+      pool, mode: roleForTab('matchmaking'), code: lobbyCodeRef.current,
       listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
       filter: { map: curMap, durationMin: curDur },
     })
@@ -506,7 +515,7 @@ export default function App() {
   // Пропсы лобби: нормализуем RoomView (или черновик клиента без сессии) в форму Lobby.
   const buildLobby = () => {
     const v = roomView
-    const isHost = v ? v.isHost : lobbyMode !== 'client'   // both/host визуально как хост (код+слот); client — черновик
+    const isHost = v ? v.isHost : roleForTab(lobbyTab) !== 'client'   // both/host визуально как хост (код+слот); client — черновик
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
@@ -524,8 +533,9 @@ export default function App() {
       durationSel: v?.durationSel ?? draftSel.durationMin,
       code: isHost ? roomCode : null,
       searching,
-      mode: lobbyMode, onSetRole: onLobbySetRole,
-      onAddBot: onLobbyAddBot, onRemoveBot: onLobbyRemoveBot, onSetBotDifficulty: onLobbySetBotDifficulty, onEnterCode: onLobbyEnterCode,
+      botDifficulty,
+      tab: lobbyTab, onSetTab: onLobbySetTab,
+      onSetBotDifficulty: onLobbySetBotDifficulty, onEnterCode: onLobbyEnterCode,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,
