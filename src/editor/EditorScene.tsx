@@ -298,7 +298,7 @@ export function EditorScene(props: Props) {
     const yReach = Math.floor((feet + STEP) / VOXEL)
     for (let y = 0; y <= yReach; y++) {
       const cell = voxels.get(`${cx},${y},${cz}`)
-      if (!cell) continue
+      if (!cell || cell.ps) continue   // проходимые блоки не дают опоры
       const top = cellTopAt(cell, cx, y, cz, px, pz)
       if (top <= feet + STEP + 1e-3) ground = Math.max(ground, top)
     }
@@ -310,7 +310,7 @@ export function EditorScene(props: Props) {
     for (let x = x0; x <= x1 && !blocked; x++) for (let z = z0; z <= z1 && !blocked; z++) {
       for (let y = 0; y <= yTop; y++) {
         const cell = voxels.get(`${x},${y},${z}`)
-        if (!cell) continue
+        if (!cell || cell.ps) continue   // проходимые блоки не блокируют движение
         if (cellTopAt(cell, x, y, z, px, pz) > feet + STEP + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
       }
     }
