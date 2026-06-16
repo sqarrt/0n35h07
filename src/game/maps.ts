@@ -28,6 +28,9 @@ export interface MapBlock {
   shape?: 'box' | 'wedge'   // по умолчанию box; wedge — клин-рампа (треугольная призма)
   dir?: number         // сторона клина 0=+Z,1=+X,2=−Z,3=−X (поворот вокруг Y)
   flip?: boolean       // клин перевёрнут по Y (скос снизу — навес)
+  transparent?: boolean   // по умолчанию false → непрозрачный; true → полупрозрачный
+  passable?: boolean      // по умолчанию false → есть коллайдер; true → коллайдера нет (проходим насквозь)
+  perimeter?: boolean     // editor-round-trip маркер периметровой стены; игра игнорирует
 }
 
 export interface GameMap {
@@ -45,10 +48,10 @@ const WALL_T = 0.25      // полу-толщина стены
 export function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   const bb = false
   return [
-    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
-    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
+    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
+    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
   ]
 }
 
