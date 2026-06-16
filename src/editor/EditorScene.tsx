@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { VOXEL, parseCellKey, shapeBlock } from './editorStore'
 import type { Cell, BlockType, Dir } from './editorStore'
 import type { Vec3 } from '../game/maps'
-import { GRAVITY, JUMP_FORCE, EYE_HEIGHT } from '../constants'
+import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
 import { unitWedgeGeometry, wedgeRotationY } from '../game/wedge'
 import { gridGeometry } from '../game/grid'
 import { MapLights } from '../components/MapVisualBits'
@@ -127,7 +127,7 @@ function useCubeMeshes(voxels: Map<string, Cell>): { opaque: THREE.InstancedMesh
   return useMemo(() => {
     const build = (cells: [string, Cell][], transparent: boolean) => {
       const geo = new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL)
-      const mat = new THREE.MeshStandardMaterial(transparent ? { transparent: true, opacity: 0.4, depthWrite: false } : {})
+      const mat = new THREE.MeshStandardMaterial(transparent ? { transparent: true, opacity: BLOCK_TRANSPARENT_OPACITY, depthWrite: false } : {})
       const mesh = new THREE.InstancedMesh(geo, mat, Math.max(cells.length, 1))
       mesh.layers.enable(BLOCK_LAYER)   // в контур рёбер
       mesh.count = cells.length
@@ -173,7 +173,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
         <mesh key={key} position={b.pos} rotation={[0, wedgeRotationY(b.dir ?? 0), 0]} geometry={b.flip ? wedgeGeoFlip : wedgeGeo}
           scale={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} castShadow receiveShadow
           userData={{ editorTarget: true, cellKey: key }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial color={b.color} transparent={b.transparent === true} opacity={b.transparent ? 0.4 : 1} depthWrite={b.transparent !== true} />
+          <meshStandardMaterial color={b.color} transparent={b.transparent === true} opacity={b.transparent ? BLOCK_TRANSPARENT_OPACITY : 1} depthWrite={b.transparent !== true} />
         </mesh>
       ))}
     </>

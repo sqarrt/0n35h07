@@ -2,7 +2,7 @@ import { useMemo, useEffect } from 'react'
 import { CuboidCollider, RigidBody, MeshCollider } from '@react-three/rapier'
 import { MAPS, getCachedMapGeo } from './game/maps'
 import type { GameMap } from './game/maps'
-import { DEFAULT_MAP_ID } from './constants'
+import { DEFAULT_MAP_ID, BLOCK_TRANSPARENT_OPACITY } from './constants'
 import { gridGeometry } from './game/grid'
 import { compileBlocksCached, buildGeometry } from './game/mapGeometryCache'
 import { MapLights } from './components/MapVisualBits'
@@ -11,7 +11,6 @@ import { loadProfile } from './settings'
 
 const BOUND_H = 32      // полу-высота невидимых периметровых стен (не выпрыгнуть за арену; с большим запасом)
 const BOUND_T = 0.5     // полу-толщина невидимых стен
-const BLOCK_TRANSPARENT_OPACITY = 0.4   // полупрозрачные блоки карты
 
 /** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + блоки карты (батч: 2 меша + trimesh). */
 export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {

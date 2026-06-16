@@ -26,6 +26,7 @@ import { MapLights } from '../MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from '../EdgeOutline'
 import { fromVec3 } from '../../net/protocol'
 import type { MapId, WindupStyle } from '../../constants'
+import { BLOCK_TRANSPARENT_OPACITY } from '../../constants'
 import type { PlayerSnapshot, RosterEntry } from '../../net/protocol'
 import { streakTier, announceKind, announceSfx } from '../../game/streak'
 import type { StreakTier } from '../../game/streak'
@@ -123,7 +124,7 @@ function DemoArena({ mapId }: { mapId: MapId }) {
       </lineSegments>
       {blockGeos.map((x, i) => x.geo && (
         <mesh key={i} geometry={x.geo} castShadow receiveShadow userData={{ block: true }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial vertexColors transparent={x.transp} opacity={x.transp ? 0.4 : 1} depthWrite={!x.transp} />
+          <meshStandardMaterial vertexColors transparent={x.transp} opacity={x.transp ? BLOCK_TRANSPARENT_OPACITY : 1} depthWrite={!x.transp} />
         </mesh>
       ))}
     </>
