@@ -1,15 +1,21 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { unitWedgeGeometry } from './wedge'
-import { mergedBlockGeometries } from './blockGeometry'
+import { bucketedBlockGeometries } from './blockGeometry'
 import type { MapBlock } from './maps'
 
 /**
- * Компиляция геометрии карты в готовые массивы вершин (raycast — укрытия, noRaycast — периметр) и обратно.
- * Цель — не мёржить блоки в рантайме: редактор компилирует при сохранении (geo.json), рантайм строит лёгкую
- * BufferGeometry из массивов. Фолбэк — компиляция из blocks на лету (с кешем по id).
+ * Компиляция геометрии карты в готовые массивы вершин и обратно. Визуал — 4 группы по (blocksBeam × transparent),
+ * collider — отдельная геометрия непроходимых блоков. Цель — не мёржить блоки в рантайме: редактор компилирует
+ * при сохранении (geo.json), рантайм строит лёгкую BufferGeometry. Фолбэк — компиляция из blocks (кеш по id).
  */
 export interface GeoArrays { position: Float32Array; normal: Float32Array; color: Float32Array }
-export interface CompiledMap { raycast: GeoArrays | null; noRaycast: GeoArrays | null }
+export interface CompiledMap {
+  opaqueRaycast: GeoArrays | null
+  opaqueNoRaycast: GeoArrays | null
+  transparentRaycast: GeoArrays | null
+  transparentNoRaycast: GeoArrays | null
+  collider: GeoArrays | null
+}
 
 function toArrays(g: BufferGeometry | null): GeoArrays | null {
   if (!g) return null
@@ -25,10 +31,23 @@ function toArrays(g: BufferGeometry | null): GeoArrays | null {
 export function compileBlocks(blocks: MapBlock[]): CompiledMap {
   const wedgeGeo = unitWedgeGeometry()
   const wedgeGeoFlip = unitWedgeGeometry(true)
-  const { raycast, noRaycast } = mergedBlockGeometries(blocks, wedgeGeo, wedgeGeoFlip)
-  const out: CompiledMap = { raycast: toArrays(raycast), noRaycast: toArrays(noRaycast) }
-  raycast?.dispose(); noRaycast?.dispose(); wedgeGeo.dispose(); wedgeGeoFlip.dispose()
+  const b = bucketedBlockGeometries(blocks, wedgeGeo, wedgeGeoFlip)
+  const out: CompiledMap = {
+    opaqueRaycast: toArrays(b.opaqueRaycast),
+    opaqueNoRaycast: toArrays(b.opaqueNoRaycast),
+    transparentRaycast: toArrays(b.transparentRaycast),
+    transparentNoRaycast: toArrays(b.transparentNoRaycast),
+    collider: toArrays(b.collider),
+  }
+  b.opaqueRaycast?.dispose(); b.opaqueNoRaycast?.dispose()
+  b.transparentRaycast?.dispose(); b.transparentNoRaycast?.dispose(); b.collider?.dispose()
+  wedgeGeo.dispose(); wedgeGeoFlip.dispose()
   return out
+}
+
+/** Все группы пусты (нет геометрии) — напр. карта без блоков ИЛИ устаревший формат geo.json (старые ключи). */
+export function isEmptyCompiled(c: CompiledMap): boolean {
+  return !c.opaqueRaycast && !c.opaqueNoRaycast && !c.transparentRaycast && !c.transparentNoRaycast && !c.collider
 }
 
 /** BufferGeometry из готовых массивов (дёшево, per-context). */
@@ -56,18 +75,30 @@ function unb64(s: string): Float32Array {
 }
 
 type SerGeo = { position: string; normal: string; color: string } | null
-interface SerCompiled { raycast: SerGeo; noRaycast: SerGeo }
+interface SerCompiled {
+  opaqueRaycast: SerGeo; opaqueNoRaycast: SerGeo
+  transparentRaycast: SerGeo; transparentNoRaycast: SerGeo
+  collider: SerGeo
+}
 
 const serGroup = (a: GeoArrays | null): SerGeo => a && { position: b64(a.position), normal: b64(a.normal), color: b64(a.color) }
 const parseGroup = (s: SerGeo): GeoArrays | null => s && { position: unb64(s.position), normal: unb64(s.normal), color: unb64(s.color) }
 
 export function serializeGeo(c: CompiledMap): string {
-  return JSON.stringify({ raycast: serGroup(c.raycast), noRaycast: serGroup(c.noRaycast) } satisfies SerCompiled)
+  return JSON.stringify({
+    opaqueRaycast: serGroup(c.opaqueRaycast), opaqueNoRaycast: serGroup(c.opaqueNoRaycast),
+    transparentRaycast: serGroup(c.transparentRaycast), transparentNoRaycast: serGroup(c.transparentNoRaycast),
+    collider: serGroup(c.collider),
+  } satisfies SerCompiled)
 }
 /** Разобрать загруженный geo.json (объект или строку) в массивы. */
 export function parseGeo(data: SerCompiled | string): CompiledMap {
   const s = (typeof data === 'string' ? JSON.parse(data) : data) as SerCompiled
-  return { raycast: parseGroup(s.raycast), noRaycast: parseGroup(s.noRaycast) }
+  return {
+    opaqueRaycast: parseGroup(s.opaqueRaycast), opaqueNoRaycast: parseGroup(s.opaqueNoRaycast),
+    transparentRaycast: parseGroup(s.transparentRaycast), transparentNoRaycast: parseGroup(s.transparentNoRaycast),
+    collider: parseGroup(s.collider),
+  }
 }
 
 // --- рантайм-кеш фолбэк-компиляции по id (чтобы не мёржить повторно при отсутствии артефакта) ---

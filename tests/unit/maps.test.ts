@@ -4,7 +4,7 @@ import { DEFAULT_MAP_ID } from '../../src/constants'
 
 describe('maps — реестр карт', () => {
   it('MAP_IDS совпадает с ключами MAPS, дефолт входит в список', () => {
-    expect(MAP_IDS.length).toBe(3)
+    expect(MAP_IDS.length).toBe(Object.keys(MAPS).length)   // без магического числа — растёт с реестром
     expect([...MAP_IDS].sort()).toEqual(Object.keys(MAPS).sort())
     expect(MAP_IDS).toContain(DEFAULT_MAP_ID)
   })

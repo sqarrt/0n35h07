@@ -27,10 +27,11 @@ export class World {
   setBlocksTransparent(on: boolean) {
     this.scene.traverse(obj => {
       if (!(obj instanceof THREE.Mesh) || !obj.userData.block) return
+      const base = (obj.userData.baseOpacity as number | undefined) ?? 1   // блоки-стекло восстанавливаем к их opacity, не к 1
       const m = obj.material as THREE.MeshStandardMaterial
-      m.transparent = on
-      m.opacity = on ? 0.2 : 1
-      m.depthWrite = !on   // прозрачные блоки не должны перекрывать игроков
+      m.transparent = on || base < 1
+      m.opacity = on ? 0.2 : base
+      m.depthWrite = !(on || base < 1)   // прозрачные блоки не должны перекрывать игроков
     })
   }
 }

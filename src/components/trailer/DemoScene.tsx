@@ -26,6 +26,7 @@ import { MapLights } from '../MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from '../EdgeOutline'
 import { fromVec3 } from '../../net/protocol'
 import type { MapId, WindupStyle } from '../../constants'
+import { BLOCK_TRANSPARENT_OPACITY } from '../../constants'
 import type { PlayerSnapshot, RosterEntry } from '../../net/protocol'
 import { streakTier, announceKind, announceSfx } from '../../game/streak'
 import type { StreakTier } from '../../game/streak'
@@ -105,9 +106,12 @@ function DemoArena({ mapId }: { mapId: MapId }) {
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map])
-  const raycastGeo = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
-  const noRaycastGeo = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
-  useEffect(() => () => { raycastGeo?.dispose(); noRaycastGeo?.dispose() }, [raycastGeo, noRaycastGeo])
+  // Визуал блоков (без коллизии — трейлер). 4 группы; прозрачные рисуем полупрозрачным материалом.
+  const blockGeos = useMemo(() => [
+    { g: compiled.opaqueRaycast, transp: false }, { g: compiled.opaqueNoRaycast, transp: false },
+    { g: compiled.transparentRaycast, transp: true }, { g: compiled.transparentNoRaycast, transp: true },
+  ].map(x => ({ geo: x.g ? buildGeometry(x.g) : null, transp: x.transp })), [compiled])
+  useEffect(() => () => blockGeos.forEach(x => x.geo?.dispose()), [blockGeos])
   return (
     <>
       <MapLights half={map.half} />
@@ -118,16 +122,11 @@ function DemoArena({ mapId }: { mapId: MapId }) {
       <lineSegments geometry={gridGeo} position={[0, 0.01, 0]}>
         <lineBasicMaterial color="#555" />
       </lineSegments>
-      {raycastGeo && (
-        <mesh geometry={raycastGeo} castShadow receiveShadow userData={{ block: true }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial vertexColors />
+      {blockGeos.map((x, i) => x.geo && (
+        <mesh key={i} geometry={x.geo} castShadow receiveShadow userData={{ block: true }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+          <meshStandardMaterial vertexColors transparent={x.transp} opacity={x.transp ? BLOCK_TRANSPARENT_OPACITY : 1} depthWrite={!x.transp} />
         </mesh>
-      )}
-      {noRaycastGeo && (
-        <mesh geometry={noRaycastGeo} castShadow receiveShadow userData={{ block: true }}>
-          <meshStandardMaterial vertexColors />
-        </mesh>
-      )}
+      ))}
     </>
   )
 }

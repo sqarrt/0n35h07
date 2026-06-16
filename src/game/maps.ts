@@ -4,7 +4,8 @@ import type { MapId } from '../constants'
 import os_arena from '../maps/os_arena/raw.json'
 import os_india from '../maps/os_india/raw.json'
 import os_pillars from '../maps/os_pillars/raw.json'
-import { parseGeo } from './mapGeometryCache'
+import os_pool_day from '../maps/os_pool_day/raw.json'
+import { parseGeo, isEmptyCompiled } from './mapGeometryCache'
 import type { CompiledMap } from './mapGeometryCache'
 
 /**
@@ -28,6 +29,9 @@ export interface MapBlock {
   shape?: 'box' | 'wedge'   // по умолчанию box; wedge — клин-рампа (треугольная призма)
   dir?: number         // сторона клина 0=+Z,1=+X,2=−Z,3=−X (поворот вокруг Y)
   flip?: boolean       // клин перевёрнут по Y (скос снизу — навес)
+  transparent?: boolean   // по умолчанию false → непрозрачный; true → полупрозрачный
+  passable?: boolean      // по умолчанию false → есть коллайдер; true → коллайдера нет (проходим насквозь)
+  perimeter?: boolean     // editor-round-trip маркер периметровой стены; игра игнорирует
 }
 
 export interface GameMap {
@@ -45,10 +49,10 @@ const WALL_T = 0.25      // полу-толщина стены
 export function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   const bb = false
   return [
-    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb },
-    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
-    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb },
+    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
+    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
   ]
 }
 
@@ -57,9 +61,10 @@ export const MAPS: Record<MapId, GameMap> = {
   os_arena: os_arena as unknown as GameMap,
   os_india: os_india as unknown as GameMap,
   os_pillars: os_pillars as unknown as GameMap,
+  os_pool_day: os_pool_day as unknown as GameMap,
 }
 
-export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars']
+export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars', 'os_pool_day']
 
 // Артефакты карт (опциональны — генерируются редактором при сохранении; бандлятся Vite, работают в проде).
 // id извлекаем из пути '../maps/<id>/<file>'.
@@ -78,9 +83,11 @@ export async function ensureMapGeo(id: MapId): Promise<void> {
   _geoCache[id] = parseGeo(mod.default as never)
 }
 
-/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). */
+/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). Пустую/устаревшую гео считаем
+ * отсутствующей → потребитель скомпилит из map.blocks (fallback), карта не ломается без свежего geo.json. */
 export function getCachedMapGeo(id: MapId): CompiledMap | undefined {
-  return _geoCache[id]
+  const c = _geoCache[id]
+  return c && !isEmptyCompiled(c) ? c : undefined
 }
 
 /** URL картинки превью по id (preview.png). Нет файла → undefined → живой превью-канвас (фолбэк). */

@@ -52,6 +52,7 @@ export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 // Сфера-тело: радиус/детализация (общие для игрового меша и превью в настройках).
 export const BALL_RADIUS   = 0.5
 export const BALL_SEGMENTS = 128        // высокополигональный меш — фасетки незаметны, волны гладкие
+export const BLOCK_TRANSPARENT_OPACITY = 0.2   // непрозрачность полупрозрачных блоков карты (игра/редактор/трейлер)
 export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вращение шара в превью настроек
 
 // Модели шара (выбор в настройках; сетевая косметика — видна сопернику).
@@ -120,7 +121,7 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 
 // Карта матча (выбор хоста в комнате). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
 // id используется и как подпись в UI.
-export type MapId = 'os_arena' | 'os_india' | 'os_pillars'
+export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export type MapFilter = MapId[]        // выбранный набор карт (≥1)
 export type DurationFilter = number[]  // выбранный набор длительностей (≥1)

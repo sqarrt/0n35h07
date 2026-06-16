@@ -16,9 +16,10 @@ const PREVIEW_H = 100
 export function MapScene({ map }: { map: GameMap }) {
   const [hx, hz] = map.half
   const compiled = useMemo(() => compileBlocks(map.blocks), [map.blocks])
-  const raycast = useMemo(() => (compiled.raycast ? buildGeometry(compiled.raycast) : null), [compiled])
-  const noRaycast = useMemo(() => (compiled.noRaycast ? buildGeometry(compiled.noRaycast) : null), [compiled])
-  useEffect(() => () => { raycast?.dispose(); noRaycast?.dispose() }, [raycast, noRaycast])
+  // Превью сверху — прозрачность/коллизия не важны: рисуем все 4 визуальные группы непрозрачно.
+  const geos = useMemo(() => [compiled.opaqueRaycast, compiled.opaqueNoRaycast, compiled.transparentRaycast, compiled.transparentNoRaycast]
+    .map(a => (a ? buildGeometry(a) : null)), [compiled])
+  useEffect(() => () => geos.forEach(g => g?.dispose()), [geos])
   const postFx = useMemo(() => loadProfile().postProcessing, [])
   return (
     <>
@@ -27,8 +28,7 @@ export function MapScene({ map }: { map: GameMap }) {
         <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
-      {raycast && <mesh geometry={raycast} onUpdate={o => o.layers.enable(BLOCK_LAYER)}><meshStandardMaterial vertexColors /></mesh>}
-      {noRaycast && <mesh geometry={noRaycast}><meshStandardMaterial vertexColors /></mesh>}
+      {geos.map((g, i) => g && <mesh key={i} geometry={g} onUpdate={o => o.layers.enable(BLOCK_LAYER)}><meshStandardMaterial vertexColors /></mesh>)}
       {postFx && <MapEdges />}
     </>
   )
