@@ -49,6 +49,7 @@ export function MapEditor({ name }: { name: string }) {
   const [wedgeRot, setWedgeRot] = useState(0)   // R: ручной доворот клина поверх авто-ориентации
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: клин вверх ногами (скос снизу)
   const [showCubeGrid, setShowCubeGrid] = useState(true)   // L: подсветка границ всех клеток (стройка)
+  const [showGridInGame, setShowGridInGame] = useState(false)   // персист-настройка карты: рисовать ли сетку кубов в игре
   const [color, setColor] = useState(EDITOR_COLORS[2])
   const [brushBeam, setBrushBeam] = useState(true)    // непростреливаемый по умолчанию (blocksBeam=true)
   const [brushTransparent, setBrushTransparent] = useState(false)
@@ -63,6 +64,7 @@ export function MapEditor({ name }: { name: string }) {
     setFloorColor(data.floorColor)
     setWallColor(wallColorOf(data))
     setSpawns(data.spawns)
+    setShowGridInGame(data.showBlockGrid === true)
     setVoxels(voxelize(data.blocks))
   }, [])
 
@@ -123,7 +125,7 @@ export function MapEditor({ name }: { name: string }) {
   }, [])
 
   const buildMap = (): MapData =>
-    toMapData(voxels, { half, floorColor, wallColor, spawns, id: name })
+    toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
 
   // Сохранение пишет 3 артефакта: raw.json (исходник) + geo.json (компил геометрии) + preview.png (офскрин-рендер).
   const doSave = async () => {
@@ -204,6 +206,12 @@ export function MapEditor({ name }: { name: string }) {
 
         <div className="editor-row"><span>ПОЛ</span><Palette value={floorColor} onPick={setFloorColor} /></div>
         <div className="editor-row"><span>СТЕНЫ</span><Palette value={wallColor} onPick={setWallColor} /></div>
+
+        <div className="editor-row"><span>СЕТКА КУБОВ</span>
+          <button className={`seg${showGridInGame ? ' seg--on' : ''}`} data-testid="ed-map-grid" onClick={() => setShowGridInGame(v => !v)}>
+            в игре: {showGridInGame ? 'вкл' : 'выкл'}
+          </button>
+        </div>
 
         <div className="editor-row">
           <button className="btn" onClick={doSave}>СОХРАНИТЬ</button>

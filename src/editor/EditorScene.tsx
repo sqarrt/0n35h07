@@ -8,6 +8,7 @@ import type { Vec3 } from '../game/maps'
 import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
 import { unitWedgeGeometry, wedgeRotationY } from '../game/wedge'
 import { gridGeometry } from '../game/grid'
+import { cellCenter, cellsGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from '../game/blockGrid'
 import { MapLights } from '../components/MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from '../components/EdgeOutline'
 import { loadProfile } from '../settings'
@@ -76,9 +77,6 @@ interface Props {
   onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
 }
 
-const cellCenter = (x: number, y: number, z: number): [number, number, number] =>
-  [(x + 0.5) * VOXEL, (y + 0.5) * VOXEL, (z + 0.5) * VOXEL]
-
 /** Вертикальный градиент для alphaMap цилиндра-спавна: низ непрозрачный → верх прозрачный. */
 function useSpawnAlpha(): THREE.Texture {
   return useMemo(() => {
@@ -94,32 +92,9 @@ function useSpawnAlpha(): THREE.Texture {
   }, [])
 }
 
-// Рёбра единичного куба: 8 вершин (полу-ребро) + 12 рёбер (пары индексов).
-const EDGE_CORNERS: ReadonlyArray<readonly [number, number, number]> = [
-  [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5],
-  [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
-]
-const EDGE_PAIRS: ReadonlyArray<readonly [number, number]> = [
-  [0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7],
-]
-
-/** Геометрия контуров клеток (границы кубов) — линии по рёбрам каждой занятой клетки. */
+/** Геометрия контуров клеток (границы кубов) — рёбра каждой занятой клетки (общий примитив с игрой). */
 function useEdgesGeometry(voxels: Map<string, Cell>): THREE.BufferGeometry {
-  return useMemo(() => {
-    const pos: number[] = []
-    for (const [k] of voxels) {
-      const [x, y, z] = parseCellKey(k)
-      const [cx, cy, cz] = cellCenter(x, y, z)
-      for (const [a, b] of EDGE_PAIRS) {
-        const pa = EDGE_CORNERS[a], pb = EDGE_CORNERS[b]
-        pos.push(cx + pa[0] * VOXEL, cy + pa[1] * VOXEL, cz + pa[2] * VOXEL,
-          cx + pb[0] * VOXEL, cy + pb[1] * VOXEL, cz + pb[2] * VOXEL)
-      }
-    }
-    const g = new THREE.BufferGeometry()
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-    return g
-  }, [voxels])
+  return useMemo(() => cellsGridGeometry([...voxels.keys()].map(parseCellKey)), [voxels])
 }
 
 /** Инстансовый меш кубов (t==='cube'); цвет на инстанс. Пересобирается при смене Map. */
@@ -429,7 +404,7 @@ export function EditorScene(props: Props) {
 
       {/* «Грани кубов»: подсветка границ всех клеток (строительный режим, L) */}
       <lineSegments geometry={edgesGeo} visible={showCubeGrid}>
-        <lineBasicMaterial color="#4af" transparent opacity={0.5} />
+        <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
       </lineSegments>
 
       {/* Призраки установки: бокс (куб), клин и цилиндр-спавн */}
