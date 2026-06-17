@@ -4,6 +4,7 @@ import { MAPS, getCachedMapGeo } from './game/maps'
 import type { GameMap } from './game/maps'
 import { DEFAULT_MAP_ID, BLOCK_TRANSPARENT_OPACITY } from './constants'
 import { gridGeometry } from './game/grid'
+import { blockGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from './game/blockGrid'
 import { compileBlocksCached, buildGeometry } from './game/mapGeometryCache'
 import { MapLights } from './components/MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from './components/EdgeOutline'
@@ -17,6 +18,10 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   const [hx, hz] = map.half
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
+
+  // Сетка кубов (рёбра воксельных клеток, как в редакторе) — только если карта явно включила showBlockGrid.
+  const blockGridGeo = useMemo(() => (map.showBlockGrid ? blockGridGeometry(map.blocks) : null), [map.showBlockGrid, map.blocks])
+  useEffect(() => () => blockGridGeo?.dispose(), [blockGridGeo])
 
   // Геометрия из компила (geo.json, preload через ensureMapGeo до монтирования), фолбэк — слияние из blocks.
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
@@ -63,6 +68,13 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
       <lineSegments geometry={gridGeo} position={[0, 0.01, 0]}>
         <lineBasicMaterial color="#555" />
       </lineSegments>
+
+      {/* Сетка кубов (рёбра воксельных клеток блоков) — опционально, по настройке карты showBlockGrid. */}
+      {blockGridGeo && (
+        <lineSegments geometry={blockGridGeo} userData={{ noRaycast: true }}>
+          <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
+        </lineSegments>
+      )}
 
       {/* Коллайдер карты: trimesh из непроходимых блоков. Меш ТОЛЬКО для физики → noRaycast (иначе луч бил бы
           в невидимый коллайдер: Raycaster видит invisible-объекты). includeInvisible нужен, иначе MeshCollider

@@ -40,6 +40,7 @@ export interface GameMap {
   floorColor: string
   blocks: MapBlock[]
   spawns: [Vec3, Vec3]   // [HOST_ID, OPPONENT_ID]
+  showBlockGrid?: boolean   // рисовать сетку кубов в игре (по умолч./отсутствует — не рисуем)
 }
 
 const WALL_H = 1.5       // полу-высота периметровой стены

@@ -1,12 +1,13 @@
 import { perimeter } from '../game/maps'
 import type { MapBlock, Vec3 } from '../game/maps'
+import { VOXEL } from '../constants'
 
 /**
  * Логика редактора карт (без React/THREE): воксельная модель, склейка в боксы, сериализация и localStorage.
  * Мир — однородные кубы ребром VOXEL на целочисленной сетке клеток (i,j,k): мировой центр клетки =
  * ((i+0.5)·S, (j+0.5)·S, (k+0.5)·S). Клетка k=0 лежит на полу (спан [0, S]).
  */
-export const VOXEL = 0.5                         // ребро базового куба
+export { VOXEL }                                 // ребро базового куба — единый источник в src/constants
 
 // Типы блоков и ориентация клина. dir: 0=+Z,1=+X,2=−Z,3=−X.
 export type BlockType = 'cube' | 'wedge'
@@ -22,6 +23,7 @@ export interface MapData {
   floorColor: string
   blocks: MapBlock[]          // периметр (perimeter:true) + склеенные воксели-укрытия
   spawns: [Vec3, Vec3]
+  showBlockGrid?: boolean      // рисовать ли сетку кубов в игре (по умолч. нет)
 }
 
 /** Цвет стен из блоков периметра (perimeter:true) — для редактора при импорте. */
@@ -112,7 +114,7 @@ export function coverBlocks(voxels: Map<string, Cell>): MapBlock[] {
 /** Воксели + параметры → MapData (готова к игре: периметр + склеенные кубы + отдельные формы). */
 export function toMapData(
   voxels: Map<string, Cell>,
-  opts: { half: [number, number]; floorColor: string; wallColor: string; spawns: [Vec3, Vec3]; id?: string },
+  opts: { half: [number, number]; floorColor: string; wallColor: string; spawns: [Vec3, Vec3]; id?: string; showBlockGrid?: boolean },
 ): MapData {
   return {
     id: opts.id,
@@ -120,6 +122,7 @@ export function toMapData(
     floorColor: opts.floorColor,
     blocks: [...perimeter(opts.wallColor, opts.half[0], opts.half[1]), ...coverBlocks(voxels)],
     spawns: opts.spawns,
+    ...(opts.showBlockGrid ? { showBlockGrid: true } : {}),
   }
 }
 

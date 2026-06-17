@@ -53,6 +53,7 @@ export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 export const BALL_RADIUS   = 0.5
 export const BALL_SEGMENTS = 128        // высокополигональный меш — фасетки незаметны, волны гладкие
 export const BLOCK_TRANSPARENT_OPACITY = 0.2   // непрозрачность полупрозрачных блоков карты (игра/редактор/трейлер)
+export const VOXEL = 0.5   // ребро базового куба карты — общая сетка редактора и игры (сетка кубов)
 export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вращение шара в превью настроек
 
 // Модели шара (выбор в настройках; сетевая косметика — видна сопернику).

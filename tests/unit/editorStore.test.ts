@@ -91,6 +91,14 @@ describe('editorStore — воксели ↔ боксы', () => {
     expect(voxelize(map.blocks)).toEqual(v)                          // но в воксели идёт только куб
   })
 
+  it('toMapData проносит showBlockGrid: true задаёт поле, иначе оно опущено', () => {
+    const v = cubes([[0, 0, 0, '#fff']])
+    const opts = { half: [20, 20] as [number, number], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] as [Vec3, Vec3] }
+    expect(toMapData(v, { ...opts, showBlockGrid: true }).showBlockGrid).toBe(true)
+    expect(toMapData(v, { ...opts, showBlockGrid: false }).showBlockGrid).toBeUndefined()
+    expect(toMapData(v, opts).showBlockGrid).toBeUndefined()
+  })
+
   it('serialize → parse round-trip; parse отбраковывает мусор', () => {
     const v = cubes([[0, 0, 0, '#abc']])
     const map = toMapData(v, { half: [20, 30], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] })
