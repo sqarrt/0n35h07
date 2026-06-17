@@ -17,8 +17,9 @@
         1.5,
         0.25
       ],
-      "color": "#b89863",
-      "blocksBeam": false
+      "color": "#555",
+      "blocksBeam": false,
+      "perimeter": true
     },
     {
       "pos": [
@@ -31,8 +32,9 @@
         1.5,
         0.25
       ],
-      "color": "#b89863",
-      "blocksBeam": false
+      "color": "#555",
+      "blocksBeam": false,
+      "perimeter": true
     },
     {
       "pos": [
@@ -45,8 +47,9 @@
         1.5,
         24
       ],
-      "color": "#b89863",
-      "blocksBeam": false
+      "color": "#555",
+      "blocksBeam": false,
+      "perimeter": true
     },
     {
       "pos": [
@@ -58,6 +61,63 @@
         0.25,
         1.5,
         24
+      ],
+      "color": "#555",
+      "blocksBeam": false,
+      "perimeter": true
+    },
+    {
+      "pos": [
+        0.25,
+        1.5,
+        -23.75
+      ],
+      "size": [
+        18.25,
+        1.5,
+        0.25
+      ],
+      "color": "#b89863",
+      "blocksBeam": false
+    },
+    {
+      "pos": [
+        0,
+        1.5,
+        24.25
+      ],
+      "size": [
+        18,
+        1.5,
+        0.25
+      ],
+      "color": "#b89863",
+      "blocksBeam": false
+    },
+    {
+      "pos": [
+        -17.75,
+        1.5,
+        0.25
+      ],
+      "size": [
+        0.25,
+        1.5,
+        23.75
+      ],
+      "color": "#b89863",
+      "blocksBeam": false
+    },
+    {
+      "pos": [
+        18.25,
+        1.5,
+        0.25
+      ],
+      "size": [
+        0.25,
+        1.5,
+        23.75
       ],
       "color": "#b89863",
       "blocksBeam": false
