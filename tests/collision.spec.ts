@@ -20,11 +20,13 @@ test('отброс от бота вместо коллизии', async ({ page }
   // Коллизии между игроками нет — вместо неё резкий отброс при пересечении тел (maybeKnockback).
   // Подходим к боту (homing-прицел) и давим W; срабатывание отброса детерминированно фиксирует
   // счётчик __debugKnockCount. Спавны разнесены (≈32 по Z на os_arena) — идём дольше, пока не упрёмся.
+  // Короче шаг + чаще перенаводимся (плотнее homing) и больше попыток: под CPU-контеншеном (workers:4)
+  // редкий промах схождения за длинный 500мс-шаг давал knocks=0. Цикл выходит сразу при первом отбросе.
   const knockCount = () => page.evaluate(() => window.__debugKnockCount ?? 0)
   let knocks = 0
-  for (let i = 0; i < 16 && knocks === 0; i++) {
+  for (let i = 0; i < 40 && knocks === 0; i++) {
     await aimAtBot(page)
-    await holdKey(page, 'KeyW', 500)
+    await holdKey(page, 'KeyW', 250)
     knocks = await knockCount()
   }
   expect(knocks).toBeGreaterThan(0)   // пересечение тел дало импульс-отброс, а не залипание/проход насквозь
