@@ -1,9 +1,10 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, Start, RosterEntry, ReadyMsg } from './protocol'
 import type { BotDifficulty, MapId, MapFilter, DurationFilter } from '../constants'
-import { PLAYER_COLORS, BOT_COLOR_BASE, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
+import { PLAYER_COLORS, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { PlayerProfile } from '../settings'
 import { generateModelName } from '../names'
+import { botAppearance } from '../game/botAppearance'
 import { MAP_IDS } from '../game/maps'
 import { resolveMatchParams } from './matchmaking'
 import { netDiagMark } from './netDiag'
@@ -122,8 +123,15 @@ export class RoomSession {
   addBot(difficulty: BotDifficulty = 'normal') {
     if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
     // Имя-«модель» генерируем заново при каждом добавлении бота (RA9, T-2000, …).
-    // Косметику не задаём: поля optional, Match подставит дефолты ('smooth'/'classic'/'echo'/'streak'/'dome').
-    this.opponent = { id: OPPONENT_ID, name: generateModelName(), color: BOT_COLOR_BASE, kind: 'bot', difficulty }
+    // Скин выводим из ника (тот же seed, что у личности бота); цвет — без коллизии с хостом.
+    const name = generateModelName()
+    const skin = botAppearance(name)
+    this.opponent = {
+      id: OPPONENT_ID, name, kind: 'bot', difficulty,
+      color: this.assignColor(skin.color, skin.color),
+      ballModel: skin.ballModel, windupStyle: skin.windupStyle,
+      respawnStyle: skin.respawnStyle, dashStyle: skin.dashStyle, shieldStyle: skin.shieldStyle,
+    }
     this.readyIds.add(OPPONENT_ID)   // бот авто-готов
     this.resolveAgainst(ALL_MAPS, ALL_DURS)   // бот принимает всё → случайное из набора хоста
     this.broadcastRoster()
