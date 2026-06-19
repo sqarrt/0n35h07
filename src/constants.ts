@@ -201,7 +201,6 @@ export const KCC_OFFSET          = 0.01  // зазор капсула↔мир: 
 export const AUTOSTEP_LIFT_EPS   = 0.02  // порог вертикального подъёма сверх гравитации → автостеп пытался перешагнуть
 
 // Bot colors (hex strings — create THREE.Color locally where needed)
-export const BOT_COLOR_BASE  = '#5af'
 export const BOT_COLOR_WHITE = '#fff'
 
 // Bot AI difficulty

@@ -5,6 +5,7 @@ import type { RoomView } from '../../src/net/RoomSession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID, HOST_ID } from '../../src/constants'
 import { MAP_IDS } from '../../src/game/maps'
+import { botAppearance } from '../../src/game/botAppearance'
 
 const GUEST: PlayerProfile = { name: 'Гость', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
 
@@ -95,6 +96,20 @@ describe('RoomSession — слот соперника (строго 1v1)', () =>
     const opp = get().roster.find(r => r.id === OPPONENT_ID)!
     expect(opp.kind).toBe('bot')
     expect(get().canStart).toBe(true)
+  })
+
+  it('addBot выдаёт косметику botAppearance(name) и цвет без коллизии с хостом', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal')
+    const bot = get().roster.find(r => r.id === OPPONENT_ID)!
+    const want = botAppearance(bot.name)
+    expect(bot.kind).toBe('bot')
+    expect(bot.ballModel).toBe(want.ballModel)
+    expect(bot.windupStyle).toBe(want.windupStyle)
+    expect(bot.respawnStyle).toBe(want.respawnStyle)
+    expect(bot.dashStyle).toBe(want.dashStyle)
+    expect(bot.shieldStyle).toBe(want.shieldStyle)
+    expect(bot.color).not.toBe(HOST.primaryColor)   // нет коллизии с цветом хоста
   })
 
   it('повторный addBot — no-op (соперник один)', () => {
