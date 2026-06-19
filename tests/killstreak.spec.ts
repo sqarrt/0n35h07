@@ -14,27 +14,41 @@ async function startMatch(context: BrowserContext) {
   const client = await context.newPage()
 
   const room = 'WOLF'
-  await host.goto('/')
-  await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-tab-friend').click()   // вкладка «С другом»: общий код комнаты
-  await host.getByTestId('lobby-room-code').fill(room)
+  // Симметричные шаги host/client выполняем ПАРАЛЛЕЛЬНО: под CPU-контеншеном (workers:4, 2 страницы с
+  // Rapier WASM) последовательные ожидания (20с+20с+…) суммируются по wall-clock и пробивают бюджет теста.
+  const enterLobby = async (p: Page) => {
+    await p.goto('/')
+    await p.getByTestId('menu-play').click()
+    await p.getByTestId('lobby-tab-friend').click()   // вкладка «С другом»: общий код комнаты
+    await p.getByTestId('lobby-room-code').fill(room)
+  }
+  await Promise.all([enterLobby(host), enterLobby(client)])
 
-  await client.goto('/')
-  await client.getByTestId('menu-play').click()
-  await client.getByTestId('lobby-tab-friend').click()
-  await client.getByTestId('lobby-room-code').fill(room)
+  await Promise.all([
+    host.getByTestId('lobby-search').click(),
+    client.getByTestId('lobby-search').click(),
+  ])
 
-  await host.getByTestId('lobby-search').click()
-  await client.getByTestId('lobby-search').click()
-
-  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await host.getByTestId('lobby-ready').click(); await client.getByTestId('lobby-ready').click()
-  await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-  await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-  await host.evaluate(() => (window as any).__debugForceLive()); await client.evaluate(() => (window as any).__debugForceLive())
-  await expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
-  await expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live')
+  await Promise.all([
+    expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 }),
+    expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 }),
+  ])
+  await Promise.all([
+    host.getByTestId('lobby-ready').click(),
+    client.getByTestId('lobby-ready').click(),
+  ])
+  await Promise.all([
+    host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 }),
+    client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 }),
+  ])
+  await Promise.all([
+    host.evaluate(() => (window as any).__debugForceLive()),
+    client.evaluate(() => (window as any).__debugForceLive()),
+  ])
+  await Promise.all([
+    expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live'),
+    expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live'),
+  ])
   // Роль решает selfId → сопоставляем переменные с фактическими ролями (host = id 0, авторитет).
   const roleA = await host.evaluate(() => (window as any).__debugRole())
   return roleA === 'host' ? { host, client } : { host: client, client: host }
@@ -49,7 +63,7 @@ async function fakeLock(page: Page) {
 }
 
 test('первый фраг матча → CATALYST (host-авторитет)', async ({ context }) => {
-  test.setTimeout(90000)
+  test.setTimeout(120000)
   const { host, client } = await startMatch(context)
 
   // Клиент целится в хоста (id 0) и стреляет (несколько раз — на кулдаун/промах кадра, как в multiplayer.spec).
