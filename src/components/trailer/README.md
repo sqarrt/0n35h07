@@ -1,94 +1,94 @@
-# Трейлер OneShot — как устроен и как править
+# OneShot trailer — how it works and how to edit it
 
-Карта трейлера: по ней легко попросить ассистента («поправь трейлер: …») и найти нужное место.
+A map of the trailer: makes it easy to ask an assistant ("tweak the trailer: …") and to find the right spot.
 
-## Что это и где запускается
+## What it is and where it runs
 
-Трейлер — **реплей реальных матчей с ботами** (записанных заранее) + переходы, текст, музыка. Воспроизводится
-теми же игровыми классами, что и матч (Player/Body/BeamWeapon/FX/HUD/карта) → выглядит «как в игре». Боёвка не
-симулируется: проигрываются записанные кадры и события.
+The trailer is a **replay of real bot matches** (recorded beforehand) plus transitions, text and music. It plays
+back through the same game classes as a match (Player/Body/BeamWeapon/FX/HUD/map) → it looks "in-game". The
+combat is not simulated: recorded frames and events are played back.
 
-Запуск в игре: **Настройки → «Об игре» → WATCH** → `screen === 'trailer'` в `src/App.tsx` рендерит
-`<TrailerScreen>`. Клик по WATCH = жест, разблокирующий аудио.
+Launch in-game: **Settings → "About" → WATCH** → `screen === 'trailer'` in `src/App.tsx` renders
+`<TrailerScreen>`. Clicking WATCH is the gesture that unlocks audio.
 
-HUD трейлера принудительно на **английском** — через `<ForceLocale id="en">` в `TrailerScreen.tsx`
-(см. `src/i18n/index.ts`), независимо от языка настроек.
+The trailer HUD is forced to **English** — via `<ForceLocale id="en">` in `TrailerScreen.tsx`
+(see `src/i18n/index.ts`), regardless of the settings language.
 
-## Две копии трейлера
+## Two copies of the trailer
 
-1. **Живая** (играет из настроек): рендерится текущим кодом игры. От игровой ЛОГИКИ изолирована (реплеит
-   снапшоты, бой не считает), но зависит от РЕНДЕР-кода (классы игрока/FX/карта/аудио/HUD). Не трогая файлы
-   трейлера и эти классы — не сломать.
-2. **Замороженная** (`trailer-dist/`, закоммичена в репо): автономная сборка, НЕ зависит ни от чего в проекте —
-   правки игры её не ломают. Пересобирается **автоматически в `npm run build`** (последним шагом), отдельно —
-   `npm run build:trailer`. После сборки закоммить `trailer-dist/`. Просмотр: `npx serve trailer-dist`.
-   Сам код сборки (`vite.trailer.config.ts`) в артефакт не попадает.
+1. **Live** (plays from settings): rendered by the current game code. Isolated from game LOGIC (it replays
+   snapshots, doesn't compute combat), but depends on RENDER code (player/FX/map/audio/HUD classes). As long as
+   you don't touch the trailer files and those classes, you won't break it.
+2. **Frozen** (`trailer-dist/`, committed to the repo): a standalone build that depends on nothing in the
+   project — game edits don't break it. Rebuilt **automatically by `npm run build`** (as the last step), or
+   separately via `npm run build:trailer`. After building, commit `trailer-dist/`. Preview: `npx serve trailer-dist`.
+   The build code itself (`vite.trailer.config.ts`) is not included in the artifact.
 
-## Файлы
+## Files
 
-| Файл | Зачем |
+| File | Purpose |
 |---|---|
-| `trailerEdl.ts` | **Раскадровка (EDL).** Главное место правок: порядок шотов, куски демок, текст перебивок. |
-| `TrailerSequencer.tsx` | Оркестратор: шоты по порядку, музыка, отсчёт, текст, HUD, финал, громкости. |
-| `DemoScene.tsx` | Проигрывает фрагменты демки реальными классами (камера, игроки, FX, звуки). |
-| `FinaleScene.tsx` | Финал: замедленный встречный выстрел сбоку с отъездом камеры. |
-| `TrailerScreen.tsx` | Обёртка: `ForceLocale=en` + секвенсор. |
-| `../../game/audio/TrailerMusic.ts` | Детерминированная музыка (фиксированная прогрессия). |
-| `../../ui/theme.css` | Стили перебивок (`.trailer-cut`), титула, ковра (`.trailer-cover`), экрана PLAY (`.trailer-gate`). |
-| `../../../public/demos/*.demo.json` | Записанные матчи (материал нарезки). |
-| `../../trailer/standalone.tsx`, `vite.trailer.config.ts`, `trailer.html` | Замороженная сборка (см. выше). |
+| `trailerEdl.ts` | **Storyboard (EDL).** The main place to edit: shot order, demo slices, interstitial text. |
+| `TrailerSequencer.tsx` | Orchestrator: shots in order, music, countdown, text, HUD, finale, volumes. |
+| `DemoScene.tsx` | Plays demo fragments with the real classes (camera, players, FX, sounds). |
+| `FinaleScene.tsx` | Finale: a slow-motion head-on shot from the side with the camera pulling back. |
+| `TrailerScreen.tsx` | Wrapper: `ForceLocale=en` + sequencer. |
+| `../../game/audio/TrailerMusic.ts` | Deterministic music (fixed progression). |
+| `../../ui/theme.css` | Styles for interstitials (`.trailer-cut`), title, cover (`.trailer-cover`), the PLAY screen (`.trailer-gate`). |
+| `../../../public/demos/*.demo.json` | Recorded matches (source material for slicing). |
+| `../../trailer/standalone.tsx`, `vite.trailer.config.ts`, `trailer.html` | The frozen build (see above). |
 
-## Частые правки
+## Common edits
 
-### Нарезка: порядок, фрагменты, длительность — `trailerEdl.ts`
-`TRAILER_SHOTS` — шоты по порядку. Типы: `countdown` (отсчёт на пустоте), `text` (перебивка), `play`
-(клип + `ranges: [{from,to}]`, индексы = НОМЕРА КАДРОВ), `finale`.
-- **30 fps**: 1.5 c ≈ 45 кадров. Фрагмент держим ≤ ~1.5 c (`to - from ≤ ~45`).
-- Несколько фрагментов одного клипа в одном `play` — джамп-каты (без пересборки → без морганий).
-- **Смена клипа = новый `play`-шот**: пересборка прячется ковром (`.trailer-cover`), между клипами — `text`.
-- Хотя бы один фрагмент каждого скина (клипа) показываем от 3-го лица (TP).
-- `CUT_MS` — длительность перебивки.
+### Slicing: order, fragments, duration — `trailerEdl.ts`
+`TRAILER_SHOTS` — shots in order. Types: `countdown` (countdown over emptiness), `text` (interstitial), `play`
+(clip + `ranges: [{from,to}]`, indices = FRAME NUMBERS), `finale`.
+- **30 fps**: 1.5 s ≈ 45 frames. Keep a fragment ≤ ~1.5 s (`to - from ≤ ~45`).
+- Several fragments of the same clip in one `play` — jump cuts (no rebuild → no flicker).
+- **Switching clips = a new `play` shot**: the rebuild is hidden by the cover (`.trailer-cover`), with a `text` between clips.
+- Show at least one fragment of each skin (clip) in third person (TP).
+- `CUT_MS` — interstitial duration.
 
-### Громкости и тайминги звука — `TrailerSequencer.tsx`
-- `TRAILER_SFX_GAIN` (0.45) — игровые звуки; `COUNTDOWN_SFX_GAIN` (1.0) — отсчёт и «go» на перебивках.
-- Музыка стартует на «go» (конец отсчёта), без fade-in. Эхо в конце — `music.stop()` на заморозке лучей; запас
-  хвоста — `ECHO_TAIL_MS`.
-- «go» на перебивках играется чуть раньше текста (попасть в удар анимации): лид — `NEAR_END_LEAD_MS`
-  в `DemoScene.tsx` (меньше = позже). Первая перебивка — без «go».
+### Volumes and audio timing — `TrailerSequencer.tsx`
+- `TRAILER_SFX_GAIN` (0.45) — game sounds; `COUNTDOWN_SFX_GAIN` (1.0) — the countdown and "go" on interstitials.
+- Music starts on "go" (end of countdown), no fade-in. Echo at the end — `music.stop()` when the beams freeze; the
+  tail margin is `ECHO_TAIL_MS`.
+- "go" on interstitials plays slightly before the text (to land on the animation beat): the lead is `NEAR_END_LEAD_MS`
+  in `DemoScene.tsx` (less = later). The first interstitial has no "go".
 
-### Звуки в демо-сцене — `DemoScene.tsx`
-Звук выстрела = весь выстрел, с НАЧАЛА зарядки, вариант по стилю (`BEAM_SFX`). На стыке — `seedFlags` (чтобы
-идущая зарядка не «перевыстреливала»). Грабли: если фрагмент обрывается на начале зарядки, длинный звук
-«утечёт» в следующий фрагмент → подбери границу `to` (заканчивай до новой зарядки).
+### Sounds in the demo scene — `DemoScene.tsx`
+The fire sound = the whole shot, from the START of the windup, variant by style (`BEAM_SFX`). At seams — `seedFlags`
+(so an ongoing windup doesn't "re-fire"). Gotcha: if a fragment cuts off at the start of a windup, the long sound
+"leaks" into the next fragment → pick the `to` boundary carefully (end before a new windup).
 
-### Финал — `FinaleScene.tsx`
-Бойцы `A`/`B`: `color`/`ring`/`model`/`windup`/`x`. Камера: `CAM_Z0→CAM_Z1`, `CAM_DUR`. Замедление:
-`CHARGE_DUR`/`SLOWMO_CHARGE`/`SLOWMO_HOLD`; `BEAM_REACH` — докуда долетают лучи. `FINALE_DUR` — конец.
+### Finale — `FinaleScene.tsx`
+Fighters `A`/`B`: `color`/`ring`/`model`/`windup`/`x`. Camera: `CAM_Z0→CAM_Z1`, `CAM_DUR`. Slow-motion:
+`CHARGE_DUR`/`SLOWMO_CHARGE`/`SLOWMO_HOLD`; `BEAM_REACH` — how far the beams travel. `FINALE_DUR` — the end.
 
-### Музыка — `../../game/audio/TrailerMusic.ts`
-Прогрессия по лупам: `0` кики+бас → `1` +лид1 → `2`+ +лид2. Громкости — `KICK_GAIN`/`BASS_GAIN`/`LEAD_GAIN`.
+### Music — `../../game/audio/TrailerMusic.ts`
+Progression by loops: `0` kicks+bass → `1` +lead1 → `2`+ +lead2. Volumes — `KICK_GAIN`/`BASS_GAIN`/`LEAD_GAIN`.
 
-## Демки
+## Demos
 
-`public/demos/*.demo.json` — кадро-независимые снапшоты (камера + оба игрока + счёт/таймер/серии/фаза +
-события), любой подотрезок реплеится корректно. Тип — `../../game/demo/demoTypes.ts`.
+`public/demos/*.demo.json` — frame-independent snapshots (camera + both players + score/timer/streaks/phase +
+events), so any sub-range replays correctly. Type — `../../game/demo/demoTypes.ts`.
 
-### Запись новой демки (ТОЛЬКО dev)
-1. `npm run dev`, начать матч с ботом.
-2. **F9** — старт, **F9** ещё раз — стоп (скачивается `.demo.json`).
-3. Файл → `public/demos/`, имя → в `CLIP_FILES` (`trailerEdl.ts`).
+### Recording a new demo (dev ONLY)
+1. `npm run dev`, start a bot match.
+2. **F9** — start, **F9** again — stop (downloads a `.demo.json`).
+3. File → `public/demos/`, name → into `CLIP_FILES` (`trailerEdl.ts`).
 
-Запись (`../../game/demo/DemoRecorder.ts` + хук `match.recorder`) включена только в dev и **вырезается из
-прод-сборки** (DCE по `import.meta.env.DEV` + динамический импорт в `Game.tsx`).
+Recording (`../../game/demo/DemoRecorder.ts` + the `match.recorder` hook) is enabled only in dev and is **stripped
+from the production build** (DCE on `import.meta.env.DEV` + dynamic import in `Game.tsx`).
 
-### Поиск моментов для нарезки (dev-скрипты)
-- `node scripts/analyzeDemo.mjs public/demos/<файл>` — киллы/серии/CATALYST/идеальные блоки (таймкод, кадр, FP/TP).
-- `node scripts/analyzeDodges.mjs public/demos/<файл>` — где СОПЕРНИК уворачивается от выстрела игрока.
-- `node scripts/inspectFrames.mjs public/demos/<файл> <from> <to>` — сырые зарядка/события по диапазону кадров.
+### Finding moments to slice (dev scripts)
+- `node scripts/analyzeDemo.mjs public/demos/<file>` — kills/streaks/CATALYST/perfect blocks (timecode, frame, FP/TP).
+- `node scripts/analyzeDodges.mjs public/demos/<file>` — where the OPPONENT dodges the player's shot.
+- `node scripts/inspectFrames.mjs public/demos/<file> <from> <to>` — raw windup/events over a frame range.
 
-## Как просить о правках
+## How to ask for edits
 
-Примеры: «убери фрагмент с тройным на pillars», «перебивки на 0.2 c длиннее», «добавь ещё уворот соперника перед
-финалом», «в финале разведи игроков дальше», «текст второй перебивки → …». Ассистент найдёт момент через
-`analyze*`-скрипты и поправит `trailerEdl.ts`/нужный файл. Замороженная копия пересоберётся сама на `npm run build`
-(или вручную `npm run build:trailer`) — после этого закоммить `trailer-dist/`.
+Examples: "drop the triple-kill fragment on pillars", "make interstitials 0.2 s longer", "add one more opponent
+dodge before the finale", "spread the players further apart in the finale", "second interstitial text → …". The
+assistant will find the moment via the `analyze*` scripts and edit `trailerEdl.ts` / the right file. The frozen
+copy rebuilds itself on `npm run build` (or manually via `npm run build:trailer`) — after that, commit `trailer-dist/`.
