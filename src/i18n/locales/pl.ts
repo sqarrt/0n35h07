@@ -46,7 +46,7 @@ export const pl = {
   warnContinueHint: 'aby kontynuować',
   warnContinueKey: 'LPM',
   settingsLanguage: 'JĘZYK',
-  // Комната
+  // Room
   roomTitle: 'POKÓJ',
   roomCodeLabel: 'KOD:',
   roomCopied: 'SKOPIOWANO',

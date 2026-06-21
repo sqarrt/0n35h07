@@ -1,5 +1,5 @@
-// Эталонный словарь. Его форма = контракт всех локалей (Dict = typeof en).
-// Конвенция ключей: <экран/область><Что>. Параметры — функции.
+// Reference dictionary. Its shape = the contract for every locale (Dict = typeof en).
+// Key convention: <screen/area><What>. Parameters are functions.
 export const en = {
   menuPlay: 'PLAY',
   lobbyBecomeHost: 'BECOME HOST',
@@ -46,7 +46,7 @@ export const en = {
   warnContinueHint: 'to continue',
   warnContinueKey: 'LMB',
   settingsLanguage: 'LANGUAGE',
-  // Комната
+  // Room
   roomTitle: 'ROOM',
   roomCodeLabel: 'CODE:',
   roomCopied: 'COPIED',
@@ -67,7 +67,7 @@ export const en = {
   roomBack: 'BACK',
   roomWaitingHost: 'WAITING FOR HOST…',
   roomConnecting: 'CONNECTING…',
-  // Экран входа в комнату
+  // Join-room screen
   joinTitle: 'JOIN ROOM',
   joinCodeLabel: 'ROOM CODE',
   joinSubmit: 'JOIN',
@@ -75,7 +75,7 @@ export const en = {
   joinStatusFound: 'ROOM FOUND · CONNECTING…',
   joinStatusNotFound: (code: string) => `ROOM ${code} NOT FOUND`,
   joinStatusFailedConnect: 'FAILED TO CONNECT',
-  // Настройки
+  // Settings
   settingsTitle: 'SETTINGS',
   settingsSecPlayer: 'PLAYER',
   settingsSecSound: 'SOUND',
@@ -105,13 +105,13 @@ export const en = {
   settingsShowFps: 'SHOW FPS COUNTER',
   settingsShowSpeed: 'SHOW PLAYER SPEED',
   settingsBack: 'BACK',
-  // Релеи (раздел СЕТЬ)
+  // Relays (NETWORK section)
   relaysTitle: 'RELAYS',
   relaysProbing: 'CHECKING…',
   relaysAlive: (alive: number, total: number) => `ALIVE ${alive}/${total}`,
   relaysInUse: (n: number) => `IN USE ${n}`,
   relaysReprobe: 'RECHECK',
-  // Внешность
+  // Appearance
   appearTitle: 'APPEARANCE',
   appearOnModel: 'ON MODEL:',
   appearSlotPrimary: 'PRIMARY',
@@ -145,7 +145,7 @@ export const en = {
   styleShieldDome: 'DOME',
   styleShieldHex: 'HEX',
   styleShieldCrystal: 'CRYSTAL',
-  // Матчевые оверлеи
+  // Match overlays
   readyStatusReady: 'READY ✓',
   readyStatusNotReady: '○ NOT READY',
   readyHintAction: 'to start',
@@ -164,7 +164,7 @@ export const en = {
   statsMin: 'MIN',
   statsMs: 'ms',
   statsSpeedUnit: 'u/s',
-  // Клавиши мыши и легенда управления
+  // Mouse buttons and controls legend
   keyLmb: 'LMB',
   keyRmb: 'RMB',
   keyMouse: 'Mouse',
@@ -176,14 +176,14 @@ export const en = {
   ctrlLook: 'Look',
   ctrlView: 'View 1/3',
   ctrlPause: 'Pause',
-  // Пауза и редактор
+  // Pause and editor
   pauseTitle: 'MENU',
   pauseResume: 'RESUME',
   pauseToMenu: 'TO MENU',
   pauseExit: 'QUIT',
   editorLoading: 'Loading editor…',
-  // Имя бота-соперника (ростер шлёт name='Бот' для совместимости; UI рендерит это)
-  // Индикатор сети (NetStatusChip)
+  // Opponent bot name (UI renders this)
+  // Network indicator (NetStatusChip)
   netChipProbingTitle: 'Probing signaling relays',
   netChipProbing: 'CHECKING NET',
   netChipTitle: 'Signaling relays',
