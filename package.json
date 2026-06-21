@@ -4,6 +4,28 @@
   "version": "0.5.8",
   "description": "OneShot — аркадный шутер от первого лица, строго 1v1 (p2p)",
   "author": "Dmitry Shatalov",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/sqarrt/0n35h07#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sqarrt/0n35h07.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sqarrt/0n35h07/issues"
+  },
+  "keywords": [
+    "game",
+    "fps",
+    "shooter",
+    "1v1",
+    "multiplayer",
+    "webrtc",
+    "p2p",
+    "three.js",
+    "react-three-fiber",
+    "rapier",
+    "browser-game"
+  ],
   "type": "module",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
