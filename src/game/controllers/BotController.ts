@@ -5,10 +5,12 @@ import type { World } from '../World'
 import type { MeshUserData } from '../../utils/raycast'
 import type { BotPersonality } from './botPersonality'
 import { rollHit, aimPoint } from './botAim'
+import { shouldEvade } from './botTactics'
 import { randomArenaPos } from '../maps'
 import {
   BOT_MOVE_SPEED, BOT_SHIELD_INTERVAL,
   BOT_CHASE_DIST, BOT_RETREAT_MS, BOT_DODGE_THRESH,
+  BOT_EVADE_NEAR, BOT_EVADE_DASH_RATE,
 } from '../../constants'
 
 type BotState = 'WANDER' | 'CHASE' | 'STRAFE' | 'RETREAT'
@@ -133,6 +135,21 @@ export class BotController implements Controller {
     }
     this.player.aim(this._aimPt)
     this.player.setLook(this._toTarget.copy(this._aimPt).sub(pos))
+
+    // EVADE-модификатор: ведём по очкам и под угрозой → распрыжка поверх боевого поведения.
+    // Авто-bhop (держим прыжок) + дэши вбок; частота дэшей масштабируется evadeSkill.
+    const evading = shouldEvade({
+      kills: this.player.kills, oppKills: opp.kills,
+      oppWindingUp: opp.isWindingUp, hasLOS, dist, evadeNear: BOT_EVADE_NEAR,
+    })
+    if (evading) {
+      this.player.setJumpInput(true)
+      if (Math.random() < this.personality.evadeSkill * BOT_EVADE_DASH_RATE * dt) {
+        this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
+        this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
+        this.player.dash(this._perp)
+      }
+    }
 
     // Щит (CHASE + STRAFE)
     if (this.state === 'CHASE' || this.state === 'STRAFE') {

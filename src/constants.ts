@@ -180,6 +180,8 @@ export const BOT_SHIELD_INTERVAL = 5000   // как часто ИИ решает
 export const BOT_CHASE_DIST      = 8      // дистанция переключения CHASE ↔ STRAFE (ед.)
 export const BOT_RETREAT_MS      = 500    // мс отхода после собственного выстрела
 export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
+export const BOT_EVADE_NEAR      = 6      // дистанция «вплотную» для EVADE-распрыжки (ед.)
+export const BOT_EVADE_DASH_RATE = 1.5   // базовая частота дэшей/сек в EVADE (×evadeSkill)
 
 // Arena
 export const SPAWN_HALF = 14

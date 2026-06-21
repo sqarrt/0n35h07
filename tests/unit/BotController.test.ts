@@ -124,4 +124,30 @@ describe('BotController', () => {
     bc.update(0.1)   // reactionMs=0 → реагирует в первый же кадр
     expect(dashed).toBe(true)
   })
+
+  it('EVADE: ведёт по очкам + соперник вплотную → авто-bhop (держит прыжок)', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -3)   // dist 3 < BOT_EVADE_NEAR(6)
+    bot.kills = 1                          // ведёт
+    const bc = makeBot(bot, opp, worldWithLOS(opp.id))
+    let jumpHeld = false
+    const origJump = bot.setJumpInput.bind(bot)
+    bot.setJumpInput = (v: boolean) => { if (v) jumpHeld = true; origJump(v) }
+    bc.update(0.05)
+    expect(jumpHeld).toBe(true)
+  })
+
+  it('EVADE: не ведёт по очкам → без bhop (jumpiness=0)', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -3)
+    bot.kills = 0; opp.kills = 0           // ничья
+    const bc = makeBot(bot, opp, worldWithLOS(opp.id))
+    let jumpHeld = false
+    const origJump = bot.setJumpInput.bind(bot)
+    bot.setJumpInput = (v: boolean) => { if (v) jumpHeld = true; origJump(v) }
+    bc.update(0.05)
+    expect(jumpHeld).toBe(false)
+  })
 })
