@@ -1,17 +1,17 @@
-/** Контекст решения об уклонении (распрыжке). */
+/** Context for the evade (bunny-hop) decision. */
 export interface EvadeContext {
-  kills:        number   // очки бота
-  oppKills:     number   // очки соперника
-  oppWindingUp: boolean  // соперник заряжает выстрел
-  hasLOS:       boolean  // соперник в прямой видимости
-  dist:         number   // дистанция до соперника
-  evadeNear:    number   // порог «вплотную»
+  kills:        number   // bot's score
+  oppKills:     number   // opponent's score
+  oppWindingUp: boolean  // opponent is charging a shot
+  hasLOS:       boolean  // opponent is in line of sight
+  dist:         number   // distance to opponent
+  evadeNear:    number   // "point-blank" threshold
 }
 
 /**
- * Бот ведёт по очкам И под угрозой → выгодно уклоняться распрыжкой.
- * Угроза = соперник заряжает в прямой видимости, либо подошёл вплотную (dist < evadeNear).
- * Когда ведёшь — рациональнее «тянуть время» и не подставляться, как живой игрок.
+ * Bot is ahead on score AND under threat -> evading by bunny-hopping pays off.
+ * Threat = opponent charging in LOS, or closed in point-blank (dist < evadeNear).
+ * When ahead, it's smarter to "play for time" and not expose yourself, like a real player.
  */
 export function shouldEvade(c: EvadeContext): boolean {
   if (c.kills <= c.oppKills) return false

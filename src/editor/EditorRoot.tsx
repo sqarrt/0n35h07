@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { MapPicker } from './MapPicker'
 import { MapEditor } from './MapEditor'
 
-/** Название редактируемой карты из hash, либо null для экрана выбора (/#editor). */
+/** The edited map's name from the hash, or null for the picker screen (/#editor). */
 function mapNameFromHash(): string | null {
   const h = window.location.hash
   if (h.startsWith('#editor-')) return decodeURIComponent(h.slice('#editor-'.length)) || null
   return null
 }
 
-/** Дев-маршрутизация редактора: /#editor → выбор карты, /#editor-<название> → редактор этой карты. */
+/** Dev routing for the editor: /#editor → map picker, /#editor-<name> → editor for that map. */
 export function EditorRoot() {
   const [name, setName] = useState<string | null>(mapNameFromHash)
 

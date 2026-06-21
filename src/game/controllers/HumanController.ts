@@ -10,17 +10,17 @@ import {
   WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, TP_SHOULDER_X, DASH_FOV, AIM_RANGE,
 } from '../../constants'
 
-type Keys = MoveKeys & { jump: boolean }   // + held-прыжок (auto-bhop), обрабатывается за кадр
+type Keys = MoveKeys & { jump: boolean }   // + held jump (auto-bhop), processed per frame
 
-/** Минимальный интерфейс контролов (drei PointerLockControls): используем только pointerSpeed. */
+/** Minimal controls interface (drei PointerLockControls): we use only pointerSpeed. */
 export interface PointerControls { pointerSpeed: number }
 
-/** Человек: клавиши/мышь/камера → те же intent-методы Player, что и у бота. */
+/** Human: keys/mouse/camera → the same Player intent-methods as the bot. */
 export class HumanController implements Controller {
   private thirdPerson = false
   private shakeFrames = 0
   private fov = 75
-  // Scratch-вектора: tmp — scratch общего назначения (getWorldDirection); остальные — per-purpose.
+  // Scratch vectors: tmp — general-purpose scratch (getWorldDirection); the rest are per-purpose.
   private tmp          = new THREE.Vector3()
   private _dir         = new THREE.Vector3()
   private _right       = new THREE.Vector3()
@@ -33,7 +33,7 @@ export class HumanController implements Controller {
   private keys: React.MutableRefObject<Keys>
   private controls: React.RefObject<PointerControls | null>
   private world: World
-  // Рёберные действия за кадр — для сетевого InputFrame (клиент шлёт хосту). Прыжок — held (см. keys.jump).
+  // Edge actions per frame — for the network InputFrame (client sends to host). Jump is held (see keys.jump).
   private pending = { fire: false, shield: false, dash: false }
 
   constructor(
@@ -50,18 +50,18 @@ export class HumanController implements Controller {
     this.controls = controls
     this.world = world
     this.thirdPerson = startThirdPerson
-    player.setBodyVisible(startThirdPerson)   // стартовый вид по настройке (FP скрывает модель)
+    player.setBodyVisible(startThirdPerson)   // starting view from setting (FP hides the model)
   }
 
-  // --- рёберные события от DOM (вызывает хост) ---
+  // --- edge events from DOM (invoked by host) ---
   onFire()    { if (document.pointerLockElement) { this.player.startFiring();    this.pending.fire = true } }
   onShield()  { if (document.pointerLockElement) { this.player.activateShield(); this.pending.shield = true } }
   onDash() {
     if (!document.pointerLockElement) return
     this.pending.dash = true
-    const world = this.camera.getWorldDirection(this.tmp)      // полный взгляд (с наклоном); уже нормализован
-    horizontalBasis(world, this._basis)                        // strafe-ось горизонтальная; tmp не меняется
-    const d = dashDirection(this.keys.current, world, this._right)   // world не меняется в dashDirection
+    const world = this.camera.getWorldDirection(this.tmp)      // full look dir (with pitch); already normalized
+    horizontalBasis(world, this._basis)                        // strafe axis is horizontal; tmp unchanged
+    const d = dashDirection(this.keys.current, world, this._right)   // world is not mutated in dashDirection
     if (d) this.player.dash(d)
   }
   shake()     { this.shakeFrames = 5 }
@@ -70,12 +70,12 @@ export class HumanController implements Controller {
     this.player.setBodyVisible(this.thirdPerson)
   }
 
-  /** Камера-относительные горизонтальные оси (для движения и направления рывка). */
+  /** Camera-relative horizontal axes (for movement and dash direction). */
   private basis() {
     return horizontalBasis(this.camera.getWorldDirection(this.tmp), this._basis)
   }
 
-  /** Собрать кадр ввода для отправки хосту (клиент). Сбрасывает рёберные защёлки. */
+  /** Build the input frame to send to the host (client). Clears the edge latches. */
   currentInputFrame(seq: number): InputFrame {
     const k = this.keys.current
     const look = this.camera.getWorldDirection(this.tmp)
@@ -83,8 +83,8 @@ export class HumanController implements Controller {
       seq,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
       aimDir: toVec3(look),
-      aimOrigin: toVec3(this.camera.position),   // origin прицела = камера (в TP смещена за спину) — чтобы хост повторил тот же луч
-      jump: k.jump,   // held-состояние (не ребро) — auto-bhop/двойной прыжок считает Body на хосте
+      aimOrigin: toVec3(this.camera.position),   // aim origin = camera (in TP offset behind) — so the host replays the same ray
+      jump: k.jump,   // held state (not an edge) — auto-bhop/double jump is computed by Body on the host
       fire: this.pending.fire,
       shield: this.pending.shield, dash: this.pending.dash,
     }
@@ -92,36 +92,36 @@ export class HumanController implements Controller {
     return frame
   }
 
-  // --- intents (до физики) ---
+  // --- intents (before physics) ---
   update(dt: number) {
-    // Меню открыто (указатель не захвачен) — игрок не двигается, не целится, прыжок сбрасываем (без застрявшего bhop).
+    // Menu open (pointer not locked) — player doesn't move or aim, reset jump (no stuck bhop).
     if (!document.pointerLockElement) { this.player.setJumpInput(false); return }
-    const { dir, right } = this.basis()   // заполняет _dir/_right; this.tmp = направление камеры
+    const { dir, right } = this.basis()   // fills _dir/_right; this.tmp = camera direction
     this.player.moveIntent(moveVelocity(this.keys.current, dir, right, this.player.isWindingUp, this._vel), dt)
-    this.player.setJumpInput(this.keys.current.jump)   // held → auto-bhop/двойной прыжок (решает Body)
+    this.player.setJumpInput(this.keys.current.jump)   // held → auto-bhop/double jump (Body decides)
 
-    // this.tmp уже содержит направление камеры из basis() — повторный getWorldDirection не нужен.
+    // this.tmp already holds the camera direction from basis() — no need to call getWorldDirection again.
     this.player.setLook(this.tmp)
-    // В режиме SINGULARITY прицельный луч тоже простреливает блоки — иначе в TP aimPoint упирается
-    // в ближнюю стену и луч летит в неё, а не сквозь стены в соперника.
+    // In SINGULARITY mode the aim ray also shoots through blocks — otherwise in TP aimPoint hits
+    // the near wall and the ray flies into it instead of through walls into the opponent.
     const hit = this.world.raycast(this.camera.position, this.tmp, [this.player.id], this.player.pierceWalls)
     const aimPoint = hit
       ? hit.point
       : this._aimFallback.copy(this.camera.position).addScaledVector(this.tmp, AIM_RANGE)
-    // В TP хит считаем по лучу прицела камера→точка (визуал луча — из дула): убирает параллакс дуло↔камера
-    // (бот в яме/бассейне). В FP камера ≈ дуло — оставляем хит из дула (привычный фил, шанс попасть не меняем).
+    // In TP the hit uses the aim ray camera→point (beam visual comes from the muzzle): removes muzzle↔camera parallax
+    // (bot in a pit/pool). In FP camera ≈ muzzle — keep the hit from the muzzle (familiar feel, hit chance unchanged).
     this.player.aim(aimPoint, this.thirdPerson ? this.camera.position : undefined)
   }
 
-  // --- камера/вид (после физики) ---
+  // --- camera/view (after physics) ---
   lateUpdate(dt: number) {
     const pos = this.player.position
     if (this.thirdPerson) {
-      // getWorldDirection принудительно обновляет matrixWorld; после этого колонки матрицы актуальны.
-      this.camera.getWorldDirection(this.tmp)   // tmp = вперёд камеры (с учётом pitch)
+      // getWorldDirection forces a matrixWorld update; after that the matrix columns are current.
+      this.camera.getWorldDirection(this.tmp)   // tmp = camera forward (with pitch)
       const m = this.camera.matrixWorld.elements
-      // Смещаем камеру в её ЛОКАЛЬНЫХ осях: m[0..2] = right, m[4..6] = up.
-      // Модель всегда проецируется в одно место экрана при любом pitch и yaw.
+      // Offset the camera along its LOCAL axes: m[0..2] = right, m[4..6] = up.
+      // The model always projects to the same screen spot at any pitch and yaw.
       this.camera.position.set(
         pos.x - this.tmp.x * TP_DIST + m[0] * TP_SHOULDER_X + m[4] * TP_HEIGHT,
         pos.y - this.tmp.y * TP_DIST + m[1] * TP_SHOULDER_X + m[5] * TP_HEIGHT,
@@ -139,7 +139,7 @@ export class HumanController implements Controller {
 
     const moving = !!(this.keys.current.forward || this.keys.current.back ||
                       this.keys.current.left || this.keys.current.right)
-    // Динамический FOV работает и в FP, и в TP; рывок и фаза призрака (×2 скорость) дают всплеск.
+    // Dynamic FOV works in both FP and TP; dash and ghost phase (×2 speed) cause a spike.
     const targetFov = (this.player.dashing || this.player.isRespawning) ? DASH_FOV
       : this.player.isWindingUp ? 70 : (moving ? 87 : 75)
     this.fov = THREE.MathUtils.lerp(this.fov, targetFov, dt * 6)

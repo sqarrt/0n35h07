@@ -2,21 +2,21 @@ import * as THREE from 'three'
 
 export interface SpriteEmitOptions {
   position: THREE.Vector3
-  life:     number   // мс
-  opacity:  number   // стартовая непрозрачность
+  life:     number   // ms
+  opacity:  number   // starting opacity
 }
 
 interface Sprite {
   mesh:        THREE.Mesh
   mat:         THREE.MeshBasicMaterial
-  life:        number   // оставшаяся жизнь, мс
+  life:        number   // remaining life, ms
   maxLife:     number
   baseOpacity: number
 }
 
 /**
- * Пул затухающих additive-спрайтов следа рывка. Сам владеет геометрией/мешами;
- * emit берёт свободный спрайт, update гасит непрозрачность и сжимает по жизни.
+ * Pool of fading additive sprites for the dash trail. Owns its geometry/meshes;
+ * emit grabs a free sprite, update fades opacity and shrinks by life.
  */
 export class SpritePool {
   readonly object3d = new THREE.Group()
@@ -40,7 +40,7 @@ export class SpritePool {
 
   emit(o: SpriteEmitOptions) {
     const s = this.sprites.find(sp => sp.life <= 0)
-    if (!s) return   // пул исчерпан — пропускаем (визуальная мелочь)
+    if (!s) return   // pool exhausted — skip (minor visual detail)
     s.mesh.position.copy(o.position)
     s.life = o.life
     s.maxLife = o.life
@@ -58,7 +58,7 @@ export class SpritePool {
       if (s.life <= 0) { s.mesh.visible = false; s.mat.opacity = 0; continue }
       const t = s.life / s.maxLife   // 1 → 0
       s.mat.opacity = s.baseOpacity * t
-      s.mesh.scale.setScalar(t)      // сжимается к концу жизни
+      s.mesh.scale.setScalar(t)      // shrinks toward end of life
     }
   }
 

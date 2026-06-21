@@ -13,11 +13,11 @@ const chip: CSSProperties = {
 
 const item: CSSProperties = { display: 'flex', alignItems: 'center', gap: '0.45rem' }
 
-/** Сетка управления: клавиша-чип(ы) + действие. Без позиционирования — обёртку даёт место использования. */
+/** Controls grid: key chip(s) + action. No positioning — the wrapper is provided by the call site. */
 export function ControlsLegend() {
   const t = useT()
-  // Клавиши с буквенными названиями (W/A/S/D, Space…) — универсальны, не переводятся;
-  // переводятся только подписи действий и кнопки мыши.
+  // Keys with letter names (W/A/S/D, Space…) are universal and not translated;
+  // only action labels and mouse buttons are translated.
   const CONTROLS: Bind[] = [
     { keys: ['W', 'A', 'S', 'D'], action: t.ctrlMove },
     { keys: ['Space'], action: t.ctrlJump },

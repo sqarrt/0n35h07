@@ -5,7 +5,7 @@ import { useT } from '../i18n'
 
 const host = (url: string) => url.replace(/^wss:\/\//, '')
 
-/** Здоровые первыми (по возрастанию латентности), затем больные. */
+/** Healthy first (by ascending latency), then unhealthy. */
 function sortByHealth(results: RelayResult[]): RelayResult[] {
   return [...results].sort(
     (a, b) => Number(b.alive) - Number(a.alive) || (a.latencyMs ?? Infinity) - (b.latencyMs ?? Infinity),
@@ -13,15 +13,15 @@ function sortByHealth(results: RelayResult[]): RelayResult[] {
 }
 
 /**
- * Полный список сигналинг-релеев, отсортированный по «здоровью» (живые → мёртвые), всегда раскрыт.
- * Кнопка перепроверки форсит свежую пробу.
+ * Full list of signaling relays, sorted by health (alive → dead), always expanded.
+ * The re-probe button forces a fresh probe.
  */
 export function RelaysSection() {
   const t = useT()
   const { phase, results, selected } = useRelayStatus()
   const probing = phase === 'probing'
 
-  // Есть детальные результаты пробы → показываем весь пул по здоровью; иначе (кеш) — рабочий набор.
+  // Detailed probe results available → show the whole pool by health; otherwise (cache) — the working set.
   const detailed = results.length > 0
   const rows: RelayResult[] = detailed
     ? sortByHealth(results)

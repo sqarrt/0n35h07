@@ -1,6 +1,6 @@
 import { useT } from '../i18n'
 
-/** Центральный обратный отсчёт 3-2-1 перед боем (камера крутится, действия заморожены). */
+/** Central 3-2-1 countdown before the fight (camera can turn, actions frozen). */
 export function CountdownOverlay({ n }: { n: number }) {
   const t = useT()
   return (

@@ -7,8 +7,8 @@ import { resolveRelaysSync } from './relays'
 export type NetKind = 'bc' | 'trystero'
 
 /**
- * Выбор транспорта: ?net= → по умолчанию Trystero (интернет-P2P). Только URL-параметр, без localStorage —
- * чтобы транспорт не «залипал» персистентно между сессиями. e2e форсят 'bc' через ?net=bc (см. tests/fixtures).
+ * Transport selection: ?net= → defaults to Trystero (internet P2P). URL param only, no localStorage —
+ * so the transport doesn't persistently "stick" across sessions. e2e forces 'bc' via ?net=bc (see tests/fixtures).
  */
 export function resolveNetKind(): NetKind {
   const q = new URLSearchParams(window.location.search).get('net')
@@ -16,7 +16,7 @@ export function resolveNetKind(): NetKind {
   return 'trystero'
 }
 
-/** Фабрика транспорта по коду комнаты. */
+/** Transport factory by room code. */
 export function createNet(code: string): INet {
   return resolveNetKind() === 'bc'
     ? new BroadcastChannelNet(code)

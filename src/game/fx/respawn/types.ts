@@ -1,7 +1,7 @@
 import type * as THREE from 'three'
 
-/** Цель анимации респавна: меш шара + материал + установка прозрачности
- *  (у Body setOpacity красит сферу+кольцо планеты; превью передаёт свой аналог). */
+/** Respawn animation target: orb mesh + material + opacity setter
+ *  (Body's setOpacity tints the sphere + planet ring; the preview passes its own equivalent). */
 export interface RespawnTarget {
   mesh: THREE.Mesh
   material: THREE.MeshStandardMaterial
@@ -9,30 +9,30 @@ export interface RespawnTarget {
 }
 
 /**
- * Кадровое состояние респавна (собирает владелец: Player или превью).
- * `origin` — центр шара в координатах РОДИТЕЛЯ object3d (матч: match.root/мир; превью: группа шара).
+ * Per-frame respawn state (assembled by the owner: Player or preview).
+ * `origin` — orb center in the PARENT object3d's coordinates (match: match.root/world; preview: orb group).
  */
 export interface RespawnFrame {
-  ghost: number | null     // фаза призрака: остаток 1→0; null — не призрак
-  sinceRebirthMs: number   // мс с последней материализации (включая первый спавн)
+  ghost: number | null     // ghost phase: remainder 1→0; null — not a ghost
+  sinceRebirthMs: number   // ms since last materialization (including first spawn)
   baseColor: THREE.Color
   origin: THREE.Vector3
-  visible: boolean         // false (FP: свой игрок) — world-часть и меш-эффекты скрыть
+  visible: boolean         // false (FP: own player) — hide world-part and mesh effects
 }
 
 /**
- * Стратегия анимации респавна. В фазе призрака и в окне возрождения (своя длительность,
- * см. isRebirthActive) владеет mesh.scale, mesh.visible, material.color и прозрачностью
- * (target.setOpacity); на первом apply вне своих фаз обязана вернуть нейтраль
- * (mesh.visible = f.visible, смещения меша = 0) и спрятать world-часть; дальше — no-op
- * (визуалом владеют windup/прочие, прозрачность ставит Player).
+ * Respawn animation strategy. During the ghost phase and the rebirth window (its own duration,
+ * see isRebirthActive) it owns mesh.scale, mesh.visible, material.color and opacity
+ * (target.setOpacity); on the first apply outside its phases it must restore neutral state
+ * (mesh.visible = f.visible, mesh offsets = 0) and hide the world-part; afterwards — no-op
+ * (visuals are owned by windup/others, opacity is set by Player).
  */
 export interface IRespawnFx {
-  readonly object3d: THREE.Object3D     // world-часть (осколки/частицы/СВОЙ след призрака) — живёт в match.root
-  onDeath(pos: THREE.Vector3): void     // момент смерти (хлопок/разрыв/рассыпание)
+  readonly object3d: THREE.Object3D     // world-part (shards/particles/OWN ghost trail) — lives in match.root
+  onDeath(pos: THREE.Vector3): void     // moment of death (pop/burst/scatter)
   apply(dt: number, target: RespawnTarget, f: RespawnFrame): void
-  /** Окно возрождения ещё активно? (Player прячет щит на это время — как прежний «пуф».) */
+  /** Is the rebirth window still active? (Player hides the shield during it — like the old "poof".) */
   isRebirthActive(sinceRebirthMs: number): boolean
-  update(dt: number): void              // тик частиц (живут и вне фаз, как DeathBurst)
+  update(dt: number): void              // particle tick (alive outside phases too, like DeathBurst)
   dispose(): void
 }

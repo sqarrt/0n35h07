@@ -2,8 +2,8 @@ import { useRelayStatus } from '../hooks/useRelayStatus'
 import { useT } from '../i18n'
 
 /**
- * Ненавязчивый индикатор пробы сигналинг-релеев в углу пред-игровых экранов. Тихий по умолчанию —
- * заметен только тому, кто ищет. Состояния: проверка / живых N / резерв (живых не нашли).
+ * Unobtrusive signaling-relay probe indicator in the corner of pre-game screens. Quiet by default —
+ * noticeable only to those looking for it. States: probing / N alive / fallback (none alive).
  */
 export function NetStatusChip() {
   const t = useT()
@@ -20,7 +20,7 @@ export function NetStatusChip() {
     )
   }
 
-  // Деградация: проба отработала, но живых релеев не нашлось → используем курируемый резерв.
+  // Degraded: the probe ran but no live relays were found → use the curated fallback.
   const fellBack = results.length > 0 && results.every(r => !r.alive)
   return (
     <div className="net-chip" data-testid="net-chip" title={t.netChipTitle}>

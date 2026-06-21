@@ -8,7 +8,7 @@ interface TimePickerProps {
   onSetDuration: (d: DurationFilter) => void
 }
 
-/** Раздел «// ВРЕМЯ»: одиночный выбор длительности матча. */
+/** "// TIME" section: single selection of match duration. */
 export function TimePicker({ durationSel, onSetDuration }: TimePickerProps) {
   const t = useT()
   const sfx = useSfx()

@@ -11,10 +11,10 @@ interface RoomCodeFieldProps {
   value: string
   inputRef: RefObject<HTMLInputElement | null>
   onChange: (v: string) => void
-  onSubmit: () => void          // Enter в поле = ПОИСК
+  onSubmit: () => void          // Enter in the field = SEARCH
 }
 
-/** Поле кода комнаты для вкладки «С другом»: общий код у обоих + кнопки случайного кода и копирования. */
+/** Room code field for the "With a friend" tab: shared code for both + random-code and copy buttons. */
 export function RoomCodeField({ value, inputRef, onChange, onSubmit }: RoomCodeFieldProps) {
   const t = useT()
   const sfx = useSfx()
@@ -23,7 +23,7 @@ export function RoomCodeField({ value, inputRef, onChange, onSubmit }: RoomCodeF
   const copy = () => {
     const c = value.trim().toUpperCase()
     if (!c) return
-    void navigator.clipboard?.writeText(c).catch(() => { /* clipboard недоступен */ })
+    void navigator.clipboard?.writeText(c).catch(() => { /* clipboard unavailable */ })
     setCopied(true); setTimeout(() => setCopied(false), COPIED_MS)
   }
   return (

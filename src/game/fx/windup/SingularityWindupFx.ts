@@ -2,31 +2,31 @@ import * as THREE from 'three'
 import { BALL_RADIUS } from '../../../constants'
 import type { IWindupFx, WindupTarget, WindupFrame } from './types'
 
-// --- Шар: сжатие + потемнение (инверсия дефолта). ---
-const SING_SHRINK = 0.35              // максимальное сжатие (доля масштаба) к пику заряда
-const SING_DARK = '#05050d'           // почти чёрный с холодным оттенком
+// --- Ball: shrink + darkening (inverse of the default). ---
+const SING_SHRINK = 0.35              // max shrink (scale fraction) at peak charge
+const SING_DARK = '#05050d'           // near-black with a cold tint
 
-// --- Аккреционный вихрь: частицы по спирали всасываются в шар. ---
+// --- Accretion vortex: particles spiral inward into the ball. ---
 const SING_PARTICLES = 48
-const SING_R_MAX = BALL_RADIUS * 3.2  // радиус появления частиц
-const SING_R_MIN = BALL_RADIUS * 0.7  // радиус поглощения (внутри шара)
-const SING_SPIN_MIN = 2.4             // угловая скорость (рад/с) в начале заряда
-const SING_SPIN_GAIN = 3.2            // прибавка к пику
-const SING_PULL = 1.4                 // скорость всасывания: доля R_MAX в секунду на пике
-const SING_DISC_H = BALL_RADIUS * 1.6 // высота диска (сплющивается к центру)
-const SING_SIZE = BALL_RADIUS * 0.16  // размер частицы
+const SING_R_MAX = BALL_RADIUS * 3.2  // particle spawn radius
+const SING_R_MIN = BALL_RADIUS * 0.7  // absorption radius (inside the ball)
+const SING_SPIN_MIN = 2.4             // angular speed (rad/s) at charge start
+const SING_SPIN_GAIN = 3.2            // gain at peak
+const SING_PULL = 1.4                 // inward pull speed: fraction of R_MAX per second at peak
+const SING_DISC_H = BALL_RADIUS * 1.6 // disc height (flattens toward the center)
+const SING_SIZE = BALL_RADIUS * 0.16  // particle size
 const SING_OPACITY = 0.9
-const SING_APPEAR_FRAC = 0.2          // доля заряда, за которую вихрь проявляется
+const SING_APPEAR_FRAC = 0.2          // fraction of charge over which the vortex fades in
 const SING_COLOR = '#aaccff'
 
-// --- Вспышка коллапса в момент выстрела. ---
+// --- Collapse flash at the moment of firing. ---
 const FLASH_COLOR = '#ffffff'
-const FLASH_FRAC = 0.45               // доля фазы сдувания, за которую вспышка гаснет
-const FLASH_SCALE = 2.6               // конечный масштаб вспышки (от радиуса шара)
+const FLASH_FRAC = 0.45               // fraction of the deflate phase over which the flash fades
+const FLASH_SCALE = 2.6               // final flash scale (relative to ball radius)
 const FLASH_OPACITY = 0.8
-const FLASH_SEGMENTS = 8              // эфемерному аддитивному шару больше не нужно (ср. DeathBurst)
+const FLASH_SEGMENTS = 8              // an ephemeral additive sphere needs no more (cf. DeathBurst)
 
-/** «Сингулярность»: шар коллапсирует, вокруг — светящийся вихрь всасываемых частиц; выстрел = вспышка. */
+/** "Singularity": the ball collapses, surrounded by a glowing vortex of absorbed particles; firing = a flash. */
 export class SingularityWindupFx implements IWindupFx {
   readonly object3d = new THREE.Group()
   private points: THREE.Points
@@ -64,7 +64,7 @@ export class SingularityWindupFx implements IWindupFx {
     this.object3d.visible = false
   }
 
-  /** Новая орбита частицы. randomRadius — стартовое заполнение всего диска (не кольцом). */
+  /** New particle orbit. randomRadius — initial fill of the whole disc (not a ring). */
   private resetParticle(i: number, randomRadius = false) {
     this.angles[i] = Math.random() * Math.PI * 2
     this.radii[i] = randomRadius ? SING_R_MIN + Math.random() * (SING_R_MAX - SING_R_MIN) : SING_R_MAX
@@ -83,11 +83,11 @@ export class SingularityWindupFx implements IWindupFx {
       this.stepVortex(dt, f.progress)
       this.flash.visible = false
     } else if (flashing) {
-      t.mesh.scale.setScalar(1 - SING_SHRINK * (1 - f.shrink))   // возврат к норме
+      t.mesh.scale.setScalar(1 - SING_SHRINK * (1 - f.shrink))   // return to normal
       t.material.color.copy(f.baseColor)
       this.pmat.opacity = 0
       this.points.visible = false
-      const k = Math.min(f.shrink / FLASH_FRAC, 1)               // 0→1 — разлёт и угасание вспышки
+      const k = Math.min(f.shrink / FLASH_FRAC, 1)               // 0→1 — flash expands and fades
       this.flash.visible = k < 1
       this.flash.scale.setScalar(1 + (FLASH_SCALE - 1) * k)
       this.fmat.opacity = FLASH_OPACITY * (1 - k)
@@ -101,7 +101,7 @@ export class SingularityWindupFx implements IWindupFx {
     t.material.emissive.setScalar(0)
   }
 
-  /** Шаг вихря: спираль внутрь, поглощённые частицы рождаются заново на внешнем радиусе. */
+  /** Vortex step: spiral inward; absorbed particles respawn at the outer radius. */
   private stepVortex(dt: number, progress: number) {
     this.points.visible = true
     this.pmat.opacity = SING_OPACITY * Math.min(progress / SING_APPEAR_FRAC, 1)
@@ -112,7 +112,7 @@ export class SingularityWindupFx implements IWindupFx {
       this.radii[i] -= pull * dt
       if (this.radii[i] < SING_R_MIN) this.resetParticle(i)
       const r = this.radii[i]
-      const squash = r / SING_R_MAX                              // диск сплющивается к центру
+      const squash = r / SING_R_MAX                              // disc flattens toward the center
       this.positions[i * 3]     = Math.cos(this.angles[i]) * r
       this.positions[i * 3 + 1] = this.heights[i] * squash
       this.positions[i * 3 + 2] = Math.sin(this.angles[i]) * r

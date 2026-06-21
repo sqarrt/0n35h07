@@ -1,9 +1,9 @@
-// Сбор уровня звука со всех источников (у каждого свой AudioContext) в общий 0..1 для визуализации.
+// Aggregates the sound level from all sources (each with its own AudioContext) into a shared 0..1 for visualization.
 
-export const ANALYSER_FFT = 256   // размер окна анализатора (для RMS time-domain хватает небольшого)
-const BYTE_MID = 128              // середина байтового time-domain сигнала (тишина)
+export const ANALYSER_FFT = 256   // analyser window size (a small one is enough for time-domain RMS)
+const BYTE_MID = 128              // midpoint of the byte time-domain signal (silence)
 
-/** RMS-уровень 0..1 из AnalyserNode (по time-domain). Тихий звук → малое значение, потребитель масштабирует. */
+/** RMS level 0..1 from an AnalyserNode (time-domain). Quiet sound → small value, the consumer scales it. */
 export function analyserLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buf)
   let sumSq = 0
@@ -15,15 +15,15 @@ export function analyserLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffe
 }
 
 /**
- * Заполняет out[] (N полос, 0..1) спектром анализатора: частотные бины раскладываются по полосам с
- * ЛОГ-частотной разбивкой (бас не давит весь спектр), и МАКСИМУМ-комбинируются с тем, что уже в out
- * (несколько источников → общий спектр).
+ * Fills out[] (N bands, 0..1) with the analyser spectrum: frequency bins are spread over bands with a
+ * LOG frequency split (bass doesn't dominate the whole spectrum), and MAX-combined with what's already in out
+ * (multiple sources → shared spectrum).
  */
 export function fillBands(analyser: AnalyserNode, freqBuf: Uint8Array<ArrayBuffer>, out: Float32Array): void {
   analyser.getByteFrequencyData(freqBuf)
-  const total = freqBuf.length        // = fftSize/2 (бины)
+  const total = freqBuf.length        // = fftSize/2 (bins)
   const n = out.length
-  const minBin = 1                    // пропускаем DC
+  const minBin = 1                    // skip DC
   for (let i = 0; i < n; i++) {
     const lo = Math.floor(minBin * Math.pow(total / minBin, i / n))
     const hi = Math.max(lo + 1, Math.floor(minBin * Math.pow(total / minBin, (i + 1) / n)))
@@ -35,33 +35,33 @@ export function fillBands(analyser: AnalyserNode, freqBuf: Uint8Array<ArrayBuffe
 }
 
 /**
- * Реестр «читателей уровня» от движков (SFX/музыка матча/музыка меню — разные контексты).
- * level() даёт общий уровень (максимум по источникам) — «любой звук» виден в визуализации.
+ * Registry of "level readers" from engines (SFX / match music / menu music — different contexts).
+ * level() yields the overall level (max across sources) — "any sound" shows up in the visualization.
  */
 export class AudioAnalysis {
   private readers = new Set<() => number>()
   private bandReaders = new Set<(out: Float32Array) => void>()
 
-  /** Зарегистрировать источник уровня; возвращает функцию отписки (для размонтирования). */
+  /** Register a level source; returns an unsubscribe function (for unmounting). */
   addReader(fn: () => number): () => void {
     this.readers.add(fn)
     return () => { this.readers.delete(fn) }
   }
 
-  /** Зарегистрировать источник спектра (заполняет out максимум-комбинированием); возвращает отписку. */
+  /** Register a spectrum source (fills out via max-combining); returns an unsubscribe. */
   addBandReader(fn: (out: Float32Array) => void): () => void {
     this.bandReaders.add(fn)
     return () => { this.bandReaders.delete(fn) }
   }
 
-  /** Текущий общий уровень 0..1 — максимум по всем источникам (пусто → 0). */
+  /** Current overall level 0..1 — max across all sources (empty → 0). */
   level(): number {
     let max = 0
     for (const r of this.readers) { const v = r(); if (v > max) max = v }
     return Math.min(1, Math.max(0, max))
   }
 
-  /** Заполняет out[] (N полос, 0..1) общим спектром — максимум по всем источникам. */
+  /** Fills out[] (N bands, 0..1) with the overall spectrum — max across all sources. */
   bands(out: Float32Array): void {
     out.fill(0)
     for (const r of this.bandReaders) r(out)

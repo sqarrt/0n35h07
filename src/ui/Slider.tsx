@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 
-const PERCENT_MAX = 100   // range-инпут работает в целых 0..100, значение наружу — доля 0..1
+const PERCENT_MAX = 100   // range input works in integers 0..100, the value out is a fraction 0..1
 
 interface SliderProps {
   label: string
@@ -10,10 +10,10 @@ interface SliderProps {
 }
 
 const labelStyle: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em' }
-// Ширина значения зафиксирована (4ch) → подпись «100%»/«5%» не сдвигает раскладку при кручении.
+// Value width is fixed (4ch) → the "100%"/"5%" label does not shift the layout while dragging.
 const valueStyle: CSSProperties = { color: 'var(--accent-dim)', fontSize: '0.75rem', width: '4ch', textAlign: 'right', flex: '0 0 auto' }
 
-/** Ползунок громкости 0..1 с подписью и процентом. Раскладка не «прыгает» (ширина % фиксирована). */
+/** Volume slider 0..1 with a label and percentage. Layout does not "jump" (% width is fixed). */
 export function Slider({ label, value, onChange, 'aria-label': ariaLabel }: SliderProps) {
   const percent = Math.round(value * PERCENT_MAX)
   return (

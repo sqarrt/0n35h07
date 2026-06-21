@@ -1,43 +1,43 @@
 import type { MapId, MapFilter, DurationFilter } from '../constants'
 import type { IDiscovery } from './discovery/IDiscovery'
 
-export type { MapFilter, DurationFilter }   // ре-экспорт (совместимость)
+export type { MapFilter, DurationFilter }   // re-export (compatibility)
 
-/** Объявление хоста в пуле: код его комнаты + наборы готовых карт/длительностей (≥1 в каждом). */
+/** Host's pool advertisement: its room code + sets of acceptable maps/durations (≥1 in each). */
 export interface PoolListing {
   code: string
   name: string
   color: string
-  map: MapFilter            // набор карт хоста (на коннекте выберется случайная из пересечения с клиентом)
+  map: MapFilter            // host's map set (on connect a random one from the intersection with the client is picked)
   durationMin: DurationFilter
-  dual: boolean             // владелец листинга тоже ищет (режим both) — для разрывателя ничьей
+  dual: boolean             // the listing owner is also searching (both mode) — for the tie-breaker
 }
 
-/** Что готов принять клиент: наборы карт/длительностей (матч есть, если пересекается с набором хоста). */
+/** What the client will accept: sets of maps/durations (a match exists if it intersects the host's set). */
 export interface PoolFilter {
   map: MapFilter
   durationMin: DurationFilter
 }
 
-/** Пересечение наборов (порядок — как в первом). */
+/** Set intersection (order follows the first). */
 function intersect<T>(a: readonly T[], b: readonly T[]): T[] {
   return a.filter(x => b.includes(x))
 }
 
-/** Листинг подходит фильтру, если пересекаются и карты, и длительности (есть взаимно приемлемый вариант). */
+/** A listing matches a filter if both maps and durations intersect (there's a mutually acceptable option). */
 export function listingMatches(filter: PoolFilter, listing: PoolListing): boolean {
   return intersect(filter.map, listing.map).length > 0 && intersect(filter.durationMin, listing.durationMin).length > 0
 }
 
-/** Финальные параметры матча (host-authoritative): случайные из пересечения наборов хоста и клиента. */
+/** Final match params (host-authoritative): random picks from the intersection of host and client sets. */
 export function resolveMatchParams(
   host: PoolFilter,
   client: PoolFilter,
   pickMap: (opts: MapId[]) => MapId,
   pickDuration: (opts: number[]) => number,
 ): { mapId: MapId; durationMin: number } {
-  // Пустое пересечение (клиент пришёл с несовместимым набором) → берём выбор хоста: он авторитет, и это
-  // защищает от undefined → дефолтной карты / durationMs=NaN. В норме пересечение непустое (см. listingMatches).
+  // Empty intersection (client arrived with an incompatible set) → take the host's pick: it's the authority, and this
+  // guards against undefined → default map / durationMs=NaN. Normally the intersection is non-empty (see listingMatches).
   const maps = intersect(host.map, client.map)
   const durs = intersect(host.durationMin, client.durationMin)
   return {
@@ -46,29 +46,29 @@ export function resolveMatchParams(
   }
 }
 
-/** Ключ корзины discovery по конкретным карте+времени внутри неймспейса (версия+платформа). */
+/** Discovery bucket key for a specific map+duration within a namespace (version+platform). */
 export function bucketKey(map: MapId, durationMin: number, namespace: string): string {
   return `mm:${namespace}:${map}:${durationMin}`
 }
 
-/** Корзины, в которые ХОСТ публикует листинг: кросс-произведение выбранных карт × длительностей (в неймспейсе). */
+/** Buckets the HOST publishes the listing into: cross-product of chosen maps × durations (within the namespace). */
 export function bucketsForListing(map: MapFilter, durationMin: DurationFilter, namespace: string): string[] {
   return map.flatMap(m => durationMin.map(d => bucketKey(m, d, namespace)))
 }
 
-/** Корзины, на которые КЛИЕНТ подписывается: те же правила, что у листинга. */
+/** Buckets the CLIENT subscribes to: same rules as the listing. */
 export function bucketsForFilter(map: MapFilter, durationMin: DurationFilter, namespace: string): string[] {
   return bucketsForListing(map, durationMin, namespace)
 }
 
 /**
- * Слой подбора поверх IDiscovery (pub/sub по корзинам, без mesh). Хост фанит листинг во все
- * совместимые корзины; клиент подписывается на корзины фильтра и берёт первый совместимый листинг.
- * Реальный матч идёт через обычный RoomSession по этому коду — пул только discovery.
+ * Matchmaking layer over IDiscovery (pub/sub per bucket, no mesh). The host fans the listing out to all
+ * compatible buckets; the client subscribes to its filter's buckets and takes the first compatible listing.
+ * The real match runs through a normal RoomSession by that code — the pool is discovery only.
  */
 export class MatchmakingPool {
   private disco: IDiscovery
-  private namespace: string                  // версия+платформа: пулы разных версий/платформ не пересекаются
+  private namespace: string                  // version+platform: pools of different versions/platforms don't overlap
   private listing: PoolListing | null = null
   private listingBuckets: string[] = []
   private unsubs: Array<() => void> = []
@@ -78,7 +78,7 @@ export class MatchmakingPool {
 
   constructor(disco: IDiscovery, namespace: string) { this.disco = disco; this.namespace = namespace }
 
-  /** ХОСТ: опубликовать листинг во все совместимые корзины (фан по «any»-осям). */
+  /** HOST: publish the listing into all compatible buckets (fan-out across the "any" axes). */
   advertise(listing: PoolListing) {
     this.withdraw()
     this.listing = listing
@@ -86,14 +86,14 @@ export class MatchmakingPool {
     for (const b of this.listingBuckets) this.disco.publish(b, listing)
   }
 
-  /** ХОСТ: снять листинг из всех корзин (слот занят / поиск остановлен / выход). */
+  /** HOST: withdraw the listing from all buckets (slot taken / search stopped / leaving). */
   withdraw() {
     if (this.listing) for (const b of this.listingBuckets) this.disco.withdraw(b, this.listing.code)
     this.listing = null
     this.listingBuckets = []
   }
 
-  /** КЛИЕНТ: подписаться на корзины фильтра; onMatch(listing)→true консьюмит (поиск стоп), →false — слушаем дальше. */
+  /** CLIENT: subscribe to the filter's buckets; onMatch(listing)→true consumes (search stops), →false — keep listening. */
   search(filter: PoolFilter, onMatch: (listing: PoolListing) => boolean) {
     this.cancel()
     this.filter = filter
@@ -103,10 +103,10 @@ export class MatchmakingPool {
     }
   }
 
-  /** КЛИЕНТ: код не сработал (хост занят/исчез) — пропускать его в дальнейшем поиске. */
+  /** CLIENT: the code didn't work (host busy/gone) — skip it in further searches. */
   reject(code: string) { this.rejected.add(code) }
 
-  /** КЛИЕНТ: прекратить поиск (отписаться от всех корзин). */
+  /** CLIENT: stop searching (unsubscribe from all buckets). */
   cancel() {
     for (const off of this.unsubs) off()
     this.unsubs = []
@@ -117,8 +117,8 @@ export class MatchmakingPool {
   private onListing(listing: PoolListing) {
     if (!this.filter || !this.matchHandler) return
     if (this.rejected.has(listing.code)) return
-    if (!listingMatches(this.filter, listing)) return   // подстраховка (корзины уже отфильтровали)
-    if (this.matchHandler(listing)) this.cancel()       // консьюм → отписка; иначе продолжаем слушать
+    if (!listingMatches(this.filter, listing)) return   // safety net (buckets already filtered)
+    if (this.matchHandler(listing)) this.cancel()       // consume → unsubscribe; otherwise keep listening
   }
 
   dispose() { this.withdraw(); this.cancel() }

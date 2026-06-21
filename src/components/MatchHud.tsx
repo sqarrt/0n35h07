@@ -7,12 +7,12 @@ import { useT } from '../i18n'
 
 interface MatchHudProps {
   scores: PlayerScore[]
-  matchTime: number | null   // секунды остатка
+  matchTime: number | null   // seconds remaining
   roster: RosterEntry[]
   localId: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
-  ended?: boolean   // конец матча: бар вырастает и уезжает в центр (итоговый счёт)
+  ended?: boolean   // match end: the bar grows and moves to the center (final score)
 }
 
 function fmt(sec: number | null): string {
@@ -23,18 +23,18 @@ function fmt(sec: number | null): string {
   return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`
 }
 
-/** Постоянный HUD: ваши фраги · таймер · фраги соперника. Ник на серии подсвечивается эффектом тира. */
+/** Persistent HUD: your frags · timer · opponent frags. The nick on a streak is highlighted by the tier effect. */
 export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts, ended = false }: MatchHudProps) {
   const t = useT()
   const me = roster.find(r => r.id === localId)
   const opp = roster.find(r => r.id !== localId)
   const kills = (name?: string) => scores.find(s => s.name === name)?.kills ?? 0
-  // Точки серии (0 → нет, кап 10); цвет наследуется от .side (цвет игрока).
+  // Streak dots (0 → none, capped at 10); color is inherited from .side (the player color).
   const dots = (id: number | undefined, testid: string) => {
     const n = id !== undefined ? streakDots(streakCounts[id] ?? 0) : 0
     return <span className="streak-dots" data-testid={testid} aria-hidden="true">{'●'.repeat(n)}</span>
   }
-  // Имя берём из ростера как есть: у человека — своё, у бота — сгенерированное имя-«модель».
+  // Name comes from the roster as-is: a human has their own, a bot has a generated "model" name.
   const display = (entry: RosterEntry | undefined, fallback: string) => entry ? entry.name : fallback
   const nick = (entry: RosterEntry | undefined, fallback: string, testid: string) => {
     const name = display(entry, fallback)

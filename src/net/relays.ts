@@ -3,19 +3,19 @@ import { finalizeEvent, generateSecretKey } from 'nostr-tools/pure'
 import { lsGet, lsSet } from '../storage'
 
 /**
- * Живая проба Nostr-релеев сигналинга. Trystero по умолчанию выбирает фиксированную пятёрку релеев по
- * хешу appId — если они мертвы, пиры не находят друг друга. Здесь мы на входе в меню пробим достижимость
- * релеев (WebSocket connect) и в дальнейшем используем только подтверждённые (self-healing), оставляя
- * щедрый поднабор для гарантии пересечения между пирами.
+ * Live probing of Nostr signaling relays. By default Trystero picks a fixed set of five relays by the
+ * appId hash — if they're dead, peers can't find each other. Here, on entering the menu, we probe relay
+ * reachability (WebSocket connect) and from then on use only confirmed ones (self-healing), keeping a
+ * generous subset to guarantee overlap between peers.
  */
 
-const PROBE_TIMEOUT_MS = 3000      // дедлайн на одну пробу (open + round-trip публикации/подписки)
-const PROBE_KIND = 20009           // эфемерный kind (NIP-01): релей не хранит, но рассылает активным подписчикам
-const KEEP = 8                     // сколько живых релеев оставить (по возрастанию латентности)
-const CACHE_TTL_MS = 10 * 60_000   // свежесть кеша — повторно не пробим в пределах TTL
+const PROBE_TIMEOUT_MS = 3000      // deadline for one probe (open + publish/subscribe round-trip)
+const PROBE_KIND = 20009           // ephemeral kind (NIP-01): the relay doesn't store but broadcasts to active subscribers
+const KEEP = 8                     // how many live relays to keep (by ascending latency)
+const CACHE_TTL_MS = 10 * 60_000   // cache freshness — don't re-probe within the TTL
 const LS_KEY = 'oneshot:relays'
 
-/** Курируемый фолбэк: стабильные публичные релеи (с wss://). Используется, если проба не дала живых. */
+/** Curated fallback: stable public relays (with wss://). Used if the probe found none alive. */
 const FALLBACK_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
@@ -30,8 +30,8 @@ export type RelayPhase = 'idle' | 'probing' | 'done'
 export interface RelayStatus {
   phase: RelayPhase
   results: RelayResult[]
-  selected: string[]   // итоговый рабочий набор (≤ KEEP), который уходит в Trystero
-  ts: number           // время последней успешной пробы (для TTL)
+  selected: string[]   // final working set (≤ KEEP) that goes to Trystero
+  ts: number           // time of the last successful probe (for TTL)
 }
 
 type StatusListener = (s: RelayStatus) => void
@@ -52,11 +52,11 @@ export function subscribe(cb: StatusListener): () => void {
 }
 
 /**
- * Функциональная проба релея (не только «открылся ли сокет»): открываем WS, подписываемся (REQ) и
- * публикуем эфемерное событие; «живой» = релей вернул НАШЕ событие в НАШУ подписку, т.е. реально ПРИНИМАЕТ
- * и ПЕРЕСЫЛАЕТ (ровно это нужно сигналингу Trystero). Релеи, которые открывают сокет, но режут/не пересылают
- * события, отсекаются — иначе у явных ролей (однонаправленный discovery) единственный путь доставки рвётся.
- * @returns латентность round-trip в мс, либо null (error/close/отказ/таймаут).
+ * Functional relay probe (not just "did the socket open"): open the WS, subscribe (REQ) and publish an
+ * ephemeral event; "alive" = the relay returned OUR event to OUR subscription, i.e. it really ACCEPTS and
+ * FORWARDS (exactly what Trystero signaling needs). Relays that open a socket but drop/don't forward events
+ * are filtered out — otherwise, with explicit roles (one-way discovery), the only delivery path breaks.
+ * @returns round-trip latency in ms, or null (error/close/rejection/timeout).
  */
 function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
   return new Promise(resolve => {
@@ -78,7 +78,7 @@ function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
       return
     }
     const subId = crypto.randomUUID()
-    const tag = crypto.randomUUID()   // уникальный 'd'-тег → проба не ловит чужой трафик
+    const tag = crypto.randomUUID()   // unique 'd' tag → the probe doesn't catch other traffic
     let evtId = ''
     ws.onopen = () => {
       try {
@@ -95,11 +95,11 @@ function probeRelay(url: string, timeoutMs: number): Promise<number | null> {
       let msg: unknown
       try { msg = JSON.parse(typeof e.data === 'string' ? e.data : '') } catch { return }
       if (!Array.isArray(msg)) return
-      // Релей вернул наше событие в нашу подписку → принимает и пересылает.
+      // The relay returned our event to our subscription → it accepts and forwards.
       if (msg[0] === 'EVENT' && msg[1] === subId && (msg[2] as { id?: string })?.id === evtId) {
         finish(Math.round(performance.now() - started))
       } else if ((msg[0] === 'OK' && msg[1] === evtId && msg[2] === false) || (msg[0] === 'CLOSED' && msg[1] === subId)) {
-        finish(null)   // явный отказ публикации/подписки
+        finish(null)   // explicit publish/subscribe rejection
       }
     }
     ws.onerror = () => finish(null)
@@ -124,9 +124,9 @@ function writeCache(urls: string[], ts: number) {
 function isFresh(ts: number): boolean { return Date.now() - ts < CACHE_TTL_MS }
 
 /**
- * Прогреть кеш живых релеев. Свежий кеш (память/localStorage) → без пробы. Иначе пробим весь пул
- * параллельно, оставляем живые (сорт по латентности, до KEEP), кешируем. Нет живых → фолбэк.
- * Параллельные вызовы дедуплицируются.
+ * Warm the cache of live relays. Fresh cache (memory/localStorage) → no probe. Otherwise probe the whole
+ * pool in parallel, keep the live ones (sorted by latency, up to KEEP), cache them. None alive → fallback.
+ * Concurrent calls are deduplicated.
  */
 export function warmRelayCache(): Promise<string[]> {
   if (status.phase === 'done' && status.selected.length && isFresh(status.ts)) {
@@ -145,7 +145,7 @@ export function warmRelayCache(): Promise<string[]> {
   return inFlight
 }
 
-/** Принудительная перепроверка (кнопка «проверить заново» в настройках). */
+/** Forced re-check (the "check again" button in settings). */
 export function reprobe(): Promise<string[]> {
   if (inFlight) return inFlight
   inFlight = doProbe().finally(() => { inFlight = null })
@@ -171,7 +171,7 @@ async function doProbe(): Promise<string[]> {
   return final
 }
 
-/** Синхронно «лучшее доступное» для момента joinRoom: память → localStorage → курируемый фолбэк. */
+/** Synchronous "best available" at joinRoom time: memory → localStorage → curated fallback. */
 export function resolveRelaysSync(): string[] {
   if (status.selected.length) return status.selected
   const cached = readCache()

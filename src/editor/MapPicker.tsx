@@ -3,10 +3,10 @@ import { Button } from '../ui/Button'
 import { listMaps, deleteMap, renameMap } from './mapsApi'
 import './editor.css'
 
-/** Переход в редактор конкретной карты: /#editor-<название>. */
+/** Navigate to a specific map's editor: /#editor-<name>. */
 const openMap = (name: string) => { window.location.hash = `editor-${encodeURIComponent(name)}` }
 
-/** Экран выбора (/#editor) в стиле главного меню: открыть/переименовать/удалить карту из src/maps или создать новую. */
+/** Picker screen (/#editor) styled like the main menu: open/rename/delete a map from src/maps or create a new one. */
 export function MapPicker() {
   const [maps, setMaps] = useState<string[] | null>(null)
   const [newName, setNewName] = useState('')

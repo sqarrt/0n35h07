@@ -5,7 +5,7 @@ import { AfterimageTrail } from '../AfterimageTrail'
 import { WaveTrail } from './WaveTrail'
 import { RiftTrail } from './RiftTrail'
 
-/** Фабрика следа рывка по выбранному стилю (ШЛЕЙФ/ВОЛНА/РАЗРЫВ). */
+/** Factory for the dash trail by chosen style (STREAK/WAVE/RIFT). */
 export function createDashFx(style: DashStyle, playerColor: string): IDashTrail {
   switch (style) {
     case 'wave': return new WaveTrail(playerColor)

@@ -2,8 +2,8 @@ import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 
 /**
- * In-process транспорт для юнит-тестов: два связанных эндпоинта в одном процессе,
- * синхронная доставка. Пир считается присутствующим с момента создания пары.
+ * In-process transport for unit tests: two linked endpoints in one process,
+ * synchronous delivery. A peer is considered present from the moment the pair is created.
  */
 export class LoopbackNet implements INet {
   readonly selfId: PeerId
@@ -30,18 +30,18 @@ export class LoopbackNet implements INet {
     this.handlers.set(tag, list)
   }
 
-  // Пир присутствует сразу — зовём cb немедленно, если связь уже установлена.
+  // Peer is present immediately — call cb right away if the link is already established.
   onPeerJoin(cb: PeerHandler) { if (this.peer) cb(this.peer.selfId) }
   onPeerLeave(cb: PeerHandler) { this.leaveCbs.push(cb) }
 
-  /** Тест-хелпер: сымитировать уход пира. */
+  /** Test helper: simulate a peer leaving. */
   triggerLeave() { if (this.peer) this.leaveCbs.forEach(cb => cb(this.peer!.selfId)) }
 
   peers(): PeerId[] { return this.peer ? [this.peer.selfId] : [] }
   leave() { this.peer = null; this.handlers.clear() }
 }
 
-/** Создаёт пару связанных loopback-эндпоинтов (хост + клиент). */
+/** Creates a pair of linked loopback endpoints (host + client). */
 export function createLoopbackPair(idA = 'host', idB = 'client'): [LoopbackNet, LoopbackNet] {
   const a = new LoopbackNet(idA)
   const b = new LoopbackNet(idB)

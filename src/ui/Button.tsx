@@ -13,7 +13,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
 }
 
-/** Hard-кнопка проекта. Нативный <button> (роли/disabled для e2e сохранены) + UI-звуки. */
+/** Project's hard button. Native <button> (roles/disabled preserved for e2e) + UI sounds. */
 export function Button({ variant = 'secondary', className, onClick, onMouseEnter, ...rest }: ButtonProps) {
   const sfx = useSfx()
   const cls = `${VARIANT_CLASS[variant]}${className ? ` ${className}` : ''}`

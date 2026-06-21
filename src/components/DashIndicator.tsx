@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { HUD_FRAME_INSET } from '../constants'
 
 /**
- * Индикатор рывка — вертикальные полосы по бокам, продолжающие угловые L-рамки щита
- * (с небольшим отступом от них). Заполняются от центра к краям по мере отката кулдауна
- * (тускло-зелёные во время заряда, спокойно-зелёные когда полны). В момент, когда дэш
- * становится готов, полосы коротко вспыхивают (glow), затем горят ровно — без постоянного свечения.
+ * Dash indicator — vertical bars on the sides that continue the shield's corner L-frames
+ * (slightly offset from them). They fill from center to edges as the cooldown recovers
+ * (dim green while charging, calm green when full). The moment dash becomes ready, the bars
+ * briefly flash (glow), then burn steadily — no constant glow.
  */
 const FLASH = '@keyframes dashReadyFlash {' +
   '0% { box-shadow: 0 0 0 rgba(46,157,87,0) }' +
@@ -36,7 +36,7 @@ function Strip({ side, pct, ready, flash }: { side: 'left' | 'right'; pct: numbe
 export function DashIndicator({ dashProgress }: { dashProgress: number }) {
   const ready = dashProgress >= 1
   const [flash, setFlash] = useState(false)
-  const prevReady = useRef(true)   // на старте дэш готов — без вспышки
+  const prevReady = useRef(true)   // dash is ready at start — no flash
 
   useEffect(() => {
     if (ready && !prevReady.current) {

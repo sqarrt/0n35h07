@@ -16,24 +16,24 @@ import {
 
 type BotState = 'WANDER' | 'CHASE' | 'STRAFE' | 'RETREAT'
 
-/** ИИ бота: машина состояний (WANDER/CHASE/STRAFE/RETREAT) + реакция на заряд соперника.
- *  Passive = бот не делает ничего. Personality (из botPersonality) — точность, реакция, частота дэша/прыжка. */
+/** Bot AI: state machine (WANDER/CHASE/STRAFE/RETREAT) + reaction to the opponent's windup.
+ *  Passive = bot does nothing. Personality (from botPersonality) — accuracy, reaction, dash/jump rate. */
 export class BotController implements Controller {
   private state: BotState = 'WANDER'
   private waypoint = randomArenaPos()
   private shootTimer      = 0
   private shieldTimer     = 0
   private retreatTimer    = 0
-  private strafeDir       = 1        // +1 / -1 — сторона стрейфа
+  private strafeDir       = 1        // +1 / -1 — strafe side
   private strafeFlipTimer = 0
-  private dodgeReactionTimer = -1    // -1 = не активен; >=0 = мс до реакции
-  private shotIsHit       = false    // решение текущего выстрела: попадание vs near-miss
-  private baitCooldownMs  = 0        // анти-зацикливание развода на щит
-  private baitTriedThisShot = false  // ролл развода — один раз на заряд (а не каждый кадр)
-  private pendingRealShot = false    // после дэш-отмены: выстрелить по-настоящему, когда щит соперника уйдёт
+  private dodgeReactionTimer = -1    // -1 = inactive; >=0 = ms until reaction
+  private shotIsHit       = false    // current shot's verdict: hit vs near-miss
+  private baitCooldownMs  = 0        // anti-loop for shield baiting
+  private baitTriedThisShot = false  // bait roll — once per windup (not every frame)
+  private pendingRealShot = false    // after dash-cancel: fire for real once the opponent's shield drops
   private lastKnownPos = new THREE.Vector3()
 
-  // Scratch-векторы — не создаём new THREE.Vector3() в горячем пути
+  // Scratch vectors — avoid allocating new THREE.Vector3() on the hot path
   private _toTarget = new THREE.Vector3()
   private _perp     = new THREE.Vector3()
   private _move     = new THREE.Vector3()
@@ -66,7 +66,7 @@ export class BotController implements Controller {
     const opp = this.getOpponent()
     const oppPos = opp.position
 
-    // Фаза призрака: только блуждание, сброс боевых таймеров
+    // Ghost phase: wander only, reset combat timers
     if (this.player.isRespawning) {
       this.shootTimer = 0
       this.shieldTimer = 0
@@ -76,13 +76,13 @@ export class BotController implements Controller {
       return
     }
 
-    // LOS: первый хит raycast должен быть самим соперником
+    // LOS: the first raycast hit must be the opponent itself
     const hasLOS = this._hasLOS(pos, oppPos, opp.id)
     if (hasLOS) this.lastKnownPos.copy(oppPos)
 
     const dist = pos.distanceTo(oppPos)
 
-    // DODGE-реакция: независимо от основного состояния
+    // DODGE reaction: independent of the main state
     if (hasLOS && opp.windupProgress > BOT_DODGE_THRESH) {
       if (this.dodgeReactionTimer < 0) this.dodgeReactionTimer = this.personality.reactionMs
     } else {
@@ -96,10 +96,10 @@ export class BotController implements Controller {
       }
     }
 
-    // Отменить заряд при потере LOS
+    // Cancel windup on LOS loss
     if (!hasLOS && this.player.isWindingUp) this.player.cancelFiring()
 
-    // Основные переходы состояний
+    // Main state transitions
     if (this.retreatTimer > 0) {
       this.retreatTimer -= dt * 1000
       this.state = 'RETREAT'
@@ -111,7 +111,7 @@ export class BotController implements Controller {
       this.state = 'STRAFE'
     }
 
-    // Действия по состоянию
+    // Per-state actions
     switch (this.state) {
       case 'WANDER':  this._wander(pos, dt);          break
       case 'CHASE':   this._chase(pos, oppPos, dt);   break
@@ -119,12 +119,12 @@ export class BotController implements Controller {
       case 'RETREAT': this._retreat(pos, oppPos, dt); break
     }
 
-    // Развод на защиту: в позднем СВОЁМ заряде соперник защищается (щит ИЛИ дэш-уворот) →
-    // дэш-отмена (заряд прерывается), запоминаем настоящий выстрел. Ролл — один раз на заряд
-    // (иначе за многие кадры даже низкий baitSkill почти всегда разводит); кулдаун против зацикливания.
+    // Defense bait: late in our OWN windup the opponent defends (shield OR dash-dodge) →
+    // dash-cancel (windup aborts), remember the real shot. Roll once per windup
+    // (otherwise across many frames even low baitSkill almost always baits); cooldown prevents looping.
     const oppDefending = opp.shieldActive || opp.dashing
     if (this.baitCooldownMs > 0) this.baitCooldownMs -= dt * 1000
-    if (!this.player.isWindingUp) this.baitTriedThisShot = false   // новый заряд → новый ролл
+    if (!this.player.isWindingUp) this.baitTriedThisShot = false   // new windup → new roll
     if (hasLOS && this.player.isWindingUp && oppDefending
         && this.player.windupProgress > BOT_BAIT_LATE_PROGRESS
         && !this.baitTriedThisShot && this.baitCooldownMs <= 0) {
@@ -132,16 +132,16 @@ export class BotController implements Controller {
       if (Math.random() < this.personality.baitSkill) {
         this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
         this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
-        this.player.dash(this._perp)                 // прерывает заряд
+        this.player.dash(this._perp)                 // aborts the windup
         this.baitCooldownMs  = BOT_BAIT_COOLDOWN_MS
         this.pendingRealShot = true
         this.shootTimer = 0
       }
     }
 
-    // Стрельба (CHASE + STRAFE при наличии LOS): решение hit/near-miss принимается на старте заряда
+    // Firing (CHASE + STRAFE with LOS): hit/near-miss verdict is decided at windup start
     if (hasLOS && (this.state === 'CHASE' || this.state === 'STRAFE')) {
-      // Настоящий выстрел после развода: соперник отзащищался (щит ушёл и дэш закончился) → наказываем
+      // Real shot after the bait: opponent finished defending (shield gone and dash over) → punish
       if (this.pendingRealShot && !oppDefending && !this.player.isWindingUp) {
         this.pendingRealShot = false
         this.shootTimer = 0
@@ -159,8 +159,8 @@ export class BotController implements Controller {
       }
     }
 
-    // Прицел: во время заряда держим зафиксированное решение выстрела (центр vs near-miss);
-    // вне заряда — слежение по центру цели. Цель следуем покадрово → near-miss остаётся «впритирку».
+    // Aim: during windup hold the locked shot verdict (center vs near-miss);
+    // outside windup — track the target's center. We follow the target per frame → near-miss stays a graze.
     const aimBase = hasLOS ? oppPos : this.lastKnownPos
     if (this.player.isWindingUp) {
       aimPoint(this._aimPt, aimBase, pos, this.shotIsHit, this.personality.grazeMargin)
@@ -170,8 +170,8 @@ export class BotController implements Controller {
     this.player.aim(this._aimPt)
     this.player.setLook(this._toTarget.copy(this._aimPt).sub(pos))
 
-    // EVADE-модификатор: ведём по очкам и под угрозой → распрыжка поверх боевого поведения.
-    // Авто-bhop (держим прыжок) + дэши вбок; частота дэшей масштабируется evadeSkill.
+    // EVADE modifier: leading on score and under threat → bunny-hop on top of combat behavior.
+    // Auto-bhop (hold jump) + side dashes; dash rate scales with evadeSkill.
     const evading = shouldEvade({
       kills: this.player.kills, oppKills: opp.kills,
       oppWindingUp: opp.isWindingUp, hasLOS, dist, evadeNear: BOT_EVADE_NEAR,
@@ -185,7 +185,7 @@ export class BotController implements Controller {
       }
     }
 
-    // Щит (CHASE + STRAFE)
+    // Shield (CHASE + STRAFE)
     if (this.state === 'CHASE' || this.state === 'STRAFE') {
       this.shieldTimer += dt * 1000
       if (this.shieldTimer >= BOT_SHIELD_INTERVAL) {
@@ -195,7 +195,7 @@ export class BotController implements Controller {
     }
   }
 
-  // --- состояния ---
+  // --- states ---
 
   private _wander(pos: THREE.Vector3, dt: number) {
     const dx = this.waypoint.x - pos.x
@@ -233,14 +233,14 @@ export class BotController implements Controller {
     this.player.setJumpInput(Math.random() < this.personality.jumpiness * dt)
   }
 
-  // --- вспомогательные ---
+  // --- helpers ---
 
   private _hasLOS(from: THREE.Vector3, to: THREE.Vector3, targetId: number): boolean {
     this._toTarget.copy(to).sub(from)
     const dist = this._toTarget.length()
     if (dist < 0.5) return true
-    // В режиме SINGULARITY (перегрев) бот, как и человек, простреливает стены — LOS тоже должен
-    // их игнорировать, иначе бот «не видит» соперника сквозь блок и впустую не стреляет.
+    // In SINGULARITY mode (overheat) the bot, like a human, shoots through walls — LOS must
+    // ignore them too, otherwise the bot "can't see" the opponent through a block and won't fire.
     const hit = this.world.raycast(from, this._toTarget.normalize(), [this.player.id], this.player.pierceWalls)
     return hit !== null && (hit.object.userData as MeshUserData).entityId === targetId
   }

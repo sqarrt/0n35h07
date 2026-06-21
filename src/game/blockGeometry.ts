@@ -4,13 +4,13 @@ import { wedgeRotationY } from './wedge'
 import type { MapBlock } from './maps'
 
 /**
- * Батчинг блоков карты: вместо сотен мешей (по одному на блок) — две объединённые геометрии.
- * Делим по лучу: укрытия (blocksBeam:true) → raycast, периметр (blocksBeam:false) → noRaycast,
- * чтобы поведение луча (см. utils/raycast — пропуск userData.noRaycast) сохранилось.
+ * Map block batching: instead of hundreds of meshes (one per block) — two merged geometries.
+ * Split by beam: cover (blocksBeam:true) → raycast, perimeter (blocksBeam:false) → noRaycast,
+ * so the beam behavior (see utils/raycast — skipping userData.noRaycast) is preserved.
  *
- * Все геометрии группы должны быть не-индексированными (BoxGeometry индексирована → toNonIndexed),
- * без uv и с вершинным атрибутом color — тогда боксы и клинья сливаются вместе (meshStandardMaterial
- * с vertexColors даёт тот же вид, что per-mesh color).
+ * All geometries in a group must be non-indexed (BoxGeometry is indexed → toNonIndexed),
+ * without uv and with a vertex color attribute — then boxes and wedges merge together
+ * (meshStandardMaterial with vertexColors gives the same look as per-mesh color).
  */
 function blockGeometry(b: MapBlock, wedgeGeo: BufferGeometry, wedgeGeoFlip: BufferGeometry): BufferGeometry {
   let g: BufferGeometry
@@ -41,7 +41,7 @@ export interface BlockBuckets {
   collider: BufferGeometry | null
 }
 
-/** Блоки → 4 визуальные слитые группы (blocksBeam × transparent) + collider (непроходимые). null если пусто. */
+/** Blocks → 4 merged visual groups (blocksBeam × transparent) + collider (impassable). null if empty. */
 export function bucketedBlockGeometries(
   blocks: MapBlock[], wedgeGeo: BufferGeometry, wedgeGeoFlip: BufferGeometry,
 ): BlockBuckets {
@@ -54,7 +54,7 @@ export function bucketedBlockGeometries(
     const transp = b.transparent === true
     const visual = transp ? (beam ? transpRay : transpNoRay) : (beam ? opaqueRay : opaqueNoRay)
     visual.push(g)
-    if (b.passable !== true) collide.push(g.clone())   // collider — копия (визуал диспозим ниже)
+    if (b.passable !== true) collide.push(g.clone())   // collider — a copy (visuals are disposed below)
   }
   const merge = (arr: BufferGeometry[]) => (arr.length ? mergeGeometries(arr) : null)
   const result: BlockBuckets = {

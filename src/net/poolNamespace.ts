@@ -1,10 +1,10 @@
 import { IS_DESKTOP } from '../platform'
 
 /**
- * Неймспейс матчмейкинга/транспорта: пулы разделяются ТОЧНОЙ версией игры и платформой
- * (десктоп ≠ браузер). Несовместимые пиры не пересекаются ни в discovery-корзинах, ни в
- * Trystero-комнате (appId), поэтому даже ручной вход по коду не сведёт разные версии/платформы.
- * Сплит ещё и дробит нагрузку Nostr-топиков — полезно при онлайне в десятки тысяч.
+ * Matchmaking/transport namespace: pools are split by the EXACT game version and platform
+ * (desktop ≠ browser). Incompatible peers don't overlap in discovery buckets or in the
+ * Trystero room (appId), so even a manual code join won't connect different versions/platforms.
+ * The split also shards Nostr topic load — useful with tens of thousands online.
  */
 export type ClientPlatform = 'desktop' | 'browser'
 

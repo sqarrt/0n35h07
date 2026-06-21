@@ -3,8 +3,8 @@ import { STEM_LIBRARY } from './stems'
 import { MusicDirector } from './MusicDirector'
 import { hashSeed } from './rng'
 
-/** Связывает сид (из кода комнаты) + директора с движком; владеет жизненным циклом музыки матча.
- *  Остаток времени матча (для аутро) спрашивает у матча через getRemainingMs — он синхронен у пиров. */
+/** Binds the seed (from the room code) + director to the engine; owns the match music lifecycle.
+ *  Asks the match for the remaining match time (for the outro) via getRemainingMs — it's in sync across peers. */
 export class MatchMusic {
   private readonly seed: number
   private readonly engine: IMusicEngine
@@ -18,10 +18,10 @@ export class MatchMusic {
     this.seed = hashSeed(seedCode)
   }
 
-  /** Заводится один раз на входе в бой (countdown/live). Идемпотентно.
-   *  __debugMusic ставится ЗДЕСЬ, а не в конструкторе: useMemo в Game под React.StrictMode
-   *  дважды инстанцирует Match (и движок), но start() зовётся только у закоммиченного — иначе
-   *  глобал указывал бы на выброшенный движок, который никогда не планировал лупы. */
+  /** Starts once on entering the match (countdown/live). Idempotent.
+   *  __debugMusic is set HERE, not in the constructor: useMemo in Game under React.StrictMode
+   *  instantiates Match (and the engine) twice, but start() is called only on the committed one — otherwise
+   *  the global would point at a discarded engine that never scheduled loops. */
   async start(): Promise<void> {
     if (this.started) return
     this.started = true
@@ -31,7 +31,7 @@ export class MatchMusic {
     await engine.start(loopIndex => this.director.compose(this.seed, loopIndex, STEM_LIBRARY, this.getRemainingMs()))
   }
 
-  /** Плавно гасит музыку на завершении матча. Безопасно звать до старта (no-op). */
+  /** Fades the music out at match end. Safe to call before start (no-op). */
   fadeOut(): void {
     if (this.started) this.engine.fadeOut()
   }

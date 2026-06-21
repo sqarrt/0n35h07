@@ -12,7 +12,7 @@ interface BotNameFieldProps {
   onSetName: (name: string) => void
 }
 
-/** Поле имени бота на вкладке «С ботом»: имя задаёт личность+внешность. 🎲 — случайное имя; пусто = случайное при добавлении. */
+/** Bot name field on the "With bot" tab: the name sets personality + appearance. 🎲 — random name; empty = random on add. */
 export function BotNameField({ name, onSetName }: BotNameFieldProps) {
   const t = useT()
   const sfx = useSfx()

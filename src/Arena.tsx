@@ -10,22 +10,22 @@ import { MapLights } from './components/MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from './components/EdgeOutline'
 import { loadProfile } from './settings'
 
-const BOUND_H = 32      // полу-высота невидимых периметровых стен (не выпрыгнуть за арену; с большим запасом)
-const BOUND_T = 0.5     // полу-толщина невидимых стен
+const BOUND_H = 32      // half-height of invisible perimeter walls (can't jump out of the arena; generous margin)
+const BOUND_T = 0.5     // half-thickness of invisible walls
 
-/** Арена по данным карты: общий пол/свет/сетка (по размеру карты) + блоки карты (батч: 2 меша + trimesh). */
+/** Arena from map data: shared floor/light/grid (by map size) + map blocks (batched: 2 meshes + trimesh). */
 export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   const [hx, hz] = map.half
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
 
-  // Сетка кубов (рёбра воксельных клеток, как в редакторе) — только если карта явно включила showBlockGrid.
+  // Cube grid (voxel cell edges, as in the editor) — only if the map explicitly enabled showBlockGrid.
   const blockGridGeo = useMemo(() => (map.showBlockGrid ? blockGridGeometry(map.blocks) : null), [map.showBlockGrid, map.blocks])
   useEffect(() => () => blockGridGeo?.dispose(), [blockGridGeo])
 
-  // Геометрия из компила (geo.json, preload через ensureMapGeo до монтирования), фолбэк — слияние из blocks.
+  // Geometry from compile (geo.json, preloaded via ensureMapGeo before mounting), fallback — merge from blocks.
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
-  // Визуал-группы + collider. raycast-группы (цели луча) получают BVH (computeBoundsTree) — raycast выстрела O(log n).
+  // Visual groups + collider. raycast groups (beam targets) get a BVH (computeBoundsTree) — shot raycast O(log n).
   const geos = useMemo(() => {
     const mk = (a: typeof compiled.opaqueRaycast, bvh: boolean) => {
       const g = a ? buildGeometry(a) : null
@@ -51,41 +51,41 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
     <>
       <MapLights half={map.half} />
 
-      {/* Пол: плоскость (визуал) + статический коллайдер (верх на y=0). Луч игнорит (noRaycast). */}
+      {/* Floor: plane (visual) + static collider (top at y=0). Beam ignores it (noRaycast). */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ noRaycast: true }}>
         <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={map.floorColor} />
       </mesh>
       <CuboidCollider args={[hx, 0.5, hz]} position={[0, -0.5, 0]} />
 
-      {/* Невидимые высокие стены по периметру — не выпрыгнуть за арену (коллайдеры без меша). */}
+      {/* Invisible tall perimeter walls — can't jump out of the arena (colliders without a mesh). */}
       <CuboidCollider args={[hx, BOUND_H, BOUND_T]} position={[0, BOUND_H, -hz]} />
       <CuboidCollider args={[hx, BOUND_H, BOUND_T]} position={[0, BOUND_H, hz]} />
       <CuboidCollider args={[BOUND_T, BOUND_H, hz]} position={[-hx, BOUND_H, 0]} />
       <CuboidCollider args={[BOUND_T, BOUND_H, hz]} position={[hx, BOUND_H, 0]} />
 
-      {/* Сетка пола 1×1 (чуть выше пола — без z-fighting). */}
+      {/* 1×1 floor grid (slightly above the floor — no z-fighting). */}
       <lineSegments geometry={gridGeo} position={[0, 0.01, 0]}>
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Сетка кубов (рёбра воксельных клеток блоков) — опционально, по настройке карты showBlockGrid. */}
+      {/* Cube grid (voxel cell edges of blocks) — optional, per the map's showBlockGrid setting. */}
       {blockGridGeo && (
         <lineSegments geometry={blockGridGeo} userData={{ noRaycast: true }}>
           <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
         </lineSegments>
       )}
 
-      {/* Коллайдер карты: trimesh из непроходимых блоков. Меш ТОЛЬКО для физики → noRaycast (иначе луч бил бы
-          в невидимый коллайдер: Raycaster видит invisible-объекты). includeInvisible нужен, иначе MeshCollider
-          обходит через traverseVisible и пропускает невидимый меш. Цели луча — визуальные block-меши ниже. */}
+      {/* Map collider: trimesh of impassable blocks. Mesh is for physics ONLY → noRaycast (otherwise the beam
+          would hit the invisible collider: Raycaster sees invisible objects). includeInvisible is needed, otherwise
+          MeshCollider traverses via traverseVisible and skips the invisible mesh. Beam targets are the visual block meshes below. */}
       <RigidBody type="fixed" colliders={false} includeInvisible>
         <MeshCollider type="trimesh">
           {geos.collider && <mesh geometry={geos.collider} visible={false} userData={{ noRaycast: true }} />}
         </MeshCollider>
       </RigidBody>
 
-      {/* Визуал блоков: до 4 слитых мешей. raycast-группы — цели луча (нет noRaycast). baseOpacity — для World.setBlocksTransparent. */}
+      {/* Block visuals: up to 4 merged meshes. raycast groups are beam targets (no noRaycast). baseOpacity — for World.setBlocksTransparent. */}
       {geos.opaqueRaycast && (
         <mesh geometry={geos.opaqueRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: 1 }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
           <meshStandardMaterial vertexColors />
@@ -107,7 +107,7 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
         </mesh>
       )}
 
-      {/* Экранный контур видимых рёбер укрытий (постпроцессинг — переключается в настройках) */}
+      {/* Screen-space outline of visible cover edges (post-processing — toggled in settings) */}
       {postFx && <MapEdges />}
     </>
   )

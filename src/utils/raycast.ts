@@ -11,8 +11,8 @@ export interface RaycastOptions {
   excludeEntityIds?: number[]
 }
 
-// Переиспользуемый Raycaster (без аллокации на каждый выстрел). firstHitOnly — режим BVH (three-mesh-bvh):
-// на меше с boundsTree возвращает только ближайший хит, не перебирая остальные треугольники.
+// Reusable Raycaster (no allocation per shot). firstHitOnly — BVH mode (three-mesh-bvh):
+// on a mesh with a boundsTree it returns only the nearest hit, skipping the remaining triangles.
 const raycaster = new THREE.Raycaster()
 ;(raycaster as unknown as { firstHitOnly: boolean }).firstHitOnly = true
 

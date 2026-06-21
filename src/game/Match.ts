@@ -36,19 +36,19 @@ import {
   BALL_RADIUS,
 } from '../constants'
 
-const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: луч вниз для нормали поверхности под игроком
-const _desired = new THREE.Vector3()            // scratch: consumeDesired → KCC (ноль-аллок на кадр)
+const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
+const _desired = new THREE.Vector3()            // scratch: consumeDesired → KCC (zero-alloc per frame)
 
-// Отброс при пересечении игроков (вместо жёсткой коллизии капсул, которая глитчила у стен и усложняла сеть).
-const PLAYER_OVERLAP_DIST     = BALL_RADIUS * 2   // сферы-тела пересекаются, когда центры ближе этого (3D)
-const PLAYER_OVERLAP_MIN_DIST = 1e-4              // центры почти совпали → толкаем в произвольном направлении
-const _knock = new THREE.Vector3()                // scratch для направления отброса (3D между центрами)
+// Knockback on player overlap (instead of hard capsule collision, which glitched at walls and complicated networking).
+const PLAYER_OVERLAP_DIST     = BALL_RADIUS * 2   // sphere bodies overlap when centers are closer than this (3D)
+const PLAYER_OVERLAP_MIN_DIST = 1e-4              // centers almost coincide → push in an arbitrary direction
+const _knock = new THREE.Vector3()                // scratch for the knockback direction (3D between centers)
 
 interface NetConfig { localId: number; roster: RosterEntry[] }
 
-const END_FREEZE_MS = 200   // «стоп-кадр»: игроки замирают перед показом экрана исхода (overlay сам делает fade-in)
+const END_FREEZE_MS = 200   // "freeze-frame": players freeze before the outcome screen shows (the overlay does its own fade-in)
 
-// Минимальные интерфейсы физики Rapier (используемая часть API) — без зависимости от типов @dimforge/rapier.
+// Minimal Rapier physics interfaces (the part of the API we use) — without depending on @dimforge/rapier types.
 type XYZ3 = { x: number; y: number; z: number }
 interface Kcc {
   setApplyImpulsesToDynamicBodies(v: boolean): void
@@ -77,73 +77,73 @@ interface MatchOptions {
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
-  netConfig: NetConfig     // ростер из комнаты: ровно [host, opponent]
-  localReserveColor?: string   // «второй» цвет локального игрока (кольцо его планеты); у соперника второго нет
-  defaultThirdPerson?: boolean   // стартовый вид локального игрока (локальное предпочтение)
-  durationMs?: number      // длительность матча в мс (0 = без таймера для обратной совместимости)
-  mapId?: MapId            // карта матча (геометрия + спавны); по умолчанию DEFAULT_MAP_ID
-  seedCode?: string        // источник сида музыки (код комнаты); общий у обоих пиров
-  musicEngine?: IMusicEngine  // движок музыки (DIP); нет в юнит-тестах → музыка выключена
-  sfxEngine?: ISfxEngine      // движок SFX (DIP); нет в юнит-тестах → тишина
+  netConfig: NetConfig     // roster from the room: exactly [host, opponent]
+  localReserveColor?: string   // local player's "second" color (their planet ring); the opponent has no second one
+  defaultThirdPerson?: boolean   // local player's starting view (local preference)
+  durationMs?: number      // match duration in ms (0 = no timer, for backward compatibility)
+  mapId?: MapId            // match map (geometry + spawns); defaults to DEFAULT_MAP_ID
+  seedCode?: string        // music seed source (room code); shared by both peers
+  musicEngine?: IMusicEngine  // music engine (DIP); absent in unit tests → music off
+  sfxEngine?: ISfxEngine      // SFX engine (DIP); absent in unit tests → silence
 }
 
-/** Хозяин матча: владеет миром, игроками и контроллерами. Единственное место правил. */
+/** Match owner: owns the world, players and controllers. The single place for rules. */
 export class Match {
-  readonly human: Player              // локальный игрок на этом пире
+  readonly human: Player              // local player on this peer
   readonly bots: Player[]
   readonly players: Player[]
   readonly humanController: HumanController
-  readonly root = new THREE.Group()    // world-space визуал: тела игроков + лучи (вне RigidBody)
+  readonly root = new THREE.Group()    // world-space visual: player bodies + beams (outside RigidBody)
   readonly role: MatchRole
   readonly localId: number
-  phase: MatchPhase = 'live'           // ритуал входа (1v1): ready → countdown → live
-  recorder: DemoRecorder | null = null // dev: запись демо (хук в emit + захват кадра из Game-цикла)
+  phase: MatchPhase = 'live'           // entry ritual (1v1): ready → countdown → live
+  recorder: DemoRecorder | null = null // dev: demo recording (hook in emit + frame capture from the Game loop)
 
   private world: World
-  private singularityActive = false   // режим SINGULARITY: прострел обоим + прозрачные блоки (трекаем для смены)
+  private singularityActive = false   // SINGULARITY mode: pierce for both + transparent blocks (tracked to toggle)
   private controllers: Controller[]
-  private remoteControllers = new Map<number, RemoteInputController>()   // host: id игрока → его контроллер
+  private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
-  private pendingEvents: MatchEvent[] = []   // host: события матча на рассылку
+  private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
 
-  // Rapier (через RapierBridge)
+  // Rapier (via RapierBridge)
   private physicsWorld: PhysicsWorld | null = null
   private kcc: Kcc | null = null
-  private kccNoStep: Kcc | null = null   // без автостепа — для пересчёта кадра, где автостеп поднял, но не закрепил
+  private kccNoStep: Kcc | null = null   // no autostep — to recompute a frame where autostep lifted but didn't anchor
 
   private lastHud = 0
-  private prevRespawnActive = false   // дедуп диспатча SET_RESPAWNING
+  private prevRespawnActive = false   // dedup of SET_RESPAWNING dispatch
   private prevWindup = false
   private prevShield = false
-  private scoresDirty = true   // на старте отправить нулевую таблицу
-  private firstKillDone = false                  // первый фраг матча показан (CATALYST один раз)
-  private colorOf = new Map<number, string>()    // id → hex цвета игрока (для подсветки/баннера)
+  private scoresDirty = true   // send a zeroed table at the start
+  private firstKillDone = false                  // first frag of the match shown (CATALYST once)
+  private colorOf = new Map<number, string>()    // id → player color hex (for highlight/banner)
 
-  // Часы матча
+  // Match clock
   private durationMs: number
-  private matchEndsAt = 0       // 0 = ещё не в live; ставится лениво на первом live-кадре
+  private matchEndsAt = 0       // 0 = not in live yet; set lazily on the first live frame
   private lastTimeSentAt = 0
   private ended = false
 
-  // Ритуал входа (1v1)
+  // Entry ritual (1v1)
   private readySet = new Set<number>()
   private countdownEndsAt = 0
-  private prevCountTick = 0   // последняя сыгранная секунда отсчёта (дедуп count_tick)
-  private phaseDirtyFlag = false   // host: фаза/готовность изменились — переслать клиенту
-  private prevPhaseSig = ''        // дедуп dispatch SET_MATCH_PHASE
-  private leftIds = new Set<number>()   // отключившиеся игроки
-  private pendingResult: MatchResult | null = null   // отложенный экран исхода (после END_FREEZE_MS)
+  private prevCountTick = 0   // last played countdown second (count_tick dedup)
+  private phaseDirtyFlag = false   // host: phase/readiness changed — resend to the client
+  private prevPhaseSig = ''        // dedup of SET_MATCH_PHASE dispatch
+  private leftIds = new Set<number>()   // disconnected players
+  private pendingResult: MatchResult | null = null   // deferred outcome screen (after END_FREEZE_MS)
   private resultDueAt = 0
 
-  // Музыка матча (опциональна: без сида/движка — тишина, напр. в юнит-тестах)
+  // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
   private music: MatchMusic | null = null
   private musicStarted = false
   private sfx: MatchSfx | null = null
-  private _sfxInputsBuf: PlayerSfxInput[] = []   // pre-alloc: обновляем поля на месте, без new каждый кадр
+  private _sfxInputsBuf: PlayerSfxInput[] = []   // pre-alloc: update fields in place, no new each frame
   private _sfxSelfBuf:   PlayerSfxInput[] = []
-  private _snapBuf: Snapshot | null = null        // pre-alloc снапшот: Vec3-поля обновляем in-place
-  private lastRemainingMs = Infinity    // остаток матча (host считает, client получает в 'time') — для аутро музыки
+  private _snapBuf: Snapshot | null = null        // pre-alloc snapshot: Vec3 fields updated in-place
+  private lastRemainingMs = Infinity    // match remainder (host computes, client gets in 'time') — for outro music
   private lastRemainingAt = 0
 
   constructor(o: MatchOptions) {
@@ -157,22 +157,22 @@ export class Match {
     this.human = human
     this.humanController = humanController
     this.players = [...this.byId.values()]
-    this.bots = opponentIsBot ? this.players.filter(p => p.id === OPPONENT_ID) : []   // для debug-хуков
+    this.bots = opponentIsBot ? this.players.filter(p => p.id === OPPONENT_ID) : []   // for debug hooks
     this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // Ритуал готовности проходят ВСЕ 1v1-матчи (комната гарантирует двоих). Бот-соперник авто-готов.
+    // The readiness ritual runs for ALL 1v1 matches (the room guarantees two players). A bot opponent is auto-ready.
     this.phase = 'ready'
     if (opponentIsBot) this.readySet.add(OPPONENT_ID)
 
-    // Музыка матча: только если переданы сид и движок (в юнит-тестах их нет → тишина).
+    // Match music: only if a seed and engine are provided (absent in unit tests → silence).
     if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine, () => this.musicRemainingMs())
     if (o.sfxEngine) this.sfx = new MatchSfx(o.sfxEngine)
   }
 
-  // --- построение игроков (ровно двое: локальный + соперник) ---
+  // --- building players (exactly two: local + opponent) ---
   private buildPlayers(o: MatchOptions, net: NetConfig) {
-    // Стабильный порядок у обоих пиров → одинаковые точки спавна.
+    // Stable order on both peers → identical spawn points.
     const roster = [...net.roster].sort((a, b) => a.id - b.id)
     const spawns = MAPS[o.mapId ?? DEFAULT_MAP_ID].spawns   // [HOST_ID, OPPONENT_ID]
     let human!: Player
@@ -183,17 +183,17 @@ export class Match {
     for (const e of roster) {
       const isBot = e.kind === 'bot'
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
-      // Кольцо планеты: у локального игрока — его «второй» цвет (как в меню), у соперника второго нет → его же цвет.
+      // Planet ring: the local player gets their "second" color (as in the menu); the opponent has no second → its own color.
       const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
-      // Стили косметики из ростера; нет поля → безопасные умолчания для старых клиентов.
+      // Cosmetic styles from the roster; missing field → safe defaults for older clients.
       const windupStyle = e.windupStyle ?? 'classic'
       const respawnStyle = e.respawnStyle ?? 'echo'
       const dashStyle = e.dashStyle ?? 'streak'
       const shieldStyle = e.shieldStyle ?? 'dome'
-      const ballArt = decodeBallArt(e.ballArt) ?? undefined   // рисунок на шаре (null → нет)
+      const ballArt = decodeBallArt(e.ballArt) ?? undefined   // ball decal (null → none)
       const p = isBot
         ? new Player(e.id, new Body(e.id, e.color, e.ballModel ?? 'smooth', ringColor, ballArt),
-            new BeamWeapon({ outerColor: '#f44' }),   // боевой профиль идентичен человеку; красный луч — метка «врага»
+            new BeamWeapon({ outerColor: '#f44' }),   // combat profile identical to a human; red beam — "enemy" marker
             new Shield({ shieldFx: createShieldFx(shieldStyle) }),
             e.color, createWindupFx(windupStyle), windupStyle,
             createRespawnFx(respawnStyle, e.color), respawnStyle,
@@ -207,7 +207,7 @@ export class Match {
       p.name = e.name
       this.colorOf.set(e.id, e.color)
 
-      // Спавн по слоту карты: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (соперник напротив, любой kind).
+      // Spawn by map slot: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (opponent across, any kind).
       p.respawnAt(new THREE.Vector3().fromArray(spawns[e.id === OPPONENT_ID ? 1 : 0]))
       this.byId.set(e.id, p)
 
@@ -230,7 +230,7 @@ export class Match {
           controllers.push(rc)
         }
       }
-      // client: соперник — без контроллера, ведём из снапшотов
+      // client: opponent — no controller, driven from snapshots
     }
     return { human, humanController, controllers, opponentIsBot }
   }
@@ -240,27 +240,27 @@ export class Match {
     this.byId.set(p.id, p)
   }
 
-  // 1v1: единственный «чужой» — соперник, поэтому raycast исключает только самого стрелка.
+  // 1v1: the only "other" is the opponent, so raycast excludes just the shooter itself.
   private excludeIds(p: Player): number[] { return [p.id] }
 
-  // --- Rapier wiring (вызывается из RapierBridge) ---
+  // --- Rapier wiring (called from RapierBridge) ---
   attachWorld(world: PhysicsWorld, _rapier: unknown) {
     this.physicsWorld = world
     this.kcc = this.makeKcc(world, KCC_OFFSET, true)
-    this.kccNoStep = this.makeKcc(world, KCC_OFFSET, false)   // запасной KCC без автостепа (анти-дрожание ложного шага)
+    this.kccNoStep = this.makeKcc(world, KCC_OFFSET, false)   // fallback KCC without autostep (anti-jitter for a false step)
   }
 
-  /** Создать и настроить KCC. offset — зазор капсула↔мир (численная стабильность); autostep — включать ли автоступень. */
+  /** Create and configure a KCC. offset — capsule↔world gap (numerical stability); autostep — whether to enable auto-step. */
   private makeKcc(world: PhysicsWorld, offset: number, autostep: boolean): Kcc {
     const kcc = world.createCharacterController(offset)
     kcc.setApplyImpulsesToDynamicBodies(false)
     kcc.setUp({ x: 0, y: 1, z: 0 })
-    // Autostep даёт капсуле всходить на ступени (≤AUTOSTEP_MAX_HEIGHT) как по лестнице — в т.ч. на блоки 1×1
-    // (высота 1.0); углы склона — для наклонных поверхностей/рамп. Препятствия выше ступени не перешагнуть.
+    // Autostep lets the capsule climb steps (≤AUTOSTEP_MAX_HEIGHT) as if up stairs — including 1×1 blocks
+    // (height 1.0); slope angles — for inclined surfaces/ramps. Obstacles taller than a step can't be stepped over.
     kcc.setMaxSlopeClimbAngle((KCC_SLOPE_DEG * Math.PI) / 180)
     kcc.setMinSlopeSlideAngle((KCC_SLOPE_DEG * Math.PI) / 180)
     if (autostep) kcc.enableAutostep(AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, false)
-    // НЕ включаем snapToGround — он гасит прыжок (тянет капсулу обратно к полу).
+    // Do NOT enable snapToGround — it kills the jump (pulls the capsule back to the floor).
     return kcc
   }
   detachWorld() {
@@ -275,30 +275,30 @@ export class Match {
 
   update(dt: number) {
     this.players.forEach(p => p.syncFromBody())
-    this.tickPhase()   // готовность/отсчёт → заморозка + HUD
+    this.tickPhase()   // readiness/countdown → freeze + HUD
 
     if (this.role === 'client') {
-      // Клиент: симулируем только своего (предсказание), удалённых — из снапшотов.
-      // ПЕРЕГРЕВ + SINGULARITY (прострел/прозрачные блоки) ДО прицела — иначе aimPoint на кадр отстаёт.
+      // Client: simulate only our own (prediction), remotes — from snapshots.
+      // OVERHEAT + SINGULARITY (pierce/transparent blocks) BEFORE aiming — otherwise aimPoint lags a frame.
       this.applyComeback()
       this.humanController.update(dt)
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
-          p.clearJustFired()   // боёвку считает хост → сбрасываем флаг сами (иначе шар застрянет раздутым)
+          p.clearJustFired()   // combat is computed by the host → we reset the flag ourselves (else the ball stays bloated)
         } else {
           p.updateRemote(dt, this.world)
         }
       })
       this.applyPhysics(dt)
-      this.sfxFrameClientSelf()   // свои движения (прыжок/рывок/щит/land/cooldown) — сразу, без сетевой задержки
-      this.human.tickRespawn(dt)   // локально тикаем фазу призрака (индикация/скорость); финал — событием respawn
+      this.sfxFrameClientSelf()   // our own moves (jump/dash/shield/land/cooldown) — instantly, without network delay
+      this.human.tickRespawn(dt)   // tick the ghost phase locally (indication/speed); finale — via the respawn event
       this.syncHud()
       this.humanController.lateUpdate?.(dt)
       return
     }
 
-    // local / host — авторитет
+    // local / host — authority
     this.applyComeback()
     this.controllers.forEach(c => c.update(dt))
     this.players.forEach(p => p.update(dt, this.world, this.excludeIds(p)))
@@ -308,14 +308,14 @@ export class Match {
     this.tickMatchClock(Date.now())
     this.syncHud()
     this.controllers.forEach(c => c.lateUpdate?.(dt))
-    this.sfxFrameHost()   // движения обоих (grounded/justJumped уже свежие после applyPhysics) + эмит move
+    this.sfxFrameHost()   // both players' moves (grounded/justJumped already fresh after applyPhysics) + emit move
   }
 
-  /** Движение через KinematicCharacterController. Без Rapier (юнит-тесты) — no-op. */
+  /** Movement via KinematicCharacterController. Without Rapier (unit tests) — no-op. */
   private applyPhysics(dt: number) {
     if (!this.kcc) return
-    // KCC игнорирует капсулы игроков: жёсткой коллизии игрок-игрок нет (глитч у стен убран,
-    // сеть проще). Пересечение разруливается импульсом-отбросом (maybeKnockback) в desired.
+    // KCC ignores player capsules: no hard player-player collision (wall glitch removed,
+    // networking simpler). Overlap is resolved by a knockback impulse (maybeKnockback) into desired.
     const playerHandles = new Set<number>()
     for (const pp of this.players) {
       const c = pp.rb?.collider(0) as { handle: number } | undefined
@@ -325,27 +325,27 @@ export class Match {
     for (const p of this.players) {
       const rb = p.rb
       if (!rb) continue
-      // Клиент: удалённых не считаем KCC — плавно тянем к сетевой цели.
+      // Client: don't run KCC for remotes — smoothly pull toward the network target.
       if (this.role === 'client' && p.id !== this.localId) {
         if (p.hasNetTarget()) rb.setNextKinematicTranslation(p.nextRemoteTranslation())
         continue
       }
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
-      const groundNormal = this.groundNormalUnder(p)                  // нормаль под игроком (для склона)
-      p.stepJump()                                                    // прыжок/двойной/auto-bhop (held-ввод)
-      p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // заряд замедляет падение
-      p.stepHorizontal(dt, groundNormal)                             // скоростная модель + следование склону
-      p.stepDash(dt)                                                  // рывок добавляет к desired
-      this.maybeKnockback(p)                                          // импульс-отброс при пересечении с другим игроком
-      p.stepKnockback(dt)                                             // отброс копится в desired (как рывок → KCC не пустит сквозь стены)
+      const groundNormal = this.groundNormalUnder(p)                  // normal under the player (for slopes)
+      p.stepJump()                                                    // jump/double/auto-bhop (held input)
+      p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // windup slows the fall
+      p.stepHorizontal(dt, groundNormal)                             // speed model + slope following
+      p.stepDash(dt)                                                  // dash adds to desired
+      this.maybeKnockback(p)                                          // knockback impulse on overlap with another player
+      p.stepKnockback(dt)                                             // knockback accumulates into desired (like dash → KCC won't let it through walls)
       p.consumeDesired(_desired)
       this.kcc.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
       let c = this.kcc.computedMovement()
       let grounded = this.kcc.computedGrounded()
-      // Анти-дрожание: автостеп поднял капсулу (cy сверх гравитации), но она не закрепилась (не grounded) —
-      // значит ложная проба перешагнуть непреодолимый блок. Пересчитываем кадр без автостепа (упор ровно).
-      // Успешный шаг на ступень (h=1) закрепляется → grounded → этот путь не трогает.
+      // Anti-jitter: autostep lifted the capsule (cy above gravity) but it didn't anchor (not grounded) —
+      // meaning a false probe to step over an impassable block. Recompute the frame without autostep (clean stop).
+      // A successful step onto a stair (h=1) anchors → grounded → this path doesn't touch it.
       if (this.kccNoStep && !grounded && c.y - _desired.y > AUTOSTEP_LIFT_EPS) {
         this.kccNoStep.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
         c = this.kccNoStep.computedMovement()
@@ -353,15 +353,15 @@ export class Match {
       }
       const cur = rb.translation()
       const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
-      if (this.role === 'client') p.reconcileLocal(next)   // свой игрок: тянем к авторитету (анти-дрейф)
+      if (this.role === 'client') p.reconcileLocal(next)   // own player: pull toward the authority (anti-drift)
       rb.setNextKinematicTranslation(next)
       p.setGrounded(grounded)
     }
   }
 
-  /** Импульс-отброс игрока `p` от соперника при пересечении сфер-тел (вместо жёсткой коллизии).
-   *  Направление — полный 3D-вектор между центрами (можно запрыгнуть сверху и оттолкнуться вверх).
-   *  Стартует один раз и доигрывает окно (как рывок); пока летит — не перезапускаем. */
+  /** Knockback impulse pushing player `p` away from the opponent when sphere bodies overlap (instead of hard collision).
+   *  Direction — the full 3D vector between centers (you can land on top and push upward).
+   *  Starts once and plays out its window (like a dash); while in flight — not restarted. */
   private maybeKnockback(p: Player) {
     if (!p.alive || p.knocking) return
     for (const o of this.players) {
@@ -370,17 +370,17 @@ export class Match {
       const dy = p.position.y - o.position.y
       const dz = p.position.z - o.position.z
       const d = Math.hypot(dx, dy, dz)
-      if (d >= PLAYER_OVERLAP_DIST) continue                       // сферы не пересекаются
-      if (d < PLAYER_OVERLAP_MIN_DIST) _knock.set(1, 0, 0)         // центры совпали → произвольное направление
-      else _knock.set(dx, dy, dz)                                  // 3D от центра соперника к своему
-      p.knockback(_knock)   // knockback нормализует направление сам
-      window.__debugKnockCount = (window.__debugKnockCount ?? 0) + 1   // e2e: факт события отброса
+      if (d >= PLAYER_OVERLAP_DIST) continue                       // spheres don't overlap
+      if (d < PLAYER_OVERLAP_MIN_DIST) _knock.set(1, 0, 0)         // centers coincide → arbitrary direction
+      else _knock.set(dx, dy, dz)                                  // 3D from the opponent's center to ours
+      p.knockback(_knock)   // knockback normalizes the direction itself
+      window.__debugKnockCount = (window.__debugKnockCount ?? 0) + 1   // e2e: fact of a knockback event
       return
     }
   }
 
-  /** Нормаль поверхности под игроком (луч вниз по меш-блокам) — для следования склону без потери скорости.
-   *  Пол (noRaycast) и плоский верх дают n≈(0,1,0) → склон не применяется. Не на земле → null. */
+  /** Surface normal under the player (ray down over mesh blocks) — for slope following without losing speed.
+   *  The floor (noRaycast) and a flat top give n≈(0,1,0) → no slope applied. Not grounded → null. */
   private groundNormalUnder(p: Player): THREE.Vector3 | null {
     if (!p.grounded) return null
     const hit = this.world.raycast(p.position, _DOWN, [p.id])
@@ -394,25 +394,25 @@ export class Match {
       if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId })
       if (o && o.hitEntityId !== null) {
         const victim = this.byId.get(o.hitEntityId)
-        if (victim && victim.alive) {   // мёртвую/сдувающуюся жертву не добиваем
+        if (victim && victim.alive) {   // don't finish off a dead/deflating victim
           const res = victim.receiveHit()
           if (res === 'blocked') {
-            const perfect = victim.perfectBlock      // идеальный блок → сброс кулдаунов жертве
+            const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
             if (perfect) victim.resetCooldowns()
             this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
             victim.deaths++
-            const broken = victim.streak           // тир жертвы ДО сброса (для баунти/сброса)
+            const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
             victim.streak = 0
             let streak = 0, firstBlood = false
             let bounty = 0, resetCd = false
             if (shooter !== victim) {
               bounty = bountyFrags(broken)
               resetCd = breakResetsCooldowns(broken)
-              shooter.kills += bounty               // в счёт (с баунти)
-              shooter.streak++                      // киллстрик — по реальному киллу (+1)
+              shooter.kills += bounty               // scored (with bounty)
+              shooter.streak++                      // killstreak — per real kill (+1)
               streak = shooter.streak
               if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
               if (resetCd) shooter.resetCooldowns()
@@ -436,8 +436,8 @@ export class Match {
     }
   }
 
-  // Фаза призрака: игрок неуязвим и сам двигается (через controllers+applyPhysics); по истечении таймера
-  // материализуется НА МЕСТЕ остановки (не на случайной точке).
+  // Ghost phase: the player is invulnerable and moves on its own (via controllers+applyPhysics); when the timer
+  // expires it materializes IN PLACE where it stopped (not at a random point).
   private resolveRespawns(dt: number) {
     for (const p of this.players) {
       if (!p.isRespawning) continue
@@ -450,7 +450,7 @@ export class Match {
     }
   }
 
-  // --- ритуал входа (готовность + отсчёт) ---
+  // --- entry ritual (readiness + countdown) ---
   private tickPhase() {
     if (this.phase === 'countdown' && Date.now() >= this.countdownEndsAt) {
       this.phase = 'live'
@@ -459,7 +459,7 @@ export class Match {
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
     this.syncPhaseHud()
-    // Тик отсчёта (3/2/1) — раз на целую секунду. 2D, считается локально и на host, и на client.
+    // Countdown tick (3/2/1) — once per whole second. 2D, computed locally on both host and client.
     if (this.phase === 'countdown') {
       const left = Math.ceil((this.countdownEndsAt - Date.now()) / 1000)
       if (left !== this.prevCountTick && left >= 1 && left <= 3) this.sfx?.play2D('count_tick')
@@ -467,14 +467,14 @@ export class Match {
     } else {
       this.prevCountTick = 0
     }
-    // Отложенный показ экрана исхода: phase='ended' уже заморозил игроков (стоп-кадр); по истечении паузы —
-    // диспатч результата (overlay появляется с собственным fade-in). Тикается и на host, и на client.
+    // Deferred outcome screen: phase='ended' already froze players (freeze-frame); after the pause —
+    // dispatch the result (the overlay appears with its own fade-in). Ticked on both host and client.
     if (this.pendingResult && Date.now() >= this.resultDueAt) {
       this.dispatch({ type: 'SET_MATCH_RESULT', result: this.pendingResult })
       this.pendingResult = null
     }
-    // Первый live-кадр (отсчёт завершён): «GO!» + старт музыки. Один раз; покрывает все пути перехода
-    // в live (host countdown→live, client applyPhase, forceLiveForTest). go — 2D, как count_tick.
+    // First live frame (countdown done): "GO!" + music start. Once; covers all paths into
+    // live (host countdown→live, client applyPhase, forceLiveForTest). go — 2D, like count_tick.
     if (this.phase === 'live' && !this.musicStarted) {
       this.musicStarted = true
       this.sfx?.play2D('go')
@@ -482,16 +482,16 @@ export class Match {
     }
   }
 
-  /** Мир-позиция игрока по id (для позиционных SFX). */
+  /** World position of a player by id (for positional SFX). */
   private sfxPos = (id: number): THREE.Vector3 | null => this.byId.get(id)?.position ?? null
 
-  /** host: перекличка движений обоих игроков + эмит дискретных move-событий (прыжок/land) клиенту. */
+  /** host: roll call of both players' moves + emit discrete move events (jump/land) to the client. */
   private sfxFrameHost() {
     if (!this.sfx) return
-    // Ленивая инициализация pre-alloc буфера: id/obj/pos/windupStyle стабильны, остальное обновляем per-frame.
+    // Lazy init of the pre-alloc buffer: id/obj/pos/windupStyle are stable, the rest is updated per-frame.
     if (this._sfxInputsBuf.length === 0) {
       this._sfxInputsBuf = this.players.map(p => ({
-        id: p.id, obj: p.bodyGroup, pos: p.position,   // pos — ссылка на Vector3, обновляемый in-place
+        id: p.id, obj: p.bodyGroup, pos: p.position,   // pos — a reference to a Vector3 updated in-place
         shieldActive: false, dashing: false, grounded: null, justJumped: false,
         dashReady: null, shieldReady: null, windingUp: false, windupStyle: p.windupStyle,
         isLocal: p.id === this.localId,
@@ -509,7 +509,7 @@ export class Match {
     for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
   }
 
-  /** client: перекличка движений своего игрока (из локальной симуляции — без сетевой задержки). */
+  /** client: roll call of our own player's moves (from local sim — without network delay). */
   private sfxFrameClientSelf() {
     if (!this.sfx) return
     const me = this.human
@@ -528,13 +528,13 @@ export class Match {
     this.sfx.frame(this._sfxSelfBuf)
   }
 
-  /** Остаток матча в мс для музыки (Infinity до старта часов) — по нему MusicDirector решает аутро. */
+  /** Match remainder in ms for music (Infinity until the clock starts) — MusicDirector decides the outro by it. */
   private musicRemainingMs(): number {
     if (!Number.isFinite(this.lastRemainingMs)) return Infinity
     return Math.max(0, this.lastRemainingMs - (Date.now() - this.lastRemainingAt))
   }
 
-  /** Остаток таймера в мс для записи демо (до старта часов — полная длительность). */
+  /** Timer remainder in ms for demo recording (before the clock starts — full duration). */
   getRemainingMs(): number {
     const r = this.musicRemainingMs()
     return Number.isFinite(r) ? r : this.durationMs
@@ -551,7 +551,7 @@ export class Match {
     this.dispatch({ type: 'SET_MATCH_PHASE', phase: this.phase, ready, countdown })
   }
 
-  /** host: отметить игрока готовым; когда готовы оба — старт отсчёта (бот-соперник готов изначально). */
+  /** host: mark a player ready; when both are ready — start the countdown (a bot opponent is ready from the start). */
   markReady(id: number) {
     if (this.phase !== 'ready' || !this.players.some(p => p.id === id)) return
     this.readySet.add(id)
@@ -562,14 +562,14 @@ export class Match {
     }
   }
 
-  /** Тест-хук (e2e): мгновенно в бой без 3с отсчёта. Прод-флоу всегда идёт ready→countdown→live. */
+  /** Test hook (e2e): straight into the fight with no 3s countdown. Prod flow always goes ready→countdown→live. */
   forceLiveForTest() {
     this.readySet = new Set(this.players.map(p => p.id))
     this.phase = 'live'
     this.phaseDirtyFlag = true
   }
 
-  /** client: применить фазу от хоста. */
+  /** client: apply the phase from the host. */
   applyPhase(p: PhaseMsg) {
     const enteringCountdown = p.phase === 'countdown' && this.phase !== 'countdown'
     this.phase = p.phase
@@ -581,7 +581,7 @@ export class Match {
   phaseDirty() { return this.phaseDirtyFlag }
   clearPhaseDirty() { this.phaseDirtyFlag = false }
 
-  /** Игрок отключился: скрыть его аватар, завершить матч, уведомить оставшегося. */
+  /** A player disconnected: hide their avatar, end the match, notify the remaining one. */
   handlePlayerLeft(id: number) {
     if (this.leftIds.has(id)) return
     this.leftIds.add(id)
@@ -598,10 +598,10 @@ export class Match {
 
   private tickMatchClock(now: number) {
     if (this.phase !== 'live') return
-    if (this.durationMs === 0) return   // без таймера (обратная совместимость)
+    if (this.durationMs === 0) return   // no timer (backward compatibility)
     if (this.matchEndsAt === 0) this.matchEndsAt = now + this.durationMs
     const remaining = Math.max(0, this.matchEndsAt - now)
-    this.lastRemainingMs = remaining   // для музыкальной секции finale
+    this.lastRemainingMs = remaining   // for the music finale section
     this.lastRemainingAt = now
     if (now - this.lastTimeSentAt >= MATCH_TIME_BROADCAST_MS || remaining === 0) {
       this.lastTimeSentAt = now
@@ -617,12 +617,12 @@ export class Match {
     this.phase = 'ended'
     this.phaseDirtyFlag = true
     this.syncPhaseHud()
-    // Заморозить игроков на END_FREEZE_MS (phase='ended' морозит в tickPhase), затем показать экран исхода.
+    // Freeze players for END_FREEZE_MS (phase='ended' freezes in tickPhase), then show the outcome screen.
     this.pendingResult = this.computeResult(reason)
     this.resultDueAt = Date.now() + END_FREEZE_MS
-    this.music?.fadeOut()   // плавно гасим музыку перед экраном исхода
-    this.sfx?.reset()       // гасим луп щита и сбрасываем переходы
-    this.emit({ t: 'matchEnd', reason })   // emit только у host (guard внутри emit)
+    this.music?.fadeOut()   // fade the music out before the outcome screen
+    this.sfx?.reset()       // kill the shield loop and reset transitions
+    this.emit({ t: 'matchEnd', reason })   // emit only on host (guard inside emit)
   }
 
   private computeResult(reason: 'time' | 'disconnect'): MatchResult {
@@ -648,7 +648,7 @@ export class Match {
     }
 
     const w = this.human.isWindingUp
-    if (!w && this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })   // конец заряда — сразу
+    if (!w && this.prevWindup) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: 0 })   // end of windup — immediately
     this.prevWindup = w
 
     const s = this.human.shieldActive
@@ -658,13 +658,13 @@ export class Match {
     const now = Date.now()
     if (now - this.lastHud > 50) {
       this.lastHud = now
-      // Прогресс заряда — троттлим (как прочий HUD): каждый кадр он гнал App-ре-рендер → спайк с постпроцессом.
+      // Windup progress — throttled (like the rest of the HUD): every frame it forced an App re-render → spike with post-processing.
       if (w) this.dispatch({ type: 'SET_WINDUP_PROGRESS', value: this.human.windupProgress })
       this.dispatch({ type: 'SET_BEAM_PROGRESS',   value: this.human.beamCooldownProgress() })
       this.dispatch({ type: 'SET_SHIELD_PROGRESS', value: this.human.shieldProgress() })
       this.dispatch({ type: 'SET_DASH_PROGRESS',   value: this.human.dashCooldownProgress() })
       this.dispatch({ type: 'SET_PLAYER_SPEED',    value: this.human.speed })
-      // Фаза призрака локального игрока: шлём прогресс пока активна и один раз null по завершении.
+      // Local player's ghost phase: send progress while active and a single null on completion.
       const respawn = this.human.isRespawning ? this.human.respawnProgress() : null
       if (respawn !== null || this.prevRespawnActive) {
         this.dispatch({ type: 'SET_RESPAWNING', progress: respawn })
@@ -673,17 +673,17 @@ export class Match {
     }
   }
 
-  // --- network API (вызывает NetSession) ---
+  // --- network API (called by NetSession) ---
   private emit(e: MatchEvent) {
     if (this.role !== 'host') return
     this.pendingEvents.push(e)
-    this.recorder?.event(e)            // dev: транзиентные FX в демо (не потребляет очередь сети)
-    this.sfx?.combat(e, this.sfxPos)   // хост озвучивает боёвку обоих игроков (combat фильтрует по типу)
+    this.recorder?.event(e)            // dev: transient FX in the demo (doesn't consume the network queue)
+    this.sfx?.combat(e, this.sfxPos)   // host voices both players' combat (combat filters by type)
   }
 
-  /** Подсветка ника по серии (shooter), сброс у жертвы; на рубеже — баннер + 2D-звук. Зовётся и host, и client. */
-  /** Каждый кадр: ПЕРЕГРЕВ по серии у всех + режим SINGULARITY (прострел ОБОИМ + прозрачные блоки),
-   *  если ХОТЬ КТО-ТО достиг ×5. Зовётся и host, и client (визуал/предсказание у обоих одинаковы). */
+  /** Highlight the name by streak (shooter), reset for the victim; at a milestone — banner + 2D sound. Called by both host and client. */
+  /** Each frame: OVERHEAT by streak for everyone + SINGULARITY mode (pierce for BOTH + transparent blocks),
+   *  if ANYONE reached ×5. Called by both host and client (visual/prediction are identical for both). */
   private applyComeback() {
     for (const p of this.players) p.applyOverheat()
     const singularity = this.players.some(p => p.seeThrough)
@@ -703,18 +703,18 @@ export class Match {
     const color = this.colorOf.get(shooterId) ?? '#4af'
     this.dispatch({ type: 'ANNOUNCE', name, color, kind })
     this.sfx?.play2D(announceSfx(kind))
-    window.__debugLastAnnounce = kind                 // для e2e
-    ;(window.__debugAnnounces ??= []).push(kind)      // вся история анонсов (первый = catalyst)
+    window.__debugLastAnnounce = kind                 // for e2e
+    ;(window.__debugAnnounces ??= []).push(kind)      // full announce history (first = catalyst)
   }
 
-  /** host: события матча за прошедшие кадры (на рассылку) + очистка. */
+  /** host: match events over the past frames (to broadcast) + clear. */
   drainEvents(): MatchEvent[] {
     const e = this.pendingEvents
     this.pendingEvents = []
     return e
   }
 
-  /** host: снимок всех игроков + последний обработанный ввод клиента. */
+  /** host: snapshot of all players + the last processed client input. */
   serializeSnapshot(): Snapshot {
     let ackSeq = 0
     this.remoteControllers.forEach(c => { ackSeq = Math.max(ackSeq, c.ackSeq) })
@@ -734,23 +734,23 @@ export class Match {
     return this._snapBuf
   }
 
-  /** host: применить присланный кадр ввода к аватару игрока playerId. */
+  /** host: apply the received input frame to player playerId's avatar. */
   pushRemoteInput(playerId: number, frame: InputFrame) {
     this.remoteControllers.get(playerId)?.enqueue(frame)
   }
 
-  /** client: кадр ввода своего игрока для отправки хосту. */
+  /** client: input frame of our own player to send to the host. */
   localInputFrame(seq: number): InputFrame { return this.humanController.currentInputFrame(seq) }
 
-  /** client: снимок → удалённым позиция/визуал; своему — авторитет для мягкой реконсиляции. */
+  /** client: snapshot → remotes get position/visual; our own gets the authority for soft reconciliation. */
   applySnapshot(snap: Snapshot) {
     for (const ps of snap.players) {
       const p = this.byId.get(ps.id)
       if (!p) continue
-      if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // предсказание + коррекция к авторитету
+      if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // prediction + correction toward the authority
       else {
         p.applyNetState(ps)
-        // Щит/рывок соперника — из флагов снапшота по их переходам (прыжок/land приходят событием move).
+        // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
           shieldActive: ps.shieldActive, dashing: ps.dashing, grounded: null, justJumped: false,
@@ -760,12 +760,12 @@ export class Match {
     }
   }
 
-  /** client: применить событие матча от хоста. */
+  /** client: apply a match event from the host. */
   applyEvent(e: MatchEvent) {
     switch (e.t) {
       case 'fired': {
-        if (e.id === this.localId) break   // свой выстрел уже показан предсказанием
-        // Искры попадания не спавним на FP-камере локального игрока (попали в нас, тело скрыто).
+        if (e.id === this.localId) break   // our own shot is already shown by prediction
+        // Don't spawn hit sparks on the local player's FP camera (we were hit, the body is hidden).
         const hideImpact = e.hit === this.localId && !this.human.bodyIsVisible
         const hp = e.hitPoint && !hideImpact ? fromVec3(e.hitPoint) : null
         this.byId.get(e.id)?.cosmeticFire(fromVec3(e.end), hp)
@@ -789,7 +789,7 @@ export class Match {
         break
       }
       case 'block': {
-        if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // зеркалим сброс кулдаунов с хоста
+        if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // mirror the cooldown reset from the host
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
         this.sfx?.combat(e, this.sfxPos)
@@ -801,7 +801,7 @@ export class Match {
         break
       }
       case 'move': {
-        if (e.id === this.localId) break   // своё движение уже сыграно предсказанием
+        if (e.id === this.localId) break   // our own movement is already played by prediction
         this.sfx?.move(e.kind, this.byId.get(e.id)?.position ?? fromVec3(e.pos))
         break
       }
@@ -810,7 +810,7 @@ export class Match {
         break
       }
       case 'time': {
-        this.lastRemainingMs = e.remainingMs   // для музыкальной секции finale (клиент)
+        this.lastRemainingMs = e.remainingMs   // for the music finale section (client)
         this.lastRemainingAt = Date.now()
         this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(e.remainingMs / 1000) })
         break
@@ -845,9 +845,9 @@ export class Match {
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
     w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
-    // Физика готова = Rapier WASM загружен и мир привязан (до этого applyPhysics — no-op, движения нет).
-    // Для e2e: __debugForceLive входит в live раньше готовности физики (в реальном флоу её прячут
-    // ритуал готовности и отсчёт) — тесты движения обязаны ждать этот флаг, а не только фазу.
+    // Physics ready = Rapier WASM loaded and the world attached (before that applyPhysics is a no-op, no movement).
+    // For e2e: __debugForceLive enters live before physics is ready (in the real flow the readiness ritual
+    // and countdown hide that) — movement tests must wait for this flag, not just the phase.
     w.__debugPhysicsReady = () => this.physicsWorld != null
   }
 
@@ -865,7 +865,7 @@ export class Match {
     delete w.__debugForceEnd
     delete w.__debugPlayerSpeed
     delete w.__debugPhysicsReady
-    if (this.singularityActive) this.world.setBlocksTransparent(false)   // вернуть блоки непрозрачными
+    if (this.singularityActive) this.world.setBlocksTransparent(false)   // restore blocks to opaque
     this.players.forEach(p => p.dispose())
     this.music?.dispose()
   }

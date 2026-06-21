@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { World } from './World'
 
-/** То, чем управляет ЛЮБОЙ контроллер (клавиатура человека или ИИ бота). */
+/** What ANY controller drives (a human's keyboard or a bot's AI). */
 export interface IControllable {
   moveIntent(worldDir: THREE.Vector3, dt: number): void
   setJumpInput(held: boolean): void
@@ -15,9 +15,9 @@ export interface WeaponContext {
   muzzle:     THREE.Vector3
   aim:        THREE.Vector3
   excludeIds: number[]
-  pierceWalls?: boolean   // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты
-  // Луч ПОПАДАНИЯ (необяз.): у человека — линия прицела камера→мушка, чтобы хит совпадал с перекрестием
-  // (визуал луча всё равно из дула, убирает параллакс дуло↔камера в TP). Нет → хит из дула вдоль aim (бот/удалённый).
+  pierceWalls?: boolean   // PIERCE (SINGULARITY mode): the beam ignores map blocks
+  // Hit ray (optional): for a human — the aim line camera→muzzle, so the hit matches the crosshair
+  // (the beam visual still comes from the muzzle, removing muzzle↔camera parallax in TP). None → hit from the muzzle along aim (bot/remote).
   hitOrigin?: THREE.Vector3
   hitDir?:    THREE.Vector3
 }
@@ -38,9 +38,9 @@ export interface IWeapon {
   readonly object3d:        THREE.Object3D
   readonly isWindingUp:     boolean
   readonly windupProgress:  number   // 0..1
-  cooldownProgress():       number   // 1 = готов
-  setCooldownScale(scale: number): void   // множитель длительности кулдауна (ПЕРЕГРЕВ)
-  resetCooldown(): void                    // мгновенно готов (награда за снятие серии)
+  cooldownProgress():       number   // 1 = ready
+  setCooldownScale(scale: number): void   // cooldown duration multiplier (OVERHEAT)
+  resetCooldown(): void                    // instantly ready (reward for breaking a streak)
   readonly justFired:       boolean
   readonly outcome:         FireOutcome | null
   clearJustFired(): void
@@ -53,30 +53,30 @@ export interface IShield {
   reset(): void
   readonly object3d:  THREE.Object3D
   readonly isActive:  boolean
-  isPerfectBlock():   boolean  // активирован в окне до попадания → награда сбросом кулдаунов
-  progress():         number   // 1 = готов
+  isPerfectBlock():   boolean  // activated within the window before a hit → reward by resetting cooldowns
+  progress():         number   // 1 = ready
   setCooldownScale(scale: number): void
   resetCooldown(): void
   dispose(): void
 }
 
-/** Состояние тела за кадр для рендера следа рывка. */
+/** Per-frame body state for rendering the dash trail. */
 export interface DashTrailContext {
-  position: THREE.Vector3   // точка на уровне глаз (центр тела)
+  position: THREE.Vector3   // point at eye level (body center)
   dashing:  boolean
 }
 
-/** След рывка. Владеет своими мешами; живёт в world-space группе матча (вне RigidBody). */
+/** Dash trail. Owns its own meshes; lives in the match's world-space group (outside RigidBody). */
 export interface IDashTrail {
   readonly object3d:    THREE.Object3D
   update(dt: number, ctx: DashTrailContext): void
-  readonly aliveCount:  number   // активных элементов (для тестов/дебага)
+  readonly aliveCount:  number   // active elements (for tests/debug)
   dispose(): void
 }
 
-/** Контроллер двигает один IControllable каждый кадр. */
+/** A controller drives one IControllable each frame. */
 export interface Controller {
   update(dt: number): void
-  /** Вызывается ПОСЛЕ физики всех игроков (нужно для постановки камеры). */
+  /** Called AFTER physics for all players (needed for camera placement). */
   lateUpdate?(dt: number): void
 }

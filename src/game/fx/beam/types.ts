@@ -1,10 +1,10 @@
 import type * as THREE from 'three'
 
 /**
- * Стратегия визуала луча выстрела (стилевая косметика, выбирается вместе с WindupStyle).
- * Владеет мешами луча/афтерглоу; на боёвку не влияет (все меши noRaycast, raycast боёвки
- * считает BeamWeapon отдельно). `play(start, end)` запускает анимацию выстрела,
- * `update(dt)` ведёт её до затухания, `reset()` мгновенно гасит (респаун/конец матча).
+ * Shot beam visual strategy (style cosmetics, chosen together with WindupStyle).
+ * Owns the beam/afterglow meshes; doesn't affect combat (all meshes are noRaycast, the combat
+ * raycast is computed by BeamWeapon separately). `play(start, end)` starts the shot animation,
+ * `update(dt)` drives it until it fades, `reset()` clears it instantly (respawn/end of match).
  */
 export interface IBeamFx {
   readonly object3d: THREE.Object3D

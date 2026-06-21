@@ -3,20 +3,20 @@ import { HUD_FRAME_INSET } from '../constants'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 
 const COLOR = '#4af'
-const BANDS = 40              // частотных полос (на половину линии; линия симметрична из центра)
-const BAR_GAIN = 1.4         // визуальное усиление спектра
-const SMOOTH_UP = 0.55       // быстрая атака
-const SMOOTH_DOWN = 0.14     // плавный спад
-const VB_W = 1200            // ширина viewBox (линия растягивается на контейнер)
-const VB_H = 90              // высота viewBox
-const AMP = 78               // макс. подъём линии (в ед. viewBox)
-const WIDTH_FRAC = 46        // ширина контейнера, % экрана
-const HEIGHT_PX = 42         // высота контейнера, px
-const BAR_BOTTOM_OFFSET = 14 // над нижней полосой возрождения
+const BANDS = 40              // frequency bands (per half of the line; line is symmetric from center)
+const BAR_GAIN = 1.4         // visual spectrum gain
+const SMOOTH_UP = 0.55       // fast attack
+const SMOOTH_DOWN = 0.14     // smooth decay
+const VB_W = 1200            // viewBox width (line stretches to the container)
+const VB_H = 90              // viewBox height
+const AMP = 78               // max line rise (in viewBox units)
+const WIDTH_FRAC = 46        // container width, % of screen
+const HEIGHT_PX = 42         // container height, px
+const BAR_BOTTOM_OFFSET = 14 // above the bottom respawn bar
 
 /**
- * Линия-визуализатор частотного спектра (музыка + эффекты матча): тонкая светящаяся линия снизу HUD,
- * дёргается по частотам. Симметрична из центра (бас в центре, верхние частоты к краям). Обновляется в rAF.
+ * Frequency-spectrum visualizer line (match music + effects): a thin glowing line at the bottom of the HUD,
+ * jittering by frequency. Symmetric from center (bass at center, high frequencies toward the edges). Updated in rAF.
  */
 export function AudioBar({ analysis }: { analysis: AudioAnalysis }) {
   const lineRef = useRef<SVGPolylineElement>(null)
@@ -25,7 +25,7 @@ export function AudioBar({ analysis }: { analysis: AudioAnalysis }) {
 
   useEffect(() => {
     let id = 0
-    const count = BANDS * 2 - 1            // симметрично: центр = полоса 0 (бас), к краям — выше частоты
+    const count = BANDS * 2 - 1            // symmetric: center = band 0 (bass), higher frequencies toward edges
     const center = BANDS - 1
     const tick = () => {
       analysis.bands(raw.current)

@@ -1,7 +1,7 @@
 /**
- * Запись демо: каждый кадр снимаем ПОЛНОЕ абсолютное состояние (камера + рендер-состояние игроков +
- * счёт/таймер/серии/фаза) + транзиентные события (через хук Match.emit). Кадры независимы (см. demoTypes).
- * Дев-инструмент: подключается к Match (`match.recorder`), на стоп отдаёт DemoFile для скачивания.
+ * Demo recording: each frame captures the FULL absolute state (camera + players' render state +
+ * score/timer/streaks/phase) + transient events (via the Match.emit hook). Frames are independent (see demoTypes).
+ * Dev tool: hooks into Match (`match.recorder`), on stop returns a DemoFile for download.
  */
 import type * as THREE from 'three'
 import type { Match } from '../Match'
@@ -10,14 +10,14 @@ import type { MapId } from '../../constants'
 import { DEMO_VERSION } from './demoTypes'
 import type { DemoFile, DemoFrame, DemoPlayerState } from './demoTypes'
 
-const CAPTURE_INTERVAL_MS = 1000 / 30   // 30 fps — компромисс размер/плавность (реплей интерполирует)
+const CAPTURE_INTERVAL_MS = 1000 / 30   // 30 fps — size/smoothness tradeoff (replay interpolates)
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000
 const v3 = (v: THREE.Vector3): [number, number, number] => [r3(v.x), r3(v.y), r3(v.z)]
 
 export class DemoRecorder {
   private frames: DemoFrame[] = []
-  private pending: MatchEvent[] = []      // события, накопленные с прошлого захвата кадра
+  private pending: MatchEvent[] = []      // events accumulated since the last frame capture
   private tMs = 0
   private lastPushMs = -Infinity
   private readonly roster: RosterEntry[]
@@ -34,12 +34,12 @@ export class DemoRecorder {
     this.reserveColor = meta.reserveColor
   }
 
-  /** Хук Match.emit — копим транзиентные FX текущего кадра (клон, чтобы сетевой слой не влиял). */
+  /** Match.emit hook — accumulate the current frame's transient FX (cloned, so the network layer can't affect them). */
   event(e: MatchEvent): void {
     this.pending.push(JSON.parse(JSON.stringify(e)) as MatchEvent)
   }
 
-  /** Вызывается в конце игрового кадра. Троттлим до 30fps; события не теряем (копятся в pending). */
+  /** Called at the end of the game frame. Throttled to 30fps; events aren't lost (accumulated in pending). */
   capture(match: Match, camera: THREE.PerspectiveCamera, dt: number): void {
     this.tMs += dt * 1000
     if (this.tMs - this.lastPushMs < CAPTURE_INTERVAL_MS) return

@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './bvh'   // патч BVH-raycast (до первого рендера) — ускоряет боёвку-raycast по блокам карты
+import './bvh'   // BVH-raycast patch (before first render) — speeds up combat raycast against map blocks
 import { installGameFeelGuards } from './gameFeel'
 import { installNetDiag } from './net/netDiag'
 import './index.css'
@@ -10,7 +10,7 @@ import './ui/theme.css'
 import App from './App.tsx'
 
 installGameFeelGuards()
-if (import.meta.env.DEV) installNetDiag()   // dev-диагностика P2P-коннекта (window.__netReport)
+if (import.meta.env.DEV) installNetDiag()   // dev diagnostics for P2P connection (window.__netReport)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

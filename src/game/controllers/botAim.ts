@@ -3,24 +3,24 @@ import { BALL_RADIUS } from '../../constants'
 
 export type Rng = () => number
 
-/** Бросок «попал/мимо»: true с вероятностью hitChance. */
+/** Hit/miss roll: true with probability hitChance. */
 export function rollHit(hitChance: number, rng: Rng = Math.random): boolean {
   return rng() < hitChance
 }
 
-// Scratch для базиса перпендикулярной плоскости (вызовы строго последовательны)
+// Scratch for the perpendicular-plane basis (calls are strictly sequential)
 const _dir   = new THREE.Vector3()
 const _right = new THREE.Vector3()
 const _up    = new THREE.Vector3()
 const WORLD_UP = new THREE.Vector3(0, 1, 0)
 
 /**
- * Точка прицела выстрела.
- * hit=true  → ровно центр цели (base).
- * hit=false → near-miss: base, смещённая в плоскости, перпендикулярной линии огня,
- *   на BALL_RADIUS*(1+grazeMargin) под случайным углом. Луч shooter→out проходит
- *   ровно за краем хитбокса — промах выглядит «впритирку», а не палевно вбок.
- *   Чем меньше grazeMargin (сильный бот), тем ближе к попаданию.
+ * Shot aim point.
+ * hit=true  → exactly the target's center (base).
+ * hit=false → near-miss: base offset in the plane perpendicular to the line of fire
+ *   by BALL_RADIUS*(1+grazeMargin) at a random angle. The shooter→out ray passes
+ *   just past the hitbox edge — the miss looks like a graze, not an obvious sideways shot.
+ *   The smaller grazeMargin (stronger bot), the closer to a hit.
  */
 export function aimPoint(
   out: THREE.Vector3,
@@ -37,9 +37,9 @@ export function aimPoint(
   if (_dir.lengthSq() < 1e-6) return out
   _dir.normalize()
 
-  // Ортонормированный базис плоскости, перпендикулярной направлению огня
+  // Orthonormal basis of the plane perpendicular to the fire direction
   _right.copy(_dir).cross(WORLD_UP)
-  if (_right.lengthSq() < 1e-6) _right.set(1, 0, 0)   // целимся строго вертикально
+  if (_right.lengthSq() < 1e-6) _right.set(1, 0, 0)   // aiming straight up/down
   _right.normalize()
   _up.copy(_right).cross(_dir).normalize()
 

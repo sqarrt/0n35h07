@@ -1,6 +1,6 @@
 import type { ISfxEngine, SfxEvent } from './types'
 
-/** Тестовый двойник: записывает вызовы (three-аудио в jsdom не работает). */
+/** Test double: records calls (three audio doesn't work in jsdom). */
 export class FakeSfxEngine implements ISfxEngine {
   calls: { method: string; event?: SfxEvent; key?: string }[] = []
   async load() {}
@@ -12,9 +12,9 @@ export class FakeSfxEngine implements ISfxEngine {
   stopLoop(key: string) { this.calls.push({ method: 'stopLoop', key }) }
   setMasterGain() {}
   dispose() {}
-  missing = new Set<SfxEvent>()   // тестовая ручка: событие «без ассета»
+  missing = new Set<SfxEvent>()   // test knob: an event "with no asset"
   has(event: SfxEvent) { return !this.missing.has(event) }
-  /** Сколько раз сыграно событие (любым методом). */
+  /** How many times an event was played (by any method). */
   played(event: SfxEvent) { return this.calls.filter(c => c.event === event).length }
   clear() { this.calls = [] }
 }

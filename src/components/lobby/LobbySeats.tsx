@@ -13,9 +13,9 @@ interface LobbySeatsProps {
   searching: boolean
 }
 
-/** Слоты лобби: игрок слева/справа по роли, VS по центру. Управление ролью/ботом/кодом — в разделе «// ПРОЧЕЕ». */
+/** Lobby slots: player left/right by role, VS in the center. Role/bot/code controls live in the "// MISC" section. */
 export function LobbySeats({ isHost, me, opponent, searching }: LobbySeatsProps) {
-  // Крутящиеся имена в пустом слоте соперника во время поиска/подключения.
+  // Spinning names in the empty opponent slot while searching/connecting.
   const [spin, setSpin] = useState('')
   const spinning = searching && !opponent
   useEffect(() => {

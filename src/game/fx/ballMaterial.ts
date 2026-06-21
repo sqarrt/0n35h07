@@ -7,20 +7,20 @@ import type { BallModel } from '../../constants'
 import { buildArtTexture, writeArtData } from './artTexture'
 import type { BallArt } from '../ballArt'
 
-/** GLSL-литерал float из TS-константы (без магических чисел в шейдере). */
+/** GLSL float literal from a TS constant (no magic numbers in the shader). */
 const f = (n: number) => n.toFixed(6)
 const PI = Math.PI
 
-/** Деформация вершин сферы (только модель waves; вставляется после begin_vertex). */
+/** Sphere vertex deformation (waves model only; injected after begin_vertex). */
 function wavesGLSL(): string {
-  // Плотные бегущие волны: COUNT циклов по высоте 2·R → коэффициент частоты = COUNT·π/R.
+  // Dense travelling waves: COUNT cycles over height 2·R → frequency factor = COUNT·π/R.
   const freq = BALL_WAVE_COUNT * PI / BALL_RADIUS
   return `transformed += objectNormal * ${f(BALL_WAVE_AMP)} * sin(${f(freq)} * position.y + uTime * ${f(BALL_WAVE_SPEED)});`
 }
 
-// GLSL дисковой выборки рисунка (вставляется во фрагмент после color_fragment): модельная нормаль →
-// полусфера (перёд/зад) → радиус от полюса → выборка из текстуры 64×32 → множитель в diffuse.
-// Белый texel (1) → цвет шара, чёрный (0) → рисунок. Сэмплер ВКЛЮЧЁН всегда (пусто = белая текстура).
+// GLSL disc sampling of the art (injected into the fragment after color_fragment): model normal →
+// hemisphere (front/back) → radius from the pole → sample from the 64×32 texture → multiplier into diffuse.
+// White texel (1) → ball color, black (0) → art. The sampler is ALWAYS enabled (empty = white texture).
 const ART_FRAGMENT_GLSL = `
 {
   vec3 nrm = normalize(vArtNormal);
@@ -36,10 +36,10 @@ const ART_FRAGMENT_GLSL = `
 `
 
 /**
- * Материал сферы по модели + ВСЕГДА включённый сэмплер рисунка (белая текстура = нет рисунка → множитель 1;
- * это убирает перестройку материала при переходе пусто↔непусто в живом превью). `waves` добавляет деформацию
- * вершин. `tick(dt)` крутит время волн; `setArt(art)` обновляет рисунок на месте; `dispose()` — текстуру.
- * Общая фабрика для боевого тела (`Body`) и превью (`StageBall`). Для `planet` сфера ровная — кольцо отдельно.
+ * Sphere material by model + an ALWAYS-enabled art sampler (white texture = no art → multiplier 1;
+ * this avoids rebuilding the material on the empty↔non-empty transition in the live preview). `waves` adds
+ * vertex deformation. `tick(dt)` advances wave time; `setArt(art)` updates the art in place; `dispose()` — the texture.
+ * Shared factory for the combat body (`Body`) and the preview (`StageBall`). For `planet` the sphere is plain — the ring is separate.
  */
 export function createBallMaterial(color: string, model: BallModel, art?: BallArt) {
   const material = new THREE.MeshStandardMaterial({ color, transparent: true })
@@ -47,7 +47,7 @@ export function createBallMaterial(color: string, model: BallModel, art?: BallAr
   const artTexture = buildArtTexture(art ?? null)
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uArt = { value: artTexture }
-    // Вершинный: пробросить модельную нормаль (+ деформация волн только для waves).
+    // Vertex: pass through the model normal (+ wave deformation for waves only).
     let vert = 'varying vec3 vArtNormal;\n' + shader.vertexShader
     vert = vert.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\n  vArtNormal = objectNormal;')
     if (model === 'waves') {
@@ -56,7 +56,7 @@ export function createBallMaterial(color: string, model: BallModel, art?: BallAr
       vert = vert.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + wavesGLSL())
     }
     shader.vertexShader = vert
-    // Фрагментный: дисковая выборка рисунка и умножение в diffuse.
+    // Fragment: disc sampling of the art and multiplication into diffuse.
     shader.fragmentShader = 'uniform sampler2D uArt;\nvarying vec3 vArtNormal;\n' + shader.fragmentShader.replace(
       '#include <color_fragment>',
       '#include <color_fragment>\n' + ART_FRAGMENT_GLSL,
@@ -76,9 +76,9 @@ export function createBallMaterial(color: string, model: BallModel, art?: BallAr
 }
 
 /**
- * Кольцо планеты (модель `planet`): плоский annulus с радиальным градиентом в цвете игрока (банды + мягкое
- * затухание по краям, лёгкий дрейф). Unlit ShaderMaterial, полупрозрачное, наклонённое, `noRaycast` (на боёвку
- * не влияет). `tick(dt)` дрейфит банды; `setOpacity(o)` — для призрака/материализации.
+ * Planet ring (model `planet`): a flat annulus with a radial gradient in the player color (bands + soft
+ * edge falloff, slight drift). Unlit ShaderMaterial, semi-transparent, tilted, `noRaycast` (doesn't affect
+ * combat). `tick(dt)` drifts the bands; `setOpacity(o)` — for the ghost/materialization.
  */
 export function createBallRing(color: string) {
   const uTime = { value: 0 }
@@ -110,7 +110,7 @@ export function createBallRing(color: string) {
   mesh.rotation.x = THREE.MathUtils.degToRad(BALL_RING_TILT_DEG)
   mesh.castShadow = false
   mesh.userData.noRaycast = true
-  mesh.renderOrder = 1   // рисуем кольцо ПОСЛЕ прозрачной сферы (детерминированно): зад отсекает глубина, перед ложится поверх
+  mesh.renderOrder = 1   // draw the ring AFTER the transparent sphere (deterministic): depth culls the back, the front lies on top
   return {
     mesh,
     tick: (dt: number) => { uTime.value += dt },

@@ -11,7 +11,7 @@ interface BotDifficultyPickerProps {
   onSetDifficulty: (d: BotDifficulty) => void
 }
 
-/** Блок режима «С ботом»: выбор сложности уже добавленного бота. */
+/** "With bot" mode block: difficulty selection for the already-added bot. */
 export function BotDifficultyPicker({ difficulty, onSetDifficulty }: BotDifficultyPickerProps) {
   const t = useT()
   const sfx = useSfx()

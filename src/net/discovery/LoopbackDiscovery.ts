@@ -1,10 +1,10 @@
 import type { IDiscovery } from './IDiscovery'
 import type { PoolListing } from '../matchmaking'
 
-/** In-process pub/sub для юнит-тестов: один инстанс — общая среда host↔client. */
+/** In-process pub/sub for unit tests: one instance is a shared host↔client environment. */
 export class LoopbackDiscovery implements IDiscovery {
   private listings = new Map<string, Map<string, PoolListing>>()      // bucket → code → listing
-  private subs = new Map<string, Set<(l: PoolListing) => void>>()     // bucket → подписчики
+  private subs = new Map<string, Set<(l: PoolListing) => void>>()     // bucket → subscribers
 
   publish(bucket: string, listing: PoolListing) {
     let m = this.listings.get(bucket)
@@ -19,7 +19,7 @@ export class LoopbackDiscovery implements IDiscovery {
     let set = this.subs.get(bucket)
     if (!set) { set = new Set(); this.subs.set(bucket, set) }
     set.add(onListing)
-    this.listings.get(bucket)?.forEach(l => onListing(l))   // снапшот текущих
+    this.listings.get(bucket)?.forEach(l => onListing(l))   // snapshot of current
     return () => { this.subs.get(bucket)?.delete(onListing) }
   }
 

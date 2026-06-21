@@ -4,7 +4,7 @@ import { ClassicBeamFx } from './ClassicBeamFx'
 import { RageBeamFx } from './RageBeamFx'
 import { SingularityBeamFx } from './SingularityBeamFx'
 
-/** Фабрика визуала луча по стилю выстрела: форма стилевая, цвет оболочки — цвет игрока. */
+/** Beam visual factory by shot style: the shape is style-specific, the shell color is the player color. */
 export function createBeamFx(style: WindupStyle, playerColor: string): IBeamFx {
   switch (style) {
     case 'rage':        return new RageBeamFx(playerColor)

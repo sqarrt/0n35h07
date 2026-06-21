@@ -9,14 +9,14 @@ interface Wire {
 }
 
 /**
- * Discovery поверх BroadcastChannel (same-origin вкладки + e2e). Снапшот для позднего подписчика —
- * через 'whois': при subscribe шлём запрос по корзине, публикующие хосты ретранслируют свой листинг.
+ * Discovery over BroadcastChannel (same-origin tabs + e2e). Snapshot for a late subscriber —
+ * via 'whois': on subscribe we send a request for the bucket, and publishing hosts rebroadcast their listing.
  */
 export class BroadcastChannelDiscovery implements IDiscovery {
   private ch = new BroadcastChannel('oneshot:discovery')
   private listings = new Map<string, Map<string, PoolListing>>()   // bucket → code → listing
   private subs = new Map<string, Set<(l: PoolListing) => void>>()
-  private mine = new Map<string, PoolListing>()                    // bucket → свой листинг (ответ на whois)
+  private mine = new Map<string, PoolListing>()                    // bucket → own listing (reply to whois)
 
   constructor() { this.ch.onmessage = (e: MessageEvent<Wire>) => this.receive(e.data) }
 
@@ -36,8 +36,8 @@ export class BroadcastChannelDiscovery implements IDiscovery {
     let set = this.subs.get(bucket)
     if (!set) { set = new Set(); this.subs.set(bucket, set) }
     set.add(onListing)
-    this.listings.get(bucket)?.forEach(l => onListing(l))                 // локальный снапшот
-    this.ch.postMessage({ kind: 'whois', bucket } satisfies Wire)          // снапшот от других вкладок
+    this.listings.get(bucket)?.forEach(l => onListing(l))                 // local snapshot
+    this.ch.postMessage({ kind: 'whois', bucket } satisfies Wire)          // snapshot from other tabs
     return () => { this.subs.get(bucket)?.delete(onListing) }
   }
 

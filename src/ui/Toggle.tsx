@@ -7,7 +7,7 @@ interface ToggleProps {
   'data-testid'?: string
 }
 
-/** Тумблер вкл/выкл в стиле игры (плоский, твёрдый, без плавных переходов). */
+/** On/off toggle in the game's style (flat, solid, no smooth transitions). */
 export function Toggle({ checked, onChange, 'aria-label': ariaLabel, 'data-testid': testId }: ToggleProps) {
   const sfx = useSfx()
   return (
