@@ -43,6 +43,8 @@ export class BeamWeapon implements IWeapon {
   private _origin = new THREE.Vector3()
   private _dir    = new THREE.Vector3()
   private _end    = new THREE.Vector3()
+  private _rcDir  = new THREE.Vector3()
+  private _tmp    = new THREE.Vector3()
 
   constructor(cfg: BeamConfig = {}) {
     this.windupDuration   = cfg.windupDuration   ?? BEAM_WINDUP
@@ -84,16 +86,24 @@ export class BeamWeapon implements IWeapon {
     this.cooldownRemaining = this.cooldownTotal
     this.windupElapsed = 0
 
-    this._origin.copy(ctx.muzzle)
-    this._dir.copy(ctx.aim).normalize()
-    const hit = ctx.world.raycast(this._origin, this._dir, ctx.excludeIds, ctx.pierceWalls ?? false)
+    this._origin.copy(ctx.muzzle)            // визуал луча всегда из дула
+    this._dir.copy(ctx.aim).normalize()      // визуальное направление (дуло→прицел), для fallback
+    // Хит: по лучу прицела (камера→мушка) у человека — «что под перекрестием, то и поражаешь», без
+    // параллакса дуло↔камера в TP. Бот/удалённый origin не задают → хит из дула вдоль aim (как раньше).
+    const rcOrigin = ctx.hitOrigin ?? this._origin
+    const rcDir = ctx.hitDir ? this._rcDir.copy(ctx.hitDir).normalize() : this._dir
+    const hit = ctx.world.raycast(rcOrigin, rcDir, ctx.excludeIds, ctx.pierceWalls ?? false)
 
     let hitEntityId: number | null = null
     let hitPoint: THREE.Vector3 | null = null
     if (hit) {
-      this._end.copy(hit.point)
       const eid = (hit.object.userData as MeshUserData).entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
+      // Конец визуала = точка попадания, если она ВПЕРЕДИ дула; иначе тянем луч вперёд (анти-переворот в TP,
+      // когда прицел зацепил поверхность между камерой и дулом).
+      const ahead = this._tmp.copy(hit.point).sub(this._origin).dot(this._dir) > 0
+      if (ahead) this._end.copy(hit.point)
+      else this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     } else {
       this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     }

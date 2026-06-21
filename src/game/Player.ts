@@ -43,6 +43,8 @@ export class Player implements IControllable {
   private shield: IShield
   private trail: IDashTrail   // стилевой след РЫВКА (скин dashStyle); след призрака рисует respawnFx
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
+  private aimOrigin = new THREE.Vector3()          // origin луча ПОПАДАНИЯ (камера человека); валиден при hasAimOrigin
+  private hasAimOrigin = false                     // задан ли origin прицела (человек) — иначе хит из дула (бот/удалённый)
   private lookDir = new THREE.Vector3(0, 0, -1)   // направление ВЗГЛЯДА (ориентация модели): стабильно, не зависит
   //                                                 от дальности точки прицела (в TP камера позади → aimPoint−muzzle переворачивался)
   private spawnTime = -Infinity   // момент начала материализации (респаун)
@@ -52,6 +54,7 @@ export class Player implements IControllable {
   // Scratch-вектора — переиспользуются каждый кадр вместо new THREE.Vector3() в горячем пути.
   private _muzzle      = new THREE.Vector3()
   private _aimDir      = new THREE.Vector3()
+  private _hitDir      = new THREE.Vector3()
   private _moveScaled  = new THREE.Vector3()
   private _deathPos    = new THREE.Vector3()
   pierceWalls = false              // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты; ставит Match
@@ -193,7 +196,13 @@ export class Player implements IControllable {
     return 1 + (RESPAWN_SPEED_MULT - 1) * (p / RESPAWN_SPEED_RAMP)
   }
   setJumpInput(held: boolean)  { this.body.setJumpInput(this.canMove() && held) }   // held → auto-bhop/двойной прыжок
-  aim(point: THREE.Vector3)    { this.aimPoint.copy(point) }   // целимся В ТОЧКУ мира (доступно и в заморозке)
+  // Целимся В ТОЧКУ мира (доступно и в заморозке). origin (камера человека) → хит считается по лучу
+  // прицела камера→точка, а не из дула: убирает параллакс в TP. Без origin (бот/удалённый) — хит из дула.
+  aim(point: THREE.Vector3, origin?: THREE.Vector3) {
+    this.aimPoint.copy(point)
+    this.hasAimOrigin = origin !== undefined
+    if (origin) this.aimOrigin.copy(origin)
+  }
   /** Направление взгляда (для ориентации модели). Горизонтальную проекцию берёт faceDir; почти-нулевой вектор игнорим. */
   setLook(dir: THREE.Vector3)  { if (dir.lengthSq() > 1e-8) this.lookDir.copy(dir) }
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
@@ -212,7 +221,10 @@ export class Player implements IControllable {
     const aim = this._aimDir.copy(this.aimPoint).sub(this._muzzle).normalize()
     this._muzzle.addScaledVector(aim, BALL_RADIUS)   // дуло на поверхности шара, ⊥ к ней
     this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    this.weapon.update(dt, { world, muzzle: this._muzzle, aim, excludeIds, pierceWalls: this.pierceWalls })
+    // Хит человека — по лучу прицела (камера→точка); у бота/удалённого origin нет → хит из дула.
+    const hitOrigin = this.hasAimOrigin ? this.aimOrigin : undefined
+    const hitDir = this.hasAimOrigin ? this._hitDir.copy(this.aimPoint).sub(this.aimOrigin).normalize() : undefined
+    this.weapon.update(dt, { world, muzzle: this._muzzle, aim, excludeIds, pierceWalls: this.pierceWalls, hitOrigin, hitDir })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
