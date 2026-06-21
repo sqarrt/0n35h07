@@ -10,6 +10,7 @@ import { TimePicker } from '../components/lobby/TimePicker'
 import { LobbyAction } from '../components/lobby/LobbyAction'
 import { RoomCodeField } from '../components/lobby/RoomCodeField'
 import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
+import { BotNameField } from '../components/lobby/BotNameField'
 
 export type { LobbySlot } from '../components/lobby/types'   // ре-экспорт для App (строит me/opponent)
 
@@ -22,8 +23,10 @@ interface LobbyProps {
   durationSel: DurationFilter
   searching: boolean
   botDifficulty: BotDifficulty
+  botName: string
   onSetTab: (tab: LobbyTab) => void
   onSetBotDifficulty: (d: BotDifficulty) => void
+  onSetBotName: (name: string) => void
   onFriendSearch: (code: string) => void
   onSetMap: (m: MapFilter) => void
   onSetDuration: (d: DurationFilter) => void
@@ -75,7 +78,10 @@ export function Lobby(props: LobbyProps) {
             <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
           )}
           {tab === 'bot' && (
-            <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
+            <>
+              <BotNameField name={props.botName} onSetName={props.onSetBotName} />
+              <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
+            </>
           )}
         </div>
 
