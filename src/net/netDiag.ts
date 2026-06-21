@@ -89,20 +89,20 @@ function attach(pc: RTCPeerConnection, config?: RTCConfiguration): void {
 /** Human-readable verdict: which layer the failure belongs to (see the matrix in the plan). */
 function summarize(): string {
   if (pcs.length === 0)
-    return 'NO_RTC: RTCPeerConnection не создавался → пиры не нашли друг друга (H1: релеи не пересеклись, либо H0: appId/код не совпали).'
+    return 'NO_RTC: RTCPeerConnection was never created → peers did not find each other (H1: relays did not overlap, or H0: appId/code did not match).'
   const connected = pcs.some(p => p.states.some(s => s.ice === 'connected' || s.ice === 'completed'))
   if (connected) {
     const assign = marks.some(m => m.tag === 'assignRecv')
     if (ctx.role === 'client' && !assign)
-      return 'RTC_OK_NO_ASSIGN: WebRTC соединён, но ASSIGN не пришёл (H3: прикладной хендшейк).'
-    return 'RTC_CONNECTED: WebRTC-соединение установлено.'
+      return 'RTC_OK_NO_ASSIGN: WebRTC connected, but ASSIGN did not arrive (H3: application handshake).'
+    return 'RTC_CONNECTED: WebRTC connection established.'
   }
   const failed = pcs.some(p => p.states.some(s => s.ice === 'failed'))
   const hasSrflx = pcs.some(p => p.localCandTypes.srflx)
   const hasRelay = pcs.some(p => p.localCandTypes.relay)
   if (failed)
-    return `ICE_FAILED: SDP обменялись, но ICE не пробил NAT (H2). srflx=${hasSrflx} relay=${hasRelay} → ${hasRelay ? 'даже TURN не помог' : 'нужен TURN'}.`
-  return 'ICE_PENDING: соединение зависло в checking/gathering — вероятно H2 (NAT, нужен TURN).'
+    return `ICE_FAILED: SDP was exchanged, but ICE did not punch through NAT (H2). srflx=${hasSrflx} relay=${hasRelay} → ${hasRelay ? 'even TURN did not help' : 'TURN required'}.`
+  return 'ICE_PENDING: connection stuck in checking/gathering — likely H2 (NAT, TURN required).'
 }
 
 function report(): unknown {
@@ -117,7 +117,7 @@ function report(): unknown {
   }
   const text = JSON.stringify(data, null, 2)
   try { void navigator.clipboard?.writeText(text) } catch { /* clipboard may be unavailable — logged below */ }
-  console.log('[netReport] (скопировано в буфер)\n' + text)
+  console.log('[netReport] (copied to clipboard)\n' + text)
   return data
 }
 
@@ -136,5 +136,5 @@ export function installNetDiag(): void {
     }
   }
   window.RTCPeerConnection = PatchedRTC as unknown as typeof window.RTCPeerConnection
-  console.log('[netDiag] установлена. После попытки коннекта вызови __netReport() в консоли (обе стороны).')
+  console.log('[netDiag] installed. After a connect attempt, call __netReport() in the console (both sides).')
 }

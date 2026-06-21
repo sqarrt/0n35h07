@@ -96,7 +96,7 @@ export class RoomSession {
     netDiagMark('helloRecv', { from })
     // Human takes the opponent slot, evicting the bot. Slot held by ANOTHER human → 1v1 room is full.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
-    const name = (hello.name || '').trim() || 'Соперник'
+    const name = (hello.name || '').trim() || 'Opponent'
     this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
     this.clientPeer = from
     this.readyIds.delete(OPPONENT_ID)   // the new human isn't ready yet (evicted the bot)

@@ -59,7 +59,7 @@ export function MapPreview({ map }: { map: GameMap }) {
   return (
     <Canvas
       className="map-preview"
-      aria-label={`Карта ${map.id}`}
+      aria-label={`Map ${map.id}`}
       frameloop="demand"
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}

@@ -18,10 +18,10 @@ const EDITOR_COLORS = ['#8a8f98', '#5a6678', '#b89863', '#8a5a2b', '#c2a878', '#
 
 // Hotbar tools (keys 1-4). Wedge orientation is auto-derived from view.
 const TOOLS: { tool: EditorTool; label: string }[] = [
-  { tool: 'cube', label: 'КУБ' },
-  { tool: 'wedge', label: 'КЛИН' },
-  { tool: 'spawn0', label: 'СПАВН ХОСТА' },
-  { tool: 'spawn1', label: 'СПАВН ГОСТЯ' },
+  { tool: 'cube', label: 'CUBE' },
+  { tool: 'wedge', label: 'WEDGE' },
+  { tool: 'spawn0', label: 'HOST SPAWN' },
+  { tool: 'spawn1', label: 'GUEST SPAWN' },
 ]
 const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4']
 
@@ -129,24 +129,24 @@ export function MapEditor({ name }: { name: string }) {
 
   // Saving writes 3 artifacts: raw.json (source) + geo.json (compiled geometry) + preview.png (offscreen render).
   const doSave = async () => {
-    setStatus('сохранение…')
+    setStatus('saving…')
     const data = buildMap()
     const rawOk = await saveMap(name, data)
     const geoOk = await saveCompiled(name, serializeGeo(compileBlocks(data.blocks)))
-    setStatus(rawOk && geoOk ? 'рендер превью…' : 'ошибка сохранения')
+    setStatus(rawOk && geoOk ? 'rendering preview…' : 'save error')
     setThumbMap(data as unknown as GameMap)   // mounts ThumbnailRenderer → onThumb
   }
 
   const onThumb = async (dataUrl: string | null) => {
     const pngOk = dataUrl ? await saveThumbnail(name, dataUrl) : false
     setThumbMap(null)
-    setStatus(pngOk ? `сохранено: ${name}` : 'сохранено (без превью)')
+    setStatus(pngOk ? `saved: ${name}` : 'saved (no preview)')
   }
 
   const count = voxels.size
 
   if (!loaded) {
-    return <div className="editor-root" style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Загрузка карты «{name}»…</div>
+    return <div className="editor-root" style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>Loading map "{name}"…</div>
   }
 
   return (
@@ -164,7 +164,7 @@ export function MapEditor({ name }: { name: string }) {
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">КЛИК — захватить мышь · ЛКМ ставить · ПКМ убирать{tool === 'wedge' ? ' · R — поворот, T — перевернуть клин' : ''} · WASD — движение, Space — {fly ? 'вверх' : 'прыжок'} · TAB — {fly ? 'полёт' : 'ходьба'} · L — грани кубов: {showCubeGrid ? 'вкл' : 'выкл'} · ESC — меню</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip wedge' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">
@@ -180,45 +180,45 @@ export function MapEditor({ name }: { name: string }) {
         <span className="editor-sep" />
         {/* Brush properties: apply to the next placed blocks */}
         <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => setBrushTransparent(v => !v)}>
-          {brushTransparent ? 'Полупрозрачный' : 'Непрозрачный'}
+          {brushTransparent ? 'Semi-transparent' : 'Opaque'}
         </button>
         <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => setBrushBeam(v => !v)}>
-          {brushBeam ? 'Непростреливаемый' : 'Простреливаемый'}
+          {brushBeam ? 'Beam-blocking' : 'Shoot-through'}
         </button>
         <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => setBrushPassable(v => !v)}>
-          {brushPassable ? 'Проходимый' : 'Непроходимый'}
+          {brushPassable ? 'Passable' : 'Solid'}
         </button>
       </div>
 
       {/* Side panel */}
       <div className="editor-panel">
-        <div className="editor-title">РЕДАКТОР КАРТ <span className="editor-dim">блоков: {count}</span></div>
+        <div className="editor-title">MAP EDITOR <span className="editor-dim">blocks: {count}</span></div>
 
-        <div className="editor-row"><span>КАРТА</span>
+        <div className="editor-row"><span>MAP</span>
           <span className="editor-name">{name}</span>
         </div>
 
-        <div className="editor-row"><span>АРЕНА X</span>
+        <div className="editor-row"><span>ARENA X</span>
           <input className="input" type="number" value={half[0]} min={4} onChange={e => setHalf([Math.max(4, +e.target.value), half[1]])} />
           <span>Z</span>
           <input className="input" type="number" value={half[1]} min={4} onChange={e => setHalf([half[0], Math.max(4, +e.target.value)])} />
         </div>
 
-        <div className="editor-row"><span>ПОЛ</span><Palette value={floorColor} onPick={setFloorColor} /></div>
-        <div className="editor-row"><span>СТЕНЫ</span><Palette value={wallColor} onPick={setWallColor} /></div>
+        <div className="editor-row"><span>FLOOR</span><Palette value={floorColor} onPick={setFloorColor} /></div>
+        <div className="editor-row"><span>WALLS</span><Palette value={wallColor} onPick={setWallColor} /></div>
 
-        <div className="editor-row"><span>СЕТКА КУБОВ</span>
+        <div className="editor-row"><span>CUBE GRID</span>
           <button className={`seg${showGridInGame ? ' seg--on' : ''}`} data-testid="ed-map-grid" onClick={() => setShowGridInGame(v => !v)}>
-            в игре: {showGridInGame ? 'вкл' : 'выкл'}
+            in game: {showGridInGame ? 'on' : 'off'}
           </button>
         </div>
 
         <div className="editor-row">
-          <button className="btn" onClick={doSave}>СОХРАНИТЬ</button>
+          <button className="btn" onClick={doSave}>SAVE</button>
           {status && <span className="editor-dim">{status}</span>}
         </div>
 
-        <a className="editor-exit" href="#editor">← к выбору карт</a>
+        <a className="editor-exit" href="#editor">← to map list</a>
       </div>
 
       {/* Offscreen preview render on save (preview.png) */}

@@ -15,7 +15,7 @@ export type NetTag = typeof NET_TAGS[number]
 /** Match phase: host → all (readiness/countdown before the fight). */
 export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
-// --- handshake (комната) ---
+// --- handshake (room) ---
 export type PlayerKind = 'human' | 'bot'
 /** A single match player (human or bot). The host hands the whole roster to clients. */
 export interface RosterEntry {

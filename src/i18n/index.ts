@@ -91,7 +91,7 @@ export function ForceLocale({ id, children }: { id: LocaleId; children: ReactNod
 
 function useI18n(): I18nCtx {
   const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useT/useLocale вне I18nProvider')
+  if (!ctx) throw new Error('useT/useLocale outside I18nProvider')
   return ctx
 }
 

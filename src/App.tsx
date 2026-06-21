@@ -392,8 +392,8 @@ export default function App() {
         if (!api) return
         if (api.isRecordingDemo()) {
           const demo = api.stopDemo()
-          if (demo) { downloadDemo(demo); console.log(`[demo] записано кадров: ${demo.frames.length}`) }
-        } else { api.startDemo(); console.log('[demo] запись начата (F9 — стоп)') }
+          if (demo) { downloadDemo(demo); console.log(`[demo] recorded frames: ${demo.frames.length}`) }
+        } else { api.startDemo(); console.log('[demo] recording started (F9 — stop)') }
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
