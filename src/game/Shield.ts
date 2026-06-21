@@ -6,18 +6,18 @@ import { SHIELD_DURATION, SHIELD_COOLDOWN } from '../constants'
 
 interface ShieldConfig { duration?: number; cooldown?: number; shieldFx?: IShieldFx }
 
-// «Идеальный блок»: щит, активированный не позже этого окна до попадания луча, награждает сбросом кулдаунов.
+// "Perfect block": a shield activated no later than this window before a beam hit rewards a cooldown reset.
 const PERFECT_BLOCK_WINDOW_MS = 100
 
-/** Щит: idle → active(duration) → cooldown. dt-driven, без setTimeout. Визуал — у скина IShieldFx. */
+/** Shield: idle → active(duration) → cooldown. dt-driven, no setTimeout. Visuals — from the IShieldFx skin. */
 export class Shield implements IShield {
   readonly object3d = new THREE.Group()
   private fx: IShieldFx
 
   private phase: 'idle' | 'active' | 'cooldown' = 'idle'
-  private timer = 0   // мс в текущей фазе
+  private timer = 0   // ms in the current phase
   private cooldownScale = 1
-  private skipCooldown = false   // взведён сбросом кулдаунов во время active → после окна сразу idle
+  private skipCooldown = false   // armed by a cooldown reset during active → goes straight to idle after the window
   private readonly duration: number
   private readonly cooldown: number
 
@@ -37,8 +37,8 @@ export class Shield implements IShield {
   }
 
   update(dt: number) {
-    // Видимость, форснутая извне (удалённый игрок из снапшота), — до перезаписи ниже:
-    // скин должен анимироваться и когда щит «включён» не нашей фазой.
+    // Visibility forced externally (remote player from a snapshot) — read before the overwrite below:
+    // the skin must animate even when the shield is "on" via a phase that isn't ours.
     const externallyVisible = this.object3d.visible
     const ms = dt * 1000
     if (this.phase === 'active') {
@@ -60,7 +60,7 @@ export class Shield implements IShield {
 
   get isActive() { return this.phase === 'active' }
 
-  /** Идеальный блок: активирован не позже окна до попадания (timer в active = мс с активации). */
+  /** Perfect block: activated no later than the window before the hit (timer in active = ms since activation). */
   isPerfectBlock(): boolean { return this.phase === 'active' && this.timer <= PERFECT_BLOCK_WINDOW_MS }
 
   progress(): number {
@@ -73,7 +73,7 @@ export class Shield implements IShield {
   setCooldownScale(scale: number) { this.cooldownScale = scale > 0 ? scale : 1 }
   resetCooldown() {
     if (this.phase === 'cooldown') { this.phase = 'idle'; this.timer = 0 }
-    else if (this.phase === 'active') { this.skipCooldown = true }   // после активного окна — сразу idle
+    else if (this.phase === 'active') { this.skipCooldown = true }   // after the active window — straight to idle
   }
 
   reset() {
