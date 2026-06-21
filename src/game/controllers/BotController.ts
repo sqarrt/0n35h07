@@ -4,9 +4,10 @@ import type { Player } from '../Player'
 import type { World } from '../World'
 import type { MeshUserData } from '../../utils/raycast'
 import type { BotPersonality } from './botPersonality'
+import { rollHit, aimPoint } from './botAim'
 import { randomArenaPos } from '../maps'
 import {
-  BOT_MOVE_SPEED, BOT_FIRE_INTERVAL, BOT_SHIELD_INTERVAL,
+  BOT_MOVE_SPEED, BOT_SHIELD_INTERVAL,
   BOT_CHASE_DIST, BOT_RETREAT_MS, BOT_DODGE_THRESH,
 } from '../../constants'
 
@@ -23,6 +24,7 @@ export class BotController implements Controller {
   private strafeDir       = 1        // +1 / -1 — сторона стрейфа
   private strafeFlipTimer = 0
   private dodgeReactionTimer = -1    // -1 = не активен; >=0 = мс до реакции
+  private shotIsHit       = false    // решение текущего выстрела: попадание vs near-miss
   private lastKnownPos = new THREE.Vector3()
 
   // Scratch-векторы — не создаём new THREE.Vector3() в горячем пути
@@ -110,21 +112,27 @@ export class BotController implements Controller {
       case 'RETREAT': this._retreat(pos, oppPos, dt); break
     }
 
-    // Прицел с шумом (все состояния)
-    this._aimPt.copy(hasLOS ? oppPos : this.lastKnownPos)
-    this._addNoise(dist)
-    this.player.aim(this._aimPt)
-    this.player.setLook(this._toTarget.copy(this._aimPt).sub(pos))
-
-    // Стрельба (CHASE + STRAFE при наличии LOS)
+    // Стрельба (CHASE + STRAFE при наличии LOS): решение hit/near-miss принимается на старте заряда
     if (hasLOS && (this.state === 'CHASE' || this.state === 'STRAFE')) {
       this.shootTimer += dt * 1000
-      if (this.shootTimer >= BOT_FIRE_INTERVAL) {
+      if (!this.player.isWindingUp && this.shootTimer >= this.personality.fireIntervalMs) {
         this.shootTimer = 0
+        this.shotIsHit = rollHit(this.personality.hitChance)
         this.player.startFiring()
         this.retreatTimer = BOT_RETREAT_MS
       }
     }
+
+    // Прицел: во время заряда держим зафиксированное решение выстрела (центр vs near-miss);
+    // вне заряда — слежение по центру цели. Цель следуем покадрово → near-miss остаётся «впритирку».
+    const aimBase = hasLOS ? oppPos : this.lastKnownPos
+    if (this.player.isWindingUp) {
+      aimPoint(this._aimPt, aimBase, pos, this.shotIsHit, this.personality.grazeMargin)
+    } else {
+      this._aimPt.copy(aimBase)
+    }
+    this.player.aim(this._aimPt)
+    this.player.setLook(this._toTarget.copy(this._aimPt).sub(pos))
 
     // Щит (CHASE + STRAFE)
     if (this.state === 'CHASE' || this.state === 'STRAFE') {
@@ -194,13 +202,5 @@ export class BotController implements Controller {
     } else {
       this.player.setJumpInput(true)
     }
-  }
-
-  // Добавляет шум к _aimPt, масштабируется на дистанцию → угловой сдвиг постоянен
-  private _addNoise(dist: number) {
-    const n = this.personality.aimNoise * dist
-    this._aimPt.x += (Math.random() - 0.5) * 2 * n
-    this._aimPt.y += (Math.random() - 0.5) * 2 * n
-    this._aimPt.z += (Math.random() - 0.5) * 2 * n
   }
 }

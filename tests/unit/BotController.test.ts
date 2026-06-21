@@ -19,7 +19,6 @@ const FAST_PERSONALITY: BotPersonality = {
   dashRate:       0,
   jumpiness:      0,
   strafeFlipMs:   99999,
-  aimNoise:       0,
   grazeMargin:    0,
   baitSkill:      0,
   evadeSkill:     0,
@@ -69,7 +68,7 @@ describe('BotController', () => {
     opp.position.set(0, EYE_HEIGHT, -3)
     ;(bot as any).respawning = true
     const bc = makeBot(bot, opp, worldWithLOS(opp.id))
-    for (let i = 0; i < 50; i++) bc.update(0.1)   // 5с > BOT_FIRE_INTERVAL(2500мс)
+    for (let i = 0; i < 50; i++) bc.update(0.1)   // 5с > fireIntervalMs(1400мс)
     expect(bot.isWindingUp).toBe(false)
     expect(bot.shieldActive).toBe(false)
   })
@@ -79,11 +78,11 @@ describe('BotController', () => {
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
     const bc = makeBot(bot, opp, worldBlocked)
-    for (let i = 0; i < 40; i++) bc.update(0.1)   // 4с > BOT_FIRE_INTERVAL
+    for (let i = 0; i < 40; i++) bc.update(0.1)   // 4с > fireIntervalMs
     expect(bot.isWindingUp).toBe(false)
   })
 
-  it('есть LOS, соперник близко (STRAFE) — начинает заряд после BOT_FIRE_INTERVAL', () => {
+  it('есть LOS, соперник близко (STRAFE) — начинает заряд после fireIntervalMs', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)   // dist≈5 < BOT_CHASE_DIST(8) → STRAFE

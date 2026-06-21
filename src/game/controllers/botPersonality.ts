@@ -14,8 +14,7 @@ const DODGE_SKILL:   Anchor = { weak: 0.05,  strong: 0.95  }
 const DASH_RATE:     Anchor = { weak: 0.03,  strong: 0.30  }
 const JUMPINESS:     Anchor = { weak: 0.05,  strong: 0.45  }
 const STRAFE_FLIP:   Anchor = { weak: 2000,  strong: 600   }
-const AIM_NOISE:     Anchor = { weak: 0.12,  strong: 0.01  }   // legacy (используется до Task 2)
-const GRAZE_MARGIN:  Anchor = { weak: 0.90,  strong: 0.15  }
+const GRAZE_MARGIN:  Anchor = { weak: 0.90,  strong: 0.15  }   // near-miss: доля BALL_RADIUS за краем хитбокса
 const BAIT_SKILL:    Anchor = { weak: 0.05,  strong: 0.90  }
 const EVADE_SKILL:   Anchor = { weak: 0.10,  strong: 0.95  }
 
@@ -28,7 +27,6 @@ export interface BotPersonality {
   dashRate:       number   // вероятность/сек дэша
   jumpiness:      number   // вероятность/сек прыжка
   strafeFlipMs:   number   // период смены направления стрейфа
-  aimNoise:       number   // legacy 3D-шум прицела (удаляется в Task 2)
   grazeMargin:    number   // near-miss: доля BALL_RADIUS сверх края
   baitSkill:      number   // склонность разводить на щит
   evadeSkill:     number   // качество распрыжки-уклонения когда ведёт
@@ -62,7 +60,6 @@ export function botPersonality(name: string): BotPersonality {
     dashRate:       p(DASH_RATE),
     jumpiness:      p(JUMPINESS),
     strafeFlipMs:   p(STRAFE_FLIP),
-    aimNoise:       p(AIM_NOISE),
     grazeMargin:    p(GRAZE_MARGIN),
     baitSkill:      p(BAIT_SKILL),
     evadeSkill:     p(EVADE_SKILL),
