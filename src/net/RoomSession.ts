@@ -120,18 +120,22 @@ export class RoomSession {
     this.broadcastRoster()
   }
 
-  addBot(difficulty: BotDifficulty = 'normal') {
-    if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    // Имя-«модель» генерируем заново при каждом добавлении бота (RA9, T-2000, …).
-    // Скин выводим из ника (тот же seed, что у личности бота); цвет — без коллизии с хостом.
-    const name = generateModelName()
+  /** Собрать entry бота: имя задаёт и личность, и внешность (тот же seed); цвет — без коллизии с хостом. */
+  private makeBotEntry(name: string, difficulty: BotDifficulty): RosterEntry {
     const skin = botAppearance(name)
-    this.opponent = {
+    return {
       id: OPPONENT_ID, name, kind: 'bot', difficulty,
       color: this.assignColor(skin.color, skin.color),
       ballModel: skin.ballModel, windupStyle: skin.windupStyle,
       respawnStyle: skin.respawnStyle, dashStyle: skin.dashStyle, shieldStyle: skin.shieldStyle,
     }
+  }
+
+  addBot(difficulty: BotDifficulty = 'normal', name?: string) {
+    if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
+    // Имя из поля лобби, если задано; иначе генерируем «модель» (RA9, T-2000, …).
+    const botName = (name ?? '').trim() || generateModelName()
+    this.opponent = this.makeBotEntry(botName, difficulty)
     this.readyIds.add(OPPONENT_ID)   // бот авто-готов
     this.resolveAgainst(ALL_MAPS, ALL_DURS)   // бот принимает всё → случайное из набора хоста
     this.broadcastRoster()
@@ -146,6 +150,15 @@ export class RoomSession {
 
   setBotDifficulty(d: BotDifficulty) {
     if (this.opponent?.kind === 'bot') { this.opponent.difficulty = d; this.broadcastRoster() }
+  }
+
+  /** Переименовать бота вживую: имя пере-выводит личность+внешность. No-op, если в слоте не бот или имя пустое. */
+  setBotName(name: string) {
+    if (this.opponent?.kind !== 'bot') return
+    const botName = name.trim()
+    if (!botName) return   // пустое поле — оставляем текущего (случайного) бота
+    this.opponent = this.makeBotEntry(botName, this.opponent.difficulty ?? 'normal')
+    this.broadcastRoster()
   }
 
   private sendAssign(peer: PeerId) {

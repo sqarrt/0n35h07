@@ -176,11 +176,14 @@ export const NET_ICE_SERVERS: RTCIceServer[] = [
 
 // Bot movement & combat
 export const BOT_MOVE_SPEED      = 2.5
-export const BOT_FIRE_INTERVAL   = 2500
 export const BOT_SHIELD_INTERVAL = 5000   // как часто ИИ решает поднять щит (не длительность щита — она как у игрока)
 export const BOT_CHASE_DIST      = 8      // дистанция переключения CHASE ↔ STRAFE (ед.)
 export const BOT_RETREAT_MS      = 500    // мс отхода после собственного выстрела
 export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
+export const BOT_EVADE_NEAR      = 6      // дистанция «вплотную» для EVADE-распрыжки (ед.)
+export const BOT_EVADE_DASH_RATE = 1.5   // базовая частота дэшей/сек в EVADE (×evadeSkill)
+export const BOT_BAIT_LATE_PROGRESS = 0.55  // windupProgress, с которого заряд считается «поздним» для развода
+export const BOT_BAIT_COOLDOWN_MS   = 4000  // мс между разводами на щит (анти-зацикливание)
 
 // Arena
 export const SPAWN_HALF = 14

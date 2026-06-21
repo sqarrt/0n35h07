@@ -146,6 +146,57 @@ describe('RoomSession — слот соперника (строго 1v1)', () =>
   })
 })
 
+describe('RoomSession — имя бота', () => {
+  function hostWithView() {
+    const [hostNet, clientNet] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
+    let view!: RoomView
+    host.onChange(v => { view = v })
+    return { host, clientNet, get: () => view }
+  }
+  const oppOf = (v: RoomView) => v.roster.find(r => r.id === OPPONENT_ID)!
+
+  it('addBot с явным именем → бот носит это имя, внешность выводится из него', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal', 'GLITCH')
+    const bot = oppOf(get())
+    expect(bot.name).toBe('GLITCH')
+    const want = botAppearance('GLITCH')
+    expect(bot.ballModel).toBe(want.ballModel)
+    expect(bot.dashStyle).toBe(want.dashStyle)
+  })
+
+  it('addBot с пустым именем → подставляет сгенерированное (непустое)', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal', '   ')
+    expect(oppOf(get()).name.trim().length).toBeGreaterThan(0)
+  })
+
+  it('setBotName переименовывает бота вживую: имя и внешность обновляются', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal', 'ALPHA')
+    expect(oppOf(get()).name).toBe('ALPHA')
+    host.setBotName('OMEGA')
+    const bot = oppOf(get())
+    expect(bot.name).toBe('OMEGA')
+    expect(bot.difficulty).toBe('normal')          // сложность сохранена
+    expect(bot.ballModel).toBe(botAppearance('OMEGA').ballModel)
+  })
+
+  it('setBotName с пустой строкой → бот не меняется', () => {
+    const { host, get } = hostWithView()
+    host.addBot('normal', 'KEEP')
+    host.setBotName('   ')
+    expect(oppOf(get()).name).toBe('KEEP')
+  })
+
+  it('setBotName без бота в слоте → no-op', () => {
+    const { host, get } = hostWithView()
+    host.setBotName('NOBODY')
+    expect(get().roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
+  })
+})
+
 describe('RoomSession — windupStyle в ростере', () => {
   it('windupStyle хоста и клиента едут в ростер (hello → assign)', () => {
     const { hostView, clientView } = handshake({ ...GUEST, windupStyle: 'singularity' })

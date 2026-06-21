@@ -248,6 +248,7 @@ export default function App() {
 
   const [lobbyTab, setLobbyTab] = useState<LobbyTab>('matchmaking')
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
+  const [botName, setBotName] = useState('')   // вкладка «С ботом»: имя бота (пусто = случайное при добавлении)
   const [searching, setSearching] = useState(false)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
@@ -333,7 +334,7 @@ export default function App() {
   const enterTabIdle = (tab: LobbyTab, sel: { map: MapFilter; durationMin: DurationFilter }) => {
     if (tab === 'bot') {
       enterRoom(lobbyCodeRef.current, 'host', sel)
-      sessionRef.current?.addBot(botDifficulty)   // бот сразу в слоте
+      sessionRef.current?.addBot(botDifficulty, botName)   // бот сразу в слоте (имя из поля или случайное)
     } else if (idleIsHost(tab)) {
       enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host-сессия для анонса
     } else {
@@ -454,6 +455,7 @@ export default function App() {
     setSearching(false)
     setLobbyTab('matchmaking')
     setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
+    setBotName('')
     lobbyCodeRef.current = randomRoomCode()   // фиксируем код лобби (не меняется при переключении вкладок)
     enterTabIdle('matchmaking', sel)
     setScreen('lobby')
@@ -472,6 +474,7 @@ export default function App() {
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
   const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
+  const onLobbySetBotName = (name: string) => { setBotName(name); sessionRef.current?.setBotName(name) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
 
   // «С другом»: симметричный рандеву — оба вводят один код и жмут ПОИСК; роль решает selfId.
@@ -580,8 +583,10 @@ export default function App() {
       durationSel: v?.durationSel ?? draftSel.durationMin,
       searching,
       botDifficulty,
+      botName,
       tab: lobbyTab, onSetTab: onLobbySetTab,
-      onSetBotDifficulty: onLobbySetBotDifficulty, onFriendSearch: onLobbyFriendSearch,
+      onSetBotDifficulty: onLobbySetBotDifficulty, onSetBotName: onLobbySetBotName,
+      onFriendSearch: onLobbyFriendSearch,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,

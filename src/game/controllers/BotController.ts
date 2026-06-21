@@ -4,10 +4,14 @@ import type { Player } from '../Player'
 import type { World } from '../World'
 import type { MeshUserData } from '../../utils/raycast'
 import type { BotPersonality } from './botPersonality'
+import { rollHit, aimPoint } from './botAim'
+import { shouldEvade } from './botTactics'
 import { randomArenaPos } from '../maps'
 import {
-  BOT_MOVE_SPEED, BOT_FIRE_INTERVAL, BOT_SHIELD_INTERVAL,
+  BOT_MOVE_SPEED, BOT_SHIELD_INTERVAL,
   BOT_CHASE_DIST, BOT_RETREAT_MS, BOT_DODGE_THRESH,
+  BOT_EVADE_NEAR, BOT_EVADE_DASH_RATE,
+  BOT_BAIT_LATE_PROGRESS, BOT_BAIT_COOLDOWN_MS,
 } from '../../constants'
 
 type BotState = 'WANDER' | 'CHASE' | 'STRAFE' | 'RETREAT'
@@ -23,6 +27,10 @@ export class BotController implements Controller {
   private strafeDir       = 1        // +1 / -1 — сторона стрейфа
   private strafeFlipTimer = 0
   private dodgeReactionTimer = -1    // -1 = не активен; >=0 = мс до реакции
+  private shotIsHit       = false    // решение текущего выстрела: попадание vs near-miss
+  private baitCooldownMs  = 0        // анти-зацикливание развода на щит
+  private baitTriedThisShot = false  // ролл развода — один раз на заряд (а не каждый кадр)
+  private pendingRealShot = false    // после дэш-отмены: выстрелить по-настоящему, когда щит соперника уйдёт
   private lastKnownPos = new THREE.Vector3()
 
   // Scratch-векторы — не создаём new THREE.Vector3() в горячем пути
@@ -62,6 +70,7 @@ export class BotController implements Controller {
     if (this.player.isRespawning) {
       this.shootTimer = 0
       this.shieldTimer = 0
+      this.pendingRealShot = false
       this.player.setJumpInput(false)
       this._wander(pos, dt)
       return
@@ -110,19 +119,69 @@ export class BotController implements Controller {
       case 'RETREAT': this._retreat(pos, oppPos, dt); break
     }
 
-    // Прицел с шумом (все состояния)
-    this._aimPt.copy(hasLOS ? oppPos : this.lastKnownPos)
-    this._addNoise(dist)
+    // Развод на защиту: в позднем СВОЁМ заряде соперник защищается (щит ИЛИ дэш-уворот) →
+    // дэш-отмена (заряд прерывается), запоминаем настоящий выстрел. Ролл — один раз на заряд
+    // (иначе за многие кадры даже низкий baitSkill почти всегда разводит); кулдаун против зацикливания.
+    const oppDefending = opp.shieldActive || opp.dashing
+    if (this.baitCooldownMs > 0) this.baitCooldownMs -= dt * 1000
+    if (!this.player.isWindingUp) this.baitTriedThisShot = false   // новый заряд → новый ролл
+    if (hasLOS && this.player.isWindingUp && oppDefending
+        && this.player.windupProgress > BOT_BAIT_LATE_PROGRESS
+        && !this.baitTriedThisShot && this.baitCooldownMs <= 0) {
+      this.baitTriedThisShot = true
+      if (Math.random() < this.personality.baitSkill) {
+        this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
+        this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
+        this.player.dash(this._perp)                 // прерывает заряд
+        this.baitCooldownMs  = BOT_BAIT_COOLDOWN_MS
+        this.pendingRealShot = true
+        this.shootTimer = 0
+      }
+    }
+
+    // Стрельба (CHASE + STRAFE при наличии LOS): решение hit/near-miss принимается на старте заряда
+    if (hasLOS && (this.state === 'CHASE' || this.state === 'STRAFE')) {
+      // Настоящий выстрел после развода: соперник отзащищался (щит ушёл и дэш закончился) → наказываем
+      if (this.pendingRealShot && !oppDefending && !this.player.isWindingUp) {
+        this.pendingRealShot = false
+        this.shootTimer = 0
+        this.shotIsHit = rollHit(this.personality.hitChance)
+        this.player.startFiring()
+        this.retreatTimer = BOT_RETREAT_MS
+      } else {
+        this.shootTimer += dt * 1000
+        if (!this.player.isWindingUp && this.shootTimer >= this.personality.fireIntervalMs) {
+          this.shootTimer = 0
+          this.shotIsHit = rollHit(this.personality.hitChance)
+          this.player.startFiring()
+          this.retreatTimer = BOT_RETREAT_MS
+        }
+      }
+    }
+
+    // Прицел: во время заряда держим зафиксированное решение выстрела (центр vs near-miss);
+    // вне заряда — слежение по центру цели. Цель следуем покадрово → near-miss остаётся «впритирку».
+    const aimBase = hasLOS ? oppPos : this.lastKnownPos
+    if (this.player.isWindingUp) {
+      aimPoint(this._aimPt, aimBase, pos, this.shotIsHit, this.personality.grazeMargin)
+    } else {
+      this._aimPt.copy(aimBase)
+    }
     this.player.aim(this._aimPt)
     this.player.setLook(this._toTarget.copy(this._aimPt).sub(pos))
 
-    // Стрельба (CHASE + STRAFE при наличии LOS)
-    if (hasLOS && (this.state === 'CHASE' || this.state === 'STRAFE')) {
-      this.shootTimer += dt * 1000
-      if (this.shootTimer >= BOT_FIRE_INTERVAL) {
-        this.shootTimer = 0
-        this.player.startFiring()
-        this.retreatTimer = BOT_RETREAT_MS
+    // EVADE-модификатор: ведём по очкам и под угрозой → распрыжка поверх боевого поведения.
+    // Авто-bhop (держим прыжок) + дэши вбок; частота дэшей масштабируется evadeSkill.
+    const evading = shouldEvade({
+      kills: this.player.kills, oppKills: opp.kills,
+      oppWindingUp: opp.isWindingUp, hasLOS, dist, evadeNear: BOT_EVADE_NEAR,
+    })
+    if (evading) {
+      this.player.setJumpInput(true)
+      if (Math.random() < this.personality.evadeSkill * BOT_EVADE_DASH_RATE * dt) {
+        this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
+        this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
+        this.player.dash(this._perp)
       }
     }
 
@@ -194,13 +253,5 @@ export class BotController implements Controller {
     } else {
       this.player.setJumpInput(true)
     }
-  }
-
-  // Добавляет шум к _aimPt, масштабируется на дистанцию → угловой сдвиг постоянен
-  private _addNoise(dist: number) {
-    const n = this.personality.aimNoise * dist
-    this._aimPt.x += (Math.random() - 0.5) * 2 * n
-    this._aimPt.y += (Math.random() - 0.5) * 2 * n
-    this._aimPt.z += (Math.random() - 0.5) * 2 * n
   }
 }
