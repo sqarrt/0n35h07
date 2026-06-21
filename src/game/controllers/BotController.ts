@@ -29,6 +29,7 @@ export class BotController implements Controller {
   private dodgeReactionTimer = -1    // -1 = не активен; >=0 = мс до реакции
   private shotIsHit       = false    // решение текущего выстрела: попадание vs near-miss
   private baitCooldownMs  = 0        // анти-зацикливание развода на щит
+  private baitTriedThisShot = false  // ролл развода — один раз на заряд (а не каждый кадр)
   private pendingRealShot = false    // после дэш-отмены: выстрелить по-настоящему, когда щит соперника уйдёт
   private lastKnownPos = new THREE.Vector3()
 
@@ -119,20 +120,23 @@ export class BotController implements Controller {
     }
 
     // Развод на защиту: в позднем СВОЁМ заряде соперник защищается (щит ИЛИ дэш-уворот) →
-    // дэш-отмена (заряд прерывается), запоминаем настоящий выстрел. Низкий baitSkill почти не
-    // разводит; кулдаун против зацикливания.
+    // дэш-отмена (заряд прерывается), запоминаем настоящий выстрел. Ролл — один раз на заряд
+    // (иначе за многие кадры даже низкий baitSkill почти всегда разводит); кулдаун против зацикливания.
     const oppDefending = opp.shieldActive || opp.dashing
     if (this.baitCooldownMs > 0) this.baitCooldownMs -= dt * 1000
+    if (!this.player.isWindingUp) this.baitTriedThisShot = false   // новый заряд → новый ролл
     if (hasLOS && this.player.isWindingUp && oppDefending
         && this.player.windupProgress > BOT_BAIT_LATE_PROGRESS
-        && this.baitCooldownMs <= 0
-        && Math.random() < this.personality.baitSkill) {
-      this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
-      this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
-      this.player.dash(this._perp)                 // прерывает заряд
-      this.baitCooldownMs  = BOT_BAIT_COOLDOWN_MS
-      this.pendingRealShot = true
-      this.shootTimer = 0
+        && !this.baitTriedThisShot && this.baitCooldownMs <= 0) {
+      this.baitTriedThisShot = true
+      if (Math.random() < this.personality.baitSkill) {
+        this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
+        this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
+        this.player.dash(this._perp)                 // прерывает заряд
+        this.baitCooldownMs  = BOT_BAIT_COOLDOWN_MS
+        this.pendingRealShot = true
+        this.shootTimer = 0
+      }
     }
 
     // Стрельба (CHASE + STRAFE при наличии LOS): решение hit/near-miss принимается на старте заряда
