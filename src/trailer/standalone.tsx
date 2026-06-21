@@ -17,6 +17,8 @@ import { TrailerScreen } from '../components/trailer/TrailerScreen'
 // Один движок SFX на страницу (AudioContext создаётся, остаётся suspended до жеста).
 const engine = new ThreeSfxEngine()
 
+// Точка входа (бутстрап рендера), а не модуль с хот-релоадом компонента → правило fast-refresh неприменимо.
+// eslint-disable-next-line react-refresh/only-export-components
 function Standalone() {
   // 0 — не запущен (экран PLAY); >0 — идёт прогон (значение = key для перезапуска).
   const [runId, setRunId] = useState(0)
