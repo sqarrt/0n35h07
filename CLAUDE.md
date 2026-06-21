@@ -8,7 +8,6 @@ Tauri 2 desktop build.
 
 ## Base rules
 
-- Communicate with the user in Russian.
 - Avoid unnecessary `cd` (change directory) calls.
   - In particular, do not `cd` into the current working directory (you are already there).
   - Before running a `cd`, double-check you are not already in that directory.
