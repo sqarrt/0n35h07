@@ -1,7 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body, html, #root { width: 100%; height: 100%; overflow: hidden; background: #000; }
 
-/* Game UI is not selectable by click/drag (especially noticeable in Electron); input fields are an exception,
+/* Game UI is not selectable by click/drag (especially noticeable in the desktop webview); input fields are an exception,
    where selection is needed for editing. Images don't get dragged as a "ghost". */
 body { user-select: none; }
 input, textarea { user-select: text; }
