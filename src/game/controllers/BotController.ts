@@ -11,6 +11,7 @@ import {
   BOT_MOVE_SPEED, BOT_SHIELD_INTERVAL,
   BOT_CHASE_DIST, BOT_RETREAT_MS, BOT_DODGE_THRESH,
   BOT_EVADE_NEAR, BOT_EVADE_DASH_RATE,
+  BOT_BAIT_LATE_PROGRESS, BOT_BAIT_COOLDOWN_MS,
 } from '../../constants'
 
 type BotState = 'WANDER' | 'CHASE' | 'STRAFE' | 'RETREAT'
@@ -27,6 +28,8 @@ export class BotController implements Controller {
   private strafeFlipTimer = 0
   private dodgeReactionTimer = -1    // -1 = не активен; >=0 = мс до реакции
   private shotIsHit       = false    // решение текущего выстрела: попадание vs near-miss
+  private baitCooldownMs  = 0        // анти-зацикливание развода на щит
+  private pendingRealShot = false    // после дэш-отмены: выстрелить по-настоящему, когда щит соперника уйдёт
   private lastKnownPos = new THREE.Vector3()
 
   // Scratch-векторы — не создаём new THREE.Vector3() в горячем пути
@@ -66,6 +69,7 @@ export class BotController implements Controller {
     if (this.player.isRespawning) {
       this.shootTimer = 0
       this.shieldTimer = 0
+      this.pendingRealShot = false
       this.player.setJumpInput(false)
       this._wander(pos, dt)
       return
@@ -114,14 +118,40 @@ export class BotController implements Controller {
       case 'RETREAT': this._retreat(pos, oppPos, dt); break
     }
 
+    // Развод на защиту: в позднем СВОЁМ заряде соперник защищается (щит ИЛИ дэш-уворот) →
+    // дэш-отмена (заряд прерывается), запоминаем настоящий выстрел. Низкий baitSkill почти не
+    // разводит; кулдаун против зацикливания.
+    const oppDefending = opp.shieldActive || opp.dashing
+    if (this.baitCooldownMs > 0) this.baitCooldownMs -= dt * 1000
+    if (hasLOS && this.player.isWindingUp && oppDefending
+        && this.player.windupProgress > BOT_BAIT_LATE_PROGRESS
+        && this.baitCooldownMs <= 0
+        && Math.random() < this.personality.baitSkill) {
+      this._toTarget.copy(oppPos).sub(pos).setY(0).normalize()
+      this._perp.set(-this._toTarget.z, 0, this._toTarget.x).multiplyScalar(this.strafeDir)
+      this.player.dash(this._perp)                 // прерывает заряд
+      this.baitCooldownMs  = BOT_BAIT_COOLDOWN_MS
+      this.pendingRealShot = true
+      this.shootTimer = 0
+    }
+
     // Стрельба (CHASE + STRAFE при наличии LOS): решение hit/near-miss принимается на старте заряда
     if (hasLOS && (this.state === 'CHASE' || this.state === 'STRAFE')) {
-      this.shootTimer += dt * 1000
-      if (!this.player.isWindingUp && this.shootTimer >= this.personality.fireIntervalMs) {
+      // Настоящий выстрел после развода: соперник отзащищался (щит ушёл и дэш закончился) → наказываем
+      if (this.pendingRealShot && !oppDefending && !this.player.isWindingUp) {
+        this.pendingRealShot = false
         this.shootTimer = 0
         this.shotIsHit = rollHit(this.personality.hitChance)
         this.player.startFiring()
         this.retreatTimer = BOT_RETREAT_MS
+      } else {
+        this.shootTimer += dt * 1000
+        if (!this.player.isWindingUp && this.shootTimer >= this.personality.fireIntervalMs) {
+          this.shootTimer = 0
+          this.shotIsHit = rollHit(this.personality.hitChance)
+          this.player.startFiring()
+          this.retreatTimer = BOT_RETREAT_MS
+        }
       }
     }
 

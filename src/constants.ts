@@ -182,6 +182,8 @@ export const BOT_RETREAT_MS      = 500    // мс отхода после соб
 export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
 export const BOT_EVADE_NEAR      = 6      // дистанция «вплотную» для EVADE-распрыжки (ед.)
 export const BOT_EVADE_DASH_RATE = 1.5   // базовая частота дэшей/сек в EVADE (×evadeSkill)
+export const BOT_BAIT_LATE_PROGRESS = 0.55  // windupProgress, с которого заряд считается «поздним» для развода
+export const BOT_BAIT_COOLDOWN_MS   = 4000  // мс между разводами на щит (анти-зацикливание)
 
 // Arena
 export const SPAWN_HALF = 14

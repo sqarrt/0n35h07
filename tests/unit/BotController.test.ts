@@ -150,4 +150,81 @@ describe('BotController', () => {
     bc.update(0.05)
     expect(jumpHeld).toBe(false)
   })
+
+  it('развод на щит: поздний заряд + щит соперника → дэш-отмена, затем настоящий выстрел когда щит ушёл', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -5)   // STRAFE, LOS
+    const bc = makeBot(bot, opp, worldWithLOS(opp.id), false, { ...FAST_PERSONALITY, baitSkill: 1 })
+
+    // Симулируем поздний СВОЙ заряд бота
+    let winding = true
+    Object.defineProperty(bot, 'isWindingUp', { get: () => winding, configurable: true })
+    Object.defineProperty(bot, 'windupProgress', { get: () => 0.8, configurable: true })
+    // dash прерывает заряд
+    let dashed = false
+    const origDash = bot.dash.bind(bot)
+    bot.dash = (dir: THREE.Vector3) => { dashed = true; winding = false; origDash(dir) }
+    // соперник поднял щит
+    let oppShield = true
+    Object.defineProperty(opp, 'shieldActive', { get: () => oppShield, configurable: true })
+    // считаем настоящие выстрелы
+    let realShots = 0
+    const origFire = bot.startFiring.bind(bot)
+    bot.startFiring = () => { realShots++; origFire() }
+
+    bc.update(0.05)
+    expect(dashed).toBe(true)              // дэш-отмена заряда
+    expect(realShots).toBe(0)              // щит ещё активен — настоящего выстрела нет
+
+    bc.update(0.05)
+    expect(realShots).toBe(0)              // щит всё ещё держится
+
+    oppShield = false                       // соперник опустил щит
+    bc.update(0.05)
+    expect(realShots).toBe(1)              // наказание настоящим выстрелом
+  })
+
+  it('развод на дэш-уворот: соперник дэшит во время заряда → тоже дэш-отмена, выстрел после рывка', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -5)
+    const bc = makeBot(bot, opp, worldWithLOS(opp.id), false, { ...FAST_PERSONALITY, baitSkill: 1 })
+
+    let winding = true
+    Object.defineProperty(bot, 'isWindingUp', { get: () => winding, configurable: true })
+    Object.defineProperty(bot, 'windupProgress', { get: () => 0.8, configurable: true })
+    let dashed = false
+    const origDash = bot.dash.bind(bot)
+    bot.dash = (dir: THREE.Vector3) => { dashed = true; winding = false; origDash(dir) }
+    // соперник уворачивается дэшем (а не щитом)
+    let oppDashing = true
+    Object.defineProperty(opp, 'dashing', { get: () => oppDashing, configurable: true })
+    let realShots = 0
+    const origFire = bot.startFiring.bind(bot)
+    bot.startFiring = () => { realShots++; origFire() }
+
+    bc.update(0.05)
+    expect(dashed).toBe(true)              // развод сработал на дэш-уворот
+    expect(realShots).toBe(0)              // соперник ещё в рывке
+
+    oppDashing = false                      // рывок закончился
+    bc.update(0.05)
+    expect(realShots).toBe(1)              // наказание настоящим выстрелом
+  })
+
+  it('низкий baitSkill → не разводит (заряд не отменяется)', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -5)
+    const bc = makeBot(bot, opp, worldWithLOS(opp.id))   // FAST_PERSONALITY: baitSkill=0
+    Object.defineProperty(bot, 'isWindingUp', { get: () => true, configurable: true })
+    Object.defineProperty(bot, 'windupProgress', { get: () => 0.8, configurable: true })
+    Object.defineProperty(opp, 'shieldActive', { get: () => true, configurable: true })
+    let dashed = false
+    const origDash = bot.dash.bind(bot)
+    bot.dash = (dir: THREE.Vector3) => { dashed = true; origDash(dir) }
+    bc.update(0.05)
+    expect(dashed).toBe(false)
+  })
 })
