@@ -2,7 +2,7 @@
 
 Thanks for taking the time to contribute! This project is a hobby game, but the codebase is held to a real standard — please skim this before opening a PR.
 
-> Comments and commit messages in the codebase are in Russian; PRs and issues in **English or Russian** are both fine.
+> The codebase and its comments are in English. The older commit history is in Russian (the project grew up Russian-first). PRs and issues in **English or Russian** are both fine.
 
 ## Getting set up
 
@@ -59,7 +59,7 @@ These are enforced by review:
 - **No magic numbers.** Use named constants. Keep constants **local**: used in one file → declare there; used across a directory → at the directory level; project-wide → `src/constants`.
 - **`erasableSyntaxOnly` is on:** no `enum`, no `namespace`, no constructor parameter-properties (`constructor(private x)`). Declare fields explicitly and assign in the body.
 - **Don't make the UI "jump":** element sizes and positions must stay stable across state changes.
-- Match the surrounding code — comment density, naming and idiom. New comments can be in Russian or English.
+- Match the surrounding code — comment density, naming and idiom. Write new comments in English.
 
 ## Commit messages
 

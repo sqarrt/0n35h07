@@ -1,340 +1,353 @@
 # Changelog
 
-Все значимые изменения проекта документируются в этом файле.
+All notable changes to this project are documented in this file.
 
-Формат основан на [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
-проект придерживается [семантического версионирования](https://semver.org/lang/ru/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.5.8] - 2026-06-21
 
 ### Added
-- Редактор карт: в палитру блоков добавлены белый (`#fff`), розовый (`#f9c`) и светло-синий (`#cdf`) цвета.
-- Редактор карт: **свойства куба** (кисть, действует на следующие ставимые блоки) — прозрачность
-  (непрозрачный/полупрозрачный), простреливаемость (луч проходит) и проходимость (без коллайдера, проходишь
-  насквозь). Работают для кубов и клиньев. По умолчанию — непрозрачный/непростреливаемый/непроходимый.
-  Спавн хоста/гостя можно ставить на верх блока (Y берётся от поверхности под прицелом).
-- Карта `os_pool_day` зарегистрирована (доступна в меню «Играть»).
-- e2e-покрытие свойств блоков (прострел/проходимость) поверх рантайм-регистрации тест-карт
-  (DEV-хук `__debugRegisterMap`, в прод-бандл не идёт).
-- Редактор карт: настройка **«Сетка кубов — в игре»** (`showBlockGrid`) — карта может включить отображение
-  сетки воксельных клеток в самой игре (как «грани кубов» по `L` в редакторе). По умолчанию выключено;
-  для карты `os_pool_day` включено.
-- Боты получают уникальный цвет и скин (модель шара + FX заряда/респавна/рывка/щита), детерминированно
-  выведенные из их ника — тем же seed, что и личность бота (одинаковый ник → одинаковый вид).
-- Боты стали заметно «человечнее»:
-  - Единая **сила** бота `skill∈[0,1]` выводится из ника и задаёт центр всех параметров личности; верхняя
-    планка сложности поднята — самый сильный бот офенсивнее самого слабого в ~3.99 раза (крутится одной
-    константой `BOT_SKILL_CEILING_RATIO`).
-  - **Промахи-«впритирку»**: вместо палевного увода луча вбок бот при промахе целит ровно за край хитбокса —
-    ощущение «повезло, что увернулся». Сильные боты мажут ближе и стреляют чаще (персональный темп).
-  - **Распрыжка**, когда бот ведёт по очкам и под угрозой: bhop + уклончивые дэши, чтобы «тянуть» победу.
-  - **Развод на защиту**: в позднем заряде бот видит твою защитную реакцию (щит или дэш-уворот), отменяет
-    выстрел рывком — ты потратил защиту впустую — и тут же наказывает настоящим выстрелом.
-- Лобби, вкладка «С ботом»: **поле имени бота** с кнопкой 🎲 (случайное имя). Имя детерминированно задаёт
-  личность и внешность — можно вписать ник, чтобы переиграть конкретного (сильного) бота. Правка обновляет
-  бота вживую. Подпись/плейсхолдер локализованы на все 10 языков.
+- Map editor: white (`#fff`), pink (`#f9c`) and light-blue (`#cdf`) colors added to the block palette.
+- Map editor: **cube properties** (a brush applied to the next blocks you place) — opacity
+  (opaque/translucent), shoot-through (beam passes through) and walk-through (no collider, you pass
+  straight through). Work for both cubes and wedges. Defaults are opaque/non-shoot-through/non-walk-through.
+  Host/guest spawns can be placed on top of a block (Y is taken from the surface under the cursor).
+- Map `os_pool_day` registered (available in the "Play" menu).
+- e2e coverage of block properties (shoot-through/walk-through) on top of runtime registration of test maps
+  (DEV hook `__debugRegisterMap`, not shipped in the prod bundle).
+- Map editor: **"Cube grid — in game"** setting (`showBlockGrid`) — a map can enable rendering of the
+  voxel-cell grid inside the game itself (like the "cube faces" toggled by `L` in the editor). Off by
+  default; enabled for map `os_pool_day`.
+- Bots get a unique color and skin (orb model + charge/respawn/dash/shield FX), deterministically
+  derived from their nickname — by the same seed as the bot's personality (same nick → same look).
+- Bots have become noticeably more "human":
+  - A single bot **skill** `skill∈[0,1]` is derived from the nick and sets the center of all personality
+    parameters; the difficulty ceiling has been raised — the strongest bot is ~3.99× more offensive than
+    the weakest (tuned by a single constant `BOT_SKILL_CEILING_RATIO`).
+  - **Near-miss misses**: instead of an obvious sideways beam swerve, on a miss the bot aims exactly past
+    the edge of the hitbox — the feel of "lucky to have dodged". Stronger bots miss closer and shoot more
+    often (personal cadence).
+  - **Bunny-hopping** when the bot is ahead on score and under threat: bhop + evasive dashes to "stall out"
+    the win.
+  - **Baiting your defense**: late in a charge the bot reads your defensive reaction (shield or dash-dodge),
+    cancels the shot with a dash — you wasted your defense — and immediately punishes with a real shot.
+- Lobby, "Vs. bot" tab: a **bot name field** with a 🎲 button (random name). The name deterministically sets
+  the personality and appearance — you can type a nick to rematch a specific (strong) bot. Editing it updates
+  the bot live. Label/placeholder localized into all 10 languages.
 
 ### Changed
-- Экран «Играть» разбит на три подвкладки: **Матчмейкинг**, **С другом**, **С ботом**.
-  - **С другом** — симметричный рандеву: оба игрока вводят один код комнаты и жмут ПОИСК (роль host/client
-    выбирается автоматически по транспорту); рядом с полем — кнопки случайного кода и копирования.
-  - **С ботом** — бот добавляется автоматически при входе на вкладку, доступен выбор сложности.
-  - Выбор сетевой роли убран из лобби (матчмейкинг использует роль из профиля; принудительный `client` для
-    симметричного NAT остаётся в Настройках). Переключение вкладок доступно всегда. Названия вкладок
-    локализованы на все 10 языков.
-  - Настройки матча (карта/время) блокируются во время поиска и для подключённого клиента; хост на вкладке
-    «С другом» может менять их вживую даже с подключившимся человеком (изменения уезжают клиенту в Assign).
+- The "Play" screen is split into three sub-tabs: **Matchmaking**, **Vs. friend**, **Vs. bot**.
+  - **Vs. friend** — a symmetric rendezvous: both players enter the same room code and press SEARCH
+    (the host/client role is chosen automatically by the transport); next to the field are random-code and
+    copy buttons.
+  - **Vs. bot** — a bot is added automatically when you open the tab, with a difficulty selector available.
+  - The network-role selector has been removed from the lobby (matchmaking uses the role from the profile;
+    forced `client` for symmetric NAT remains in Settings). Tab switching is always available. Tab names are
+    localized into all 10 languages.
+  - Match settings (map/time) are locked during a search and for a connected client; on the "Vs. friend" tab
+    the host can change them live even with a person connected (changes are sent to the client in Assign).
 
 ### Fixed
-- Бот на стадии SINGULARITY (перегрев) теперь, как и человек, видит соперника сквозь стены и стреляет
-  по нему — раньше его LOS-проверка «упиралась» в блок, и прострел впустую не использовался.
-- Стрельба из 3-го лица по цели в яме/бассейне (`os_pool_day`): попадание больше не теряется и луч не
-  «улетает» мимо. Причина — параллакс дуло↔камера: попадание человека в TP теперь считается по лучу
-  прицела (камера→мушка), визуал луча по-прежнему из дула. В 1-м лице поведение не меняется.
+- A bot at the SINGULARITY stage (overheat) now, like a human, sees its opponent through walls and shoots at
+  them — previously its LOS check "stopped" at a block and the shoot-through went unused.
+- Third-person shooting at a target in a pit/pool (`os_pool_day`): the hit is no longer lost and the beam no
+  longer "flies" past. The cause was muzzle↔camera parallax: a human's TP hit is now computed from the aim ray
+  (camera→reticle), while the beam visual still comes from the muzzle. First-person behavior is unchanged.
 
 ### Internal
-- Тесты теперь запускаются в WSL рядом с Windows-сборкой: `node_modules` на `/mnt/c` общая для обеих ОС, и
-  `npm install` ставит нативный бинарник `rolldown` только под текущую систему. Добавлен self-heal
-  `scripts/ensure-native.mjs` (pre-хук тестовых скриптов): перед прогоном тестов он проверяет загрузку
-  платформенного бинарника rolldown в отдельном процессе и при отсутствии доустанавливает именно его через
-  `npm install --no-save` (без правок lock-файла, не трогая бинарник другой ОС). На Windows — мгновенный no-op.
+- Tests now run in WSL alongside the Windows build: `node_modules` on `/mnt/c` is shared by both OSes, and
+  `npm install` installs the native `rolldown` binary only for the current system. Added a self-heal
+  `scripts/ensure-native.mjs` (a pre-hook of the test scripts): before running tests it checks that the
+  platform `rolldown` binary loads in a separate process and, if it's missing, installs exactly that one via
+  `npm install --no-save` (without touching the lock file or the other OS's binary). On Windows it's an
+  instant no-op.
 
 ## [0.5.7] - 2026-06-15
 
 ### Added
-- Подсказка в главном меню (только веб-версия): «F11 — на весь экран». На десктопе окно и так fullscreen,
-  поэтому подсказка там не показывается. Локализована на все 10 языков.
-- Раздел «Об игре» в настройках: разработчик, ссылки (YouTube/Twitch/email) и кнопка WATCH — запуск трейлера.
-  Возврат из трейлера открывает ту же вкладку настроек.
-- Внутриигровой трейлер (из настроек): реплей записанных матчей с ботами реальными игровыми классами
-  (отсчёт → нарезка коротких фрагментов → замедленный встречный выстрел в финале), переходы/текст/музыка,
-  затухающее эхо в конце. HUD трейлера всегда на английском (целевая аудитория Steam). Документация —
+- A hint in the main menu (web version only): "F11 — fullscreen". On desktop the window is fullscreen anyway,
+  so the hint isn't shown there. Localized into all 10 languages.
+- An "About the game" section in settings: the developer, links (YouTube/Twitch/email) and a WATCH button that
+  launches the trailer. Returning from the trailer opens the same settings tab.
+- An in-game trailer (from settings): a replay of recorded bot matches using the real game classes
+  (countdown → a cut of short fragments → a slow-motion mutual shot in the finale), with transitions/text/music
+  and a fading echo at the end. The trailer HUD is always in English (Steam target audience). Documentation —
   `src/components/trailer/README.md`.
-- Замороженная автономная копия трейлера в `trailer-dist/` (независима от остального кода — правки игры её не
-  ломают), пересобирается шагом `npm run build` (или отдельно `npm run build:trailer`).
-- Dev-инструмент записи демо для нарезки трейлера (F9 в матче) — только в dev-сборке; из прод-бандла
-  вырезается (DCE по `import.meta.env.DEV` + динамический импорт рекордера).
+- A frozen standalone copy of the trailer in `trailer-dist/` (independent of the rest of the code — game edits
+  don't break it), rebuilt by the `npm run build` step (or separately via `npm run build:trailer`).
+- A dev tool for recording demos to cut the trailer (F9 in a match) — dev build only; stripped from the prod
+  bundle (DCE by `import.meta.env.DEV` + a dynamic import of the recorder).
 
 ### Changed
-- Выбор сетевого транспорта только через URL-параметр `?net=` (+ дефолт `trystero`): убрано чтение из
-  `localStorage('oneshot:net')`, чтобы транспорт не «залипал» между сессиями (из-за залипшего `bc` пропадал
-  индикатор сети). e2e форсят BroadcastChannel через `?net=bc`.
+- Network transport is selected only via the URL parameter `?net=` (+ default `trystero`): reading from
+  `localStorage('oneshot:net')` was removed so the transport doesn't "stick" between sessions (a stuck `bc`
+  made the network indicator disappear). e2e force BroadcastChannel via `?net=bc`.
 
 ## [0.5.6] - 2026-06-15
 
-Багфикс десктоп-сборки: установщик ставил версию 0.5.0 со старым фронтендом.
+A desktop-build bugfix: the installer was installing version 0.5.0 with the old frontend.
 
 ### Fixed
-- Десктоп залипал на старой версии (старая версия в углу, старое положение прицела) даже после апдейта:
-  PWA-service worker от прошлой сборки персистентно кэшировал фронтенд в WebView2 и отдавал его, сколько
-  `dist` ни пересобирай. Изнутри вебвью это не лечилось (пока старый SW рулит страницей, новый JS не
-  исполняется). Фикс — нативная чистка из Rust на старте приложения (до подъёма WebView2): один раз после
-  обновления удаляется подпапка `Service Worker` каталога WebView2 (регистрация SW + его кэш); `Local
-  Storage` с настройками не трогается. На будущее desktop-сборка вообще не кэширует через SW
-  (`selfDestroying`, детект через `vite build --mode tauri` — env-сигнал `TAURI_ENV_PLATFORM` приходил не
-  всегда, поэтому режим задаётся явно).
-- Версия установщика (.msi) фиксируется явно в `tauri.conf.json` (раньше `"../package.json"` давал
-  неопределённый резолв). CI дополнительно: чистит `release/bundle` перед сборкой (в кэше `src-tauri/target`
-  копились старые установщики, а загрузка брала первый по алфавиту = самый старый), берёт новейший артефакт
-  и падает, если версия в имени MSI не совпала с тегом (страховка от публикации кривой версии).
+- The desktop build was stuck on the old version (old version in the corner, old reticle position) even after
+  an update: the PWA service worker from the previous build persistently cached the frontend in WebView2 and
+  served it no matter how many times `dist` was rebuilt. This couldn't be fixed from inside the webview (while
+  the old SW controls the page, the new JS doesn't execute). The fix is a native cleanup from Rust on app
+  startup (before WebView2 comes up): once, after an update, the `Service Worker` subfolder of the WebView2
+  directory is deleted (the SW registration + its cache); `Local Storage` with settings is left untouched.
+  Going forward the desktop build doesn't cache via SW at all (`selfDestroying`, detected via
+  `vite build --mode tauri` — the `TAURI_ENV_PLATFORM` env signal didn't always arrive, so the mode is set
+  explicitly).
+- The installer (.msi) version is now pinned explicitly in `tauri.conf.json` (previously `"../package.json"`
+  gave an undefined resolve). CI additionally: cleans `release/bundle` before the build (old installers were
+  piling up in the `src-tauri/target` cache, and the upload took the first one alphabetically = the oldest),
+  takes the newest artifact, and fails if the version in the MSI name doesn't match the tag (a safeguard
+  against publishing a wrong version).
 
 ### Added
-- В релиз помимо .msi-установщика выкладывается portable-бинарь (`...-windows-x64.exe`) —
-  запуск без установки (нужен системный WebView2).
+- In addition to the .msi installer, the release ships a portable binary (`...-windows-x64.exe`) — runs without
+  installation (requires system WebView2).
 
 ## [0.5.5] - 2026-06-15
 
-Багфикс CI: сборка Windows-бинаря (tauri-windows) проходит до конца.
+A CI bugfix: the Windows-binary build (tauri-windows) now runs to completion.
 
 ### Fixed
-- CI tauri-windows падала на `cargo --version`: `rustup could not choose a version of cargo... no default
-  is configured`. В кэше `.cargo\bin` лежат лишь прокси rustup, а сам тулчейн (RUSTUP_HOME) не кэшируется
-  → на свежей VM прокси из кэша проходил проверку `Get-Command cargo`, установка Rust пропускалась, и
-  прокси падал без тулчейна. Теперь детект по `rustup` (не `cargo`) + безусловный `rustup default stable`,
-  который ставит/фиксирует тулчейн на свежей VM.
+- CI tauri-windows was failing on `cargo --version`: `rustup could not choose a version of cargo... no default
+  is configured`. The `.cargo\bin` cache only holds rustup proxies, while the toolchain itself (RUSTUP_HOME)
+  isn't cached → on a fresh VM the cached proxy passed the `Get-Command cargo` check, Rust installation was
+  skipped, and the proxy failed without a toolchain. Now detection is by `rustup` (not `cargo`) +
+  an unconditional `rustup default stable` that installs/pins the toolchain on a fresh VM.
 
 ## [0.5.4] - 2026-06-15
 
-Багфикс: версия в установщике Tauri синхронизирована с релизной.
+A bugfix: the version in the Tauri installer is synced with the release version.
 
 ### Fixed
-- Версия в установщике Tauri (.msi) застряла на 0.5.0, хотя web-сборка показывала актуальную: `npm version`
-  бампал только package.json, а Tauri читает версию из `src-tauri/tauri.conf.json` / `Cargo.toml`. Поле
-  `version` в tauri.conf.json теперь указывает на `../package.json` — установщик автоматически
-  синхронизируется с релизной версией на всех будущих релизах (Cargo.toml/Cargo.lock тоже подтянуты).
+- The version in the Tauri installer (.msi) was stuck on 0.5.0, even though the web build showed the current
+  one: `npm version` bumped only package.json, while Tauri reads the version from
+  `src-tauri/tauri.conf.json` / `Cargo.toml`. The `version` field in tauri.conf.json now points to
+  `../package.json` — the installer auto-syncs with the release version on all future releases
+  (Cargo.toml/Cargo.lock pulled along too).
 
 ### Changed
-- Описание релиза теперь берётся из сообщения аннотированного тега, а не из захардкоженной заглушки в CI.
+- The release description is now taken from the annotated tag's message instead of a hardcoded stub in CI.
 
 ## [0.5.3] - 2026-06-14
 
-Багфикс онлайна: соединение при явно выбранных сетевых ролях.
+An online bugfix: connecting with explicitly selected network roles.
 
 ### Fixed
-- Хост и клиент не соединялись при явных ролях: discovery там однонаправленный (хост публикует,
-  клиент подписывается), и релеи, у которых открывается WebSocket, но события не пересылаются, рвали
-  единственный путь доставки (в режиме «оба» это маскировалось двусторонним поиском). Проба релеев теперь
-  функциональная — round-trip (REQ + публикация эфемерного события и приём его обратно): в набор попадают
-  только релеи, которые реально принимают и пересылают события.
+- Host and client didn't connect with explicit roles: discovery there is one-directional (the host publishes,
+  the client subscribes), and relays that open a WebSocket but don't forward events broke the only delivery
+  path (in "both" mode this was masked by two-way search). Relay probing is now functional — a round-trip
+  (REQ + publishing an ephemeral event and receiving it back): only relays that actually accept and forward
+  events make it into the set.
 
 ### Changed
-- Сетевые роли в лобби упрощены до «Оба» и «Клиент» (явная роль «Хост» убрана): explicit-host давал
-  хрупкий однонаправленный поиск. «Оба» хостит и ищет одновременно; сохранённая старая роль «Хост»
-  мигрирует в «Оба».
+- Network roles in the lobby were simplified to "Both" and "Client" (the explicit "Host" role was removed):
+  explicit-host gave a fragile one-directional search. "Both" hosts and searches at the same time; a saved old
+  "Host" role migrates to "Both".
 
 ## [0.5.2] - 2026-06-14
 
-Багфикс CI: сборка Windows-бинаря (tauri-windows) проходит до конца.
+A CI bugfix: the Windows-binary build (tauri-windows) now runs to completion.
 
 ### Fixed
-- CI tauri-windows: на раннере стоял Node 21 (не-LTS, не поддерживается vite 8/rolldown/vitest) и
-  отсутствовал cargo-tauri → `cargo tauri build` падал с «'no such command: tauri'». Джоба теперь ставит
-  портативный Node 22 и cargo-tauri (кэшируется в `.cargo/bin`). Добавлен `engines` в package.json.
+- CI tauri-windows: the runner had Node 21 (non-LTS, unsupported by vite 8/rolldown/vitest) and was missing
+  cargo-tauri → `cargo tauri build` failed with "'no such command: tauri'". The job now installs a portable
+  Node 22 and cargo-tauri (cached in `.cargo/bin`). Added `engines` to package.json.
 
 ## [0.5.1] - 2026-06-14
 
-Багфикс-релиз: онлайн-соединение через TURN, починка матчмейкинга и прицела клиента, скролл интерфейса,
-зелёная CI-сборка Windows.
+A bugfix release: online connection via TURN, fixes for matchmaking and the client's reticle, UI scrolling,
+a green Windows CI build.
 
 ### Fixed
-- Онлайн-соединение за симметричным NAT / в сетях, режущих UDP: добавлен TURN-relay (креды из env,
-  не в репозитории) + восстановлен публичный STUN рядом — прямой путь (srflx) находится быстро, relay
-  как fallback. Раньше пиры находили друг друга, но WebRTC-канал не открывался.
-- Поиск соперника при явно выбранных сетевых ролях: discovery (Nostr) фильтровал события по локальным
-  часам — расхождение часов между машинами отсекало объявления хоста. Добавлен запас на clock skew.
-- Матчмейкинг: после нахождения соперника грузилась дефолтная карта и время показывало NaN/00:00 —
-  клиент заходил с устаревшим выбором; теперь передаются реально выбранные карта/длительность.
-- Клиент от третьего лица не засчитывал попадания: хост строил прицельный луч из «глаз», игнорируя
-  смещение камеры за спину. InputFrame теперь несёт origin прицела клиента.
-- Скролл на всех экранах (раньше «Настройки» обрезались) + единый тематический скроллбар вместо
-  системного на экране «Внешность».
-- CI-сборка Windows (tauri-windows): cargo не попадал в PATH после установки — джоба падала с
-  «'cargo' is not recognized». Путь к .cargo\bin добавляется до проверки и сборки.
+- Online connection behind symmetric NAT / on networks that block UDP: added a TURN relay (creds from env, not
+  in the repo) + restored a public STUN alongside — the direct path (srflx) is found quickly, the relay as a
+  fallback. Previously peers found each other but the WebRTC channel didn't open.
+- Finding an opponent with explicitly selected network roles: discovery (Nostr) filtered events by the local
+  clock — clock skew between machines was cutting off the host's announcements. Added a margin for clock skew.
+- Matchmaking: after finding an opponent the default map was loaded and the time showed NaN/00:00 — the client
+  joined with a stale selection; now the actually selected map/duration are passed.
+- The third-person client didn't register hits: the host built the aim ray from the "eyes", ignoring the
+  behind-the-back camera offset. The InputFrame now carries the client's aim origin.
+- Scrolling on all screens (previously "Settings" was clipped) + a single themed scrollbar instead of the
+  system one on the "Appearance" screen.
+- The Windows CI build (tauri-windows): cargo wasn't getting into PATH after installation — the job failed with
+  "'cargo' is not recognized". The path to .cargo\bin is added before the check and the build.
 
 ### Added
-- Dev-диагностика P2P-коннекта (`window.__netReport()`): локализует слой отказа соединения
-  (сигналинг/ICE/NAT/хендшейк/discovery). Только в dev-сборке.
+- Dev diagnostics for the P2P connection (`window.__netReport()`): localizes the connection failure layer
+  (signaling/ICE/NAT/handshake/discovery). Dev build only.
 
 ## [0.5.0] - 2026-06-14
 
-Бессерверный матчмейкинг и новое лобби, боевые механики на сериях убийств, локализация на 10 языков,
-раскраска шара и переименование игры в 0N35H07.
+Serverless matchmaking and a new lobby, kill-streak combat mechanics, localization into 10 languages,
+orb coloring, and the game renamed to 0N35H07.
 
 ### Added
-- Бессерверный матчмейкинг: единая кнопка ИГРАТЬ → лобби, P2P-поиск соперника по корзинам (карта×время)
-  без бэкенда; режим ОБА хостит и ищет одновременно. Пулы подбора разделены по версии игры и платформе
-  (десктоп/браузер).
-- Боевые механики на сериях убийств: анонс серий (DOUBLE / TRIPLE / SINGULARITY + CATALYST),
-  камбэк-перегрев (растут скорость и кулдауны, на ×5 — прострел лучом сквозь стены) и идеальный блок
-  (щит в окне 100 мс сбрасывает все кулдауны).
-- Рывок учитывает наклон взгляда — можно рвануть вверх или по диагонали.
-- Раскраска шара во «Внешности»: два поля 16×16 (спереди/сзади), рисунок ложится на шар в реальном
-  времени и виден сопернику в матче.
-- Локализация интерфейса на 10 языков (выбор в настройках, по умолчанию системный).
+- Serverless matchmaking: a single PLAY button → lobby, P2P opponent search by buckets (map×time) with no
+  backend; BOTH mode hosts and searches at the same time. Matchmaking pools are split by game version and
+  platform (desktop/browser).
+- Kill-streak combat mechanics: streak announcements (DOUBLE / TRIPLE / SINGULARITY + CATALYST), a comeback
+  overheat (speed and cooldowns grow, at ×5 — a beam shoot-through walls) and a perfect block (a shield within
+  a 100 ms window resets all cooldowns).
+- Dash accounts for look pitch — you can dash upward or diagonally.
+- Orb coloring in "Appearance": two 16×16 fields (front/back), the drawing maps onto the orb in real time and
+  is visible to the opponent in a match.
+- UI localization into 10 languages (selectable in settings, system language by default).
 
 ### Changed
-- Экран завершения матча: вместо таблицы k/d — HUD-счёт, плавно вырастающий в центр экрана.
-- Бот-соперник дерётся ровно как человек (единый боевой профиль); столкновение игроков — резкий
-  3D-отброс вместо залипания; заводские имена-обозначения моделей (RA9, T-2000) вместо ников.
-- Игра переименована в 0N35H07.
-- Производительность и полировка: устранены фризы GC и пересборка шейдеров в матче; интерфейс ведёт
-  себя «как игра, а не веб-страница».
-- Нулевые GC-аллокации в горячем пути: scratch-векторы во всех game-объектах и контроллерах
+- Match-end screen: instead of a k/d table — a HUD score smoothly growing into the center of the screen.
+- The bot opponent fights exactly like a human (a single combat profile); player collision is a sharp 3D
+  knockback instead of sticking; factory model designations (RA9, T-2000) instead of nicknames.
+- The game was renamed to 0N35H07.
+- Performance and polish: GC stutters and shader recompilation in a match were eliminated; the UI behaves
+  "like a game, not a web page".
+- Zero GC allocations in the hot path: scratch vectors in all game objects and controllers
   (Player, HumanController, BotController, BeamWeapon, ClassicBeamFx, Body, Match); pre-allocated
-  буферы SFX/снапшотов; consumeDesired без clone.
-- Бандл: Rolldown code splitting (three/r3f/react/vendor); geo.json карт грузится лениво —
-  index chunk уменьшен с 2,3 МБ до 391 КБ (−83%); @tauri-apps/api исключён из web-сборки.
+  SFX/snapshot buffers; consumeDesired without clone.
+- Bundle: Rolldown code splitting (three/r3f/react/vendor); map geo.json is loaded lazily —
+  the index chunk shrank from 2.3 MB to 391 KB (−83%); @tauri-apps/api excluded from the web build.
 
 ## [0.4.0] - 2026-06-10
 
-Кастомизация: экран «Внешность» со стилями выстрела, респавна, рывка и щита; лобби стало комнатой.
+Customization: an "Appearance" screen with shot, respawn, dash and shield styles; the lobby became a room.
 
 ### Added
-- Экран «ВНЕШНОСТЬ» — отдельный от настроек: живое 3D-превью на реальной игровой модели и выбор всех
-  косметических стилей. Выбор хранится в профиле и передаётся через протокол комнаты — соперник видит
-  твои скины в матче.
-- Стили выстрела (зарядка + луч): ИМПУЛЬС, ЯРОСТЬ (глитч-челюсти, рваный сегментированный луч),
-  СИНГУЛЯРНОСТЬ (коллапс с аккреционным вихрём, гравитационная нить-спираль). У каждого — свой звук
-  зарядки; превью по клику — одноразовый прогон «зарядка → выстрел».
-- Стили респавна: ЭХО (призрак), РОЙ (сборка из роя осколков), ХАОС (глитч-помехи и мерцание).
-  Превью во «Внешности»: смерть → круговой проезд призрака → сборка.
-- Скины следа рывка: ШЛЕЙФ, ВОЛНА (кольца ударных волн на пути), РАЗРЫВ.
-- Скины щита: КУПОЛ, СОТЫ (шестиугольные плитки, вспыхивающие при активации), КРИСТАЛЛ (гранёная
-  икосаэдр-скорлупа).
-- Версия игры показывается на всех экранах меню.
-- Кнопка «ВЫХОД» из игры в главном меню и паузе (только десктоп).
-- Предупреждение о фоточувствительности при входе в игру.
-- Иконка/логотип приложения и десктоп-сборка (Tauri).
+- An "APPEARANCE" screen — separate from settings: a live 3D preview on the real game model and selection of
+  all cosmetic styles. The selection is stored in the profile and passed via the room protocol — the opponent
+  sees your skins in a match.
+- Shot styles (charge + beam): IMPULSE, FURY (glitch jaws, a ragged segmented beam), SINGULARITY (a collapse
+  with an accretion vortex, a gravitational spiral thread). Each has its own charge sound; click to preview — a
+  one-off "charge → shot" run.
+- Respawn styles: ECHO (a ghost), SWARM (assembly from a swarm of shards), CHAOS (glitch noise and flicker).
+  Preview in "Appearance": death → an orbital fly-around of the ghost → assembly.
+- Dash trail skins: TRAIL, WAVE (shockwave rings along the path), RUPTURE.
+- Shield skins: DOME, HONEYCOMB (hexagonal tiles that flash on activation), CRYSTAL (a faceted icosahedron
+  shell).
+- The game version is shown on all menu screens.
+- An "EXIT" button to quit the game in the main menu and pause (desktop only).
+- A photosensitivity warning when entering the game.
+- An app icon/logo and a desktop build (Tauri).
 
 ### Changed
-- ЛОББИ переименовано в КОМНАТУ во всём интерфейсе.
-- Косметика переехала из настроек на экран «Внешность»; в настройках осталась только конфигурация.
-- Фон меню — «честная» 3D-сцена: модельки стоят на реальных игровых точках, кадр строит только камера
-  (позы — в JSON, dev-полёт по J); у клиента комнаты — свой ракурс камеры.
-- HUD скрывается во время обратного отсчёта перед боем.
-- Быстрее вход в бой: прогрев при входе и BVH-ускорение raycast; прод-сборка Tauri.
-- Деплой по тегу выполняется автоматически (без ручной кнопки в CI).
+- LOBBY renamed to ROOM throughout the UI.
+- Cosmetics moved from settings to the "Appearance" screen; only configuration remains in settings.
+- The menu background is an "honest" 3D scene: the models stand on real game points, the frame is built by the
+  camera alone (poses are in JSON, dev fly-around via J); the room client has its own camera angle.
+- The HUD is hidden during the countdown before a fight.
+- Faster entry into a fight: a warm-up on entry and BVH-accelerated raycast; a prod Tauri build.
+- Tag-based deploy runs automatically (no manual button in CI).
 
 ### Fixed
-- Дрожание капсулы игрока у непреодолимых блоков и наклон модели от прицела.
-- Кольцо планеты локального игрока окрашивается во «второй» цвет — как в меню.
-- Таймер-кулдаун кнопки «ПРОДОЛЖИТЬ» одинаков на десктопе и в браузере.
-- Кнопки главного меню приведены к единой ширине; заголовок «КОМНАТА» центрирован.
+- Jitter of the player capsule against impassable blocks and tilt of the model from aiming.
+- The local player's planet ring is colored in the "second" color — as in the menu.
+- The cooldown timer of the "CONTINUE" button is identical on desktop and in the browser.
+- Main-menu buttons were brought to a uniform width; the "ROOM" title is centered.
 
 ## [0.3.0] - 2026-06-09
 
-Звук: процедурная музыка в матче и меню, объёмные эффекты, реактивная визуализация.
+Sound: procedural music in matches and the menu, spatial effects, reactive visualization.
 
 ### Added
-- Процедурная музыка матча: детерминированная композиция из слоёных стемов (сид = код лобби, у обоих
-  игроков трек одинаковый), с песенной формой — арка интро → тело → аутро, сменой секций по ходу боя,
-  «отдыхающим» басом и орнаментными лидами, затухающим эхом в конце матча.
-- Музыка главного меню: спокойный луп с плавным фейд-ином и предзагрузкой; отдельный ползунок громкости.
-- Объёмные звуковые эффекты на three.js: боёвка (выстрел луча, блок щитом, смерть, возрождение), движение
-  (приземление, рывок, щит, кулдауны), отсчёт «go» на входе в бой и UI-звуки (тоглы, готовность, лобби).
-  Свои звуки — 2D, чужие — позиционные.
-- Раздел «ЗВУК» в настройках: ползунки громкости (общая, эффекты, музыка матча, музыка меню).
-- Визуализация звука в меню: мягкое свечение видимых краёв 3D-моделек, пульсирующее по громкости музыки
-  (в цвет модели на экране); в тишине свечения нет. Отключается галкой «СВЕЧЕНИЕ В МЕНЮ».
-- Визуализатор звука в матче: линия частотного спектра внизу экрана. Отключается галкой «ВИЗУАЛИЗАЦИЯ ЗВУКА».
-- Кольцо планеты-модели реактивно меняет цвет под звук и использует «второй» цвет игрока.
-- Таймаут подключения к лобби вынесен в настройки (5 / 10 / 20 / 30 / 60 / 90 / 120 с, по умолчанию 10).
+- Procedural match music: a deterministic composition of layered stems (seed = lobby code, both players hear
+  the same track), with song form — an intro → body → outro arc, section changes as the fight progresses, a
+  "resting" bass and ornamental leads, and a fading echo at the end of the match.
+- Main-menu music: a calm loop with a smooth fade-in and preloading; a separate volume slider.
+- Spatial sound effects on three.js: combat (beam shot, shield block, death, respawn), movement (landing, dash,
+  shield, cooldowns), the "go" countdown on entering a fight, and UI sounds (toggles, ready, lobby). Your own
+  sounds are 2D, others' are positional.
+- A "SOUND" section in settings: volume sliders (master, effects, match music, menu music).
+- Sound visualization in the menu: a soft glow on the visible edges of the 3D models, pulsing with the music
+  volume (in the model's on-screen color); no glow in silence. Toggled off via the "MENU GLOW" checkbox.
+- A sound visualizer in a match: a frequency-spectrum line at the bottom of the screen. Toggled off via the
+  "SOUND VISUALIZATION" checkbox.
+- The planet-model ring reactively changes color with the sound and uses the player's "second" color.
+- The lobby connection timeout was moved to settings (5 / 10 / 20 / 30 / 60 / 90 / 120 s, default 10).
 
 ### Changed
-- Дефолтные громкости: эффекты 100 %, музыка матча и меню — 30 %.
-- Настройка «Подсвечивать контуры» переименована в «Подсвечивать контуры блоков».
-- Прыжок больше не озвучивается — только приземление.
+- Default volumes: effects 100%, match and menu music — 30%.
+- The "Highlight outlines" setting renamed to "Highlight block outlines".
+- Jumping is no longer sounded — only landing.
 
 ### Fixed
-- Чистота звука эффектов: де-клик-огибающие на one-shot'ах, equalpower-панорама вместо HRTF, троттлинг
-  движенческих звуков при bhop — убраны треск, «кряк» и «пердёж».
-- Музыкальный планировщик не роняет луп в тишину при хитче главного потока (буфер планирования) и не
-  вываливает просроченные лупы после долгого фона — нет «каши» и резких обрывов.
-- «СКОПИРОВАНО» в лобби выровнено по центру кнопки кода.
-- Индикация возрождения не протекает в следующий матч (сброс при рестарте).
-- Вход в меню больше не «дёргается»: тяжёлый glow-композер монтируется отложенно (после появления модели),
-  его компиляция не морозит главный поток; модель проявляется плавным фейдом.
-- Просадка FPS на старте боя устранена: стемы музыки декодируются заранее (во время ритуала готовности),
-  а не в момент входа в live.
+- Cleaner effect sound: de-click envelopes on one-shots, an equalpower pan instead of HRTF, throttling of
+  movement sounds during bhop — crackle, "quack" and "fart" removed.
+- The music scheduler doesn't drop the loop into silence on a main-thread hitch (a scheduling buffer) and
+  doesn't dump overdue loops after a long time in the background — no "mush" or abrupt cutoffs.
+- "COPIED" in the lobby is centered on the code button.
+- The respawn indication doesn't leak into the next match (reset on restart).
+- Entering the menu no longer "jitters": the heavy glow composer mounts deferred (after the model appears), its
+  compilation doesn't freeze the main thread; the model fades in smoothly.
+- The FPS drop at the start of a fight was eliminated: the music stems are decoded ahead of time (during the
+  ready ritual) rather than at the moment of entering live.
 
 ## [0.2.1] - 2026-06-04
 
-Надёжность сетевого подключения и честный спавн бота.
+Network connection reliability and a fair bot spawn.
 
 ### Added
-- Индикатор состояния сети в углу пред-игровых экранов: показывает ход пробы сигналинг-релеев и размер
-  рабочего набора.
-- Раздел «СЕТЬ · РЕЛЕИ» в настройках: полный список релеев, отсортированный по «здоровью» (живые → мёртвые),
-  с латентностью, и кнопка перепроверки.
-- Гранулярные состояния на экране входа в лобби: «поиск лобби» → «лобби найдено, подключение» →
-  «лобби не найдено» / «не удалось подключиться».
+- A network-status indicator in the corner of the pre-game screens: shows the progress of probing signaling
+  relays and the size of the working set.
+- A "NETWORK · RELAYS" section in settings: the full list of relays sorted by "health" (alive → dead), with
+  latency, and a re-check button.
+- Granular states on the lobby-entry screen: "searching for lobby" → "lobby found, connecting" →
+  "lobby not found" / "failed to connect".
 
 ### Fixed
-- Подключение к лобби: вместо фиксированной (по хешу appId, часто недоступной) пятёрки публичных
-  Nostr-релеев — проба их живости на входе в меню и использование только подтверждённого набора
-  (self-healing, кеш с TTL, курируемый фолбэк). Устраняет случаи, когда соперник не находится.
-- Бот-соперник спавнится зеркально игроку (детерминированно, напротив через арену), а не в случайной точке.
+- Lobby connection: instead of a fixed (by appId hash, often unavailable) set of five public Nostr relays —
+  probing their liveness on entering the menu and using only the confirmed set (self-healing, a cache with TTL,
+  a curated fallback). Eliminates cases where the opponent isn't found.
+- The bot opponent spawns mirrored to the player (deterministically, across the arena) rather than at a random
+  point.
 
 ## [0.2.0] - 2026-06-04
 
-Полный редизайн меню и HUD + режим матча на время.
+A full redesign of the menu and HUD + a timed match mode.
 
 ### Added
-- Единый UI-кит интерфейса: моноширинный шрифт Share Tech Mono, плоские «жёсткие» кнопки с мгновенным
-  откликом (hover/нажатие), дизайн-токены и тема.
-- Крупные «живые» 3D-модельки игроков на фоне главного меню, входа в лобби и настроек; модель резко
-  (~200 мс), но плавно переезжает между позициями при смене экрана и появляется фейдом.
-- VS-раскладка лобби: хост и соперник по сторонам, крупный код матча, копирование кода по клику.
-- Режим матча на время: выбор длительности 3 / 5 / 10 минут хостом в лобби; матч завершается по истечении
-  времени или при отключении соперника.
-- Экран итога матча: ПОБЕДА / ПОРАЖЕНИЕ / НИЧЬЯ с причиной завершения и финальным счётом.
-- Постоянный HUD-блок со счётом и таймером (формат MM:SS) и именами игроков — без необходимости держать Tab.
-- Экран входа в лобби: индикация подключения (бегущая обводка поля кода) и сообщение об ошибке по таймауту.
-- Экран готовности: вход в бой кликом в любом месте, подсветка сторон игроков, легенда управления.
-- Единый прямоугольный контур боевого HUD: угловые скобки щита, боковые полосы дэша и полосы возрождения
-  на общей линии-периметре.
+- A unified UI kit: the monospace Share Tech Mono font, flat "hard" buttons with instant feedback
+  (hover/press), design tokens and a theme.
+- Large "live" 3D player models on the background of the main menu, lobby entry and settings; the model moves
+  sharply (~200 ms) but smoothly between positions on a screen change and appears via a fade.
+- A VS layout for the lobby: host and opponent on either side, a large match code, copy-on-click for the code.
+- A timed match mode: the host picks a duration of 3 / 5 / 10 minutes in the lobby; the match ends on time
+  expiry or when the opponent disconnects.
+- A match-result screen: VICTORY / DEFEAT / DRAW with the reason for ending and the final score.
+- A persistent HUD block with the score and timer (MM:SS format) and player names — no need to hold Tab.
+- A lobby-entry screen: connection indication (a running border around the code field) and an error message on
+  timeout.
+- A ready screen: enter the fight by clicking anywhere, highlighting of the players' sides, a control legend.
+- A single rectangular outline for the combat HUD: the shield's corner brackets, the dash's side bars and the
+  respawn bars on a common perimeter line.
 
 ### Changed
-- Все экраны (главное меню, вход в лобби, лобби, настройки, пауза, готовность, итог матча) переведены на
-  новый визуальный язык.
-- Лобби: VS-вид вместо таблицы игроков; ник локального игрока подчёркивается вместо пометки «(вы)».
-- Настройки: 3D-модель слева как живое превью выбранного цвета/модели, панель параметров — справа.
-- Кнопка «ПРОДОЛЖИТЬ» в меню паузы: кулдаун показывается заливкой кнопки, размер больше не «прыгает».
-- Панели меню/лобби/входа — фиксированного размера, не меняют габариты при переключении экранов.
+- All screens (main menu, lobby entry, lobby, settings, pause, ready, match result) were moved to the new
+  visual language.
+- Lobby: a VS view instead of a player table; the local player's nick is underlined instead of being marked
+  "(you)".
+- Settings: a 3D model on the left as a live preview of the chosen color/model, the parameters panel on the
+  right.
+- The "CONTINUE" button in the pause menu: the cooldown is shown by the button's fill, and the size no longer
+  "jumps".
+- Menu/lobby/entry panels are a fixed size, not changing their dimensions on screen switches.
 
 ### Removed
-- Таблица счёта по Tab и лента убийств — счёт теперь всегда виден в HUD.
-- Мёртвый код стартового шаблона Vite (App.css) и неиспользуемые компоненты/стили.
+- The Tab scoreboard and the kill feed — the score is now always visible in the HUD.
+- Dead code from the Vite starter template (App.css) and unused components/styles.
 
 ### Fixed
-- Стабильность раскладки меню и лобби: устранены «скачки» при добавлении бота, смене состояний и смене
-  текста, выровнены элементы HUD.
-- Надёжность e2e-тестов мультиплеера: отключён троттлинг фоновых вкладок Chromium (хендшейк P2P больше не
-  флакует под нагрузкой).
+- Menu and lobby layout stability: "jumps" on adding a bot, state changes and text changes were eliminated, HUD
+  elements aligned.
+- Multiplayer e2e test reliability: Chromium background-tab throttling was disabled (the P2P handshake no
+  longer flakes under load).
 
 ## [0.0.1a] - alpha
 
-Базовая альфа: ядро аркадного 1v1-шутера (движение/прыжок/рывок, луч и щит, боты, P2P-лобби, арена).
+Base alpha: the core of the arcade 1v1 shooter (movement/jump/dash, beam and shield, bots, P2P lobby, arena).
 
 [0.5.0]: https://github.com/sqarrt/0n35h07/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/sqarrt/0n35h07/compare/0.3.0...0.4.0
