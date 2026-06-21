@@ -1,0 +1,47 @@
+name: Release (desktop)
+
+# Builds the Tauri desktop app (Windows .msi + NSIS .exe) on a version tag and
+# attaches the bundles to a GitHub Release. Replaces the old GitLab Tauri job.
+#
+# Trigger: push a tag like `0.5.8`. The release is created as a DRAFT — review and
+# publish it manually. Code-signing is optional (add TAURI_SIGNING_* secrets to enable).
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # tauri-action runs the frontend build via beforeBuildCommand (`npm run build:desktop`),
+      # then `tauri build`, and uploads the bundles to the GitHub Release for this tag.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "OneShot ${{ github.ref_name }}"
+          releaseDraft: true
+          prerelease: false

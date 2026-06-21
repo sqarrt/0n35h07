@@ -1,0 +1,50 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting! Please fill in the details below. Reports in English or Russian are both fine.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, and what you expected instead.
+      placeholder: When I ... I expected ... but instead ...
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - Versus bot (local)
+        - Online — With friend
+        - Online — Matchmaking
+        - Map editor
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Browser + version, OS, and whether it's the web build or the Tauri desktop build.
+      placeholder: Chrome 140 / Windows 11 / web
+    validations:
+      required: true
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors / screenshots (optional)
+      description: Paste any DevTools console errors or attach screenshots / a clip.

@@ -151,7 +151,7 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // и STUN, и TURN. STUN хватает домашним сетям; TURN нужен для симметричного NAT/CGNAT и сетей, режущих UDP
 // (там STUN таймаутится — см. диагностику онлайна). turns:443?transport=tcp пробивает UDP-фильтрацию.
 //
-// Креды TURN — из env (.env, gitignored; в CI — GitLab CI/CD variables), НЕ в репозитории. Хост relay не
+// Креды TURN — из env (.env, gitignored; в CI — GitHub Actions secrets), НЕ в репозитории. Хост relay не
 // секрет, секрет — username/credential. Нет кред → STUN-only (домашние сети соединятся, симметричный NAT — нет).
 // ВНИМАНИЕ: env лишь убирает креды из РЕПОЗИТОРИЯ — в собранный клиент они всё равно попадают и видны в
 // DevTools (статичные TURN-креды на фронте скрыть нельзя). Для прода — выделенный TURN с эфемерными кредами

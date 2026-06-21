@@ -99,7 +99,7 @@
   и падает, если версия в имени MSI не совпала с тегом (страховка от публикации кривой версии).
 
 ### Added
-- В GitLab-релиз помимо .msi-установщика выкладывается portable-бинарь (`...-windows-x64.exe`) —
+- В релиз помимо .msi-установщика выкладывается portable-бинарь (`...-windows-x64.exe`) —
   запуск без установки (нужен системный WebView2).
 
 ## [0.5.5] - 2026-06-15
@@ -124,8 +124,7 @@
   синхронизируется с релизной версией на всех будущих релизах (Cargo.toml/Cargo.lock тоже подтянуты).
 
 ### Changed
-- Описание GitLab-релиза теперь берётся из сообщения аннотированного тега (`CI_COMMIT_TAG_MESSAGE`),
-  а не из захардкоженной заглушки в `.gitlab-ci.yml`.
+- Описание релиза теперь берётся из сообщения аннотированного тега, а не из захардкоженной заглушки в CI.
 
 ## [0.5.3] - 2026-06-14
 
@@ -337,9 +336,9 @@
 
 Базовая альфа: ядро аркадного 1v1-шутера (движение/прыжок/рывок, луч и щит, боты, P2P-лобби, арена).
 
-[0.5.0]: https://gitlab.com/sqarrt/oneshot_pvp/-/compare/0.4.0...0.5.0
-[0.4.0]: https://gitlab.com/sqarrt/oneshot_pvp/-/compare/0.3.0...0.4.0
-[0.3.0]: https://gitlab.com/sqarrt/oneshot_pvp/-/compare/0.2.1...0.3.0
-[0.2.1]: https://gitlab.com/sqarrt/oneshot_pvp/-/compare/0.2.0...0.2.1
-[0.2.0]: https://gitlab.com/sqarrt/oneshot_pvp/-/compare/0.0.1a...0.2.0
-[0.0.1a]: https://gitlab.com/sqarrt/oneshot_pvp/-/tags/0.0.1a
+[0.5.0]: https://github.com/sqarrt/0n35h07/compare/0.4.0...0.5.0
+[0.4.0]: https://github.com/sqarrt/0n35h07/compare/0.3.0...0.4.0
+[0.3.0]: https://github.com/sqarrt/0n35h07/compare/0.2.1...0.3.0
+[0.2.1]: https://github.com/sqarrt/0n35h07/compare/0.2.0...0.2.1
+[0.2.0]: https://github.com/sqarrt/0n35h07/compare/0.0.1a...0.2.0
+[0.0.1a]: https://github.com/sqarrt/0n35h07/releases/tag/0.0.1a
