@@ -3,10 +3,10 @@ import { Button } from '../ui/Button'
 import { listMaps, deleteMap, renameMap } from './mapsApi'
 import './editor.css'
 
-/** Переход в редактор конкретной карты: /#editor-<название>. */
+/** Navigate to a specific map's editor: /#editor-<name>. */
 const openMap = (name: string) => { window.location.hash = `editor-${encodeURIComponent(name)}` }
 
-/** Экран выбора (/#editor) в стиле главного меню: открыть/переименовать/удалить карту из src/maps или создать новую. */
+/** Picker screen (/#editor) styled like the main menu: open/rename/delete a map from src/maps or create a new one. */
 export function MapPicker() {
   const [maps, setMaps] = useState<string[] | null>(null)
   const [newName, setNewName] = useState('')
@@ -18,49 +18,49 @@ export function MapPicker() {
   const create = () => { if (name) openMap(name) }
 
   const rename = async (n: string) => {
-    const nn = prompt('Новое имя карты:', n)?.trim()
+    const nn = prompt('New map name:', n)?.trim()
     if (!nn || nn === n) return
     if (await renameMap(n, nn)) refresh()
-    else alert('Не удалось переименовать')
+    else alert('Failed to rename')
   }
   const remove = async (n: string) => {
-    if (!confirm(`Удалить карту «${n}»?`)) return
+    if (!confirm(`Delete map "${n}"?`)) return
     if (await deleteMap(n)) refresh()
-    else alert('Не удалось удалить')
+    else alert('Failed to delete')
   }
 
   return (
     <div className="editor-root editor-picker">
       <div className="menu-panel editor-pick-panel">
         <div className="panel-fill editor-pick">
-          <h1 className="editor-pick-title">РЕДАКТОР КАРТ</h1>
+          <h1 className="editor-pick-title">MAP EDITOR</h1>
           <div className="accent-rule" />
 
-          <div className="editor-pick-section">СУЩЕСТВУЮЩИЕ КАРТЫ</div>
+          <div className="editor-pick-section">EXISTING MAPS</div>
           <div className="editor-pick-list">
-            {maps === null && <div className="editor-dim">загрузка…</div>}
-            {maps?.length === 0 && <div className="editor-dim">пока нет карт — создай новую ниже</div>}
+            {maps === null && <div className="editor-dim">loading…</div>}
+            {maps?.length === 0 && <div className="editor-dim">no maps yet — create one below</div>}
             {maps?.map(n => (
               <div key={n} className="editor-pick-row">
                 <Button variant="secondary" className="editor-pick-item" onClick={() => openMap(n)}>{n}</Button>
-                <button className="editor-pick-act" title="переименовать" onClick={() => rename(n)}>✎</button>
-                <button className="editor-pick-act editor-pick-act--del" title="удалить" onClick={() => remove(n)}>✕</button>
+                <button className="editor-pick-act" title="rename" onClick={() => rename(n)}>✎</button>
+                <button className="editor-pick-act editor-pick-act--del" title="delete" onClick={() => remove(n)}>✕</button>
               </div>
             ))}
           </div>
 
-          <div className="editor-pick-section">НОВАЯ КАРТА</div>
+          <div className="editor-pick-section">NEW MAP</div>
           <div className="editor-pick-new">
             <input
               className="input" type="text" value={newName} autoFocus
-              placeholder="имя карты"
+              placeholder="map name"
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') create() }}
             />
-            <Button variant="primary" onClick={create} disabled={!name}>СОЗДАТЬ</Button>
+            <Button variant="primary" onClick={create} disabled={!name}>CREATE</Button>
           </div>
 
-          <a className="editor-exit" href="#">← в меню</a>
+          <a className="editor-exit" href="#">← to menu</a>
         </div>
       </div>
     </div>

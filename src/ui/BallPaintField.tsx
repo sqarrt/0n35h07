@@ -2,16 +2,16 @@ import { useRef, useEffect, useCallback } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { BALL_ART_SIZE, cellInDisc } from '../game/ballArt'
 
-// Круглое поле рисования 32×32: canvas в натуральных пикселях, растянутый CSS до FIELD_PX
-// (image-rendering: pixelated). Родитель владеет гридом (Uint8Array(1024)); поле лишь рисует его
-// и сообщает о покраске клетки. Клетки вне вписанного круга не кликабельны и сливаются с фоном.
-const FIELD_PX = 132          // экранный размер поля (фикс — без «прыжков» интерфейса)
+// Round 32×32 paint field: canvas in native pixels, stretched by CSS to FIELD_PX
+// (image-rendering: pixelated). The parent owns the grid (Uint8Array(1024)); the field only draws it
+// and reports cell painting. Cells outside the inscribed circle are not clickable and blend into the background.
+const FIELD_PX = 132          // on-screen field size (fixed — no UI "jumping")
 const CELL = FIELD_PX / BALL_ART_SIZE
-const COL_BG = '#0b1020'      // вне диска / фон
-const COL_INK = '#000000'     // закрашенная клетка
-const COL_PAPER = '#cdd6f0'   // пустая клетка внутри диска
+const COL_BG = '#0b1020'      // outside the disc / background
+const COL_INK = '#000000'     // painted cell
+const COL_PAPER = '#cdd6f0'   // empty cell inside the disc
 
-/** Перерисовать поле целиком из грида. */
+/** Repaint the whole field from the grid. */
 function paintCanvas(ctx: CanvasRenderingContext2D, grid: Uint8Array) {
   ctx.fillStyle = COL_BG
   ctx.fillRect(0, 0, FIELD_PX, FIELD_PX)
@@ -27,7 +27,7 @@ function paintCanvas(ctx: CanvasRenderingContext2D, grid: Uint8Array) {
 interface Props {
   label: string
   grid: Uint8Array
-  rev: number            // тик перерисовки: грид мутируется по ссылке, поэтому обновление сигналим числом
+  rev: number            // repaint tick: the grid is mutated by reference, so we signal updates with a number
   erasing: boolean
   onPaint: (cx: number, cy: number, value: number) => void
   onClear: () => void

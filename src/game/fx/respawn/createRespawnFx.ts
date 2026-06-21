@@ -4,7 +4,7 @@ import { EchoRespawnFx } from './EchoRespawnFx'
 import { ChaosRespawnFx } from './ChaosRespawnFx'
 import { SwarmRespawnFx } from './SwarmRespawnFx'
 
-/** Фабрика стратегии респавна по стилю (boundary для Match и превью меню). */
+/** Factory for the respawn strategy by style (boundary for Match and the menu preview). */
 export function createRespawnFx(style: RespawnStyle, playerColor: string): IRespawnFx {
   switch (style) {
     case 'chaos': return new ChaosRespawnFx(playerColor)

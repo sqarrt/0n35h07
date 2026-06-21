@@ -10,13 +10,13 @@ const PREVIEW_W = 150
 const PREVIEW_H = 100
 
 /**
- * Геометрия карты (пол + блоки) без физики/игроков — для офскрин-рендера превью при сохранении и как фолбэк,
- * если у карты ещё нет preview.png. Компилируется из текущих blocks (отражает свежие правки редактора).
+ * Map geometry (floor + blocks) without physics/players — for offscreen preview render on save and as a fallback
+ * when the map has no preview.png yet. Compiled from the current blocks (reflects the editor's latest edits).
  */
 export function MapScene({ map }: { map: GameMap }) {
   const [hx, hz] = map.half
   const compiled = useMemo(() => compileBlocks(map.blocks), [map.blocks])
-  // Превью сверху — прозрачность/коллизия не важны: рисуем все 4 визуальные группы непрозрачно.
+  // Top-down preview — transparency/collision don't matter: draw all 4 visual groups opaquely.
   const geos = useMemo(() => [compiled.opaqueRaycast, compiled.opaqueNoRaycast, compiled.transparentRaycast, compiled.transparentNoRaycast]
     .map(a => (a ? buildGeometry(a) : null)), [compiled])
   useEffect(() => () => geos.forEach(g => g?.dispose()), [geos])
@@ -35,8 +35,8 @@ export function MapScene({ map }: { map: GameMap }) {
 }
 
 /**
- * Кадрирует камеру под размер карты (прямоугольные/длинные карты не должны обрезаться) и перерисовывает
- * (frameloop=demand) при смене карты. `lift` — насколько камера выше/дальше (превью круче сверху, фон ниже).
+ * Frames the camera to the map's size (rectangular/long maps must not be cropped) and redraws
+ * (frameloop=demand) on map switch. `lift` — how much higher/farther the camera is (preview steeper from above, background lower).
  */
 export function FitCamera({ map, lift }: { map: GameMap; lift: number }) {
   const camera = useThree(s => s.camera)
@@ -52,14 +52,14 @@ export function FitCamera({ map, lift }: { map: GameMap; lift: number }) {
 }
 
 /**
- * Реальное 3D-превью карты под углом (а не схема): рендерит геометрию карты из тех же данных, что и арена.
- * frameloop="demand" → один статичный кадр (дёшево, как «скриншот», но всегда актуально); камера под размер.
+ * A real angled 3D map preview (not a schematic): renders the map geometry from the same data as the arena.
+ * frameloop="demand" → one static frame (cheap, like a "screenshot", but always up to date); camera fit to size.
  */
 export function MapPreview({ map }: { map: GameMap }) {
   return (
     <Canvas
       className="map-preview"
-      aria-label={`Карта ${map.id}`}
+      aria-label={`Map ${map.id}`}
       frameloop="demand"
       dpr={[1, 1.5]}
       gl={{ alpha: true, antialias: true }}
@@ -72,10 +72,10 @@ export function MapPreview({ map }: { map: GameMap }) {
   )
 }
 
-const THUMB_W = 1024   // повыше — картинка идёт и на полноэкранный фон комнаты (апскейл не должен «шакалить»)
+const THUMB_W = 1024   // larger — the image also serves as the room's fullscreen background (upscale must not look crusty)
 const THUMB_H = 640
 
-/** Снимает кадр после нескольких рендеров (композеру нужно отрисоваться) → PNG dataURL. */
+/** Captures a frame after a few renders (the composer needs to draw) → PNG dataURL. */
 function Capture({ onReady }: { onReady: (dataUrl: string | null) => void }) {
   const gl = useThree(s => s.gl)
   const frames = useRef(0)
@@ -89,8 +89,8 @@ function Capture({ onReady }: { onReady: (dataUrl: string | null) => void }) {
 }
 
 /**
- * Офскрин-рендер карты (с контуром) → PNG для preview.png. Монтируется редактором на время сохранения,
- * после захвата вызывает onCapture. preserveDrawingBuffer — чтобы toDataURL вернул пиксели.
+ * Offscreen map render (with outline) → PNG for preview.png. Mounted by the editor during save,
+ * calls onCapture after the capture. preserveDrawingBuffer — so toDataURL returns pixels.
  */
 export function ThumbnailRenderer({ map, onCapture }: { map: GameMap; onCapture: (dataUrl: string | null) => void }) {
   return (

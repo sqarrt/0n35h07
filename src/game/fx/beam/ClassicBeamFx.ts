@@ -2,25 +2,25 @@ import * as THREE from 'three'
 import { BEAM_DURATION } from '../../../constants'
 import type { IBeamFx } from './types'
 
-// Геометрия и тайминги — перенесены из BeamWeapon как есть (поведение бит-в-бит).
-const CORE_RADIUS = 0.05         // белое ядро луча
-const SHELL_RADIUS = 0.15        // цветная оболочка
+// Geometry and timings — carried over from BeamWeapon as is (bit-for-bit behavior).
+const CORE_RADIUS = 0.05         // white beam core
+const SHELL_RADIUS = 0.15        // colored shell
 const SHELL_OPACITY = 0.6
 const AFTERGLOW_RADIUS = 0.1
-const AFTERGLOW_INITIAL = 0.5    // стартовая «энергия» афтерглоу после выстрела
-const AFTERGLOW_FADE = 1.8       // скорость её затухания (ед/с)
-const AFTERGLOW_OPACITY_K = 0.4  // перевод энергии в непрозрачность
+const AFTERGLOW_INITIAL = 0.5    // initial afterglow "energy" after the shot
+const AFTERGLOW_FADE = 1.8       // its fade rate (units/s)
+const AFTERGLOW_OPACITY_K = 0.4  // energy-to-opacity conversion
 const CYL_SEGMENTS = 8
 const UP = new THREE.Vector3(0, 1, 0)
 
-/** Дефолтный луч: белое ядро + цветная оболочка, радиальный шринк за BEAM_DURATION, афтерглоу. */
+/** Default beam: white core + colored shell, radial shrink over BEAM_DURATION, afterglow. */
 export class ClassicBeamFx implements IBeamFx {
   readonly object3d = new THREE.Group()
   private beamGroup = new THREE.Group()
   private afterglowMesh: THREE.Mesh
   private mats: THREE.Material[] = []
   private active = false
-  private elapsed = 0          // мс с момента выстрела
+  private elapsed = 0          // ms since the shot
   private start = new THREE.Vector3()
   private end = new THREE.Vector3()
   private _dir = new THREE.Vector3()

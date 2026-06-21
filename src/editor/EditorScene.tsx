@@ -15,10 +15,10 @@ import { loadProfile } from '../settings'
 
 const REACH = 14
 const WALK_SPEED = 6.5
-const PLAYER_R = 0.3          // горизонтальный полу-размер игрока (для коллизии в режиме ходьбы)
-const WALL_HALF = 0.25        // полу-толщина периметровой стены (как в editor walls)
-// Маркер спавна — вертикальный цилиндр, к верху уходящий в прозрачность (хост / гость различаются цветом).
-// Центр привязан к полусетке (шаг VOXEL/2): попадает и в центр ячейки, и на пересечение линий сетки.
+const PLAYER_R = 0.3          // player's horizontal half-size (for collision in walk mode)
+const WALL_HALF = 0.25        // half-thickness of the perimeter wall (as in editor walls)
+// Spawn marker — a vertical cylinder fading to transparent toward the top (host / guest differ by color).
+// Center snaps to the half-grid (step VOXEL/2): lands both on a cell center and on a grid-line intersection.
 const SPAWN_CYL_R = 0.4
 const SPAWN_CYL_H = 2.4
 const SPAWN_SNAP = VOXEL / 2
@@ -26,11 +26,11 @@ const snapHalf = (v: number) => Math.round(v / SPAWN_SNAP) * SPAWN_SNAP
 const SPAWN_COLORS = ['#4af', '#fa4'] as const
 
 type CellCoord = [number, number, number]
-// Инструмент хотбара: тип блока или установка спавна (хост=0 / гость=1).
+// Hotbar tool: a block type or placing a spawn (host=0 / guest=1).
 export type EditorTool = BlockType | 'spawn0' | 'spawn1'
 const isSpawnTool = (t: EditorTool): t is 'spawn0' | 'spawn1' => t === 'spawn0' || t === 'spawn1'
 
-// Стороны для авто-ориентации клина: dir 0=+Z,1=+X,2=−Z,3=−X.
+// Sides for wedge auto-orientation: dir 0=+Z,1=+X,2=−Z,3=−X.
 const CARDINALS: ReadonlyArray<readonly [Dir, number, number]> = [[0, 0, 1], [1, 1, 0], [2, 0, -1], [3, -1, 0]]
 function dirFromFacing(fx: number, fz: number): Dir {
   let best: Dir = 0, bestDot = -Infinity
@@ -40,12 +40,12 @@ function dirFromFacing(fx: number, fz: number): Dir {
   }
   return best
 }
-/** Ориентация клина при установке: низкая сторона к игроку, скос поднимается по взгляду (заходишь и идёшь
- * вверх) + ручной доворот rot·90° (R). */
+/** Wedge orientation on placement: low side toward the player, slope rises along the view (you step in and walk
+ * up) + manual rot·90° turn (R). */
 function wedgeDir(fx: number, fz: number, rot: number): Dir {
   return ((dirFromFacing(fx, fz) + rot) % 4) as Dir
 }
-/** Шаг на одну клетку вдоль доминирующей оси нормали грани (для установки «вплотную»). */
+/** One-cell step along the dominant axis of the face normal (for "flush" placement). */
 function axisStep(n: THREE.Vector3): CellCoord {
   const ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z)
   if (ax >= ay && ax >= az) return [Math.sign(n.x), 0, 0]
@@ -53,58 +53,58 @@ function axisStep(n: THREE.Vector3): CellCoord {
   return [0, 0, Math.sign(n.z)]
 }
 
-// Высокая сторона клина в мире по dir (учитывая wedgeRotationY = −dir·90°): d0=+Z,1=−X,2=−Z,3=+X.
+// Wedge high side in world by dir (accounting for wedgeRotationY = −dir·90°): d0=+Z,1=−X,2=−Z,3=+X.
 const HIGH_DIR: Record<Dir, [number, number]> = { 0: [0, 1], 1: [-1, 0], 2: [0, -1], 3: [1, 0] }
-const STEP = 0.4   // макс. высота шага вверх (как autostep в игре; > подъёма за кадр на скосе, < ребра куба)
+const STEP = 0.4   // max step-up height (like autostep in-game; > per-frame rise on a slope, < a cube edge)
 
 interface Props {
-  voxels: Map<string, Cell>     // новый Map при каждой правке → пересборка инстансов
+  voxels: Map<string, Cell>     // a new Map on every edit → instance rebuild
   half: [number, number]
   floorColor: string
   wallColor: string
   spawns: [Vec3, Vec3]
-  tool: EditorTool              // активный инструмент (куб/клин/спавн)
-  fly: boolean                  // режим полёта (без гравитации/коллизии); по дефолту false
-  wedgeRot: number              // ручной доворот клина (R) поверх авто-ориентации, шаг 90°
-  wedgeFlip: boolean            // клин перевёрнут по Y (T) — скос снизу
-  showCubeGrid: boolean         // подсветка границ всех клеток (L) — строительный режим
+  tool: EditorTool              // active tool (cube/wedge/spawn)
+  fly: boolean                  // fly mode (no gravity/collision); false by default
+  wedgeRot: number              // manual wedge turn (R) on top of auto-orientation, 90° step
+  wedgeFlip: boolean            // wedge flipped on Y (T) — slope underneath
+  showCubeGrid: boolean         // highlight all cell borders (L) — build mode
   color: string
-  brushBeam: boolean            // кисть: blocksBeam (true=непростреливаемый)
-  brushTransparent: boolean     // кисть: полупрозрачный
-  brushPassable: boolean        // кисть: проходимый (без коллайдера)
+  brushBeam: boolean            // brush: blocksBeam (true = beam-blocking)
+  brushTransparent: boolean     // brush: translucent
+  brushPassable: boolean        // brush: passable (no collider)
   onPlace: (cell: CellCoord, data: Cell) => void
   onRemove: (cell: CellCoord) => void
   onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
 }
 
-/** Вертикальный градиент для alphaMap цилиндра-спавна: низ непрозрачный → верх прозрачный. */
+/** Vertical gradient for the spawn cylinder's alphaMap: opaque bottom → transparent top. */
 function useSpawnAlpha(): THREE.Texture {
   return useMemo(() => {
     const cv = document.createElement('canvas')
     cv.width = 1; cv.height = 64
     const ctx = cv.getContext('2d')!
     const g = ctx.createLinearGradient(0, 0, 0, 64)
-    g.addColorStop(0, '#000')   // верх канваса → верх цилиндра (flipY): прозрачно
-    g.addColorStop(1, '#fff')   // низ: непрозрачно
+    g.addColorStop(0, '#000')   // canvas top → cylinder top (flipY): transparent
+    g.addColorStop(1, '#fff')   // bottom: opaque
     ctx.fillStyle = g
     ctx.fillRect(0, 0, 1, 64)
     return new THREE.CanvasTexture(cv)
   }, [])
 }
 
-/** Геометрия контуров клеток (границы кубов) — рёбра каждой занятой клетки (общий примитив с игрой). */
+/** Cell-outline geometry (cube borders) — edges of every occupied cell (a primitive shared with the game). */
 function useEdgesGeometry(voxels: Map<string, Cell>): THREE.BufferGeometry {
   return useMemo(() => cellsGridGeometry([...voxels.keys()].map(parseCellKey)), [voxels])
 }
 
-/** Инстансовый меш кубов (t==='cube'); цвет на инстанс. Пересобирается при смене Map. */
+/** Instanced cube mesh (t==='cube'); per-instance color. Rebuilt when the Map changes. */
 function useCubeMeshes(voxels: Map<string, Cell>): { opaque: THREE.InstancedMesh; transparent: THREE.InstancedMesh } {
   return useMemo(() => {
     const build = (cells: [string, Cell][], transparent: boolean) => {
       const geo = new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL)
       const mat = new THREE.MeshStandardMaterial(transparent ? { transparent: true, opacity: BLOCK_TRANSPARENT_OPACITY, depthWrite: false } : {})
       const mesh = new THREE.InstancedMesh(geo, mat, Math.max(cells.length, 1))
-      mesh.layers.enable(BLOCK_LAYER)   // в контур рёбер
+      mesh.layers.enable(BLOCK_LAYER)   // into the edge outline
       mesh.count = cells.length
       const m = new THREE.Matrix4()
       const c = new THREE.Color()
@@ -131,7 +131,7 @@ function useCubeMeshes(voxels: Map<string, Cell>): { opaque: THREE.InstancedMesh
   }, [voxels])
 }
 
-/** Отдельные меши клиньев (не-кубовых ячеек). На слое блоков → попадают в контур рёбер. */
+/** Separate wedge meshes (non-cube cells). On the block layer → included in the edge outline. */
 function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, Cell>; wedgeGeo: THREE.BufferGeometry; wedgeGeoFlip: THREE.BufferGeometry }) {
   const shapes = useMemo(() => {
     const out: { key: string; b: ReturnType<typeof shapeBlock> }[] = []
@@ -155,7 +155,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
   )
 }
 
-/** Сцена редактора + управление (ходьба с гравитацией + установка/удаление блоков по прицелу). */
+/** Editor scene + controls (walking with gravity + placing/removing blocks at the crosshair). */
 export function EditorScene(props: Props) {
   const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn } = props
   const { camera, scene, raycaster } = useThree()
@@ -184,7 +184,7 @@ export function EditorScene(props: Props) {
   const vy = useRef(0)
   const grounded = useRef(false)
 
-  // --- raycast прицела по сцене → клетка установки/удаления (+ точка попадания для спавна) ---
+  // --- crosshair raycast over the scene → place/remove cell (+ hit point for spawn) ---
   const pick = (): { place: CellCoord; remove: CellCoord; point: THREE.Vector3 } | null => {
     raycaster.setFromCamera(new THREE.Vector2(0, 0), camera)
     raycaster.far = REACH
@@ -198,8 +198,8 @@ export function EditorScene(props: Props) {
     const S = VOXEL
     const toCell = (q: THREE.Vector3): CellCoord => [Math.floor(q.x / S), Math.floor(q.y / S), Math.floor(q.z / S)]
     const key = hit.object.userData.cellKey
-    // Установка от ячейки формы (под-клеточный размер ломает геометрию: грань внутри ячейки) → шаг по нормали;
-    // для полноразмерных целей (куб/пол/стена) — геометрически. Удаление формы — по её cellKey.
+    // Placing off a shape cell (sub-cell size breaks geometry: a face inside the cell) → step by the normal;
+    // for full-size targets (cube/floor/wall) — geometrically. Removing a shape — by its cellKey.
     let place: CellCoord
     let remove: CellCoord
     if (typeof key === 'string') {
@@ -252,7 +252,7 @@ export function EditorScene(props: Props) {
     }
   }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Высота верха клетки в точке (px,pz): клин (не перевёрнутый) — наклон heightfield; куб/перевёрнутый — плоский верх.
+  // Cell-top height at point (px,pz): wedge (not flipped) — heightfield slope; cube/flipped — flat top.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
     if (cell.t === 'wedge' && !cell.f) {
       const [dx, dz] = HIGH_DIR[cell.d]
@@ -264,16 +264,16 @@ export function EditorScene(props: Props) {
     return (y + 1) * VOXEL
   }
 
-  // Опорная поверхность (ground) и блокировка (blocked) для тела [feet,eye].
-  // ground — по ЦЕНТРУ игрока (скос даёт гладкий подъём; след с радиусом давал ложные «ступени» от баз соседних клиньев).
-  // blocked — по всему следу (радиус): клетка, торчащая выше шага в пределах роста, — стена.
+  // Support surface (ground) and blocking (blocked) for the body [feet,eye].
+  // ground — at the player's CENTER (a slope gives a smooth climb; a radius footprint produced false "steps" from neighboring wedge bases).
+  // blocked — across the whole footprint (radius): a cell poking above the step within body height is a wall.
   const surfaceInfo = (px: number, pz: number, feet: number, eye: number): { ground: number; blocked: boolean } => {
     let ground = 0
     const cx = Math.floor(px / VOXEL), cz = Math.floor(pz / VOXEL)
     const yReach = Math.floor((feet + STEP) / VOXEL)
     for (let y = 0; y <= yReach; y++) {
       const cell = voxels.get(`${cx},${y},${cz}`)
-      if (!cell || cell.ps) continue   // проходимые блоки не дают опоры
+      if (!cell || cell.ps) continue   // passable blocks provide no support
       const top = cellTopAt(cell, cx, y, cz, px, pz)
       if (top <= feet + STEP + 1e-3) ground = Math.max(ground, top)
     }
@@ -285,7 +285,7 @@ export function EditorScene(props: Props) {
     for (let x = x0; x <= x1 && !blocked; x++) for (let z = z0; z <= z1 && !blocked; z++) {
       for (let y = 0; y <= yTop; y++) {
         const cell = voxels.get(`${x},${y},${z}`)
-        if (!cell || cell.ps) continue   // проходимые блоки не блокируют движение
+        if (!cell || cell.ps) continue   // passable blocks don't block movement
         if (cellTopAt(cell, x, y, z, px, pz) > feet + STEP + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
       }
     }
@@ -299,13 +299,13 @@ export function EditorScene(props: Props) {
     const dt = Math.min(dtRaw, 0.05)
     const k = keys.current
     const p = camera.position
-    const dir = camera.getWorldDirection(tmpDir.current)      // полное направление взгляда
-    const f = tmpF.current.set(dir.x, 0, dir.z).normalize()   // горизонтальная проекция взгляда
+    const dir = camera.getWorldDirection(tmpDir.current)      // full view direction
+    const f = tmpF.current.set(dir.x, 0, dir.z).normalize()   // horizontal projection of the view
     const r = tmpR.current.crossVectors(f, camera.up).normalize()
     const sp = WALK_SPEED * dt
 
     if (fly) {
-      // Полёт: WASD вдоль взгляда (вкл. вертикаль) + Space вверх; без гравитации/коллизии.
+      // Fly: WASD along the view (incl. vertical) + Space up; no gravity/collision.
       let mx = 0, my = 0, mz = 0
       if (k.f) { mx += dir.x; my += dir.y; mz += dir.z }
       if (k.b) { mx -= dir.x; my -= dir.y; mz -= dir.z }
@@ -316,7 +316,7 @@ export function EditorScene(props: Props) {
       p.x += mx * sp; p.y += my * sp; p.z += mz * sp
       vy.current = 0
     } else {
-      // Ходьба: гравитация + коллизия со стенами/блоками/полом. Горизонталь по осям (скольжение вдоль стен).
+      // Walk: gravity + collision with walls/blocks/floor. Horizontal per-axis (sliding along walls).
       let dx = 0, dz = 0
       if (k.f) { dx += f.x; dz += f.z }
       if (k.b) { dx -= f.x; dz -= f.z }
@@ -334,7 +334,7 @@ export function EditorScene(props: Props) {
       const nz = THREE.MathUtils.clamp(p.z + dz * sp, -limZ, limZ)
       if (!surfaceInfo(p.x, nz, feet, eye).blocked) p.z = nz
 
-      // Вертикаль: опорная поверхность (пол/верх куба/скос клина) — подъём по рампе и посадка.
+      // Vertical: support surface (floor/cube top/wedge slope) — ramp climb and landing.
       const ground = surfaceInfo(p.x, p.z, feet, eye).ground
       let ny = p.y + vy.current * dt
       let grnd = false
@@ -343,13 +343,13 @@ export function EditorScene(props: Props) {
       grounded.current = grnd
     }
 
-    // призрак места установки — текущего инструмента и авто-ориентации
+    // placement ghost — for the current tool and auto-orientation
     const g = ghostBoxRef.current, gw = ghostWedgeRef.current, gs = ghostSpawnRef.current
     const c = pick()
     if (c && g && gw && gs) {
       const [x, y, z] = c.place
       if (isSpawnTool(tool)) {
-        // спавн — цилиндр в привязанной к полусетке точке (низ на полу)
+        // spawn — a cylinder at the half-grid-snapped point (bottom on the floor)
         g.visible = false; gw.visible = false; gs.visible = true
         gs.position.set(snapHalf(c.point.x), c.place[1] * VOXEL + SPAWN_CYL_H / 2, snapHalf(c.point.z));
         (gs.material as THREE.MeshBasicMaterial).color.set(SPAWN_COLORS[tool === 'spawn0' ? 0 : 1])
@@ -362,7 +362,7 @@ export function EditorScene(props: Props) {
         gw.rotation.set(0, wedgeRotationY(d), 0)
         gw.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
       } else {
-        // куб — кубический призрак на клетке
+        // cube — a cubic ghost on the cell
         gw.visible = false; gs.visible = false; g.visible = true
         g.position.set(...cellCenter(x, y, z))
         g.scale.setScalar(VOXEL)
@@ -379,7 +379,7 @@ export function EditorScene(props: Props) {
       <MapLights />
       <PointerLockControls />
 
-      {/* Пол */}
+      {/* Floor */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow userData={{ editorTarget: true }}>
         <planeGeometry args={[hx * 2, hz * 2]} />
         <meshStandardMaterial color={floorColor} />
@@ -388,7 +388,7 @@ export function EditorScene(props: Props) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Периметровые стены (как в игре): по размеру арены */}
+      {/* Perimeter walls (as in-game): sized to the arena */}
       {([[0, hz], [0, -hz], [-hx, 0], [hx, 0]] as const).map(([x, z], i) => (
         <mesh key={i} position={[x, 1.5, z]} userData={{ editorTarget: true }} castShadow receiveShadow>
           <boxGeometry args={x === 0 ? [hx * 2, 3, 0.5] : [0.5, 3, hz * 2]} />
@@ -396,18 +396,18 @@ export function EditorScene(props: Props) {
         </mesh>
       ))}
 
-      {/* Кубы (инстансы) + формы (отдельные меши) */}
+      {/* Cubes (instances) + shapes (separate meshes) */}
       <primitive object={cubeMeshes.opaque} />
       <primitive object={cubeMeshes.transparent} />
       <ShapeMeshes voxels={voxels} wedgeGeo={wedgeGeo} wedgeGeoFlip={wedgeGeoFlip} />
       {postFx && <MapEdges />}
 
-      {/* «Грани кубов»: подсветка границ всех клеток (строительный режим, L) */}
+      {/* "Cube faces": highlight all cell borders (build mode, L) */}
       <lineSegments geometry={edgesGeo} visible={showCubeGrid}>
         <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
       </lineSegments>
 
-      {/* Призраки установки: бокс (куб), клин и цилиндр-спавн */}
+      {/* Placement ghosts: box (cube), wedge and spawn cylinder */}
       <mesh ref={ghostBoxRef} visible={false}>
         <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial color="#4af" transparent opacity={0.35} depthWrite={false} />
@@ -420,7 +420,7 @@ export function EditorScene(props: Props) {
         <meshBasicMaterial color="#4af" alphaMap={spawnAlpha} transparent opacity={0.5} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Маркеры спавнов: цилиндр, к верху уходящий в прозрачность (хост/гость — цветом). */}
+      {/* Spawn markers: a cylinder fading to transparent toward the top (host/guest — by color). */}
       {spawns.map((s, i) => (
         <mesh key={i} position={[s[0], s[1] - EYE_HEIGHT + SPAWN_CYL_H / 2, s[2]]}>
           <cylinderGeometry args={[SPAWN_CYL_R, SPAWN_CYL_R, SPAWN_CYL_H, 24, 1, true]} />

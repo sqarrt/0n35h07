@@ -1,14 +1,14 @@
 import * as THREE from 'three'
 
 /**
- * Клин (полукуб-рампа) — треугольная призма в единичном кубе [-0.5,0.5]³, dir=0 (скос вдоль +Z:
- * низ у −Z, верх у +Z). Поворот по dir задаётся снаружи (rotationY). Меш масштабируется до нужного
- * размера; для коллайдера вершины масштабируем (collider не наследует scale меша).
+ * Wedge (half-cube ramp) — a triangular prism in the unit cube [-0.5,0.5]³, dir=0 (slope along +Z:
+ * low at −Z, high at +Z). Rotation by dir is set externally (rotationY). The mesh is scaled to the
+ * required size; for the collider the vertices are scaled (the collider does not inherit the mesh scale).
  *
- * Сечение в плоскости (z,y): прямоугольный треугольник A(−z,−y) → B(+z,−y) → C(+z,+y), вытянут по X.
+ * Cross-section in the (z,y) plane: a right triangle A(−z,−y) → B(+z,−y) → C(+z,+y), extruded along X.
  */
 
-// 6 вершин призмы (две стороны по X), единичный куб.
+// 6 prism vertices (two sides along X), unit cube.
 const A0: [number, number, number] = [-0.5, -0.5, -0.5]
 const B0: [number, number, number] = [-0.5, -0.5, 0.5]
 const C0: [number, number, number] = [-0.5, 0.5, 0.5]
@@ -17,22 +17,22 @@ const B1: [number, number, number] = [0.5, -0.5, 0.5]
 const C1: [number, number, number] = [0.5, 0.5, 0.5]
 
 const TRIS: [number, number, number][][] = [
-  // низ (y=-0.5)
+  // bottom (y=-0.5)
   [A0, A1, B1], [A0, B1, B0],
-  // задняя стенка (z=+0.5)
+  // back wall (z=+0.5)
   [B1, C1, C0], [B1, C0, B0],
-  // скос (гипотенуза A→C)
+  // slope (hypotenuse A→C)
   [A0, C0, C1], [A0, C1, A1],
-  // боковые треугольники (x=±0.5)
+  // side triangles (x=±0.5)
   [A0, B0, C0],
   [A1, C1, B1],
 ]
 
-/** Единичная геометрия клина (dir=0); масштабируется мешем. flip — перевернуть по Y (скос снизу, как навес). */
+/** Unit wedge geometry (dir=0); scaled by the mesh. flip — mirror along Y (slope underneath, like a canopy). */
 export function unitWedgeGeometry(flip = false): THREE.BufferGeometry {
   const pos: number[] = []
   for (const t of TRIS) {
-    // При зеркале по Y разворачиваем порядок вершин — иначе нормали смотрят внутрь.
+    // When mirroring along Y, reverse the vertex order — otherwise normals point inward.
     const tri = flip ? [t[0], t[2], t[1]] : t
     for (const v of tri) pos.push(v[0], flip ? -v[1] : v[1], v[2])
   }
@@ -42,7 +42,7 @@ export function unitWedgeGeometry(flip = false): THREE.BufferGeometry {
   return g
 }
 
-/** Вершины призмы, масштабированные под полный размер блока (для ConvexHullCollider; dir — через rotation). */
+/** Prism vertices scaled to the block's full size (for ConvexHullCollider; dir — via rotation). */
 export function wedgeColliderPoints(size: [number, number, number], flip = false): number[] {
   const [hx, hy, hz] = size
   const pts = [A0, B0, C0, A1, B1, C1]
@@ -51,7 +51,7 @@ export function wedgeColliderPoints(size: [number, number, number], flip = false
   return out
 }
 
-/** Поворот клина вокруг Y по стороне dir (0=+Z,1=+X,2=−Z,3=−X). */
+/** Wedge rotation around Y by the dir side (0=+Z,1=+X,2=−Z,3=−X). */
 export function wedgeRotationY(dir: number): number {
   return -dir * (Math.PI / 2)
 }

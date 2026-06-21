@@ -1,14 +1,14 @@
 import * as THREE from 'three'
 import type { IShieldFx } from './types'
 
-// КУПОЛ: исторический пузырь щита (извлечён из Shield бит-в-бит) — заливка + каркас с пульсом.
+// DOME: the historical shield bubble (extracted from Shield bit-for-bit) — fill + wireframe with a pulse.
 const DOME_COLOR        = '#4af'
 const FILL_RADIUS       = 0.75
 const FILL_SEGMENTS     = 16
 const WIRE_RADIUS       = 0.76
 const WIRE_SEGMENTS_W   = 12
 const WIRE_SEGMENTS_H   = 8
-const PULSE_RATE        = 0.007  // множитель Date.now() в синусе пульса
+const PULSE_RATE        = 0.007  // Date.now() multiplier in the pulse sine
 const FILL_OPACITY_BASE = 0.08
 const FILL_OPACITY_AMP  = 0.1
 const WIRE_OPACITY_BASE = 0.3

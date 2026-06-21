@@ -34,29 +34,29 @@ interface GameProps {
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
-  reserveColor: string   // «второй» цвет локального игрока (кольцо его планеты)
+  reserveColor: string   // local player's "second" color (their planet's ring)
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
   seedCode: string
   sfxEngine: ISfxEngine
-  musicVolume: number   // общий × музыка (0..1); применяется к движку музыки
-  audioAnalysis: AudioAnalysis   // регистрируем сюда уровень музыки матча (для визуализации)
+  musicVolume: number   // master × music (0..1); applied to the music engine
+  audioAnalysis: AudioAnalysis   // we register the match music level here (for visualization)
 }
 
-// memo: HUD-обновления (SET_WINDUP_PROGRESS каждый кадр заряда и т.п.) ре-рендерят App, но НЕ должны
-// трогать Canvas/постпроцесс — иначе EffectComposer пересобирает шейдер каждый кадр (спайк на заряде).
-// Пропсы Game стабильны в течение матча (gameNet/profile), поэтому memo блокирует лишние ре-рендеры.
+// memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
+// touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
+// Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
 function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
-  // Селекторы, не useThree() целиком: подписка на весь стор ре-рендерила бы Game (и всё поддерево,
-  // включая постпроцесс Arena) на каждое обновление r3f-состояния.
+  // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
+  // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
   const scene = useThree(s => s.scene)
   const keys = useGameInput()
   const controlsRef = useRef<ComponentRef<typeof PointerLockControls>>(null)
 
-  // Движок музыки держим ссылкой (а не инлайном), чтобы прокидывать пользовательскую громкость.
+  // Keep the music engine as a ref (not inline) so we can pass through the user's volume.
   const musicEngine = useMemo(() => new WebAudioMusicEngine(), [])
 
   const match = useMemo(
@@ -76,41 +76,41 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       musicEngine,
       sfxEngine,
     }),
-    // Match строится один раз на сессию матча (пересоздание сломало бы мир/контроллеры); deps намеренно пусты.
+    // Match is built once per match session (recreating it would break the world/controllers); deps are intentionally empty.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 
-  // Пользовательская громкость музыки: запоминается движком и применяется на старте трека (вход в бой).
+  // User music volume: stored by the engine and applied at track start (entering the fight).
   useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
 
-  // Предзагрузка (декод) стемов музыки на маунте — во время ритуала готовности/отсчёта, чтобы старт боя
-  // (live) не ловил спайк декодирования ~58 буферов. start() на live тогда лишь планирует (буферы готовы).
+  // Preload (decode) music stems on mount — during the ready ritual/countdown, so the start of the fight
+  // (live) doesn't hit a spike decoding ~58 buffers. start() at live then only schedules (buffers are ready).
   useEffect(() => { void musicEngine.load(STEM_LIBRARY) }, [musicEngine])
 
-  // Регистрируем уровень+спектр музыки матча в общий анализ (для визуализатора); снимаем на анмаунте.
+  // Register the match music level+spectrum into the shared analysis (for the visualizer); unregister on unmount.
   useEffect(() => {
     const offL = audioAnalysis.addReader(() => musicEngine.readLevel())
     const offB = audioAnalysis.addBandReader(out => musicEngine.readBands(out))
     return () => { offL(); offB() }
   }, [audioAnalysis, musicEngine])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession строится один раз поверх match
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession is built once on top of match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
     const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
-    // Запись демо — ТОЛЬКО dev (исходник трейлера). Ветка под import.meta.env.DEV вырезается из прод-сборки
-    // (DCE), а DemoRecorder грузится динамически — в прод-бандл игры не попадает.
+    // Demo recording is dev-ONLY (the trailer source). The branch under import.meta.env.DEV is stripped from the
+    // prod build (DCE), and DemoRecorder is loaded dynamically — it doesn't end up in the game's prod bundle.
     let demoApi: Pick<GameApi, 'startDemo' | 'stopDemo' | 'isRecordingDemo'> = {
       startDemo: () => {}, stopDemo: () => null, isRecordingDemo: () => false,
     }
     if (import.meta.env.DEV) {
       demoApi = {
         startDemo: () => {
-          if (match.role !== 'host') return   // только хост: он эмитит события и владеет авторитетным состоянием
+          if (match.role !== 'host') return   // host only: it emits events and owns the authoritative state
           void import('./game/demo/DemoRecorder').then(({ DemoRecorder }) => {
             match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId, reserveColor })
           })
@@ -133,11 +133,11 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       delete w.__debugForceLive
       delete w.__debugLeave
     }
-    // Установка debug-хуков/готовности завязана на match (стабилен) и camera; прочее намеренно вне deps.
+    // Installing debug hooks/ready is tied to match (stable) and camera; the rest is intentionally outside deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, match])
 
-  // На входе в матч: listener SFX на камеру, позиционные ноды — в match.root; на выходе отцепляем.
+  // On entering the match: SFX listener on the camera, positional nodes in match.root; detach on exit.
   useEffect(() => {
     sfxEngine.attach(camera, match.root)
     return () => sfxEngine.detach()
@@ -150,8 +150,8 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       if (e.button === 2) hc.onShield()
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      // Прыжок (Space) — held-ввод в useGameInput (auto-bhop при удержании), не рёберный onJump.
-      if (e.code === 'KeyV') hc.toggleView()   // по физической клавише — не зависит от раскладки
+      // Jump (Space) is held input in useGameInput (auto-bhop while held), not an edge-triggered onJump.
+      if (e.code === 'KeyV') hc.toggleView()   // by physical key — independent of keyboard layout
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') hc.onDash()
     }
     const onContextMenu = (e: MouseEvent) => e.preventDefault()
@@ -166,12 +166,12 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     }
   }, [match])
 
-  // Клампим dt: скачок кадра (загрузка WASM, возврат во вкладку) не должен
-  // «промотать» заряд/кулдаун/физику за один шаг.
+  // Clamp dt: a frame spike (WASM loading, returning to the tab) must not
+  // "fast-forward" charge/cooldown/physics in a single step.
   useFrame((_, dt) => {
     const d = Math.min(dt, 0.1)
     match.update(d)
-    if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, d)   // dev: захват кадра демо
+    if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, d)   // dev: capture demo frame
     session.afterUpdate()
   })
 
@@ -182,7 +182,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
         <Arena map={MAPS[mapId]} />
         <RapierBridge match={match} />
 
-        {/* RigidBody = только физика (капсула); визуал игроков — в match.root (world-space). */}
+        {/* RigidBody = physics only (capsule); player visuals are in match.root (world-space). */}
         {match.players.map(p => (
           <RigidBody
             key={p.id}

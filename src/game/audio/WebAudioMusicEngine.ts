@@ -1,61 +1,61 @@
 import type { StemLibrary, Arrangement, IMusicEngine } from './types'
 import { ANALYSER_FFT, analyserLevel, fillBands } from './AudioAnalysis'
 
-const LOOP_SECONDS = 8.0          // музыкальная длина лупа (НЕ длина файла 8.0065 — там Opus-паддинг)
-const SCHEDULE_AHEAD_SEC = 2.0    // насколько вперёд планируем источники. С запасом: луп длинный (8с) и
-                                  // планируется раз в 8с, поэтому подвисание главного потока (тяжёлый кадр,
-                                  // GC, тротлинг setInterval в неактивной вкладке) дольше окна планирования
-                                  // роняет целый луп в тишину. 2с переживают обычные хитчи без провала.
-const SCHEDULER_TICK_MS = 50      // период тика планировщика
-const START_DELAY_SEC = 0.12      // отступ первого лупа от currentTime (на декод/планирование)
-const CROSSFADE_SEC = 0.12        // длина кроссфейда при подмене стема: уходящий «хвост» и входящий
-                                  // голос звучат внахлёст после границы (сглаживает стык бас→бас, кик→кик)
-const START_FADE_SEC = 0.5        // мягкий фейд-ин всей музыки на старте (вход в бой)
-const END_FADE_SEC = 0.8          // фейд-аут сухого сигнала на завершении матча
+const LOOP_SECONDS = 8.0          // musical loop length (NOT the 8.0065 file length — that's Opus padding)
+const SCHEDULE_AHEAD_SEC = 2.0    // how far ahead we schedule sources. With margin: the loop is long (8s) and
+                                  // scheduled once every 8s, so a main-thread stall (heavy frame, GC,
+                                  // setInterval throttling in an inactive tab) longer than the scheduling
+                                  // window drops a whole loop into silence. 2s survives normal hitches without a gap.
+const SCHEDULER_TICK_MS = 50      // scheduler tick period
+const START_DELAY_SEC = 0.12      // offset of the first loop from currentTime (for decode/scheduling)
+const CROSSFADE_SEC = 0.12        // crossfade length on stem swap: the outgoing "tail" and the incoming
+                                  // voice overlap past the boundary (smooths the bass→bass, kick→kick seam)
+const START_FADE_SEC = 0.5        // soft fade-in of all music on start (entering the fight)
+const END_FADE_SEC = 0.8          // fade-out of the dry signal at match end
 const MASTER_GAIN_DEFAULT = 0.6
-// Затухающее эхо на завершении матча: молчит во время игры, включается на fadeOut и звенит хвостом,
-// чтобы трек не обрывался резко. delay→feedback→delay (петля декея), вход гейтится echoSend.
-const ECHO_DELAY_SEC = 0.35       // время задержки эхо (между повторами)
-const ECHO_FEEDBACK = 0.5         // коэффициент обратной связи (<1): каждый повтор тише, хвост ~2с
-const ECHO_WET = 0.45             // громкость эхо-выхода
-// Нормализация громкости стемов: каждый стем приводим к целевому RMS (тихие лиды слышны, громкие
-// кики не выбиваются), но множитель ограничиваем так, чтобы ПИК не вышел за потолок (транзиенты
-// киков не бьют по ушам). Считается из декодированного PCM → детерминировано и одинаково у пиров.
+// Decaying echo at match end: silent during play, turns on at fadeOut and rings out with a tail,
+// so the track doesn't cut off abruptly. delay→feedback→delay (decay loop), input gated by echoSend.
+const ECHO_DELAY_SEC = 0.35       // echo delay time (between repeats)
+const ECHO_FEEDBACK = 0.5         // feedback coefficient (<1): each repeat quieter, tail ~2s
+const ECHO_WET = 0.45             // echo output volume
+// Stem loudness normalization: bring each stem to a target RMS (quiet leads are audible, loud kicks
+// don't stand out), but cap the multiplier so the PEAK stays under the ceiling (kick transients
+// don't hurt the ears). Computed from decoded PCM → deterministic and identical across peers.
 const NORM_TARGET_RMS = 0.10
 const NORM_MIN_GAIN = 0.25
 const NORM_MAX_GAIN = 4.0
 const NORM_PEAK_CEILING = 0.9
-const FADE_CURVE_POINTS = 32      // точек в equal-power кривой кроссфейда
-const DECLICK_SEC = 0.003         // микро-фейд от/до нуля на краях каждого источника. Буферы стемов
-                                  // стартуют/кончаются на НЕнулевом семпле (особенно бас: buffer[0]≈+0.08,
-                                  // buffer[end]≈-0.16) → старт/обрыв на полном гейне = разрыв сигнала = щелчок.
+const FADE_CURVE_POINTS = 32      // points in the equal-power crossfade curve
+const DECLICK_SEC = 0.003         // micro-fade from/to zero at each source's edges. Stem buffers
+                                  // start/end on a NON-zero sample (especially bass: buffer[0]≈+0.08,
+                                  // buffer[end]≈-0.16) → start/cut at full gain = signal discontinuity = click.
 
-/** 'none' — gain держится ровно (с де-клик-краями); 'in'/'out' — equal-power кроссфейд вверх/вниз. */
+/** 'none' — gain holds flat (with de-click edges); 'in'/'out' — equal-power crossfade up/down. */
 type Fade = 'none' | 'in' | 'out'
 
-/** Equal-power кривая кроссфейда: 'in' = gain·sin, 'out' = gain·cos (1/4 периода).
- *  Сумма мощностей пары out+in держится постоянной → переход без провала громкости.
- *  Обе кривые стартуют с нуля (для 'out' принудительно c[0]=0) — свежий источник не должен
- *  начинать звук с ненулевого buffer[0] на полном гейне, иначе щелчок. */
+/** Equal-power crossfade curve: 'in' = gain·sin, 'out' = gain·cos (1/4 period).
+ *  The summed power of the out+in pair stays constant → transition with no loudness dip.
+ *  Both curves start at zero (for 'out' forced c[0]=0) — a fresh source must not
+ *  begin sound at a non-zero buffer[0] on full gain, otherwise a click. */
 export function equalPowerCurve(gain: number, fade: 'in' | 'out'): Float32Array {
   const curve = new Float32Array(FADE_CURVE_POINTS)
   for (let i = 0; i < FADE_CURVE_POINTS; i++) {
     const t = (i / (FADE_CURVE_POINTS - 1)) * (Math.PI / 2)
     curve[i] = gain * (fade === 'in' ? Math.sin(t) : Math.cos(t))
   }
-  if (fade === 'out') curve[0] = 0   // де-клик: хвост начинается от нуля, а не от full на buffer[0]
+  if (fade === 'out') curve[0] = 0   // de-click: the tail starts from zero, not from full at buffer[0]
   return curve
 }
 
-/** Нормализующий множитель громкости стема: к целевому RMS, ограниченный по пику (анти-«бьёт по ушам»). */
+/** Stem loudness normalization multiplier: toward target RMS, capped by peak (anti-"hurts the ears"). */
 export function normGainFor(rms: number, peak: number): number {
   if (rms <= 0) return 1
   let g = Math.min(NORM_MAX_GAIN, Math.max(NORM_MIN_GAIN, NORM_TARGET_RMS / rms))
-  if (peak > 0 && peak * g > NORM_PEAK_CEILING) g = NORM_PEAK_CEILING / peak   // пик-сейф важнее RMS-цели
+  if (peak > 0 && peak * g > NORM_PEAK_CEILING) g = NORM_PEAK_CEILING / peak   // peak-safe outranks the RMS target
   return g
 }
 
-/** RMS и пик буфера по всем каналам (для нормализации громкости). */
+/** RMS and peak of a buffer across all channels (for loudness normalization). */
 function analyzeLoudness(buf: AudioBuffer): { rms: number; peak: number } {
   let sumSq = 0, peak = 0, count = 0
   for (let ch = 0; ch < buf.numberOfChannels; ch++) {
@@ -71,27 +71,27 @@ function analyzeLoudness(buf: AudioBuffer): { rms: number; peak: number } {
   return { rms: count > 0 ? Math.sqrt(sumSq / count) : 0, peak }
 }
 
-/** Web Audio движок: декод стемов, lookahead-планировщик, семпл-точное зацикливание + кроссфейд. */
+/** Web Audio engine: stem decode, lookahead scheduler, sample-accurate looping + crossfade. */
 export class WebAudioMusicEngine implements IMusicEngine {
   private ctx: AudioContext | null = null
   private master: GainNode | null = null
-  private echoSend: GainNode | null = null   // гейт входа в эхо: 0 во время игры, открывается на fadeOut
+  private echoSend: GainNode | null = null   // echo input gate: 0 during play, opens on fadeOut
   private buffers = new Map<string, AudioBuffer>()
-  private norm = new Map<string, number>()   // stemId → нормализующий множитель громкости
+  private norm = new Map<string, number>()   // stemId → loudness normalization multiplier
   private provider: ((loopIndex: number) => Arrangement) | null = null
   private timer: ReturnType<typeof setInterval> | null = null
   private nextBoundary = 0
   private _loopIndex = 0
-  private prevVoices = new Map<string, number>()   // stemId играющих голосов → их gain (для кроссфейда подмены)
+  private prevVoices = new Map<string, number>()   // stemId of playing voices → their gain (for swap crossfade)
   private _active = new Set<string>()
-  private userGain = 1   // пользовательский уровень музыки 0..1 (поверх эталона MASTER_GAIN_DEFAULT)
-  private analyser: AnalyserNode | null = null   // отвод мастера для визуализации
+  private userGain = 1   // user music level 0..1 (on top of the MASTER_GAIN_DEFAULT reference)
+  private analyser: AnalyserNode | null = null   // master tap for visualization
   private analyserBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT))
   private freqBuf = new Uint8Array(new ArrayBuffer(ANALYSER_FFT / 2))
 
-  /** Текущий RMS-уровень музыки 0..1 (для визуализации). */
+  /** Current music RMS level 0..1 (for visualization). */
   readLevel(): number { return this.analyser ? analyserLevel(this.analyser, this.analyserBuf) : 0 }
-  /** Спектр музыки в out[] (макс-комбинирование). */
+  /** Music spectrum into out[] (max-combining). */
   readBands(out: Float32Array): void { if (this.analyser) fillBands(this.analyser, this.freqBuf, out) }
 
   get loopIndex(): number { return Math.max(0, this._loopIndex - 1) }
@@ -117,10 +117,10 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this._loopIndex = 0
     this.prevVoices.clear()
     const now = ctx.currentTime
-    // Сброс эха: при переиспользовании движка (музыка меню) прошлый fadeOut оставил echoSend открытым —
-    // иначе после возврата эхо подмешивается и копится. Закрываем перед новым стартом.
+    // Echo reset: on engine reuse (menu music) a prior fadeOut left echoSend open —
+    // otherwise echo bleeds in and accumulates after returning. Close it before a new start.
     if (this.echoSend) { this.echoSend.gain.cancelScheduledValues(now); this.echoSend.gain.setValueAtTime(0, now) }
-    // Мягкий фейд-ин всей музыки: мастер с 0 до рабочей громкости × пользовательский уровень за fadeInSec.
+    // Soft fade-in of all music: master from 0 to working volume × user level over fadeInSec.
     this.master!.gain.cancelScheduledValues(now)
     this.master!.gain.setValueAtTime(0, now)
     this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT * this.userGain, now + fadeInSec)
@@ -136,14 +136,14 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.master.gain.cancelScheduledValues(now)
       this.master.gain.setValueAtTime(this.master.gain.value, now)
       this.master.gain.linearRampToValueAtTime(0, now + END_FADE_SEC)
-      // Открываем эхо: затухающий сухой сигнал попадает в delay и звенит хвостом ~2с (не резкий обрыв).
+      // Open echo: the fading dry signal feeds the delay and rings out ~2s (not an abrupt cut).
       if (this.echoSend) {
         this.echoSend.gain.cancelScheduledValues(now)
         this.echoSend.gain.setValueAtTime(0, now)
         this.echoSend.gain.linearRampToValueAtTime(1, now + 0.05)
       }
     }
-    // Планировщик гасим сразу: уже звучащие лупы доиграют под затухающий мастер, новые не нужны.
+    // Kill the scheduler at once: already-playing loops finish under the fading master, no new ones needed.
     if (this.timer != null) { clearInterval(this.timer); this.timer = null }
   }
 
@@ -153,7 +153,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.prevVoices.clear()
   }
 
-  /** Пользовательский уровень музыки 0..1 (1 = эталон MASTER_GAIN_DEFAULT). Применяется живьём и на старте. */
+  /** User music level 0..1 (1 = the MASTER_GAIN_DEFAULT reference). Applied live and on start. */
   setMasterGain(gain: number): void {
     this.userGain = Math.min(1, Math.max(0, gain))
     if (this.master && this.ctx) this.master.gain.setTargetAtTime(MASTER_GAIN_DEFAULT * this.userGain, this.ctx.currentTime, 0.05)
@@ -175,12 +175,12 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.ctx = new AudioContext()
       this.master = this.ctx.createGain()
       this.master.gain.value = MASTER_GAIN_DEFAULT
-      this.master.connect(this.ctx.destination)                         // сухой сигнал
-      this.analyser = this.ctx.createAnalyser()                         // отвод для визуализации (не влияет на звук)
+      this.master.connect(this.ctx.destination)                         // dry signal
+      this.analyser = this.ctx.createAnalyser()                         // tap for visualization (doesn't affect sound)
       this.analyser.fftSize = ANALYSER_FFT
       this.master.connect(this.analyser)
-      // Эхо-шина: master → echoSend(0) → delay → feedback↺ → echoWet → destination.
-      // echoSend закрыт во время игры (эхо не накапливается); открывается на fadeOut.
+      // Echo bus: master → echoSend(0) → delay → feedback↺ → echoWet → destination.
+      // echoSend closed during play (echo doesn't accumulate); opens on fadeOut.
       this.echoSend = this.ctx.createGain()
       this.echoSend.gain.value = 0
       const delay = this.ctx.createDelay(1.0)
@@ -190,7 +190,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
       const echoWet = this.ctx.createGain()
       echoWet.gain.value = ECHO_WET
       this.master.connect(this.echoSend).connect(delay)
-      delay.connect(feedback).connect(delay)                            // петля обратной связи (декей)
+      delay.connect(feedback).connect(delay)                            // feedback loop (decay)
       delay.connect(echoWet).connect(this.ctx.destination)
     }
     return this.ctx
@@ -200,9 +200,9 @@ export class WebAudioMusicEngine implements IMusicEngine {
     const ctx = this.ctx
     const provider = this.provider
     if (!ctx || !provider || !this.master) return
-    // Планировщик отстал (троттлинг setInterval в фоновой вкладке, тогда как currentTime идёт):
-    // НЕ вываливаем просроченные лупы разом — иначе src.start(when<now) стартует их немедленно, все
-    // сразу → наложение/каша (нарастает с каждым уходом в фон). Перескакиваем к настоящему времени.
+    // Scheduler fell behind (setInterval throttling in a background tab while currentTime keeps going):
+    // do NOT dump overdue loops at once — otherwise src.start(when<now) starts them immediately, all
+    // together → overlap/mush (grows with each backgrounding). Jump forward to the present time.
     if (this.nextBoundary < ctx.currentTime) {
       const missed = Math.ceil((ctx.currentTime - this.nextBoundary) / LOOP_SECONDS)
       this.nextBoundary += missed * LOOP_SECONDS
@@ -219,18 +219,18 @@ export class WebAudioMusicEngine implements IMusicEngine {
     const arr = provider(loopIndex)
     const ids = new Set(arr.map(v => v.stemId))
 
-    // Уходящие голоса (в прошлом лупе были, теперь их нет): доигрываем короткий «хвост» того же
-    // стема с его начала — даунбит хвоста совпадает с границей и встаёт встык к остановившемуся
-    // источнику, поэтому стем звучит непрерывно ещё CROSSFADE_SEC и гаснет. Этот хвост перекрывается
-    // с фейд-ином входящего голоса → честный кроссфейд без провала в тишину.
+    // Outgoing voices (present last loop, gone now): play out a short "tail" of the same
+    // stem from its start — the tail's downbeat matches the boundary and butts up against the stopped
+    // source, so the stem keeps sounding for another CROSSFADE_SEC and fades. This tail overlaps
+    // with the incoming voice's fade-in → an honest crossfade with no drop into silence.
     for (const [id, prevGain] of this.prevVoices) {
       if (ids.has(id)) continue
-      this.scheduleSource(id, when, prevGain, 'out', CROSSFADE_SEC)   // хвост уходящего — equal-power вниз
+      this.scheduleSource(id, when, prevGain, 'out', CROSSFADE_SEC)   // outgoing tail — equal-power down
     }
 
     const voices = new Map<string, number>()
     for (const v of arr) {
-      const fade: Fade = this.prevVoices.has(v.stemId) ? 'none' : 'in'  // продолжается встык / вступает кроссфейдом
+      const fade: Fade = this.prevVoices.has(v.stemId) ? 'none' : 'in'  // continues butt-jointed / enters with a crossfade
       this.scheduleSource(v.stemId, when, v.gain, fade, LOOP_SECONDS)
       if (this.buffers.has(v.stemId)) voices.set(v.stemId, v.gain)
     }
@@ -238,26 +238,26 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this._active = ids
   }
 
-  /** Один источник стема: старт `when`, длина `dur`. Гейн всегда входит из нуля и уходит в ноль
-   *  (де-клик-края), иначе старт/обрыв на ненулевом семпле буфера даёт щелчок:
-   *   - 'in'   — equal-power вход за CROSSFADE_SEC, затем держится, в конце де-клик-спад;
-   *   - 'out'  — хвост: equal-power спад за CROSSFADE_SEC (кривая стартует с нуля → старт без щелчка);
-   *   - 'none' — продолжение: микро-фейд из нуля на входе и в ноль на выходе (CROSSFADE не нужен — стык встык). */
+  /** One stem source: start `when`, length `dur`. Gain always rises from zero and falls to zero
+   *  (de-click edges), otherwise a start/cut on a non-zero buffer sample produces a click:
+   *   - 'in'   — equal-power rise over CROSSFADE_SEC, then holds, with a de-click fall at the end;
+   *   - 'out'  — tail: equal-power fall over CROSSFADE_SEC (curve starts at zero → no click on start);
+   *   - 'none' — continuation: micro-fade from zero in and to zero out (no CROSSFADE needed — butt joint). */
   private scheduleSource(stemId: string, when: number, gain: number, fade: Fade, dur: number): void {
     const buf = this.buffers.get(stemId)
     if (!buf || !this.ctx || !this.master) return
     const src = this.ctx.createBufferSource()
     src.buffer = buf
-    const ng = gain * (this.norm.get(stemId) ?? 1)   // громкость роли × нормализация стема
+    const ng = gain * (this.norm.get(stemId) ?? 1)   // role volume × stem normalization
     const g = this.ctx.createGain()
     const p = g.gain
     const end = when + dur
     if (fade === 'out') {
-      p.setValueCurveAtTime(equalPowerCurve(ng, 'out'), when, CROSSFADE_SEC)   // спад до 0, старт с 0
+      p.setValueCurveAtTime(equalPowerCurve(ng, 'out'), when, CROSSFADE_SEC)   // fall to 0, start at 0
     } else {
       if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(ng, 'in'), when, CROSSFADE_SEC)
-      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(ng, when + DECLICK_SEC) }  // 'none' — де-клик вход
-      p.setValueAtTime(ng, end - DECLICK_SEC)   // де-клик выход в конце лупа (стем кончается не на нуле)
+      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(ng, when + DECLICK_SEC) }  // 'none' — de-click in
+      p.setValueAtTime(ng, end - DECLICK_SEC)   // de-click out at loop end (stem doesn't end on zero)
       p.linearRampToValueAtTime(0, end)
     }
     src.connect(g).connect(this.master)

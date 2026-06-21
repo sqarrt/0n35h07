@@ -3,15 +3,15 @@ import { APP_ID } from './TrysteroNet'
 import { CLIENT_VERSION, CLIENT_PLATFORM } from './poolNamespace'
 
 /**
- * Dev-диагностика P2P-коннекта. Цель — превратить ОДНУ неудачную попытку соединения в один копируемый
- * отчёт `window.__netReport()`, локализующий слой отказа: сигналинг (релеи не пересеклись) → ICE/NAT
- * (нет TURN) → прикладной хендшейк (HELLO/ASSIGN). Монтируется только в dev (см. main.tsx); все mark/set —
- * дешёвые no-op'ы, пока `installNetDiag()` не вызван, поэтому безопасны в проде и юнит-тестах (нет доступа
- * к window вне install).
+ * Dev diagnostics for the P2P connect. The goal is to turn ONE failed connection attempt into a single
+ * copyable `window.__netReport()` report that localizes the failure layer: signaling (relays didn't overlap)
+ * → ICE/NAT (no TURN) → application handshake (HELLO/ASSIGN). Mounted only in dev (see main.tsx); all mark/set
+ * calls are cheap no-ops until `installNetDiag()` is called, so they're safe in prod and unit tests (no window
+ * access outside install).
  */
 
-const MAX_PCS = 8          // кольцо последних RTCPeerConnection (хватает на пару попыток host/client)
-const MAX_MARKS = 200      // кольцо прикладных меток хендшейка
+const MAX_PCS = 8          // ring of the latest RTCPeerConnections (enough for a couple of host/client attempts)
+const MAX_MARKS = 200      // ring of application handshake marks
 const T0 = performance.now()
 const rel = (t = performance.now()): number => Math.round(t - T0)
 
@@ -42,13 +42,13 @@ export function netDiagMark(tag: string, data?: unknown): void {
   if (marks.length > MAX_MARKS) marks.shift()
 }
 
-/** Тип ICE-кандидата из его SDP-строки (`... typ srflx ...`). */
+/** ICE candidate type from its SDP string (`... typ srflx ...`). */
 function candType(candidate: string): string {
   const m = / typ (host|srflx|prflx|relay)/.exec(candidate)
   return m ? m[1] : 'unknown'
 }
 
-// Поля candidate-pair/candidate из getStats(), которых нет в штатных lib.dom-типах.
+// candidate-pair/candidate fields from getStats() that aren't in the standard lib.dom types.
 interface PairStat { type: string; nominated?: boolean; selected?: boolean; state?: string; localCandidateId?: string; remoteCandidateId?: string }
 interface CandStat { candidateType?: string; protocol?: string }
 
@@ -64,7 +64,7 @@ async function captureSelected(pc: RTCPeerConnection, d: PcDiag): Promise<void> 
     const local = pair.localCandidateId ? (stats.get(pair.localCandidateId) as unknown as CandStat | undefined) : undefined
     const remote = pair.remoteCandidateId ? (stats.get(pair.remoteCandidateId) as unknown as CandStat | undefined) : undefined
     d.selectedPair = { local: local?.candidateType, remote: remote?.candidateType, protocol: local?.protocol }
-  } catch { /* getStats недоступен — не критично для отчёта */ }
+  } catch { /* getStats unavailable — not critical for the report */ }
 }
 
 function attach(pc: RTCPeerConnection, config?: RTCConfiguration): void {
@@ -86,23 +86,23 @@ function attach(pc: RTCPeerConnection, config?: RTCConfiguration): void {
   pc.addEventListener('icegatheringstatechange', () => d.states.push({ t: rel(), gather: pc.iceGatheringState }))
 }
 
-/** Человекочитаемый вердикт: к какому слою относится отказ (см. матрицу в плане). */
+/** Human-readable verdict: which layer the failure belongs to (see the matrix in the plan). */
 function summarize(): string {
   if (pcs.length === 0)
-    return 'NO_RTC: RTCPeerConnection не создавался → пиры не нашли друг друга (H1: релеи не пересеклись, либо H0: appId/код не совпали).'
+    return 'NO_RTC: RTCPeerConnection was never created → peers did not find each other (H1: relays did not overlap, or H0: appId/code did not match).'
   const connected = pcs.some(p => p.states.some(s => s.ice === 'connected' || s.ice === 'completed'))
   if (connected) {
     const assign = marks.some(m => m.tag === 'assignRecv')
     if (ctx.role === 'client' && !assign)
-      return 'RTC_OK_NO_ASSIGN: WebRTC соединён, но ASSIGN не пришёл (H3: прикладной хендшейк).'
-    return 'RTC_CONNECTED: WebRTC-соединение установлено.'
+      return 'RTC_OK_NO_ASSIGN: WebRTC connected, but ASSIGN did not arrive (H3: application handshake).'
+    return 'RTC_CONNECTED: WebRTC connection established.'
   }
   const failed = pcs.some(p => p.states.some(s => s.ice === 'failed'))
   const hasSrflx = pcs.some(p => p.localCandTypes.srflx)
   const hasRelay = pcs.some(p => p.localCandTypes.relay)
   if (failed)
-    return `ICE_FAILED: SDP обменялись, но ICE не пробил NAT (H2). srflx=${hasSrflx} relay=${hasRelay} → ${hasRelay ? 'даже TURN не помог' : 'нужен TURN'}.`
-  return 'ICE_PENDING: соединение зависло в checking/gathering — вероятно H2 (NAT, нужен TURN).'
+    return `ICE_FAILED: SDP was exchanged, but ICE did not punch through NAT (H2). srflx=${hasSrflx} relay=${hasRelay} → ${hasRelay ? 'even TURN did not help' : 'TURN required'}.`
+  return 'ICE_PENDING: connection stuck in checking/gathering — likely H2 (NAT, TURN required).'
 }
 
 function report(): unknown {
@@ -116,12 +116,12 @@ function report(): unknown {
     rtc: pcs,
   }
   const text = JSON.stringify(data, null, 2)
-  try { void navigator.clipboard?.writeText(text) } catch { /* clipboard может быть недоступен — лог ниже */ }
-  console.log('[netReport] (скопировано в буфер)\n' + text)
+  try { void navigator.clipboard?.writeText(text) } catch { /* clipboard may be unavailable — logged below */ }
+  console.log('[netReport] (copied to clipboard)\n' + text)
   return data
 }
 
-/** Установить диагностику: monkeypatch RTCPeerConnection + window.__netReport. Идемпотентно, только dev. */
+/** Install diagnostics: monkeypatch RTCPeerConnection + window.__netReport. Idempotent, dev only. */
 export function installNetDiag(): void {
   if (installed) return
   installed = true
@@ -136,5 +136,5 @@ export function installNetDiag(): void {
     }
   }
   window.RTCPeerConnection = PatchedRTC as unknown as typeof window.RTCPeerConnection
-  console.log('[netDiag] установлена. После попытки коннекта вызови __netReport() в консоли (обе стороны).')
+  console.log('[netDiag] installed. After a connect attempt, call __netReport() in the console (both sides).')
 }

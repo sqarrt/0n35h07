@@ -6,14 +6,14 @@ import type { PoolListing } from '../matchmaking'
 import { resolveRelaysSync } from '../relays'
 import { netDiagMark } from '../netDiag'
 
-// Эфемерные события (kind 20000–29999, NIP-01): релей рассылает подписчикам, но НЕ хранит — идеально
-// для presence/листингов. Корзина едет тегом ['d', bucket], подписчик фильтрует по '#d'.
+// Ephemeral events (kind 20000–29999, NIP-01): the relay broadcasts to subscribers but does NOT store them —
+// ideal for presence/listings. The bucket rides in a ['d', bucket] tag; subscribers filter by '#d'.
 const EPHEMERAL_KIND = 20100
-const HEARTBEAT_MS = 3000        // переобъявление листинга (релей не хранит → поздний подписчик ждёт ≤ этого)
-// Запас для `since`: релей форвардит событие, только если created_at >= since. since считается по ЛОКАЛЬНЫМ
-// часам, created_at — по часам отправителя; у разных машин часы расходятся. Без запаса опережающие часы
-// подписчика отсекают живые heartbeat'ы хоста → пиры не находят друг друга при односторонней discovery
-// (явные роли). 5 мин с лихвой покрывают типичный clock skew. Эфемерные события не хранятся — лишнего не придёт.
+const HEARTBEAT_MS = 3000        // re-announce the listing (relay doesn't store → a late subscriber waits ≤ this)
+// Slack for `since`: the relay forwards an event only if created_at >= since. since is computed from the LOCAL
+// clock, created_at from the sender's clock; different machines have drifting clocks. Without slack, a subscriber
+// with a fast clock cuts off the host's live heartbeats → peers can't find each other under one-way discovery
+// (explicit roles). 5 min generously covers typical clock skew. Ephemeral events aren't stored — no excess arrives.
 const SUBSCRIBE_SKEW_S = 300
 const FALLBACK_RELAYS = ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
 
@@ -22,16 +22,16 @@ interface Payload { t: 'list' | 'unlist'; listing?: PoolListing; code?: string }
 interface Sub { closer: { close(): void }; cache: Map<string, PoolListing>; cbs: Set<(l: PoolListing) => void> }
 
 /**
- * Discovery через Nostr-релеи (интернет-масштаб): эфемерные подписанные события по корзинам, без
- * WebRTC-mesh. Хост публикует/heartbeat'ит листинг; клиент подписывается на корзину и читает поток.
- * Распределение по нескольким релеям (resolveRelaysSync) — нагрузка размазывается.
+ * Discovery over Nostr relays (internet-scale): ephemeral signed events per bucket, no WebRTC mesh.
+ * The host publishes/heartbeats a listing; the client subscribes to a bucket and reads the stream.
+ * Spreading across several relays (resolveRelaysSync) distributes the load.
  */
 export class NostrDiscovery implements IDiscovery {
   private pool = new SimplePool({ enableReconnect: true })
   private relays: string[]
   private sk = generateSecretKey()
   private pk = getPublicKey(this.sk)
-  private mine = new Map<string, PoolListing>()   // bucket → свой листинг (для heartbeat)
+  private mine = new Map<string, PoolListing>()   // bucket → own listing (for heartbeat)
   private subs = new Map<string, Sub>()
   private timer: ReturnType<typeof setInterval> | null = null
 
@@ -71,7 +71,7 @@ export class NostrDiscovery implements IDiscovery {
       this.subs.set(bucket, entry)
     }
     entry.cbs.add(onListing)
-    entry.cache.forEach(l => onListing(l))   // снапшот уже виденных в этой подписке
+    entry.cache.forEach(l => onListing(l))   // snapshot of listings already seen on this subscription
     return () => {
       const en = this.subs.get(bucket)
       if (!en) return
@@ -96,18 +96,18 @@ export class NostrDiscovery implements IDiscovery {
       created_at: Math.floor(Date.now() / 1000),
     }
     const evt = finalizeEvent(tmpl, this.sk)
-    for (const p of this.pool.publish(this.relays, evt)) p.catch(() => { /* релей мог отклонить — не критично */ })
+    for (const p of this.pool.publish(this.relays, evt)) p.catch(() => { /* a relay may reject — not critical */ })
   }
 
   private onEvent(bucket: string, e: Event) {
-    if (e.pubkey === this.pk) return                 // свои же события игнорим
+    if (e.pubkey === this.pk) return                 // ignore our own events
     let payload: Payload
     try { payload = JSON.parse(e.content) as Payload } catch { return }
     const entry = this.subs.get(bucket)
     if (!entry) return
     if (payload.t === 'list' && payload.listing) {
       const l = payload.listing
-      if (!entry.cache.has(l.code)) netDiagMark('disco:recv', { bucket, code: l.code })   // первый приём листинга (без флуда heartbeat'ами)
+      if (!entry.cache.has(l.code)) netDiagMark('disco:recv', { bucket, code: l.code })   // first receipt of a listing (no flood from heartbeats)
       entry.cache.set(l.code, l)
       entry.cbs.forEach(cb => cb(l))
     } else if (payload.t === 'unlist' && payload.code) {

@@ -7,7 +7,7 @@ interface LobbyTabsProps {
   onSetTab: (tab: LobbyTab) => void
 }
 
-/** Таб-бар экрана «Играть»: три подвкладки. Ширина кнопок фиксирована (равные доли) — без «прыжков». */
+/** Tab bar of the "Play" screen: three sub-tabs. Button widths are fixed (equal shares) — no "jumping". */
 export function LobbyTabs({ tab, onSetTab }: LobbyTabsProps) {
   const t = useT()
   const sfx = useSfx()

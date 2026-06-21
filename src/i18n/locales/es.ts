@@ -46,7 +46,7 @@ export const es = {
   warnContinueHint: 'para continuar',
   warnContinueKey: 'CLIC IZQ',
   settingsLanguage: 'IDIOMA',
-  // Комната
+  // Room
   roomTitle: 'SALA',
   roomCodeLabel: 'CÓDIGO:',
   roomCopied: 'COPIADO',

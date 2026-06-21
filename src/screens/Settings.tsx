@@ -16,14 +16,14 @@ interface SettingsProps {
   onChange: (p: PlayerProfile) => void
   onBack: () => void
   onWatchTrailer: () => void
-  // Активная вкладка — опционально управляемая родителем (чтобы пережить заход в трейлер и вернуться сюда же).
+  // Active tab — optionally controlled by the parent (to survive a trip into the trailer and back here).
   section?: SettingsSection
   onSectionChange?: (s: SettingsSection) => void
 }
 
 type Section = SettingsSection
 
-// Ссылки разработчика (раздел «Об игре»).
+// Developer links (the "About" section).
 const DEV_NAME = 'Shatalov Dmitriy'
 const DEV_LINKS: { label: string; href: string }[] = [
   { label: 'YouTube — @watooh', href: 'https://www.youtube.com/@watooh' },
@@ -33,7 +33,7 @@ const DEV_LINKS: { label: string; href: string }[] = [
 
 const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
 const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
-// Визуальный подзаголовок-группа внутри раздела (не вкладка).
+// Visual group sub-header inside a section (not a tab).
 const subHeader: CSSProperties = {
   color: 'var(--accent-dim)', fontSize: '0.85rem', letterSpacing: '0.18em',
   marginBottom: '1.1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--surface-line)',
@@ -42,13 +42,13 @@ const subHeader: CSSProperties = {
 const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics', 'about']
 const SEARCH_ROLES: SearchRole[] = ['both', 'client']
 
-/** Число колонок в сетке языков (10 языков → 2 ряда по 5). */
+/** Number of columns in the language grid (10 languages → 2 rows of 5). */
 const LANG_GRID_COLS = 5
 /**
- * Компактный стиль плитки языка. Колонки сетки — 1fr (всегда вмещаются в панель),
- * поэтому ширину НЕ фиксируем; критично сбросить min-width от .btn (220px), иначе
- * кнопки вылезают за свои колонки и наезжают друг на друга. Padding/letter-spacing/шрифт
- * ужаты, чтобы самое длинное название («Português (BR)») влезало в строку.
+ * Compact language-tile style. Grid columns are 1fr (always fit the panel),
+ * so we DON'T fix the width; it's critical to reset min-width from .btn (220px), otherwise
+ * the buttons overflow their columns and overlap. Padding/letter-spacing/font
+ * are tightened so the longest name ("Português (BR)") fits on one line.
  */
 const langTile = {
   minWidth: 0,
@@ -63,7 +63,7 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
   const sfx = useSfx()
   const t = useT()
   const [locale, setLocale] = useLocale()
-  // Управляемо родителем, если переданы section/onSectionChange; иначе — собственное состояние.
+  // Controlled by the parent if section/onSectionChange are passed; otherwise — own state.
   const [sectionState, setSectionState] = useState<Section>('player')
   const section = sectionProp ?? sectionState
   const setSection = (s: Section) => { setSectionState(s); onSectionChange?.(s) }
@@ -81,7 +81,7 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
   const [volSfx, setVolSfx] = useState(profile.volumeSfx)
   const [volMenuMusic, setVolMenuMusic] = useState(profile.volumeMenuMusic)
 
-  // Подписи разделов берём из словаря по id (порядок — SECTIONS).
+  // Section labels are taken from the dictionary by id (order — SECTIONS).
   const sectionLabel: Record<Section, string> = {
     player: t.settingsSecPlayer,
     sound: t.settingsSecSound,
@@ -91,10 +91,10 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
   }
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  // Не-косметические поля — косметика теперь живёт в экране «Внешность» и коммитится там.
+  // Non-cosmetic fields — cosmetics now live in the "Appearance" screen and are committed there.
   const base = (): PlayerProfile => ({ ...profile, name, defaultView: view, postProcessing: post, showFps, showSpeed, menuGlow, audioViz, volumeMaster: volMaster, volumeMusic: volMusic, volumeSfx: volSfx, volumeMenuMusic: volMenuMusic, connectTimeoutSec: connTimeout, searchRole })
 
-  // Фабрика простого обработчика поля профиля (без побочных эффектов).
+  // Factory for a simple profile-field handler (no side effects).
   const field = <T,>(setter: (v: T) => void, key: keyof PlayerProfile) =>
     (v: T) => { setter(v); commit({ ...base(), [key]: v } as PlayerProfile) }
 
@@ -129,12 +129,12 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
   const handleVolMenuMusic  = field<number>(setVolMenuMusic, 'volumeMenuMusic')
 
   return (
-    // Панель настроек не уезжает вправо — сдвиг принадлежит экрану «Внешность».
-    // Выравнивание по верху: заголовок и вкладки не двигаются при смене раздела (разная высота контента).
+    // The settings panel doesn't slide right — the shift belongs to the "Appearance" screen.
+    // Top-aligned: the title and tabs don't move when switching sections (content has varying height).
     <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh' }}>
       <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.settingsTitle}</h2>
 
-      {/* Разделы */}
+      {/* Sections */}
       <div style={{ ...row, marginBottom: '1.8rem' }}>
         {SECTIONS.map(id => (
           <button key={id} className={`seg${section === id ? ' seg--on' : ''}`} data-testid={`settings-section-${id}`} onClick={() => { if (id !== section) sfx.play2D('ui_toggle'); setSection(id) }}>
@@ -177,7 +177,7 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
               gap: '0.4rem',
             }}>
               {LOCALES.map(l => (
-                // bold всегда — активная и неактивная одинаковые, текст не «прыгает» при переключении
+                // always bold — active and inactive look the same, the text doesn't "jump" when toggling
                 <Button
                   key={l.id}
                   variant={locale === l.id ? 'primary' : 'secondary'}
@@ -266,7 +266,7 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
         </>
       )}
 
-      {/* «НАЗАД» прижата к низу панели (marginTop:auto), не зависит от высоты раздела. */}
+      {/* "BACK" is pinned to the bottom of the panel (marginTop:auto), independent of section height. */}
       <Button variant="ghost" onClick={onBack} data-testid="settings-back" style={{ marginTop: 'auto' }}>{t.settingsBack}</Button>
     </div>
   )

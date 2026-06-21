@@ -2,18 +2,18 @@ import { useState, useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { useT } from '../i18n'
 
-// Угол: ниже угловой скобки щита (90px скобка + отступ от кромки) — не перекрывает её и не «прыгает».
+// Corner: below the shield corner bracket (90px bracket + edge inset) — doesn't overlap it and doesn't "jump".
 const TOP = 116
 const LEFT = 22
-const FPS_WINDOW_MS = 500   // окно усреднения FPS / худшего кадра
+const FPS_WINDOW_MS = 500   // averaging window for FPS / worst frame
 
-// График времени кадра (мс): спайк = пик. Усреднённый FPS его сглаживает, поэтому рисуем per-frame.
+// Frame-time graph (ms): a spike = a peak. Averaged FPS smooths it out, so we draw per-frame.
 const GRAPH_W = 150
 const GRAPH_H = 46
-const HISTORY = GRAPH_W           // одна точка на пиксель ширины
-const MS_TOP = 33.3               // верх графика = 33.3 мс (30 FPS); ниже — быстрее
-const MS_120 = 1000 / 120         // 8.33 мс — бюджет кадра при 120 FPS
-const MS_60 = 1000 / 60           // 16.67 мс — бюджет при 60 FPS
+const HISTORY = GRAPH_W           // one point per pixel of width
+const MS_TOP = 33.3               // top of the graph = 33.3 ms (30 FPS); lower = faster
+const MS_120 = 1000 / 120         // 8.33 ms — frame budget at 120 FPS
+const MS_60 = 1000 / 60           // 16.67 ms — budget at 60 FPS
 
 const wrap: CSSProperties = {
   position: 'fixed', top: TOP, left: LEFT, zIndex: 12, pointerEvents: 'none',
@@ -23,11 +23,11 @@ const wrap: CSSProperties = {
 
 interface StatsOverlayProps { showFps: boolean; showSpeed: boolean; speed: number }
 
-/** Оверлей отладки: счётчик FPS + график времени кадра (видно спайки) + текущая скорость игрока. */
+/** Debug overlay: FPS counter + frame-time graph (spikes visible) + current player speed. */
 export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
   const t = useT()
   const [fps, setFps] = useState(0)
-  const [worstMs, setWorstMs] = useState(0)   // макс время кадра за окно → минимальный FPS (показывает спайк)
+  const [worstMs, setWorstMs] = useState(0)   // max frame time over the window → min FPS (shows the spike)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -45,14 +45,14 @@ export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
       if (cv.width !== GRAPH_W * dpr) { cv.width = GRAPH_W * dpr; cv.height = GRAPH_H * dpr }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, GRAPH_W, GRAPH_H)
-      // фон
+      // background
       ctx.fillStyle = 'rgba(8,12,18,0.55)'
       ctx.fillRect(0, 0, GRAPH_W, GRAPH_H)
       const y = (ms: number) => GRAPH_H - Math.min(ms, MS_TOP) / MS_TOP * GRAPH_H
-      // пороги 120 / 60 FPS
+      // 120 / 60 FPS thresholds
       ctx.strokeStyle = 'rgba(120,180,255,0.25)'; ctx.lineWidth = 1
       for (const ms of [MS_120, MS_60]) { ctx.beginPath(); ctx.moveTo(0, y(ms)); ctx.lineTo(GRAPH_W, y(ms)); ctx.stroke() }
-      // линия времени кадра (от старого к новому слева→направо)
+      // frame-time line (old to new, left→right)
       ctx.strokeStyle = '#4af'; ctx.lineWidth = 1
       ctx.beginPath()
       for (let i = 0; i < HISTORY; i++) {

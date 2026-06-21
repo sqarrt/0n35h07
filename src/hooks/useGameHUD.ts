@@ -10,7 +10,7 @@ export type MatchOutcome = 'win' | 'lose' | 'draw'
 export type MatchEndReason = 'time' | 'disconnect'
 export interface MatchResult { outcome: MatchOutcome; reason: MatchEndReason; scores: PlayerScore[] }
 
-/** Снимок для transient-баннера серии/CATALYST. */
+/** Snapshot for the transient streak/CATALYST banner. */
 export interface AnnounceItem { name: string; color: string; kind: AnnounceKind }
 
 export interface HUDState {
@@ -27,13 +27,13 @@ export interface HUDState {
   matchTime: number | null
   matchResult: MatchResult | null
   respawning: { progress: number } | null
-  streaks: Record<number, StreakTier | null>   // постоянная подсветка ника по серии (id → тир)
-  streakCounts: Record<number, number>         // число серии (для точек у имён)
+  streaks: Record<number, StreakTier | null>   // persistent name highlight by streak (id → tier)
+  streakCounts: Record<number, number>         // streak count (for dots next to names)
   beamFlash: boolean
   playerHit: boolean
   shieldBlock: boolean
   botShieldHit: boolean
-  announce: AnnounceItem | null                 // transient-баннер серии/CATALYST
+  announce: AnnounceItem | null                 // transient streak/CATALYST banner
 }
 
 export type HUDAction =
@@ -56,7 +56,7 @@ export type HUDAction =
   | { type: 'BOT_SHIELD_HIT' }
   | { type: 'ANNOUNCE';            name: string; color: string; kind: AnnounceKind }
 
-/** Persistent-часть стейта (без transient: флэши + announce живут в хуках). */
+/** Persistent part of the state (no transient: flashes + announce live in hooks). */
 export type HUDBase = Omit<HUDState, 'beamFlash' | 'playerHit' | 'shieldBlock' | 'botShieldHit' | 'announce'>
 
 export const initialHUD: HUDBase = {
@@ -77,7 +77,7 @@ export const initialHUD: HUDBase = {
   streakCounts: {},
 }
 
-/** Действия, идущие в reducer (без transient-флэшей и ANNOUNCE — те перехватывает обёртка dispatch). */
+/** Actions that go to the reducer (no transient flashes or ANNOUNCE — those are intercepted by the dispatch wrapper). */
 export type HUDReducerAction = Exclude<HUDAction, { type: 'BEAM_FLASH' | 'PLAYER_HIT' | 'SHIELD_BLOCK' | 'BOT_SHIELD_HIT' | 'ANNOUNCE' }>
 
 export function hudReducer(state: HUDBase, action: HUDReducerAction): HUDBase {

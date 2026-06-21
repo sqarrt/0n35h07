@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 
-// Глобал из Vite define (vite.config.ts / vitest.config.ts) — версия игры из package.json.
+// Global from Vite define (vite.config.ts / vitest.config.ts) — game version from package.json.
 declare const __APP_VERSION__: string
 
-// TURN-креды из env (VITE_-префикс → попадают в import.meta.env). Заданы в .env (gitignored) / CI-variables.
+// TURN creds from env (VITE_ prefix → exposed on import.meta.env). Set in .env (gitignored) / CI variables.
 interface ImportMetaEnv {
   readonly VITE_TURN_USERNAME?: string
   readonly VITE_TURN_CREDENTIAL?: string

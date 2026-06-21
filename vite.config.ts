@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: '0N35H07',
           short_name: '0N35H07',
-          description: 'Аркадный шутер от первого лица, строго 1v1 (p2p)',
+          description: 'An arcade first-person shooter, strictly 1v1, peer-to-peer',
           theme_color: '#000000',
           background_color: '#000000',
           display: 'fullscreen',

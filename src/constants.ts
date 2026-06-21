@@ -11,151 +11,151 @@ export const SHIELD_COOLDOWN = 2000
 
 // Player movement
 export const MOVE_SPEED = 7
-export const AIM_RANGE  = 100   // дальность луча прицела/выстрела при промахе (ед.)
+export const AIM_RANGE  = 100   // aim/shot beam range on a miss (units)
 export const EYE_HEIGHT = 1.7
 export const JUMP_FORCE = 8
 export const GRAVITY    = -22
 export const TP_DIST       = 4    // third-person camera distance behind player
 export const TP_HEIGHT     = 1.5  // third-person camera height above player
-export const TP_SHOULDER_X = 0.7  // смещение камеры вправо (over-the-shoulder, God-of-War стиль)
+export const TP_SHOULDER_X = 0.7  // camera offset to the right (over-the-shoulder, God-of-War style)
 
-// Прыжок / bhop / air-strafe — скоростная (Quake) модель: горизонтальная скорость персистентна (velH),
-// на земле — трение+быстрый разгон к желаемой; в воздухе — air-accelerate с кэпом → разгон стрейфом+мышью;
-// кадр прыжка пропускает трение → bhop сохраняет скорость. Прыжок — held-ввод (auto-bhop при удержании).
-export const MAX_AIR_JUMPS   = 1     // воздушных прыжков (двойной прыжок: 1 с земли + 1 в воздухе)
-export const GROUND_ACCEL    = 16    // ускорение к желаемой скорости на земле (множитель wishspeed·dt) — снаппи
-export const GROUND_FRICTION = 12    // трение на земле (1/с); кадр прыжка трение пропускает (основа bhop)
-export const AIR_ACCEL       = 30    // ускорение в воздухе (Quake air-accelerate) — набор скорости стрейфом не мгновенный
-export const AIR_WISH_SPEED  = 1.0   // кэп желаемой скорости в воздухе → разгон стрейфом сверх MOVE_SPEED
-export const MAX_SPEED       = MOVE_SPEED * 6   // верхний предел горизонтальной скорости (~×6 обычной) — bhop не разгоняет бесконечно
-export const SLOPE_MIN_NORMAL_Y = 0.1   // мин. n.y, чтобы считать поверхность полом-склоном (а не стеной)
+// Jump / bhop / air-strafe — a speed (Quake) model: horizontal speed is persistent (velH),
+// on the ground — friction + fast accel toward the wish speed; in the air — air-accelerate with a cap → gain speed via strafe+mouse;
+// the jump frame skips friction → bhop preserves speed. Jump is a held input (auto-bhop while held).
+export const MAX_AIR_JUMPS   = 1     // air jumps (double jump: 1 from ground + 1 in air)
+export const GROUND_ACCEL    = 16    // accel toward wish speed on the ground (wishspeed·dt multiplier) — snappy
+export const GROUND_FRICTION = 12    // ground friction (1/s); the jump frame skips friction (basis of bhop)
+export const AIR_ACCEL       = 30    // air accel (Quake air-accelerate) — gaining speed via strafe isn't instant
+export const AIR_WISH_SPEED  = 1.0   // wish-speed cap in the air → strafe accel beyond MOVE_SPEED
+export const MAX_SPEED       = MOVE_SPEED * 6   // upper bound on horizontal speed (~×6 of normal) — bhop doesn't accelerate forever
+export const SLOPE_MIN_NORMAL_Y = 0.1   // min n.y to treat a surface as floor/slope (not a wall)
 
-// Dash (рывок на Shift)
-export const DASH_SPEED    = 24    // ед/с (~3.4× MOVE_SPEED)
-export const DASH_DURATION = 150   // мс — длительность окна рывка
-export const DASH_COOLDOWN = 1500  // мс
-export const DASH_FOV      = 95    // целевой FOV во время рывка
+// Dash (Shift dash)
+export const DASH_SPEED    = 24    // units/s (~3.4× MOVE_SPEED)
+export const DASH_DURATION = 150   // ms — dash window duration
+export const DASH_COOLDOWN = 1500  // ms
+export const DASH_FOV      = 95    // target FOV during the dash
 
-// Отброс при пересечении игроков (импульс «как рывок, но не рывок»; вектор — 3D между центрами сфер,
-// можно запрыгнуть на соперника и оттолкнуться вверх). Жёсткой коллизии игрок-игрок нет.
-export const KNOCKBACK_SPEED    = 26   // ед/с — горизонтальная сила отброса (чуть мощнее рывка)
-export const KNOCKBACK_DURATION = 150  // мс — длительность горизонтального окна отброса
-export const KNOCKBACK_UP_SPEED = 12   // ед/с — вертикальный импульс скорости (подброс выше прыжка JUMP_FORCE=8)
+// Knockback when players overlap (a "dash-like but not a dash" impulse; vector is 3D between sphere centers,
+// you can jump onto an opponent and push off upward). There's no hard player-player collision.
+export const KNOCKBACK_SPEED    = 26   // units/s — horizontal knockback force (slightly stronger than a dash)
+export const KNOCKBACK_DURATION = 150  // ms — horizontal knockback window duration
+export const KNOCKBACK_UP_SPEED = 12   // units/s — vertical velocity impulse (lift higher than JUMP_FORCE=8)
 
-// Dash trail — «клоны скорости»: полупрозрачные сферы по траектории рывка.
-export const DASH_TRAIL_GHOST_COUNT    = 10    // размер пула клонов
-export const DASH_TRAIL_GHOST_RADIUS   = 0.5   // = радиус сферы-тела
-export const DASH_TRAIL_GHOST_INTERVAL = 16    // мс между клонами
-export const DASH_TRAIL_GHOST_LIFE     = 260   // мс жизни клона
+// Dash trail — "speed clones": translucent spheres along the dash path.
+export const DASH_TRAIL_GHOST_COUNT    = 10    // clone pool size
+export const DASH_TRAIL_GHOST_RADIUS   = 0.5   // = body sphere radius
+export const DASH_TRAIL_GHOST_INTERVAL = 16    // ms between clones
+export const DASH_TRAIL_GHOST_LIFE     = 260   // ms clone lifetime
 export const DASH_TRAIL_GHOST_OPACITY  = 0.4
 
-// Сфера-тело: радиус/детализация (общие для игрового меша и превью в настройках).
+// Body sphere: radius/detail (shared by the game mesh and the settings preview).
 export const BALL_RADIUS   = 0.5
-export const BALL_SEGMENTS = 128        // высокополигональный меш — фасетки незаметны, волны гладкие
-export const BLOCK_TRANSPARENT_OPACITY = 0.2   // непрозрачность полупрозрачных блоков карты (игра/редактор/трейлер)
-export const VOXEL = 0.5   // ребро базового куба карты — общая сетка редактора и игры (сетка кубов)
-export const PREVIEW_SPIN_SPEED = 0.6   // рад/с — медленное вращение шара в превью настроек
+export const BALL_SEGMENTS = 128        // high-poly mesh — facets are invisible, waves are smooth
+export const BLOCK_TRANSPARENT_OPACITY = 0.2   // opacity of translucent map blocks (game/editor/trailer)
+export const VOXEL = 0.5   // edge of the base map cube — shared editor/game grid (cube grid)
+export const PREVIEW_SPIN_SPEED = 0.6   // rad/s — slow ball spin in the settings preview
 
-// Модели шара (выбор в настройках; сетевая косметика — видна сопернику).
+// Ball models (chosen in settings; networked cosmetic — visible to the opponent).
 export const BALL_MODELS = ['smooth', 'waves', 'planet'] as const
 export type BallModel = typeof BALL_MODELS[number]
 
-// Анимации подготовки выстрела (выбор в настройках; сетевая косметика — видна сопернику).
+// Shot windup animations (chosen in settings; networked cosmetic — visible to the opponent).
 export const WINDUP_STYLES = ['classic', 'rage', 'singularity'] as const
 export type WindupStyle = typeof WINDUP_STYLES[number]
 
-// Анимации респавна (смерть/призрак/возрождение; выбор во «Внешности», сетевая косметика).
+// Respawn animations (death/ghost/revive; chosen in "Appearance", networked cosmetic).
 export const RESPAWN_STYLES = ['echo', 'chaos', 'swarm'] as const
 export type RespawnStyle = typeof RESPAWN_STYLES[number]
 
-// Скины следа рывка и щита (выбор во «Внешности», сетевая косметика — видны сопернику).
+// Dash-trail and shield skins (chosen in "Appearance", networked cosmetic — visible to the opponent).
 export const DASH_STYLES = ['streak', 'wave', 'rift'] as const
 export type DashStyle = typeof DASH_STYLES[number]
 export const SHIELD_STYLES = ['dome', 'hex', 'crystal'] as const
 export type ShieldStyle = typeof SHIELD_STYLES[number]
 
-// Волны — деформация вершин (вдоль нормали) в шейдере:
-export const BALL_WAVE_COUNT = 10     // число волн по высоте сферы
-export const BALL_WAVE_AMP   = 0.03   // амплитуда волн
-export const BALL_WAVE_SPEED = 3      // скорость бега волн
-// Планета — кольцо вокруг сферы (локальные единицы меша-сферы, радиус 0.5):
-export const BALL_RING_INNER    = 0.62  // внутренний радиус кольца
-export const BALL_RING_OUTER    = 1.0   // внешний радиус кольца
-export const BALL_RING_TILT_DEG = 70    // наклон кольца, градусы
+// Waves — vertex displacement (along the normal) in the shader:
+export const BALL_WAVE_COUNT = 10     // number of waves over the sphere's height
+export const BALL_WAVE_AMP   = 0.03   // wave amplitude
+export const BALL_WAVE_SPEED = 3      // wave travel speed
+// Planet — a ring around the sphere (local sphere-mesh units, radius 0.5):
+export const BALL_RING_INNER    = 0.62  // ring inner radius
+export const BALL_RING_OUTER    = 1.0   // ring outer radius
+export const BALL_RING_TILT_DEG = 70    // ring tilt, degrees
 export const BALL_RING_SEGMENTS = 96
-export const BALL_RING_BANDS     = 5     // число банд градиента
-export const BALL_RING_SCROLL    = 0.4   // скорость дрейфа банд (иллюзия движения)
+export const BALL_RING_BANDS     = 5     // number of gradient bands
+export const BALL_RING_SCROLL    = 0.4   // band drift speed (illusion of motion)
 
-// Shared entity geometry — ОДНИ И ТЕ ЖЕ смещения для игрока и ботов.
-// position у Body — точка на уровне глаз (y = EYE_HEIGHT когда на земле).
-export const BODY_MESH_Y  = -0.3   // центр сферы-тела относительно position
-export const HITBOX_Y     = -0.7   // центр хитбокса [1,2,1] (спан 0..2 от пола)
-export const MUZZLE_Y     = -0.3   // центр шара относительно position (= BODY_MESH_Y)
+// Shared entity geometry — THE SAME offsets for the player and bots.
+// Body's position is the eye-level point (y = EYE_HEIGHT when on the ground).
+export const BODY_MESH_Y  = -0.3   // body sphere center relative to position
+export const HITBOX_Y     = -0.7   // hitbox [1,2,1] center (span 0..2 from the floor)
+export const MUZZLE_Y     = -0.3   // ball center relative to position (= BODY_MESH_Y)
 
-export const WINDUP_SCALE_GAIN = 0.4   // прирост масштаба тела во время заряда выстрела
-export const WINDUP_SHRINK_MS = 200    // длительность «сдувания» шара после выстрела
+export const WINDUP_SCALE_GAIN = 0.4   // body scale gain while charging a shot
+export const WINDUP_SHRINK_MS = 200    // duration of the ball "deflate" after a shot
 
-// Фаза «призрака» при респауне: игрок неуязвим и быстро ищет новую точку спавна.
-export const RESPAWN_GHOST_MS   = 1500  // длительность фазы (мс)
-export const RESPAWN_SPEED_MULT = 2     // множитель скорости движения в фазе
-export const RESPAWN_SPEED_RAMP = 0.3   // доля конца фазы, на которой ускорение плавно спадает к ×1
-export const GHOST_OPACITY      = 0.4   // прозрачность шара-призрака
-export const SPAWN_ANIM_MS  = 280       // материализация на месте (короткий «пуф»)
-export const SPAWN_POP      = 0.25      // амплитуда упругого пуфа при материализации
-// Хлопок частиц в момент смерти (world-space, цвет игрока). Гаснут сами — на динамику не влияют.
+// "Ghost" phase on respawn: the player is invulnerable and quickly seeks a new spawn point.
+export const RESPAWN_GHOST_MS   = 1500  // phase duration (ms)
+export const RESPAWN_SPEED_MULT = 2     // movement speed multiplier during the phase
+export const RESPAWN_SPEED_RAMP = 0.3   // fraction of the phase's end where the speedup smoothly decays to ×1
+export const GHOST_OPACITY      = 0.4   // ghost ball opacity
+export const SPAWN_ANIM_MS  = 280       // in-place materialization (a short "poof")
+export const SPAWN_POP      = 0.25      // elastic poof amplitude on materialization
+// Particle burst at the moment of death (world-space, player color). Fade on their own — don't affect dynamics.
 export const DEATH_BURST_COUNT   = 14
 export const DEATH_BURST_RADIUS  = 0.16
-export const DEATH_BURST_LIFE    = 400   // мс
-export const DEATH_BURST_SPEED   = 6     // ед/с — разлёт наружу
+export const DEATH_BURST_LIFE    = 400   // ms
+export const DEATH_BURST_SPEED   = 6     // units/s — outward scatter
 export const DEATH_BURST_OPACITY = 0.9
 
-// PointerLock: Chrome блокирует повторный requestPointerLock ~1.25с после выхода.
-export const POINTERLOCK_COOLDOWN = 1300   // мс — кулдаун перед повторным входом (кнопка «Продолжить»)
+// PointerLock: Chrome blocks a repeat requestPointerLock for ~1.25s after exit.
+export const POINTERLOCK_COOLDOWN = 1300   // ms — cooldown before re-entry (the "Resume" button)
 
-// HUD: единый прямоугольный контур. Скобки щита (углы), полосы дэша (бока) и полосы возрождения (верх/низ)
-// лежат на одной линии-периметре. Плечи скобок занимают ~21–27px от кромки → полосы ставим на тот же отступ.
-export const HUD_FRAME_INSET = 21   // px от кромки экрана до полос дэша/возрождения
+// HUD: a single rectangular outline. Shield brackets (corners), dash bars (sides) and respawn bars (top/bottom)
+// lie on the same perimeter line. Bracket arms span ~21–27px from the edge → place the bars at the same inset.
+export const HUD_FRAME_INSET = 21   // px from the screen edge to the dash/respawn bars
 
-// Матч на время (выбор хоста в комнате). Конец матча: таймер ИЛИ отключение соперника.
+// Timed match (host's choice in the room). Match end: timer OR opponent disconnect.
 export const MATCH_DURATIONS_MIN = [3, 5, 10] as const
 export const DEFAULT_MATCH_DURATION_MIN = 5
 
-// Карта матча (выбор хоста в комнате). Тип здесь (а не в game/maps.ts), чтобы net-слой не зависел от game.
-// id используется и как подпись в UI.
+// Match map (host's choice in the room). The type lives here (not in game/maps.ts) so the net layer doesn't depend on game.
+// id is also used as a label in the UI.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
-export type MapFilter = MapId[]        // выбранный набор карт (≥1)
-export type DurationFilter = number[]  // выбранный набор длительностей (≥1)
+export type MapFilter = MapId[]        // selected set of maps (≥1)
+export type DurationFilter = number[]  // selected set of durations (≥1)
 
-// Демпфирование анимаций меню (переезд подложки и фоновых шаров) — единая скорость («резко, но не мгновенно»,
-// ~200 мс на ~95% пути). TAU в секундах для cur += (target-cur)*(1-exp(-dt/TAU)).
+// Menu animation damping (the backdrop slide and background balls) — a single speed ("snappy but not instant",
+// ~200ms to ~95% of the way). TAU in seconds for cur += (target-cur)*(1-exp(-dt/TAU)).
 export const MENU_ANIM_TAU = 0.06
-export const MATCH_TIME_BROADCAST_MS = 1000   // host шлёт остаток времени ~1/с
+export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
-// Строго 1v1: два фиксированных id игроков — хост и его единственный соперник (бот XOR клиент).
+// Strictly 1v1: two fixed player ids — the host and its single opponent (bot XOR client).
 export const HOST_ID = 0
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
-export const READY_COUNTDOWN_MS = 3000   // обратный отсчёт перед боем (1v1), мс
-export const NET_REMOTE_LERP = 0.35   // сглаживание позиции удалённого игрока к последнему снапшоту
-export const NET_RECONCILE_LERP = 0.15 // коррекция своего игрока к авторитету (анти-дрейф при коллизиях)
-export const NET_SNAPSHOT_HZ = 30     // частота рассылки снапшотов хостом
-export const NET_HUMAN_SPAWN_Z = 5    // 1v1: люди спавнятся друг напротив друга по ±Z (детерминированно)
-// Палитра цветов шара (выбор в настройках + фолбэк-назначение хостом при коллизии с цветом соперника).
+export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
+export const NET_REMOTE_LERP = 0.35   // smoothing of the remote player's position toward the latest snapshot
+export const NET_RECONCILE_LERP = 0.15 // correction of your own player toward the authority (anti-drift on collisions)
+export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
+export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
+// Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
-// ICE-серверы для WebRTC. Передаются в Trystero rtcConfig и ЗАМЕНЯЮТ его дефолты — поэтому держим здесь
-// и STUN, и TURN. STUN хватает домашним сетям; TURN нужен для симметричного NAT/CGNAT и сетей, режущих UDP
-// (там STUN таймаутится — см. диагностику онлайна). turns:443?transport=tcp пробивает UDP-фильтрацию.
+// ICE servers for WebRTC. Passed into Trystero rtcConfig and REPLACE its defaults — so we keep both
+// STUN and TURN here. STUN suffices for home networks; TURN is needed for symmetric NAT/CGNAT and networks that
+// cut UDP (where STUN times out — see the online diagnostics). turns:443?transport=tcp punches through UDP filtering.
 //
-// Креды TURN — из env (.env, gitignored; в CI — GitHub Actions secrets), НЕ в репозитории. Хост relay не
-// секрет, секрет — username/credential. Нет кред → STUN-only (домашние сети соединятся, симметричный NAT — нет).
-// ВНИМАНИЕ: env лишь убирает креды из РЕПОЗИТОРИЯ — в собранный клиент они всё равно попадают и видны в
-// DevTools (статичные TURN-креды на фронте скрыть нельзя). Для прода — выделенный TURN с эфемерными кредами
-// (TURN REST/HMAC) либо managed (Metered/Twilio/Cloudflare)/self-hosted coturn с лимитами под нагрузку.
+// TURN creds come from env (.env, gitignored; in CI — GitHub Actions secrets), NOT in the repo. The relay host is
+// not a secret; the secret is username/credential. No creds → STUN-only (home networks connect, symmetric NAT won't).
+// NOTE: env only removes the creds from the REPOSITORY — they still end up in the built client and are visible in
+// DevTools (static TURN creds can't be hidden on the frontend). For production — a dedicated TURN with ephemeral creds
+// (TURN REST/HMAC) or managed (Metered/Twilio/Cloudflare)/self-hosted coturn with limits for the load.
 const TURN_HOST = 'global.relay.metered.ca'
 const TURN_USERNAME = import.meta.env.VITE_TURN_USERNAME
 const TURN_CREDENTIAL = import.meta.env.VITE_TURN_CREDENTIAL
@@ -168,40 +168,40 @@ const turnServers: RTCIceServer[] = TURN_USERNAME && TURN_CREDENTIAL
     ]
   : []
 export const NET_ICE_SERVERS: RTCIceServer[] = [
-  // Публичный STUN (Google/Cloudflare) — даёт srflx-кандидат быстро и надёжно; первым, чтобы прямой путь
-  // находился до медленного relay.
+  // Public STUN (Google/Cloudflare) — yields an srflx candidate fast and reliably; first, so the direct path
+  // is found before the slow relay.
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] },
   ...turnServers,
 ]
 
 // Bot movement & combat
 export const BOT_MOVE_SPEED      = 2.5
-export const BOT_SHIELD_INTERVAL = 5000   // как часто ИИ решает поднять щит (не длительность щита — она как у игрока)
-export const BOT_CHASE_DIST      = 8      // дистанция переключения CHASE ↔ STRAFE (ед.)
-export const BOT_RETREAT_MS      = 500    // мс отхода после собственного выстрела
-export const BOT_DODGE_THRESH    = 0.25  // windupProgress соперника → инициировать DODGE
-export const BOT_EVADE_NEAR      = 6      // дистанция «вплотную» для EVADE-распрыжки (ед.)
-export const BOT_EVADE_DASH_RATE = 1.5   // базовая частота дэшей/сек в EVADE (×evadeSkill)
-export const BOT_BAIT_LATE_PROGRESS = 0.55  // windupProgress, с которого заряд считается «поздним» для развода
-export const BOT_BAIT_COOLDOWN_MS   = 4000  // мс между разводами на щит (анти-зацикливание)
+export const BOT_SHIELD_INTERVAL = 5000   // how often the AI decides to raise the shield (not shield duration — that matches the player)
+export const BOT_CHASE_DIST      = 8      // CHASE ↔ STRAFE switch distance (units)
+export const BOT_RETREAT_MS      = 500    // ms of retreat after its own shot
+export const BOT_DODGE_THRESH    = 0.25  // opponent's windupProgress → initiate DODGE
+export const BOT_EVADE_NEAR      = 6      // "point-blank" distance for the EVADE bunny-hop (units)
+export const BOT_EVADE_DASH_RATE = 1.5   // base dash rate per second in EVADE (×evadeSkill)
+export const BOT_BAIT_LATE_PROGRESS = 0.55  // windupProgress from which a charge counts as "late" for baiting
+export const BOT_BAIT_COOLDOWN_MS   = 4000  // ms between shield baits (anti-loop)
 
 // Arena
 export const SPAWN_HALF = 14
 
-// Физическая капсула игрока (Rapier KinematicCharacterController).
-// CapsuleCollider args = [halfHeight, radius]; высота капсулы = 2*half + 2*radius = 1.7.
-// Смещение вниз = halfHeight + radius = 0.85 → ступни на y=0 при точке глаз eye=1.7.
+// Player physics capsule (Rapier KinematicCharacterController).
+// CapsuleCollider args = [halfHeight, radius]; capsule height = 2*half + 2*radius = 1.7.
+// Downward offset = halfHeight + radius = 0.85 → feet at y=0 with the eye point eye=1.7.
 export const CAPSULE_RADIUS      = 0.5
 export const CAPSULE_HALF_HEIGHT = 0.35
 export const CAPSULE_OFFSET_Y    = -0.85
 
-// KCC: автоступень и углы склона. Высота ступени ≥ высоты блока 1×1 (=1.0) → на блоки 1×1 всходим
-// как по лестнице, а не упираемся (раньше 0.4 < 1.0).
+// KCC: autostep and slope angles. Step height ≥ height of a 1×1 block (=1.0) → we climb 1×1 blocks
+// like stairs instead of getting stuck (was 0.4 < 1.0).
 export const AUTOSTEP_MAX_HEIGHT = 1.05
 export const AUTOSTEP_MIN_WIDTH  = 0.25
-export const KCC_SLOPE_DEG       = 50    // макс. угол climb/slide
-export const KCC_OFFSET          = 0.01  // зазор капсула↔мир: мал → численная нестабильность KCC (дрожание на высоком FPS)
-export const AUTOSTEP_LIFT_EPS   = 0.02  // порог вертикального подъёма сверх гравитации → автостеп пытался перешагнуть
+export const KCC_SLOPE_DEG       = 50    // max climb/slide angle
+export const KCC_OFFSET          = 0.01  // capsule↔world gap: too small → KCC numerical instability (jitter at high FPS)
+export const AUTOSTEP_LIFT_EPS   = 0.02  // vertical-lift threshold above gravity → autostep tried to step over
 
 // Bot colors (hex strings — create THREE.Color locally where needed)
 export const BOT_COLOR_WHITE = '#fff'

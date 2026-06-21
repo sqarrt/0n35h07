@@ -4,9 +4,9 @@ import { useT } from '../i18n'
 const GHOST = '#9cf'
 
 /**
- * Горизонтальная полоса остатка времени фазы (сверху/снизу), тает к центру.
- * Лежит на линии-периметре HUD (как плечи скобок щита и полосы дэша) → единый контур.
- * Полная длина = половина ширины экрана, по центру.
+ * Horizontal bar of remaining phase time (top/bottom), shrinking toward the center.
+ * Sits on the HUD perimeter line (like the shield bracket arms and dash bars) → one contour.
+ * Full length = half the screen width, centered.
  */
 function Bar({ edge, pct }: { edge: 'top' | 'bottom'; pct: number }) {
   return (
@@ -22,8 +22,8 @@ function Bar({ edge, pct }: { edge: 'top' | 'bottom'; pct: number }) {
 }
 
 /**
- * Индикация фазы призрака от первого лица: тинт по краям + speed-lines (радиальный градиент),
- * а остаток времени — полосы сверху и снизу HUD. `progress` 1→0.
+ * First-person ghost phase indicator: edge tint + speed-lines (radial gradient),
+ * with remaining time shown as bars at the top and bottom of the HUD. `progress` 1→0.
  */
 export function RespawnOverlay({ progress }: { progress: number }) {
   const t = useT()
@@ -39,7 +39,7 @@ export function RespawnOverlay({ progress }: { progress: number }) {
       <Bar edge="bottom" pct={pct} />
       <div style={{
         position: 'fixed', top: '50%', left: 0, right: 0, textAlign: 'center',
-        transform: 'translateY(-120px)',   // над прицелом, ниже таймера/счёта (MatchHud сверху)
+        transform: 'translateY(-120px)',   // above the crosshair, below the timer/score (MatchHud on top)
         color: GHOST, fontFamily: 'var(--ui-font)', fontSize: '0.75rem', letterSpacing: '0.25em',
         textShadow: `0 0 8px ${GHOST}`, pointerEvents: 'none', zIndex: 14,
       }}>

@@ -9,44 +9,44 @@ import { parseGeo, isEmptyCompiled } from './mapGeometryCache'
 import type { CompiledMap } from './mapGeometryCache'
 
 /**
- * Карты как данные — единый источник для 3D-арены (Arena), спавнов (Match) и top-down превью (MapPreview).
- * Блок = бокс: всегда даёт видимый меш + Rapier-коллайдер (полу-размеры = size). `blocksBeam` (по умолч.
- * true) — пускать ли в него raycast луча: укрытия/колонны перекрывают линию огня (true), периметровые
- * стены — декор+коллайдер, луч проходит (false), как в исходной арене. Пол рисует Arena отдельно.
+ * Maps as data — the single source for the 3D arena (Arena), spawns (Match) and the top-down preview (MapPreview).
+ * A block = a box: always yields a visible mesh + a Rapier collider (half-extents = size). `blocksBeam` (default
+ * true) — whether the beam raycast hits it: cover/columns block the line of fire (true), perimeter
+ * walls are decor+collider and the beam passes through (false), as in the original arena. The floor is drawn by Arena separately.
  *
- * Спавны заданы по слоту: [HOST_ID, OPPONENT_ID] — точки на уровне глаз, друг напротив друга по ±Z.
- * Высота прыжка ≈ JUMP_FORCE²/(2·|GRAVITY|) ≈ 1.45 — платформы не выше, чтобы заходились прыжком.
+ * Spawns are given per slot: [HOST_ID, OPPONENT_ID] — eye-level points, facing each other along ±Z.
+ * Jump height ≈ JUMP_FORCE²/(2·|GRAVITY|) ≈ 1.45 — platforms aren't taller, so they're reachable by jump.
  */
 
 export type Vec3 = [number, number, number]
 
 export interface MapBlock {
-  pos: Vec3            // центр (мировые координаты)
-  size: Vec3          // полу-размеры (как у CuboidCollider)
+  pos: Vec3            // center (world coordinates)
+  size: Vec3          // half-extents (like CuboidCollider)
   color: string
-  blocksBeam?: boolean   // по умолчанию true; false → меш noRaycast (луч проходит, но коллайдер есть)
-  rot?: Vec3           // Euler-поворот (радианы), напр. наклон рампы по X; по умолчанию нет
-  shape?: 'box' | 'wedge'   // по умолчанию box; wedge — клин-рампа (треугольная призма)
-  dir?: number         // сторона клина 0=+Z,1=+X,2=−Z,3=−X (поворот вокруг Y)
-  flip?: boolean       // клин перевёрнут по Y (скос снизу — навес)
-  transparent?: boolean   // по умолчанию false → непрозрачный; true → полупрозрачный
-  passable?: boolean      // по умолчанию false → есть коллайдер; true → коллайдера нет (проходим насквозь)
-  perimeter?: boolean     // editor-round-trip маркер периметровой стены; игра игнорирует
+  blocksBeam?: boolean   // default true; false → noRaycast mesh (beam passes through, but a collider exists)
+  rot?: Vec3           // Euler rotation (radians), e.g. ramp tilt around X; none by default
+  shape?: 'box' | 'wedge'   // default box; wedge — a wedge ramp (triangular prism)
+  dir?: number         // wedge side 0=+Z,1=+X,2=−Z,3=−X (rotation around Y)
+  flip?: boolean       // wedge flipped along Y (slope underneath — an overhang)
+  transparent?: boolean   // default false → opaque; true → semi-transparent
+  passable?: boolean      // default false → has a collider; true → no collider (passable through)
+  perimeter?: boolean     // editor-round-trip marker for a perimeter wall; the game ignores it
 }
 
 export interface GameMap {
-  id: MapId            // и подпись в UI (отдельного name нет)
-  half: [number, number]   // полу-размеры пола арены [X, Z] — карта может быть прямоугольной (длиннее по Z)
+  id: MapId            // also the UI label (there's no separate name)
+  half: [number, number]   // arena floor half-extents [X, Z] — a map can be rectangular (longer along Z)
   floorColor: string
   blocks: MapBlock[]
   spawns: [Vec3, Vec3]   // [HOST_ID, OPPONENT_ID]
-  showBlockGrid?: boolean   // рисовать сетку кубов в игре (по умолч./отсутствует — не рисуем)
+  showBlockGrid?: boolean   // draw the cube grid in-game (default/absent — don't draw)
 }
 
-const WALL_H = 1.5       // полу-высота периметровой стены
-const WALL_T = 0.25      // полу-толщина стены
+const WALL_H = 1.5       // perimeter wall half-height
+const WALL_T = 0.25      // wall half-thickness
 
-/** Четыре периметровые стены по размеру пола [hx, hz] (декор+коллайдер, луч проходит). */
+/** Four perimeter walls sized to the floor [hx, hz] (decor+collider, beam passes through). */
 export function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   const bb = false
   return [
@@ -57,7 +57,7 @@ export function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   ]
 }
 
-// Карты собраны во встроенном редакторе (#editor) и лежат как данные в src/maps/*.json (форма GameMap).
+// Maps are built in the embedded editor (#editor) and stored as data in src/maps/*.json (GameMap shape).
 export const MAPS: Record<MapId, GameMap> = {
   os_arena: os_arena as unknown as GameMap,
   os_india: os_india as unknown as GameMap,
@@ -67,15 +67,15 @@ export const MAPS: Record<MapId, GameMap> = {
 
 export const MAP_IDS: MapId[] = ['os_arena', 'os_india', 'os_pillars', 'os_pool_day']
 
-// Артефакты карт (опциональны — генерируются редактором при сохранении; бандлятся Vite, работают в проде).
-// id извлекаем из пути '../maps/<id>/<file>'.
+// Map artifacts (optional — generated by the editor on save; bundled by Vite, work in prod).
+// id is extracted from the path '../maps/<id>/<file>'.
 const idOf = (p: string): MapId => p.split('/').slice(-2, -1)[0] as MapId
 
-// Ленивые загрузчики geo.json — Rolldown выносит каждый файл в отдельный чанк, грузим при старте матча.
+// Lazy geo.json loaders — Rolldown splits each file into its own chunk, loaded at match start.
 const GEO_LOADERS = import.meta.glob('../maps/*/geo.json') as Record<string, () => Promise<{ default: unknown }>>
 const _geoCache: Partial<Record<MapId, CompiledMap>> = {}
 
-/** Старт загрузки geo.json для карты id (no-op если уже в кеше). Вызывать до монтирования Arena. */
+/** Start loading geo.json for map id (no-op if already cached). Call before mounting Arena. */
 export async function ensureMapGeo(id: MapId): Promise<void> {
   if (id in _geoCache) return
   const path = Object.keys(GEO_LOADERS).find(p => idOf(p) === id)
@@ -84,27 +84,27 @@ export async function ensureMapGeo(id: MapId): Promise<void> {
   _geoCache[id] = parseGeo(mod.default as never)
 }
 
-/** Синхронно вернуть компил из кеша (если был preload через ensureMapGeo). Пустую/устаревшую гео считаем
- * отсутствующей → потребитель скомпилит из map.blocks (fallback), карта не ломается без свежего geo.json. */
+/** Synchronously return the compiled map from cache (if preloaded via ensureMapGeo). Empty/outdated geo is treated
+ * as missing → the consumer compiles from map.blocks (fallback), so the map doesn't break without a fresh geo.json. */
 export function getCachedMapGeo(id: MapId): CompiledMap | undefined {
   const c = _geoCache[id]
   return c && !isEmptyCompiled(c) ? c : undefined
 }
 
-/** URL картинки превью по id (preview.png). Нет файла → undefined → живой превью-канвас (фолбэк). */
+/** Preview image URL by id (preview.png). No file → undefined → live preview canvas (fallback). */
 export const MAP_PREVIEW: Partial<Record<MapId, string>> = Object.fromEntries(
   Object.entries(import.meta.glob('../maps/*/preview.png', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
     .map(([p, url]) => [idOf(p), url]),
 ) as Partial<Record<MapId, string>>
 
-// Держим ссылки на прогретые Image до завершения загрузки — гарантия, что запрос не отменится.
+// Keep references to warmed Images until loading completes — guarantees the request won't be canceled.
 const warmedPreviews: HTMLImageElement[] = []
 
-/** Прогрев превью карт: дёргаем загрузку картинок заранее (на старте приложения), чтобы плитки
- *  комнаты и фон не ждали сети при первом заходе — браузер кладёт их в HTTP-кэш. Особенно важно
- *  клиенту по #CODE: он попадает в комнату сразу, пока сеть занята бандлом/звуком/сигналингом. */
+/** Warm up map previews: kick off image loading early (at app start) so room tiles
+ *  and the background don't wait on the network on first entry — the browser caches them in the HTTP cache. Especially
+ *  important for a #CODE client: they land in the room immediately while the network is busy with the bundle/sound/signaling. */
 export function warmMapPreviews(): void {
-  if (warmedPreviews.length) return   // один раз за сессию
+  if (warmedPreviews.length) return   // once per session
   for (const url of Object.values(MAP_PREVIEW)) {
     if (!url) continue
     const img = new Image()
@@ -113,7 +113,7 @@ export function warmMapPreviews(): void {
   }
 }
 
-/** Случайная точка в пределах игровой зоны — блуждание бота (без учёта препятствий; KCC не даёт пройти сквозь). */
+/** Random point within the play area — bot wandering (ignores obstacles; KCC prevents passing through). */
 export function randomArenaPos(): THREE.Vector3 {
   return new THREE.Vector3(
     (Math.random() - 0.5) * SPAWN_HALF * 2,

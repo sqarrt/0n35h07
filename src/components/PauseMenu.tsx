@@ -3,14 +3,14 @@ import { useT } from '../i18n'
 
 interface PauseMenuProps {
   resumeDisabled: boolean
-  cooldownPct: number     // 0..100 — ширина заливки кулдауна (слева-направо)
-  showExit: boolean       // кнопка ВЫХОД только на десктопе
+  cooldownPct: number     // 0..100 — cooldown fill width (left-to-right)
+  showExit: boolean       // EXIT button on desktop only
   onResume: () => void
   onBack: () => void
   onExit: () => void
 }
 
-/** Меню паузы (Esc): продолжить / в меню / выход. Живёт под I18nProvider — отсюда useT. */
+/** Pause menu (Esc): resume / to menu / exit. Lives under I18nProvider — hence useT. */
 export function PauseMenu({ resumeDisabled, cooldownPct, showExit, onResume, onBack, onExit }: PauseMenuProps) {
   const t = useT()
   return (
@@ -29,7 +29,7 @@ export function PauseMenu({ resumeDisabled, cooldownPct, showExit, onResume, onB
         disabled={resumeDisabled}
         onClick={onResume}
       >
-        {/* индикация кулдауна — заливка слева-направо (без смены текста → кнопка не прыгает) */}
+        {/* cooldown indication — left-to-right fill (no text change → the button doesn't jump) */}
         {resumeDisabled && (
           <span style={{
             position: 'absolute', left: 0, top: 0, bottom: 0,

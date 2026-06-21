@@ -4,7 +4,7 @@ import { ClassicWindupFx } from './ClassicWindupFx'
 import { RageWindupFx } from './RageWindupFx'
 import { SingularityWindupFx } from './SingularityWindupFx'
 
-/** Фабрика стратегии анимации заряда по выбранному стилю (boundary для Match и превью меню). */
+/** Factory for the charge animation strategy by selected style (boundary for Match and menu preview). */
 export function createWindupFx(style: WindupStyle): IWindupFx {
   switch (style) {
     case 'rage':        return new RageWindupFx()

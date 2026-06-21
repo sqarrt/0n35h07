@@ -11,19 +11,19 @@ interface BeamConfig {
   beamDuration?:     number
   innerColor?:       string
   outerColor?:       string
-  beamFx?:           IBeamFx   // стилевой визуал луча; нет → классический (цвета выше)
+  beamFx?:           IBeamFx   // styled beam visual; none → classic (colors above)
 }
 
 interface Particle { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }
 
-// Импакт-частицы (общие для всех стилей луча).
+// Impact particles (shared across all beam styles).
 const IMPACT_PARTICLES = 6
-const IMPACT_LIFE_DECAY = 3      // скорость угасания жизни (ед/с)
-const IMPACT_SCALE = 0.15        // размер частицы = life * IMPACT_SCALE
-const IMPACT_SPREAD_H = 8        // горизонтальный разброс скорости
-const IMPACT_SPREAD_V = 6        // вертикальный разброс скорости
+const IMPACT_LIFE_DECAY = 3      // life decay rate (units/s)
+const IMPACT_SCALE = 0.15        // particle size = life * IMPACT_SCALE
+const IMPACT_SPREAD_H = 8        // horizontal velocity spread
+const IMPACT_SPREAD_V = 6        // vertical velocity spread
 
-/** Луч: idle → windup → fire → cooldown (dt-driven). Визуал луча — инжектируемый IBeamFx (стилевой). */
+/** Beam: idle → windup → fire → cooldown (dt-driven). Beam visual is an injectable IBeamFx (styled). */
 export class BeamWeapon implements IWeapon {
   readonly object3d = new THREE.Group()
   private beamFx: IBeamFx
@@ -34,7 +34,7 @@ export class BeamWeapon implements IWeapon {
   private windupElapsed = 0
   private cooldownRemaining = 0
   private cooldownScale = 1
-  private cooldownTotal = BEAM_COOLDOWN   // фактическая длительность текущего кулдауна (для progress)
+  private cooldownTotal = BEAM_COOLDOWN   // actual duration of the current cooldown (for progress)
   private readonly windupDuration: number
   private readonly cooldownDuration: number
 
@@ -86,10 +86,10 @@ export class BeamWeapon implements IWeapon {
     this.cooldownRemaining = this.cooldownTotal
     this.windupElapsed = 0
 
-    this._origin.copy(ctx.muzzle)            // визуал луча всегда из дула
-    this._dir.copy(ctx.aim).normalize()      // визуальное направление (дуло→прицел), для fallback
-    // Хит: по лучу прицела (камера→мушка) у человека — «что под перекрестием, то и поражаешь», без
-    // параллакса дуло↔камера в TP. Бот/удалённый origin не задают → хит из дула вдоль aim (как раньше).
+    this._origin.copy(ctx.muzzle)            // beam visual always starts from the muzzle
+    this._dir.copy(ctx.aim).normalize()      // visual direction (muzzle→aim), for fallback
+    // Hit: along the aim ray (camera→sight) for a human — "what's under the crosshair is what you hit", with no
+    // muzzle↔camera parallax in TP. Bot/remote don't set origin → hit from the muzzle along aim (as before).
     const rcOrigin = ctx.hitOrigin ?? this._origin
     const rcDir = ctx.hitDir ? this._rcDir.copy(ctx.hitDir).normalize() : this._dir
     const hit = ctx.world.raycast(rcOrigin, rcDir, ctx.excludeIds, ctx.pierceWalls ?? false)
@@ -99,16 +99,16 @@ export class BeamWeapon implements IWeapon {
     if (hit) {
       const eid = (hit.object.userData as MeshUserData).entityId
       if (eid !== undefined) { hitEntityId = eid; hitPoint = hit.point.clone() }
-      // Конец визуала = точка попадания, если она ВПЕРЕДИ дула; иначе тянем луч вперёд (анти-переворот в TP,
-      // когда прицел зацепил поверхность между камерой и дулом).
+      // Visual end = the hit point if it's AHEAD of the muzzle; otherwise extend the beam forward (anti-flip in TP,
+      // when the aim caught a surface between the camera and the muzzle).
       const ahead = this._tmp.copy(hit.point).sub(this._origin).dot(this._dir) > 0
       if (ahead) this._end.copy(hit.point)
       else this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     } else {
       this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     }
-    this.beamFx.play(this._origin, this._end)   // play делает .copy() на обоих аргументах → scratch безопасен
-    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint }   // clone: outcome переживает кадр
+    this.beamFx.play(this._origin, this._end)   // play does .copy() on both args → scratch is safe
+    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint }   // clone: outcome outlives the frame
     this.justFired = true
   }
 
@@ -123,7 +123,7 @@ export class BeamWeapon implements IWeapon {
     }
   }
 
-  /** Косметический выстрел без raycast — для удалённого игрока на клиенте (событие FIRED). */
+  /** Cosmetic shot without raycast — for a remote player on the client (FIRED event). */
   playBeam(start: THREE.Vector3, end: THREE.Vector3, hitPoint?: THREE.Vector3 | null) {
     this.beamFx.play(start, end)
     if (hitPoint) this.spawnImpact(hitPoint)
@@ -137,8 +137,8 @@ export class BeamWeapon implements IWeapon {
     }
   }
 
-  /** Отменяет заряд (windup) БЕЗ выстрела и возвращает в idle: кулдаун НЕ начисляется,
-   *  т.к. луча не было (можно сразу заряжать снова). Вне windup — no-op. */
+  /** Cancels the charge (windup) WITHOUT firing and returns to idle: no cooldown is charged,
+   *  since there was no beam (can charge again immediately). Outside windup — no-op. */
   interrupt() {
     if (this.phase !== 'windup') return
     this.phase = 'idle'

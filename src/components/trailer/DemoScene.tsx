@@ -1,8 +1,8 @@
 /**
- * Воспроизведение демо на РЕАЛЬНЫХ игровых ресурсах: строим настоящих `Player` из ростера и гоним их
- * клиентским путём рендера (`applyNetState` + `updateRemote` + `cosmeticFire/applyDeath/respawnAt`),
- * камеру ставим из записи (pos+quat+fov, со сглаживанием между 30fps-кадрами). Никакой симуляции/физики —
- * чистый детерминированный реплей. Поддержан подотрезок [from..to] (кадры независимы).
+ * Demo playback on REAL game assets: build actual `Player` instances from the roster and run them
+ * through the client render path (`applyNetState` + `updateRemote` + `cosmeticFire/applyDeath/respawnAt`),
+ * setting the camera from the recording (pos+quat+fov, smoothed between 30fps frames). No simulation/physics —
+ * pure deterministic replay. Subrange [from..to] is supported (frames are independent).
  */
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -34,7 +34,7 @@ import type { SfxEvent } from '../../game/audio/sfx/types'
 import type { AnnounceItem } from '../../hooks/useGameHUD'
 import type { DemoFile, DemoFrame, DemoPlayerState } from '../../game/demo/demoTypes'
 
-// Звук луча = весь выстрел (заряд→разряд), стартует с НАЧАЛА зарядки; вариант по стилю (как в игре).
+// Beam sound = the whole shot (charge→discharge), starts at the BEGINNING of windup; variant by style (as in game).
 const BEAM_SFX: Record<WindupStyle, SfxEvent> = {
   classic: 'beam_fire', rage: 'beam_fire_rage', singularity: 'beam_fire_singularity',
 }
@@ -44,29 +44,29 @@ export interface DemoHud {
   matchTimeSec: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
-  beamProgress: number      // готовность луча POV (прицел)
-  windupProgress: number    // заряд POV (оверлей зарядки)
-  dashProgress: number      // готовность дэша POV
-  shieldProgress: number    // готовность щита POV
+  beamProgress: number      // POV beam readiness (reticle)
+  windupProgress: number    // POV windup (charge overlay)
+  dashProgress: number      // POV dash readiness
+  shieldProgress: number    // POV shield readiness
   shieldVisible: boolean
-  respawning: { progress: number } | null   // POV в фазе возрождения → оверлей
+  respawning: { progress: number } | null   // POV in respawn phase → overlay
 }
 
-export interface DemoRange { from: number; to: number }   // диапазон кадров (вкл.)
+export interface DemoRange { from: number; to: number }   // frame range (inclusive)
 
 interface DemoSceneProps {
   demo: DemoFile
-  ranges: DemoRange[]       // список коротких фрагментов одного клипа — играем подряд (джамп-каты)
+  ranges: DemoRange[]       // list of short fragments of one clip — played back-to-back (jump cuts)
   onHud: (h: DemoHud) => void
   onSfx: (e: SfxEvent) => void
   onAnnounce: (a: AnnounceItem) => void
-  onReady?: () => void      // сцена прогрелась и отрисовала кадр (снять ковер-затемнение)
-  onNearEnd?: () => void     // монтаж близок к концу (лид для звука перебивки — играть чуть раньше визуала)
+  onReady?: () => void      // scene warmed up and rendered a frame (lift the dimming cover)
+  onNearEnd?: () => void     // montage is near the end (lead for the cut sound — play slightly ahead of the visual)
   onEnd: () => void
 }
 
-const WARMUP_FRAMES = 3     // кадров на компиляцию шейдеров скинов до onReady (чёрный прячем ковером)
-const NEAR_END_LEAD_MS = 60    // за сколько до конца монтажа дёрнуть onNearEnd
+const WARMUP_FRAMES = 3     // frames to compile skin shaders before onReady (black is hidden by the cover)
+const NEAR_END_LEAD_MS = 60    // how long before the montage end to fire onNearEnd
 
 function buildPlayer(e: RosterEntry, ringColor: string): Player {
   const windupStyle = e.windupStyle ?? 'classic'
@@ -95,18 +95,18 @@ const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion()
 const _p0 = new THREE.Vector3(), _p1 = new THREE.Vector3(), _pp = new THREE.Vector3()
 const lerp = (a: number, b: number, s: number) => a + (b - a) * s
 
-// Диагностика: true → рендерим сцену БЕЗ игроков/FX (только камера+сетка+маркер) для изоляции проблем.
-// Оставлено выключенным; при отладке можно временно включить.
+// Diagnostics: true → render the scene WITHOUT players/FX (only camera+grid+marker) to isolate issues.
+// Left off; can be temporarily enabled when debugging.
 const DEBUG_SCENE_ONLY = false
 
-/** Визуал арены БЕЗ физики (Rapier не нужен в реплее): пол + сетка + блоки карты + свет карты. */
+/** Arena visual WITHOUT physics (Rapier isn't needed in replay): floor + grid + map blocks + map lights. */
 function DemoArena({ mapId }: { mapId: MapId }) {
   const map = MAPS[mapId]
   const [hx, hz] = map.half
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map])
-  // Визуал блоков (без коллизии — трейлер). 4 группы; прозрачные рисуем полупрозрачным материалом.
+  // Block visual (no collision — trailer). 4 groups; transparent ones are drawn with a translucent material.
   const blockGeos = useMemo(() => [
     { g: compiled.opaqueRaycast, transp: false }, { g: compiled.opaqueNoRaycast, transp: false },
     { g: compiled.transparentRaycast, transp: true }, { g: compiled.transparentNoRaycast, transp: true },
@@ -134,17 +134,17 @@ function DemoArena({ mapId }: { mapId: MapId }) {
 export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onNearEnd, onEnd }: DemoSceneProps) {
   const camera = useThree(s => s.camera)
   const styleById = useMemo(() => new Map(demo.roster.map(r => [r.id, r.windupStyle ?? 'classic'])), [demo])
-  // Предыдущие флаги игроков (для звуков по переходам: зарядка/дэш/щит).
+  // Previous player flags (for transition sounds: windup/dash/shield).
   const prevFlags = useRef<Map<number, { w: number; d: boolean; s: boolean }>>(new Map())
   const scene = useThree(s => s.scene)
 
   const world = useMemo(() => new World(scene), [scene])
-  // Игроков создаём и уничтожаем в ОДНОМ эффекте — иначе StrictMode (dev) dispose'ит их при двойном
-  // монтировании, а useMemo возвращает те же (уже уничтоженные) объекты → меши не рисуются.
+  // Create and destroy players in ONE effect — otherwise StrictMode (dev) disposes them on double
+  // mount, and useMemo returns the same (already destroyed) objects → meshes aren't drawn.
   const [players, setPlayers] = useState<Player[]>([])
   useEffect(() => {
-    // Кольцо планеты: у локального игрока — «второй» цвет (reserveColor из демо, иначе из профиля),
-    // у соперника — его же цвет (как в игре).
+    // Planet ring: the local player gets the "secondary" color (reserveColor from the demo, else from the profile),
+    // the opponent gets their own color (as in game).
     const reserve = demo.reserveColor ?? loadProfile().reserveColor
     const ps = demo.roster.map(e => buildPlayer(e, e.id === demo.localId ? (reserve ?? e.color) : e.color))
     setPlayers(ps)
@@ -154,14 +154,14 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
 
   const rangeIdx = useRef(0)
   const clockMs = useRef(demo.frames[ranges[0].from]?.tMs ?? 0)
-  const firedTo = useRef(ranges[0].from - 1)   // индекс последнего кадра текущего диапазона, чьи события сыграны
+  const firedTo = useRef(ranges[0].from - 1)   // index of the last frame in the current range whose events have been played
   const lastHudIdx = useRef(-1)
   const ended = useRef(false)
   const warm = useRef(0)
   const readyFired = useRef(false)
   const nearEndFired = useRef(false)
 
-  // На старте — мгновенно расставить игроков по первому кадру первого диапазона.
+  // On start — instantly place players at the first frame of the first range.
   useEffect(() => {
     const f = demo.frames[ranges[0].from]
     if (f) for (const ps of f.players) byId.get(ps.id)?.applyNetState(toSnap(ps))
@@ -170,12 +170,12 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
     firedTo.current = ranges[0].from - 1
     lastHudIdx.current = -1; ended.current = false; warm.current = 0; readyFired.current = false
     nearEndFired.current = false
-    seedFlags(prevFlags.current, f)   // не «перевыстреливать» зарядку, уже идущую на старте фрагмента
+    seedFlags(prevFlags.current, f)   // don't "re-fire" a windup already in progress at the fragment start
   }, [demo, ranges, byId])
 
   useFrame((_, dtRaw) => {
     if (ended.current) return
-    // Прогрев: после WARMUP_FRAMES отрисованных кадров — onReady (снять ковер-затемнение).
+    // Warmup: after WARMUP_FRAMES rendered frames — onReady (lift the dimming cover).
     if (!readyFired.current && players.length) {
       warm.current++
       if (warm.current >= WARMUP_FRAMES) { readyFired.current = true; onReady?.() }
@@ -184,7 +184,7 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
     clockMs.current += dt * 1000
     const tMs = clockMs.current
 
-    // текущий кадр в пределах активного диапазона [r.from..r.to]
+    // current frame within the active range [r.from..r.to]
     const r = ranges[rangeIdx.current]
     let i = r.from
     while (i < r.to && demo.frames[i + 1].tMs <= tMs) i++
@@ -193,8 +193,8 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
     const span = Math.max(1, nxt.tMs - cur.tMs)
     const s = Math.max(0, Math.min(1, (tMs - cur.tMs) / span))
 
-    // Позы игроков: флаги/прицел — из cur (applyNetState), позицию ведём НАПРЯМУЮ (без Rapier),
-    // интерполируя cur→nxt для плавности; bodyGroup позиционируем сами (в игре это делает RigidBody).
+    // Player poses: flags/aim — from cur (applyNetState), position is driven DIRECTLY (without Rapier),
+    // interpolating cur→nxt for smoothness; we position bodyGroup ourselves (in game RigidBody does this).
     if (!DEBUG_SCENE_ONLY) {
       for (const ps of cur.players) {
         const p = byId.get(ps.id); if (!p) continue
@@ -203,7 +203,7 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
         const n = nxt.players.find(q => q.id === ps.id) ?? ps
         _pp.set(lerp(ps.pos[0], n.pos[0], s), lerp(ps.pos[1], n.pos[1], s), lerp(ps.pos[2], n.pos[2], s))
         p.setReplayPose(_pp)
-        // Звуки по переходам флагов: луч — с НАЧАЛА зарядки (вариант по стилю), дэш, щит вкл/выкл.
+        // Sounds on flag transitions: beam — from the BEGINNING of windup (variant by style), dash, shield on/off.
         const pf = prevFlags.current.get(ps.id) ?? { w: 0, d: false, s: false }
         if (pf.w <= 0.02 && ps.windupProgress > 0.02) onSfx(BEAM_SFX[styleById.get(ps.id) ?? 'classic'])
         if (!pf.d && ps.dashing) onSfx('dash')
@@ -214,7 +214,7 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
       for (const p of players) p.updateRemote(dt, world)
     }
 
-    // камера — интерполяция между cur и nxt
+    // camera — interpolation between cur and nxt
     _p0.fromArray(cur.cam.p); _p1.fromArray(nxt.cam.p)
     camera.position.lerpVectors(_p0, _p1, s)
     _q0.set(cur.cam.q[0], cur.cam.q[1], cur.cam.q[2], cur.cam.q[3])
@@ -224,22 +224,22 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
     const fov = cur.cam.fov + (nxt.cam.fov - cur.cam.fov) * s
     if (cam.isPerspectiveCamera && Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix() }
 
-    // HUD — на смене кадра (≤30/сек)
+    // HUD — on frame change (≤30/sec)
     if (lastHudIdx.current !== i) { lastHudIdx.current = i; onHud(hudOf(cur, demo)) }
 
-    // транзиентные FX кадров текущего диапазона
+    // transient FX of the current range's frames
     while (firedTo.current < i) {
       firedTo.current++
       applyFrameEvents(demo.frames[firedTo.current], byId, onSfx, onAnnounce, demo.roster)
     }
 
-    // лид-сигнал близкого конца монтажа: звук перебивки дёргаем чуть раньше визуала (синхрон удара)
+    // lead signal for the montage nearing its end: fire the cut sound slightly ahead of the visual (hit sync)
     if (!nearEndFired.current && rangeIdx.current === ranges.length - 1
         && tMs >= demo.frames[r.to].tMs - NEAR_END_LEAD_MS) {
       nearEndFired.current = true; onNearEnd?.()
     }
 
-    // конец диапазона → следующий фрагмент (джамп-кат) или завершение шота
+    // end of range → next fragment (jump cut) or finish the shot
     if (tMs >= demo.frames[r.to].tMs) {
       if (rangeIdx.current < ranges.length - 1) {
         rangeIdx.current++
@@ -247,7 +247,7 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
         clockMs.current = demo.frames[nr.from].tMs
         firedTo.current = nr.from - 1
         lastHudIdx.current = -1
-        seedFlags(prevFlags.current, demo.frames[nr.from])   // не триггерить звуки на стыке фрагментов
+        seedFlags(prevFlags.current, demo.frames[nr.from])   // don't trigger sounds at the fragment seam
       } else {
         ended.current = true; onEnd()
       }
@@ -266,7 +266,7 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
           <primitive object={p.windupFxObject} />
         </group>
       ))}
-      {/* Игровая пост-обработка: неон-контур рёбер укрытий (как в матче). */}
+      {/* In-game post-processing: neon outline of cover edges (as in a match). */}
       <MapEdges />
     </>
   )
@@ -275,8 +275,8 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
 type FlagState = { w: number; d: boolean; s: boolean }
 
 /**
- * Засеять prevFlags значениями кадра `f`: при склейке фрагментов уже идущая зарядка/дэш/щит считаются
- * «известными», и звук-переход (0→зарядка и т.п.) на первом кадре фрагмента НЕ срабатывает ложно.
+ * Seed prevFlags with frame `f`'s values: when splicing fragments, a windup/dash/shield already in progress is
+ * treated as "known", so a transition sound (0→windup, etc.) on the fragment's first frame does NOT fire falsely.
  */
 function seedFlags(map: Map<number, FlagState>, f: DemoFrame | undefined) {
   map.clear()
@@ -292,15 +292,15 @@ function applyFrameEvents(
     switch (e.t) {
       case 'fired':
         byId.get(e.id)?.cosmeticFire(fromVec3(e.end), e.hitPoint ? fromVec3(e.hitPoint) : null)
-        break   // звук луча — из перехода зарядки (см. выше), не здесь
+        break   // beam sound — from the windup transition (see above), not here
       case 'kill': {
         byId.get(e.victim)?.applyDeath()
         onSfx('death')
-        const kind = announceKind(e.streak, e.firstBlood)   // серия (CATALYST/DOUBLE/…)
+        const kind = announceKind(e.streak, e.firstBlood)   // streak (CATALYST/DOUBLE/…)
         if (kind) {
           onSfx(announceSfx(kind))
           const r = roster.find(x => x.id === e.shooter)
-          onAnnounce({ name: r?.name ?? '', color: r?.color ?? '#4af', kind })   // баннер серии
+          onAnnounce({ name: r?.name ?? '', color: r?.color ?? '#4af', kind })   // streak banner
         }
         break
       }
@@ -311,7 +311,7 @@ function applyFrameEvents(
         byId.get(e.id)?.respawnAt(fromVec3(e.pos))
         onSfx('respawn')
         break
-      // move/scores/time — состояние берём из абсолютных полей кадра (frame-independent)
+      // move/scores/time — state is taken from the frame's absolute fields (frame-independent)
     }
   }
 }

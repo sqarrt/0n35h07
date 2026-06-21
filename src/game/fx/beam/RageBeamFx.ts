@@ -2,18 +2,18 @@ import * as THREE from 'three'
 import { BEAM_DURATION } from '../../../constants'
 import type { IBeamFx } from './types'
 
-// «Рваный разряд»: сегментированный луч с глитч-джиттером (в характере челюстей rage).
-const SEGMENTS = 7               // сегментов оболочки вдоль линии выстрела
-const CORE_RADIUS = 0.04         // сплошное белое ядро (тоньше дефолтного)
-const SEG_RADIUS = 0.16          // радиус сегмента оболочки
+// "Ragged discharge": a segmented beam with glitch jitter (in the spirit of rage's jaws).
+const SEGMENTS = 7               // shell segments along the shot line
+const CORE_RADIUS = 0.04         // solid white core (thinner than the default)
+const SEG_RADIUS = 0.16          // shell segment radius
 const SEG_OPACITY = 0.7
-const SEG_LEN_FRAC = 0.8         // доля длины сегмента от шага — зазоры читаются как «разрывы»
-const JITTER_MAX = 0.22          // максимум поперечного смещения сегмента (мировые ед.)
-const JITTER_INTERVAL_MS = 90    // частота смены джиттера (ограничена — фоточувствительность)
-const PULSE_HZ = 9               // пульс толщины
-const PULSE_DEPTH = 0.2          // глубина пульса (±20%)
+const SEG_LEN_FRAC = 0.8         // segment length as a fraction of the step — gaps read as "breaks"
+const JITTER_MAX = 0.22          // max lateral segment offset (world units)
+const JITTER_INTERVAL_MS = 90    // jitter swap rate (capped — photosensitivity)
+const PULSE_HZ = 9               // thickness pulse
+const PULSE_DEPTH = 0.2          // pulse depth (±20%)
 const CYL_SEGMENTS = 6
-// Рваное затухание: ступени прозрачности по ходу жизни луча (вместо плавного шринка) — «срывы» разряда.
+// Ragged fade: opacity steps over the beam's lifetime (instead of a smooth shrink) — discharge "dropouts".
 const FADE_STEPS: { until: number; level: number }[] = [
   { until: 0.45, level: 1 },
   { until: 0.6,  level: 0.35 },
@@ -24,22 +24,22 @@ const FADE_STEPS: { until: number; level: number }[] = [
 const UP = new THREE.Vector3(0, 1, 0)
 const X_AXIS = new THREE.Vector3(1, 0, 0)
 
-/** Луч стиля rage: белое ядро + рваные сегменты цвета игрока, дребезжащие поперёк, ступенчатое затухание. */
+/** Rage-style beam: white core + ragged player-colored segments rattling sideways, stepped fade. */
 export class RageBeamFx implements IBeamFx {
   readonly object3d = new THREE.Group()
   private core: THREE.Mesh
   private coreMat: THREE.MeshBasicMaterial
   private segs: THREE.Mesh[] = []
   private segMat: THREE.MeshBasicMaterial
-  private offsets: THREE.Vector2[] = []   // поперечные смещения сегментов в базисе (side1, side2)
+  private offsets: THREE.Vector2[] = []   // lateral segment offsets in the (side1, side2) basis
 
   private active = false
-  private elapsed = 0          // мс с момента выстрела
-  private jitterTimer = 0      // мс до следующей смены джиттера
-  private time = 0             // локальное время (пульс толщины)
+  private elapsed = 0          // ms since the shot
+  private jitterTimer = 0      // ms until the next jitter swap
+  private time = 0             // local time (thickness pulse)
   private start = new THREE.Vector3()
   private end = new THREE.Vector3()
-  private quat = new THREE.Quaternion()   // ориентация цилиндров вдоль луча
+  private quat = new THREE.Quaternion()   // cylinder orientation along the beam
   private dirN = new THREE.Vector3()
   private side1 = new THREE.Vector3()
   private side2 = new THREE.Vector3()
@@ -74,14 +74,14 @@ export class RageBeamFx implements IBeamFx {
     if (this.len < 1e-6) return
     this.dirN.divideScalar(this.len)
     this.quat.setFromUnitVectors(UP, this.dirN)
-    // Поперечный базис: для вертикального луча dir×UP вырождается → берём X.
+    // Lateral basis: for a vertical beam dir×UP degenerates → fall back to X.
     this.side1.crossVectors(this.dirN, UP)
     if (this.side1.lengthSq() < 1e-8) this.side1.copy(X_AXIS)
     this.side1.normalize()
     this.side2.crossVectors(this.dirN, this.side1).normalize()
     this.active = true
     this.elapsed = 0
-    this.jitterTimer = 0   // первый же кадр бросает джиттер
+    this.jitterTimer = 0   // the very first frame rolls jitter
   }
 
   private rollJitter() {
@@ -105,13 +105,13 @@ export class RageBeamFx implements IBeamFx {
     this.coreMat.opacity = level
     this.segMat.opacity = SEG_OPACITY * level
 
-    // Ядро — сплошное, по всей линии.
+    // Core — solid, along the whole line.
     this.core.position.copy(this.start).lerp(this.end, 0.5)
     this.core.quaternion.copy(this.quat)
     this.core.scale.set(pulse, this.len, pulse)
     this.core.visible = true
 
-    // Сегменты оболочки — вдоль линии с поперечным дребезгом.
+    // Shell segments — along the line with lateral rattle.
     const segLen = (this.len / SEGMENTS) * SEG_LEN_FRAC
     for (let i = 0; i < SEGMENTS; i++) {
       const seg = this.segs[i]

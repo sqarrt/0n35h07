@@ -24,50 +24,50 @@ import type { ISfxEngine } from '../game/audio/sfx/types'
 
 export type { MenuMode } from './menuStage'
 
-// Анимация камеры/появления модельки.
-const DAMP_TAU = MENU_ANIM_TAU // переезд камеры — общий TAU с подложкой меню (одинаковая скорость)
-const FADE_TAU = 0.13          // появление модели (opacity) — мягкий фейд (~0.4с)
-const COLOR_TAU = 0.067        // плавная смена цвета модельки (~0.2с до 95%)
-const EXIT_MS = 400            // сколько держим уходящий шар смонтированным, пока он гаснет
-const WARMUP_FRAMES = 4        // кадров прогрева (компиляция шейдеров за невидимым шаром) до старта фейда
-const GLOW_MOUNT_DELAY_MS = 600 // отложенный монтаж glow-композера (см. комментарий в MenuBackdrop)
+// Camera / model-appearance animation.
+const DAMP_TAU = MENU_ANIM_TAU // camera move — shared TAU with the menu backdrop (same speed)
+const FADE_TAU = 0.13          // model appearance (opacity) — soft fade (~0.4s)
+const COLOR_TAU = 0.067        // smooth model color change (~0.2s to 95%)
+const EXIT_MS = 400            // how long we keep the leaving ball mounted while it fades out
+const WARMUP_FRAMES = 4        // warmup frames (shader compilation behind an invisible ball) before the fade starts
+const GLOW_MOUNT_DELAY_MS = 600 // deferred glow-composer mount (see comment in MenuBackdrop)
 
-// Превью анимации заряда — на экране внешности: одноразовый прогон по клику (charge → fire → idle).
-const PREVIEW_CHARGE_MS = BEAM_WINDUP        // зарядка — как у игрока
-const PREVIEW_FIRE_MS = WINDUP_SHRINK_MS     // «сдувание» после выстрела
-const PREVIEW_BEAM_LEN = BALL_RADIUS * 16    // длина луча выстрела превью (мировые единицы)
-const PREVIEW_ENTITY_ID = -1                 // entityId превью-Body (его хитбокс в боёвке не участвует)
-// Косметический контекст для BeamWeapon превью: фаза оружия всегда idle → fire()/raycast не вызываются.
+// Charge animation preview — on the appearance screen: a one-shot run per click (charge → fire → idle).
+const PREVIEW_CHARGE_MS = BEAM_WINDUP        // charge — same as the player's
+const PREVIEW_FIRE_MS = WINDUP_SHRINK_MS     // "deflation" after the shot
+const PREVIEW_BEAM_LEN = BALL_RADIUS * 16    // preview shot beam length (world units)
+const PREVIEW_ENTITY_ID = -1                 // entityId of the preview Body (its hitbox is excluded from combat)
+// Cosmetic context for the preview BeamWeapon: the weapon phase is always idle → fire()/raycast are never called.
 const PREVIEW_BEAM_CTX: WeaponContext = {
   world: { raycast: () => null } as unknown as World,
   muzzle: new THREE.Vector3(), aim: new THREE.Vector3(0, 0, -1), excludeIds: [],
 }
 
-// Блок ВЫСТРЕЛ: прицел фиксированный — по диагонали (модель разворачивается faceDir'ом как в игре).
+// SHOT block: the aim is fixed — diagonal (the model turns via faceDir as in the game).
 const SHOT_AIM_DIR = new THREE.Vector3(-0.78, -0.55, 1.3).normalize()
 
-// Превью респавна: один прогон по клику — смерть → призрак (пробежка по кругу) → возрождение.
+// Respawn preview: a single run per click — death → ghost (run around a circle) → rebirth.
 const RESPAWN_PREVIEW_GHOST_MS = 1200
 const RESPAWN_PREVIEW_REBIRTH_MS = 500
-const RESPAWN_CIRCLE_R = 2.6     // радиус пробежки призрака (мировые единицы — «играем за бота»)
+const RESPAWN_CIRCLE_R = 2.6     // ghost-run radius (world units — "playing as the bot")
 
-// Превью рывка: рывок вбок и обратно («играем за модельку» — санкционированное движение №2);
-// в конце ЖЁСТКИЙ снап на точку (position.copy(spot) каждый кадр, смещение — только в активных фазах).
-const DASH_PREVIEW_MS = DASH_DURATION                          // длительность каждого рывка — игровая
-const DASH_PREVIEW_DIST = DASH_SPEED * DASH_DURATION / 1000    // честная игровая дистанция рывка
-const DASH_PREVIEW_PAUSE_MS = 350                              // пауза между «туда» и «обратно»
+// Dash preview: a dash sideways and back ("playing as the model" — sanctioned movement #2);
+// at the end a HARD snap to the spot (position.copy(spot) every frame, offset only in active phases).
+const DASH_PREVIEW_MS = DASH_DURATION                          // each dash duration — same as in-game
+const DASH_PREVIEW_DIST = DASH_SPEED * DASH_DURATION / 1000    // honest in-game dash distance
+const DASH_PREVIEW_PAUSE_MS = 350                              // pause between "out" and "back"
 
-// Превью щита: скин включается на время и гаснет (звуки shield_up/shield_down).
+// Shield preview: the skin turns on for a while and fades (shield_up/shield_down sounds).
 const SHIELD_PREVIEW_MS = 1500
 
-// Полёт камеры (dev, зажатая J): мышь — осмотр, колёсико — вперёд/назад. На отпускание поза пишется в файл.
+// Camera fly (dev, J held): mouse — look, wheel — forward/back. On release the pose is written to a file.
 const FLY_KEY = 'KeyJ'
-const FLY_LOOK_SENS = 0.0032     // рад на пиксель мыши
-const FLY_WHEEL_STEP = 0.0012    // ед. на единицу deltaY колёсика
-const FLY_TARGET_DIST = 4        // дистанция до сохраняемой точки взгляда (по лучу камеры)
+const FLY_LOOK_SENS = 0.0032     // rad per mouse pixel
+const FLY_WHEEL_STEP = 0.0012    // units per wheel deltaY unit
+const FLY_TARGET_DIST = 4        // distance to the saved look point (along the camera ray)
 const POSES_ENDPOINT = '/__camera-poses'
 
-// Scratch-объекты кадра (без аллокаций).
+// Per-frame scratch objects (no allocations).
 const _beamEnd = new THREE.Vector3()
 const _meshCenter = new THREE.Vector3()
 const _camPosT = new THREE.Vector3()
@@ -75,16 +75,16 @@ const _camLookT = new THREE.Vector3()
 const _flyDir = new THREE.Vector3()
 const _tangent = new THREE.Vector3()
 
-// Позы камеры: модуль-копия из JSON; правки полётом (J) пишутся сюда и в файл через dev-эндпоинт.
+// Camera poses: a module-level copy from JSON; fly (J) edits are written here and to a file via a dev endpoint.
 const poses: CameraPoses = JSON.parse(JSON.stringify(rawPoses)) as CameraPoses
-// Полёт активен → CameraRig не трогает камеру. Модульный флаг — FlyCam и CameraRig живут в одном Canvas.
+// Fly active → CameraRig doesn't touch the camera. A module flag — FlyCam and CameraRig live in the same Canvas.
 const flying = { current: false }
 
-// ringColor — «второй» цвет (кольцо планеты); *Seq — счётчики кликов (триггеры одноразовых превью).
+// ringColor — the "secondary" color (planet ring); *Seq — click counters (one-shot preview triggers).
 interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number; dashStyle?: DashStyle; dashSeq?: number; shieldStyle?: ShieldStyle; shieldSeq?: number; ballArt?: string }
 interface ActiveBall { key: string; spec: BallSpec; spot: THREE.Vector3 }
 
-/** Свет медленно облетает шары — блик скользит, модели читаются как «живое» 3D. */
+/** The light slowly orbits the balls — the highlight glides, the models read as "living" 3D. */
 function OrbitingLight() {
   const ref = useRef<THREE.Group>(null)
   useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += PREVIEW_SPIN_SPEED * dt })
@@ -95,7 +95,7 @@ function OrbitingLight() {
   )
 }
 
-/** Риг камеры: демпфированный переезд между сохранёнными позами состояний. Пока активен полёт (J) — молчит. */
+/** Camera rig: a damped move between saved state poses. While fly (J) is active — silent. */
 function CameraRig({ state }: { state: MenuCameraState }) {
   const camera = useThree(s => s.camera)
   const cur = useRef<{ pos: THREE.Vector3; look: THREE.Vector3 } | null>(null)
@@ -106,7 +106,7 @@ function CameraRig({ state }: { state: MenuCameraState }) {
       cur.current = { pos: new THREE.Vector3().fromArray(pose.position), look: new THREE.Vector3().fromArray(pose.target) }
     }
     const c = cur.current
-    if (flying.current) {   // полёт: камеру ведёт пользователь; риг догонит после сохранения позы
+    if (flying.current) {   // fly: the user drives the camera; the rig catches up after the pose is saved
       c.pos.copy(camera.position)
       camera.getWorldDirection(_flyDir)
       c.look.copy(camera.position).addScaledVector(_flyDir, FLY_TARGET_DIST)
@@ -123,9 +123,9 @@ function CameraRig({ state }: { state: MenuCameraState }) {
   return null
 }
 
-/** Dev-полёт камеры: зажал J — мышь осматривается, колёсико едет вперёд/назад; отпустил —
- *  поза текущего состояния сохраняется в menuCameraPoses.json (vite-plugin-camera-poses).
- *  Подписка ОДНОРАЗОВАЯ (state — через ref): пере-подписка на смену состояния обрывала зажатие J. */
+/** Dev camera fly: hold J — mouse looks around, wheel moves forward/back; release —
+ *  the current state's pose is saved to menuCameraPoses.json (vite-plugin-camera-poses).
+ *  The subscription is ONE-TIME (state via ref): re-subscribing on a state change broke the J hold. */
 function FlyCam({ state }: { state: MenuCameraState }) {
   const camera = useThree(s => s.camera)
   const stateRef = useRef(state)
@@ -137,7 +137,7 @@ function FlyCam({ state }: { state: MenuCameraState }) {
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code !== FLY_KEY) return
       flying.current = false
-      // Сохранить позу текущего состояния: позиция + точка взгляда по лучу камеры.
+      // Save the current state's pose: position + look point along the camera ray.
       camera.getWorldDirection(dir)
       poses[stateRef.current] = {
         position: [camera.position.x, camera.position.y, camera.position.z],
@@ -148,7 +148,7 @@ function FlyCam({ state }: { state: MenuCameraState }) {
         ],
       }
       void fetch(POSES_ENDPOINT, { method: 'PUT', body: JSON.stringify(poses, null, 2) })
-        .catch(() => { /* dev-эндпоинт недоступен (прод) — поза остаётся только в памяти */ })
+        .catch(() => { /* dev endpoint unavailable (prod) — the pose stays in memory only */ })
     }
     const onMouseMove = (e: MouseEvent) => {
       if (!flying.current) return
@@ -163,7 +163,7 @@ function FlyCam({ state }: { state: MenuCameraState }) {
       camera.getWorldDirection(dir)
       camera.position.addScaledVector(dir, -e.deltaY * FLY_WHEEL_STEP)
     }
-    const onBlur = () => { flying.current = false }   // потеря фокуса окна — keyup мог не дойти
+    const onBlur = () => { flying.current = false }   // window lost focus — keyup may not have arrived
     window.addEventListener('keydown', onKeyDown)
     window.addEventListener('keyup', onKeyUp)
     window.addEventListener('mousemove', onMouseMove)
@@ -182,65 +182,65 @@ function FlyCam({ state }: { state: MenuCameraState }) {
 }
 
 /**
- * Игрок на сцене фона меню: НАСТОЯЩИЙ игровой Body в натуральную величину, стоит на своей точке.
- * Никаких ручных перемещений/масштабов — кадр строит камера (CameraRig). Исключение по правилам:
- * превью респавна «играет за модельку» (пробежка призрака по кругу). Появление/уход — фейд.
+ * The player on the menu backdrop scene: a REAL in-game Body at full size, standing on its spot.
+ * No manual moves/scaling — the camera builds the frame (CameraRig). The one ruled exception:
+ * the respawn preview "plays as the model" (ghost run around a circle). Appearance/exit — fade.
  */
 function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'color' }: { spec: BallSpec; spot: THREE.Vector3; exiting?: boolean; hold?: boolean; sfx?: ISfxEngine; part?: AppearancePart }) {
   const rootRef = useRef<THREE.Group>(null)
-  // Реальный игровой Body (меш + кольцо + faceDir): пересоздаём только по модели, цвета лерпаются в кадре.
+  // Real in-game Body (mesh + ring + faceDir): recreated only on model change, colors are lerped per frame.
   const body = useMemo(() => {
     const b = new Body(PREVIEW_ENTITY_ID, spec.color, spec.model, spec.ringColor ?? spec.color, decodeBallArt(spec.ballArt) ?? undefined)
-    b.material.opacity = 0   // без вспышки до первого кадра
+    b.material.opacity = 0   // no flash before the first frame
     b.object3d.position.copy(spot)
     return b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec.model])
   useEffect(() => () => body.dispose(), [body])
-  // Живое обновление рисунка на месте (без пересоздания Body/материала) — рисует игрок в «Внешности».
+  // Live in-place art update (no Body/material recreation) — the player draws on the "Appearance" screen.
   useEffect(() => { body.setArt(spec.ballArt ? decodeBallArt(spec.ballArt) : null) }, [body, spec.ballArt])
-  // Модель — на слой свечения (depth-пасс MenuEdgeGlow); кольцу включаем depthWrite для обводки.
+  // Model → onto the glow layer (MenuEdgeGlow depth pass); enable depthWrite on the ring for the outline.
   useEffect(() => {
     rootRef.current?.traverse(o => o.layers.enable(MENU_GLOW_LAYER))
     const ringMesh = body.ringMesh
     if (ringMesh) (ringMesh.material as { depthWrite: boolean }).depthWrite = true
   }, [body])
 
-  const isPreview = part !== undefined && spot === PLAYER_SPOT   // превью-циклы — только у своего шара
+  const isPreview = part !== undefined && spot === PLAYER_SPOT   // preview cycles — only on your own ball
   const fx = useMemo(() => (isPreview && spec.windupStyle ? createWindupFx(spec.windupStyle) : null),
     [isPreview, spec.windupStyle])
   useEffect(() => () => fx?.dispose(), [fx])
-  // Луч выстрела превью — тот же BeamWeapon, что в матче (косметический playBeam), со стилевым визуалом.
+  // Preview shot beam — the same BeamWeapon as in a match (cosmetic playBeam), with the style visual.
   const beam = useMemo(() => (isPreview ? new BeamWeapon({ beamFx: createBeamFx(spec.windupStyle ?? 'classic', spec.color) }) : null),
     [isPreview, spec.color, spec.windupStyle])
   useEffect(() => () => beam?.dispose(), [beam])
   const cycle = useRef({ phase: 'idle' as 'charge' | 'fire' | 'idle', elapsed: 0 })
-  // Счётчики кликов превью монотонные и живут в App: реагируем только на их ИЗМЕНЕНИЯ после монтирования.
+  // Preview click counters are monotonic and live in App: we react only to their CHANGES after mount.
   const lastSeqRef = useRef(spec.windupSeq ?? 0)
   useEffect(() => {
     if (!fx) { if (spec.windupSeq !== undefined) lastSeqRef.current = spec.windupSeq; return }
     const seq = spec.windupSeq ?? 0
     if (seq !== 0 && seq !== lastSeqRef.current) {
       lastSeqRef.current = seq
-      cycle.current = { phase: 'charge', elapsed: 0 }   // одноразовый прогон: charge → fire → idle
-      sfx?.play2D(windupSfxEvent(spec.windupStyle, sfx))   // звук стиля — один раз на старте заряда
+      cycle.current = { phase: 'charge', elapsed: 0 }   // one-shot run: charge → fire → idle
+      sfx?.play2D(windupSfxEvent(spec.windupStyle, sfx))   // style sound — once at the start of the charge
     } else {
       cycle.current = { phase: 'idle', elapsed: 0 }
     }
   }, [fx, spec.windupSeq, spec.windupStyle, sfx])
 
-  // Превью респавна — стратегия по стилю; одноразовый прогон по клику (паттерн как у выстрела).
+  // Respawn preview — strategy by style; a one-shot run per click (same pattern as the shot).
   const rfx = useMemo(() => (isPreview ? createRespawnFx(spec.respawnStyle ?? 'echo', spec.color) : null),
     [isPreview, spec.respawnStyle, spec.color])
-  // Нейтраль меша на момент создания Body (локальная позиция центра сферы относительно глаз).
+  // Mesh neutral at Body creation time (local position of the sphere center relative to the eyes).
   const meshHome = useMemo(() => body.mesh.position.clone(), [body])
   useEffect(() => {
     if (!rfx) return
     return () => {
       rfx.dispose()
-      // Свап стратегии мог прервать цикл посреди фаз: ХАОС двигает локальную позицию меша
-      // (джиттер) и восстанавливает её только своим выходным кадром, РОЙ прячет меш. Без
-      // нейтрализации остаточное смещение копится — шар (и купол щита по центру) съезжают.
+      // A strategy swap may interrupt the cycle mid-phase: CHAOS moves the mesh's local position
+      // (jitter) and restores it only on its own exit frame, SWARM hides the mesh. Without
+      // neutralizing, the residual offset accumulates — the ball (and the centered shield dome) drift.
       body.mesh.position.copy(meshHome)
       body.mesh.scale.setScalar(1)
       body.mesh.visible = true
@@ -255,19 +255,19 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       lastRespawnSeqRef.current = seq
       respawnCycle.current = { phase: 'ghost', elapsed: 0 }
       _meshCenter.copy(spot).y += BODY_MESH_Y
-      rfx.onDeath(_meshCenter)                           // рассыпание/хлопок из центра шара
+      rfx.onDeath(_meshCenter)                           // scatter/burst from the ball's center
       sfx?.play2D('death')
     } else {
       respawnCycle.current = { phase: 'idle', elapsed: 0 }
     }
   }, [rfx, spec.respawnSeq, spec.respawnStyle, sfx, spot])
   const respawnFrameRef = useRef<{ ghost: number | null; sinceRebirthMs: number; baseColor: THREE.Color; origin: THREE.Vector3; visible: boolean } | null>(null)
-  // Стилевой трейл РЫВКА (скин dashStyle); след призрака рисует сама стратегия респавна (rfx).
+  // Style DASH trail (dashStyle skin); the ghost trail is drawn by the respawn strategy itself (rfx).
   const trail = useMemo(() => (isPreview ? createDashFx(spec.dashStyle ?? 'streak', spec.color) : null),
     [isPreview, spec.dashStyle, spec.color])
   useEffect(() => () => trail?.dispose(), [trail])
 
-  // Превью рывка: одноразовый прогон по клику — рывок вбок → пауза → рывок обратно (паттерн seq).
+  // Dash preview: a one-shot run per click — dash out → pause → dash back (seq pattern).
   const dashCycle = useRef({ phase: 'idle' as 'out' | 'pause' | 'back' | 'idle', elapsed: 0 })
   const lastDashSeqRef = useRef(spec.dashSeq ?? 0)
   useEffect(() => {
@@ -276,13 +276,13 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (seq !== 0 && seq !== lastDashSeqRef.current) {
       lastDashSeqRef.current = seq
       dashCycle.current = { phase: 'out', elapsed: 0 }
-      sfx?.play2D('dash')   // звук рывка — на старте каждого рывка (второй — на «обратно»)
+      sfx?.play2D('dash')   // dash sound — at the start of each dash (the second one on "back")
     } else {
       dashCycle.current = { phase: 'idle', elapsed: 0 }
     }
   }, [trail, spec.dashSeq, spec.dashStyle, sfx])
 
-  // Превью щита: скин по стилю, включение на SHIELD_PREVIEW_MS по клику (паттерн seq).
+  // Shield preview: skin by style, enabled for SHIELD_PREVIEW_MS on click (seq pattern).
   const shieldFx = useMemo(() => {
     if (!isPreview) return null
     const f = createShieldFx(spec.shieldStyle ?? 'dome')
@@ -315,13 +315,13 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
-    // Ленивая инициализация мутабельных вспомогательных объектов — за пределами рендера.
+    // Lazy init of mutable helper objects — outside of render.
     if (!dampedColorRef.current) dampedColorRef.current = new THREE.Color(spec.color)
     if (!aimDirRef.current) aimDirRef.current = new THREE.Vector3()
     const dampedColor = dampedColorRef.current
     const aimDir = aimDirRef.current
 
-    // Прогрев: модель невидима, пока компилируются шейдеры (фриз прячется за opacity 0).
+    // Warmup: the model is invisible while shaders compile (the freeze hides behind opacity 0).
     if (hold) {
       body.material.color.copy(targetColor)
       dampedColor.copy(targetColor)
@@ -334,30 +334,30 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     const kc = 1 - Math.exp(-dt / COLOR_TAU)
     opacityRef.current += ((exiting ? 0 : 1) - opacityRef.current) * kf
     dampedColor.lerp(targetColor, kc)
-    if (!fx) body.material.color.copy(dampedColor)   // без превью цветом владеем сами
+    if (!fx) body.material.color.copy(dampedColor)   // without a preview we own the color ourselves
     body.setOpacity(opacityRef.current)
     body.lerpRingColor(targetRingColor, kc)
     body.tickShader(dt)
 
-    // Позиция: модель стоит на точке; в призраке превью — пробежка по кругу («играем за бота»).
-    // САНКЦИОНИРОВАННОЕ ручное действие: по завершении пробежки шар СТАВИТСЯ на дефолтную точку
-    // (copy(spot) каждый кадр) — бег не обязан идеально замкнуть круг, возрождение всегда на месте.
+    // Position: the model stands on the spot; in the preview ghost — a run around a circle ("playing as the bot").
+    // SANCTIONED manual action: when the run ends the ball is PLACED on the default spot
+    // (copy(spot) every frame) — the run need not perfectly close the circle, rebirth is always in place.
     const rc = respawnCycle.current
     body.object3d.position.copy(spot)
     let ghostRun = false
     if (rfx && rc.phase === 'ghost') {
-      // theta ограничен полным кругом: рваный кадр в конце фазы не перебегает за точку старта.
+      // theta is clamped to a full circle: a ragged frame at the phase end won't overrun the start point.
       const theta = Math.min(rc.elapsed / RESPAWN_PREVIEW_GHOST_MS, 1) * 2 * Math.PI
       body.object3d.position.x += Math.sin(theta) * RESPAWN_CIRCLE_R
       body.object3d.position.z += (Math.cos(theta) - 1) * RESPAWN_CIRCLE_R
-      // Бежит «мордой вперёд» — по касательной круга.
+      // Runs "facing forward" — along the circle tangent.
       _tangent.set(Math.cos(theta), 0, -Math.sin(theta))
       body.faceDir(_tangent)
       ghostRun = true
     }
 
-    // Превью рывка: смещение вдоль +X в активных фазах; idle → шар уже снапнут copy(spot) выше.
-    // Пробежка призрака приоритетна (part = последний клик, но защищаемся от наложения циклов).
+    // Dash preview: offset along +X in active phases; idle → the ball is already snapped via copy(spot) above.
+    // The ghost run takes priority (part = last click, but we guard against overlapping cycles).
     const dc = dashCycle.current
     let dashMove = false
     if (!ghostRun && dc.phase !== 'idle') {
@@ -374,7 +374,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       else if (dc.phase === 'back') off = DASH_PREVIEW_DIST - DASH_SPEED * dc.elapsed / 1000
       body.object3d.position.x += Math.max(0, Math.min(off, DASH_PREVIEW_DIST))
       if (dc.phase === 'out' || dc.phase === 'back') {
-        _tangent.set(dc.phase === 'out' ? 1 : -1, 0, 0)   // «мордой» по направлению рывка
+        _tangent.set(dc.phase === 'out' ? 1 : -1, 0, 0)   // "facing" the dash direction
         body.faceDir(_tangent)
         dashMove = true
       }
@@ -382,16 +382,16 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
 
     if (!ghostRun && !dashMove) {
       if (isPreview && (part === 'paintFront' || part === 'paintBack')) {
-        aimDir.set(0, 0, 1)   // РИСУНОК: фронт-полусфера смотрит в +Z; камера спереди/сзади показывает нужную сторону
+        aimDir.set(0, 0, 1)   // ART: the front hemisphere faces +Z; the camera (front/back) shows the right side
       } else {
-        aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // базово — «лицом» к зрителю
-        if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // ВЫСТРЕЛ: фиксированная диагональ
+        aimDir.copy(camera.position).sub(body.object3d.position).normalize()   // by default — "facing" the viewer
+        if (isPreview && part === 'shot') aimDir.copy(SHOT_AIM_DIR)            // SHOT: a fixed diagonal
       }
       body.faceDir(aimDir)
     }
-    _meshCenter.copy(body.object3d.position).y += BODY_MESH_Y   // центр сферы (мир)
+    _meshCenter.copy(body.object3d.position).y += BODY_MESH_Y   // sphere center (world)
 
-    // Превью щита: скин едет с шаром (центр меша), анимируется как активный, гаснет по таймеру.
+    // Shield preview: the skin rides with the ball (mesh center), animates as active, fades on a timer.
     if (shieldFx) {
       const sc = shieldCycle.current
       if (sc.active) {
@@ -410,7 +410,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       }
     }
 
-    // Одноразовое превью заряда по клику: charge → fire → idle.
+    // One-shot charge preview on click: charge → fire → idle.
     if (fx) {
       if (!frameRef.current) {
         frameRef.current = { progress: 0, shrink: 1, baseColor: dampedColor, aimDir, origin: new THREE.Vector3(), visible: true }
@@ -419,7 +419,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       cy.elapsed += dt * 1000
       if (cy.phase === 'charge' && cy.elapsed >= PREVIEW_CHARGE_MS) {
         cy.phase = 'fire'; cy.elapsed = 0
-        // Момент выстрела: луч из центра шара по прицелу (визуализация BeamWeapon — как в матче).
+        // Shot moment: a beam from the ball's center along the aim (BeamWeapon visual — as in a match).
         _beamEnd.copy(_meshCenter).addScaledVector(aimDir, PREVIEW_BEAM_LEN)
         beam?.playBeam(_meshCenter, _beamEnd)
       }
@@ -430,10 +430,10 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       f.aimDir.copy(aimDir)
       f.origin.copy(_meshCenter)
       fx.apply(dt, { mesh: body.mesh, material: body.material }, f)
-      beam?.update(dt, PREVIEW_BEAM_CTX)   // фаза оружия idle → только рендер луча/афтерглоу
+      beam?.update(dt, PREVIEW_BEAM_CTX)   // weapon phase idle → only beam/afterglow render
     }
 
-    // Превью респавна: ghost (пробежка) → rebirth → idle. Звук respawn — на старте сборки.
+    // Respawn preview: ghost (run) → rebirth → idle. The respawn sound — at the start of reassembly.
     if (rfx) {
       if (!respawnFrameRef.current) {
         respawnFrameRef.current = { ghost: null, sinceRebirthMs: Number.MAX_SAFE_INTEGER, baseColor: dampedColor, origin: new THREE.Vector3(), visible: true }
@@ -453,7 +453,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         rf.ghost = null
         rf.sinceRebirthMs = rc.phase === 'rebirth' ? rc.elapsed : Number.MAX_SAFE_INTEGER
       }
-      rf.origin.copy(_meshCenter)   // рой кружит вокруг бегущего шара
+      rf.origin.copy(_meshCenter)   // the swarm circles around the running ball
       rfx.apply(dt, {
         mesh: body.mesh, material: body.material,
         setOpacity: (o: number) => body.setOpacity(o),
@@ -461,7 +461,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       rfx.update(dt)
     }
 
-    // Как в матче: стилевой трейл — только рывок; след призрака рисует rfx внутри apply.
+    // As in a match: the style trail is dash-only; the ghost trail is drawn by rfx inside apply.
     trail?.update(dt, { position: body.object3d.position, dashing: dashMove })
   })
 
@@ -479,7 +479,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
 
 const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec => ({ color, model: model ?? 'smooth', ringColor })
 
-/** Кто стоит на сцене: свой игрок — всегда на своей точке; в комнате при сопернике — второй на соседней. */
+/** Who stands on the scene: your own player — always on its spot; in a room with an opponent — the second on the neighboring one. */
 function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): ActiveBall[] {
   if (mode === 'lobby' && room) {
     const host = room.roster.find(r => r.id === HOST_ID)
@@ -500,7 +500,7 @@ function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): 
 
 type RenderedBall = ActiveBall & { exiting?: boolean }
 
-/** Подпись активных шаров — стабильная зависимость эффекта (computeBalls даёт новые объекты каждый рендер). */
+/** Signature of active balls — a stable effect dependency (computeBalls returns new objects every render). */
 function signOf(balls: ActiveBall[]): string {
   return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}:${b.spec.ballArt ?? ''}`).join('|')
 }
@@ -511,8 +511,8 @@ function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: {
   const [rendered, setRendered] = useState<RenderedBall[]>(active)
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  // Прогрев сцены: первые кадры компилируются шейдеры моделей и постпроцесс-композер (фриз). Держим шары
-  // невидимыми (hold), пока это не пройдёт, затем разрешаем фейд — появление получается плавным, без рывка.
+  // Scene warmup: in the first frames the model shaders and post-process composer compile (freeze). Keep the balls
+  // invisible (hold) until that passes, then allow the fade — the appearance comes out smooth, without a jerk.
   const [warm, setWarm] = useState(false)
   const warmFrames = useRef(0)
   const firedReady = useRef(false)
@@ -521,7 +521,7 @@ function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: {
     warmFrames.current += 1
     if (warmFrames.current >= WARMUP_FRAMES) {
       setWarm(true)
-      // Контекст создан и несколько кадров отрисовано → можно безопасно перекрыть оверлеем (без гонки init).
+      // Context created and a few frames drawn → safe to overlay (no init race).
       if (!firedReady.current) { firedReady.current = true; onReady?.() }
     }
   })
@@ -529,14 +529,14 @@ function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: {
   useEffect(() => {
     const activeKeys = new Set(active.map(b => b.key))
     setRendered(prev => {
-      const next: RenderedBall[] = active.map(b => ({ ...b }))   // активные — без exiting
+      const next: RenderedBall[] = active.map(b => ({ ...b }))   // active — without exiting
       for (const b of prev) {
-        if (activeKeys.has(b.key)) {                              // вернулся в активные → отменить выход
+        if (activeKeys.has(b.key)) {                              // returned to active → cancel exit
           const tm = timers.current.get(b.key)
           if (tm) { clearTimeout(tm); timers.current.delete(b.key) }
           continue
         }
-        next.push({ ...b, exiting: true })                       // пропал → держим, пока гаснет (фейд)
+        next.push({ ...b, exiting: true })                       // gone → keep while it fades out
         if (!timers.current.has(b.key)) {
           const tm = setTimeout(() => {
             timers.current.delete(b.key)
@@ -559,19 +559,19 @@ function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: {
   )
 }
 
-// Контекст React не пересекает границу R3F-Canvas — поэтому движок идёт пропом, а не useSfx().
+// React context doesn't cross the R3F Canvas boundary — so the engine comes as a prop, not via useSfx().
 interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
- * Персистентный прозрачный фон меню-экранов: настоящая сцена с игроком (Body в натуральную величину,
- * стоит на точке; в комнате — двое). Кадр строит ТОЛЬКО камера (CameraRig, позы из menuCameraPoses.json);
- * единственное «игровое» движение — пробежка призрака в превью респавна. Dev: пол-сетка + полёт по J.
+ * Persistent transparent backdrop for menu screens: a real scene with the player (Body at full size,
+ * standing on a spot; in a room — two). The frame is built ONLY by the camera (CameraRig, poses from menuCameraPoses.json);
+ * the only "game" movement is the ghost run in the respawn preview. Dev: floor grid + fly via J.
  */
 export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, onReady, sfx }: MenuBackdropProps) {
-  // Тяжёлый glow-композер (Bloom + edge-effect + depth-pass) при первом рендере СИНХРОННО компилирует свои
-  // шейдеры — это блокирует главный поток (фриз всего UI) и «съедает» фейд шара. Поэтому монтируем его НЕ на
-  // критическом пути входа, а с задержкой: к этому моменту шар уже проявился, а свечение в тишине всё равно 0
-  // (музыка только начинает фейдиться) — компиляция проходит незаметно. requestIdleCallback — в свободном слоте.
+  // The heavy glow composer (Bloom + edge-effect + depth-pass) SYNCHRONOUSLY compiles its shaders on the first
+  // render — this blocks the main thread (whole-UI freeze) and "eats" the ball fade. So we mount it NOT on the
+  // critical entry path but with a delay: by then the ball has already appeared, and the glow in silence is still 0
+  // (music is only starting to fade in) — compilation passes unnoticed. requestIdleCallback — in a free slot.
   const [glowReady, setGlowReady] = useState(false)
   useEffect(() => {
     if (!glow) { setGlowReady(false); return }
@@ -584,18 +584,18 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
     return () => { clearTimeout(t); if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle) }
   }, [glow])
 
-  // Dev: подтянуть СВЕЖИЕ позы с эндпоинта — файл исключён из вотчера, и модульный кэш Vite
-  // может отдать новой вкладке устаревший JSON (правки J из другой вкладки иначе не видны).
+  // Dev: pull FRESH poses from the endpoint — the file is excluded from the watcher, and Vite's module cache
+  // may hand a new tab stale JSON (J edits from another tab would otherwise be invisible).
   useEffect(() => {
     if (!import.meta.env.DEV) return
     void fetch(POSES_ENDPOINT)
       .then(r => (r.ok ? r.json() : null))
       .then((fresh: CameraPoses | null) => { if (fresh) Object.assign(poses, fresh) })
-      .catch(() => { /* эндпоинта нет (preview-сборка) — остаёмся на импортированных позах */ })
+      .catch(() => { /* no endpoint (preview build) — we stay on the imported poses */ })
   }, [])
 
   const hasOpponent = !!room?.roster.find(r => r.id === OPPONENT_ID)
-  const isClient = room != null && room.localPlayerId !== HOST_ID   // подключился к чужой комнате
+  const isClient = room != null && room.localPlayerId !== HOST_ID   // joined someone else's room
   const camState = cameraStateFor(mode, hasOpponent, isClient, appearancePart ?? 'color')
 
   return (
@@ -606,11 +606,11 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
         <OrbitingLight />
         <CameraRig state={camState} />
         {import.meta.env.DEV && <FlyCam state={camState} />}
-        {/* Отладочный пол: видно, что модели стоят на сцене и двигается только камера. Dev-only. */}
+        {/* Debug floor: shows the models stand on the scene and only the camera moves. Dev-only. */}
         {import.meta.env.DEV && <gridHelper args={[24, 24, '#2a3550', '#141d33']} />}
         <Scene mode={mode} player={player} room={room ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
-        {/* Свечение ВИДИМЫХ рёбер моделей (принцип как подсветка блоков) → Bloom; в тишине свечения нет.
-            Монтируется отложенно (см. выше), чтобы компиляция не морозила вход. Галка настроек — внешний gate. */}
+        {/* Glow on the VISIBLE model edges (principle like block highlighting) → Bloom; in silence there's no glow.
+            Mounted deferred (see above) so compilation doesn't freeze entry. The settings toggle is the external gate. */}
         {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} />}
       </Canvas>
     </div>

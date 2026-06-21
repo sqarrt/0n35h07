@@ -1,16 +1,16 @@
-// Рисунок на шаре: два круглых поля 16×16 (перёд/зад). Бит на клетку (1 = закрашено чёрным).
-// Кодек и дисковая параметризация не зависят от THREE — тестируются без рендера.
-// THREE-зависимый код (buildArtTexture, writeArtData) — в fx/artTexture.ts.
-// Дисковая (азимутальная) проекция: центр диска = полюс полусферы, край r=1 = силуэт шара;
-// перёд = полусфера, обращённая к прицелу (локальная −Z).
+// Ball art: two round 16×16 fields (front/back). One bit per cell (1 = filled black).
+// The codec and disc parameterization don't depend on THREE — tested without rendering.
+// THREE-dependent code (buildArtTexture, writeArtData) lives in fx/artTexture.ts.
+// Disc (azimuthal) projection: disc center = hemisphere pole, edge r=1 = ball silhouette;
+// front = hemisphere facing the aim (local −Z).
 
 export const BALL_ART_SIZE = 16
-export const BALL_ART_CELLS = BALL_ART_SIZE * BALL_ART_SIZE   // 256 клеток на сторону
-const BYTES_PER_SIDE = BALL_ART_CELLS / 8                     // 32 байта на сторону
-const BALL_ART_BYTES = BYTES_PER_SIDE * 2                     // 64 байта всего
-const BASE64_LEN = Math.ceil(BALL_ART_BYTES / 3) * 4          // длина base64 (64 байта → 88 символов)
+export const BALL_ART_CELLS = BALL_ART_SIZE * BALL_ART_SIZE   // 256 cells per side
+const BYTES_PER_SIDE = BALL_ART_CELLS / 8                     // 32 bytes per side
+const BALL_ART_BYTES = BYTES_PER_SIDE * 2                     // 64 bytes total
+const BASE64_LEN = Math.ceil(BALL_ART_BYTES / 3) * 4          // base64 length (64 bytes → 88 chars)
 
-const HALF = BALL_ART_SIZE / 2               // 16: центр диска в координатах сетки
+const HALF = BALL_ART_SIZE / 2               // 16: disc center in grid coordinates
 const HALF_PI = Math.PI / 2
 
 export interface BallArt { front: Uint8Array; back: Uint8Array }
@@ -23,9 +23,9 @@ export function isEmpty(art: BallArt): boolean {
   return !art.front.some(v => v) && !art.back.some(v => v)
 }
 
-// --- кодек base64 (без THREE) ---
+// --- base64 codec (no THREE) ---
 
-/** Упаковать сторону в байты (бит i байта b = клетка b*8+i). */
+/** Pack a side into bytes (bit i of byte b = cell b*8+i). */
 function packSide(side: Uint8Array, out: Uint8Array, offset: number) {
   for (let b = 0; b < BYTES_PER_SIDE; b++) {
     let byte = 0
@@ -64,9 +64,9 @@ export function decodeBallArt(str: unknown): BallArt | null {
   return art
 }
 
-// --- дисковая параметризация (без THREE) ---
+// --- disc parameterization (no THREE) ---
 
-/** Клетка (cx,cy) внутри вписанного в сетку круга? Нормированный радиус центра клетки ≤ 1. */
+/** Is cell (cx,cy) inside the circle inscribed in the grid? Normalized radius of cell center ≤ 1. */
 export function cellInDisc(cx: number, cy: number): boolean {
   const dx = (cx + 0.5 - HALF) / HALF
   const dy = (cy + 0.5 - HALF) / HALF
@@ -74,15 +74,15 @@ export function cellInDisc(cx: number, cy: number): boolean {
 }
 
 /**
- * Точная копия выборки рисунка из фрагментного шейдера (для юнит-теста соответствия).
- * Модельная нормаль → uv в текстуре 64×32 ([0,1]×[0,1]): перёд u∈[0,0.5], зад u∈[0.5,1].
- * Азимутальная равнопромежуточная проекция: r = угол_от_полюса / (π/2).
+ * Exact replica of the art sampling from the fragment shader (for a parity unit test).
+ * Model normal → uv in the 64×32 texture ([0,1]×[0,1]): front u∈[0,0.5], back u∈[0.5,1].
+ * Azimuthal equidistant projection: r = angle_from_pole / (π/2).
  */
 export function artUvForNormal(nx: number, ny: number, nz: number): { u: number; v: number } {
   const isFront = nz <= 0 ? 1 : 0
   const ang = Math.acos(Math.min(1, Math.abs(nz)))     // [0, π/2]
   const r = ang / HALF_PI
-  // перёд зеркалит x: полусферу смотрят снаружи, без зеркала рисунок читается отражённым
+  // front mirrors x: the hemisphere is viewed from outside; without mirroring the art reads reversed
   const phi = Math.atan2(ny, isFront ? -nx : nx)
   const dx = 0.5 + 0.5 * r * Math.cos(phi)
   const dy = 0.5 + 0.5 * r * Math.sin(phi)

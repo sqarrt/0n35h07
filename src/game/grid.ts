@@ -1,8 +1,8 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 
 /**
- * Сетка пола с шагом step по размеру арены [hx,hz] — ровные квадратные ячейки (линии по кратным step),
- * подогнанная под прямоугольный пол (без масштабирования, которое перекашивает gridHelper).
+ * Floor grid with spacing step over the arena size [hx,hz] — even square cells (lines on multiples of step),
+ * fitted to a rectangular floor (without the scaling that skews gridHelper).
  */
 export function gridGeometry(hx: number, hz: number, step = 1): BufferGeometry {
   const pos: number[] = []

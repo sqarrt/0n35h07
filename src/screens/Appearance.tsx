@@ -14,17 +14,17 @@ import { decodeBallArt, encodeBallArt, makeEmptyArt, isEmpty, BALL_ART_SIZE } fr
 interface AppearanceProps {
   profile: PlayerProfile
   onChange: (p: PlayerProfile) => void
-  // Живое превью (App): цвет/модель/стили + последний кликнутый блок (позиция шара).
+  // Live preview (App): color/model/styles + the last clicked block (ball position).
   onPreview: (color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart, ballArt: string | undefined) => void
-  // Клик по стилю выстрела → один прогон превью. Счётчиком владеет App (монотонный,
-  // переживает перемонтирование экрана), а стиль едет ВМЕСТЕ с триггером — App обновляет
-  // оба поля атомарно (иначе шар запускает превью со старым стилем и тут же гасит его).
+  // Click on a shot style → one preview run. The counter is owned by App (monotonic,
+  // survives screen remount), and the style travels TOGETHER with the trigger — App updates
+  // both fields atomically (otherwise the ball starts the preview with the old style and instantly cancels it).
   onShotPreview: (style: WindupStyle) => void
-  // Клик по стилю респавна → один прогон превью (та же атомарная схема, свой счётчик).
+  // Click on a respawn style → one preview run (same atomic scheme, its own counter).
   onRespawnPreview: (style: RespawnStyle) => void
-  // Клик по скину следа рывка → один прогон превью (рывок туда-обратно).
+  // Click on a dash-trail skin → one preview run (dash there and back).
   onDashPreview: (style: DashStyle) => void
-  // Клик по скину щита → один прогон превью (включение щита на ~1.5с).
+  // Click on a shield skin → one preview run (shield on for ~1.5s).
   onShieldPreview: (style: ShieldStyle) => void
   onBack: () => void
 }
@@ -34,12 +34,12 @@ type Slot = 'primary' | 'reserve'
 const label: CSSProperties = { color: '#556', fontSize: '0.7rem', letterSpacing: '0.15em', marginBottom: '0.6rem' }
 const row: CSSProperties = { display: 'flex', gap: '0.6rem', marginBottom: '1.6rem' }
 
-/** Экран «Внешность»: вся косметика игрока на одном экране (без подвкладок); позиция шара-превью
- *  слева определяется последним кликнутым блоком. Панель уезжает вправо — анимирует App. */
+/** "Appearance" screen: all player cosmetics on one screen (no sub-tabs); the preview-ball position
+ *  on the left is set by the last clicked block. The panel slides right — animated by App. */
 export function Appearance({ profile, onChange, onPreview, onShotPreview, onRespawnPreview, onDashPreview, onShieldPreview, onBack }: AppearanceProps) {
   const sfx = useSfx()
   const t = useT()
-  const [part, setPart] = useState<AppearancePart>('color')   // последний кликнутый блок → позиция шара
+  const [part, setPart] = useState<AppearancePart>('color')   // last clicked block → ball position
   const [primary, setPrimary] = useState(profile.primaryColor)
   const [reserve, setReserve] = useState(profile.reserveColor)
   const [model, setModel] = useState<BallModel>(profile.ballModel)
@@ -47,17 +47,17 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const [respawn, setRespawn] = useState<RespawnStyle>(profile.respawnStyle)
   const [dash, setDash] = useState<DashStyle>(profile.dashStyle)
   const [shield, setShield] = useState<ShieldStyle>(profile.shieldStyle)
-  const [editing, setEditing] = useState<Slot>('primary')   // какой цвет показывает фоновая моделька
-  const [art] = useState(() => decodeBallArt(profile.ballArt) ?? makeEmptyArt())   // рисунок (мутируем гриды на месте)
+  const [editing, setEditing] = useState<Slot>('primary')   // which color the background model shows
+  const [art] = useState(() => decodeBallArt(profile.ballArt) ?? makeEmptyArt())   // artwork (we mutate grids in place)
   const [erasing, setErasing] = useState(false)
-  const [artRev, forceArt] = useState(0)   // тик перерисовки полей/превью после мутации гридов
+  const [artRev, forceArt] = useState(0)   // redraw tick for fields/preview after grid mutation
 
   const commit = (p: PlayerProfile) => { saveProfile(p); onChange(p) }
-  // Не-косметические поля — из АКТУАЛЬНОГО профиля: коммит из «Внешности» не затирает правки настроек.
-  // ballArt тоже из profile — прочие коммиты (цвет/модель) не должны стирать рисунок.
+  // Non-cosmetic fields — from the CURRENT profile: a commit from "Appearance" doesn't clobber settings edits.
+  // ballArt also from profile — other commits (color/model) must not erase the artwork.
   const base = (): PlayerProfile => ({ ...profile, primaryColor: primary, reserveColor: reserve, ballModel: model, windupStyle: windup, respawnStyle: respawn, dashStyle: dash, shieldStyle: shield, ballArt: profile.ballArt })
 
-  // Фабрика обработчика стиля: sfx при смене + смена части превью + опциональный колбэк превью.
+  // Style-handler factory: sfx on change + preview part change + optional preview callback.
   const styleField = <T,>(
     setter: (v: T) => void,
     key: keyof PlayerProfile,
@@ -95,8 +95,8 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const handleDash    = styleField(setDash,    'dashStyle',    'dash',    dash,    v => onDashPreview(v))
   const handleShield  = styleField(setShield,  'shieldStyle',  'shield',  shield,  v => onShieldPreview(v))
 
-  // Рисунок: каждый штрих мутирует грид → перекодирует ballArt в профиль → живое превью.
-  // Пустой рисунок сохраняем как undefined (поле снимается), непустой — base64.
+  // Artwork: every stroke mutates the grid → re-encodes ballArt into the profile → live preview.
+  // An empty artwork is saved as undefined (the field is dropped), a non-empty one — base64.
   const commitArt = () => {
     const encoded = isEmpty(art) ? undefined : encodeBallArt(art)
     forceArt(n => n + 1)
@@ -109,20 +109,20 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
   const toggleErase = (v: boolean) => { if (v !== erasing) sfx.play2D('ui_toggle'); setErasing(v) }
 
   const previewColor = editing === 'primary' ? primary : reserve
-  const previewRingColor = editing === 'primary' ? reserve : primary   // «второй» цвет → кольцо планеты
+  const previewRingColor = editing === 'primary' ? reserve : primary   // the "second" color → planet ring
   const modelLabel: Record<BallModel, string> = { smooth: t.styleModelSmooth, waves: t.styleModelWaves, planet: t.styleModelPlanet }
   const windupLabel: Record<WindupStyle, string> = { classic: t.styleWindupClassic, rage: t.styleWindupRage, singularity: t.styleWindupSingularity }
   const respawnLabel: Record<RespawnStyle, string> = { echo: t.styleRespawnEcho, chaos: t.styleRespawnChaos, swarm: t.styleRespawnSwarm }
   const dashLabel: Record<DashStyle, string> = { streak: t.styleDashStreak, wave: t.styleDashWave, rift: t.styleDashRift }
   const shieldLabel: Record<ShieldStyle, string> = { dome: t.styleShieldDome, hex: t.styleShieldHex, crystal: t.styleShieldCrystal }
 
-  // Фоновая моделька (App) отражает редактируемое вживую; part двигает шар по позициям блоков.
-  // artSig пересчитывается на каждый штрих (forceArt вызывает ре-рендер) → превью обновляет рисунок.
+  // The background model (App) reflects what's being edited live; part moves the ball across block positions.
+  // artSig is recomputed on every stroke (forceArt triggers a re-render) → the preview updates the artwork.
   const artSig = isEmpty(art) ? undefined : encodeBallArt(art)
   useEffect(() => { onPreview(previewColor, model, previewRingColor, windup, respawn, dash, shield, part, artSig) }, [previewColor, model, previewRingColor, windup, respawn, dash, shield, part, artSig, onPreview])
 
   return (
-    // Подложка целиком уезжает вправо (анимирует App), слева — фоновая 3D-моделька.
+    // The whole panel slides right (animated by App), the background 3D model is on the left.
     <div className="panel-fill" style={{ justifyContent: 'flex-start', paddingTop: '6vh', overflowY: 'auto' }}>
       <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.appearTitle}</h2>
 
@@ -210,7 +210,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
         ))}
       </div>
 
-      {/* «НАЗАД» прижата к низу панели (marginTop:auto). */}
+      {/* "BACK" is pinned to the bottom of the panel (marginTop:auto). */}
       <Button variant="ghost" onClick={onBack} data-testid="appearance-back" style={{ marginTop: 'auto' }}>{t.appearBack}</Button>
     </div>
   )

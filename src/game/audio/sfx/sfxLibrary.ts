@@ -1,6 +1,6 @@
 import type { SfxEvent } from './types'
 
-// Eager-манифест: путь → url ассета (Vite). Имя файла без .opus = id события.
+// Eager manifest: path → asset url (Vite). Filename without .opus = event id.
 const modules = import.meta.glob('../../../assets/sfx/*.opus', { eager: true, query: '?url', import: 'default' })
 
 function buildLibrary(): Record<SfxEvent, string> {

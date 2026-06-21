@@ -13,7 +13,7 @@ function mulberry32(seed: number): () => number {
   }
 }
 
-/** Детерминированный RNG из строкового seed: один seed → одна и та же последовательность [0,1). */
+/** Deterministic RNG from a string seed: same seed → same sequence in [0,1). */
 export function seededRng(seed: string): () => number {
   return mulberry32(djb2(seed))
 }

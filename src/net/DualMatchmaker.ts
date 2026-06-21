@@ -6,18 +6,18 @@ export type ResolvedRole = 'host' | 'client'
 
 export interface DualMatchmakerOpts {
   pool: MatchmakingPool
-  mode: SearchRole                     // 'both' (хост/клиент как повезёт) | 'client' (только ищем)
-  code: string                         // наш host-код (advertise + разрыватель ничьей)
-  listing: Omit<PoolListing, 'dual'>   // что публикуем (флаг dual проставит сам класс)
-  filter: PoolFilter                   // что ищем
+  mode: SearchRole                     // 'both' (host/client by luck) | 'client' (search only)
+  code: string                         // our host code (advertise + tie-breaker)
+  listing: Omit<PoolListing, 'dual'>   // what we publish (the dual flag is set by the class itself)
+  filter: PoolFilter                   // what we search for
 }
 
 /**
- * Оркестратор подбора «сразу в двух ролях». В режиме both одновременно анонсирует наш листинг
- * (dual:true) и ищет чужие; при встрече двух dual-пиров ровно один становится клиентом
- * (детерминированно по коду: меньший код остаётся хостом). Защёлка committed (first-wins):
- * первый разрешившийся путь — входящий к нашей host-сессии (hostConnected) ЛИБО наш join —
- * фиксирует роль, второй путь становится no-op. RoomSession'ами владеет App; класс — только пул.
+ * Matchmaking orchestrator for "both roles at once". In both mode it simultaneously advertises our
+ * listing (dual:true) and searches for others; when two dual peers meet, exactly one becomes the client
+ * (deterministically by code: the smaller code stays host). The committed latch (first-wins):
+ * the first path to resolve — an incoming connection to our host session (hostConnected) OR our own join —
+ * fixes the role, the second path becomes a no-op. RoomSessions are owned by App; this class only handles the pool.
  */
 export class DualMatchmaker {
   private pool: MatchmakingPool
@@ -36,17 +36,17 @@ export class DualMatchmaker {
     this.filter = opts.filter
   }
 
-  /** App: наш поиск решил, что мы заходим клиентом на чужой код. */
+  /** App: our search decided we join someone else's code as a client. */
   onJoin(cb: (code: string) => void) { this.joinCb = cb }
 
-  /** Запустить подбор согласно режиму. */
+  /** Start matchmaking according to the mode. */
   start() {
     netDiagMark('mm:start', { mode: this.mode, code: this.code })
-    if (this.mode === 'both') this.pool.advertise({ ...this.listing, dual: true })   // 'оба' хостит и ищет
-    this.pool.search(this.filter, l => this.onCandidate(l))                          // и 'оба', и 'client' ищут
+    if (this.mode === 'both') this.pool.advertise({ ...this.listing, dual: true })   // 'both' hosts and searches
+    this.pool.search(this.filter, l => this.onCandidate(l))                          // both 'both' and 'client' search
   }
 
-  /** App: к нашей host-сессии подключился соперник → фиксируем host, гасим листинг/поиск. */
+  /** App: an opponent connected to our host session → commit host, stop listing/search. */
   hostConnected() {
     if (this.committed) return
     this.committed = 'host'
@@ -54,17 +54,17 @@ export class DualMatchmaker {
     this.pool.cancel()
   }
 
-  /** Полная остановка (СТОП / выход / смена роли). */
+  /** Full stop (STOP / exit / role change). */
   stop() { this.pool.withdraw(); this.pool.cancel() }
 
   get resolved(): ResolvedRole | null { return this.committed }
 
-  /** @returns true — кандидат поглощён (поиск стоп); false — отложен (ищем дальше, остаёмся хостом). */
+  /** @returns true — candidate consumed (search stops); false — deferred (keep searching, stay host). */
   private onCandidate(listing: PoolListing): boolean {
     netDiagMark('mm:candidate', { code: listing.code, dual: listing.dual })
     if (this.committed) return true
-    if (listing.code === this.code) return false   // свой же листинг (эхо шины) — игнорируем, слушаем дальше
-    // both + dual-пир + наш код меньше → остаёмся хостом, ждём его как клиента.
+    if (listing.code === this.code) return false   // our own listing (bus echo) — ignore, keep listening
+    // both + dual peer + our code is smaller → stay host, wait for them as the client.
     if (this.mode === 'both' && listing.dual && this.code < listing.code) {
       this.pool.reject(listing.code)
       return false

@@ -10,7 +10,7 @@ interface MapPickerProps {
   onSetMap: (m: MapFilter) => void
 }
 
-/** Раздел «// КАРТА»: одиночный выбор по умолчанию; МУЛЬТИВЫБОР — тогл режима, ВЫБРАТЬ ВСЕ включает мультивыбор. */
+/** "// MAP" section: single selection by default; MULTI toggles the mode, SELECT ALL enables multi-select. */
 export function MapPicker({ mapSel, onSetMap }: MapPickerProps) {
   const t = useT()
   const sfx = useSfx()
@@ -18,12 +18,12 @@ export function MapPicker({ mapSel, onSetMap }: MapPickerProps) {
 
   const toggleMap = (id: MapId) => {
     sfx.play2D('ui_toggle')
-    if (!mapMulti) { onSetMap([id]); return }                          // одиночный: заменяем выбор
+    if (!mapMulti) { onSetMap([id]); return }                          // single: replace selection
     const next = mapSel.includes(id) ? mapSel.filter(x => x !== id) : [...mapSel, id]
-    if (next.length) onSetMap(next)                                    // мультивыбор: тогл, последний снять нельзя
+    if (next.length) onSetMap(next)                                    // multi: toggle, can't deselect the last one
   }
   const setMulti = (on: boolean) => { sfx.play2D('ui_toggle'); setMapMulti(on); if (!on && mapSel.length > 1) onSetMap([mapSel[0]]) }
-  const selectAll = () => { sfx.play2D('ui_toggle'); setMapMulti(true); onSetMap(MAP_IDS) }   // «выбрать все» включает мультивыбор
+  const selectAll = () => { sfx.play2D('ui_toggle'); setMapMulti(true); onSetMap(MAP_IDS) }   // "select all" enables multi-select
 
   return (
     <div className="lobby-ogrp">

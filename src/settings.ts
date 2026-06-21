@@ -7,34 +7,34 @@ import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
 
 export type DefaultView = 'fp' | 'tp'
-export type SearchRole = 'both' | 'client'   // 'оба' (хост/клиент как повезёт) | только клиент. Явного host нет (ненадёжен).
+export type SearchRole = 'both' | 'client'   // 'both' (host/client as luck has it) | client only. No explicit host (unreliable).
 
 export interface PlayerProfile {
   name: string
   primaryColor: string
   reserveColor: string
-  defaultView: DefaultView   // стартовый вид (локальное предпочтение, не сетевое)
-  searchRole: SearchRole     // сетевая роль по-умолчанию в лобби; локальное предпочтение
-  ballModel: BallModel       // модель сферы (сетевая косметика)
-  windupStyle: WindupStyle   // анимация подготовки выстрела (сетевая косметика)
-  respawnStyle: RespawnStyle // анимация респавна (сетевая косметика)
-  dashStyle: DashStyle       // скин следа рывка (сетевая косметика)
-  shieldStyle: ShieldStyle   // скин щита (сетевая косметика)
-  ballArt?: string           // рисунок на шаре (base64, перёд/зад 32×32); undefined = пусто (сетевая косметика)
-  postProcessing: boolean    // графика: экранный контур рёбер (постобработка); локальное предпочтение
-  showFps: boolean           // оверлей: счётчик кадров (FPS); локальное предпочтение
-  showSpeed: boolean         // оверлей: текущая скорость игрока; локальное предпочтение
-  menuGlow: boolean          // графика: свечение моделей по звуку в меню; локальное предпочтение
-  audioViz: boolean          // графика: линия-визуализатор частот в матче; локальное предпочтение
-  volumeMaster: number       // звук: общий уровень 0..1 (множит музыку и эффекты); локальное предпочтение
-  volumeMusic: number        // звук: музыка матча 0..1; локальное предпочтение
-  volumeSfx: number          // звук: эффекты 0..1; локальное предпочтение
-  volumeMenuMusic: number    // звук: музыка в меню 0..1; локальное предпочтение
-  connectTimeoutSec: number  // сеть: таймаут подключения к комнате (секунды); локальное предпочтение
-  locale?: LocaleId          // язык интерфейса; undefined = не выбран (определяем системный)
+  defaultView: DefaultView   // starting view (local preference, not networked)
+  searchRole: SearchRole     // default network role in the lobby; local preference
+  ballModel: BallModel       // sphere model (networked cosmetic)
+  windupStyle: WindupStyle   // shot windup animation (networked cosmetic)
+  respawnStyle: RespawnStyle // respawn animation (networked cosmetic)
+  dashStyle: DashStyle       // dash trail skin (networked cosmetic)
+  shieldStyle: ShieldStyle   // shield skin (networked cosmetic)
+  ballArt?: string           // ball artwork (base64, front/back 32×32); undefined = empty (networked cosmetic)
+  postProcessing: boolean    // graphics: on-screen edge outline (post-processing); local preference
+  showFps: boolean           // overlay: frame counter (FPS); local preference
+  showSpeed: boolean         // overlay: current player speed; local preference
+  menuGlow: boolean          // graphics: models glow to sound in the menu; local preference
+  audioViz: boolean          // graphics: frequency visualizer line in the match; local preference
+  volumeMaster: number       // audio: master level 0..1 (multiplies music and effects); local preference
+  volumeMusic: number        // audio: match music 0..1; local preference
+  volumeSfx: number          // audio: effects 0..1; local preference
+  volumeMenuMusic: number    // audio: menu music 0..1; local preference
+  connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
+  locale?: LocaleId          // UI language; undefined = not chosen (detect system)
 }
 
-export const CONNECT_TIMEOUT_OPTIONS = [5, 10, 20, 30, 60, 90, 120] as const   // варианты таймаута подключения (с)
+export const CONNECT_TIMEOUT_OPTIONS = [5, 10, 20, 30, 60, 90, 120] as const   // connect timeout options (s)
 const CONNECT_TIMEOUT_DEFAULT = 10
 
 const KEY = 'oneshot:profile'
@@ -42,59 +42,59 @@ export const NAME_MAX = 16
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
 
-/** Профиль первого запуска: сгенерированное имя-«модель» + случайная пара цветов. */
+/** First-run profile: generated "model" name + random color pair. */
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
   return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
-// Дефолтные уровни громкости (0..1): эффекты на полную, музыка матча и меню — тише.
+// Default volume levels (0..1): effects at full, match and menu music quieter.
 const VOL_DEFAULT = { master: 1, sfx: 1, music: 0.3, menuMusic: 0.3 }
 
-/** Громкость к валидному виду: число в [0,1]; отсутствует/мусор → дефолт. */
+/** Coerce volume to valid form: number in [0,1]; missing/garbage → default. */
 function clampVolume(v: unknown, dflt: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : dflt
 }
 
-/** Привести к валидному виду: имя обрезаем, цвета — только из палитры, резерв ≠ основной. */
+/** Coerce to valid form: trim name, colors only from the palette, reserve ≠ primary. */
 function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const name = (typeof p.name === 'string' ? p.name : '').trim().slice(0, NAME_MAX) || generateModelName()
   const primaryColor = PLAYER_COLORS.includes(p.primaryColor as string) ? (p.primaryColor as string) : PLAYER_COLORS[0]
   let reserveColor = PLAYER_COLORS.includes(p.reserveColor as string) ? (p.reserveColor as string) : PLAYER_COLORS[1]
   if (reserveColor === primaryColor) reserveColor = PLAYER_COLORS.find(c => c !== primaryColor)!
-  const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // нет поля/мусор → fp
+  const defaultView: DefaultView = p.defaultView === 'tp' ? 'tp' : 'fp'   // missing/garbage → fp
   const searchRole: SearchRole = p.searchRole === 'client' ? 'client' : 'both'   // legacy 'host' → 'both'
   const ballModel: BallModel = BALL_MODELS.includes(p.ballModel as BallModel) ? (p.ballModel as BallModel) : 'smooth'
   const windupStyle: WindupStyle = WINDUP_STYLES.includes(p.windupStyle as WindupStyle) ? (p.windupStyle as WindupStyle) : 'classic'
   const respawnStyle: RespawnStyle = RESPAWN_STYLES.includes(p.respawnStyle as RespawnStyle) ? (p.respawnStyle as RespawnStyle) : 'echo'
   const dashStyle: DashStyle = DASH_STYLES.includes(p.dashStyle as DashStyle) ? (p.dashStyle as DashStyle) : 'streak'
   const shieldStyle: ShieldStyle = SHIELD_STYLES.includes(p.shieldStyle as ShieldStyle) ? (p.shieldStyle as ShieldStyle) : 'dome'
-  const postProcessing = typeof p.postProcessing === 'boolean' ? p.postProcessing : true   // по умолчанию вкл
-  const showFps = typeof p.showFps === 'boolean' ? p.showFps : false       // по умолчанию выкл
-  const showSpeed = typeof p.showSpeed === 'boolean' ? p.showSpeed : false  // по умолчанию выкл
-  const menuGlow = typeof p.menuGlow === 'boolean' ? p.menuGlow : true       // по умолчанию вкл
-  const audioViz = typeof p.audioViz === 'boolean' ? p.audioViz : true       // по умолчанию вкл
+  const postProcessing = typeof p.postProcessing === 'boolean' ? p.postProcessing : true   // on by default
+  const showFps = typeof p.showFps === 'boolean' ? p.showFps : false       // off by default
+  const showSpeed = typeof p.showSpeed === 'boolean' ? p.showSpeed : false  // off by default
+  const menuGlow = typeof p.menuGlow === 'boolean' ? p.menuGlow : true       // on by default
+  const audioViz = typeof p.audioViz === 'boolean' ? p.audioViz : true       // on by default
   const volumeMaster = clampVolume(p.volumeMaster, VOL_DEFAULT.master)
   const volumeMusic = clampVolume(p.volumeMusic, VOL_DEFAULT.music)
   const volumeSfx = clampVolume(p.volumeSfx, VOL_DEFAULT.sfx)
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
-  // таймаут подключения: только из разрешённых вариантов, иначе дефолт
+  // connect timeout: only from the allowed options, otherwise default
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
-  // язык: только из зарегистрированных локалей; отсутствует → undefined (пользователь не выбрал — детектим системный)
+  // language: only from registered locales; missing → undefined (user did not choose — detect system)
   const localeIds = LOCALES.map(l => l.id)
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
-  // рисунок на шаре: валидная base64-строка → сохраняем как есть; иначе поле снимается (нет рисунка)
+  // ball artwork: valid base64 string → keep as is; otherwise drop the field (no artwork)
   const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
   return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
 }
 
-/** Загрузить профиль. Первый запуск (нет в localStorage) → создать случайный и сразу сохранить. */
+/** Load profile. First run (not in localStorage) → create a random one and save it right away. */
 export function loadProfile(): PlayerProfile {
   try {
     const raw = lsGet(KEY)
     if (raw) return sanitize(JSON.parse(raw))
-  } catch { /* битый JSON — создаём заново */ }
+  } catch { /* corrupt JSON — recreate */ }
   const fresh = randomProfile()
   saveProfile(fresh)
   return fresh

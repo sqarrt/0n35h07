@@ -1,13 +1,13 @@
 import * as THREE from 'three'
 import { MOVE_SPEED, WINDUP_MOVE_FACTOR } from '../../constants'
 
-/** Состояние клавиш движения — общая форма для человека и сетевого ввода. */
+/** Movement key state — shared shape for human and network input. */
 export interface MoveKeys { forward: boolean; back: boolean; left: boolean; right: boolean }
 
 const UP = new THREE.Vector3(0, 1, 0)
 
-/** Горизонтальный базис (forward/right) из направления взгляда.
- *  out — переиспользуемый scratch (без аллокаций); если не передан, создаёт новые векторы. */
+/** Horizontal basis (forward/right) from the look direction.
+ *  out — reusable scratch (no allocations); if not passed, creates new vectors. */
 export function horizontalBasis(
   look: THREE.Vector3,
   out?: { dir: THREE.Vector3; right: THREE.Vector3 },
@@ -21,9 +21,9 @@ export function horizontalBasis(
   return o
 }
 
-/** Желаемая скорость WASD: единичное направление × MOVE_SPEED (диагональ НЕ быстрее — нормализуем, чтобы
- *  wishspeed был чётко определён для скоростной модели). Замедление во время заряда выстрела.
- *  out — переиспользуемый scratch (без аллокаций); если не передан, создаёт новый вектор. */
+/** Desired WASD velocity: unit direction × MOVE_SPEED (diagonals are NOT faster — we normalize so
+ *  wishspeed is well-defined for the speed model). Slowed down while charging a shot.
+ *  out — reusable scratch (no allocations); if not passed, creates a new vector. */
 export function moveVelocity(
   keys: MoveKeys, dir: THREE.Vector3, right: THREE.Vector3, windingUp: boolean,
   out?: THREE.Vector3,
@@ -40,9 +40,9 @@ export function moveVelocity(
 }
 
 /**
- * Направление рывка из WASD с учётом камеры: forward/back — по ПОЛНОМУ взгляду `look` (с наклоном,
- * поэтому рывок идёт вверх/вниз когда смотришь вверх/вниз), strafe (A/D) — строго горизонтально по `right`.
- * `look` ожидается единичным 3D-вектором взгляда. null — нет нажатых клавиш движения (рывок «в пустоту» не делаем).
+ * Dash direction from WASD with camera awareness: forward/back follow the FULL `look` (with pitch,
+ * so the dash goes up/down when you look up/down), strafe (A/D) is strictly horizontal along `right`.
+ * `look` is expected to be a unit 3D look vector. null — no movement keys pressed (we don't dash "into the void").
  */
 export function dashDirection(keys: MoveKeys, look: THREE.Vector3, right: THREE.Vector3): THREE.Vector3 | null {
   const d = new THREE.Vector3()

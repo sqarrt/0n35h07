@@ -6,7 +6,7 @@ interface LobbyActionProps {
   tab: LobbyTab
   opponent: OppSlot | null
   searching: boolean
-  canSearch: boolean            // ПОИСК доступен (на «С другом» — только когда введён код)
+  canSearch: boolean            // SEARCH available (on "With friend" — only once a code is entered)
   onReady: () => void
   onStopSearch: () => void
   onSearch: () => void
@@ -15,11 +15,11 @@ interface LobbyActionProps {
 const FULL = { width: '100%' } as const
 
 /**
- * Нижнее действие:
- * - соперник в слоте → ГОТОВ;
- * - идёт поиск → СТОП;
- * - вкладка «С ботом» (бот вот-вот в слоте) → ГОТОВ (disabled до addBot);
- * - иначе (Матчмейкинг / С другом) → ПОИСК (disabled, если искать пока нечем).
+ * Bottom action:
+ * - opponent in slot → READY;
+ * - search in progress → STOP;
+ * - "With bot" tab (bot about to fill the slot) → READY (disabled until addBot);
+ * - otherwise (Matchmaking / With friend) → SEARCH (disabled if there's nothing to search for yet).
  */
 export function LobbyAction({ tab, opponent, searching, canSearch, onReady, onStopSearch, onSearch }: LobbyActionProps) {
   const t = useT()

@@ -1,47 +1,48 @@
-# Tauri-обёртка (эксперимент)
+# Tauri wrapper (experimental)
 
-Десктоп-сборка `0N35H07` через [Tauri 2](https://v2.tauri.app/) — системный webview (WebKitGTK на Linux,
-WebView2 на Windows) вместо бандла Chromium. Обёртка чистая: фронт (`../dist`) встраивается как есть,
-`@tauri-apps/api` не подключён, `package.json` проекта не тронут.
+Desktop build of `0N35H07` via [Tauri 2](https://v2.tauri.app/) — uses the system webview (WebKitGTK on
+Linux, WebView2 on Windows) instead of bundling Chromium. The wrapper is clean: the frontend (`../dist`) is
+embedded as-is, `@tauri-apps/api` is not used, and the project's `package.json` is untouched.
 
-## Сборка под Linux (из WSL)
+## Building on Linux (from WSL)
 
-Требуется один раз поставить тулчейн:
+One-time toolchain setup:
 
 ```bash
-# Node ≥20 (Vite 8) — через nvm, без sudo
+# Node >=20 (Vite 8) — via nvm, no sudo
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 nvm install 22
 
 # Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-# Системные зависимости Tauri (Ubuntu/Debian)
+# Tauri system dependencies (Ubuntu/Debian)
 sudo apt update
 sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
   libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev pkg-config
 
-# Tauri CLI (изолированный бинарь, node_modules не трогает)
+# Tauri CLI (isolated binary, does not touch node_modules)
 cargo install tauri-cli --version "^2.0" --locked
 ```
 
-Сама сборка:
+The build itself:
 
 ```bash
-npm run build                         # собрать фронт в ../dist (можно и Windows-npm)
-cargo tauri build --bundles deb       # бинарь + .deb
+npm run build                         # build the frontend into ../dist (Windows npm is fine too)
+cargo tauri build --bundles deb       # binary + .deb
 ```
 
-> Совет: вынеси target-каталог cargo на Linux-ФС, иначе компиляция на `/mnt/c` (9p) очень медленная:
+> Tip: put cargo's target directory on the Linux FS, otherwise compiling on `/mnt/c` (9p) is very slow:
 > `export CARGO_TARGET_DIR="$HOME/.cache/oneshot-tauri-target"`.
 
-Результат: бинарь `release/app` (~15 MB, с вшитым фронтом) и `release/bundle/deb/0N35H07_0.5.0_amd64.deb` (~8 MB).
+Output: the `release/app` binary (~15 MB, with the frontend embedded) and
+`release/bundle/deb/0N35H07_0.5.0_amd64.deb` (~8 MB).
 
-## Windows-сборка
+## Windows build
 
-Делается на Windows с установленным Rust (MSVC) — webview там WebView2 (Edge). Из WSL напрямую не
-кросс-компилируется; отдельный шаг уже в Windows-окружении.
+Done on Windows with Rust (MSVC) installed — the webview there is WebView2 (Edge). It does not
+cross-compile directly from WSL; that's a separate step in a Windows environment.
 
-## Иконки
+## Icons
 
-Сгенерированы из `../build/icon.png` (1024×1024) командой `cargo tauri icon ../build/icon.png`.
+Generated from `../build/icon.png` (1024×1024) via `cargo tauri icon ../build/icon.png`.

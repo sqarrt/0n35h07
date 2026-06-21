@@ -7,11 +7,11 @@ import {
   DASH_TRAIL_GHOST_INTERVAL, DASH_TRAIL_GHOST_LIFE, DASH_TRAIL_GHOST_OPACITY,
 } from '../../constants'
 
-/** A. Клоны скорости: полупрозрачные сферы по траектории рывка, гаснут за ~0.26с. */
+/** A. Speed clones: semi-transparent spheres along the dash path, fading out in ~0.26s. */
 export class AfterimageTrail implements IDashTrail {
   readonly object3d: THREE.Object3D
   private pool: SpritePool
-  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы-тела относительно глаз
+  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // body-sphere center relative to the eyes
   private emitTimer = 0
 
   constructor(color: THREE.Color) {

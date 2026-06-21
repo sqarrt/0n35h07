@@ -8,13 +8,13 @@ interface Particle {
   mesh: THREE.Mesh
   mat:  THREE.MeshBasicMaterial
   vel:  THREE.Vector3
-  life: number   // оставшаяся жизнь, мс
+  life: number   // remaining life, ms
 }
 
 /**
- * Хлопок частиц в момент смерти: пул аддитивных сфер цвета игрока. `emit(pos)` разбрасывает их
- * наружу+вверх, `update` двигает с гравитацией, гасит непрозрачность и сжимает по жизни. World-space —
- * живёт в `match.root` (как след рывка), сам владеет геометрией/мешами.
+ * Particle burst on death: a pool of additive spheres in the player's color. `emit(pos)` scatters them
+ * outward+up, `update` moves them with gravity, fades opacity and shrinks them by life. World-space —
+ * lives in `match.root` (like the dash trail), owns its geometry/meshes.
  */
 export class DeathBurst {
   readonly object3d = new THREE.Group()
@@ -36,7 +36,7 @@ export class DeathBurst {
     }
   }
 
-  /** Разбросать все частицы из точки наружу (и вверх). */
+  /** Scatter all particles from a point outward (and up). */
   emit(pos: THREE.Vector3) {
     for (const p of this.particles) {
       p.mesh.position.copy(pos)

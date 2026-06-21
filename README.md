@@ -9,8 +9,6 @@
 
 Built with React 19 · React Three Fiber · Three.js · Rapier (physics) · Trystero (WebRTC P2P) · Vite · TypeScript · Tauri.
 
-> ℹ️ The codebase comments, commit messages and changelog are written in **Russian** — the project grew up Russian-first. The public docs (this README, CONTRIBUTING, etc.) are in English for reach. Contributions in either language are welcome.
-
 ## What it is
 
 OneShot is a duel-focused arena shooter: charge a beam, bait your opponent into wasting a shield or dash, dodge at the last moment, and land the one shot that counts. No teams, no lobbies full of strangers — just you, one opponent (a human over WebRTC or an AI bot), and the arena.
@@ -48,7 +46,7 @@ npm run test:headed
 
 ## Playing online
 
-Matches are P2P over WebRTC. On simple / home networks plain STUN is enough. Symmetric NAT needs a **TURN** relay — credentials are read from env (`VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL`), never committed. Copy [`.env.example`](./.env.example) to `.env` and fill them in (e.g. free credentials from [metered.ca](https://dashboard.metered.ca)). Without TURN, the online mode still works on non-symmetric NATs.
+Matches are P2P over WebRTC. On simple / home networks plain STUN is enough. Symmetric NAT needs a **TURN** relay — credentials are read from env (`VITE_TURN_USERNAME` / `VITE_TURN_CREDENTIAL`). Copy [`.env.example`](./.env.example) to `.env` and fill them in (e.g. free credentials from [metered.ca](https://dashboard.metered.ca)). Without TURN, the online mode still works on non-symmetric NATs.
 
 > Note: front-end TURN credentials are visible to any player in DevTools — env only keeps them out of the repository, it does not make them secret.
 

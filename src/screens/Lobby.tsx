@@ -12,7 +12,7 @@ import { RoomCodeField } from '../components/lobby/RoomCodeField'
 import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
 import { BotNameField } from '../components/lobby/BotNameField'
 
-export type { LobbySlot } from '../components/lobby/types'   // ре-экспорт для App (строит me/opponent)
+export type { LobbySlot } from '../components/lobby/types'   // re-export for App (builds me/opponent)
 
 interface LobbyProps {
   isHost: boolean
@@ -36,7 +36,7 @@ interface LobbyProps {
   onBack: () => void
 }
 
-/** Экран лобби с подвкладками Матчмейкинг/С другом/С ботом. Карта/время/слоты — общие; меняется блок режима + действие. */
+/** Lobby screen with Matchmaking/With a friend/With a bot sub-tabs. Map/time/slots are shared; the mode block + action change. */
 export function Lobby(props: LobbyProps) {
   const { isHost, tab, me, opponent, mapSel, durationSel, searching } = props
   const t = useT()
@@ -45,14 +45,14 @@ export function Lobby(props: LobbyProps) {
 
   const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
-  // Блокировка карты/времени:
-  //  • во время активного поиска;
-  //  • у клиента (соперник-человек = хост) — настройки всегда чужие;
-  //  • у хоста с человеком в слоте — только на матчмейкинге (параметры зарезолвлены); на «С другом» хост
-  //    может менять параметры вживую (RoomSession шлёт обновлённый Assign клиенту). Бот не блокирует.
+  // Lock map/time:
+  //  • during an active search;
+  //  • on the client (human opponent = host) — settings are always someone else's;
+  //  • on the host with a human in the slot — only on matchmaking (params are resolved); on "With a friend" the host
+  //    can change params live (RoomSession sends an updated Assign to the client). A bot doesn't lock.
   const humanOpp = opponent != null && !opponent.isBot
   const optsLocked = searching || (humanOpp && !isHost) || (humanOpp && isHost && tab !== 'friend')
-  // ПОИСК: на «С другом» доступен только при введённом коде; на матчмейкинге — всегда.
+  // SEARCH: on "With a friend" available only with a code entered; on matchmaking — always.
   const canSearch = tab === 'friend' ? !!roomCode.trim() : true
   const doSearch = tab === 'friend' ? startFriend : props.onSearch
 

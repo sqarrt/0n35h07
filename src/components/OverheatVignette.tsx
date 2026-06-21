@@ -1,14 +1,14 @@
 import { useEffect, useRef } from 'react'
 import type { StreakTier } from '../game/streak'
 
-// Интенсивности по тиру (из макета overheat-vignette-v3.html). Периоды разрядов УВЕЛИЧЕНЫ ×3 (молнии реже).
+// Intensities per tier (from the overheat-vignette-v3.html mockup). Discharge periods are ×3 LONGER (rarer lightning).
 const CFG: Record<StreakTier, { a: number; r: number; pulse: number; perSide: number; lmin: number; lmax: number; dmin: number; dmax: number }> = {
   double:      { a: 0.05,  r: 40, pulse: 3.2, perSide: 3,  lmin: 22, lmax: 34, dmin: 7.8, dmax: 10.2 },
   triple:      { a: 0.085, r: 58, pulse: 2.4, perSide: 6,  lmin: 26, lmax: 40, dmin: 5.7, dmax: 7.8 },
   singularity: { a: 0.14,  r: 78, pulse: 1.7, perSide: 10, lmin: 28, lmax: 46, dmin: 3.6, dmax: 5.7 },
 }
 
-/** Зазубренная линия (midpoint displacement) + форки → реалистичная молния. */
+/** Jagged line (midpoint displacement) + forks → a realistic lightning bolt. */
 function jag(x0: number, y0: number, x1: number, y1: number, disp: number, w: number, out: { d: string; w: number }[]) {
   if (disp < 2.0) { out.push({ d: `M${x0.toFixed(1)},${y0.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)}`, w }); return }
   const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1
@@ -28,7 +28,7 @@ function boltSVG(len: number): string {
     out.map(p => `<path d="${p.d}" stroke-width="${p.w.toFixed(2)}"/>`).join('') + '</svg>'
 }
 
-/** Виньетка ПЕРЕГРЕВА своему игроку: красные края + молнии по тиру серии. tier=null — не показываем. */
+/** OVERHEAT vignette for the local player: red edges + lightning per streak tier. tier=null — hidden. */
 export function OverheatVignette({ tier }: { tier: StreakTier | null }) {
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {

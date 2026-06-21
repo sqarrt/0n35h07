@@ -5,7 +5,7 @@ interface GameKeys {
   back: boolean
   left: boolean
   right: boolean
-  jump: boolean   // held-состояние прыжка (auto-bhop при удержании; ребро = двойной прыжок) — обрабатывается за кадр
+  jump: boolean   // held jump state (auto-bhop while held; edge = double jump) — handled per frame
 }
 
 export function useGameInput() {
@@ -17,7 +17,7 @@ export function useGameInput() {
       if (e.code === 'KeyS') keys.current.back    = true
       if (e.code === 'KeyA') keys.current.left    = true
       if (e.code === 'KeyD') keys.current.right   = true
-      // Прыжок — held (не keydown-автоповтор ОС, иначе W+D+Space рвёт bhop). preventDefault — без прокрутки страницы.
+      // Jump is held (not OS keydown auto-repeat, otherwise W+D+Space breaks bhop). preventDefault avoids page scroll.
       if (e.code === 'Space') { e.preventDefault(); keys.current.jump = true }
     }
     const onKeyUp = (e: KeyboardEvent) => {

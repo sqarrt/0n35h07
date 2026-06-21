@@ -1,8 +1,8 @@
 /**
- * Финал трейлера: сверх-замедленный встречный выстрел. Вид сбоку (игроки слева/справа), камера медленно
- * отъезжает с замедлением (ease-out). Два игрока с РАЗНЫМИ скинами (цвет+модель+скин выстрела) заряжают и
- * стреляют друг в друга; время почти останавливается — клип замирает на двух ЛЕТЯЩИХ навстречу лучах.
- * Реальные ресурсы игры: Body + createWindupFx + BeamWeapon(createBeamFx) — настоящие скины заряда/луча.
+ * Trailer finale: an ultra-slow-motion head-on shot. Side view (players left/right), the camera slowly
+ * pulls back with deceleration (ease-out). Two players with DIFFERENT skins (color+model+shot skin) charge and
+ * fire at each other; time nearly stops — the clip freezes on two beams FLYING toward each other.
+ * Real game assets: Body + createWindupFx + BeamWeapon(createBeamFx) — actual charge/beam skins.
  */
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -19,19 +19,19 @@ import type { World } from '../../game/World'
 import type { SfxEvent } from '../../game/audio/sfx/types'
 
 interface Fighter { color: string; ring: string; model: BallModel; windup: WindupStyle; x: number }
-// Разные скины: цвет + модель + скин выстрела (windup/beam) у каждого.
+// Different skins: color + model + shot skin (windup/beam) for each.
 const A: Fighter = { color: '#4ff', ring: '#fa4', model: 'planet', windup: 'rage', x: -6.5 }
 const B: Fighter = { color: '#f4a', ring: '#4ff', model: 'waves', windup: 'singularity', x: 6.5 }
 
 const ORB_Y = 1.0
 const CENTER_Y = ORB_Y + BODY_MESH_Y
-const CHARGE_DUR = 1.0          // длительность заряда (в slow-mo времени)
-const SLOWMO_CHARGE = 0.35      // множитель времени при заряде
-const SLOWMO_HOLD = 0.05        // после выстрела время почти стоит (лучи «висят»)
-const CAM_Z0 = 10.5, CAM_Z1 = 18 // отъезд камеры (игроки разведены на ±6.5 — нужен запас)
-const CAM_DUR = 7.0             // секунд реального времени на отъезд (ease-out)
-const FINALE_DUR = 7.5          // когда финал завершится (onEnd)
-const BEAM_REACH = 0.46         // лучи долетают до 46% (ещё не встретились)
+const CHARGE_DUR = 1.0          // charge duration (in slow-mo time)
+const SLOWMO_CHARGE = 0.35      // time multiplier during charge
+const SLOWMO_HOLD = 0.05        // after the shot time nearly stops (beams "hang")
+const CAM_Z0 = 10.5, CAM_Z1 = 18 // camera pull-back (players are spread ±6.5 — need headroom)
+const CAM_DUR = 7.0             // seconds of real time for the pull-back (ease-out)
+const FINALE_DUR = 7.5          // when the finale ends (onEnd)
+const BEAM_REACH = 0.46         // beams travel up to 46% (haven't met yet)
 
 const beamCtx = (): WeaponContext => ({
   world: { raycast: () => null } as unknown as World,
@@ -77,7 +77,7 @@ export function FinaleScene({ onSfx, onEnd }: { onSfx: (e: SfxEvent) => void; on
     realT.current += dt
     localT.current += dt * (fired.current ? SLOWMO_HOLD : SLOWMO_CHARGE)
 
-    // Камера сбоку, медленный отъезд с замедлением (ease-out).
+    // Side camera, slow pull-back with deceleration (ease-out).
     const ct = Math.min(1, realT.current / CAM_DUR)
     const e = 1 - (1 - ct) * (1 - ct)
     camera.position.set(0, 1.7, CAM_Z0 + (CAM_Z1 - CAM_Z0) * e)
@@ -85,13 +85,13 @@ export function FinaleScene({ onSfx, onEnd }: { onSfx: (e: SfxEvent) => void; on
 
     const a = sides[0], b = sides[1]
     _cA.set(a.x, CENTER_Y, 0); _cB.set(b.x, CENTER_Y, 0)
-    // Шары смотрят друг на друга.
+    // Orbs face each other.
     a.body.faceDir(_dir.set(b.x - a.x, 0, 0).normalize())
     b.body.faceDir(_dir.set(a.x - b.x, 0, 0).normalize())
     a.body.tickShader(dt); b.body.tickShader(dt)
 
     if (!fired.current) {
-      // Заряд: windup-FX по стилю обоих.
+      // Charge: windup FX per each one's style.
       const p = Math.min(1, localT.current / CHARGE_DUR)
       for (const [side, center, target] of [[a, _cA, _cB], [b, _cB, _cA]] as const) {
         windupFrame.progress = p
@@ -103,14 +103,14 @@ export function FinaleScene({ onSfx, onEnd }: { onSfx: (e: SfxEvent) => void; on
       }
       if (localT.current >= CHARGE_DUR) {
         fired.current = true
-        _endA.lerpVectors(_cA, _cB, BEAM_REACH)   // луч A долетает до 46% (ещё в полёте)
+        _endA.lerpVectors(_cA, _cB, BEAM_REACH)   // beam A travels up to 46% (still in flight)
         _endB.lerpVectors(_cB, _cA, BEAM_REACH)
         a.beam.playBeam(_cA, _endA); a.beam.update(dt, ctx.current)
         b.beam.playBeam(_cB, _endB); b.beam.update(dt, ctx.current)
         onSfx('beam_fire_rage'); onSfx('beam_fire_singularity')
       }
     } else {
-      // После выстрела время почти стоит: лучи «висят» в полёте.
+      // After the shot time nearly stops: beams "hang" in flight.
       const slow = dt * SLOWMO_HOLD
       a.beam.update(slow, ctx.current)
       b.beam.update(slow, ctx.current)

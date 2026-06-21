@@ -3,18 +3,18 @@ import { VOXEL } from '../constants'
 import type { MapBlock } from './maps'
 
 /**
- * Сетка кубов — рёбра воксельных клеток (как «грани кубов» в редакторе, клавиша L). Общий примитив для
- * редактора (от его voxels) и игры (от map.blocks). Перечисление клеток зеркалит editorStore.voxelize,
- * поэтому игровая сетка совпадает с редакторской клетка-в-клетку.
+ * Cube grid — edges of voxel cells (like "cube faces" in the editor, key L). Shared primitive for the
+ * editor (from its voxels) and the game (from map.blocks). Cell enumeration mirrors editorStore.voxelize,
+ * so the in-game grid matches the editor's cell for cell.
  */
 
-// Стиль сетки кубов — единый для редактора и игры.
+// Cube grid style — shared by editor and game.
 export const BLOCK_GRID_COLOR = '#4af'
 export const BLOCK_GRID_OPACITY = 0.5
 
-const EPS = 1e-3   // допуск привязки клина к клетке (как в voxelize)
+const EPS = 1e-3   // wedge-to-cell snap tolerance (same as voxelize)
 
-// Рёбра единичной клетки: 8 углов (полу-ребро) + 12 рёбер (пары индексов).
+// Unit cell edges: 8 corners (half-edge) + 12 edges (index pairs).
 const EDGE_CORNERS: ReadonlyArray<readonly [number, number, number]> = [
   [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5],
   [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
@@ -23,11 +23,11 @@ const EDGE_PAIRS: ReadonlyArray<readonly [number, number]> = [
   [0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7],
 ]
 
-/** Мировой центр клетки (i,j,k): спан клетки = [i·VOXEL, (i+1)·VOXEL] и т.д. */
+/** World center of cell (i,j,k): cell span = [i·VOXEL, (i+1)·VOXEL] etc. */
 export const cellCenter = (x: number, y: number, z: number): [number, number, number] =>
   [(x + 0.5) * VOXEL, (y + 0.5) * VOXEL, (z + 0.5) * VOXEL]
 
-/** Геометрия рёбер набора воксельных клеток (линии по 12 рёбрам каждой клетки) — для <lineSegments>. */
+/** Edge geometry for a set of voxel cells (lines over each cell's 12 edges) — for <lineSegments>. */
 export function cellsGridGeometry(cells: Iterable<readonly [number, number, number]>): BufferGeometry {
   const pos: number[] = []
   for (const [x, y, z] of cells) {
@@ -43,7 +43,7 @@ export function cellsGridGeometry(cells: Iterable<readonly [number, number, numb
   return g
 }
 
-/** Воксельные клетки, занятые блоками карты (периметр пропускаем — он не воксель). Дедуп по ключу. */
+/** Voxel cells occupied by map blocks (skip the perimeter — it's not a voxel). Dedup by key. */
 export function blockCells(blocks: MapBlock[]): [number, number, number][] {
   const S = VOXEL
   const seen = new Set<string>()
@@ -56,7 +56,7 @@ export function blockCells(blocks: MapBlock[]): [number, number, number][] {
   }
   for (const b of blocks) {
     if (b.perimeter === true) continue
-    if (b.shape === 'wedge') {                       // клин — под-клеточная призма, одна клетка
+    if (b.shape === 'wedge') {                       // wedge — sub-cell prism, single cell
       add(
         Math.floor((b.pos[0] - b.size[0] + EPS) / S),
         Math.floor((b.pos[1] - b.size[1] + EPS) / S),
@@ -64,7 +64,7 @@ export function blockCells(blocks: MapBlock[]): [number, number, number][] {
       )
       continue
     }
-    const [sx, sy, sz] = b.size                      // куб / склеенный бокс → заполнить клетки
+    const [sx, sy, sz] = b.size                      // cube / merged box → fill cells
     const x0 = Math.round((b.pos[0] - sx) / S), x1 = Math.round((b.pos[0] + sx) / S)
     const y0 = Math.round((b.pos[1] - sy) / S), y1 = Math.round((b.pos[1] + sy) / S)
     const z0 = Math.round((b.pos[2] - sz) / S), z1 = Math.round((b.pos[2] + sz) / S)
@@ -73,7 +73,7 @@ export function blockCells(blocks: MapBlock[]): [number, number, number][] {
   return cells
 }
 
-/** Геометрия сетки кубов карты — рёбра всех воксельных клеток, занятых блоками. */
+/** Map cube-grid geometry — edges of all voxel cells occupied by blocks. */
 export function blockGridGeometry(blocks: MapBlock[]): BufferGeometry {
   return cellsGridGeometry(blockCells(blocks))
 }

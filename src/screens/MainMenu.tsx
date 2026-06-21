@@ -9,7 +9,7 @@ interface MainMenuProps {
   onExit: () => void
 }
 
-// Кнопки главного меню — единая ширина (половина подложки), тексты разной длины их не разъезжают.
+// Main-menu buttons share one width (half the panel), so texts of different lengths don't shift them.
 const MENU_BUTTON_WIDTH = '50%'
 
 export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuProps) {
@@ -29,10 +29,10 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuP
       <Button variant="primary" style={btn} onClick={onPlay} data-testid="menu-play">{t.menuPlay}</Button>
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
-      {/* Выход — только на десктопе: в браузере window.close() для обычной вкладки запрещён политикой. */}
+      {/* Exit — desktop only: in the browser window.close() is forbidden by policy for a regular tab. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
-      {/* Подсказка про F11 — только в браузере (на десктопе и так fullscreen). F11 — нативный хоткей браузера,
-          обработчик не нужен, только текст. */}
+      {/* F11 hint — browser only (desktop is fullscreen already). F11 is a native browser hotkey,
+          no handler needed, just the text. */}
       {!IS_DESKTOP && <p className="menu-hint">{t.menuFullscreenHint}</p>}
     </div>
   )
