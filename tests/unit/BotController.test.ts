@@ -213,6 +213,29 @@ describe('BotController', () => {
     expect(realShots).toBe(1)              // наказание настоящим выстрелом
   })
 
+  it('SINGULARITY: при pierceWalls бот видит соперника сквозь стену и открывает огонь', () => {
+    const bot = makePlayer(1)
+    const opp = makePlayer(0)
+    opp.position.set(0, EYE_HEIGHT, -5)
+    // Стена между ними: обычный луч упирается в блок (99), прострел (pierceWalls) видит соперника.
+    const wallWorld: World = {
+      raycast: (_o: THREE.Vector3, _d: THREE.Vector3, _ex: number[] = [], pierce = false) => pierce
+        ? ({ object: { userData: { entityId: opp.id } }, point: new THREE.Vector3() }) as any
+        : ({ object: { userData: { entityId: 99 } }, point: new THREE.Vector3() }) as any,
+    } as unknown as World
+    const bc = makeBot(bot, opp, wallWorld)
+
+    // Без перегрева — стена закрывает, бот не стреляет
+    for (let i = 0; i < 40; i++) bc.update(0.1)
+    expect(bot.isWindingUp).toBe(false)
+
+    // Перегрев: pierceWalls → бот должен «увидеть» сквозь стену и зарядить
+    bot.pierceWalls = true
+    let started = false
+    for (let i = 0; i < 40; i++) { bc.update(0.1); if (bot.isWindingUp) started = true }
+    expect(started).toBe(true)
+  })
+
   it('низкий baitSkill → не разводит (заряд не отменяется)', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
