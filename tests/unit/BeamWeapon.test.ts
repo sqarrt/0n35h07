@@ -59,6 +59,39 @@ describe('BeamWeapon', () => {
     expect(w.outcome?.hitPoint).not.toBeNull()
   })
 
+  it('hitOrigin/hitDir заданы → raycast попадания из них (луч прицела), визуал — из дула', () => {
+    const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
+    let gotOrigin: THREE.Vector3 | null = null
+    let gotDir: THREE.Vector3 | null = null
+    const c: WeaponContext = {
+      world: { raycast: (o: THREE.Vector3, d: THREE.Vector3) => { gotOrigin = o.clone(); gotDir = d.clone(); return null } } as any,
+      muzzle: new THREE.Vector3(0, 5, 0),     // дуло
+      aim: new THREE.Vector3(0, 0, -1),
+      excludeIds: [],
+      hitOrigin: new THREE.Vector3(3, 1, 3),  // камера (TP, за спиной)
+      hitDir: new THREE.Vector3(1, 0, 0),
+    }
+    w.beginWindup()
+    advance(w, c, WINDUP + 50)
+    expect(gotOrigin!.x).toBeCloseTo(3); expect(gotOrigin!.y).toBeCloseTo(1); expect(gotOrigin!.z).toBeCloseTo(3)
+    expect(gotDir!.x).toBeCloseTo(1)        // raycast пошёл по hitDir, не по aim(-Z)
+    expect(w.outcome?.end.y).toBeCloseTo(5) // визуал луча всё равно из дула (y=5)
+  })
+
+  it('без hitOrigin → raycast попадания из дула вдоль aim (бот/удалённый)', () => {
+    const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
+    let gotOrigin: THREE.Vector3 | null = null
+    const c: WeaponContext = {
+      world: { raycast: (o: THREE.Vector3) => { gotOrigin = o.clone(); return null } } as any,
+      muzzle: new THREE.Vector3(7, 2, 7),
+      aim: new THREE.Vector3(0, 0, -1),
+      excludeIds: [],
+    }
+    w.beginWindup()
+    advance(w, c, WINDUP + 50)
+    expect(gotOrigin!.x).toBeCloseTo(7); expect(gotOrigin!.y).toBeCloseTo(2); expect(gotOrigin!.z).toBeCloseTo(7)
+  })
+
   it('повторный beginWindup во время кулдауна игнорируется', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     const c = ctx(() => null)

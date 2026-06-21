@@ -108,7 +108,9 @@ export class HumanController implements Controller {
     const aimPoint = hit
       ? hit.point
       : this._aimFallback.copy(this.camera.position).addScaledVector(this.tmp, AIM_RANGE)
-    this.player.aim(aimPoint)
+    // В TP хит считаем по лучу прицела камера→точка (визуал луча — из дула): убирает параллакс дуло↔камера
+    // (бот в яме/бассейне). В FP камера ≈ дуло — оставляем хит из дула (привычный фил, шанс попасть не меняем).
+    this.player.aim(aimPoint, this.thirdPerson ? this.camera.position : undefined)
   }
 
   // --- камера/вид (после физики) ---

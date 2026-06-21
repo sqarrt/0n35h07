@@ -239,7 +239,9 @@ export class BotController implements Controller {
     this._toTarget.copy(to).sub(from)
     const dist = this._toTarget.length()
     if (dist < 0.5) return true
-    const hit = this.world.raycast(from, this._toTarget.normalize(), [this.player.id])
+    // В режиме SINGULARITY (перегрев) бот, как и человек, простреливает стены — LOS тоже должен
+    // их игнорировать, иначе бот «не видит» соперника сквозь блок и впустую не стреляет.
+    const hit = this.world.raycast(from, this._toTarget.normalize(), [this.player.id], this.player.pierceWalls)
     return hit !== null && (hit.object.userData as MeshUserData).entityId === targetId
   }
 

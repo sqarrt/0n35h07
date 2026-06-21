@@ -16,6 +16,10 @@ export interface WeaponContext {
   aim:        THREE.Vector3
   excludeIds: number[]
   pierceWalls?: boolean   // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты
+  // Луч ПОПАДАНИЯ (необяз.): у человека — линия прицела камера→мушка, чтобы хит совпадал с перекрестием
+  // (визуал луча всё равно из дула, убирает параллакс дуло↔камера в TP). Нет → хит из дула вдоль aim (бот/удалённый).
+  hitOrigin?: THREE.Vector3
+  hitDir?:    THREE.Vector3
 }
 
 export interface FireOutcome {

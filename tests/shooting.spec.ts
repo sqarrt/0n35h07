@@ -13,6 +13,21 @@ test('ЛКМ — луч попадает в мишень', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => (window as any).__debugTargetHitCount ?? 0), { timeout: 6000 }).toBe(1)
 })
 
+test('3-е лицо — ЛКМ попадает в бота (хит по лучу камеры, без параллакса дуло↔камера)', async ({ page }) => {
+  // Переключаемся в TP (KeyV) — луч попадания идёт из камеры через мушку, визуал из дула.
+  await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyV', bubbles: true })))
+  await page.waitForTimeout(200)
+  // Целимся в ЦЕНТР бота (в TP хит точный = под перекрестием; aimAtBot берёт +0.5 — выше капсулы).
+  await page.evaluate(() => {
+    const cam = (window as any).__debugCamera
+    const p = (window as any).__debugBotPos?.[0]?.()
+    if (cam && p) cam.lookAt(p.x, p.y, p.z)
+  })
+  await page.waitForTimeout(200)
+  await mouseDown(page, 0)
+  await expect.poll(() => page.evaluate(() => (window as any).__debugTargetHitCount ?? 0), { timeout: 6000 }).toBe(1)
+})
+
 test('ЛКМ — beam-бар уходит на кулдаун', async ({ page }) => {
   const stroke = () => page.evaluate(() =>
     document.querySelector('svg circle[stroke-dasharray]')?.getAttribute('stroke')
