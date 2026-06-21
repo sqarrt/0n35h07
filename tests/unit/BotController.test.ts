@@ -5,19 +5,24 @@ import { Body } from '../../src/game/Body'
 import { BeamWeapon } from '../../src/game/BeamWeapon'
 import { Shield } from '../../src/game/Shield'
 import { BotController } from '../../src/game/controllers/BotController'
-import { botPersonality } from '../../src/game/controllers/botPersonality'
 import type { BotPersonality } from '../../src/game/controllers/botPersonality'
 import type { World } from '../../src/game/World'
 import { EYE_HEIGHT } from '../../src/constants'
 
 // Детерминированная агрессивная личность для тестов: мгновенная реакция, точный прицел
 const FAST_PERSONALITY: BotPersonality = {
-  reactionMs:   0,
-  aimNoise:     0,
-  dodgeSkill:   1.0,
-  dashRate:     0,
-  jumpiness:    0,
-  strafeFlipMs: 99999,
+  skill:          1,
+  hitChance:      1,
+  fireIntervalMs: 1400,
+  reactionMs:     0,
+  dodgeSkill:     1.0,
+  dashRate:       0,
+  jumpiness:      0,
+  strafeFlipMs:   99999,
+  aimNoise:       0,
+  grazeMargin:    0,
+  baitSkill:      0,
+  evadeSkill:     0,
 }
 
 function makePlayer(id = 0) {
@@ -42,40 +47,7 @@ function makeBot(bot: Player, opp: Player, world: World, passive = false, person
   return new BotController(bot, () => opp, world, passive, personality)
 }
 
-// --- botPersonality ---
-
-describe('botPersonality', () => {
-  it('детерминированность: одно имя → один результат', () => {
-    const a = botPersonality('GLITCH')
-    const b = botPersonality('GLITCH')
-    expect(a).toEqual(b)
-  })
-
-  it('разные имена → разные параметры', () => {
-    const a = botPersonality('ALPHA')
-    const b = botPersonality('OMEGA')
-    const diff = (a.reactionMs !== b.reactionMs) || (a.aimNoise !== b.aimNoise) || (a.dodgeSkill !== b.dodgeSkill)
-    expect(diff).toBe(true)
-  })
-
-  it('все параметры в допустимых диапазонах (100 имён)', () => {
-    for (let i = 0; i < 100; i++) {
-      const p = botPersonality(`BOT_${i}`)
-      expect(p.reactionMs).toBeGreaterThanOrEqual(50)
-      expect(p.reactionMs).toBeLessThanOrEqual(250)
-      expect(p.aimNoise).toBeGreaterThanOrEqual(0.01)
-      expect(p.aimNoise).toBeLessThanOrEqual(0.12)
-      expect(p.dodgeSkill).toBeGreaterThanOrEqual(0.1)
-      expect(p.dodgeSkill).toBeLessThanOrEqual(0.8)
-      expect(p.dashRate).toBeGreaterThanOrEqual(0.03)
-      expect(p.dashRate).toBeLessThanOrEqual(0.25)
-      expect(p.jumpiness).toBeGreaterThanOrEqual(0.05)
-      expect(p.jumpiness).toBeLessThanOrEqual(0.40)
-      expect(p.strafeFlipMs).toBeGreaterThanOrEqual(600)
-      expect(p.strafeFlipMs).toBeLessThanOrEqual(2000)
-    }
-  })
-})
+// Личность (детерминизм, диапазоны, инвариант потолка) покрыта в botPersonality.test.ts.
 
 // --- BotController ---
 
