@@ -140,7 +140,10 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let fail_log = log_tx.clone();
     nm.session_failed_callback(move |info| guard("session_failed", || {
       let who = info.identity_remote().and_then(|i| i.steam_id()).map(|s| s.raw().to_string()).unwrap_or_default();
-      let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: state={:?}", info.state()));
+      // The crate's end_reason() panics on codes its (old-SDK) enum doesn't list. NetConnectionInfo
+      // is a single-field POD wrapper over sys::SteamNetConnectionInfo_t, so read the raw i32 code.
+      let raw: steamworks_sys::SteamNetConnectionInfo_t = unsafe { std::mem::transmute_copy(&info) };
+      let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: end_code={} state={:?}", raw.m_eEndReason, info.state()));
     }));
     let tx_msg = tx;
     let msg_log = log_tx;
