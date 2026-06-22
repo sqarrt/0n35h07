@@ -1,7 +1,6 @@
 use std::io::{Read, Write};
 use std::sync::Mutex;
-use std::time::Duration;
-use steamworks::{AppId, Client};
+use steamworks::{AppId, Client, SingleClient};
 use tauri::State;
 
 // The persistent Steam client handle (Clone + Send + Sync), or None if init failed
@@ -89,24 +88,17 @@ pub fn steam_cloud_delete(state: State<'_, SteamState>, name: String) -> bool {
   client.remote_storage().file(&name).delete()
 }
 
-// Pump interval for Steam callbacks. ~20 Hz is plenty for lobby/stats traffic and
-// keeps the thread idle otherwise.
-const CALLBACK_INTERVAL_MS: u64 = 50;
-
-// Initialize Steam and spawn the callback pump. Soft-fails to None so the app still
-// launches without Steam (dev, browser-equivalent, unowned copies).
-pub fn init_steam(app_id: u32) -> Option<Client> {
+// Initialize Steam. Soft-fails to None so the app still launches without Steam (dev,
+// browser-equivalent, unowned copies). The callback pump is spawned by steam_net::start_pump
+// (run_callbacks drives stats/cloud/RP AND networking), so the SingleClient is returned here.
+pub fn init_steam(app_id: u32) -> Option<(Client, SingleClient)> {
   match Client::init_app(AppId(app_id)) {
     Ok((client, single)) => {
       // Load the user's current stats/achievements so set()/get() act on real state.
       client.user_stats().request_current_stats();
       // Enable Steam Cloud for this app (also gated by the partner-portal cloud setting).
       client.remote_storage().set_cloud_enabled_for_app(true);
-      std::thread::spawn(move || loop {
-        single.run_callbacks();
-        std::thread::sleep(Duration::from_millis(CALLBACK_INTERVAL_MS));
-      });
-      Some(client)
+      Some((client, single))
     }
     Err(err) => {
       log::warn!("Steam init failed (running without Steam): {err}");
