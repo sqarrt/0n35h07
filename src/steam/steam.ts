@@ -30,3 +30,24 @@ export async function unlockAchievement(apiName: string): Promise<boolean> {
   try { return await invokeSteam<boolean>('steam_unlock_achievement', { name: apiName }) }
   catch { return false }
 }
+
+/** Read a Steam Cloud file as text, or null off-desktop / missing / on error. */
+export async function cloudRead(name: string): Promise<string | null> {
+  if (!IS_DESKTOP) return null
+  try { return await invokeSteam<string | null>('steam_cloud_read', { name }) }
+  catch { return null }
+}
+
+/** Write a Steam Cloud file (overwrites). Resolves to false off-desktop / on error. */
+export async function cloudWrite(name: string, data: string): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('steam_cloud_write', { name, data }) }
+  catch { return false }
+}
+
+/** Delete a Steam Cloud file. Resolves to false off-desktop / on error. */
+export async function cloudDelete(name: string): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('steam_cloud_delete', { name }) }
+  catch { return false }
+}
