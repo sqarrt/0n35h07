@@ -98,6 +98,10 @@ pub fn init_steam(app_id: u32) -> Option<(Client, SingleClient)> {
       client.user_stats().request_current_stats();
       // Enable Steam Cloud for this app (also gated by the partner-portal cloud setting).
       client.remote_storage().set_cloud_enabled_for_app(true);
+      // Bootstrap SDR relay access — required for NetworkingMessages P2P to establish a session
+      // (without it the first session never comes up and messages are silently dropped). Takes a
+      // few seconds to become ready after launch.
+      client.networking_utils().init_relay_network_access();
       Some((client, single))
     }
     Err(err) => {

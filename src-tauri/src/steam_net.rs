@@ -113,9 +113,15 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     loop {
       single.run_callbacks();
       for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
-        if let Some(from) = msg.identity_peer().steam_id() {
-          let data = String::from_utf8_lossy(msg.data()).to_string();
-          emit(&pump_app, NetEvent::Message { from: from.raw().to_string(), data });
+        let peer = msg.identity_peer();
+        let data = String::from_utf8_lossy(msg.data()).to_string();
+        match peer.steam_id() {
+          Some(from) => {
+            log::info!("[steam-net] recv from {} ({} bytes)", from.raw(), msg.data().len());
+            emit(&pump_app, NetEvent::Message { from: from.raw().to_string(), data });
+          }
+          // Shouldn't happen for SteamID-addressed messages; log so we can see if it does.
+          None => log::warn!("[steam-net] recv from non-steam identity {}: {:?}", peer.debug_string(), data),
         }
       }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
@@ -205,10 +211,14 @@ pub fn steam_net_send(state: State<'_, SteamState>, to: String, data: String) ->
   let Some(client) = guard.as_ref() else { return false };
   let Ok(raw) = to.parse::<u64>() else { return false };
   let identity = NetworkingIdentity::new_steam_id(SteamId::from_raw(raw));
-  client
+  let res = client
     .networking_messages()
-    .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL)
-    .is_ok()
+    .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL);
+  match &res {
+    Ok(()) => log::info!("[steam-net] send to {} ok ({} bytes)", raw, data.len()),
+    Err(e) => log::warn!("[steam-net] send to {} FAILED: {:?}", raw, e),
+  }
+  res.is_ok()
 }
 
 // Open the Steam overlay invite dialog for the current lobby.
