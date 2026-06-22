@@ -55,7 +55,14 @@ pub fn run() {
 
   tauri::Builder::default()
     .manage(SteamState(Mutex::new(steam_client)))
-    .invoke_handler(tauri::generate_handler![steam::steam_available, steam::steam_user, steam::steam_unlock_achievement])
+    .invoke_handler(tauri::generate_handler![
+      steam::steam_available,
+      steam::steam_user,
+      steam::steam_unlock_achievement,
+      steam::steam_cloud_read,
+      steam::steam_cloud_write,
+      steam::steam_cloud_delete,
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
