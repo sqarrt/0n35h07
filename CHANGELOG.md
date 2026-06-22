@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   *In lobby* or *In a match* — following the current screen. Off-Steam it's a silent no-op. (The status
   text comes from Rich Presence localization tokens defined in the Steamworks partner portal.)
 
+### Internal
+- **Steam networking — transport core (foundation).** A Steam P2P transport (`SteamNet implements
+  INet`) over Steam lobbies + NetworkingMessages (SDR, no TURN), plus the Rust lobby/messaging bridge
+  (create/join/leave/invite, send, member & join-request events). Compile- and unit-verified; not yet
+  wired into the lobby UI (that and live two-client testing are the next stage). No effect on the
+  browser build, which keeps WebRTC.
+
 ## [0.5.9] - 2026-06-22
 
 ### Added
