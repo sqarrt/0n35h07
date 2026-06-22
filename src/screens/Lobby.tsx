@@ -10,7 +10,6 @@ import { TimePicker } from '../components/lobby/TimePicker'
 import { LobbyAction } from '../components/lobby/LobbyAction'
 import { RoomCodeField } from '../components/lobby/RoomCodeField'
 import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
-import { BotNameField } from '../components/lobby/BotNameField'
 
 export type { LobbySlot } from '../components/lobby/types'   // re-export for App (builds me/opponent)
 
@@ -71,17 +70,15 @@ export function Lobby(props: LobbyProps) {
 
           <div className="lobby-ogrp">
             <span className="lobby-ol">// {t.lobbyPlayers}</span>
-            <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching} />
+            <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching}
+              botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined} />
           </div>
 
           {tab === 'friend' && (
             <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
           )}
           {tab === 'bot' && (
-            <>
-              <BotNameField name={props.botName} onSetName={props.onSetBotName} />
-              <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
-            </>
+            <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
           )}
         </div>
 

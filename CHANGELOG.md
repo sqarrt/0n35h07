@@ -32,9 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     the win.
   - **Baiting your defense**: late in a charge the bot reads your defensive reaction (shield or dash-dodge),
     cancels the shot with a dash — you wasted your defense — and immediately punishes with a real shot.
-- Lobby, "Vs. bot" tab: a **bot name field** with a 🎲 button (random name). The name deterministically sets
-  the personality and appearance — you can type a nick to rematch a specific (strong) bot. Editing it updates
-  the bot live. Label/placeholder localized into all 10 languages.
+- Lobby, "Vs. bot" tab: the **bot's name is editable right in its seat** — click the name to type a nick,
+  click the seat to reroll a random one. The name deterministically sets the bot's personality and appearance,
+  so you can rematch a specific (strong) bot; the slot updates live (name → personality + skin + color). The
+  name is never left empty (an empty input reverts to the current name on blur).
 
 ### Changed
 - The "Play" screen is split into three sub-tabs: **Matchmaking**, **Vs. friend**, **Vs. bot**.

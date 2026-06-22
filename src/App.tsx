@@ -47,6 +47,7 @@ import { IS_DESKTOP } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { randomRoomCode } from './net/roomCode'
+import { generateModelName } from './names'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -333,8 +334,11 @@ export default function App() {
   // Bring the session to the tab's idle state (without an active search/connection).
   const enterTabIdle = (tab: LobbyTab, sel: { map: MapFilter; durationMin: DurationFilter }) => {
     if (tab === 'bot') {
+      // Pre-resolve the name so the seat input starts populated and in sync with the slot (no empty-field mismatch).
+      const name = botName.trim() || generateModelName()
       enterRoom(lobbyCodeRef.current, 'host', sel)
-      sessionRef.current?.addBot(botDifficulty, botName)   // bot straight into the slot (name from the field or random)
+      sessionRef.current?.addBot(botDifficulty, name)   // bot straight into the slot
+      if (name !== botName) setBotName(name)
     } else if (idleIsHost(tab)) {
       enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host session for the announcement
     } else {
