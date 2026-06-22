@@ -80,34 +80,41 @@ fn members_of(client: &Client, lobby: LobbyId) -> Vec<String> {
 }
 
 // Run a callback body so a panic can't unwind across the C run_callbacks frame (UB) or kill the
-// pump thread — catch it here and log which one blew up (the panic message itself is printed by
-// the default panic hook). Defensive: networking must survive a bad event.
+// pump thread — catch it here. The panic message itself is printed by the default hook.
 fn guard<F: FnOnce()>(label: &str, f: F) {
   if std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).is_err() {
-    log::error!("[steam-net] '{label}' callback panicked (caught — see the panic message above)");
+    eprintln!("[steam-net] '{label}' panicked (caught — see the panic message above)");
   }
 }
 
 // Register Steam callbacks and spawn the shared pump thread (run_callbacks + message drain).
 // Must run whenever Steam is available — run_callbacks also drives stats/cloud/RP. The returned
 // state is managed by Tauri for the networking commands.
+//
+// CRITICAL: Steam callbacks fire WHILE run_callbacks() holds the global Steam lock. Doing slow
+// work there (Tauri `emit` → webview IPC, or log routed to the webview) starves the
+// SteamNetworkingSockets service thread ("service thread waited Nms for lock") and breaks the
+// P2P handshake (ClosedByPeer). So callbacks ONLY enqueue events (fast) and use eprintln (fast,
+// stderr); the pump emits to JS AFTER run_callbacks, outside the lock window.
 pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> SteamNetState {
   let lobby: Arc<Mutex<Option<LobbyId>>> = Arc::new(Mutex::new(None));
+  let self_id = client.user().steam_id().raw();
+  let (tx, rx) = std::sync::mpsc::channel::<NetEvent>();
 
-  // Lobby membership changes → peerJoin / peerLeave.
-  let chat_app = app.clone();
+  // Lobby membership changes → peerJoin / peerLeave (enqueue only).
+  let tx_chat = tx.clone();
   let cb_chat = client.register_callback(move |u: LobbyChatUpdate| guard("LobbyChatUpdate", || {
     let steam_id = u.user_changed.raw().to_string();
-    match u.member_state_change {
-      ChatMemberStateChange::Entered => emit(&chat_app, NetEvent::PeerJoin { steam_id }),
-      _ => emit(&chat_app, NetEvent::PeerLeave { steam_id }),
-    }
+    let _ = tx_chat.send(match u.member_state_change {
+      ChatMemberStateChange::Entered => NetEvent::PeerJoin { steam_id },
+      _ => NetEvent::PeerLeave { steam_id },
+    });
   }));
 
-  // Overlay invite / "Join game" → ask JS to join this lobby.
-  let join_app = app.clone();
+  // Overlay invite / "Join game" → ask JS to join this lobby (enqueue only).
+  let tx_join = tx.clone();
   let cb_join = client.register_callback(move |r: GameLobbyJoinRequested| guard("GameLobbyJoinRequested", || {
-    emit(&join_app, NetEvent::JoinRequested { lobby_id: r.lobby_steam_id.raw().to_string() });
+    let _ = tx_join.send(NetEvent::JoinRequested { lobby_id: r.lobby_steam_id.raw().to_string() });
   }));
 
   let pump_app = app;
@@ -117,36 +124,35 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _cb_chat = cb_chat;
     let _cb_join = cb_join;
     let nm = pump_client.networking_messages();
-    // Accept incoming sessions (the lobby flow gates who can reach us; 1v1).
-    nm.session_request_callback(|req| guard("session_request", || {
+    // Accept incoming sessions (the lobby flow gates who can reach us; 1v1). Fast: just accept.
+    nm.session_request_callback(move |req| guard("session_request", || {
       let who = req.remote().steam_id().map(|s| s.raw().to_string()).unwrap_or_else(|| req.remote().debug_string());
-      log::info!("[steam-net] session request from {who} — accepting");
+      eprintln!("[steam-net:{self_id}] session request from {who} — accepting");
       req.accept();
     }));
     // Log session failures. A transient first failure is normal (direct attempt fails → relay
     // fallback) and must NOT kill the pump. end_reason() panics in the crate on codes its enum
     // doesn't list, so isolate it behind its own catch.
-    nm.session_failed_callback(|info| guard("session_failed", || {
+    nm.session_failed_callback(move |info| guard("session_failed", || {
       let who = info.identity_remote().and_then(|i| i.steam_id()).map(|s| s.raw().to_string()).unwrap_or_default();
       let reason = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| info.end_reason()))
         .map(|r| format!("{r:?}")).unwrap_or_else(|_| "<unmapped end code>".to_string());
-      log::warn!("[steam-net] session failed with {who}: end_reason={reason} state={:?}", info.state());
+      eprintln!("[steam-net:{self_id}] session failed with {who}: end_reason={reason} state={:?}", info.state());
     }));
+    let tx_msg = tx;
     loop {
       single.run_callbacks();
       guard("receive", || {
         for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
-          let peer = msg.identity_peer();
-          let data = String::from_utf8_lossy(msg.data()).to_string();
-          match peer.steam_id() {
-            Some(from) => {
-              log::info!("[steam-net] recv from {} ({} bytes)", from.raw(), msg.data().len());
-              emit(&pump_app, NetEvent::Message { from: from.raw().to_string(), data });
-            }
-            None => log::warn!("[steam-net] recv from non-steam identity {}: {:?}", peer.debug_string(), data),
+          if let Some(from) = msg.identity_peer().steam_id() {
+            let data = String::from_utf8_lossy(msg.data()).to_string();
+            eprintln!("[steam-net:{self_id}] recv from {} ({} bytes)", from.raw(), data.len());
+            let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data });
           }
         }
       });
+      // Outside the Steam lock window: emit queued events to JS (slow webview IPC is OK here).
+      while let Ok(ev) = rx.try_recv() { emit(&pump_app, ev); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
   });
