@@ -55,7 +55,7 @@ pub fn run() {
 
   tauri::Builder::default()
     .manage(SteamState(Mutex::new(steam_client)))
-    .invoke_handler(tauri::generate_handler![steam::steam_available, steam::steam_user])
+    .invoke_handler(tauri::generate_handler![steam::steam_available, steam::steam_user, steam::steam_unlock_achievement])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

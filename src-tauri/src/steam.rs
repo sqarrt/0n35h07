@@ -28,6 +28,20 @@ pub fn steam_user(state: State<'_, SteamState>) -> Option<SteamUserDto> {
   })
 }
 
+// Unlock an achievement by its API name (defined in the Steamworks partner portal) and flush
+// to Steam. Returns false if Steam is unavailable or the call failed. Steam's SetAchievement is
+// idempotent, so re-unlocking an already-unlocked achievement is harmless.
+#[tauri::command]
+pub fn steam_unlock_achievement(state: State<'_, SteamState>, name: String) -> bool {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return false };
+  let stats = client.user_stats();
+  if stats.achievement(&name).set().is_err() {
+    return false;
+  }
+  stats.store_stats().is_ok()
+}
+
 // Pump interval for Steam callbacks. ~20 Hz is plenty for lobby/stats traffic and
 // keeps the thread idle otherwise.
 const CALLBACK_INTERVAL_MS: u64 = 50;
@@ -37,6 +51,8 @@ const CALLBACK_INTERVAL_MS: u64 = 50;
 pub fn init_steam(app_id: u32) -> Option<Client> {
   match Client::init_app(AppId(app_id)) {
     Ok((client, single)) => {
+      // Load the user's current stats/achievements so set()/get() act on real state.
+      client.user_stats().request_current_stats();
       std::thread::spawn(move || loop {
         single.run_callbacks();
         std::thread::sleep(Duration::from_millis(CALLBACK_INTERVAL_MS));
