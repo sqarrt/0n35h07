@@ -15,6 +15,8 @@ installGameFeelGuards()
 if (import.meta.env.DEV) installNetDiag()   // dev diagnostics for P2P connection (window.__netReport)
 // Dev proof-of-life for the Steam bridge: logs the persona name on desktop, null in the browser.
 if (import.meta.env.DEV) void getSteamUser().then(u => console.log('[steam] user:', u))
+// Dev-only smoke-test harness for the Steam networking primitives (window.__steamNet).
+if (import.meta.env.DEV) void import('./steam/steamNetDebug').then(m => m.installSteamNetDebug())
 
 function mount() {
   createRoot(document.getElementById('root')!).render(

@@ -94,6 +94,13 @@ export async function steamNetLeaveLobby(): Promise<void> {
   try { await invokeSteam<void>('steam_net_leave_lobby') } catch { /* ignore */ }
 }
 
+/** Current lobby members' SteamID64 (JS filters out self). Empty off-desktop / no lobby. */
+export async function steamNetMembers(): Promise<string[]> {
+  if (!IS_DESKTOP) return []
+  try { return await invokeSteam<string[]>('steam_net_members') }
+  catch { return [] }
+}
+
 /** Send a reliable message (string payload) to a peer by SteamID64. */
 export async function steamNetSend(to: string, data: string): Promise<boolean> {
   if (!IS_DESKTOP) return false
