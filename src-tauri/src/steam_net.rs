@@ -158,14 +158,12 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: end_code={} state={:?}", raw.m_eEndReason, info.state()));
     }));
     let tx_msg = tx;
-    let msg_log = log_tx;
     loop {
       single.run_callbacks();
       guard("receive", || {
         for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
           if let Some(from) = msg.identity_peer().steam_id() {
             let data = String::from_utf8_lossy(msg.data()).to_string();
-            let _ = msg_log.send(format!("[steam-net:{self_id}] recv from {} ({} bytes)", from.raw(), data.len()));
             let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data });
           }
         }
@@ -270,14 +268,10 @@ pub fn steam_net_send(state: State<'_, SteamState>, to: String, data: String) ->
   let Some(client) = guard.as_ref() else { return false };
   let Ok(raw) = to.parse::<u64>() else { return false };
   let identity = NetworkingIdentity::new_steam_id(SteamId::from_raw(raw));
-  let res = client
+  client
     .networking_messages()
-    .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL);
-  match &res {
-    Ok(()) => log::info!("[steam-net] send to {} ok ({} bytes)", raw, data.len()),
-    Err(e) => log::warn!("[steam-net] send to {} FAILED: {:?}", raw, e),
-  }
-  res.is_ok()
+    .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL)
+    .is_ok()
 }
 
 // Open the Steam overlay invite dialog for the current lobby.
