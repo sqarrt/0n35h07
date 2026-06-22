@@ -9,7 +9,7 @@ import type { IDashTrail } from '../../src/game/abstractions'
 const COLOR = '#4fa'
 const STEP = 1 / 60
 
-/** Прогоняет рывок: позиция едет по +X, dashing=true, durMs миллисекунд. */
+/** Runs a dash: position travels along +X, dashing=true, for durMs milliseconds. */
 function runDash(trail: IDashTrail, durMs: number) {
   const pos = new THREE.Vector3(0, 1.7, 0)
   for (let t = 0; t < durMs / 1000; t += STEP) {
@@ -18,7 +18,7 @@ function runDash(trail: IDashTrail, durMs: number) {
   }
 }
 
-/** Дожигает время без рывка (элементы должны угаснуть). */
+/** Burns time without a dash (elements should fade out). */
 function runIdle(trail: IDashTrail, durMs: number) {
   const pos = new THREE.Vector3(0, 1.7, 0)
   for (let t = 0; t < durMs / 1000; t += STEP) {
@@ -37,7 +37,7 @@ for (const [name, make] of [
   ['rift', () => new RiftTrail(COLOR)],
 ] as const) {
   describe(`${name}Trail`, () => {
-    it('во время рывка появляются видимые элементы, без рывка — гаснут', () => {
+    it('visible elements appear during the dash, fade out without a dash', () => {
       const trail = make()
       runDash(trail, 150)
       expect(trail.aliveCount).toBeGreaterThan(0)
@@ -47,18 +47,18 @@ for (const [name, make] of [
       expect(visibleMeshes(trail.object3d)).toHaveLength(0)
     })
 
-    it('эмит троттлится: за один кадр — не более одного элемента/группы', () => {
+    it('emit is throttled: at most one element/group per frame', () => {
       const trail = make()
       const pos = new THREE.Vector3(0, 1.7, 0)
       trail.update(STEP, { position: pos, dashing: true })
       const after1 = trail.aliveCount
       expect(after1).toBeGreaterThan(0)
       pos.x += 24 * STEP
-      trail.update(STEP, { position: pos, dashing: true })   // 16мс < интервала эмита
+      trail.update(STEP, { position: pos, dashing: true })   // 16ms < emit interval
       expect(trail.aliveCount).toBe(after1)
     })
 
-    it('меши помечены noRaycast; dispose не бросает', () => {
+    it('meshes marked noRaycast; dispose does not throw', () => {
       const trail = make()
       runDash(trail, 100)
       trail.object3d.traverse(o => {
@@ -70,7 +70,7 @@ for (const [name, make] of [
 }
 
 describe('createDashFx', () => {
-  it('создаёт реализацию по стилю', () => {
+  it('creates the implementation for the style', () => {
     expect(createDashFx('streak', COLOR)).toBeInstanceOf(AfterimageTrail)
     expect(createDashFx('wave', COLOR)).toBeInstanceOf(WaveTrail)
     expect(createDashFx('rift', COLOR)).toBeInstanceOf(RiftTrail)

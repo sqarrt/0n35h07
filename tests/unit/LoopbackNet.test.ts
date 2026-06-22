@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { createLoopbackPair } from '../../src/net/LoopbackNet'
 
 describe('LoopbackNet', () => {
-  it('broadcast доходит до второго эндпоинта с from=отправитель', () => {
+  it('broadcast reaches the other endpoint with from=sender', () => {
     const [host, client] = createLoopbackPair('host', 'client')
     const got = vi.fn()
     client.on('input', got)
@@ -10,7 +10,7 @@ describe('LoopbackNet', () => {
     expect(got).toHaveBeenCalledWith({ seq: 1 }, 'host')
   })
 
-  it('on(tag) фильтрует по тегу', () => {
+  it('on(tag) filters by tag', () => {
     const [host, client] = createLoopbackPair()
     const onInput = vi.fn()
     const onSnap = vi.fn()
@@ -21,17 +21,17 @@ describe('LoopbackNet', () => {
     expect(onInput).not.toHaveBeenCalled()
   })
 
-  it('send доставляет только адресату', () => {
+  it('send delivers only to the addressee', () => {
     const [host, client] = createLoopbackPair('host', 'client')
     const got = vi.fn()
     client.on('event', got)
     host.send('client', 'event', { t: 'kill' })
     expect(got).toHaveBeenCalledOnce()
     host.send('nobody', 'event', { t: 'kill' })
-    expect(got).toHaveBeenCalledOnce()   // не вырос
+    expect(got).toHaveBeenCalledOnce()   // did not grow
   })
 
-  it('onPeerJoin видит присутствующего пира; peers() возвращает его', () => {
+  it('onPeerJoin sees the present peer; peers() returns it', () => {
     const [host] = createLoopbackPair('host', 'client')
     const join = vi.fn()
     host.onPeerJoin(join)

@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-// jsdom не реализует WebSocket → мокаем. Управляем «живостью» и латентностью по URL.
+// jsdom does not implement WebSocket → we mock it. Liveness and latency are controlled by URL.
 let isAlive: (url: string) => boolean = () => false
 let latencyFor: (url: string) => number = () => 5
 
-// Имитация Nostr-релея: «живой» открывает сокет, принимает REQ+EVENT и эхо-ит наше событие в нашу подписку
-// (round-trip), как настоящий релей. «Мёртвый» — onerror. Латентность считается до эхо (≈ latencyFor).
+// Fake Nostr relay: a "live" one opens the socket, accepts REQ+EVENT and echoes our event back to our
+// subscription (round-trip), like a real relay. A "dead" one fires onerror. Latency is measured up to the echo (≈ latencyFor).
 class FakeWS {
   onopen: (() => void) | null = null
   onerror: (() => void) | null = null
@@ -29,13 +29,13 @@ class FakeWS {
 
 const LS_KEY = 'oneshot:relays'
 
-// Свежий импорт модуля (у него module-level стор/кеш) после сброса состояния.
+// Fresh module import (it has a module-level store/cache) after resetting state.
 async function freshModule() {
   vi.resetModules()
   return import('../../src/net/relays')
 }
 
-describe('relays — проба живости и кеш', () => {
+describe('relays — liveness probe and cache', () => {
   beforeEach(() => {
     localStorage.clear()
     isAlive = () => false
@@ -43,7 +43,7 @@ describe('relays — проба живости и кеш', () => {
     vi.stubGlobal('WebSocket', FakeWS as unknown as typeof WebSocket)
   })
 
-  it('оставляет только живые релеи, сортирует по латентности, кеширует в localStorage', async () => {
+  it('keeps only live relays, sorts by latency, caches in localStorage', async () => {
     isAlive = url => url.includes('damus') || url.includes('nos.lol')
     latencyFor = url => (url.includes('damus') ? 1 : 120)
     const { warmRelayCache, getStatus, resolveRelaysSync } = await freshModule()
@@ -52,31 +52,31 @@ describe('relays — проба живости и кеш', () => {
 
     expect(selected.length).toBe(2)
     expect(selected.every(u => u.includes('damus') || u.includes('nos.lol'))).toBe(true)
-    expect(selected[0]).toContain('damus')   // меньшая латентность — первой
+    expect(selected[0]).toContain('damus')   // lowest latency comes first
 
     const status = getStatus()
     expect(status.phase).toBe('done')
     expect(status.results.filter(r => r.alive).length).toBe(2)
-    expect(status.results.length).toBeGreaterThan(2)   // пул пробит целиком (живые + мёртвые)
+    expect(status.results.length).toBeGreaterThan(2)   // whole pool was probed (live + dead)
 
     const cached = JSON.parse(localStorage.getItem(LS_KEY)!)
     expect(cached.urls).toEqual(selected)
     expect(resolveRelaysSync()).toEqual(selected)
   })
 
-  it('никого живого → курируемый фолбэк, localStorage не пишется', async () => {
+  it('none alive → curated fallback, localStorage not written', async () => {
     isAlive = () => false
     const { warmRelayCache, resolveRelaysSync } = await freshModule()
 
     const selected = await warmRelayCache()
 
-    expect(selected.length).toBeGreaterThan(0)            // фолбэк непустой
+    expect(selected.length).toBeGreaterThan(0)            // fallback is non-empty
     expect(selected.every(u => u.startsWith('wss://'))).toBe(true)
-    expect(localStorage.getItem(LS_KEY)).toBeNull()       // мёртвую пробу не кешируем
-    expect(resolveRelaysSync()).toEqual(selected)         // sync тоже отдаёт фолбэк
+    expect(localStorage.getItem(LS_KEY)).toBeNull()       // a dead probe is not cached
+    expect(resolveRelaysSync()).toEqual(selected)         // sync also returns the fallback
   })
 
-  it('режет живой набор до лимита KEEP', async () => {
+  it('trims the live set down to the KEEP limit', async () => {
     isAlive = () => true
     const { warmRelayCache } = await freshModule()
 
@@ -85,7 +85,7 @@ describe('relays — проба живости и кеш', () => {
     expect(selected.length).toBe(8)   // KEEP
   })
 
-  it('resolveRelaysSync без пробы отдаёт фолбэк', async () => {
+  it('resolveRelaysSync without a probe returns the fallback', async () => {
     const { resolveRelaysSync } = await freshModule()
     const urls = resolveRelaysSync()
     expect(urls.length).toBeGreaterThan(0)

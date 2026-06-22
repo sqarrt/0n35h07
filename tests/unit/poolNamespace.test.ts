@@ -2,16 +2,16 @@ import { describe, it, expect } from 'vitest'
 import { CLIENT_PLATFORM, CLIENT_VERSION, POOL_NAMESPACE } from '../../src/net/poolNamespace'
 
 describe('poolNamespace', () => {
-  it('платформа в тестовой среде (jsdom, не Tauri) — browser', () => {
+  it('platform in the test environment (jsdom, not Tauri) is browser', () => {
     expect(CLIENT_PLATFORM).toBe('browser')
   })
 
-  it('версия = build-time __APP_VERSION__ (непустая строка)', () => {
+  it('version = build-time __APP_VERSION__ (non-empty string)', () => {
     expect(typeof CLIENT_VERSION).toBe('string')
     expect(CLIENT_VERSION.length).toBeGreaterThan(0)
   })
 
-  it('неймспейс пула = версия:платформа', () => {
+  it('pool namespace = version:platform', () => {
     expect(POOL_NAMESPACE).toBe(`${CLIENT_VERSION}:browser`)
   })
 })

@@ -7,59 +7,59 @@ const listing = (over: Partial<PoolListing> = {}): PoolListing => ({
   code: 'AAAA', name: 'RX-580', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false, ...over,
 })
 
-const NS = '0.5.0:browser'        // неймспейс пула (версия+платформа) — общий для совместимых пиров
+const NS = '0.5.0:browser'        // pool namespace (version+platform) — shared by compatible peers
 
-describe('matchmaking · совместимость (пересечение наборов)', () => {
-  it('пересекаются карты и время → совместимо', () => {
+describe('matchmaking · compatibility (set intersection)', () => {
+  it('maps and durations intersect → compatible', () => {
     expect(listingMatches({ map: ['os_arena'], durationMin: [5] }, listing())).toBe(true)
   })
-  it('карты не пересекаются → несовместимо', () => {
+  it('maps do not intersect → incompatible', () => {
     expect(listingMatches({ map: ['os_india'], durationMin: [5] }, listing())).toBe(false)
   })
-  it('время не пересекается → несовместимо', () => {
+  it('durations do not intersect → incompatible', () => {
     expect(listingMatches({ map: ['os_arena'], durationMin: [10] }, listing())).toBe(false)
   })
-  it('частичное пересечение карт → совместимо', () => {
+  it('partial map intersection → compatible', () => {
     expect(listingMatches({ map: ['os_india', 'os_arena'], durationMin: [5] }, listing({ map: ['os_arena', 'os_pillars'] }))).toBe(true)
   })
 })
 
-describe('matchmaking · резолв (случайный из пересечения)', () => {
+describe('matchmaking · resolve (random from the intersection)', () => {
   const pickFirst = <T>(a: T[]): T => a[0]
-  it('карта/время — из пересечения наборов', () => {
+  it('map/duration come from the set intersection', () => {
     const r = resolveMatchParams({ map: ['os_arena', 'os_india'], durationMin: [5, 10] }, { map: ['os_india', 'os_pillars'], durationMin: [10] }, pickFirst, pickFirst)
     expect(r).toEqual({ mapId: 'os_india', durationMin: 10 })
   })
-  it('единственный общий вариант резолвится в него', () => {
+  it('the single common option resolves to itself', () => {
     const r = resolveMatchParams({ map: ['os_arena'], durationMin: [3] }, { map: ['os_arena'], durationMin: [3] }, pickFirst, pickFirst)
     expect(r).toEqual({ mapId: 'os_arena', durationMin: 3 })
   })
 })
 
-describe('matchmaking · корзины', () => {
-  it('bucketKey включает неймспейс (версия+платформа), карту и время', () => {
+describe('matchmaking · buckets', () => {
+  it('bucketKey includes the namespace (version+platform), map and duration', () => {
     expect(bucketKey('os_arena', 5, NS)).toBe('mm:0.5.0:browser:os_arena:5')
   })
-  it('разные неймспейсы → разные ключи (изоляция версии/платформы)', () => {
+  it('different namespaces → different keys (version/platform isolation)', () => {
     expect(bucketKey('os_arena', 5, '0.5.0:browser')).not.toBe(bucketKey('os_arena', 5, '0.5.0:desktop'))
     expect(bucketKey('os_arena', 5, '0.5.0:browser')).not.toBe(bucketKey('os_arena', 5, '0.5.1:browser'))
   })
-  it('один выбор → одна корзина', () => {
+  it('a single choice → a single bucket', () => {
     expect(bucketsForListing(['os_arena'], [5], NS)).toEqual([`mm:${NS}:os_arena:5`])
   })
-  it('две карты × одно время → 2 корзины', () => {
+  it('two maps × one duration → 2 buckets', () => {
     expect(bucketsForListing(['os_arena', 'os_india'], [5], NS).sort()).toEqual([`mm:${NS}:os_arena:5`, `mm:${NS}:os_india:5`].sort())
   })
-  it('все карты × все длительности → полный кросс (3×3=9)', () => {
+  it('all maps × all durations → full cross (3×3=9)', () => {
     expect(bucketsForListing(['os_arena', 'os_india', 'os_pillars'], [3, 5, 10], NS)).toHaveLength(9)
   })
-  it('фильтр клиента симметричен листингу', () => {
+  it('the client filter is symmetric to the listing', () => {
     expect(bucketsForFilter(['os_india'], [3, 5, 10], NS)).toEqual([`mm:${NS}:os_india:3`, `mm:${NS}:os_india:5`, `mm:${NS}:os_india:10`])
   })
 })
 
-describe('MatchmakingPool · интеграция (Discovery)', () => {
-  it('клиент находит совместимого хоста → onMatch с кодом', () => {
+describe('MatchmakingPool · integration (Discovery)', () => {
+  it('client finds a compatible host → onMatch with the code', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
@@ -69,17 +69,17 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(matched).toEqual(['WXYZ'])
   })
 
-  it('разная версия → не матчится (изоляция пула по неймспейсу)', () => {
+  it('different version → no match (pool isolation by namespace)', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, '0.5.0:browser')
-    const client = new MatchmakingPool(disco, '0.5.1:browser')   // другой патч
+    const client = new MatchmakingPool(disco, '0.5.1:browser')   // different patch
     const matched: string[] = []
     host.advertise({ code: 'WXYZ', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
     client.search({ map: ['os_arena'], durationMin: [5] }, l => { matched.push(l.code); return true })
     expect(matched).toEqual([])
   })
 
-  it('разная платформа → не матчится (десктоп ≠ браузер)', () => {
+  it('different platform → no match (desktop ≠ browser)', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, '0.5.0:desktop')
     const client = new MatchmakingPool(disco, '0.5.0:browser')
@@ -89,7 +89,7 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(matched).toEqual([])
   })
 
-  it('несовместимая карта → не матчится', () => {
+  it('incompatible map → no match', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
@@ -99,7 +99,7 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(matched).toEqual([])
   })
 
-  it('пересечение наборов: хост [arena], клиент [arena,india] → найден (общая корзина)', () => {
+  it('set intersection: host [arena], client [arena,india] → found (shared bucket)', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
@@ -109,7 +109,7 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(matched).toEqual(['XSET'])
   })
 
-  it('reject(code) + повторный search пропускает отклонённый код', () => {
+  it('reject(code) + repeated search skips the rejected code', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
@@ -122,7 +122,7 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(got).toEqual(['AAAA'])
   })
 
-  it('cancel() прекращает поиск', () => {
+  it('cancel() stops the search', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
@@ -133,14 +133,14 @@ describe('MatchmakingPool · интеграция (Discovery)', () => {
     expect(got).toEqual([])
   })
 
-  it('search многоразовый: onMatch→false продолжает слушать, →true останавливает', () => {
+  it('search is reusable: onMatch→false keeps listening, →true stops', () => {
     const disco = new LoopbackDiscovery()
     const host = new MatchmakingPool(disco, NS)
     const client = new MatchmakingPool(disco, NS)
     const seen: string[] = []
     client.search({ map: ['os_arena'], durationMin: [5] }, l => { seen.push(l.code); return false })
     host.advertise({ code: 'AAAA', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: true })
-    // не сконсьюмлено → подписка жива; новый листинг той же корзины снова прилетит
+    // not consumed → subscription stays alive; a new listing in the same bucket arrives again
     const host2 = new MatchmakingPool(disco, NS)
     host2.advertise({ code: 'BBBB', name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: true })
     expect(seen).toEqual(['AAAA', 'BBBB'])

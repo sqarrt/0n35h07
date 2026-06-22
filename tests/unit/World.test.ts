@@ -4,7 +4,7 @@ import { World } from '../../src/game/World'
 import { EYE_HEIGHT } from '../../src/constants'
 
 describe('World', () => {
-  it('raycast() — возвращает ближайший хитбокс и исключает свой entityId', () => {
+  it('raycast() — returns the nearest hitbox and excludes its own entityId', () => {
     const scene = new THREE.Scene()
     const box = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1))
     box.position.set(0, EYE_HEIGHT, -5)

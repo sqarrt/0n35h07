@@ -5,8 +5,8 @@ import type { RosterEntry } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
 
 const ROSTER: RosterEntry[] = [
-  { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-  { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+  { id: 0, name: 'You', color: '#4af', kind: 'human' },
+  { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
 ]
 
 function makeMatch(role: MatchRole, opts: { durationMs?: number; dispatch?: ReturnType<typeof vi.fn> } = {}) {
@@ -24,21 +24,21 @@ function makeMatch(role: MatchRole, opts: { durationMs?: number; dispatch?: Retu
   return { match, dispatch }
 }
 
-describe('Match: конец по времени', () => {
-  it('по истечении durationMs матч ends, исход по фрагам (ничья 0-0)', () => {
+describe('Match: end by time', () => {
+  it('after durationMs the match ends, outcome by frags (draw 0-0)', () => {
     const t0 = 2_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const dispatch = vi.fn()
     const { match } = makeMatch('host', { durationMs: 5000, dispatch })
     match.forceLiveForTest()
-    // Первый кадр: matchEndsAt = t0 + 5000; remaining = 5000 (не конец)
+    // First frame: matchEndsAt = t0 + 5000; remaining = 5000 (not the end)
     match.update(0.016)
     expect(match.phase).toBe('live')
-    // Перемотать время за конец матча
+    // Fast-forward time past the match end
     spy.mockReturnValue(t0 + 5001)
-    match.update(0.016)   // host-ветка: tickMatchClock увидит remaining=0 → endMatch('time')
+    match.update(0.016)   // host branch: tickMatchClock sees remaining=0 → endMatch('time')
     expect(match.phase).toBe('ended')
-    // Стоп-кадр: экран исхода отложен на END_FREEZE_MS — появляется только после паузы.
+    // Freeze frame: the outcome screen is delayed by END_FREEZE_MS — appears only after the pause.
     spy.mockReturnValue(t0 + 5001 + 250)
     match.update(0.016)
     spy.mockRestore()
@@ -49,8 +49,8 @@ describe('Match: конец по времени', () => {
   })
 })
 
-describe('Match: отключение соперника', () => {
-  it('handlePlayerLeft → ended, исход win, reason disconnect', () => {
+describe('Match: opponent disconnect', () => {
+  it('handlePlayerLeft → ended, outcome win, reason disconnect', () => {
     const t0 = 3_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const dispatch = vi.fn()
@@ -58,7 +58,7 @@ describe('Match: отключение соперника', () => {
     match.forceLiveForTest()
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')
-    // Экран исхода отложен на END_FREEZE_MS — диспатчится после стоп-кадра.
+    // The outcome screen is delayed by END_FREEZE_MS — dispatched after the freeze frame.
     spy.mockReturnValue(t0 + 250)
     match.update(0.016)
     spy.mockRestore()

@@ -5,15 +5,15 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-test('сцена рендерится без ошибок', async ({ page }) => {
+test('scene renders without errors', async ({ page }) => {
   const errors: string[] = []
   page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()) })
   await page.waitForTimeout(500)
   expect(errors).toHaveLength(0)
 })
 
-test('HUD бары полные при старте', async ({ page }) => {
-  await unlockPointer(page)   // HUD виден только когда указатель захвачен
+test('HUD bars full at start', async ({ page }) => {
+  await unlockPointer(page)   // HUD is visible only when the pointer is locked
   const bars = await page.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>('div[style]')]
       .map(el => el.style.width)
@@ -22,7 +22,7 @@ test('HUD бары полные при старте', async ({ page }) => {
   expect(bars.length).toBeGreaterThanOrEqual(2)
 })
 
-test('canvas рендерится', async ({ page }) => {
+test('canvas renders', async ({ page }) => {
   await waitForGame(page)
   const canvas = page.locator('canvas')
   await expect(canvas).toBeVisible()

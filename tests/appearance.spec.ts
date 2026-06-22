@@ -6,7 +6,7 @@ test.beforeEach(async ({ page }) => {
   await page.getByTestId('menu-appearance').click()
 })
 
-test('внешность — все блоки на одном экране', async ({ page }) => {
+test('appearance — all blocks on one screen', async ({ page }) => {
   await expect(page.getByRole('heading', { name: en.appearTitle })).toBeVisible()
   await expect(page.getByText(en.appearPrimaryColor)).toBeVisible()
   await expect(page.getByText(en.appearModel)).toBeVisible()
@@ -19,56 +19,56 @@ test('внешность — все блоки на одном экране', as
   await expect(page.getByTestId('appearance-shield-dome')).toBeVisible()
 })
 
-test('внешность — 3D-превью шара (canvas) и подпись слота', async ({ page }) => {
-  await expect(page.locator('canvas').first()).toBeVisible()  // фоновый canvas меню — превью шара
-  await expect(page.getByText(en.appearSlotPrimary, { exact: true })).toBeVisible()   // подпись активного слота
-  // Клик по резервному свотчу переключает превью на резервный слот
+test('appearance — 3D ball preview (canvas) and slot label', async ({ page }) => {
+  await expect(page.locator('canvas').first()).toBeVisible()  // background menu canvas — ball preview
+  await expect(page.getByText(en.appearSlotPrimary, { exact: true })).toBeVisible()   // active slot label
+  // Clicking the reserve swatch switches the preview to the reserve slot
   await page.getByTestId('appearance-reserve-#fa4').click()
   await expect(page.getByText(en.appearSlotReserve, { exact: true })).toBeVisible()
 })
 
-test('внешность — модель сферы переключается и сохраняется', async ({ page }) => {
+test('appearance — sphere model switches and persists', async ({ page }) => {
   await page.getByTestId('appearance-model-waves').click()
   const model = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').ballModel)
-  expect(model).toBe('waves')   // персист в профиль
+  expect(model).toBe('waves')   // persisted to profile
 })
 
-test('внешность — анимация выстрела переключается и сохраняется', async ({ page }) => {
+test('appearance — shot animation switches and persists', async ({ page }) => {
   await page.getByTestId('appearance-windup-rage').click()
   const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').windupStyle)
-  expect(style).toBe('rage')   // персист в профиль
+  expect(style).toBe('rage')   // persisted to profile
 })
 
-test('внешность — анимация респавна переключается и сохраняется', async ({ page }) => {
+test('appearance — respawn animation switches and persists', async ({ page }) => {
   await page.getByTestId('appearance-respawn-chaos').click()
   const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').respawnStyle)
-  expect(style).toBe('chaos')   // персист в профиль
+  expect(style).toBe('chaos')   // persisted to profile
 })
 
-test('внешность — скин следа рывка переключается и сохраняется', async ({ page }) => {
+test('appearance — dash trail skin switches and persists', async ({ page }) => {
   await page.getByTestId('appearance-dash-wave').click()
   const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').dashStyle)
-  expect(style).toBe('wave')   // персист в профиль
+  expect(style).toBe('wave')   // persisted to profile
 })
 
-test('внешность — скин щита переключается и сохраняется', async ({ page }) => {
+test('appearance — shield skin switches and persists', async ({ page }) => {
   await page.getByTestId('appearance-shield-hex').click()
   const style = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').shieldStyle)
-  expect(style).toBe('hex')   // персист в профиль
+  expect(style).toBe('hex')   // persisted to profile
 })
 
-test('внешность — рисунок на шаре: клик по полю сохраняет ballArt в профиль', async ({ page }) => {
+test('appearance — ball art: clicking the field saves ballArt to profile', async ({ page }) => {
   await expect(page.getByText(en.appearPaint, { exact: true })).toBeVisible()
   const front = page.getByTestId('paint-front')
   await expect(front).toBeVisible()
   const box = (await front.boundingBox())!
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)   // центр поля — внутри диска
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)   // center of the field — inside the disc
   const ballArt = await page.evaluate(() => JSON.parse(localStorage.getItem('oneshot:profile') || '{}').ballArt)
   expect(typeof ballArt).toBe('string')
-  expect(ballArt.length).toBe(88)   // 64 байта base64
+  expect(ballArt.length).toBe(88)   // 64 bytes base64
 })
 
-test('внешность — назад → главное меню', async ({ page }) => {
+test('appearance — back → main menu', async ({ page }) => {
   await page.getByTestId('appearance-back').click()
   await expect(page.getByTestId('menu-play')).toBeVisible()
 })

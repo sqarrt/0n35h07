@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
-// Отключаем троттлинг фоновых вкладок Chromium: multiplayer-тесты держат 2 страницы (большинство скрыты),
-// и троттлинг таймеров/рендера тормозит ретраи HELLO в LobbySession → флаки на хендшейке под нагрузкой.
+// Disable Chromium background tab throttling: multiplayer tests keep 2 pages (most of them hidden),
+// and timer/render throttling slows HELLO retries in LobbySession → handshake flakiness under load.
 const NO_BG_THROTTLE = [
   '--disable-background-timer-throttling',
   '--disable-backgrounding-occluded-windows',

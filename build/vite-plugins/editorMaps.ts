@@ -4,12 +4,12 @@ import path from 'node:path'
 import { sendJson, readBody } from './shared'
 
 /**
- * Dev-only мостик редактора карт. Каждая карта — папка src/maps/<id>/ с файлами raw.json / geo.json / preview.png.
- * Эндпоинты (только при `vite serve`, редактор и так dev-only):
- *   GET    /__maps                 → ["id", ...] (папки, где есть raw.json)
- *   GET    /__maps/<id>/<part>     → содержимое файла (preview.png — бинарь)
- *   PUT    /__maps/<id>/<part>     → записать файл (preview.png — тело base64)
- *   DELETE /__maps/<id>            → удалить папку карты
+ * Dev-only bridge for the map editor. Each map is a folder src/maps/<id>/ with files raw.json / geo.json / preview.png.
+ * Endpoints (only under `vite serve`, the editor is dev-only anyway):
+ *   GET    /__maps                 → ["id", ...] (folders that contain raw.json)
+ *   GET    /__maps/<id>/<part>     → file contents (preview.png — binary)
+ *   PUT    /__maps/<id>/<part>     → write file (preview.png — base64 body)
+ *   DELETE /__maps/<id>            → delete the map folder
  * part ∈ { raw.json, geo.json, preview.png }.
  */
 const MAPS_DIR = path.resolve(process.cwd(), 'src/maps')
@@ -26,7 +26,7 @@ export function editorMaps(): Plugin {
         const url = new URL(req.url ?? '/', 'http://localhost')
         const segs = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)  // [] | [id] | [id, part]
         try {
-          // Список карт.
+          // Map list.
           if (req.method === 'GET' && segs.length === 0) {
             await fs.mkdir(MAPS_DIR, { recursive: true })
             const entries = await fs.readdir(MAPS_DIR, { withFileTypes: true })
@@ -41,7 +41,7 @@ export function editorMaps(): Plugin {
           if (!ID_RE.test(id ?? '')) return sendJson(res, 400, { error: 'bad id' })
           const dir = path.join(MAPS_DIR, id)
 
-          // Удаление карты целиком.
+          // Delete the entire map.
           if (req.method === 'DELETE' && segs.length === 1) {
             await fs.rm(dir, { recursive: true, force: true })
             return sendJson(res, 200, { ok: true })
@@ -60,7 +60,7 @@ export function editorMaps(): Plugin {
           if (req.method === 'PUT') {
             const body = await readBody(req)
             await fs.mkdir(dir, { recursive: true })
-            // preview.png приходит как base64; остальное — текст.
+            // preview.png arrives as base64; everything else is text.
             await fs.writeFile(file, part === 'preview.png' ? Buffer.from(body, 'base64') : body, part === 'preview.png' ? undefined : 'utf8')
             return sendJson(res, 200, { ok: true })
           }

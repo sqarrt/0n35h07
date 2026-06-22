@@ -17,7 +17,7 @@ function boxAt(x: number, y: number, z: number, name = ''): THREE.Mesh {
 }
 
 describe('performRaycast', () => {
-  it('находит пересечение с валидным мешем', () => {
+  it('finds an intersection with a valid mesh', () => {
     const target = boxAt(0, 0, -5, 'target')
     const scene = makeScene(target)
     const origin = new THREE.Vector3(0, 0, 0)
@@ -27,7 +27,7 @@ describe('performRaycast', () => {
     expect(hits[0].object).toBe(target)
   })
 
-  it('фильтрует объекты с userData.noRaycast', () => {
+  it('filters out objects with userData.noRaycast', () => {
     const target = boxAt(0, 0, -5, 'target')
     target.userData.noRaycast = true
     const scene = makeScene(target)
@@ -37,7 +37,7 @@ describe('performRaycast', () => {
     expect(hits.length).toBe(0)
   })
 
-  it('фильтрует по excludeNames', () => {
+  it('filters by excludeNames', () => {
     const target = boxAt(0, 0, -5, 'wall')
     const scene = makeScene(target)
     const origin = new THREE.Vector3(0, 0, 0)
@@ -46,7 +46,7 @@ describe('performRaycast', () => {
     expect(hits.length).toBe(0)
   })
 
-  it('фильтрует по excludeEntityIds (исключение по entityId)', () => {
+  it('filters by excludeEntityIds (exclusion by entityId)', () => {
     const own = boxAt(0, 0, -5)
     own.userData.entityId = 1
     const scene = makeScene(own)

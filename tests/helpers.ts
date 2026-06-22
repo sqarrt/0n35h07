@@ -4,26 +4,26 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Проходит главное меню если оно открыто: ИГРАТЬ → вкладка «С ботом» (бот сразу в слоте) →
-// (опц. сложность) → ГОТОВ. 1v1: соперник обязателен — его роль играет бот.
+// Walks through the main menu if it's open: PLAY → "With a bot" tab (bot is immediately in the slot) →
+// (optional difficulty) → READY. 1v1: an opponent is required — a bot plays that role.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-tab-bot').click()            // вкладка «С ботом»: бот авто-добавлен в слот
+  await page.getByTestId('lobby-tab-bot').click()            // "With a bot" tab: bot auto-added to the slot
   if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
-  await page.getByTestId('lobby-ready').click()              // хост готов → оба готовы → старт
+  await page.getByTestId('lobby-ready').click()              // host ready → both ready → start
 }
 
-// Ждём пока R3F инициализируется и смонтирует Game, затем пропускаем ритуал готовности
-// (split-ГОТОВ + 3с отсчёт) — gameplay-тестам нужен сразу бой.
+// Wait until R3F initializes and mounts Game, then skip the ready ritual
+// (split-READY + 3s countdown) — gameplay tests need combat right away.
 export async function waitForGame(page: Page, opts: NavigateOpts = {}) {
   await navigateThroughMenu(page, opts)
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
   await page.evaluate(() => (window as any).__debugForceLive?.())
   await page.waitForFunction(() => (window as any).__debugPhase?.() === 'live', { timeout: 5000 })
-  // forceLive перепрыгивает ритуал+отсчёт, за время которых в реальном флоу успевает загрузиться
-  // Rapier WASM. До привязки мира applyPhysics — no-op (двигаться нельзя) — ждём готовность физики.
+  // forceLive jumps over the ritual+countdown, during which in the real flow Rapier WASM has time to load.
+  // Before the world is bound applyPhysics is a no-op (can't move) — wait for physics to be ready.
   await page.waitForFunction(() => (window as any).__debugPhysicsReady?.() === true, { timeout: 10000 })
 }
 

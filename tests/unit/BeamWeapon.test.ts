@@ -20,14 +20,14 @@ function advance(w: BeamWeapon, c: WeaponContext, ms: number, step = 16) {
 }
 
 describe('BeamWeapon', () => {
-  it('покой: не заряжается, кулдаун готов', () => {
+  it('idle: not winding up, cooldown ready', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     expect(w.isWindingUp).toBe(false)
     expect(w.windupProgress).toBe(0)
     expect(w.cooldownProgress()).toBe(1)
   })
 
-  it('beginWindup() запускает зарядку, прогресс растёт', () => {
+  it('beginWindup() starts the windup, progress grows', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     const c = ctx(() => null)
     w.beginWindup()
@@ -37,7 +37,7 @@ describe('BeamWeapon', () => {
     expect(w.justFired).toBe(false)
   })
 
-  it('выстрел по достижении windup; промах → луч на 100 единиц', () => {
+  it('fires on reaching windup; miss → beam at 100 units', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     const c = ctx(() => null)
     w.beginWindup()
@@ -49,7 +49,7 @@ describe('BeamWeapon', () => {
     expect(w.outcome?.end.z).toBeCloseTo(-100, 0)
   })
 
-  it('попадание в сущность → outcome.hitEntityId', () => {
+  it('hit on an entity → outcome.hitEntityId', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     const hit = { point: new THREE.Vector3(0, 0, -5), object: { userData: { entityId: 2 } } }
     const c = ctx(() => hit as any)
@@ -59,26 +59,26 @@ describe('BeamWeapon', () => {
     expect(w.outcome?.hitPoint).not.toBeNull()
   })
 
-  it('hitOrigin/hitDir заданы → raycast попадания из них (луч прицела), визуал — из дула', () => {
+  it('hitOrigin/hitDir set → hit raycast from them (aim ray), visual — from the muzzle', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     let gotOrigin: THREE.Vector3 | null = null
     let gotDir: THREE.Vector3 | null = null
     const c: WeaponContext = {
       world: { raycast: (o: THREE.Vector3, d: THREE.Vector3) => { gotOrigin = o.clone(); gotDir = d.clone(); return null } } as any,
-      muzzle: new THREE.Vector3(0, 5, 0),     // дуло
+      muzzle: new THREE.Vector3(0, 5, 0),     // muzzle
       aim: new THREE.Vector3(0, 0, -1),
       excludeIds: [],
-      hitOrigin: new THREE.Vector3(3, 1, 3),  // камера (TP, за спиной)
+      hitOrigin: new THREE.Vector3(3, 1, 3),  // camera (TP, behind)
       hitDir: new THREE.Vector3(1, 0, 0),
     }
     w.beginWindup()
     advance(w, c, WINDUP + 50)
     expect(gotOrigin!.x).toBeCloseTo(3); expect(gotOrigin!.y).toBeCloseTo(1); expect(gotOrigin!.z).toBeCloseTo(3)
-    expect(gotDir!.x).toBeCloseTo(1)        // raycast пошёл по hitDir, не по aim(-Z)
-    expect(w.outcome?.end.y).toBeCloseTo(5) // визуал луча всё равно из дула (y=5)
+    expect(gotDir!.x).toBeCloseTo(1)        // raycast followed hitDir, not aim(-Z)
+    expect(w.outcome?.end.y).toBeCloseTo(5) // beam visual still from the muzzle (y=5)
   })
 
-  it('без hitOrigin → raycast попадания из дула вдоль aim (бот/удалённый)', () => {
+  it('without hitOrigin → hit raycast from the muzzle along aim (bot/remote)', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     let gotOrigin: THREE.Vector3 | null = null
     const c: WeaponContext = {
@@ -92,7 +92,7 @@ describe('BeamWeapon', () => {
     expect(gotOrigin!.x).toBeCloseTo(7); expect(gotOrigin!.y).toBeCloseTo(2); expect(gotOrigin!.z).toBeCloseTo(7)
   })
 
-  it('повторный beginWindup во время кулдауна игнорируется', () => {
+  it('repeat beginWindup during cooldown is ignored', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     const c = ctx(() => null)
     w.beginWindup()
@@ -102,22 +102,22 @@ describe('BeamWeapon', () => {
     expect(w.isWindingUp).toBe(false)
   })
 
-  it('interrupt() из windup → idle без выстрела и БЕЗ кулдауна (луча не было)', () => {
+  it('interrupt() from windup → idle without firing and WITHOUT cooldown (no beam happened)', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     w.beginWindup()
     w.interrupt()
     expect(w.isWindingUp).toBe(false)
     expect(w.justFired).toBe(false)
-    expect(w.cooldownProgress()).toBe(1)   // не в кулдауне → можно сразу заряжать снова
+    expect(w.cooldownProgress()).toBe(1)   // not in cooldown → can wind up again right away
   })
 
-  it('interrupt() вне windup — no-op', () => {
+  it('interrupt() outside windup — no-op', () => {
     const w = new BeamWeapon({ windupDuration: WINDUP, cooldownDuration: COOLDOWN })
     w.interrupt()
     expect(w.cooldownProgress()).toBe(1)
   })
 
-  it('делегирует визуал в инжектированный IBeamFx: play при выстреле/playBeam, update каждый кадр, reset', () => {
+  it('delegates visuals to the injected IBeamFx: play on fire/playBeam, update every frame, reset', () => {
     const fake = {
       object3d: new THREE.Group(),
       plays: [] as { start: THREE.Vector3; end: THREE.Vector3 }[],
@@ -131,11 +131,11 @@ describe('BeamWeapon', () => {
     const c = ctx(() => null)
     w.beginWindup()
     advance(w, c, WINDUP + 50)
-    expect(fake.plays.length).toBe(1)                       // выстрел → play
-    expect(fake.plays[0].end.z).toBeCloseTo(-100, 0)        // промах → конец на дальности
-    expect(fake.updates).toBeGreaterThan(0)                 // update — каждый кадр
+    expect(fake.plays.length).toBe(1)                       // fire → play
+    expect(fake.plays[0].end.z).toBeCloseTo(-100, 0)        // miss → end at max range
+    expect(fake.updates).toBeGreaterThan(0)                 // update — every frame
     w.playBeam(new THREE.Vector3(), new THREE.Vector3(0, 0, -5))
-    expect(fake.plays.length).toBe(2)                       // косметический выстрел → play
+    expect(fake.plays.length).toBe(2)                       // cosmetic shot → play
     w.reset()
     expect(fake.resets).toBe(1)
   })

@@ -27,13 +27,13 @@ describe('MatchSfx.combat', () => {
     expect(fake.played('respawn')).toBe(1)
   })
 
-  it('beam_fire НЕ играется по событию fired (звук стартует с начала заряда, см. frame)', () => {
+  it('beam_fire does NOT play on the fired event (sound starts at windup start, see frame)', () => {
     const fake = new FakeSfxEngine()
     new MatchSfx(fake).combat({ t: 'fired', id: 1, end: [0, 0, 0], hitPoint: null, hit: null }, () => pos())
     expect(fake.played('beam_fire')).toBe(0)
   })
 
-  it('игнорирует не-боевые события (scores/time)', () => {
+  it('ignores non-combat events (scores/time)', () => {
     const fake = new FakeSfxEngine()
     new MatchSfx(fake).combat({ t: 'time', remainingMs: 1000 }, () => pos())
     expect(fake.calls.length).toBe(0)
@@ -41,7 +41,7 @@ describe('MatchSfx.combat', () => {
 })
 
 describe('MatchSfx.frame', () => {
-  it('щит off→on: shield_up + startLoop; on→off: shield_down + stopLoop', () => {
+  it('shield off→on: shield_up + startLoop; on→off: shield_down + stopLoop', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ shieldActive: false })])
     sfx.frame([input({ shieldActive: true })])
@@ -52,7 +52,7 @@ describe('MatchSfx.frame', () => {
     expect(fake.calls.some(c => c.method === 'stopLoop')).toBe(true)
   })
 
-  it('заряд false→true → beam_fire (один раз, на НАЧАЛЕ windup)', () => {
+  it('windup false→true → beam_fire (once, at the START of windup)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ windingUp: false })])
     sfx.frame([input({ windingUp: true })])
@@ -60,7 +60,7 @@ describe('MatchSfx.frame', () => {
     expect(fake.played('beam_fire')).toBe(1)
   })
 
-  it('рывок false→true → dash (один раз)', () => {
+  it('dash false→true → dash (once)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ dashing: false })])
     sfx.frame([input({ dashing: true })])
@@ -68,7 +68,7 @@ describe('MatchSfx.frame', () => {
     expect(fake.played('dash')).toBe(1)
   })
 
-  it('прыжок НЕ озвучивается (по запросу — только приземление)', () => {
+  it('jump is NOT sounded (by request — only landing)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     const moves = sfx.frame([input({ justJumped: true })])
     expect(fake.played('jump')).toBe(0)
@@ -82,51 +82,51 @@ describe('MatchSfx.frame', () => {
     expect(fake.played('land')).toBe(1)
   })
 
-  it('cooldown_ready — когда рывок ИЛИ щит перешёл в готов (только локальный)', () => {
+  it('cooldown_ready — when dash OR shield became ready (local only)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ dashReady: false, shieldReady: true })])
-    sfx.frame([input({ dashReady: true, shieldReady: true })])   // рывок стал готов
+    sfx.frame([input({ dashReady: true, shieldReady: true })])   // dash became ready
     expect(fake.played('cooldown_ready')).toBe(1)
   })
 
-  it('move(): озвучивает приземление соперника', () => {
+  it('move(): sounds the opponent landing', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.move('land', new THREE.Vector3())
     expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: частые приземления подряд подавляются (≤ раз в окно)', () => {
+  it('throttle: frequent landings in a row are suppressed (≤ once per window)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ grounded: false })], 0)
     sfx.frame([input({ grounded: true })], 100)    // land #1
     sfx.frame([input({ grounded: false })], 110)
-    sfx.frame([input({ grounded: true })], 120)    // через 20мс → подавлено
+    sfx.frame([input({ grounded: true })], 120)    // after 20ms → suppressed
     expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: одиночное приземление (после полёта) звучит', () => {
+  it('throttle: a single landing (after airtime) plays', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ grounded: false })], 0)
-    sfx.frame([input({ grounded: true })], 500)                    // приземление после полёта → звучит
+    sfx.frame([input({ grounded: true })], 500)                    // landing after airtime → plays
     expect(fake.played('land')).toBe(1)
   })
 
-  it('throttle: пер-игрок (приземление одного не глушит приземление другого)', () => {
+  it('throttle: per-player (one landing does not mute another)', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ id: 0, grounded: false }), input({ id: 1, grounded: false })], 0)
     sfx.frame([input({ id: 0, grounded: true }), input({ id: 1, grounded: true })], 100)
-    expect(fake.played('land')).toBe(2)   // разные игроки — оба слышны
+    expect(fake.played('land')).toBe(2)   // different players — both heard
   })
 
-  it('свои звуки — 2D, соперника — позиционные', () => {
+  it('own sounds are 2D, opponent ones are positional', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ id: 0, isLocal: true, grounded: false }), input({ id: 1, isLocal: false, grounded: false })], 0)
     sfx.frame([input({ id: 0, isLocal: true, grounded: true }), input({ id: 1, isLocal: false, grounded: true })], 100)
-    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'play2D').length).toBe(1)   // свой — непозиционно
-    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'playAt').length).toBe(1)   // соперник — позиционно
+    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'play2D').length).toBe(1)   // own — non-positional
+    expect(fake.calls.filter(c => c.event === 'land' && c.method === 'playAt').length).toBe(1)   // opponent — positional
   })
 
-  it('свой щит-луп — 2D (target=null), соперника — позиционный', () => {
+  it('own shield loop is 2D (target=null), opponent one is positional', () => {
     const fake = new FakeSfxEngine(); const sfx = new MatchSfx(fake)
     sfx.frame([input({ id: 0, isLocal: true, shieldActive: true })])
     sfx.frame([input({ id: 1, isLocal: false, shieldActive: true })])
@@ -135,8 +135,8 @@ describe('MatchSfx.frame', () => {
   })
 })
 
-describe('windup: звук по стилю', () => {
-  it('каждый стиль при наличии ассетов играет свой звук', () => {
+describe('windup: sound by style', () => {
+  it('each style plays its own sound when assets are present', () => {
     const fake = new FakeSfxEngine()
     const sfx = new MatchSfx(fake)
     sfx.frame([input({ id: 1, windingUp: true, windupStyle: 'rage' })])
@@ -147,7 +147,7 @@ describe('windup: звук по стилю', () => {
     expect(fake.played('beam_fire')).toBe(1)
   })
 
-  it('стиль без ассета (буфер не загружен) → фоллбек beam_fire', () => {
+  it('style without an asset (buffer not loaded) → fallback beam_fire', () => {
     const fake = new FakeSfxEngine()
     fake.missing.add('beam_fire_singularity')
     new MatchSfx(fake).frame([input({ windingUp: true, windupStyle: 'singularity' })])
@@ -155,7 +155,7 @@ describe('windup: звук по стилю', () => {
     expect(fake.played('beam_fire_singularity')).toBe(0)
   })
 
-  it('windupSfxEvent: маппинг + фоллбек', () => {
+  it('windupSfxEvent: mapping + fallback', () => {
     const fake = new FakeSfxEngine()
     expect(windupSfxEvent('rage', fake)).toBe('beam_fire_rage')
     fake.missing.add('beam_fire_rage')

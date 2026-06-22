@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'trailer-dist', 'src-tauri/target']),   // build-артефакты — не линтим
+  globalIgnores(['dist', 'trailer-dist', 'src-tauri/target']),   // build artifacts — not linted
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -19,19 +19,19 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // Параметры/переменные с префиксом _ — намеренно неиспользуемые (напр. attachWorld(_rapier)).
+      // Parameters/variables prefixed with _ are intentionally unused (e.g. attachWorld(_rapier)).
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      // Экспериментальные правила React Compiler ложно срабатывают на валидных паттернах проекта:
-      // setState в эффектах (нормальный React) и императивная мутация ref/объектов в R3F useFrame.
+      // Experimental React Compiler rules misfire on valid project patterns:
+      // setState in effects (normal React) and imperative mutation of refs/objects in R3F useFrame.
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',
-      // То же: ложно срабатывает на чтении ref в обработчиках событий (sessionRef/poolRef.current),
-      // которые собираются в пропсы через функцию рендера (buildLobby). Чтение ref в хендлерах — валидно.
+      // Same: misfires on reading refs in event handlers (sessionRef/poolRef.current),
+      // which are collected into props via a render function (buildLobby). Reading refs in handlers is valid.
       'react-hooks/refs': 'off',
     },
   },
   {
-    // Тесты (Vitest/Playwright) — не React: `use` Playwright не хук; window-дебаг-глобалы по природе any.
+    // Tests (Vitest/Playwright) aren't React: Playwright's `use` isn't a hook; window debug globals are any by nature.
     files: ['tests/**/*.{ts,tsx}'],
     rules: {
       'react-hooks/rules-of-hooks': 'off',

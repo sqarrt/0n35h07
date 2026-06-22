@@ -9,7 +9,7 @@ import type { BotPersonality } from '../../src/game/controllers/botPersonality'
 import type { World } from '../../src/game/World'
 import { EYE_HEIGHT } from '../../src/constants'
 
-// Детерминированная агрессивная личность для тестов: мгновенная реакция, точный прицел
+// Deterministic aggressive personality for tests: instant reaction, precise aim
 const FAST_PERSONALITY: BotPersonality = {
   skill:          1,
   hitChance:      1,
@@ -30,14 +30,14 @@ function makePlayer(id = 0) {
   return p
 }
 
-/** World-заглушка: LOS есть — первый хит это соперник с targetId */
+/** World stub: LOS present — the first hit is the opponent with targetId */
 function worldWithLOS(targetId: number): World {
   return {
     raycast: () => ({ object: { userData: { entityId: targetId } }, point: new THREE.Vector3() }) as any,
   } as unknown as World
 }
 
-/** World-заглушка: LOS нет — хит есть, но это стена */
+/** World stub: no LOS — there is a hit, but it is a wall */
 const worldBlocked: World = {
   raycast: () => ({ object: { userData: { entityId: 99 } }, point: new THREE.Vector3() }) as any,
 } as unknown as World
@@ -46,12 +46,12 @@ function makeBot(bot: Player, opp: Player, world: World, passive = false, person
   return new BotController(bot, () => opp, world, passive, personality)
 }
 
-// Личность (детерминизм, диапазоны, инвариант потолка) покрыта в botPersonality.test.ts.
+// Personality (determinism, ranges, cap invariant) is covered in botPersonality.test.ts.
 
 // --- BotController ---
 
 describe('BotController', () => {
-  it('passive — не стреляет, не двигается', () => {
+  it('passive — does not fire, does not move', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
@@ -62,27 +62,27 @@ describe('BotController', () => {
     expect(d.length()).toBeCloseTo(0)
   })
 
-  it('фаза призрака — не стреляет, не поднимает щит', () => {
+  it('ghost phase — does not fire, does not raise the shield', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -3)
     ;(bot as any).respawning = true
     const bc = makeBot(bot, opp, worldWithLOS(opp.id))
-    for (let i = 0; i < 50; i++) bc.update(0.1)   // 5с > fireIntervalMs(1400мс)
+    for (let i = 0; i < 50; i++) bc.update(0.1)   // 5s > fireIntervalMs(1400ms)
     expect(bot.isWindingUp).toBe(false)
     expect(bot.shieldActive).toBe(false)
   })
 
-  it('нет LOS — не стреляет даже при готовом таймере', () => {
+  it('no LOS — does not fire even with the timer ready', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
     const bc = makeBot(bot, opp, worldBlocked)
-    for (let i = 0; i < 40; i++) bc.update(0.1)   // 4с > fireIntervalMs
+    for (let i = 0; i < 40; i++) bc.update(0.1)   // 4s > fireIntervalMs
     expect(bot.isWindingUp).toBe(false)
   })
 
-  it('есть LOS, соперник близко (STRAFE) — начинает заряд после fireIntervalMs', () => {
+  it('LOS present, opponent close (STRAFE) — starts winding up after fireIntervalMs', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)   // dist≈5 < BOT_CHASE_DIST(8) → STRAFE
@@ -92,7 +92,7 @@ describe('BotController', () => {
     expect(started).toBe(true)
   })
 
-  it('нет LOS во время заряда — отменяет заряд', () => {
+  it('no LOS during windup — cancels the windup', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
@@ -111,25 +111,25 @@ describe('BotController', () => {
     expect(bot.isWindingUp).toBe(false)
   })
 
-  it('dodge: reactionMs=0, dodgeSkill=1 → dash при windupProgress>BOT_DODGE_THRESH', () => {
+  it('dodge: reactionMs=0, dodgeSkill=1 → dash when windupProgress>BOT_DODGE_THRESH', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
-    // Shadow property: мокаем windupProgress без доступа к приватному weapon
+    // Shadow property: mock windupProgress without accessing the private weapon
     Object.defineProperty(opp, 'windupProgress', { get: () => 0.5, configurable: true })
     const bc = makeBot(bot, opp, worldWithLOS(opp.id))
     let dashed = false
     const origDash = bot.dash.bind(bot)
     bot.dash = (dir: THREE.Vector3) => { dashed = true; origDash(dir) }
-    bc.update(0.1)   // reactionMs=0 → реагирует в первый же кадр
+    bc.update(0.1)   // reactionMs=0 → reacts on the very first frame
     expect(dashed).toBe(true)
   })
 
-  it('EVADE: ведёт по очкам + соперник вплотную → авто-bhop (держит прыжок)', () => {
+  it('EVADE: leading on score + opponent point-blank → auto-bhop (holds the jump)', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -3)   // dist 3 < BOT_EVADE_NEAR(6)
-    bot.kills = 1                          // ведёт
+    bot.kills = 1                          // leading
     const bc = makeBot(bot, opp, worldWithLOS(opp.id))
     let jumpHeld = false
     const origJump = bot.setJumpInput.bind(bot)
@@ -138,11 +138,11 @@ describe('BotController', () => {
     expect(jumpHeld).toBe(true)
   })
 
-  it('EVADE: не ведёт по очкам → без bhop (jumpiness=0)', () => {
+  it('EVADE: not leading on score → no bhop (jumpiness=0)', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -3)
-    bot.kills = 0; opp.kills = 0           // ничья
+    bot.kills = 0; opp.kills = 0           // tie
     const bc = makeBot(bot, opp, worldWithLOS(opp.id))
     let jumpHeld = false
     const origJump = bot.setJumpInput.bind(bot)
@@ -151,41 +151,41 @@ describe('BotController', () => {
     expect(jumpHeld).toBe(false)
   })
 
-  it('развод на щит: поздний заряд + щит соперника → дэш-отмена, затем настоящий выстрел когда щит ушёл', () => {
+  it('shield bait: late windup + opponent shield → dash-cancel, then a real shot once the shield is gone', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)   // STRAFE, LOS
     const bc = makeBot(bot, opp, worldWithLOS(opp.id), false, { ...FAST_PERSONALITY, baitSkill: 1 })
 
-    // Симулируем поздний СВОЙ заряд бота
+    // Simulate the bot's own late windup
     let winding = true
     Object.defineProperty(bot, 'isWindingUp', { get: () => winding, configurable: true })
     Object.defineProperty(bot, 'windupProgress', { get: () => 0.8, configurable: true })
-    // dash прерывает заряд
+    // dash interrupts the windup
     let dashed = false
     const origDash = bot.dash.bind(bot)
     bot.dash = (dir: THREE.Vector3) => { dashed = true; winding = false; origDash(dir) }
-    // соперник поднял щит
+    // opponent raised the shield
     let oppShield = true
     Object.defineProperty(opp, 'shieldActive', { get: () => oppShield, configurable: true })
-    // считаем настоящие выстрелы
+    // count the real shots
     let realShots = 0
     const origFire = bot.startFiring.bind(bot)
     bot.startFiring = () => { realShots++; origFire() }
 
     bc.update(0.05)
-    expect(dashed).toBe(true)              // дэш-отмена заряда
-    expect(realShots).toBe(0)              // щит ещё активен — настоящего выстрела нет
+    expect(dashed).toBe(true)              // dash-cancel of the windup
+    expect(realShots).toBe(0)              // shield still active — no real shot
 
     bc.update(0.05)
-    expect(realShots).toBe(0)              // щит всё ещё держится
+    expect(realShots).toBe(0)              // shield still holding
 
-    oppShield = false                       // соперник опустил щит
+    oppShield = false                       // opponent dropped the shield
     bc.update(0.05)
-    expect(realShots).toBe(1)              // наказание настоящим выстрелом
+    expect(realShots).toBe(1)              // punish with a real shot
   })
 
-  it('развод на дэш-уворот: соперник дэшит во время заряда → тоже дэш-отмена, выстрел после рывка', () => {
+  it('dash-dodge bait: opponent dashes during windup → dash-cancel too, shot after the dash', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
@@ -197,7 +197,7 @@ describe('BotController', () => {
     let dashed = false
     const origDash = bot.dash.bind(bot)
     bot.dash = (dir: THREE.Vector3) => { dashed = true; winding = false; origDash(dir) }
-    // соперник уворачивается дэшем (а не щитом)
+    // opponent dodges with a dash (not a shield)
     let oppDashing = true
     Object.defineProperty(opp, 'dashing', { get: () => oppDashing, configurable: true })
     let realShots = 0
@@ -205,19 +205,19 @@ describe('BotController', () => {
     bot.startFiring = () => { realShots++; origFire() }
 
     bc.update(0.05)
-    expect(dashed).toBe(true)              // развод сработал на дэш-уворот
-    expect(realShots).toBe(0)              // соперник ещё в рывке
+    expect(dashed).toBe(true)              // bait triggered on the dash-dodge
+    expect(realShots).toBe(0)              // opponent still mid-dash
 
-    oppDashing = false                      // рывок закончился
+    oppDashing = false                      // dash ended
     bc.update(0.05)
-    expect(realShots).toBe(1)              // наказание настоящим выстрелом
+    expect(realShots).toBe(1)              // punish with a real shot
   })
 
-  it('SINGULARITY: при pierceWalls бот видит соперника сквозь стену и открывает огонь', () => {
+  it('SINGULARITY: with pierceWalls the bot sees the opponent through the wall and opens fire', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)
-    // Стена между ними: обычный луч упирается в блок (99), прострел (pierceWalls) видит соперника.
+    // Wall between them: a normal ray hits the block (99), the pierce (pierceWalls) sees the opponent.
     const wallWorld: World = {
       raycast: (_o: THREE.Vector3, _d: THREE.Vector3, _ex: number[] = [], pierce = false) => pierce
         ? ({ object: { userData: { entityId: opp.id } }, point: new THREE.Vector3() }) as any
@@ -225,18 +225,18 @@ describe('BotController', () => {
     } as unknown as World
     const bc = makeBot(bot, opp, wallWorld)
 
-    // Без перегрева — стена закрывает, бот не стреляет
+    // Without overheat — the wall blocks, the bot does not fire
     for (let i = 0; i < 40; i++) bc.update(0.1)
     expect(bot.isWindingUp).toBe(false)
 
-    // Перегрев: pierceWalls → бот должен «увидеть» сквозь стену и зарядить
+    // Overheat: pierceWalls → the bot should "see" through the wall and wind up
     bot.pierceWalls = true
     let started = false
     for (let i = 0; i < 40; i++) { bc.update(0.1); if (bot.isWindingUp) started = true }
     expect(started).toBe(true)
   })
 
-  it('низкий baitSkill → не разводит (заряд не отменяется)', () => {
+  it('low baitSkill → does not bait (windup is not cancelled)', () => {
     const bot = makePlayer(1)
     const opp = makePlayer(0)
     opp.position.set(0, EYE_HEIGHT, -5)

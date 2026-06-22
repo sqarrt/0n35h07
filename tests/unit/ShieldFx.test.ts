@@ -14,7 +14,7 @@ function meshes(root: THREE.Object3D): THREE.Mesh[] {
 }
 
 describe('DomeShieldFx', () => {
-  it('активный пульс держит прозрачности в исторических диапазонах купола', () => {
+  it('active pulse keeps opacities within the dome historical ranges', () => {
     const fx = new DomeShieldFx()
     const [fill, wire] = fx.object3d.children as THREE.Mesh[]
     const fillMat = fill.material as THREE.MeshBasicMaterial
@@ -28,7 +28,7 @@ describe('DomeShieldFx', () => {
     }
   })
 
-  it('неактивный update не трогает материалы', () => {
+  it('inactive update does not touch materials', () => {
     const fx = new DomeShieldFx()
     const fillMat = (fx.object3d.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial
     const before = fillMat.opacity
@@ -40,26 +40,26 @@ describe('DomeShieldFx', () => {
 describe('HexShieldFx', () => {
   const opacity = (m: THREE.Mesh) => (m.material as THREE.MeshBasicMaterial).opacity
 
-  it('волна активации: сразу после включения верхние плитки ярче нижних', () => {
+  it('activation wave: right after turning on, top tiles are brighter than bottom ones', () => {
     const fx = new HexShieldFx()
-    fx.update(0.03, true)   // ~30мс: волна у макушки, низ ещё дежурный
+    fx.update(0.03, true)   // ~30ms: wave near the top, bottom still idle
     const tiles = meshes(fx.object3d)
-    const top = tiles[0]                     // фибоначчи-сфера: плитка 0 у макушки
-    const bottom = tiles[tiles.length - 1]   // последняя — у дна
+    const top = tiles[0]                     // fibonacci sphere: tile 0 near the top
+    const bottom = tiles[tiles.length - 1]   // last one — near the bottom
     expect(opacity(top)).toBeGreaterThan(opacity(bottom) + 0.2)
   })
 
-  it('после прохода волны все плитки в дежурном диапазоне; повторная активация — волна заново', () => {
+  it('after the wave passes all tiles are in the idle range; re-activation — wave again', () => {
     const fx = new HexShieldFx()
-    for (let t = 0; t < 0.8; t += STEP) fx.update(STEP, true)   // > WAVE+FLASH — волна отгорела
+    for (let t = 0; t < 0.8; t += STEP) fx.update(STEP, true)   // > WAVE+FLASH — wave burnt out
     const tiles = meshes(fx.object3d)
-    tiles.forEach(m => expect(opacity(m)).toBeLessThan(0.3))    // дежурное мерцание, без вспышек
-    fx.update(STEP, false)   // деактивация
-    fx.update(0.03, true)    // фронт активации → волна снова у макушки
+    tiles.forEach(m => expect(opacity(m)).toBeLessThan(0.3))    // idle shimmer, no flashes
+    fx.update(STEP, false)   // deactivation
+    fx.update(0.03, true)    // activation front → wave near the top again
     expect(opacity(tiles[0])).toBeGreaterThan(opacity(tiles[tiles.length - 1]) + 0.2)
   })
 
-  it('без active плитки не анимируются', () => {
+  it('without active, tiles are not animated', () => {
     const fx = new HexShieldFx()
     const before = opacity(meshes(fx.object3d)[0])
     fx.update(STEP, false)
@@ -68,27 +68,27 @@ describe('HexShieldFx', () => {
 })
 
 describe('CrystalShieldFx', () => {
-  it('видна ровно одна грань-вспышка, и она меняется со временем', () => {
+  it('exactly one lit face is visible, and it changes over time', () => {
     const fx = new CrystalShieldFx()
     fx.update(STEP, true)
     const litBefore = meshes(fx.object3d).filter(m => m.visible && m.geometry.getAttribute('position').count === 3)
     expect(litBefore).toHaveLength(1)
-    for (let t = 0; t < 0.3; t += STEP) fx.update(STEP, true)   // > периода смены грани
+    for (let t = 0; t < 0.3; t += STEP) fx.update(STEP, true)   // > the face-switch period
     const litAfter = meshes(fx.object3d).filter(m => m.visible && m.geometry.getAttribute('position').count === 3)
     expect(litAfter).toHaveLength(1)
     expect(litAfter[0]).not.toBe(litBefore[0])
   })
 })
 
-describe('общие требования и фабрика', () => {
-  it('меши noRaycast; dispose не бросает', () => {
+describe('common requirements and factory', () => {
+  it('meshes noRaycast; dispose does not throw', () => {
     for (const fx of [new DomeShieldFx(), new HexShieldFx(), new CrystalShieldFx()]) {
       meshes(fx.object3d).forEach(m => expect(m.userData.noRaycast).toBe(true))
       expect(() => fx.dispose()).not.toThrow()
     }
   })
 
-  it('createShieldFx выбирает реализацию по стилю', () => {
+  it('createShieldFx selects implementation by style', () => {
     expect(createShieldFx('dome')).toBeInstanceOf(DomeShieldFx)
     expect(createShieldFx('hex')).toBeInstanceOf(HexShieldFx)
     expect(createShieldFx('crystal')).toBeInstanceOf(CrystalShieldFx)

@@ -6,22 +6,22 @@ const ringStroke = (page: import('@playwright/test').Page) =>
 const ringOffset = (page: import('@playwright/test').Page) =>
   page.evaluate(() => parseFloat(document.querySelector('svg path[stroke-dasharray]')?.getAttribute('stroke-dashoffset') ?? '0'))
 
-test('жизненный цикл щита в HUD: активация → гашение → блок реактивации в кулдауне → бар', async ({ page }) => {
+test('shield lifecycle in HUD: activation → fade → reactivation blocked during cooldown → bar', async ({ page }) => {
   await page.goto('/')
-  await unlockPointer(page, { difficulty: 'passive' })   // одна сессия, инертный бот
+  await unlockPointer(page, { difficulty: 'passive' })   // single session, inert bot
 
-  expect(await ringOffset(page)).toBe(0)                 // бар полный, щит готов
+  expect(await ringOffset(page)).toBe(0)                 // bar full, shield ready
 
   await mouseDown(page, 2)
-  // Активация рендерится асинхронно: жёсткие 100мс под нагрузкой ловили ещё неактивное кольцо (флак).
-  // Активное состояние держится SHIELD_DURATION (800мс) — поллинг его не пропустит.
-  await expect.poll(() => ringStroke(page)).toBe('#6af')             // кольцо активно
+  // Activation renders asynchronously: a hard 100ms under load caught the still-inactive ring (flake).
+  // The active state holds for SHIELD_DURATION (800ms) — polling won't miss it.
+  await expect.poll(() => ringStroke(page)).toBe('#6af')             // ring active
 
-  await expect.poll(() => ringStroke(page), { timeout: 5000 }).not.toBe('#6af')   // кольцо погасло после 800мс
-  expect(await ringOffset(page)).toBeGreaterThan(0)      // бар ушёл на кулдаун (2000мс — успеваем)
+  await expect.poll(() => ringStroke(page), { timeout: 5000 }).not.toBe('#6af')   // ring faded after 800ms
+  expect(await ringOffset(page)).toBeGreaterThan(0)      // bar went on cooldown (2000ms — we make it)
 
-  await mouseDown(page, 2)                               // повтор в кулдауне — не активирует (логику ловит Shield.test)
+  await mouseDown(page, 2)                               // repeat during cooldown — doesn't activate (logic covered by Shield.test)
   await page.waitForTimeout(150)
-  expect(await ringStroke(page)).not.toBe('#6af')        // кольцо не вернулось
-  expect(await ringOffset(page)).toBeGreaterThan(0)      // и мы всё ещё в кулдауне — проверка не выродилась
+  expect(await ringStroke(page)).not.toBe('#6af')        // ring did not return
+  expect(await ringOffset(page)).toBeGreaterThan(0)      // and we're still in cooldown — the check didn't degenerate
 })

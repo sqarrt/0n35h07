@@ -1,9 +1,9 @@
 /**
- * Анализатор демо-записи: выявляет интересные моменты для монтажа трейлера.
- * Запуск:  node scripts/analyzeDemo.mjs <путь к .demo.json>
+ * Demo recording analyzer: finds interesting moments for trailer editing.
+ * Run:  node scripts/analyzeDemo.mjs <path to .demo.json>
  *
- * Выводит таймкоды (mm:ss.d) + индекс кадра + описание: киллы (с тиром серии/CATALYST/мультикилл),
- * идеальные блоки, и вид POV-игрока (FP/TP) в этот момент. По этому списку выбираем куски (from..to).
+ * Prints timecodes (mm:ss.d) + frame index + description: kills (with streak tier/CATALYST/multikill),
+ * perfect blocks, and the POV player's view (FP/TP) at that moment. We pick clips (from..to) from this list.
  */
 import { readFileSync } from 'node:fs'
 
@@ -12,7 +12,7 @@ if (!path) { console.error('usage: node scripts/analyzeDemo.mjs <file.demo.json>
 const demo = JSON.parse(readFileSync(path, 'utf8'))
 
 const TIER = { double: 'DOUBLE', triple: 'TRIPLE', singularity: 'SINGULARITY' }
-const MULTI_WINDOW_MS = 3500   // киллы одного стрелка в этом окне = мультикилл
+const MULTI_WINDOW_MS = 3500   // one shooter's kills within this window = multikill
 
 const fmt = ms => {
   const s = ms / 1000
@@ -20,12 +20,12 @@ const fmt = ms => {
 }
 const nameOf = id => demo.roster.find(r => r.id === id)?.name ?? `#${id}`
 
-// Кадр → tMs/индекс по событию: каждое событие лежит в кадре f (есть f.tMs).
+// Frame → tMs/index per event: every event lives in frame f (has f.tMs).
 const moments = []
-let lastKill = {}   // shooterId → { tMs, count } для детекта мультикиллов
+let lastKill = {}   // shooterId → { tMs, count } for multikill detection
 
 demo.frames.forEach((f, i) => {
-  // POV-вид: тело локального скрыто → FP, иначе TP.
+  // POV view: local body hidden → FP, otherwise TP.
   const pov = f.players.find(p => p.id === demo.localId)
   const view = pov ? (pov.bodyVisible ? 'TP' : 'FP') : '?'
   for (const e of f.events) {
@@ -38,16 +38,16 @@ demo.frames.forEach((f, i) => {
         e.firstBlood ? 'CATALYST(1st blood)' : '',
         tier ? `streak:${tier}` : '',
         multi ? `MULTI x${lastKill[e.shooter].count}` : '',
-        e.victim === demo.localId ? 'я погиб' : (e.shooter === demo.localId ? 'мой килл' : ''),
+        e.victim === demo.localId ? 'I died' : (e.shooter === demo.localId ? 'my kill' : ''),
       ].filter(Boolean).join(' ')
       moments.push({ tMs: f.tMs, i, kind: 'KILL', desc: `${nameOf(e.shooter)} → ${nameOf(e.victim)} ${tags} [${view}]` })
     } else if (e.t === 'block' && e.perfect) {
-      moments.push({ tMs: f.tMs, i, kind: 'PERFECT BLOCK', desc: `${nameOf(e.victim)} сблокировал ${nameOf(e.shooter)} [${view}]` })
+      moments.push({ tMs: f.tMs, i, kind: 'PERFECT BLOCK', desc: `${nameOf(e.victim)} blocked ${nameOf(e.shooter)} [${view}]` })
     }
   }
 })
 
 console.log(`demo: ${path}`)
-console.log(`карта ${demo.mapId} · кадров ${demo.frames.length} · длит. ${fmt(demo.frames[demo.frames.length - 1].tMs)} · POV ${nameOf(demo.localId)}`)
-console.log(`моментов: ${moments.length}\n`)
+console.log(`map ${demo.mapId} · frames ${demo.frames.length} · duration ${fmt(demo.frames[demo.frames.length - 1].tMs)} · POV ${nameOf(demo.localId)}`)
+console.log(`moments: ${moments.length}\n`)
 for (const m of moments) console.log(`${fmt(m.tMs)}  f${m.i}\t${m.kind}\t${m.desc}`)

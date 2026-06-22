@@ -14,7 +14,7 @@ function makePlayer(id = 1) {
 
 const dummyWorld = { raycast: () => null } as any
 
-/** Оружие-заглушка: запоминает направление прицела, переданное из Player.update. */
+/** Stub weapon: remembers the aim direction passed from Player.update. */
 class StubWeapon implements IWeapon {
   object3d = new THREE.Group()
   isWindingUp = false
@@ -33,21 +33,21 @@ class StubWeapon implements IWeapon {
 }
 
 describe('Player', () => {
-  it('receiveHit() без щита → killed, alive=false, ставит respawnTimer', () => {
+  it('receiveHit() without a shield → killed, alive=false, sets respawnTimer', () => {
     const p = makePlayer()
     expect(p.receiveHit()).toBe('killed')
     expect(p.alive).toBe(false)
     expect(p.respawnTimer).toBeGreaterThan(0)
   })
 
-  it('receiveHit() с активным щитом → blocked, остаётся жив', () => {
+  it('receiveHit() with an active shield → blocked, stays alive', () => {
     const p = makePlayer()
-    p.activateShield()                 // щит активен сразу после activate()
+    p.activateShield()                 // shield is active right after activate()
     expect(p.receiveHit()).toBe('blocked')
     expect(p.alive).toBe(true)
   })
 
-  it('respawnAt() восстанавливает и переставляет', () => {
+  it('respawnAt() restores and repositions', () => {
     const p = makePlayer()
     p.receiveHit()
     p.respawnAt(new THREE.Vector3(3, 1.7, -2))
@@ -56,27 +56,27 @@ describe('Player', () => {
     expect(p.position.z).toBe(-2)
   })
 
-  it('moveIntent() копит намерение (интеграцию делает Rapier KCC)', () => {
+  it('moveIntent() accumulates intent (Rapier KCC does the integration)', () => {
     const p = makePlayer()
     p.moveIntent(new THREE.Vector3(2, 0, 0), 1)
-    p.stepHorizontal(0.016, null)   // скоростная модель реализует намерение в desired
+    p.stepHorizontal(0.016, null)   // the velocity model turns intent into desired
     expect(p.consumeDesired().x).toBeGreaterThan(0)
   })
 
-  it('startFiring() переводит оружие в зарядку (вшитый кулдаун)', () => {
+  it('startFiring() puts the weapon into windup (built-in cooldown)', () => {
     const p = makePlayer()
     expect(p.isWindingUp).toBe(false)
     p.startFiring()
     expect(p.isWindingUp).toBe(true)
   })
 
-  // --- регрессии после ООП-рефакторинга ---
+  // --- regressions after the OOP refactor ---
 
-  it('луч сходится В ТОЧКУ прицела от дула, а не параллельно (фикс TP)', () => {
+  it('beam converges TO the aim point from the muzzle, not parallel (TP fix)', () => {
     const stub = new StubWeapon()
     const p = new Player(0, new Body(0, '#4af'), stub, new Shield(), '#4af')
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    const point = new THREE.Vector3(0, 1.0, -10)        // ниже линии глаз
+    const point = new THREE.Vector3(0, 1.0, -10)        // below the eye line
     p.aim(point)
     p.update(0.016, dummyWorld, [])
     const muzzle = new THREE.Vector3(0, 1.7 + MUZZLE_Y, 0)
@@ -84,70 +84,70 @@ describe('Player', () => {
     expect(stub.lastAim!.x).toBeCloseTo(expected.x)
     expect(stub.lastAim!.y).toBeCloseTo(expected.y)
     expect(stub.lastAim!.z).toBeCloseTo(expected.z)
-    expect(stub.lastAim!.y).toBeLessThan(0)             // целимся вниз — не параллельно
+    expect(stub.lastAim!.y).toBeLessThan(0)             // aiming down — not parallel
   })
 
-  it('в FP (тело скрыто) пузырь щита не рисуется (фикс FP)', () => {
+  it('in FP (body hidden) the shield bubble is not drawn (FP fix)', () => {
     const shield = new Shield()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), shield, '#4af')
     p.setBodyVisible(false)
     p.activateShield()
     p.update(0.016, dummyWorld, [])
-    expect(shield.object3d.visible).toBe(false)         // скрыт, хотя щит активен
+    expect(shield.object3d.visible).toBe(false)         // hidden even though the shield is active
     p.setBodyVisible(true)
     p.update(0.016, dummyWorld, [])
-    expect(shield.object3d.visible).toBe(true)          // в TP виден
+    expect(shield.object3d.visible).toBe(true)          // visible in TP
   })
 
-  it('setFrozen(true) подавляет движение/выстрел/щит, но не прицел', () => {
+  it('setFrozen(true) suppresses movement/firing/shield, but not aiming', () => {
     const p = makePlayer()
     p.setFrozen(true)
     p.moveIntent(new THREE.Vector3(5, 0, 0), 1)
-    expect(p.consumeDesired().x).toBe(0)         // движение заморожено
+    expect(p.consumeDesired().x).toBe(0)         // movement frozen
     p.startFiring()
-    expect(p.isWindingUp).toBe(false)            // выстрел заморожен
+    expect(p.isWindingUp).toBe(false)            // firing frozen
     p.activateShield()
-    expect(p.shieldActive).toBe(false)           // щит заморожен
+    expect(p.shieldActive).toBe(false)           // shield frozen
     p.setFrozen(false)
     p.moveIntent(new THREE.Vector3(5, 0, 0), 1)
     p.stepHorizontal(0.016, null)
-    expect(p.consumeDesired().x).toBeGreaterThan(0)  // разморозили — двигается
+    expect(p.consumeDesired().x).toBeGreaterThan(0)  // unfrozen — moves
   })
 
-  it('в FP (тело скрыто) свой след дэша не рисуется', () => {
+  it('in FP (body hidden) own dash trail is not drawn', () => {
     const p = makePlayer()
     p.setBodyVisible(false)
-    expect(p.trailObject.visible).toBe(false)   // камера внутри тела — клоны не показываем
+    expect(p.trailObject.visible).toBe(false)   // camera inside the body — we don't show the clones
     p.setBodyVisible(true)
-    expect(p.trailObject.visible).toBe(true)     // в TP / у других игроков виден
+    expect(p.trailObject.visible).toBe(true)     // visible in TP / for other players
   })
 
-  it('dash во время заряда прерывает выстрел БЕЗ кулдауна (луча не было)', () => {
+  it('dash during windup interrupts the shot WITHOUT a cooldown (there was no beam)', () => {
     const p = makePlayer()
     p.startFiring()
     expect(p.isWindingUp).toBe(true)
     p.dash(new THREE.Vector3(0, 0, -1))
     expect(p.isWindingUp).toBe(false)
-    expect(p.beamCooldownProgress()).toBe(1)   // заряд прерван без выстрела → кулдаун не начисляется
+    expect(p.beamCooldownProgress()).toBe(1)   // windup interrupted without firing → no cooldown charged
   })
 
-  it('dash без направления — не рвёт и не прерывает заряд', () => {
+  it('dash without a direction — does not dash and does not interrupt windup', () => {
     const p = makePlayer()
     p.startFiring()
     p.dash(new THREE.Vector3(0, 0, 0))
     expect(p.isWindingUp).toBe(true)
   })
 
-  it('смерть запускает фазу призрака: alive=false, isRespawning, атака заблокирована', () => {
+  it('death starts the ghost phase: alive=false, isRespawning, attack blocked', () => {
     const p = makePlayer()
     expect(p.receiveHit()).toBe('killed')
     expect(p.alive).toBe(false)
     expect(p.isRespawning).toBe(true)
-    p.startFiring();    expect(p.isWindingUp).toBe(false)   // стрелять нельзя
-    p.activateShield(); expect(p.shieldActive).toBe(false)  // щит нельзя
+    p.startFiring();    expect(p.isWindingUp).toBe(false)   // can't fire
+    p.activateShield(); expect(p.shieldActive).toBe(false)  // can't shield
   })
 
-  it('призрак движется в RESPAWN_SPEED_MULT раз быстрее обычного', () => {
+  it('the ghost moves RESPAWN_SPEED_MULT times faster than usual', () => {
     const live = makePlayer()
     live.moveIntent(new THREE.Vector3(MOVE_SPEED, 0, 0), 1)
     const liveDx = live.consumeDesired().x
@@ -158,13 +158,13 @@ describe('Player', () => {
     expect(ghost.consumeDesired().x).toBeCloseTo(liveDx * RESPAWN_SPEED_MULT)
   })
 
-  it('повторный hit по призраку — blocked (нет двойного килла)', () => {
+  it('a repeated hit on the ghost — blocked (no double kill)', () => {
     const p = makePlayer()
     expect(p.receiveHit()).toBe('killed')
     expect(p.receiveHit()).toBe('blocked')
   })
 
-  it('respawnAt материализует на месте: alive, !isRespawning, атака снова доступна', () => {
+  it('respawnAt materializes in place: alive, !isRespawning, attack available again', () => {
     const p = makePlayer()
     p.receiveHit()
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
@@ -173,24 +173,24 @@ describe('Player', () => {
     p.startFiring(); expect(p.isWindingUp).toBe(true)
   })
 
-  it('возрождение сбрасывает ВСЕ кулдауны (луч/щит/дэш готовы)', () => {
+  it('respawn resets ALL cooldowns (beam/shield/dash ready)', () => {
     const p = makePlayer()
     p.startFiring()
-    p.update(0.5, dummyWorld, [])            // > windup → выстрел → кулдаун луча
-    p.activateShield()                        // щит → кулдаун
-    p.dash(new THREE.Vector3(0, 0, -1))       // дэш → кулдаун
+    p.update(0.5, dummyWorld, [])            // > windup → shot → beam cooldown
+    p.activateShield()                        // shield → cooldown
+    p.dash(new THREE.Vector3(0, 0, -1))       // dash → cooldown
     expect(p.beamCooldownProgress()).toBeLessThan(1)
     expect(p.dashCooldownProgress()).toBeLessThan(1)
 
-    p.receiveHit()                            // смерть → призрак
-    p.respawnAt(new THREE.Vector3(0, 1.7, 0)) // материализация
+    p.receiveHit()                            // death → ghost
+    p.respawnAt(new THREE.Vector3(0, 1.7, 0)) // materialization
     expect(p.beamCooldownProgress()).toBe(1)
     expect(p.shieldProgress()).toBe(1)
     expect(p.dashCooldownProgress()).toBe(1)
   })
 })
 
-/** Фейковая стратегия: записывает последний кадр. */
+/** Fake strategy: records the last frame. */
 class FakeWindupFx implements IWindupFx {
   object3d = new THREE.Group()
   lastFrame: WindupFrame | null = null
@@ -199,13 +199,13 @@ class FakeWindupFx implements IWindupFx {
 }
 
 describe('Player + IWindupFx', () => {
-  it('дефолт — classic (без явного fx Player создаётся и ведёт себя как раньше)', () => {
+  it('default — classic (without an explicit fx, Player is created and behaves as before)', () => {
     const p = makePlayer()
     expect(p.windupStyle).toBe('classic')
     expect(p.windupFxObject).toBeDefined()
   })
 
-  it('прокидывает progress заряда в стратегию', () => {
+  it('passes windup progress into the strategy', () => {
     const stub = new StubWeapon()
     const fx = new FakeWindupFx()
     const p = new Player(0, new Body(0, '#4af'), stub, new Shield(), '#4af', fx, 'rage')
@@ -217,7 +217,7 @@ describe('Player + IWindupFx', () => {
     expect(fx.lastFrame!.visible).toBe(true)
   })
 
-  it('призрак (смерть) скрывает world-объект стратегии', () => {
+  it('the ghost (death) hides the strategy world object', () => {
     const fx = new FakeWindupFx()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af', fx, 'classic')
     fx.object3d.visible = true
@@ -226,7 +226,7 @@ describe('Player + IWindupFx', () => {
     expect(fx.object3d.visible).toBe(false)
   })
 
-  it('призрак скрывает world-объект и в updateRemote (сетевой путь)', () => {
+  it('the ghost hides the world object in updateRemote too (network path)', () => {
     const fx = new FakeWindupFx()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af', fx, 'classic')
     fx.object3d.visible = true
@@ -238,7 +238,7 @@ describe('Player + IWindupFx', () => {
 
 import type { IRespawnFx, RespawnTarget, RespawnFrame } from '../../src/game/fx/respawn/types'
 
-/** Фейковая стратегия респавна: пишет события и последний кадр. */
+/** Fake respawn strategy: records events and the last frame. */
 class FakeRespawnFx implements IRespawnFx {
   object3d = new THREE.Group()
   deaths: THREE.Vector3[] = []
@@ -251,13 +251,13 @@ class FakeRespawnFx implements IRespawnFx {
 }
 
 describe('Player + IRespawnFx', () => {
-  it('дефолт — echo, world-объект доступен', () => {
+  it('default — echo, world object is available', () => {
     const p = makePlayer()
     expect(p.respawnStyle).toBe('echo')
     expect(p.respawnFxObject).toBeDefined()
   })
 
-  it('смерть дёргает onDeath; кадр призрака прокидывает ghost-прогресс', () => {
+  it('death triggers onDeath; the ghost frame passes the ghost progress', () => {
     const fx = new FakeRespawnFx()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
       undefined, undefined, fx, 'chaos')
@@ -265,11 +265,11 @@ describe('Player + IRespawnFx', () => {
     p.receiveHit()
     expect(fx.deaths.length).toBe(1)
     p.update(0.016, dummyWorld, [])
-    expect(fx.lastFrame!.ghost).toBeGreaterThan(0.9)            // фаза только началась (остаток ~1)
+    expect(fx.lastFrame!.ghost).toBeGreaterThan(0.9)            // the phase just started (remainder ~1)
     expect(p.respawnStyle).toBe('chaos')
   })
 
-  it('после respawnAt кадр уходит из ghost (ghost=null, sinceRebirthMs мал)', () => {
+  it('after respawnAt the frame leaves ghost (ghost=null, sinceRebirthMs small)', () => {
     const fx = new FakeRespawnFx()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
       undefined, undefined, fx, 'echo')
@@ -283,7 +283,7 @@ describe('Player + IRespawnFx', () => {
 
 import type { IDashTrail, DashTrailContext } from '../../src/game/abstractions'
 
-/** Фейковый след рывка: пишет dashing-флаги, которые видел. */
+/** Fake dash trail: records the dashing flags it saw. */
 class FakeDashTrail implements IDashTrail {
   object3d = new THREE.Group()
   aliveCount = 0
@@ -292,14 +292,14 @@ class FakeDashTrail implements IDashTrail {
   dispose() {}
 }
 
-describe('Player + IDashTrail (скин следа рывка)', () => {
-  it('дефолт — streak, world-объект доступен', () => {
+describe('Player + IDashTrail (dash trail skin)', () => {
+  it('default — streak, world object is available', () => {
     const p = makePlayer()
     expect(p.dashStyle).toBe('streak')
     expect(p.trailObject).toBeDefined()
   })
 
-  it('инжектированный трейл получает dashing=true в кадре рывка', () => {
+  it('the injected trail gets dashing=true on the dash frame', () => {
     const fx = new FakeDashTrail()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
       undefined, undefined, undefined, undefined, fx, 'wave')
@@ -313,13 +313,13 @@ describe('Player + IDashTrail (скин следа рывка)', () => {
     expect(p.trailObject).toBe(fx.object3d)
   })
 
-  it('призрак НЕ переиспользует скин рывка: след призрака рисует стратегия респавна', () => {
+  it('the ghost does NOT reuse the dash skin: the ghost trail is drawn by the respawn strategy', () => {
     const fx = new FakeDashTrail()
     const p = new Player(0, new Body(0, '#4af'), new StubWeapon(), new Shield(), '#4af',
       undefined, undefined, undefined, undefined, fx, 'rift')
     p.respawnAt(new THREE.Vector3(0, 1.7, 0))
-    p.receiveHit()                            // фаза призрака (echo — свой след внутри respawnFx)
+    p.receiveHit()                            // ghost phase (echo — its own trail inside respawnFx)
     p.update(0.016, dummyWorld, [])
-    expect(fx.dashingLog).toEqual([false])    // скин рывка молчит в фазе призрака
+    expect(fx.dashingLog).toEqual([false])    // the dash skin stays silent during the ghost phase
   })
 })

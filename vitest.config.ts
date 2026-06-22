@@ -4,7 +4,7 @@ import pkg from './package.json'
 
 export default defineConfig({
   plugins: [react()],
-  // Версия игры — как в vite.config.ts (конфиги независимы, источник один — package.json).
+  // Game version — same as in vite.config.ts (configs are independent, single source — package.json).
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
