@@ -100,6 +100,9 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
   let lobby: Arc<Mutex<Option<LobbyId>>> = Arc::new(Mutex::new(None));
   let self_id = client.user().steam_id().raw();
   let (tx, rx) = std::sync::mpsc::channel::<NetEvent>();
+  // Diagnostics enqueued from inside callbacks (which hold the Steam lock) and printed OUTSIDE it
+  // — printing to the captured console is slow on Windows and starves the SDR service thread.
+  let (log_tx, log_rx) = std::sync::mpsc::channel::<String>();
 
   // Lobby membership changes → peerJoin / peerLeave (enqueue only).
   let tx_chat = tx.clone();
@@ -124,35 +127,37 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _cb_chat = cb_chat;
     let _cb_join = cb_join;
     let nm = pump_client.networking_messages();
-    // Accept incoming sessions (the lobby flow gates who can reach us; 1v1). Fast: just accept.
+    // Accept incoming sessions — ZERO I/O here (runs under the Steam lock): just accept + enqueue
+    // a diagnostic. Doing console/IPC work here starves the SDR service thread (ClosedByPeer).
+    let req_log = log_tx.clone();
     nm.session_request_callback(move |req| guard("session_request", || {
       let who = req.remote().steam_id().map(|s| s.raw().to_string()).unwrap_or_else(|| req.remote().debug_string());
-      eprintln!("[steam-net:{self_id}] session request from {who} — accepting");
       req.accept();
+      let _ = req_log.send(format!("[steam-net:{self_id}] session request from {who} — accepted"));
     }));
-    // Log session failures. A transient first failure is normal (direct attempt fails → relay
-    // fallback) and must NOT kill the pump. end_reason() panics in the crate on codes its enum
-    // doesn't list, so isolate it behind its own catch.
+    // Session failures: enqueue a diagnostic only (no I/O, no end_reason() — it panics on codes the
+    // crate's enum doesn't list, and it tells us nothing useful). A transient first failure is normal.
+    let fail_log = log_tx.clone();
     nm.session_failed_callback(move |info| guard("session_failed", || {
       let who = info.identity_remote().and_then(|i| i.steam_id()).map(|s| s.raw().to_string()).unwrap_or_default();
-      let reason = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| info.end_reason()))
-        .map(|r| format!("{r:?}")).unwrap_or_else(|_| "<unmapped end code>".to_string());
-      eprintln!("[steam-net:{self_id}] session failed with {who}: end_reason={reason} state={:?}", info.state());
+      let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: state={:?}", info.state()));
     }));
     let tx_msg = tx;
+    let msg_log = log_tx;
     loop {
       single.run_callbacks();
       guard("receive", || {
         for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
           if let Some(from) = msg.identity_peer().steam_id() {
             let data = String::from_utf8_lossy(msg.data()).to_string();
-            eprintln!("[steam-net:{self_id}] recv from {} ({} bytes)", from.raw(), data.len());
+            let _ = msg_log.send(format!("[steam-net:{self_id}] recv from {} ({} bytes)", from.raw(), data.len()));
             let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data });
           }
         }
       });
-      // Outside the Steam lock window: emit queued events to JS (slow webview IPC is OK here).
+      // Outside the Steam lock window: emit queued events + print diagnostics (both can be slow).
       while let Ok(ev) = rx.try_recv() { emit(&pump_app, ev); }
+      while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
   });
