@@ -34,6 +34,7 @@ import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
+import { applyScreenPresence } from './steam/richPresence'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -354,6 +355,9 @@ export default function App() {
 
   // Warm map previews on start: by the time the room opens, the images are already in the HTTP cache (see warmMapPreviews).
   useEffect(() => { warmMapPreviews() }, [])
+
+  // Steam Rich Presence: reflect the current screen (menu / lobby / match) in the friends list. No-op off-Steam.
+  useEffect(() => { applyScreenPresence(screen) }, [screen])
 
   // Accidental F5/Ctrl+W in a live match must not silently kill the fight — the browser will ask for confirmation.
   // On desktop (Tauri) we don't set the guard: there beforeunload without a dialog just blocks closing the window.

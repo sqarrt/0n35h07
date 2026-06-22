@@ -43,6 +43,16 @@ pub fn steam_unlock_achievement(state: State<'_, SteamState>, name: String) -> b
   stats.store_stats().is_ok()
 }
 
+// Set (or clear, with value = None) a Steam Rich Presence key — shown in the friends list /
+// the user's profile. The `steam_display` key takes a localization token defined in the partner
+// portal. No-op without Steam. Returns whether the call succeeded.
+#[tauri::command]
+pub fn steam_set_rich_presence(state: State<'_, SteamState>, key: String, value: Option<String>) -> bool {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return false };
+  client.friends().set_rich_presence(&key, value.as_deref())
+}
+
 // --- Steam Cloud (Remote Storage) ---
 // One named file per blob; the game decides the format. All three soft-fail without Steam.
 
