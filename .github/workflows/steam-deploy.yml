@@ -11,18 +11,13 @@ on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+*"
-  pull_request:
-    types: [labeled]   # manual: add the "steam-deploy" label to a PR to push that build to beta
-  workflow_dispatch:
+  workflow_dispatch:   # manual "Run workflow" button (GitLab-style) — visible once this file is on the default branch
 
 permissions:
   contents: read
 
 jobs:
   steam:
-    # On a PR, run ONLY when the "steam-deploy" label is added (manual gate). Tags and manual
-    # dispatch always run. (Same-repo PRs only — fork PRs have no access to the Steam secrets.)
-    if: github.event_name != 'pull_request' || github.event.label.name == 'steam-deploy'
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
