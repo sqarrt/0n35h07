@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.5.7"
+version = "0.5.9"
 description = "0N35H07 — arcade 1v1 FPS"
 authors = ["Dmitry Shatalov"]
 license = ""
