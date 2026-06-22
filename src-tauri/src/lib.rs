@@ -37,13 +37,25 @@ fn purge_stale_service_worker() {
   let _ = std::fs::write(&marker, current_version);
 }
 
+mod steam;
+use std::sync::Mutex;
+use steam::SteamState;
+
+// Steam App ID (Steamworks partner portal). steam_appid.txt mirrors it for dev launches.
+const STEAM_APP_ID: u32 = 4881310;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   // BEFORE creating the window/WebView2: while the webview isn't up, its files aren't locked.
   #[cfg(windows)]
   purge_stale_service_worker();
 
+  // Initialize Steam (soft-fails to None without Steam); the client lives in Tauri state.
+  let steam_client = steam::init_steam(STEAM_APP_ID);
+
   tauri::Builder::default()
+    .manage(SteamState(Mutex::new(steam_client)))
+    .invoke_handler(tauri::generate_handler![steam::steam_available, steam::steam_user])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

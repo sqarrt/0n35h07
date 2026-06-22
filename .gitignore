@@ -42,6 +42,9 @@ TODO.md
 .superpowers
 .mcp.json
 
+# Steamworks SDK — vendored locally for builds; not redistributable in a public repo (Valve license)
+steamworks_sdk_164/
+
 # Session debug artifacts (perf traces, network __netReport, screenshots)
 Trace-*.json.gz
 *netreport*
