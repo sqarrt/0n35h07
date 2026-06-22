@@ -312,6 +312,7 @@
 /* === Built-in trailer === */
 .trailer-root { position: fixed; inset: 0; z-index: 300; background: #05070d; overflow: hidden; }
 .trailer-root canvas { display: block; }
+.trailer-root--idle { cursor: none; }   /* cinematic viewing: hide the cursor after mouse inactivity */
 
 /* Kill flash (white hit, fades out). key recreates the element → the animation restarts. */
 .trailer-flash {
@@ -444,8 +445,10 @@
   border: 1px solid var(--surface-line); border-radius: 4px;
   font-family: var(--ui-font); font-size: 0.8rem; letter-spacing: 0.16em;
   padding: 0.5rem 0.9rem; cursor: pointer;
+  transition: opacity 0.3s ease;
 }
 .trailer-skip:hover { color: var(--accent); border-color: var(--accent-dim); }
+.trailer-skip.is-hidden { opacity: 0; pointer-events: none; }   /* fades out with the cursor while idle */
 
 /* Relays section in settings — stretches to fill all free space down to the "Back" button. */
 .relays { margin-top: 0.4rem; margin-bottom: 1.2rem; display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
