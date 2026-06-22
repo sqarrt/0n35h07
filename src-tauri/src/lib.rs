@@ -38,8 +38,11 @@ fn purge_stale_service_worker() {
 }
 
 mod steam;
+mod steam_net;
 use std::sync::Mutex;
 use steam::SteamState;
+use steam_net::SteamNetState;
+use tauri::Manager;
 
 // Steam App ID (Steamworks partner portal). steam_appid.txt mirrors it for dev launches.
 const STEAM_APP_ID: u32 = 4881310;
@@ -50,11 +53,7 @@ pub fn run() {
   #[cfg(windows)]
   purge_stale_service_worker();
 
-  // Initialize Steam (soft-fails to None without Steam); the client lives in Tauri state.
-  let steam_client = steam::init_steam(STEAM_APP_ID);
-
   tauri::Builder::default()
-    .manage(SteamState(Mutex::new(steam_client)))
     .invoke_handler(tauri::generate_handler![
       steam::steam_available,
       steam::steam_user,
@@ -63,8 +62,28 @@ pub fn run() {
       steam::steam_cloud_write,
       steam::steam_cloud_delete,
       steam::steam_set_rich_presence,
+      steam_net::steam_net_self,
+      steam_net::steam_net_create_lobby,
+      steam_net::steam_net_join_lobby,
+      steam_net::steam_net_leave_lobby,
+      steam_net::steam_net_members,
+      steam_net::steam_net_send,
+      steam_net::steam_net_invite,
     ])
     .setup(|app| {
+      // Initialize Steam (soft-fails to None without Steam) in setup() so the networking
+      // callbacks/pump have an AppHandle to emit events. The pump (run_callbacks) is spawned
+      // by steam_net::start_pump and drives stats/cloud/RP AND networking.
+      let (client, net_state) = match steam::init_steam(STEAM_APP_ID) {
+        Some((client, single)) => {
+          let net = steam_net::start_pump(app.handle().clone(), client.clone(), single);
+          (Some(client), net)
+        }
+        None => (None, SteamNetState::empty()),
+      };
+      app.manage(SteamState(Mutex::new(client)));
+      app.manage(net_state);
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()

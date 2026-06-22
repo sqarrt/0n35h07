@@ -58,3 +58,60 @@ export async function setRichPresence(key: string, value: string | null): Promis
   try { return await invokeSteam<boolean>('steam_set_rich_presence', { key, value }) }
   catch { return false }
 }
+
+// --- Steam matchmaking + networking (sub-project #4) ---
+
+/** Events streamed from the Rust networking pump over the "steam-net" Tauri event. */
+export type SteamNetEvent =
+  | { kind: 'message'; from: string; data: string }
+  | { kind: 'peerJoin'; steamId: string }
+  | { kind: 'peerLeave'; steamId: string }
+  | { kind: 'lobbyEntered'; lobbyId: string; self: string; members: string[] }
+  | { kind: 'joinRequested'; lobbyId: string }
+
+/** Our own SteamID64 (string), or null off-desktop / without Steam. */
+export async function steamNetSelf(): Promise<string | null> {
+  if (!IS_DESKTOP) return null
+  try { return await invokeSteam<string | null>('steam_net_self') }
+  catch { return null }
+}
+
+/** Create a Private 1v1 lobby (result arrives as a 'lobbyEntered' event). */
+export async function steamNetCreateLobby(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_net_create_lobby') } catch { /* ignore */ }
+}
+
+/** Join a lobby by id (from a 'joinRequested' event); result arrives as 'lobbyEntered'. */
+export async function steamNetJoinLobby(lobbyId: string): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_net_join_lobby', { lobbyId }) } catch { /* ignore */ }
+}
+
+/** Leave the current lobby and clear the joinable Rich Presence. */
+export async function steamNetLeaveLobby(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_net_leave_lobby') } catch { /* ignore */ }
+}
+
+/** Send a reliable message (string payload) to a peer by SteamID64. */
+export async function steamNetSend(to: string, data: string): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('steam_net_send', { to, data }) }
+  catch { return false }
+}
+
+/** Open the Steam overlay invite dialog for the current lobby. */
+export async function steamNetInvite(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_net_invite') } catch { /* ignore */ }
+}
+
+/** Subscribe to the "steam-net" event stream. Returns an unsubscribe fn (no-op off-desktop). */
+export async function onSteamNetEvent(cb: (e: SteamNetEvent) => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<SteamNetEvent>('steam-net', e => cb(e.payload))
+  } catch { return () => {} }
+}
