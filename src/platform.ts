@@ -1,5 +1,5 @@
 /**
- * Среда исполнения: десктоп (Tauri) vs браузер. В Tauri autoplay разрешён без пользовательского
- * жеста → музыка стартует сразу, в отличие от браузера.
+ * Runtime environment: desktop (Tauri) vs browser. In Tauri autoplay is allowed without a user
+ * gesture → music starts immediately, unlike in the browser.
  */
 export const IS_DESKTOP = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window

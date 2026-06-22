@@ -10,16 +10,16 @@ function run(t: AfterimageTrail, dashing: boolean, frames: number) {
   for (let i = 0; i < frames; i++) t.update(DT, { position: POS, dashing })
 }
 
-// След рывка — чистая визуальная логика (THREE без WebGL), тестируем в jsdom.
+// Dash trail — pure visual logic (THREE without WebGL), tested in jsdom.
 describe('AfterimageTrail', () => {
-  it('во время рывка спавнит клоны, в покое — нет', () => {
+  it('spawns clones during the dash, none at rest', () => {
     const t = new AfterimageTrail(new THREE.Color('#4af'))
     expect(t.aliveCount).toBe(0)
     run(t, true, 8)
     expect(t.aliveCount).toBeGreaterThan(0)
   })
 
-  it('после рывка клоны затухают до нуля', () => {
+  it('after the dash clones fade to zero', () => {
     const t = new AfterimageTrail(new THREE.Color('#4af'))
     run(t, true, 8)
     expect(t.aliveCount).toBeGreaterThan(0)
@@ -28,7 +28,7 @@ describe('AfterimageTrail', () => {
     expect(t.aliveCount).toBe(0)
   })
 
-  it('пул не переполняется — aliveCount ограничен размером пула', () => {
+  it('pool does not overflow — aliveCount bounded by the pool size', () => {
     const t = new AfterimageTrail(new THREE.Color('#4af'))
     run(t, true, 200)
     expect(t.aliveCount).toBeLessThanOrEqual(10)   // DASH_TRAIL_GHOST_COUNT

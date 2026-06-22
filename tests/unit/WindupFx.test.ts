@@ -19,10 +19,10 @@ export const makeFrame = (over: Partial<WindupFrame> = {}): WindupFrame => ({
 })
 
 describe('ClassicWindupFx', () => {
-  it('нейтральный кадр: scale=1, цвет=база, emissive чёрный', () => {
+  it('neutral frame: scale=1, color=base, emissive black', () => {
     const fx = new ClassicWindupFx()
     const t = makeTarget()
-    t.mesh.scale.setScalar(1.4)                      // «грязное» состояние от прошлого заряда
+    t.mesh.scale.setScalar(1.4)                      // "dirty" state left from a previous charge
     t.material.emissive.setRGB(1, 0, 0)
     fx.apply(0.016, t, makeFrame())
     expect(t.mesh.scale.x).toBe(1)
@@ -30,7 +30,7 @@ describe('ClassicWindupFx', () => {
     expect(t.material.emissive.getHex()).toBe(0)
   })
 
-  it('заряд: раздув по прогрессу, цвет уходит к белому', () => {
+  it('charge: inflates with progress, color shifts toward white', () => {
     const fx = new ClassicWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 1 }))
@@ -38,7 +38,7 @@ describe('ClassicWindupFx', () => {
     expect(t.material.color.getHexString()).toBe(new THREE.Color(BOT_COLOR_WHITE).getHexString())
   })
 
-  it('сдувание: масштаб спадает с shrink, цвет уже базовый', () => {
+  it('deflation: scale falls with shrink, color is already base', () => {
     const fx = new ClassicWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 0, shrink: 0.5 }))
@@ -46,7 +46,7 @@ describe('ClassicWindupFx', () => {
     expect(t.material.color.getHexString()).toBe(new THREE.Color('#4af').getHexString())
   })
 
-  it('world-space части нет (пустая группа), dispose не бросает', () => {
+  it('no world-space part (empty group), dispose does not throw', () => {
     const fx = new ClassicWindupFx()
     expect(fx.object3d.children.length).toBe(0)
     expect(() => fx.dispose()).not.toThrow()
@@ -54,7 +54,7 @@ describe('ClassicWindupFx', () => {
 })
 
 describe('RageWindupFx', () => {
-  it('нейтральный кадр: scale=1, цвет=база, emissive чёрный, челюсти скрыты', () => {
+  it('neutral frame: scale=1, color=base, emissive black, jaws hidden', () => {
     const fx = new RageWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame())
@@ -64,28 +64,28 @@ describe('RageWindupFx', () => {
     expect(fx.object3d.visible).toBe(false)
   })
 
-  it('заряд: шар раздувается и темнеет, emissive красный, челюсти видимы и раскрываются', () => {
+  it('charge: ball inflates and darkens, emissive red, jaws visible and open up', () => {
     const fx = new RageWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 0.3 }))
-    // children[0] — верхняя челюсть (порядок add в конструкторе)
+    // children[0] — upper jaw (add order in the constructor)
     const openEarly = fx.object3d.children[0].position.y
     fx.apply(0.016, t, makeFrame({ progress: 1 }))
     expect(t.mesh.scale.x).toBeGreaterThan(1)
-    expect(t.material.emissive.r).toBeGreaterThan(0)        // раскалённое свечение
-    expect(t.material.color.r).toBeLessThan(0.5)            // потемнел (не белеет, как classic)
+    expect(t.material.emissive.r).toBeGreaterThan(0)        // white-hot glow
+    expect(t.material.color.r).toBeLessThan(0.5)            // darkened (not whitening like classic)
     expect(fx.object3d.visible).toBe(true)
-    // children[0] — верхняя челюсть (порядок add в конструкторе)
-    expect(fx.object3d.children[0].position.y).toBeGreaterThan(openEarly)   // пасть раскрывается дальше
+    // children[0] — upper jaw (add order in the constructor)
+    expect(fx.object3d.children[0].position.y).toBeGreaterThan(openEarly)   // mouth opens further
   })
 
-  it('visible=false (FP) скрывает челюсти даже при заряде', () => {
+  it('visible=false (FP) hides the jaws even while charging', () => {
     const fx = new RageWindupFx()
     fx.apply(0.016, makeTarget(), makeFrame({ progress: 0.5, visible: false }))
     expect(fx.object3d.visible).toBe(false)
   })
 
-  it('челюсти позиционируются перед шаром по aimDir', () => {
+  it('jaws are positioned in front of the ball along aimDir', () => {
     const fx = new RageWindupFx()
     fx.apply(0.016, makeTarget(), makeFrame({
       progress: 0.5,
@@ -93,10 +93,10 @@ describe('RageWindupFx', () => {
       aimDir: new THREE.Vector3(0, 0, -1),
     }))
     expect(fx.object3d.position.x).toBeCloseTo(10)
-    expect(fx.object3d.position.z).toBeLessThan(0)          // вынесены вперёд по взгляду
+    expect(fx.object3d.position.z).toBeLessThan(0)          // pushed forward along the gaze
   })
 
-  it('все меши помечены noRaycast, dispose не бросает', () => {
+  it('all meshes are marked noRaycast, dispose does not throw', () => {
     const fx = new RageWindupFx()
     let meshes = 0
     fx.object3d.traverse(o => { if ((o as THREE.Mesh).isMesh) { meshes++; expect(o.userData.noRaycast).toBe(true) } })
@@ -104,9 +104,9 @@ describe('RageWindupFx', () => {
     expect(() => fx.dispose()).not.toThrow()
   })
 
-  it('ориентация челюстей корректна и под смещённым/масштабированным родителем (превью меню)', () => {
+  it('jaw orientation is correct even under a shifted/scaled parent (menu preview)', () => {
     const fx = new RageWindupFx()
-    const parent = new THREE.Group()           // как группа шара в превью: сдвиг + равномерный масштаб
+    const parent = new THREE.Group()           // like the ball group in the preview: shift + uniform scale
     parent.position.set(5, 0, 0)
     parent.scale.setScalar(3)
     parent.add(fx.object3d)
@@ -114,14 +114,14 @@ describe('RageWindupFx', () => {
     const forward = new THREE.Vector3(0, 0, -1)
     fx.apply(0.016, makeTarget(), makeFrame({ progress: 0.5, aimDir: forward.clone() }))
     parent.updateMatrixWorld(true)
-    // Мировая ось +Z челюстей (lookAt разворачивает +Z на цель) должна совпасть с forward.
+    // The jaws' world +Z axis (lookAt turns +Z toward the target) must coincide with forward.
     const worldZ = new THREE.Vector3(0, 0, 1).applyQuaternion(fx.object3d.getWorldQuaternion(new THREE.Quaternion()))
     expect(worldZ.dot(forward)).toBeGreaterThan(0.99)
   })
 })
 
 describe('SingularityWindupFx', () => {
-  it('нейтральный кадр: scale=1, цвет=база, вихрь скрыт', () => {
+  it('neutral frame: scale=1, color=base, vortex hidden', () => {
     const fx = new SingularityWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame())
@@ -130,33 +130,33 @@ describe('SingularityWindupFx', () => {
     expect(fx.object3d.visible).toBe(false)
   })
 
-  it('заряд: шар СЖИМАЕТСЯ (но не в ноль) и темнеет, вихрь видим', () => {
+  it('charge: ball SHRINKS (but not to zero) and darkens, vortex visible', () => {
     const fx = new SingularityWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 1 }))
     expect(t.mesh.scale.x).toBeLessThan(1)
     expect(t.mesh.scale.x).toBeGreaterThan(0.3)
-    expect(t.material.color.r).toBeLessThan(0.2)             // почти чёрный
+    expect(t.material.color.r).toBeLessThan(0.2)             // almost black
     expect(fx.object3d.visible).toBe(true)
   })
 
-  it('сдувание (после выстрела): вспышка видима, масштаб возвращается к 1', () => {
+  it('deflation (after the shot): flash visible, scale returns to 1', () => {
     const fx = new SingularityWindupFx()
     const t = makeTarget()
     fx.apply(0.016, t, makeFrame({ progress: 0, shrink: 0.1 }))
-    expect(fx.object3d.visible).toBe(true)                   // вспышка коллапса
+    expect(fx.object3d.visible).toBe(true)                   // collapse flash
     fx.apply(0.016, t, makeFrame({ progress: 0, shrink: 1 }))
     expect(t.mesh.scale.x).toBe(1)
     expect(fx.object3d.visible).toBe(false)
   })
 
-  it('вихрь центрируется на origin', () => {
+  it('vortex is centered on origin', () => {
     const fx = new SingularityWindupFx()
     fx.apply(0.016, makeTarget(), makeFrame({ progress: 0.5, origin: new THREE.Vector3(3, 1, -2) }))
     expect(fx.object3d.position.toArray()).toEqual([3, 1, -2])
   })
 
-  it('меши/частицы noRaycast, dispose не бросает', () => {
+  it('meshes/particles noRaycast, dispose does not throw', () => {
     const fx = new SingularityWindupFx()
     fx.object3d.traverse(o => { if (o !== fx.object3d) expect(o.userData.noRaycast).toBe(true) })
     expect(() => fx.dispose()).not.toThrow()
@@ -164,7 +164,7 @@ describe('SingularityWindupFx', () => {
 })
 
 describe('createWindupFx', () => {
-  it('возвращает реализацию по стилю', () => {
+  it('returns implementation by style', () => {
     expect(createWindupFx('classic')).toBeInstanceOf(ClassicWindupFx)
     expect(createWindupFx('rage')).toBeInstanceOf(RageWindupFx)
     expect(createWindupFx('singularity')).toBeInstanceOf(SingularityWindupFx)

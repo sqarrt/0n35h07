@@ -4,9 +4,9 @@ import { bucketedBlockGeometries } from './blockGeometry'
 import type { MapBlock } from './maps'
 
 /**
- * Компиляция геометрии карты в готовые массивы вершин и обратно. Визуал — 4 группы по (blocksBeam × transparent),
- * collider — отдельная геометрия непроходимых блоков. Цель — не мёржить блоки в рантайме: редактор компилирует
- * при сохранении (geo.json), рантайм строит лёгкую BufferGeometry. Фолбэк — компиляция из blocks (кеш по id).
+ * Compiles map geometry into ready vertex arrays and back. Visual — 4 groups by (blocksBeam × transparent),
+ * collider — separate geometry of impassable blocks. Goal — avoid merging blocks at runtime: the editor compiles
+ * on save (geo.json), the runtime builds a lightweight BufferGeometry. Fallback — compile from blocks (cached by id).
  */
 export interface GeoArrays { position: Float32Array; normal: Float32Array; color: Float32Array }
 export interface CompiledMap {
@@ -27,7 +27,7 @@ function toArrays(g: BufferGeometry | null): GeoArrays | null {
   }
 }
 
-/** Слить блоки и извлечь массивы (CPU, без GL). */
+/** Merge blocks and extract arrays (CPU, no GL). */
 export function compileBlocks(blocks: MapBlock[]): CompiledMap {
   const wedgeGeo = unitWedgeGeometry()
   const wedgeGeoFlip = unitWedgeGeometry(true)
@@ -45,12 +45,12 @@ export function compileBlocks(blocks: MapBlock[]): CompiledMap {
   return out
 }
 
-/** Все группы пусты (нет геометрии) — напр. карта без блоков ИЛИ устаревший формат geo.json (старые ключи). */
+/** All groups empty (no geometry) — e.g. a map with no blocks OR an outdated geo.json format (old keys). */
 export function isEmptyCompiled(c: CompiledMap): boolean {
   return !c.opaqueRaycast && !c.opaqueNoRaycast && !c.transparentRaycast && !c.transparentNoRaycast && !c.collider
 }
 
-/** BufferGeometry из готовых массивов (дёшево, per-context). */
+/** BufferGeometry from ready arrays (cheap, per-context). */
 export function buildGeometry(a: GeoArrays): BufferGeometry {
   const g = new BufferGeometry()
   g.setAttribute('position', new Float32BufferAttribute(a.position, 3))
@@ -59,7 +59,7 @@ export function buildGeometry(a: GeoArrays): BufferGeometry {
   return g
 }
 
-// --- сериализация geo.json (base64 Float32 — компактно и быстро парсится) ---
+// --- geo.json serialization (base64 Float32 — compact and fast to parse) ---
 const CHUNK = 0x8000
 function b64(arr: Float32Array): string {
   const bytes = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength)
@@ -91,7 +91,7 @@ export function serializeGeo(c: CompiledMap): string {
     collider: serGroup(c.collider),
   } satisfies SerCompiled)
 }
-/** Разобрать загруженный geo.json (объект или строку) в массивы. */
+/** Parse a loaded geo.json (object or string) into arrays. */
 export function parseGeo(data: SerCompiled | string): CompiledMap {
   const s = (typeof data === 'string' ? JSON.parse(data) : data) as SerCompiled
   return {
@@ -101,7 +101,7 @@ export function parseGeo(data: SerCompiled | string): CompiledMap {
   }
 }
 
-// --- рантайм-кеш фолбэк-компиляции по id (чтобы не мёржить повторно при отсутствии артефакта) ---
+// --- runtime cache of fallback compilation by id (to avoid re-merging when the artifact is missing) ---
 const cache = new Map<string, CompiledMap>()
 export function compileBlocksCached(id: string, blocks: MapBlock[]): CompiledMap {
   let c = cache.get(id)

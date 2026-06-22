@@ -6,7 +6,7 @@ describe('useFlash', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('trigger() активирует флаш', () => {
+  it('trigger() activates the flash', () => {
     const { result } = renderHook(() => useFlash(200))
     const [, trigger] = result.current
     act(() => { trigger() })
@@ -14,7 +14,7 @@ describe('useFlash', () => {
     expect(active).toBe(true)
   })
 
-  it('флаш деактивируется после duration', () => {
+  it('flash deactivates after duration', () => {
     const { result } = renderHook(() => useFlash(200))
     const [, trigger] = result.current
     act(() => { trigger() })
@@ -23,13 +23,13 @@ describe('useFlash', () => {
     expect(active).toBe(false)
   })
 
-  it('повторный trigger() сбрасывает таймер', () => {
+  it('repeated trigger() resets the timer', () => {
     const { result } = renderHook(() => useFlash(200))
     const [, trigger] = result.current
     act(() => { trigger() })
     act(() => { vi.advanceTimersByTime(100) })
     act(() => { trigger() })
-    // После 150ms от второго trigger (250ms от первого) — всё ещё активен
+    // 150ms after the second trigger (250ms after the first) — still active
     act(() => { vi.advanceTimersByTime(150) })
     const [active] = result.current
     expect(active).toBe(true)

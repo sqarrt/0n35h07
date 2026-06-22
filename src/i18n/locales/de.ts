@@ -46,7 +46,7 @@ export const de = {
   warnContinueHint: 'zum Fortfahren',
   warnContinueKey: 'LMT',
   settingsLanguage: 'SPRACHE',
-  // Комната
+  // Room
   roomTitle: 'RAUM',
   roomCodeLabel: 'CODE:',
   roomCopied: 'KOPIERT',

@@ -21,27 +21,27 @@
     </linearGradient>
   </defs>
 
-  <!-- фон иконки -->
+  <!-- icon background -->
   <rect width="256" height="256" rx="54" fill="#070b11"/>
   <rect x="5" y="5" width="246" height="246" rx="50" fill="none" stroke="#13283b" stroke-width="2"/>
 
-  <!-- трассер-луч (вход слева) -->
+  <!-- tracer beam (enters from the left) -->
   <rect x="12" y="122.5" width="120" height="11" fill="url(#beam)" filter="url(#g)"/>
 
-  <!-- заднее кольцо планеты -->
+  <!-- planet back ring -->
   <g transform="rotate(-20 128 128)">
     <path d="M40 128 A88 29 0 0 1 216 128" fill="none" stroke="#1c66a4" stroke-width="9" stroke-linecap="round"/>
   </g>
 
-  <!-- сфера -->
+  <!-- sphere -->
   <circle cx="128" cy="128" r="60" fill="url(#sph)" filter="url(#g)"/>
   <ellipse cx="108" cy="104" rx="19" ry="12" fill="#ffffff" opacity="0.45"/>
 
-  <!-- вспышка попадания на кромке сферы -->
+  <!-- hit flash on the sphere edge -->
   <circle cx="70" cy="128" r="15" fill="url(#flash)"/>
   <circle cx="71" cy="128" r="5" fill="#ffffff" filter="url(#g)"/>
 
-  <!-- переднее кольцо планеты (ярче) -->
+  <!-- planet front ring (brighter) -->
   <g transform="rotate(-20 128 128)">
     <path d="M216 128 A88 29 0 0 1 40 128" fill="none" stroke="#a6e3ff" stroke-width="10" stroke-linecap="round" filter="url(#g)"/>
   </g>

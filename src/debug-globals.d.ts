@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 
-// Дебаг-глобалы для e2e (ставит Match.installDebug / Game). Объявлены здесь, чтобы не кастовать window к any.
+// Debug globals for e2e (set by Match.installDebug / Game). Declared here to avoid casting window to any.
 type Vec3Lite = { x: number; y: number; z: number }
 
 declare global {
@@ -24,7 +24,7 @@ declare global {
     __debugForceLive?: () => void
     __debugLeave?: () => void
     __debugMusic?: () => { loopIndex: number; active: string[] }
-    __netReport?: () => unknown   // dev-диагностика P2P-коннекта (src/net/netDiag.ts)
+    __netReport?: () => unknown   // dev diagnostics for the P2P connection (src/net/netDiag.ts)
   }
 }
 

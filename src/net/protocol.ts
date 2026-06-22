@@ -2,55 +2,55 @@ import * as THREE from 'three'
 import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 
 /**
- * Сетевой протокол OneShot (host-authoritative). Все полезные нагрузки —
- * JSON-сериализуемые (без THREE-объектов): позиции/направления как кортежи Vec3.
+ * OneShot network protocol (host-authoritative). All payloads are
+ * JSON-serializable (no THREE objects): positions/directions as Vec3 tuples.
  */
 
 export type Vec3 = [number, number, number]
 
-/** Теги каналов транспорта (короткие — у Trystero лимит ~12 байт на имя action). */
+/** Transport channel tags (short — Trystero limits action names to ~12 bytes). */
 export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase'] as const
 export type NetTag = typeof NET_TAGS[number]
 
-/** Фаза матча: хост → все (готовность/отсчёт перед боем). */
+/** Match phase: host → all (readiness/countdown before the fight). */
 export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
-// --- handshake (комната) ---
+// --- handshake (room) ---
 export type PlayerKind = 'human' | 'bot'
-/** Один игрок матча (человек или бот). Хост раздаёт весь ростер клиентам. */
+/** A single match player (human or bot). The host hands the whole roster to clients. */
 export interface RosterEntry {
   id:     number
   name:   string
   color:  string
   kind:   PlayerKind
-  difficulty?: BotDifficulty   // только для kind==='bot'
-  ballModel?: BallModel        // модель сферы (косметика); нет → 'smooth'
-  windupStyle?: WindupStyle    // анимация заряда (косметика); нет → 'classic'
-  respawnStyle?: RespawnStyle  // анимация респавна (косметика); нет → 'echo'
-  dashStyle?: DashStyle        // скин следа рывка (косметика); нет → 'streak'
-  shieldStyle?: ShieldStyle    // скин щита (косметика); нет → 'dome'
-  ballArt?: string             // рисунок на шаре (base64, перёд/зад 32×32); нет → пусто
+  difficulty?: BotDifficulty   // only for kind==='bot'
+  ballModel?: BallModel        // sphere model (cosmetic); absent → 'smooth'
+  windupStyle?: WindupStyle    // charge animation (cosmetic); absent → 'classic'
+  respawnStyle?: RespawnStyle  // respawn animation (cosmetic); absent → 'echo'
+  dashStyle?: DashStyle        // dash trail skin (cosmetic); absent → 'streak'
+  shieldStyle?: ShieldStyle    // shield skin (cosmetic); absent → 'dome'
+  ballArt?: string             // art on the ball (base64, front/back 32×32); absent → empty
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
 export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[] }
-/** Клиент → хост: смена готовности в лобби. */
+/** Client → host: readiness change in the lobby. */
 export interface ReadyMsg { ready: boolean }
 export interface Start { durationMs: number; mapId: MapId }
 
-// --- ввод клиента → хост (часто) ---
+// --- client input → host (frequent) ---
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
 export interface InputFrame {
   seq:    number
   keys:   InputKeys
-  aimDir: Vec3       // направление взгляда (для basis движения и прицела)
-  aimOrigin?: Vec3   // позиция камеры клиента — origin прицельного луча (в 3-м лице смещена за спину; хост повторяет ровно её). Нет → хост стреляет из глаз
-  jump:   boolean    // held-состояние прыжка (auto-bhop/двойной прыжок считает Body на хосте)
-  fire:   boolean    // рёберные действия (fire/shield/dash) — one-shot за кадр
+  aimDir: Vec3       // look direction (for the movement basis and aim)
+  aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
+  jump:   boolean    // held jump state (auto-bhop/double jump is computed by Body on the host)
+  fire:   boolean    // edge actions (fire/shield/dash) — one-shot per frame
   shield: boolean
   dash:   boolean
 }
 
-// --- состояние мира: хост → все (часто) ---
+// --- world state: host → all (frequent) ---
 export interface PlayerSnapshot {
   id:             number
   pos:            Vec3
@@ -59,26 +59,26 @@ export interface PlayerSnapshot {
   shieldActive:   boolean
   dashing:        boolean
   windupProgress: number
-  respawning:     boolean   // фаза призрака (полупрозрачный, неуязвим)
+  respawning:     boolean   // ghost phase (semi-transparent, invulnerable)
 }
 export interface Snapshot {
-  ackSeq:  number              // последний обработанный seq ввода клиента (для реконсиляции)
+  ackSeq:  number              // last processed client input seq (for reconciliation)
   players: PlayerSnapshot[]
 }
 
-// --- события матча: хост → все (надёжно, по порядку) ---
+// --- match events: host → all (reliable, ordered) ---
 export interface ScoreLine { name: string; kills: number; deaths: number }
 export type MatchEvent =
-  | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id попавшего (для подавления искр на своей FP-камере)
+  | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
   | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }
   | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
-  | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // дискретное движение соперника (host → client)
+  | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)
   | { t: 'scores';  scores: ScoreLine[] }
   | { t: 'time';     remainingMs: number }
   | { t: 'matchEnd'; reason: 'time' | 'disconnect' }
 
-// --- хелперы Vec3 ↔ THREE.Vector3 ---
+// --- Vec3 ↔ THREE.Vector3 helpers ---
 export function toVec3(v: THREE.Vector3): Vec3 { return [v.x, v.y, v.z] }
 export function fromVec3(t: Vec3): THREE.Vector3 { return new THREE.Vector3(t[0], t[1], t[2]) }
 export function applyVec3(t: Vec3, out: THREE.Vector3): THREE.Vector3 { return out.set(t[0], t[1], t[2]) }

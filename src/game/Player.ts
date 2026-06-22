@@ -17,23 +17,23 @@ import type { IWindupFx, WindupTarget, WindupFrame } from './fx/windup/types'
 import { EchoRespawnFx } from './fx/respawn/EchoRespawnFx'
 import type { IRespawnFx, RespawnTarget, RespawnFrame } from './fx/respawn/types'
 
-const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // фиктивный aim для косметического weapon.update удалённого
+const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // dummy aim for the cosmetic weapon.update of a remote player
 
 /**
- * Единая сущность игрока — и человек, и бот, и сетевой игрок. Компонует тело, оружие и
- * щит (инжектятся → DIP). Контроллеры дёргают intent-методы. Сам себя НЕ респавнит.
+ * Single player entity — human, bot, and network player alike. Composes a body, weapon and
+ * shield (injected → DIP). Controllers drive the intent methods. Never respawns itself.
  *
- * Сцена-граф: bodyGroup (тело + хитбокс + щит) кладётся внутрь <RigidBody> (трансформ —
- * от Rapier); луч (weaponObject) — world-space, рендерится в match.beams.
+ * Scene graph: bodyGroup (body + hitbox + shield) goes inside <RigidBody> (transform comes
+ * from Rapier); the beam (weaponObject) is world-space, rendered in match.beams.
  */
 export class Player implements IControllable {
   alive = true
-  respawning = false   // фаза призрака: неуязвим, движется ×3, не атакует
-  respawnTimer = 0     // остаток фазы призрака (мс)
-  name = ''            // отображаемое имя (Вы / Бот N) — ставит Match
-  kills = 0            // счёт за сессию (не сбрасывается на респавне)
+  respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
+  respawnTimer = 0     // remaining ghost phase (ms)
+  name = ''            // display name (You / Bot N) — set by Match
+  kills = 0            // session score (not reset on respawn)
   deaths = 0
-  streak = 0           // подряд-убийства без своей смерти (для анонса серий); сброс при гибели
+  streak = 0           // consecutive kills without dying (for streak announces); reset on death
   readonly id: number
   readonly bodyGroup = new THREE.Group()
   readonly spawn = new THREE.Vector3(0, EYE_HEIGHT, 0)
@@ -41,24 +41,24 @@ export class Player implements IControllable {
   private body: Body
   private weapon: IWeapon
   private shield: IShield
-  private trail: IDashTrail   // стилевой след РЫВКА (скин dashStyle); след призрака рисует respawnFx
+  private trail: IDashTrail   // styled DASH trail (dashStyle skin); the ghost trail is drawn by respawnFx
   private aimPoint = new THREE.Vector3(0, EYE_HEIGHT, -100)
-  private aimOrigin = new THREE.Vector3()          // origin луча ПОПАДАНИЯ (камера человека); валиден при hasAimOrigin
-  private hasAimOrigin = false                     // задан ли origin прицела (человек) — иначе хит из дула (бот/удалённый)
-  private lookDir = new THREE.Vector3(0, 0, -1)   // направление ВЗГЛЯДА (ориентация модели): стабильно, не зависит
-  //                                                 от дальности точки прицела (в TP камера позади → aimPoint−muzzle переворачивался)
-  private spawnTime = -Infinity   // момент начала материализации (респаун)
-  private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр сферы относительно глаз
+  private aimOrigin = new THREE.Vector3()          // origin of the HIT ray (human's camera); valid when hasAimOrigin
+  private hasAimOrigin = false                     // is the aim origin set (human) — otherwise hit from the muzzle (bot/remote)
+  private lookDir = new THREE.Vector3(0, 0, -1)   // LOOK direction (model orientation): stable, independent
+  //                                                 of the aim point distance (in TP the camera is behind → aimPoint−muzzle flipped)
+  private spawnTime = -Infinity   // moment materialization began (respawn)
+  private bodyMeshOffset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // sphere center relative to the eyes
   private bodyVisible = true
-  private moveScale = 1            // множитель скорости от ПЕРЕГРЕВА
-  // Scratch-вектора — переиспользуются каждый кадр вместо new THREE.Vector3() в горячем пути.
+  private moveScale = 1            // speed multiplier from OVERHEAT
+  // Scratch vectors — reused each frame instead of new THREE.Vector3() in the hot path.
   private _muzzle      = new THREE.Vector3()
   private _aimDir      = new THREE.Vector3()
   private _hitDir      = new THREE.Vector3()
   private _moveScaled  = new THREE.Vector3()
   private _deathPos    = new THREE.Vector3()
-  pierceWalls = false              // ПРОСТРЕЛ (режим SINGULARITY): луч игнорирует блоки карты; ставит Match
-  private frozen = false   // готовность/отсчёт перед боем — намерения подавлены
+  pierceWalls = false              // PIERCE (SINGULARITY mode): the beam ignores map blocks; set by Match
+  private frozen = false   // readiness/countdown before the fight — intents suppressed
   private fireTime = -Infinity
   private baseColor: THREE.Color
   readonly windupStyle: WindupStyle
@@ -70,13 +70,13 @@ export class Player implements IControllable {
   private respawnFx: IRespawnFx
   private respawnTarget: RespawnTarget
   private respawnFrame: RespawnFrame
-  // Сетевое состояние для рендера удалённого игрока на клиенте (без прогона его сима).
+  // Network state for rendering a remote player on the client (without running its sim).
   private netShieldActive = false
   private netDashing = false
   private netWindup = 0
   private prevNetWindup = 0
-  private netFireTime = -Infinity   // момент выстрела удалённого (фронт netWindup 1→0) — для плавного сдувания
-  private netAimDir = new THREE.Vector3(0, 0, -1)   // направление взгляда удалённого (из снапшота) — для ориентации модели
+  private netFireTime = -Infinity   // remote player's fire moment (netWindup 1→0 edge) — for smooth deflation
+  private netAimDir = new THREE.Vector3(0, 0, -1)   // remote look direction (from snapshot) — for model orientation
 
   constructor(
     id: number,
@@ -110,28 +110,28 @@ export class Player implements IControllable {
       ghost: null, sinceRebirthMs: Infinity, baseColor: this.baseColor,
       origin: new THREE.Vector3(), visible: true,
     }
-    this.trail = dashFx   // world-space визуал следа рывка — кладёт Match в root
+    this.trail = dashFx   // world-space dash-trail visual — Match places it in root
     this.dashStyle = dashStyle
-    shield.object3d.position.set(0, BODY_MESH_Y, 0)   // локально — едет с телом
+    shield.object3d.position.set(0, BODY_MESH_Y, 0)   // local — rides with the body
     this.bodyGroup.add(body.object3d, shield.object3d)
-    // Стабильная ссылка для ref={p.bindBody}: иначе инлайн-ref пере-привязывается
-    // каждый кадр (App ре-рендерит на HUD) и ломает bound → двойной трансформ хитбокса.
+    // Stable reference for ref={p.bindBody}: otherwise an inline ref re-binds
+    // every frame (App re-renders on HUD) and breaks bound → double hitbox transform.
     this.bindBody = this.bindBody.bind(this)
   }
 
-  /** Луч — world-space, рендерится отдельно (вне RigidBody). */
+  /** The beam — world-space, rendered separately (outside RigidBody). */
   get weaponObject() { return this.weapon.object3d }
 
-  /** След рывка — тоже world-space (живёт в match.root, не в RigidBody). */
+  /** The dash trail — also world-space (lives in match.root, not in RigidBody). */
   get trailObject() { return this.trail.object3d }
 
-  /** World-часть анимации респавна (осколки/частицы) — живёт в match.root, как trail/windupFx. */
+  /** World part of the respawn animation (shards/particles) — lives in match.root, like trail/windupFx. */
   get respawnFxObject() { return this.respawnFx.object3d }
 
-  /** World-space часть анимации заряда (челюсти/вихрь) — живёт в match.root, как trail/burst. */
+  /** World-space part of the windup animation (jaws/vortex) — lives in match.root, like trail/burst. */
   get windupFxObject() { return this.windupFx.object3d }
 
-  // --- Rapier binding (RigidBody = только коллайдер; визуал отдельно в world-space) ---
+  // --- Rapier binding (RigidBody = collider only; visual is separate in world-space) ---
   bindBody(rb: RapierRigidBody | null) {
     if (!rb) { this.body.unbind(); return }
     this.body.bindBody(rb)
@@ -149,21 +149,21 @@ export class Player implements IControllable {
   get knocking()          { return this.body.knocking }
   get grounded()          { return this.body.grounded }
   get justJumped()        { return this.body.justJumped }
-  get speed()             { return this.body.horizontalSpeed }   // горизонтальная скорость (оверлей)
+  get speed()             { return this.body.horizontalSpeed }   // horizontal speed (overlay)
   setGrounded(g: boolean) { this.body.setGrounded(g) }
 
-  /** Кэшируем позицию из физ-тела и двигаем визуальную группу (она в world-space). */
+  /** Cache the position from the physics body and move the visual group (it's in world-space). */
   syncFromBody() {
     this.body.syncFromBody()
     this.bodyGroup.position.copy(this.body.position)
   }
 
-  /** Заморозка: во время готовности/отсчёта/конца движение и действия отключены, камера/прицел — нет.
-   *  Включение гасит инерцию (velH/velocityY) → игроки реально стоят (стоп-кадр конца матча). */
+  /** Freeze: during readiness/countdown/end, movement and actions are off, camera/aim are not.
+   *  Enabling it kills inertia (velH/velocityY) → players really stand still (match-end freeze-frame). */
   setFrozen(v: boolean) { this.frozen = v; if (v) this.body.halt() }
 
   // --- IControllable ---
-  // Движение доступно живому И призраку (в фазе респауна, ×3 скорость); атака — только живому.
+  // Movement is available to the living AND the ghost (respawn phase, ×3 speed); attacking — only the living.
   private canMove() { return !this.frozen && (this.alive || this.respawning) }
   private canAct()  { return !this.frozen && this.alive }
   moveIntent(dir: THREE.Vector3, dt: number) {
@@ -173,37 +173,37 @@ export class Player implements IControllable {
     this.body.move(m === 1 ? dir : this._moveScaled.copy(dir).multiplyScalar(m), dt)
   }
 
-  /** Применить ПЕРЕГРЕВ по текущей серии: скорость + кулдауны луча/щита. */
+  /** Apply OVERHEAT for the current streak: speed + beam/shield cooldowns. */
   applyOverheat() {
     const o = overheatMods(this.streak)
     this.moveScale = o.speed
     this.weapon.setCooldownScale(o.beamCd)
     this.shield.setCooldownScale(o.shieldCd)
   }
-  /** Награда за снятие серии: мгновенно сбросить кулдауны луча/щита/дэша. */
+  /** Reward for breaking a streak: instantly reset beam/shield/dash cooldowns. */
   resetCooldowns() {
     this.weapon.resetCooldown()
     this.shield.resetCooldown()
     this.body.resetDashCooldown()
   }
-  /** Перегрет ли до уровня «сквозь стены» (SINGULARITY). */
+  /** Overheated to the "through walls" level (SINGULARITY). */
   get seeThrough() { return overheatMods(this.streak).seeThrough }
 
-  /** Множитель скорости в фазе призрака: полный ×N, плавно спадающий к ×1 в последней RESPAWN_SPEED_RAMP. */
+  /** Speed multiplier in the ghost phase: full ×N, smoothly decaying to ×1 over the last RESPAWN_SPEED_RAMP. */
   private respawnSpeedMult(): number {
     const p = this.respawnTimer / RESPAWN_GHOST_MS   // 1→0
     if (p >= RESPAWN_SPEED_RAMP) return RESPAWN_SPEED_MULT
     return 1 + (RESPAWN_SPEED_MULT - 1) * (p / RESPAWN_SPEED_RAMP)
   }
-  setJumpInput(held: boolean)  { this.body.setJumpInput(this.canMove() && held) }   // held → auto-bhop/двойной прыжок
-  // Целимся В ТОЧКУ мира (доступно и в заморозке). origin (камера человека) → хит считается по лучу
-  // прицела камера→точка, а не из дула: убирает параллакс в TP. Без origin (бот/удалённый) — хит из дула.
+  setJumpInput(held: boolean)  { this.body.setJumpInput(this.canMove() && held) }   // held → auto-bhop/double jump
+  // Aim AT a world POINT (available even while frozen). origin (human's camera) → the hit is computed along the
+  // aim ray camera→point, not from the muzzle: removes parallax in TP. Without origin (bot/remote) — hit from the muzzle.
   aim(point: THREE.Vector3, origin?: THREE.Vector3) {
     this.aimPoint.copy(point)
     this.hasAimOrigin = origin !== undefined
     if (origin) this.aimOrigin.copy(origin)
   }
-  /** Направление взгляда (для ориентации модели). Горизонтальную проекцию берёт faceDir; почти-нулевой вектор игнорим. */
+  /** Look direction (for model orientation). faceDir takes its horizontal projection; near-zero vector is ignored. */
   setLook(dir: THREE.Vector3)  { if (dir.lengthSq() > 1e-8) this.lookDir.copy(dir) }
   startFiring()                { if (!this.canAct()) return; this.weapon.beginWindup() }
   cancelFiring()               { if (!this.canAct()) return; this.weapon.interrupt() }
@@ -211,28 +211,28 @@ export class Player implements IControllable {
   dash(dir: THREE.Vector3) {
     if (!this.canAct()) return
     if (dir.lengthSq() === 0) return
-    if (!this.body.dash(dir)) return   // кулдаун — заряд не трогаем
-    this.weapon.interrupt()            // успешный рывок отменяет заряд
+    if (!this.body.dash(dir)) return   // on cooldown — don't touch the windup
+    this.weapon.interrupt()            // a successful dash cancels the windup
   }
 
-  // --- simulation (без интеграции позиции — её делает Rapier KCC в Match.applyPhysics) ---
+  // --- simulation (no position integration — Rapier KCC does it in Match.applyPhysics) ---
   update(dt: number, world: World, excludeIds: number[]) {
-    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // sphere center
     const aim = this._aimDir.copy(this.aimPoint).sub(this._muzzle).normalize()
-    this._muzzle.addScaledVector(aim, BALL_RADIUS)   // дуло на поверхности шара, ⊥ к ней
-    this.body.faceDir(this.lookDir)   // модель ориентируется по ВЗГЛЯДУ (не по точке прицела — иначе в TP yaw скачет)
-    // Хит человека — по лучу прицела (камера→точка); у бота/удалённого origin нет → хит из дула.
+    this._muzzle.addScaledVector(aim, BALL_RADIUS)   // muzzle on the sphere surface, ⊥ to it
+    this.body.faceDir(this.lookDir)   // model orients by LOOK (not by the aim point — otherwise yaw jumps in TP)
+    // Human's hit — along the aim ray (camera→point); bot/remote have no origin → hit from the muzzle.
     const hitOrigin = this.hasAimOrigin ? this.aimOrigin : undefined
     const hitDir = this.hasAimOrigin ? this._hitDir.copy(this.aimPoint).sub(this.aimOrigin).normalize() : undefined
     this.weapon.update(dt, { world, muzzle: this._muzzle, aim, excludeIds, pierceWalls: this.pierceWalls, hitOrigin, hitDir })
     this.shield.update(dt)
     this.syncVisuals(dt)
     this.trail.update(dt, { position: this.body.position, dashing: this.body.dashing })
-    this.respawnFx.update(dt)   // след призрака рисует сама стратегия респавна (внутри apply)
+    this.respawnFx.update(dt)   // the ghost trail is drawn by the respawn strategy itself (inside apply)
     this.body.tickShader(dt)
   }
 
-  /** Тик визуалов в фазе призрака. true → вызывающий должен выйти раньше. */
+  /** Visual tick in the ghost phase. true → the caller should return early. */
   private applyGhostVisuals(dt: number): boolean {
     if (!this.respawning) return false
     this.shield.object3d.visible = false
@@ -242,16 +242,16 @@ export class Player implements IControllable {
   }
 
   private syncVisuals(dt: number) {
-    if (!this.bodyVisible) this.shield.object3d.visible = false   // в FP пузырь не рисуем
+    if (!this.bodyVisible) this.shield.object3d.visible = false   // don't draw the bubble in FP
     if (this.weapon.justFired) this.fireTime = Date.now()
     if (this.applyGhostVisuals(dt)) return
-    this.body.setOpacity(1)   // обычное состояние; окно возрождения ниже перепишет
+    this.body.setOpacity(1)   // normal state; the rebirth window below overrides it
     this.applyWindup(dt, this.weapon.windupProgress, this.fireTime, this.lookDir)
-    this.applyRespawn(dt)     // окно возрождения побеждает масштаб windup (как прежний «пуф»); иначе no-op
+    this.applyRespawn(dt)     // the rebirth window beats the windup scale (like the old "poof"); otherwise no-op
     if (this.respawnFx.isRebirthActive(Date.now() - this.spawnTime)) this.shield.object3d.visible = false
   }
 
-  /** Общий путь анимации респавна (призрак/возрождение) для локального и сетевого игрока. */
+  /** Shared respawn animation path (ghost/rebirth) for the local and network player. */
   private applyRespawn(dt: number) {
     const f = this.respawnFrame
     f.ghost = this.respawning ? this.respawnProgress() : null
@@ -261,7 +261,7 @@ export class Player implements IControllable {
     this.respawnFx.apply(dt, this.respawnTarget, f)
   }
 
-  /** Общий путь анимации заряда для локального (weapon/lookDir) и сетевого (netWindup/netAimDir) игрока. */
+  /** Shared windup animation path for the local (weapon/lookDir) and network (netWindup/netAimDir) player. */
   private applyWindup(dt: number, progress: number, fireTime: number, aimDir: THREE.Vector3) {
     const f = this.windupFrame
     f.progress = progress
@@ -274,37 +274,37 @@ export class Player implements IControllable {
 
   // --- combat (driven by Match, never self-respawn) ---
   receiveHit(): 'blocked' | 'killed' {
-    if (!this.alive) return 'blocked'        // уже мёртв/призрак — не добиваем (нет двойного килла)
+    if (!this.alive) return 'blocked'        // already dead/ghost — don't finish off (no double kill)
     if (this.shield.isActive) return 'blocked'
     this.alive = false
     this.startGhost()
     return 'killed'
   }
 
-  /** Старт фазы призрака: неуязвимость, хлопок частиц, таймер до материализации. */
+  /** Start of the ghost phase: invulnerability, particle burst, timer until materialization. */
   private startGhost() {
     this.respawning = true
     this.respawnTimer = RESPAWN_GHOST_MS
     this.body.setHittable(false)
-    this.weapon.interrupt()   // отменяем незавершённый заряд — призрак не достреливает
+    this.weapon.interrupt()   // cancel the unfinished windup — the ghost doesn't fire it off
     if (this.bodyVisible) this.respawnFx.onDeath(this._deathPos.copy(this.body.position).add(this.bodyMeshOffset))
   }
 
-  /** Клиент: локально тикаем таймер фазы (для индикации/скорости); финал — событием respawn. */
+  /** Client: tick the phase timer locally (for indication/speed); the finale comes via the respawn event. */
   tickRespawn(dt: number) {
     if (this.respawning) this.respawnTimer = Math.max(0, this.respawnTimer - dt * 1000)
   }
 
-  /** Материализация на месте остановки (конец фазы призрака). pos — авторитетная позиция.
-   *  ВСЕ кулдауны сбрасываются: луч (weapon.reset), щит (shield.reset), дэш (body.setPosition обнуляет кулдаун). */
+  /** Materialize where movement stopped (end of the ghost phase). pos — authoritative position.
+   *  ALL cooldowns reset: beam (weapon.reset), shield (shield.reset), dash (body.setPosition zeroes the cooldown). */
   respawnAt(pos: THREE.Vector3) {
     this.spawn.copy(pos)
-    this.body.setPosition(pos)   // телепорт + сброс кулдауна дэша
-    this.weapon.reset()          // сброс кулдауна луча
-    this.shield.reset()          // сброс кулдауна щита
+    this.body.setPosition(pos)   // teleport + dash cooldown reset
+    this.weapon.reset()          // beam cooldown reset
+    this.shield.reset()          // shield cooldown reset
     this.alive = true
     this.respawning = false
-    this.spawnTime = Date.now()        // короткий упругий «пуф»
+    this.spawnTime = Date.now()        // short springy "poof"
     this.respawnTimer = 0
     this.body.setHittable(true)
     this.body.material.color.copy(this.baseColor)
@@ -313,11 +313,11 @@ export class Player implements IControllable {
   setBodyVisible(v: boolean) {
     this.bodyVisible = v
     this.body.setVisible(v)
-    this.trail.object3d.visible = v   // в FP свой след не показываем (камера внутри тела)
+    this.trail.object3d.visible = v   // don't show our own trail in FP (camera inside the body)
   }
   spawnImpact(point: THREE.Vector3) { this.weapon.spawnImpact(point) }
 
-  /** Реплей демо: жёстко выставить визуальную позицию (без физики/Rapier — bodyGroup ведём сами). */
+  /** Demo replay: hard-set the visual position (no physics/Rapier — we drive bodyGroup ourselves). */
   setReplayPose(pos: THREE.Vector3) {
     this.body.position.copy(pos)
     this.bodyGroup.position.copy(pos)
@@ -331,7 +331,7 @@ export class Player implements IControllable {
   dashCooldownProgress()    { return this.body.dashProgress() }
   shieldProgress()          { return this.shield.progress() }
   get shieldActive()        { return this.shield.isActive }
-  /** Идеальный блок: щит активирован в окне до попадания — повод сбросить кулдауны. */
+  /** Perfect block: shield activated in the window before a hit — grounds for resetting cooldowns. */
   get perfectBlock()        { return this.shield.isPerfectBlock() }
   get weaponJustFired()     { return this.weapon.justFired }
   get fireOutcome()         { return this.weapon.outcome }
@@ -340,12 +340,12 @@ export class Player implements IControllable {
   // --- networking (host-authoritative) ---
   get color() { return this.baseColor }
 
-  /** Снимок состояния для рассылки (хост). */
+  /** State snapshot for broadcast (host). */
   serializeState(): PlayerSnapshot {
     return {
       id: this.id,
       pos: toVec3(this.body.position),
-      aimDir: toVec3(this.lookDir),   // направление взгляда (ориентация модели у соперника); стабильнее точки прицела
+      aimDir: toVec3(this.lookDir),   // look direction (opponent's model orientation); steadier than the aim point
       alive: this.alive,
       shieldActive: this.shieldActive,
       dashing: this.dashing,
@@ -354,7 +354,7 @@ export class Player implements IControllable {
     }
   }
 
-  /** Заполняет pre-alloc снимок in-place (без аллокаций Vec3/объекта). */
+  /** Fills a pre-alloc snapshot in-place (no Vec3/object allocations). */
   fillState(out: PlayerSnapshot): void {
     const p = this.body.position
     out.pos[0] = p.x; out.pos[1] = p.y; out.pos[2] = p.z
@@ -364,7 +364,7 @@ export class Player implements IControllable {
     out.respawning = this.respawning
   }
 
-  /** Применить снимок к удалённому игроку (клиент): цель позиции + визуальные флаги. */
+  /** Apply a snapshot to a remote player (client): position target + visual flags. */
   applyNetState(snap: PlayerSnapshot) {
     this.body.applyNetTarget(fromVec3(snap.pos))
     this.alive = snap.alive
@@ -372,7 +372,7 @@ export class Player implements IControllable {
     this.netAimDir.copy(fromVec3(snap.aimDir))
     this.netShieldActive = snap.shieldActive
     this.netDashing = snap.dashing
-    // Заряд был и пропал → выстрел: запускаем локальную плавную анимацию сдувания.
+    // Windup was there and vanished → a shot: start the local smooth deflation animation.
     if (this.prevNetWindup > 0.5 && snap.windupProgress === 0) this.netFireTime = Date.now()
     this.prevNetWindup = snap.windupProgress
     this.netWindup = snap.windupProgress
@@ -380,39 +380,39 @@ export class Player implements IControllable {
 
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
-  get bodyScale() { return this.body.mesh.scale.x }   // debug: текущий масштаб шара
-  get bodyIsVisible() { return this.bodyVisible }     // FP=false (тело скрыто) / TP/соперник=true
+  get bodyScale() { return this.body.mesh.scale.x }   // debug: current sphere scale
+  get bodyIsVisible() { return this.bodyVisible }     // FP=false (body hidden) / TP/opponent=true
   get isRespawning() { return this.respawning }
-  respawnProgress() { return Math.max(0, this.respawnTimer / RESPAWN_GHOST_MS) }   // 1→0 остаток фазы
+  respawnProgress() { return Math.max(0, this.respawnTimer / RESPAWN_GHOST_MS) }   // 1→0 phase remainder
 
-  /** Свой игрок (клиент): запомнить авторитетную позицию из снапшота для реконсиляции. */
+  /** Own player (client): remember the authoritative position from the snapshot for reconciliation. */
   setAuthoritative(pos: THREE.Vector3) { this.body.applyNetTarget(pos) }
   reconcileLocal(next: { x: number; y: number; z: number }) { this.body.reconcileTowardNet(next) }
 
-  /** Косметический выстрел удалённого (клиент, событие FIRED). */
+  /** Cosmetic remote shot (client, FIRED event). */
   cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {
-    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // центр шара
-    this._aimDir.copy(end).sub(this._muzzle).normalize()                // направление к концу луча
-    this._muzzle.addScaledVector(this._aimDir, BALL_RADIUS)             // дуло на поверхности шара
+    this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y   // sphere center
+    this._aimDir.copy(end).sub(this._muzzle).normalize()                // direction toward the beam end
+    this._muzzle.addScaledVector(this._aimDir, BALL_RADIUS)             // muzzle on the sphere surface
     this.weapon.playBeam(this._muzzle, end, hitPoint)
   }
 
-  /** Смерть удалённого по событию KILL (клиент): авторитет уже решил, щит не проверяем. */
+  /** Remote death on a KILL event (client): the authority already decided, we don't check the shield. */
   applyDeath() {
     if (!this.alive) return
     this.alive = false
     this.startGhost()
   }
 
-  /** Кадр удалённого игрока на клиенте: только косметика, без боёвки/физики. */
+  /** Remote player's frame on the client: cosmetics only, no combat/physics. */
   updateRemote(dt: number, world: World) {
-    // phase оружия остаётся idle (beginWindup не зовём) → weapon.update лишь рендерит луч.
+    // The weapon phase stays idle (we don't call beginWindup) → weapon.update only renders the beam.
     this._muzzle.copy(this.body.position); this._muzzle.y += MUZZLE_Y
     this.weapon.update(dt, { world, muzzle: this._muzzle, aim: REMOTE_AIM, excludeIds: [this.id] })
-    this.body.faceDir(this.netAimDir)   // модель удалённого смотрит по его прицелу (из снапшота)
+    this.body.faceDir(this.netAimDir)   // the remote model looks along its aim (from the snapshot)
     this.trail.update(dt, { position: this.body.position, dashing: this.netDashing })
-    // Тикаем щит ради анимации скина: фазы удалённого всегда idle (activate не зовём),
-    // а видимость группы форсится ниже в applyRemoteVisual из снапшота — скин видит её как active.
+    // Tick the shield for the skin animation: the remote's phases are always idle (activate not called),
+    // and the group visibility is forced below in applyRemoteVisual from the snapshot — the skin sees it as active.
     this.shield.update(dt)
     this.respawnFx.update(dt)
     this.body.tickShader(dt)
@@ -422,7 +422,7 @@ export class Player implements IControllable {
   private applyRemoteVisual(dt: number) {
     if (this.applyGhostVisuals(dt)) return
     this.body.setOpacity(1)
-    // Порядок как в syncVisuals: сначала windup, затем окно возрождения перепишет масштаб поверх.
+    // Order as in syncVisuals: windup first, then the rebirth window overrides the scale on top.
     this.applyWindup(dt, this.netWindup, this.netFireTime, this.netAimDir)
     this.applyRespawn(dt)
     const rebirth = this.respawnFx.isRebirthActive(Date.now() - this.spawnTime)

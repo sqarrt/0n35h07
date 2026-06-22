@@ -2,12 +2,12 @@ import type { IMusicEngine, StemLibrary, Arrangement, StemRef } from './types'
 import { STEM_LIBRARY } from './stems'
 
 /**
- * Музыка трейлера: ДЕТЕРМИНИРОВАННАЯ (фиксированная, воспроизводимая) аранжировка, без рандома и без
- * fade-in (вступает сразу в полную силу — после обратного отсчёта). Прогрессия по лупам:
- *   луп 0 — кики + бас
- *   луп 1 — + лид 1
- *   луп 2 и далее — + лид 2
- * Стемы — те же, что в меню (та же палитра звука).
+ * Trailer music: DETERMINISTIC (fixed, reproducible) arrangement, no randomness and no
+ * fade-in (enters at full strength at once — after the countdown). Progression by loop:
+ *   loop 0 — kicks + bass
+ *   loop 1 — + lead 1
+ *   loop 2 and on — + lead 2
+ * Stems are the same as in the menu (same sound palette).
  */
 const KICK_ID = 'kicks/sub_long'
 const BASS_ID = 'bass/kutting'
@@ -40,7 +40,7 @@ export class TrailerMusic {
 
   async preload(): Promise<void> { await this.engine.load(this.lib) }
 
-  /** Старт без fade-in — сразу в полную (вызывать на «go» после отсчёта, из жеста). */
+  /** Start without fade-in — straight to full (call on "go" after the countdown, from a gesture). */
   async start(): Promise<void> {
     if (this.started) return
     this.started = true
@@ -57,7 +57,7 @@ export class TrailerMusic {
   setVolume(v: number): void { this.engine.setMasterGain(v) }
   dispose(): void { this.engine.dispose() }
 
-  /** Детерминированная прогрессия: кики+бас → +лид1 → +лид2 (и до конца). */
+  /** Deterministic progression: kicks+bass → +lead1 → +lead2 (and on to the end). */
   arrange(loopIndex: number): Arrangement {
     const voices: Arrangement = [
       { role: 'kicks', stemId: KICK_ID, gain: KICK_GAIN },

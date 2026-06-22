@@ -13,38 +13,38 @@ import { MOVE_SPEED } from '../../src/constants'
 const KEYS = { forward: false, back: false, left: false, right: false }
 
 describe('movement helpers', () => {
-  it('horizontalBasis: взгляд -Z даёт forward=-Z, right=+X', () => {
+  it('horizontalBasis: looking at -Z gives forward=-Z, right=+X', () => {
     const { dir, right } = horizontalBasis(new THREE.Vector3(0, 0, -1))
     expect(dir.z).toBeCloseTo(-1)
     expect(right.x).toBeCloseTo(1)
   })
 
-  it('moveVelocity: W едет по forward со скоростью MOVE_SPEED', () => {
+  it('moveVelocity: W moves along forward at MOVE_SPEED', () => {
     const { dir, right } = horizontalBasis(new THREE.Vector3(0, 0, -1))
     const v = moveVelocity({ ...KEYS, forward: true }, dir, right, false)
     expect(v.z).toBeCloseTo(-MOVE_SPEED)
   })
 
-  it('dashDirection: нет WASD → null', () => {
+  it('dashDirection: no WASD → null', () => {
     const { dir, right } = horizontalBasis(new THREE.Vector3(0, 0, -1))
     expect(dashDirection({ ...KEYS }, dir, right)).toBeNull()
   })
 
-  it('dashDirection: W при взгляде вверх даёт рывок вверх (учёт наклона)', () => {
-    const look = new THREE.Vector3(0, 1, 0)              // смотрим вертикально вверх
+  it('dashDirection: W while looking up gives an upward dash (accounts for pitch)', () => {
+    const look = new THREE.Vector3(0, 1, 0)              // looking straight up
     const { right } = horizontalBasis(look)
     const d = dashDirection({ ...KEYS, forward: true }, look, right)!
     expect(d.y).toBeCloseTo(1)
   })
 
-  it('dashDirection: strafe (D) горизонтален даже при наклоне взгляда', () => {
-    const look = new THREE.Vector3(0, 0.7, -0.7).normalize()   // смотрим вверх-вперёд
+  it('dashDirection: strafe (D) stays horizontal even when looking up', () => {
+    const look = new THREE.Vector3(0, 0.7, -0.7).normalize()   // looking up-forward
     const { right } = horizontalBasis(look)
     const d = dashDirection({ ...KEYS, right: true }, look, right)!
     expect(d.y).toBeCloseTo(0)
   })
 
-  it('dashDirection: W+взгляд вверх-вперёд даёт восходящую диагональ (y>0, z<0)', () => {
+  it('dashDirection: W+looking up-forward gives a rising diagonal (y>0, z<0)', () => {
     const look = new THREE.Vector3(0, 0.7, -0.7).normalize()
     const { right } = horizontalBasis(look)
     const d = dashDirection({ ...KEYS, forward: true }, look, right)!
@@ -63,29 +63,29 @@ function frame(over: Partial<InputFrame> = {}): InputFrame {
   }
 }
 
-describe('intentsFromInput (хост применяет ввод клиента)', () => {
+describe('intentsFromInput (host applies client input)', () => {
   const world = new World(new THREE.Scene())
 
-  it('W копит движение вперёд (desired.z < 0)', () => {
+  it('W accumulates forward movement (desired.z < 0)', () => {
     const p = makePlayer()
     intentsFromInput(p, frame({ keys: { f: true, b: false, l: false, r: false } }), 0.016, world)
-    p.stepHorizontal(0.016, null)   // скоростная модель: разгон желаемой скорости → desired
+    p.stepHorizontal(0.016, null)   // velocity model: ramp up to the desired speed → desired
     expect(p.consumeDesired().z).toBeLessThan(0)
   })
 
-  it('fire запускает заряд', () => {
+  it('fire starts the charge-up', () => {
     const p = makePlayer()
     intentsFromInput(p, frame({ fire: true }), 0.016, world)
     expect(p.isWindingUp).toBe(true)
   })
 
-  it('shield активирует щит', () => {
+  it('shield activates the shield', () => {
     const p = makePlayer()
     intentsFromInput(p, frame({ shield: true }), 0.016, world)
     expect(p.shieldActive).toBe(true)
   })
 
-  it('dash при нажатом W стартует рывок', () => {
+  it('dash with W held starts a dash', () => {
     const p = makePlayer()
     intentsFromInput(p, frame({ dash: true, keys: { f: true, b: false, l: false, r: false } }), 0.016, world)
     expect(p.dashing).toBe(true)

@@ -19,7 +19,7 @@ export const DICTS: Record<LocaleId, Dict> = {
   en, ru, fr, it, de, es, 'zh-CN': zhCN, 'pt-BR': ptBR, tr, pl,
 }
 
-/** Реестр для UI выбора языка: родные названия. Порядок = порядок плиток в настройках. */
+/** Registry for the language picker UI: native names. Order = tile order in settings. */
 export const LOCALES: { id: LocaleId; native: string }[] = [
   { id: 'en', native: 'English' },
   { id: 'fr', native: 'Français' },
@@ -35,7 +35,7 @@ export const LOCALES: { id: LocaleId; native: string }[] = [
 
 const FALLBACK: LocaleId = 'en'
 
-/** Системный язык: точное совпадение → по префиксу (pt-*→pt-BR, zh-*→zh-CN) → en. */
+/** System locale: exact match → by prefix (pt-*→pt-BR, zh-*→zh-CN) → en. */
 export function detectLocale(langs?: readonly string[]): LocaleId {
   const resolved = langs ?? (typeof navigator !== 'undefined' ? navigator.languages ?? [] : [])
   const ids = LOCALES.map(l => l.id)
@@ -52,7 +52,7 @@ export function detectLocale(langs?: readonly string[]): LocaleId {
 interface I18nCtx { locale: LocaleId; dict: Dict; setLocale: (id: LocaleId) => void }
 const Ctx = createContext<I18nCtx | null>(null)
 
-/** Провайдер языка. `initial` — из профиля (или detectLocale()); `onChange` — персист в профиль. */
+/** Locale provider. `initial` from the profile (or detectLocale()); `onChange` persists to the profile. */
 export function I18nProvider({ initial, onChange, children }: {
   initial: LocaleId
   onChange?: (id: LocaleId) => void
@@ -60,12 +60,12 @@ export function I18nProvider({ initial, onChange, children }: {
 }) {
   const [locale, setLocaleState] = useState<LocaleId>(initial)
 
-  // Устанавливаем lang при первом рендере (initial читается один раз намеренно)
+  // Set lang on first render (initial is read once intentionally)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { document.documentElement.lang = initial }, [])
 
-  // Ref нужен, чтобы setLocale оставался стабильной ссылкой (useCallback []),
-  // не вызывая лишних ре-рендеров у потребителей контекста
+  // Ref keeps setLocale a stable reference (useCallback []),
+  // avoiding extra re-renders for context consumers
   const onChangeRef = useRef(onChange)
   useEffect(() => { onChangeRef.current = onChange }, [onChange])
 
@@ -80,9 +80,9 @@ export function I18nProvider({ initial, onChange, children }: {
 }
 
 /**
- * Жёстко задаёт язык поддерева (без записи в профиль и без смены document.lang).
- * Нужен трейлеру: на Steam аудитория англоязычная → весь HUD трейлера всегда на en,
- * независимо от выбранного в настройках языка.
+ * Forces the locale for a subtree (without writing to the profile or changing document.lang).
+ * Needed by the trailer: the Steam audience is English-speaking → the entire trailer HUD is always en,
+ * regardless of the locale chosen in settings.
  */
 export function ForceLocale({ id, children }: { id: LocaleId; children: ReactNode }) {
   const value = useMemo<I18nCtx>(() => ({ locale: id, dict: DICTS[id], setLocale: () => {} }), [id])
@@ -91,13 +91,13 @@ export function ForceLocale({ id, children }: { id: LocaleId; children: ReactNod
 
 function useI18n(): I18nCtx {
   const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useT/useLocale вне I18nProvider')
+  if (!ctx) throw new Error('useT/useLocale outside I18nProvider')
   return ctx
 }
 
-/** Словарь текущего языка. */
+/** Dictionary of the current locale. */
 export function useT(): Dict { return useI18n().dict }
-/** Текущий язык + сеттер (экран настроек). */
+/** Current locale + setter (settings screen). */
 export function useLocale(): [LocaleId, (id: LocaleId) => void] {
   const { locale, setLocale } = useI18n()
   return [locale, setLocale]

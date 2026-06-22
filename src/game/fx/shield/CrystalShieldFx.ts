@@ -1,17 +1,17 @@
 import * as THREE from 'three'
 import type { IShieldFx } from './types'
 
-// КРИСТАЛЛ: гранёная икосаэдр-скорлупа — полупрозрачная заливка, рёбра и поочерёдно
-// вспыхивающие грани (одна за раз, смена с ограниченной частотой — фоточувствительность).
+// CRYSTAL: faceted icosahedron shell — translucent fill, edges, and faces that flash
+// one at a time (rate-limited switching — photosensitivity).
 const CRYSTAL_COLOR        = '#4af'
 const CRYSTAL_RADIUS       = 0.78
 const CRYSTAL_FILL_OPACITY = 0.12
 const CRYSTAL_EDGE_OPACITY = 0.5
-const CRYSTAL_FACE_OPACITY = 0.4    // непрозрачность вспыхнувшей грани
-const CRYSTAL_FLICKER_MS   = 140    // период смены подсвеченной грани (~7 Гц)
-const CRYSTAL_FACE_SCALE   = 1.01   // грань чуть поверх скорлупы (анти z-fighting)
-const FLOATS_PER_FACE      = 9      // 3 вершины × 3 координаты у неиндексированной геометрии
-const FACE_STEP            = 7      // взаимно просто с 20 → обход всех граней не по порядку
+const CRYSTAL_FACE_OPACITY = 0.4    // opacity of the flashing face
+const CRYSTAL_FLICKER_MS   = 140    // lit-face switch period (~7 Hz)
+const CRYSTAL_FACE_SCALE   = 1.01   // face slightly above the shell (anti z-fighting)
+const FLOATS_PER_FACE      = 9      // 3 vertices x 3 coordinates in non-indexed geometry
+const FACE_STEP            = 7      // coprime with 20 → visits all faces out of order
 
 export class CrystalShieldFx implements IShieldFx {
   readonly object3d = new THREE.Group()
@@ -22,7 +22,7 @@ export class CrystalShieldFx implements IShieldFx {
   private edgeMat: THREE.LineBasicMaterial
   private faceMat: THREE.MeshBasicMaterial
   private faces: THREE.Mesh[] = []
-  private clock = 0   // мс с создания — задаёт текущую вспыхнувшую грань
+  private clock = 0   // ms since creation — drives the current flashing face
 
   constructor() {
     this.shellGeo = new THREE.IcosahedronGeometry(CRYSTAL_RADIUS, 0)
@@ -41,12 +41,12 @@ export class CrystalShieldFx implements IShieldFx {
     edges.userData.noRaycast = true
     this.object3d.add(shell, edges)
 
-    // Грани-вспышки: по треугольнику на каждую грань икосаэдра, видна одна за раз.
+    // Flash faces: one triangle per icosahedron face, one visible at a time.
     this.faceMat = new THREE.MeshBasicMaterial({
       color: CRYSTAL_COLOR, transparent: true, opacity: CRYSTAL_FACE_OPACITY,
       side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
     })
-    const pos = this.shellGeo.getAttribute('position')   // неиндексированная: 3 вершины на грань
+    const pos = this.shellGeo.getAttribute('position')   // non-indexed: 3 vertices per face
     const faceCount = pos.count / 3
     for (let f = 0; f < faceCount; f++) {
       const geo = new THREE.BufferGeometry()

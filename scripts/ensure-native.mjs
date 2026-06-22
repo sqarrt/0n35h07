@@ -1,21 +1,19 @@
 /**
- * Гарантирует наличие платформенного нативного бинарника rolldown перед прогоном тестов.
+ * Ensures the platform's native rolldown binary is present before running tests.
  *
- * Зачем: node_modules лежит на /mnt/c (Windows-раздел) и ОБЩАЯ для Windows и WSL.
- * npm ставит нативный бинарник rolldown только под ту ОС, из-под которой запускался
- * `npm install`. Поэтому после установки из-под Windows под WSL отсутствует
- * `@rolldown/binding-linux-x64-gnu` (и наоборот), а vitest/vite падают на старте с
- * "Cannot find native binding".
+ * Why: node_modules lives on /mnt/c (the Windows partition) and is SHARED between Windows and WSL.
+ * npm installs the native rolldown binary only for the OS that ran `npm install`. So after
+ * installing from Windows, `@rolldown/binding-linux-x64-gnu` is missing under WSL (and vice
+ * versa), and vitest/vite crash on startup with "Cannot find native binding".
  *
- * Что делает: пробует загрузить rolldown В ОТДЕЛЬНОМ процессе (важно: повторный
- * import в текущем процессе берётся из ESM-кэша как «уже упавший» и не видит
- * свежеустановленный бинарник). Если проба падает — вытаскивает имя недостающего
- * пакета прямо из ошибки rolldown и доустанавливает ИМЕННО его через
- * `npm install --no-save` (без правок package.json/package-lock, не трогая бинарник
- * другой ОС), затем пробует снова. Если бинарник на месте (типичный случай на
- * Windows) — быстрый no-op.
+ * What it does: tries to load rolldown IN A SEPARATE process (important: a repeat import in the
+ * current process is served from the ESM cache as "already failed" and won't see the freshly
+ * installed binary). If the probe fails, it extracts the missing package name straight from the
+ * rolldown error and installs EXACTLY that one via `npm install --no-save` (without touching
+ * package.json/package-lock or the other OS's binary), then probes again. If the binary is present
+ * (the typical case on Windows) — a fast no-op.
  *
- * Запускается автоматически как pre-хук тестовых скриптов (см. package.json).
+ * Runs automatically as a pre-hook of the test scripts (see package.json).
  */
 import { createRequire } from 'node:module'
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -23,38 +21,38 @@ import { readFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
 
-const MAX_ATTEMPTS = 3                        // на случай, если не хватает нескольких бинарников
-const BINDING_RE = /@rolldown\/binding-[\w-]+/   // имя недостающего нативного пакета rolldown
-// Загружаем rolldown в дочернем процессе: console.error(e) печатает и цепочку [cause],
-// где rolldown называет недостающий модуль @rolldown/binding-*.
+const MAX_ATTEMPTS = 3                        // in case several binaries are missing
+const BINDING_RE = /@rolldown\/binding-[\w-]+/   // name of the missing native rolldown package
+// Load rolldown in a child process: console.error(e) prints the [cause] chain too,
+// where rolldown names the missing @rolldown/binding-* module.
 const PROBE = "import('rolldown').then(() => process.exit(0)).catch(e => { console.error(e); process.exit(7) })"
 
-/** Версия установленного rolldown — доустанавливаем бинарник строго той же версии. */
+/** Version of the installed rolldown — we install the binary of exactly the same version. */
 function rolldownVersion() {
   const pkg = JSON.parse(readFileSync(require.resolve('rolldown/package.json'), 'utf8'))
   return pkg.version
 }
 
-/** Свежая проба загрузки rolldown в отдельном процессе. status===0 → бинарник на месте. */
+/** Fresh probe loading rolldown in a separate process. status===0 → binary is present. */
 function probe() {
   return spawnSync(process.execPath, ['-e', PROBE], { encoding: 'utf8' })
 }
 
 for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
   const res = probe()
-  if (res.status === 0) process.exit(0)       // бинарник загрузился — всё на месте
+  if (res.status === 0) process.exit(0)       // binary loaded — everything is in place
 
   const missing = res.stderr.match(BINDING_RE)?.[0]
-  if (!missing) {                              // не наш случай — не маскируем чужую ошибку
+  if (!missing) {                              // not our case — don't mask an unrelated error
     process.stderr.write(res.stderr)
-    throw new Error('[ensure-native] не удалось распознать недостающий бинарник rolldown в ошибке выше')
+    throw new Error('[ensure-native] could not identify the missing rolldown binary in the error above')
   }
 
   const pkg = `${missing}@${rolldownVersion()}`
-  console.log(`[ensure-native] доустанавливаю ${pkg} (платформенный бинарник rolldown отсутствует)`)
+  console.log(`[ensure-native] installing ${pkg} (platform rolldown binary is missing)`)
   execFileSync('npm', ['install', '--no-save', pkg], { stdio: 'inherit' })
 }
 
 if (probe().status === 0) process.exit(0)
-console.error('[ensure-native] не удалось обеспечить нативный бинарник rolldown за отведённые попытки')
+console.error('[ensure-native] failed to provide the native rolldown binary within the allotted attempts')
 process.exit(1)

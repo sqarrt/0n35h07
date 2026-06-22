@@ -46,7 +46,7 @@ export const ptBR = {
   warnContinueHint: 'para continuar',
   warnContinueKey: 'CLIQUE ESQ',
   settingsLanguage: 'IDIOMA',
-  // Комната
+  // Room
   roomTitle: 'SALA',
   roomCodeLabel: 'CÓDIGO:',
   roomCopied: 'COPIADO',

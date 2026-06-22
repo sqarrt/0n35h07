@@ -14,7 +14,7 @@ function unlockPointer() {
   Object.defineProperty(document, 'pointerLockElement', { get: () => null, configurable: true })
 }
 
-/** Строит host-матч 1v1 (вы + бот) и пропускает ритуал готовности — тестируем боёвку. */
+/** Builds a 1v1 host match (you + bot) and skips the ready ritual — testing combat. */
 function makeMatch(difficulty: BotDifficulty = 'passive', mapId?: MapId) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
@@ -22,25 +22,25 @@ function makeMatch(difficulty: BotDifficulty = 'passive', mapId?: MapId) {
   const keys = { current: { forward: false, back: false, left: false, right: false } }
   const dispatch = vi.fn()
   const roster: RosterEntry[] = [
-    { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-    { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty },
+    { id: 0, name: 'You', color: '#4af', kind: 'human' },
+    { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty },
   ]
   const match = new Match({
     scene, camera, controls: controls as any, keys: keys as any, dispatch,
     role: 'host', netConfig: { localId: 0, roster }, mapId,
   })
-  scene.add(match.root)   // тела игроков + лучи (для raycast боёвки)
+  scene.add(match.root)   // player bodies + beams (for raycast combat)
   match.installDebug(camera)
   match.forceLiveForTest()
   return { match, scene, camera, dispatch }
 }
 
-/** Прогоняет кадры, обновляя мировые матрицы (в тестах нет рендер-цикла R3F). */
+/** Runs frames, updating world matrices (no R3F render loop in tests). */
 function step(match: Match, scene: THREE.Scene, n = 45, dt = 0.016) {
   for (let i = 0; i < n; i++) { scene.updateMatrixWorld(true); match.update(dt) }
 }
 
-/** Ставит человека целиться точно в бота перед ним. */
+/** Makes the human aim precisely at the bot in front of them. */
 function aimHumanAtBot(match: Match, camera: THREE.PerspectiveCamera) {
   match.human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, 0))
   match.bots[0].respawnAt(new THREE.Vector3(0, EYE_HEIGHT, -5))
@@ -54,13 +54,13 @@ describe('Match ballArt', () => {
   beforeEach(lockPointer)
   afterEach(unlockPointer)
 
-  it('рисунок из ростера декодится в Body без падения', () => {
+  it('the drawing from the roster decodes into Body without throwing', () => {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
     const art = makeEmptyArt(); art.front[0] = 1
     const roster: RosterEntry[] = [
-      { id: 0, name: 'Вы', color: '#4af', kind: 'human', ballArt: encodeBallArt(art) },
-      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+      { id: 0, name: 'You', color: '#4af', kind: 'human', ballArt: encodeBallArt(art) },
+      { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
     ]
     const match = new Match({
       scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
@@ -80,23 +80,23 @@ describe('Match', () => {
     delete w.__debugCamera; delete w.__debugWindup; delete w.__debugTargetHitCount; delete w.__debugBotPos
   })
 
-  it('спавнит игроков по слотам выбранной карты (os_pillars)', () => {
+  it('spawns players at the slots of the selected map (os_pillars)', () => {
     const { match } = makeMatch('passive', 'os_pillars')
     expect(match.human.position.toArray()).toEqual(MAPS.os_pillars.spawns[0])
     expect(match.bots[0].position.toArray()).toEqual(MAPS.os_pillars.spawns[1])
   })
 
-  it('человек убивает пассивного бота: hitCount + BEAM_FLASH + бот в фазе призрака', () => {
+  it('human kills a passive bot: hitCount + BEAM_FLASH + bot in ghost phase', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
-    step(match, scene, 45)             // > windup 400мс
+    step(match, scene, 45)             // > windup 400ms
     expect(hitCount()).toBe(1)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BEAM_FLASH' })
-    expect(match.bots[0].isRespawning).toBe(true)   // погиб → фаза призрака (1.5с)
+    expect(match.bots[0].isRespawning).toBe(true)   // died → ghost phase (1.5s)
   })
 
-  it('убийство ведёт K/D и шлёт SET_SCORES', () => {
+  it('a kill tracks K/D and sends SET_SCORES', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
@@ -106,50 +106,50 @@ describe('Match', () => {
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SCORES' }))
   })
 
-  it('попадание в бота со щитом → BOT_SHIELD_HIT, без хита', () => {
+  it('hitting a bot with a shield → BOT_SHIELD_HIT, no hit', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
-    match.bots[0].activateShield()     // щит держится 800мс > попадание (~400мс)
+    match.bots[0].activateShield()     // shield holds 800ms > hit (~400ms)
     match.humanController.onFire()
     step(match, scene, 45)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
     expect(hitCount()).toBe(0)
   })
 
-  it('идеальный блок (щит поднят <100мс до луча) → сброс кулдаунов: щит сразу переиспользуем', () => {
+  it('perfect block (shield raised <100ms before the beam) → cooldown reset: shield reusable immediately', () => {
     const { match, scene, camera, dispatch } = makeMatch('passive')
     aimHumanAtBot(match, camera)
     match.humanController.onFire()
-    step(match, scene, 23)                 // BEAM_WINDUP=400мс → попадание ~кадр 25; щит ещё не поднят
-    match.bots[0].activateShield()         // подняли «в момент» попадания → идеальный блок
-    step(match, scene, 5)                  // луч прилетает, блок засчитан
+    step(match, scene, 23)                 // BEAM_WINDUP=400ms → hit ~frame 25; shield not raised yet
+    match.bots[0].activateShield()         // raised "at the moment" of the hit → perfect block
+    step(match, scene, 5)                  // beam arrives, block counted
     expect(hitCount()).toBe(0)
     expect(dispatch).toHaveBeenCalledWith({ type: 'BOT_SHIELD_HIT' })
-    // награда: после активного окна щита нет кулдауна — поднимается сразу снова
-    step(match, scene, 55)                 // > SHIELD_DURATION (800мс) с момента активации
+    // reward: after the active shield window there is no cooldown — raises again right away
+    step(match, scene, 55)                 // > SHIELD_DURATION (800ms) since activation
     expect(match.bots[0].shieldActive).toBe(false)
     match.bots[0].activateShield()
     expect(match.bots[0].shieldActive).toBe(true)
   })
 
-  it('смерть игрока не трогает соперника (фаза призрака только у погибшего)', () => {
+  it("a player's death does not affect the opponent (ghost phase only for the deceased)", () => {
     const { match, scene } = makeMatch('passive')
     const botBefore = match.bots[0].position.clone()
     match.human.receiveHit()
     expect(match.human.isRespawning).toBe(true)
-    expect(match.bots[0].isRespawning).toBe(false)   // соперник не в фазе
+    expect(match.bots[0].isRespawning).toBe(false)   // opponent not in the phase
     step(match, scene, 20)
     expect(match.bots[0].alive).toBe(true)
     expect(match.bots[0].position.distanceTo(botBefore)).toBeLessThan(0.01)
   })
 
-  it('windupFx: world-объекты в root, стиль из ростера попадает в Player', () => {
+  it('windupFx: world objects in root, style from the roster reaches Player', () => {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
     const roster: RosterEntry[] = [
-      { id: 0, name: 'Вы', color: '#4af', kind: 'human', windupStyle: 'rage', respawnStyle: 'swarm',
+      { id: 0, name: 'You', color: '#4af', kind: 'human', windupStyle: 'rage', respawnStyle: 'swarm',
         dashStyle: 'rift', shieldStyle: 'hex' },
-      { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+      { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
     ]
     const match = new Match({
       scene, camera,
@@ -158,23 +158,23 @@ describe('Match', () => {
       dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
     })
     expect(match.human.windupStyle).toBe('rage')
-    expect(match.bots[0].windupStyle).toBe('classic')           // у бота стиля нет → classic
+    expect(match.bots[0].windupStyle).toBe('classic')           // bot has no style → classic
     expect(match.human.windupFxObject.parent).toBe(match.root)
     expect(match.bots[0].windupFxObject.parent).toBe(match.root)
-    expect(match.human.respawnStyle).toBe('swarm')              // стиль респавна тоже из ростера
+    expect(match.human.respawnStyle).toBe('swarm')              // respawn style also from the roster
     expect(match.bots[0].respawnStyle).toBe('echo')
     expect(match.human.respawnFxObject.parent).toBe(match.root)
-    expect(match.human.dashStyle).toBe('rift')                  // скины рывка/щита из ростера
+    expect(match.human.dashStyle).toBe('rift')                  // dash/shield skins from the roster
     expect(match.bots[0].dashStyle).toBe('streak')
     expect(match.human.trailObject.parent).toBe(match.root)
   })
 
-  it('по истечении фазы игрок материализуется НА МЕСТЕ остановки (не на рандоме)', () => {
+  it('after the phase ends the player materializes AT the stop position (not at random)', () => {
     const { match, scene } = makeMatch('passive')
-    match.human.respawnAt(new THREE.Vector3(2, EYE_HEIGHT, 3))   // в известную точку, alive
-    match.human.receiveHit()                                     // → призрак (без ввода — стоит)
+    match.human.respawnAt(new THREE.Vector3(2, EYE_HEIGHT, 3))   // at a known point, alive
+    match.human.receiveHit()                                     // → ghost (no input — stays put)
     const ghostPos = match.human.position.clone()
-    step(match, scene, 100)                                      // > RESPAWN_GHOST_MS (1.5с)
+    step(match, scene, 100)                                      // > RESPAWN_GHOST_MS (1.5s)
     expect(match.human.alive).toBe(true)
     expect(match.human.isRespawning).toBe(false)
     expect(match.human.position.distanceTo(ghostPos)).toBeLessThan(0.5)

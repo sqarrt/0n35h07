@@ -2,34 +2,34 @@ import * as THREE from 'three'
 import type { IDashTrail, DashTrailContext } from '../../abstractions'
 import { BODY_MESH_Y } from '../../../constants'
 
-// ВОЛНА: рывок оставляет на пути кольца-ударные волны (плоскость поперёк движения),
-// кольца расширяются и гаснут. Чистая косметика, цвет игрока.
-const WAVE_INTERVAL_MS = 25    // мс между кольцами (плотный частокол волн)
-const WAVE_LIFE_MS     = 450   // мс жизни кольца
-const WAVE_POOL        = 20    // размер пула
-const WAVE_INNER       = 0.3   // стартовый внутренний радиус кольца
-const WAVE_OUTER       = 0.38  // стартовый внешний радиус кольца
+// WAVE: dash leaves shockwave rings along the path (plane across motion),
+// rings expand and fade out. Purely cosmetic, player color.
+const WAVE_INTERVAL_MS = 25    // ms between rings (dense wave palisade)
+const WAVE_LIFE_MS     = 450   // ring lifetime, ms
+const WAVE_POOL        = 20    // pool size
+const WAVE_INNER       = 0.3   // initial inner ring radius
+const WAVE_OUTER       = 0.38  // initial outer ring radius
 const WAVE_SEGMENTS    = 24
-const WAVE_GROW        = 3.5   // ед/с — скорость роста масштаба
-const WAVE_OPACITY     = 0.7   // стартовая непрозрачность
+const WAVE_GROW        = 3.5   // units/s -- scale growth rate
+const WAVE_OPACITY     = 0.7   // initial opacity
 
-const RING_NORMAL = new THREE.Vector3(0, 0, 1)   // нормаль RingGeometry по умолчанию
+const RING_NORMAL = new THREE.Vector3(0, 0, 1)   // default RingGeometry normal
 
 interface Wave {
   mesh:    THREE.Mesh
   mat:     THREE.MeshBasicMaterial
-  life:    number   // оставшаяся жизнь, мс
+  life:    number   // remaining life, ms
 }
 
 export class WaveTrail implements IDashTrail {
   readonly object3d = new THREE.Group()
   private geometry: THREE.RingGeometry
   private waves: Wave[] = []
-  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр тела относительно глаз
+  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // body center relative to eyes
   private emitTimer = 0
   private lastPos = new THREE.Vector3()
   private hasLastPos = false
-  private dir = new THREE.Vector3(1, 0, 0)   // последнее валидное направление движения
+  private dir = new THREE.Vector3(1, 0, 0)   // last valid movement direction
 
   constructor(color: string) {
     this.geometry = new THREE.RingGeometry(WAVE_INNER, WAVE_OUTER, WAVE_SEGMENTS)
@@ -49,7 +49,7 @@ export class WaveTrail implements IDashTrail {
   update(dt: number, ctx: DashTrailContext) {
     const ms = dt * 1000
     if (ctx.dashing) {
-      // Направление — по дельте позиций (вырожденная дельта → прежнее направление).
+      // Direction from position delta (degenerate delta -> keep previous direction).
       if (this.hasLastPos) {
         const delta = ctx.position.clone().sub(this.lastPos)
         if (delta.lengthSq() > 1e-8) this.dir.copy(delta.normalize())
@@ -70,8 +70,8 @@ export class WaveTrail implements IDashTrail {
       if (w.life <= 0) continue
       w.life -= ms
       if (w.life <= 0) { w.mesh.visible = false; w.mat.opacity = 0; continue }
-      const t = w.life / WAVE_LIFE_MS                    // 1 → 0
-      const age = (WAVE_LIFE_MS - w.life) / 1000         // сек с эмита
+      const t = w.life / WAVE_LIFE_MS                    // 1 -> 0
+      const age = (WAVE_LIFE_MS - w.life) / 1000         // seconds since emit
       w.mat.opacity = WAVE_OPACITY * t
       w.mesh.scale.setScalar(1 + WAVE_GROW * age)
     }
@@ -79,9 +79,9 @@ export class WaveTrail implements IDashTrail {
 
   private emit(eyePos: THREE.Vector3) {
     const w = this.waves.find(x => x.life <= 0)
-    if (!w) return   // пул исчерпан — пропускаем (визуальная мелочь)
+    if (!w) return   // pool exhausted -- skip (minor visual detail)
     w.mesh.position.copy(eyePos).add(this.offset)
-    w.mesh.quaternion.setFromUnitVectors(RING_NORMAL, this.dir)   // плоскость кольца поперёк движения
+    w.mesh.quaternion.setFromUnitVectors(RING_NORMAL, this.dir)   // ring plane across motion
     w.mesh.scale.setScalar(1)
     w.mesh.visible = true
     w.mat.opacity = WAVE_OPACITY

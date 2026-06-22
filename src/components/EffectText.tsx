@@ -10,13 +10,13 @@ const SCRAMBLE_CHANCE = 0.4
 
 interface EffectTextProps {
   text: string
-  kind: FxKind | null      // null → обычный текст без эффекта
-  color: string            // цвет игрока (--pc)
+  kind: FxKind | null      // null → plain text without effect
+  color: string            // player color (--pc)
   testid?: string
-  dataStreak?: string      // значение data-streak (для e2e на нике)
+  dataStreak?: string      // data-streak value (for e2e on the nickname)
 }
 
-/** SVG-фильтры электричества — один раз на дерево (нужны для filter:url(#ks-elN)). */
+/** SVG electricity filters — once per tree (needed for filter:url(#ks-elN)). */
 export function EffectDefs() {
   return (
     <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
@@ -32,7 +32,7 @@ export function EffectText({ text, kind, color, testid, dataStreak }: EffectText
   const baseRef = useRef(text)
   baseRef.current = text
 
-  // SINGULARITY: порча символов на миг (моноширинно-безопасные ASCII) и щелчок назад.
+  // SINGULARITY: corrupt characters for a moment (monospace-safe ASCII) and snap back.
   useEffect(() => {
     setShown(text)
     if (kind !== 'singularity') return
@@ -51,23 +51,23 @@ export function EffectText({ text, kind, color, testid, dataStreak }: EffectText
   }
 
   const style = { '--pc': color } as CSSProperties
-  // .nm даёт единую HUD-типографику (вне .match-hud класс .nm безвреден); .fx — только оформление.
+  // .nm gives unified HUD typography (outside .match-hud the .nm class is harmless); .fx — styling only.
   const cls = `nm fx fx--${kind}`
   const isCatalyst = kind === 'catalyst'
 
   return (
     <div className={cls} style={style} data-testid={testid} data-streak={dataStreak}>
       {shown}
-      {/* хром-сплит «разрыв сигнала» для тиров (не для catalyst) */}
+      {/* chroma-split "signal break" for tiers (not for catalyst) */}
       {!isCatalyst && <><span className="glitch-a" aria-hidden="true">{shown}</span><span className="glitch-b" aria-hidden="true">{shown}</span></>}
-      {/* искры/дуги: тиры — пара, catalyst — плотный крекинг (SURGE без бегущего тока) */}
+      {/* sparks/arcs: tiers — a pair, catalyst — dense cracking (SURGE without running current) */}
       <i className="arc" style={ARC[0]} /><i className="arc" style={ARC[1]} /><i className="arc" style={ARC[2]} />
       {isCatalyst && <><i className="arc" style={ARC[3]} /><i className="arc" style={ARC[4]} /><i className="tick" style={TICK[0]} /><i className="tick" style={TICK[1]} /><i className="tick" style={TICK[2]} /></>}
     </div>
   )
 }
 
-// Раскладка искр/щелчков (из firstblood-catalyst-final.html). Анимации навешиваем инлайном (разные тайминги).
+// Layout of sparks/ticks (from firstblood-catalyst-final.html). Animations are applied inline (different timings).
 const ARC: CSSProperties[] = [
   { top: '20%', left: -12, width: 20, transform: 'rotate(20deg)', animation: 'ks-crack .5s infinite 0s' },
   { top: '80%', right: -12, width: 20, transform: 'rotate(-18deg)', animation: 'ks-crack .45s infinite .12s' },

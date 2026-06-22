@@ -6,7 +6,7 @@ import {
 import { writeArtData, ART_TEX_W, ART_TEX_H } from '../../src/game/fx/artTexture'
 
 describe('ballArt codec', () => {
-  it('round-trip: encode→decode сохраняет закрашенные клетки', () => {
+  it('round-trip: encode→decode preserves filled cells', () => {
     const art = makeEmptyArt()
     art.front[8 * BALL_ART_SIZE + 8] = 1
     art.back[0] = 1
@@ -17,19 +17,19 @@ describe('ballArt codec', () => {
     expect(decoded.front[0]).toBe(0)
   })
 
-  it('encode даёт строку длиной 88 (64 байта base64)', () => {
+  it('encode yields a string of length 88 (64 base64 bytes)', () => {
     expect(encodeBallArt(makeEmptyArt()).length).toBe(88)
   })
 
-  it('decode отвергает мусор → null', () => {
+  it('decode rejects garbage → null', () => {
     expect(decodeBallArt('')).toBeNull()
     expect(decodeBallArt('not-base64-$$$')).toBeNull()
-    expect(decodeBallArt('AAAA')).toBeNull()            // неверная длина
+    expect(decodeBallArt('AAAA')).toBeNull()            // wrong length
     expect(decodeBallArt(undefined)).toBeNull()
     expect(decodeBallArt(123 as unknown)).toBeNull()
   })
 
-  it('isEmpty: пустой арт — true, с одной клеткой — false', () => {
+  it('isEmpty: empty art — true, with one cell — false', () => {
     const art = makeEmptyArt()
     expect(isEmpty(art)).toBe(true)
     art.front[10] = 1
@@ -38,44 +38,44 @@ describe('ballArt codec', () => {
 })
 
 describe('ballArt disc geometry', () => {
-  it('cellInDisc: центр внутри, угол снаружи', () => {
+  it('cellInDisc: center inside, corner outside', () => {
     expect(cellInDisc(8, 8)).toBe(true)
-    expect(cellInDisc(0, 0)).toBe(false)        // угол сетки вне вписанного круга
+    expect(cellInDisc(0, 0)).toBe(false)        // grid corner outside the inscribed circle
     expect(cellInDisc(15, 15)).toBe(false)
   })
 
-  it('artUvForNormal: полюс −Z → центр переднего диска (u≈0.25, v≈0.5)', () => {
+  it('artUvForNormal: pole −Z → center of the front disc (u≈0.25, v≈0.5)', () => {
     const uv = artUvForNormal(0, 0, -1)
     expect(uv.u).toBeCloseTo(0.25, 2)
     expect(uv.v).toBeCloseTo(0.5, 2)
   })
 
-  it('artUvForNormal: полюс +Z → центр заднего диска (u≈0.75)', () => {
+  it('artUvForNormal: pole +Z → center of the back disc (u≈0.75)', () => {
     const uv = artUvForNormal(0, 0, 1)
     expect(uv.u).toBeCloseTo(0.75, 2)
     expect(uv.v).toBeCloseTo(0.5, 2)
   })
 
-  it('artUvForNormal: силуэт (+Y, n.z=0) → край диска по вертикали (v≈1)', () => {
+  it('artUvForNormal: silhouette (+Y, n.z=0) → vertical edge of the disc (v≈1)', () => {
     const uv = artUvForNormal(0, 1, 0)
     expect(uv.v).toBeCloseTo(1, 1)
   })
 })
 
 describe('ballArt texture data', () => {
-  it('writeArtData: закрашенная клетка (8,7) перёд → texel (8,8) = 0, остальное 255', () => {
+  it('writeArtData: filled cell (8,7) front → texel (8,8) = 0, the rest 255', () => {
     const art = makeEmptyArt()
     art.front[7 * BALL_ART_SIZE + 8] = 1                    // cy=7, cx=8
     const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)
     writeArtData(art, data)
-    const ty = BALL_ART_SIZE - 1 - 7                        // 8 (флип)
+    const ty = BALL_ART_SIZE - 1 - 7                        // 8 (flip)
     const idx = (ty * ART_TEX_W + 8) * 4
-    expect(data[idx]).toBe(0)                               // R закрашенной клетки
+    expect(data[idx]).toBe(0)                               // R of the filled cell
     expect(data[idx + 3]).toBe(255)                         // A
-    expect(data[0]).toBe(255)                               // незакрашенная клетка — белая
+    expect(data[0]).toBe(255)                               // unfilled cell — white
   })
 
-  it('соответствие: artUvForNormal(0,0,-1) указывает на закрашенный texel', () => {
+  it('correspondence: artUvForNormal(0,0,-1) points to the filled texel', () => {
     const art = makeEmptyArt()
     art.front[7 * BALL_ART_SIZE + 8] = 1
     const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)

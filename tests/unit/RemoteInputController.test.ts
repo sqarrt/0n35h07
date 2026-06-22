@@ -18,27 +18,27 @@ function frame(over: Partial<InputFrame> = {}): InputFrame {
   }
 }
 
-describe('RemoteInputController — рёберные действия не теряются', () => {
+describe('RemoteInputController — edge actions are not lost', () => {
   const world = new World(new THREE.Scene())
 
-  it('fire из кадра, перезаписанного более свежим до update, всё равно применяется', () => {
+  it('fire from a frame overwritten by a newer one before update is still applied', () => {
     const p = makePlayer()
     const rc = new RemoteInputController(p, world)
-    rc.enqueue(frame({ seq: 1, fire: true }))    // выстрел
-    rc.enqueue(frame({ seq: 2, fire: false }))   // свежий кадр без выстрела перезаписал latest
+    rc.enqueue(frame({ seq: 1, fire: true }))    // shot
+    rc.enqueue(frame({ seq: 2, fire: false }))   // a newer frame without fire overwrote latest
     rc.update(0.016)
-    expect(p.isWindingUp).toBe(true)             // выстрел не потерян
-    expect(rc.ackSeq).toBe(2)                    // движение — из самого свежего кадра
+    expect(p.isWindingUp).toBe(true)             // shot not lost
+    expect(rc.ackSeq).toBe(2)                    // movement — from the newest frame
   })
 
-  it('рёберное действие применяется один раз (нет авто-повтора)', () => {
+  it('an edge action is applied once (no auto-repeat)', () => {
     const p = makePlayer()
     const rc = new RemoteInputController(p, world)
     rc.enqueue(frame({ seq: 1, shield: true }))
     rc.update(0.016)
     expect(p.shieldActive).toBe(true)
-    p.activateShield()                           // сбросить нельзя — проверяем, что повтора нет
-    rc.update(0.016)                             // без нового кадра — щит не пере-активируется этим контроллером
-    expect(p.shieldActive).toBe(true)            // всё ещё активен (один цикл), без ошибок
+    p.activateShield()                           // can't reset — checking there's no repeat
+    rc.update(0.016)                             // without a new frame — the shield isn't re-activated by this controller
+    expect(p.shieldActive).toBe(true)            // still active (one cycle), no errors
   })
 })

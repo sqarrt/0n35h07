@@ -11,52 +11,52 @@ import { netDiagMark } from './netDiag'
 
 export type RoomRole = 'host' | 'client'
 
-const HELLO_RETRY_MS = 400   // клиент повторяет HELLO, пока не получит ASSIGN (надёжность под нагрузкой)
+const HELLO_RETRY_MS = 400   // client resends HELLO until it gets ASSIGN (reliability under load)
 const ALL_MAPS: MapId[] = MAP_IDS
 const ALL_DURS: number[] = [...MATCH_DURATIONS_MIN]
 const pickRandom = <T>(opts: T[]): T => opts[Math.floor(Math.random() * opts.length)]
 
 export interface RoomView {
   roster: RosterEntry[]
-  localPlayerId: number   // -1 у клиента, пока хост не назначил
+  localPlayerId: number   // -1 on client until host assigns
   isHost: boolean
-  connected: boolean      // клиент: получил ASSIGN
-  foundHost: boolean      // клиент: транспорт нашёл пира (onPeerJoin) — идёт хендшейк; host: всегда true
-  canStart: boolean       // host: слот соперника занят → можно стартовать
+  connected: boolean      // client: got ASSIGN
+  foundHost: boolean      // client: transport found a peer (onPeerJoin) — handshake in progress; host: always true
+  canStart: boolean       // host: opponent slot filled → can start
   durationMin: number
-  mapId: MapId            // концертная карта матча (резолв)
-  mapSel: MapFilter       // выбор стороны (для плиток лобби; может быть 'any')
+  mapId: MapId            // resolved match map
+  mapSel: MapFilter       // this side's selection (for lobby tiles; may be 'any')
   durationSel: DurationFilter
-  ready: number[]         // id готовых игроков (для индикации в лобби)
+  ready: number[]         // ids of ready players (for lobby indication)
 }
 
 /**
- * Хендшейк комнаты (строго 1v1). Хост — владелец кода: держит себя (id 0) и ОДИН слот соперника (id 1) —
- * бот XOR подключившийся человек. Зашедший человек вытесняет бота. Клиент объявляется HELLO и получает
- * свой id + ростер. По START обе стороны строят Match с одинаковым ростером `[host, opponent]`.
+ * Room handshake (strictly 1v1). Host owns the code: holds itself (id 0) and ONE opponent slot (id 1) —
+ * a bot XOR a connected human. An arriving human evicts the bot. The client announces itself via HELLO and
+ * gets its id + roster. On START both sides build a Match with the same roster `[host, opponent]`.
  */
 export class RoomSession {
   readonly net: INet
   readonly role: RoomRole
   readonly code: string
   private hostEntry: RosterEntry
-  private opponent: RosterEntry | null = null   // слот соперника: бот | человек | пусто
-  private clientPeer: PeerId | null = null      // host: peer занявшего слот человека
+  private opponent: RosterEntry | null = null   // opponent slot: bot | human | empty
+  private clientPeer: PeerId | null = null      // host: peer of the human occupying the slot
   private localPlayerId: number
   private profile: PlayerProfile
   private durationMin: number = DEFAULT_MATCH_DURATION_MIN
   private mapId: MapId = DEFAULT_MAP_ID
-  private selMap: MapFilter = [DEFAULT_MAP_ID]          // набор выбранных карт — UI/Hello/резолв
+  private selMap: MapFilter = [DEFAULT_MAP_ID]          // set of selected maps — UI/Hello/resolve
   private selDuration: DurationFilter = [DEFAULT_MATCH_DURATION_MIN]
   private changeCb: (v: RoomView) => void = () => {}
   private startCb: (durationMs: number, mapId: MapId) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
-  private peerSeen = false   // клиент: транспорт хотя бы раз нашёл пира (для индикации «комната найдена»)
-  private readyIds = new Set<number>()   // id готовых игроков (бот авто-готов; гейт старта в лобби)
-  private started = false                // guard: start() ровно один раз
+  private peerSeen = false   // client: transport found a peer at least once (for "room found" indication)
+  private readyIds = new Set<number>()   // ids of ready players (bot is auto-ready; lobby start gate)
+  private started = false                // guard: start() exactly once
   private disposed = false
-  private connectTimer: ReturnType<typeof setTimeout> | null = null   // клиент: сторож хендшейка
-  private closedCb: () => void = () => {}   // клиент: хост ушёл / таймаут хендшейка → вернуть в состояние до поиска
+  private connectTimer: ReturnType<typeof setTimeout> | null = null   // client: handshake watchdog
+  private closedCb: () => void = () => {}   // client: host left / handshake timeout → revert to pre-search state
 
   constructor(net: INet, role: RoomRole, code: string, profile: PlayerProfile, sel?: { map: MapFilter; durationMin: DurationFilter }) {
     this.net = net
@@ -79,14 +79,14 @@ export class RoomSession {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
       net.on('start', payload => { const s = payload as Start; this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
-      net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // нашли хоста — представляемся
-      net.onPeerLeave(() => this.onHostGone())   // хост ушёл в лобби → клиент откатывается до поиска
-      if (net.peers().length) this.peerSeen = true   // рандеву «С другом»: пир уже виден до построения сессии
+      net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // found the host — introduce ourselves
+      net.onPeerLeave(() => this.onHostGone())   // host left to lobby → client rolls back to search
+      if (net.peers().length) this.peerSeen = true   // "with a friend" rendezvous: peer already visible before session is built
       this.sayHello()
-      // Повторяем HELLO, пока не получим ASSIGN (сообщение могло потеряться/прийти до готовности
-      // хоста). В loopback хендшейк уже синхронно завершён — таймер не нужен.
+      // Resend HELLO until we get ASSIGN (the message may be lost / arrive before the host is ready).
+      // In loopback the handshake already completes synchronously — no timer needed.
       if (this.localPlayerId < 0) this.helloTimer = setInterval(() => this.sayHello(), HELLO_RETRY_MS)
-      // Сторож хендшейка: нашли хоста, но ASSIGN не пришёл за connectTimeoutSec → отвалиться.
+      // Handshake watchdog: found the host but no ASSIGN within connectTimeoutSec → bail out.
       if (profile.connectTimeoutSec > 0) this.connectTimer = setTimeout(() => this.onConnectTimeout(), profile.connectTimeoutSec * 1000)
     }
   }
@@ -94,17 +94,17 @@ export class RoomSession {
   // --- host ---
   private onHello(hello: Hello, from: PeerId) {
     netDiagMark('helloRecv', { from })
-    // Человек занимает слот соперника, вытесняя бота. Слот занят ДРУГИМ человеком → комната 1v1 полна.
+    // Human takes the opponent slot, evicting the bot. Slot held by ANOTHER human → 1v1 room is full.
     if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
-    const name = (hello.name || '').trim() || 'Соперник'
+    const name = (hello.name || '').trim() || 'Opponent'
     this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
     this.clientPeer = from
-    this.readyIds.delete(OPPONENT_ID)   // новый человек ещё не готов (вытеснил бота)
+    this.readyIds.delete(OPPONENT_ID)   // the new human isn't ready yet (evicted the bot)
     this.resolveAgainst(hello.desiredMap ?? ALL_MAPS, hello.desiredDuration ?? ALL_DURS)
     this.broadcastRoster()
   }
 
-  /** Цвет соперника без коллизии с цветом хоста: основной → резервный → первый свободный из палитры. */
+  /** Opponent color without colliding with the host's: primary → reserve → first free in the palette. */
   private assignColor(primary: string, reserve: string): string {
     const host = this.hostEntry.color
     if (primary !== host) return primary
@@ -120,7 +120,7 @@ export class RoomSession {
     this.broadcastRoster()
   }
 
-  /** Собрать entry бота: имя задаёт и личность, и внешность (тот же seed); цвет — без коллизии с хостом. */
+  /** Build a bot entry: the name drives both personality and appearance (same seed); color avoids host collision. */
   private makeBotEntry(name: string, difficulty: BotDifficulty): RosterEntry {
     const skin = botAppearance(name)
     return {
@@ -132,12 +132,12 @@ export class RoomSession {
   }
 
   addBot(difficulty: BotDifficulty = 'normal', name?: string) {
-    if (this.role !== 'host' || this.opponent) return   // слот уже занят (бот или человек) — no-op
-    // Имя из поля лобби, если задано; иначе генерируем «модель» (RA9, T-2000, …).
+    if (this.role !== 'host' || this.opponent) return   // slot already filled (bot or human) — no-op
+    // Name from the lobby field if set; otherwise generate a "model" (RA9, T-2000, …).
     const botName = (name ?? '').trim() || generateModelName()
     this.opponent = this.makeBotEntry(botName, difficulty)
-    this.readyIds.add(OPPONENT_ID)   // бот авто-готов
-    this.resolveAgainst(ALL_MAPS, ALL_DURS)   // бот принимает всё → случайное из набора хоста
+    this.readyIds.add(OPPONENT_ID)   // bot is auto-ready
+    this.resolveAgainst(ALL_MAPS, ALL_DURS)   // bot accepts anything → random from the host's set
     this.broadcastRoster()
   }
 
@@ -152,11 +152,11 @@ export class RoomSession {
     if (this.opponent?.kind === 'bot') { this.opponent.difficulty = d; this.broadcastRoster() }
   }
 
-  /** Переименовать бота вживую: имя пере-выводит личность+внешность. No-op, если в слоте не бот или имя пустое. */
+  /** Rename the bot live: the name re-derives personality+appearance. No-op if the slot isn't a bot or the name is empty. */
   setBotName(name: string) {
     if (this.opponent?.kind !== 'bot') return
     const botName = name.trim()
-    if (!botName) return   // пустое поле — оставляем текущего (случайного) бота
+    if (!botName) return   // empty field — keep the current (random) bot
     this.opponent = this.makeBotEntry(botName, this.opponent.difficulty ?? 'normal')
     this.broadcastRoster()
   }
@@ -178,7 +178,7 @@ export class RoomSession {
     this.startCb(durationMs, this.mapId)
   }
 
-  /** Локальная готовность игрока. Хост — ставит свою и проверяет старт; клиент — шлёт хосту. */
+  /** Local player readiness. Host sets its own and checks for start; client sends it to the host. */
   setLocalReady(ready: boolean) {
     if (this.role === 'host') {
       if (ready) this.readyIds.add(HOST_ID); else this.readyIds.delete(HOST_ID)
@@ -189,7 +189,7 @@ export class RoomSession {
     }
   }
 
-  /** host: готовность соперника-человека (бот авто-готов и сюда не ходит). */
+  /** host: human opponent's readiness (the bot is auto-ready and never reaches here). */
   private onReady(msg: ReadyMsg, from: PeerId) {
     if (from !== this.clientPeer || this.opponent?.kind !== 'human') return
     if (msg.ready) this.readyIds.add(OPPONENT_ID); else this.readyIds.delete(OPPONENT_ID)
@@ -197,26 +197,26 @@ export class RoomSession {
     this.maybeStart()
   }
 
-  /** host: оба готовы и слот занят → старт матча. */
+  /** host: both ready and slot filled → start the match. */
   private maybeStart() {
     if (this.role !== 'host' || !this.opponent) return
     if (this.readyIds.has(HOST_ID) && this.readyIds.has(OPPONENT_ID)) this.start()
   }
 
-  /** host: резолв концертных параметров матча от своего выбора и желаемого соперника. */
+  /** host: resolve the final match params from its own selection and the opponent's wishes. */
   private resolveAgainst(clientMap: MapFilter, clientDur: DurationFilter) {
     const r = resolveMatchParams({ map: this.selMap, durationMin: this.selDuration }, { map: clientMap, durationMin: clientDur }, pickRandom, pickRandom)
     this.mapId = r.mapId
     this.durationMin = r.durationMin
-    this.selMap = [r.mapId]         // после резолва селект показывает конкретный итог (залочено)
+    this.selMap = [r.mapId]         // after resolve the selector shows the concrete result (locked)
     this.selDuration = [r.durationMin]
   }
 
   setDuration(mins: DurationFilter) {
     this.selDuration = mins
     if (mins.length) this.durationMin = mins[0]
-    if (this.role === 'host') this.broadcastRoster()   // клиент увидит выбор в Assign
-    else this.emitChange()                             // клиент: локальный UI; желаемое уедет в Hello
+    if (this.role === 'host') this.broadcastRoster()   // client will see the choice in Assign
+    else this.emitChange()                             // client: local UI; the wish ships out in Hello
   }
 
   setMap(maps: MapFilter) {
@@ -236,7 +236,7 @@ export class RoomSession {
   }
   private onAssign(a: Assign) {
     netDiagMark('assignRecv')
-    this.clearTimers()   // подключились — хватит звать HELLO и сторожить хендшейк
+    this.clearTimers()   // connected — stop calling HELLO and watching the handshake
     this.localPlayerId = a.yourId
     this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry
     this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
@@ -248,7 +248,7 @@ export class RoomSession {
     this.emitChange()
   }
 
-  /** Закрыть сессию: остановить таймеры и выйти из транспорта. */
+  /** Close the session: stop timers and leave the transport. */
   dispose() {
     this.disposed = true
     this.clearTimers()
@@ -260,29 +260,29 @@ export class RoomSession {
     if (this.connectTimer) { clearTimeout(this.connectTimer); this.connectTimer = null }
   }
 
-  /** Клиент: хост покинул комнату до старта матча (после старта разрыв ведёт NetSession). */
+  /** Client: host left the room before match start (after start, disconnects are handled by NetSession). */
   private onHostGone() {
     if (this.started || this.disposed) return
     this.clearTimers()
     this.closedCb()
   }
 
-  /** Клиент: ASSIGN не пришёл за отведённое время → считаем коннект неудачным. */
+  /** Client: ASSIGN didn't arrive in time → treat the connection as failed. */
   private onConnectTimeout() {
     this.connectTimer = null
-    if (this.localPlayerId >= 0 || this.started || this.disposed) return   // уже подключились/стартовали/закрыто
+    if (this.localPlayerId >= 0 || this.started || this.disposed) return   // already connected/started/closed
     this.clearTimers()
     this.closedCb()
   }
 
-  // --- общий API ---
+  // --- shared API ---
   onChange(cb: (v: RoomView) => void) { this.changeCb = cb; cb(this.view()) }
   onStart(cb: (durationMs: number, mapId: MapId) => void) { this.startCb = cb }
-  /** Клиент: сессия закрылась до матча (хост ушёл / таймаут хендшейка). Хосту не приходит. */
+  /** Client: session closed before the match (host left / handshake timeout). Never fires on the host. */
   onClosed(cb: () => void) { this.closedCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
-  /** Ростер матча: ровно `[host, opponent]` (или только host, пока слот пуст). */
+  /** Match roster: exactly `[host, opponent]` (or just host while the slot is empty). */
   private roster(): RosterEntry[] {
     return this.opponent ? [this.hostEntry, this.opponent] : [this.hostEntry]
   }

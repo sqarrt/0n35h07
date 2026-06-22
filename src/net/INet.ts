@@ -5,9 +5,9 @@ export type NetHandler = (payload: unknown, from: PeerId) => void
 export type PeerHandler = (peerId: PeerId) => void
 
 /**
- * Низкоуровневый транспорт: рассылка/адресная отправка по тегам + presence.
- * Полезная нагрузка — JSON-сериализуемая (см. protocol.ts). Реализации:
- * TrysteroNet (интернет-P2P), BroadcastChannelNet (вкладки/e2e), LoopbackNet (юниты).
+ * Low-level transport: broadcast/directed send by tags + presence.
+ * Payload is JSON-serializable (see protocol.ts). Implementations:
+ * TrysteroNet (internet P2P), BroadcastChannelNet (tabs/e2e), LoopbackNet (units).
  */
 export interface INet {
   readonly selfId: PeerId

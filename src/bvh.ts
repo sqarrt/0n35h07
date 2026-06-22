@@ -2,12 +2,12 @@ import { BufferGeometry, Mesh } from 'three'
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh'
 
 /**
- * Ускоренный raycast по trimesh через BVH. Боёвка бьёт лучом по меш-геометрии блоков карты (тысячи
- * треугольников) на КАЖДЫЙ выстрел — наивный Raycaster линеен по треугольникам и даёт спайк кадра
- * (заметно на 120 FPS). BVH делает пересечение O(log n).
+ * Accelerated raycast over trimesh via BVH. Combat raycasts against map block mesh geometry (thousands
+ * of triangles) on EVERY shot — a naive Raycaster is linear in triangles and causes a frame spike
+ * (noticeable at 120 FPS). BVH makes the intersection O(log n).
  *
- * Патч прототипов one-time (импортируется в main.tsx до рендера). Меш строит дерево через
- * geometry.computeBoundsTree(); меши без дерева используют обычный raycast (fallback внутри acceleratedRaycast).
+ * One-time prototype patch (imported in main.tsx before render). A mesh builds the tree via
+ * geometry.computeBoundsTree(); meshes without a tree use plain raycast (fallback inside acceleratedRaycast).
  */
 BufferGeometry.prototype.computeBoundsTree = computeBoundsTree
 BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree

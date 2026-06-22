@@ -6,46 +6,46 @@ import { windupSfxEvent } from './windupSfx'
 
 export type MoveKind = 'jump' | 'land'
 
-// Throttle движенческих звуков (jump/land) на игрока: в авто-bhop приземление и отрыв идут парой ~16мс
-// подряд → перекрытие коротких транзиентов даёт «пердёж». Схлопываем в один удар на отскок; обычные
-// прыжки (полёт >этого интервала) не задеты.
+// Throttle movement sounds (jump/land) per player: in auto-bhop landing and liftoff come as a pair ~16ms
+// apart → overlapping short transients give a "fart". Collapse into one hit per bounce; ordinary
+// jumps (airtime > this interval) are unaffected.
 const MOVE_SFX_THROTTLE_MS = 100
 
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
-/** Снимок состояния игрока за кадр для перклички переходов. */
+/** Per-frame snapshot of player state for diffing transitions. */
 export interface PlayerSfxInput {
   id: number
   obj: THREE.Object3D
   pos: THREE.Vector3
   shieldActive: boolean
   dashing: boolean
-  grounded: boolean | null      // null = неизвестно (удалённый на клиенте) → jump/land приходят событием
+  grounded: boolean | null      // null = unknown (remote on client) → jump/land arrive as an event
   justJumped: boolean
-  dashReady: boolean | null     // не-null только для локального игрока (cooldown_ready)
+  dashReady: boolean | null     // non-null only for the local player (cooldown_ready)
   shieldReady: boolean | null
-  windingUp: boolean            // заряд луча идёт (для beam_fire — звук стартует с НАЧАЛА заряда)
-  windupStyle?: WindupStyle     // стиль анимации заряда (звук); нет → classic
-  isLocal: boolean              // свой игрок → звуки 2D (идут «от тебя»); соперник → позиционно (слышно откуда)
+  windingUp: boolean            // beam windup in progress (for beam_fire — sound starts at windup START)
+  windupStyle?: WindupStyle     // windup animation style (sound); none → classic
+  isLocal: boolean              // own player → 2D sounds (come "from you"); opponent → positional (audible direction)
 }
 
 interface PrevState { shield: boolean; dashing: boolean; grounded: boolean | null; dashReady: boolean; shieldReady: boolean; windingUp: boolean }
 
-/** Логика триггеров SFX матча. Единственное место правил «событие/переход → звук». */
+/** Match SFX trigger logic. The single place for "event/transition → sound" rules. */
 export class MatchSfx {
   private engine: ISfxEngine
   private prev = new Map<number, PrevState>()
-  private lastMoveSfx = new Map<number, number>()   // id → время последнего jump/land (throttle)
+  private lastMoveSfx = new Map<number, number>()   // id → time of last jump/land (throttle)
   constructor(engine: ISfxEngine) { this.engine = engine }
 
-  /** Можно ли сейчас сыграть движенческий звук игрока (не чаще MOVE_SFX_THROTTLE_MS). */
+  /** Can a player's movement sound play now (no more often than MOVE_SFX_THROTTLE_MS). */
   private moveSfxOk(id: number, now: number): boolean {
     return now - (this.lastMoveSfx.get(id) ?? -Infinity) >= MOVE_SFX_THROTTLE_MS
   }
 
-  /** Боёвка — из общего пути событий (host: emit; client: applyEvent). posOf даёт мир-позицию игрока.
-   *  beam_fire здесь НЕ играется: его звук — это весь выстрел (заряд→разряд), стартует с начала windup
-   *  (см. frame), иначе разряд опаздывает на длину заряда. block/kill/respawn — мгновенные, по событию. */
+  /** Combat — from the shared event path (host: emit; client: applyEvent). posOf gives a player's world position.
+   *  beam_fire is NOT played here: its sound is the whole shot (windup→discharge), starting at windup start
+   *  (see frame), otherwise the discharge lags by the windup length. block/kill/respawn — instant, per event. */
   combat(e: MatchEvent, posOf: (id: number) => THREE.Vector3 | null): void {
     switch (e.t) {
       case 'block':   { const p = posOf(e.victim); if (p) this.engine.playAt('block', p);     break }
@@ -55,16 +55,16 @@ export class MatchSfx {
     }
   }
 
-  /** Перекличка состояний за кадр: заряд/щит/рывок/прыжок/land/cooldown. Возвращает движения для эмита (host). */
+  /** Per-frame state diff: windup/shield/dash/jump/land/cooldown. Returns moves to emit (host). */
   frame(inputs: PlayerSfxInput[], now: number = nowMs()): { id: number; kind: MoveKind; pos: THREE.Vector3 }[] {
     const moves: { id: number; kind: MoveKind; pos: THREE.Vector3 }[] = []
     for (const inp of inputs) {
       const prev = this.prev.get(inp.id)
-      // Свой игрок: источник совпадает с listener (камерой) → panner вырождается, кряк. Поэтому свои — 2D.
+      // Own player: source coincides with the listener (camera) → panner degenerates, glitch. So own → 2D.
       const playEv = inp.isLocal
         ? (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.play2D(ev)
         : (ev: Parameters<ISfxEngine['play2D']>[0]) => this.engine.playAt(ev, inp.pos)
-      if (inp.windingUp && !(prev?.windingUp)) playEv(windupSfxEvent(inp.windupStyle, this.engine))   // звук всего выстрела — с начала заряда
+      if (inp.windingUp && !(prev?.windingUp)) playEv(windupSfxEvent(inp.windupStyle, this.engine))   // whole-shot sound — from windup start
       if (inp.shieldActive && !(prev?.shield)) {
         playEv('shield_up')
         this.engine.startLoop('shield_loop', `shield:${inp.id}`, inp.isLocal ? null : inp.obj)
@@ -73,7 +73,7 @@ export class MatchSfx {
         this.engine.stopLoop(`shield:${inp.id}`)
       }
       if (inp.dashing && !(prev?.dashing)) playEv('dash')
-      // Прыжок не озвучиваем (по запросу) — только приземление. Throttle на игрока от частых ретриггеров land.
+      // Jump has no sound (by request) — only landing. Per-player throttle against frequent land retriggers.
       if (inp.grounded === true && prev?.grounded === false && this.moveSfxOk(inp.id, now)) {
         playEv('land'); moves.push({ id: inp.id, kind: 'land', pos: inp.pos.clone() })
         this.lastMoveSfx.set(inp.id, now)
@@ -89,13 +89,13 @@ export class MatchSfx {
     return moves
   }
 
-  /** Прыжок/приземление соперника (клиент, событие move) — позиционно. */
+  /** Opponent jump/landing (client, move event) — positional. */
   move(kind: MoveKind, pos: THREE.Vector3): void { this.engine.playAt(kind, pos) }
 
-  /** Непозиционный звук матча (отсчёт). */
+  /** Non-positional match sound (countdown). */
   play2D(event: Parameters<ISfxEngine['play2D']>[0]): void { this.engine.play2D(event) }
 
-  /** Очистка лупов/состояния (конец матча). */
+  /** Clear loops/state (match end). */
   reset(): void {
     for (const id of this.prev.keys()) this.engine.stopLoop(`shield:${id}`)
     this.prev.clear()

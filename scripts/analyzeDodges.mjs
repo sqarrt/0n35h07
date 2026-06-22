@@ -1,4 +1,4 @@
-/** Дев-анализ: моменты, где СОПЕРНИК уворачивается от выстрела игрока (блок/дэш/прыжок). */
+/** Dev analysis: moments where the OPPONENT dodges the player's shot (block/dash/jump). */
 import { readFileSync } from 'node:fs'
 
 const path = process.argv[2]
@@ -29,5 +29,5 @@ for (let i = 0; i < frames.length; i++) {
     }
   }
 }
-console.log(`=== ${path} (увороты соперника) ===`)
+console.log(`=== ${path} (opponent dodges) ===`)
 for (const [ms, i, t] of out) console.log(`${fmt(ms)}  f${i}\t${t}`)

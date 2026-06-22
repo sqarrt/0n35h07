@@ -1,4 +1,4 @@
-/** Безопасные обёртки localStorage — глотают ошибки (приватный режим, квота). */
+/** Safe localStorage wrappers — swallow errors (private mode, quota). */
 
 export function lsGet(key: string): string | null {
   try { return localStorage.getItem(key) } catch { return null }

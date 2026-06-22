@@ -3,7 +3,7 @@ import type { InputFrame, Snapshot, MatchEvent, PhaseMsg } from './protocol'
 import type { MatchRole } from '../constants'
 import { NET_SNAPSHOT_HZ } from '../constants'
 
-/** Узкий контракт Match для сети — позволяет тестировать NetSession без Rapier. */
+/** Narrow Match contract for networking — lets NetSession be tested without Rapier. */
 export interface MatchNet {
   readonly role: MatchRole
   readonly localId: number
@@ -22,10 +22,10 @@ export interface MatchNet {
 }
 
 /**
- * Оркестратор сети поверх транспорта (INet). Входящие сообщения применяются в обработчиках
- * (event-driven), исходящие шлёт `afterUpdate` после шага симуляции:
- *  - host: события матча (надёжно, каждый кадр) + снапшот (троттлинг NET_SNAPSHOT_HZ);
- *  - client: кадр ввода своего игрока (каждый кадр).
+ * Network orchestrator over the transport (INet). Incoming messages are applied in handlers
+ * (event-driven), outgoing ones are sent by `afterUpdate` after the simulation step:
+ *  - host: match events (reliable, every frame) + snapshot (throttled to NET_SNAPSHOT_HZ);
+ *  - client: own player's input frame (every frame).
  */
 export class NetSession {
   private net: INet
@@ -58,17 +58,17 @@ export class NetSession {
     net.onPeerLeave(peerId => this.onPeerLeave(peerId))
   }
 
-  /** Дисконнект: хост знает playerId по peer; клиент — ушедший это хост (id 0). */
+  /** Disconnect: host knows playerId by peer; for the client, the one who left is the host (id 0). */
   private onPeerLeave(peerId: PeerId) {
     const pid = this.peerToPlayer.get(peerId)
     if (pid !== undefined) this.match.handlePlayerLeft(pid)
     else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
   }
 
-  /** Клиент объявляет готовность хосту. */
+  /** Client announces readiness to the host. */
   sendReady() { this.net.broadcast('ready', {}) }
 
-  /** Отправка исходящего после шага симуляции. */
+  /** Send outgoing data after the simulation step. */
   afterUpdate(now: number = Date.now()) {
     if (this.match.role === 'host') {
       if (this.match.phaseDirty()) {

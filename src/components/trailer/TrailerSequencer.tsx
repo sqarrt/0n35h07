@@ -1,7 +1,7 @@
 /**
- * Секвенсор трейлера: проигрывает шоты EDL по порядку (countdown → нарезка реплея → финал) с непрерывной
- * музыкой, текстом, HUD и титулом/CTA. Каждый шот — отдельный <Canvas> (ключ по индексу), музыка живёт
- * здесь (не пересоздаётся между шотами). Финал (slow-mo встречный выстрел) — Stage B (пока титул-карта).
+ * Trailer sequencer: plays EDL shots in order (countdown → replay cuts → finale) with continuous
+ * music, text, HUD and title/CTA. Each shot is its own <Canvas> (keyed by index); music lives
+ * here (not recreated between shots). Finale (slow-mo counter-shot) is Stage B (a title card for now).
  */
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
@@ -27,10 +27,10 @@ import type { DemoFile } from '../../game/demo/demoTypes'
 
 type Clips = Record<string, DemoFile>
 
-const TRAILER_SFX_GAIN = 0.45       // игровые звуки приглушены, но слышны — музыка чуть впереди
-const COUNTDOWN_SFX_GAIN = 1.0      // звук обратного отсчёта НЕ приглушаем
-const ECHO_TAIL_MS = 2600           // запас на хвост эха (fadeOut+эхо ~0.8с+2с) перед dispose
-const FIRST_TEXT_INDEX = TRAILER_SHOTS.findIndex(s => s.type === 'text')   // первая перебивка — без звука «go»
+const TRAILER_SFX_GAIN = 0.45       // game sounds are dimmed but audible — music sits slightly ahead
+const COUNTDOWN_SFX_GAIN = 1.0      // do NOT dim the countdown sound
+const ECHO_TAIL_MS = 2600           // headroom for the echo tail (fadeOut+echo ~0.8s+2s) before dispose
+const FIRST_TEXT_INDEX = TRAILER_SHOTS.findIndex(s => s.type === 'text')   // first cut — no "go" sound
 
 interface ShotViewProps {
   shot: Extract<TrailerShot, { type: 'play' }>
@@ -43,7 +43,7 @@ interface ShotViewProps {
   onEnd: () => void
 }
 
-/** Один play-шот = свой <Canvas> (мемоизирован: HUD-апдейты не должны его пересоздавать). */
+/** One play shot = its own <Canvas> (memoized: HUD updates must not recreate it). */
 function ShotView({ shot, demo, onHud, onSfx, onAnnounce, onReady, onNearEnd, onEnd }: ShotViewProps) {
   const f0 = demo.frames[shot.ranges[0].from] ?? demo.frames[0]
   return useMemo(() => (
@@ -54,7 +54,7 @@ function ShotView({ shot, demo, onHud, onSfx, onAnnounce, onReady, onNearEnd, on
   ), [shot, demo, f0, onHud, onSfx, onAnnounce, onReady, onNearEnd, onEnd])
 }
 
-/** Финал = свой <Canvas> (мемоизирован). */
+/** Finale = its own <Canvas> (memoized). */
 function FinaleView({ onSfx, onEnd }: { onSfx: (e: SfxEvent) => void; onEnd: () => void }) {
   return useMemo(() => (
     <Canvas camera={{ position: [0, 1.7, 10.5], fov: 55 }} dpr={[1, 2]} gl={{ alpha: false }}
@@ -79,8 +79,8 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   const [shotIndex, setShotIndex] = useState(0)
   const [hud, setHud] = useState<DemoHud | null>(null)
   const [countdownN, setCountdownN] = useState(3)
-  const [showTitle, setShowTitle] = useState(false)   // титул/CTA в финале — когда лучи замерли
-  const [sceneReady, setSceneReady] = useState(false) // сцена play-шота прогрелась → снять ковер-затемнение
+  const [showTitle, setShowTitle] = useState(false)   // title/CTA in the finale — once the beams freeze
+  const [sceneReady, setSceneReady] = useState(false) // play-shot scene warmed up → lift the cover dimmer
   const onSceneReady = useCallback(() => setSceneReady(true), [])
   const [announce, setAnnounce] = useState<AnnounceItem | null>(null)
   const announceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -90,8 +90,8 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     announceTimer.current = setTimeout(() => setAnnounce(null), 2000)
   }, [])
 
-  // Лид-сигнал из play-шота: если следующий шот — перебивка (кроме первой), играем звук начала матча
-  // «go» ЧУТЬ РАНЬШЕ её появления, чтобы пик звука попал в слэм-ин текста.
+  // Lead signal from a play shot: if the next shot is a cut (except the first), play the match-start
+  // "go" sound SLIGHTLY BEFORE it appears, so the sound peak lands on the text slam-in.
   const onSceneNearEnd = useCallback(() => {
     if (TRAILER_SHOTS[shotIndex + 1]?.type === 'text' && shotIndex + 1 !== FIRST_TEXT_INDEX) {
       sfxRef.current.play2D('go', COUNTDOWN_SFX_GAIN)
@@ -104,7 +104,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   const finish = useCallback(() => { if (doneRef.current) return; doneRef.current = true; onDoneRef.current() }, [])
   const advance = useCallback(() => setShotIndex(i => i + 1), [])
 
-  // Загрузка всех клипов.
+  // Load all clips.
   useEffect(() => {
     let alive = true
     Promise.all(Object.entries(CLIP_FILES).map(([id, file]) =>
@@ -114,14 +114,14 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     return () => { alive = false }
   }, [finish])
 
-  // Своя музыка трейлера (композиция меню), громкость = master. Преднагружаем; СТАРТ — только с отсчётом.
+  // The trailer's own music (menu track), volume = master. Preload it; START only with the countdown.
   const music = useState(() => new TrailerMusic(new WebAudioMusicEngine()))[0]
   const masterRef = useRef(masterVolume)
   masterRef.current = masterVolume
   const musicStarted = useRef(false)
   useEffect(() => {
-    void music.preload().catch(() => { /* без музыки */ })
-    // На выходе: fadeOut (эхо), затем dispose с задержкой — иначе закрытие контекста срежет хвост эха.
+    void music.preload().catch(() => { /* no music */ })
+    // On exit: fadeOut (echo), then a delayed dispose — otherwise closing the context cuts the echo tail.
     return () => { music.stop(); setTimeout(() => music.dispose(), ECHO_TAIL_MS) }
   }, [music])
 
@@ -133,15 +133,15 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
 
   const shot: TrailerShot | undefined = TRAILER_SHOTS[shotIndex]
 
-  // Конец последовательности.
+  // End of the sequence.
   useEffect(() => { if (shotIndex >= TRAILER_SHOTS.length) finish() }, [shotIndex, finish])
 
-  // Каждый новый шот → ковер снова непрозрачный (скрыть монтирование/пересборку до onReady).
+  // Each new shot → cover opaque again (hide mounting/rebuild until onReady).
   useEffect(() => { setSceneReady(false) }, [shotIndex])
 
-  // countdown: на пустоте, со звуком (полная громкость); музыка вступает на «go» (в конце), сразу в полную.
+  // countdown: over emptiness, with sound (full volume); music kicks in on "go" (at the end), straight to full.
   useEffect(() => {
-    if (!clips || shot?.type !== 'countdown') return   // ждём загрузки клипов, чтобы звук совпал с оверлеем
+    if (!clips || shot?.type !== 'countdown') return   // wait for clips to load so sound aligns with the overlay
     const tick = () => sfxRef.current.play2D('count_tick', COUNTDOWN_SFX_GAIN)
     setCountdownN(3); tick()
     const per = shot.durationMs / 3
@@ -149,10 +149,10 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     const t2 = setTimeout(() => { setCountdownN(1); tick() }, per * 2)
     const t3 = setTimeout(() => {
       sfxRef.current.play2D('go', COUNTDOWN_SFX_GAIN)
-      // Музыка стартует ПОСЛЕ отсчёта (на «go»), не во время него.
+      // Music starts AFTER the countdown (on "go"), not during it.
       if (!musicStarted.current) {
         musicStarted.current = true
-        void music.start().then(() => music.setVolume(masterRef.current)).catch(() => { /* без музыки */ })
+        void music.start().then(() => music.setVolume(masterRef.current)).catch(() => { /* no music */ })
       }
       advance()
     }, shot.durationMs)
@@ -160,8 +160,8 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shotIndex, clips])
 
-  // перебивка (cut): держим на экране durationMs (анимация in/out внутри), затем переход.
-  // Звук «go» проигрывается заранее на лид-сигнале предыдущего play-шота (см. onSceneNearEnd).
+  // cut: hold on screen for durationMs (in/out animation inside), then advance.
+  // The "go" sound plays ahead of time on the previous play shot's lead signal (see onSceneNearEnd).
   useEffect(() => {
     if (shot?.type !== 'text') return
     const t = setTimeout(advance, shot.durationMs)
@@ -169,13 +169,13 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shotIndex])
 
-  // finale: титул всплывает, когда лучи замерли; страховочный выход (FinaleScene сам зовёт onEnd).
-  // На заморозке лучей глушим музыку через fadeOut — затухающее эхо звенит хвостом под титулом
-  // (тот же приём, что в конце матча: трек не обрывается резко).
+  // finale: the title surfaces once the beams freeze; safety exit (FinaleScene calls onEnd itself).
+  // When the beams freeze we mute the music via fadeOut — the decaying echo rings as a tail under the title
+  // (same trick as at match end: the track doesn't cut off abruptly).
   useEffect(() => {
     if (shot?.type !== 'finale') { setShowTitle(false); return }
     const tTitle = setTimeout(() => { setShowTitle(true); music.stop() }, 3600)
-    const tEnd = setTimeout(finish, 9000)   // fallback на случай, если FinaleScene не дойдёт до onEnd
+    const tEnd = setTimeout(finish, 9000)   // fallback in case FinaleScene never reaches onEnd
     return () => { clearTimeout(tTitle); clearTimeout(tEnd) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shotIndex])
@@ -184,16 +184,16 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
 
   return (
     <div className="trailer-root">
-      {/* countdown — на пустоте (карты нет): Canvas не рендерим, только оверлей отсчёта */}
+      {/* countdown — over emptiness (no map): don't render Canvas, only the countdown overlay */}
       {shot.type === 'play' && (
         <>
           <ShotView key={`shot-${shotIndex}`} shot={shot} demo={clips[shot.clip]} onHud={setHud} onSfx={playSfx} onAnnounce={onAnnounce} onReady={onSceneReady} onNearEnd={onSceneNearEnd} onEnd={advance} />
-          {/* Ковер: скрывает чёрный кадр монтирования/пересборки, плавно уходит на onReady */}
+          {/* Cover: hides the black mount/rebuild frame, fades out on onReady */}
           <div className={`trailer-cover${sceneReady ? ' is-hidden' : ''}`} />
         </>
       )}
 
-      {/* HUD реплея — только в play-шотах */}
+      {/* Replay HUD — only in play shots */}
       {shot.type === 'play' && hud && (
         <>
           <MatchHud scores={hud.scores} matchTime={hud.matchTimeSec} roster={clips[shot.clip].roster} localId={clips[shot.clip].localId} streaks={hud.streaks} streakCounts={hud.streakCounts} />
@@ -207,7 +207,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
 
       {shot.type === 'countdown' && <CountdownOverlay n={countdownN} />}
 
-      {/* Перебивка между кусками: киберпанк-текст (слэм-ин/глитч-аут), на пустоте */}
+      {/* Cut between segments: cyberpunk text (slam-in/glitch-out), over emptiness */}
       {shot.type === 'text' && (
         <div key={`cut-${shotIndex}`} className="trailer-cut">
           <div className="trailer-cut__text" style={{ animationDuration: `${shot.durationMs}ms` }}>{shot.text}</div>

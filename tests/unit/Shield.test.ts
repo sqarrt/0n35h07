@@ -6,7 +6,7 @@ import type { IShieldFx } from '../../src/game/fx/shield/types'
 const DURATION = 800
 const COOLDOWN = 2000
 
-/** Фейковый скин: пишет историю active, считает dispose. */
+/** Fake skin: records the active history, counts dispose. */
 class FakeShieldFx implements IShieldFx {
   readonly object3d = new THREE.Group()
   activeLog: boolean[] = []
@@ -15,23 +15,23 @@ class FakeShieldFx implements IShieldFx {
   dispose() { this.disposed++ }
 }
 
-/** Прокручивает dt-симуляцию щита на ms миллисекунд маленькими шагами. */
+/** Advances the shield's dt-simulation by ms milliseconds in small steps. */
 function advance(shield: Shield, ms: number, step = 16) {
   for (let t = 0; t < ms; t += step) shield.update(step / 1000)
 }
 
 describe('Shield', () => {
-  it('isActive = false изначально', () => {
+  it('isActive = false initially', () => {
     expect(new Shield({ duration: DURATION, cooldown: COOLDOWN }).isActive).toBe(false)
   })
 
-  it('activate() включает щит', () => {
+  it('activate() turns the shield on', () => {
     const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
     s.activate()
     expect(s.isActive).toBe(true)
   })
 
-  it('щит выключается после duration и уходит в кулдаун', () => {
+  it('shield turns off after duration and goes into cooldown', () => {
     const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
     s.activate()
     advance(s, DURATION + 100)
@@ -39,22 +39,22 @@ describe('Shield', () => {
     expect(s.progress()).toBeLessThan(1)
   })
 
-  it('activate() игнорируется во время кулдауна', () => {
+  it('activate() is ignored during cooldown', () => {
     const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
     s.activate()
-    advance(s, DURATION + 100) // в кулдауне
+    advance(s, DURATION + 100) // in cooldown
     s.activate()
     expect(s.isActive).toBe(false)
   })
 
-  it('progress() = 1 в покое, < 1 при активации', () => {
+  it('progress() = 1 at rest, < 1 when activated', () => {
     const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
     expect(s.progress()).toBe(1)
     s.activate()
     expect(s.progress()).toBeLessThan(1)
   })
 
-  it('reset() возвращает щит в покой', () => {
+  it('reset() returns the shield to rest', () => {
     const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
     s.activate()
     s.reset()
@@ -62,8 +62,8 @@ describe('Shield', () => {
     expect(s.progress()).toBe(1)
   })
 
-  describe('делегирование скину IShieldFx', () => {
-    it('fx живёт ребёнком группы щита; update получает active по фазе', () => {
+  describe('delegation to the IShieldFx skin', () => {
+    it('fx lives as a child of the shield group; update receives active by phase', () => {
       const fx = new FakeShieldFx()
       const s = new Shield({ duration: DURATION, cooldown: COOLDOWN, shieldFx: fx })
       expect(fx.object3d.parent).toBe(s.object3d)
@@ -74,16 +74,16 @@ describe('Shield', () => {
       expect(fx.activeLog).toEqual([false, true])
     })
 
-    it('форс видимости извне (удалённый игрок) → скин анимируется при idle-фазе', () => {
+    it('external visibility force (remote player) → skin animates in the idle phase', () => {
       const fx = new FakeShieldFx()
       const s = new Shield({ duration: DURATION, cooldown: COOLDOWN, shieldFx: fx })
-      s.object3d.visible = true   // applyRemoteVisual из снапшота
+      s.object3d.visible = true   // applyRemoteVisual from a snapshot
       s.update(0.016)
       expect(s.isActive).toBe(false)
       expect(fx.activeLog).toEqual([true])
     })
 
-    it('dispose делегируется скину', () => {
+    it('dispose is delegated to the skin', () => {
       const fx = new FakeShieldFx()
       const s = new Shield({ shieldFx: fx })
       s.dispose()
@@ -93,53 +93,53 @@ describe('Shield', () => {
 
   describe('Shield · cooldownScale + resetCooldown', () => {
     const step = (sh: Shield, ms: number) => { sh.update(ms / 1000) }
-    it('scale 2 удлиняет кулдаун вдвое', () => {
+    it('scale 2 doubles the cooldown', () => {
       const sh = new Shield({ duration: 100, cooldown: 200 })
       sh.setCooldownScale(2)
       sh.activate()
-      step(sh, 100)   // active истёк → cooldown
+      step(sh, 100)   // active expired → cooldown
       expect(sh.isActive).toBe(false)
-      step(sh, 300)   // при scale 2 кулдаун = 400мс, 300 < 400 → ещё cooldown
+      step(sh, 300)   // at scale 2 cooldown = 400ms, 300 < 400 → still cooldown
       sh.activate()
       expect(sh.isActive).toBe(false)
-      step(sh, 120)   // суммарно 420 > 400 → idle
+      step(sh, 120)   // total 420 > 400 → idle
       sh.activate()
       expect(sh.isActive).toBe(true)
     })
-    it('resetCooldown → сразу можно активировать', () => {
+    it('resetCooldown → can activate immediately', () => {
       const sh = new Shield({ duration: 100, cooldown: 200 })
-      sh.activate(); step(sh, 100)   // в cooldown
+      sh.activate(); step(sh, 100)   // in cooldown
       sh.resetCooldown()
       sh.activate()
       expect(sh.isActive).toBe(true)
     })
-    it('resetCooldown во время active → после окна сразу idle, без кулдауна', () => {
+    it('resetCooldown during active → goes straight to idle after the window, no cooldown', () => {
       const sh = new Shield({ duration: 100, cooldown: 200 })
       sh.activate()
-      sh.resetCooldown()   // взводит skipCooldown
-      step(sh, 100)        // active истёк → должен уйти в idle, а не cooldown
+      sh.resetCooldown()   // arms skipCooldown
+      step(sh, 100)        // active expired → should go to idle, not cooldown
       sh.activate()
       expect(sh.isActive).toBe(true)
     })
   })
 
-  describe('Shield · isPerfectBlock (окно идеального блока 100мс)', () => {
-    it('false в покое и в кулдауне', () => {
+  describe('Shield · isPerfectBlock (100ms perfect-block window)', () => {
+    it('false at rest and in cooldown', () => {
       const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
       expect(s.isPerfectBlock()).toBe(false)   // idle
       s.activate(); advance(s, DURATION + 100)  // cooldown
       expect(s.isPerfectBlock()).toBe(false)
     })
-    it('true сразу после активации и в пределах окна', () => {
+    it('true right after activation and within the window', () => {
       const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
       s.activate()
       expect(s.isPerfectBlock()).toBe(true)     // timer 0
       s.update(0.016)
-      expect(s.isPerfectBlock()).toBe(true)     // ~16мс ≤ 100
+      expect(s.isPerfectBlock()).toBe(true)     // ~16ms ≤ 100
     })
-    it('false если щит держат дольше окна', () => {
+    it('false if the shield is held longer than the window', () => {
       const s = new Shield({ duration: DURATION, cooldown: COOLDOWN })
-      s.activate(); advance(s, 150)             // ~150мс > 100, ещё active
+      s.activate(); advance(s, 150)             // ~150ms > 100, still active
       expect(s.isActive).toBe(true)
       expect(s.isPerfectBlock()).toBe(false)
     })

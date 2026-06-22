@@ -46,7 +46,7 @@ export const tr = {
   warnContinueHint: 'devam etmek için',
   warnContinueKey: 'SOL TIK',
   settingsLanguage: 'DİL',
-  // Комната
+  // Room
   roomTitle: 'ODA',
   roomCodeLabel: 'KOD:',
   roomCopied: 'KOPYALANDI',

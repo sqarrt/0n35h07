@@ -3,10 +3,10 @@ import { blockCells, blockGridGeometry, cellsGridGeometry } from '../../src/game
 import { VOXEL } from '../../src/constants'
 import type { MapBlock } from '../../src/game/maps'
 
-// Геометрия рёбер на клетку: 12 рёбер × 2 вершины × 3 координаты.
+// Edge geometry per cell: 12 edges × 2 vertices × 3 coordinates.
 const FLOATS_PER_CELL = 12 * 2 * 3
 
-/** Куб-блок, занимающий клетки [x0..x1)×[y0..y1)×[z0..z1) (в индексах клеток). */
+/** Cube block occupying cells [x0..x1)×[y0..y1)×[z0..z1) (in cell indices). */
 function boxBlock(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, extra: Partial<MapBlock> = {}): MapBlock {
   const min = [x0 * VOXEL, y0 * VOXEL, z0 * VOXEL]
   const max = [x1 * VOXEL, y1 * VOXEL, z1 * VOXEL]
@@ -20,44 +20,44 @@ function boxBlock(x0: number, x1: number, y0: number, y1: number, z0: number, z1
 
 const keys = (cells: [number, number, number][]) => new Set(cells.map(c => c.join(',')))
 
-describe('blockGrid — сетка кубов из блоков', () => {
-  it('единичный куб → одна клетка', () => {
+describe('blockGrid — cube grid from blocks', () => {
+  it('unit cube → one cell', () => {
     const cells = blockCells([boxBlock(0, 1, 0, 1, 0, 1)])
     expect(cells).toHaveLength(1)
     expect(cells[0]).toEqual([0, 0, 0])
   })
 
-  it('склеенная колонна по Y → клетки по каждому вокселю', () => {
-    const cells = blockCells([boxBlock(0, 1, 0, 3, 0, 1)])   // 1×3×1 воксель
+  it('merged column along Y → a cell per voxel', () => {
+    const cells = blockCells([boxBlock(0, 1, 0, 3, 0, 1)])   // 1×3×1 voxels
     expect(cells).toHaveLength(3)
     expect(keys(cells)).toEqual(keys([[0, 0, 0], [0, 1, 0], [0, 2, 0]]))
   })
 
-  it('периметр пропускается (не воксель)', () => {
+  it('perimeter is skipped (not a voxel)', () => {
     const wall = boxBlock(0, 4, 0, 3, 0, 1, { perimeter: true })
     expect(blockCells([wall])).toHaveLength(0)
   })
 
-  it('пересекающиеся блоки дедуплицируют общие клетки', () => {
-    const a = boxBlock(0, 2, 0, 1, 0, 1)   // клетки (0,0,0),(1,0,0)
-    const b = boxBlock(1, 3, 0, 1, 0, 1)   // клетки (1,0,0),(2,0,0) — (1,0,0) общая
+  it('overlapping blocks deduplicate shared cells', () => {
+    const a = boxBlock(0, 2, 0, 1, 0, 1)   // cells (0,0,0),(1,0,0)
+    const b = boxBlock(1, 3, 0, 1, 0, 1)   // cells (1,0,0),(2,0,0) — (1,0,0) shared
     const cells = blockCells([a, b])
     expect(cells).toHaveLength(3)
     expect(keys(cells)).toEqual(keys([[0, 0, 0], [1, 0, 0], [2, 0, 0]]))
   })
 
-  it('клин (wedge) → одна клетка', () => {
+  it('wedge → one cell', () => {
     const wedge: MapBlock = { pos: [VOXEL / 2, VOXEL / 2, VOXEL / 2], size: [VOXEL / 2, VOXEL / 2, VOXEL / 2], color: '#888', shape: 'wedge', dir: 0 }
     expect(blockCells([wedge])).toEqual([[0, 0, 0]])
   })
 
-  it('геометрия: длина позиций = клетки × рёбра на клетку', () => {
-    const g = blockGridGeometry([boxBlock(0, 1, 0, 1, 0, 1), boxBlock(0, 1, 1, 2, 0, 1)])   // 2 клетки
+  it('geometry: positions length = cells × edges per cell', () => {
+    const g = blockGridGeometry([boxBlock(0, 1, 0, 1, 0, 1), boxBlock(0, 1, 1, 2, 0, 1)])   // 2 cells
     expect(g.getAttribute('position').array.length).toBe(2 * FLOATS_PER_CELL)
     g.dispose()
   })
 
-  it('геометрия клетки лежит в её спане [0..VOXEL]', () => {
+  it('cell geometry lies within its span [0..VOXEL]', () => {
     const g = cellsGridGeometry([[0, 0, 0]])
     const arr = g.getAttribute('position').array as ArrayLike<number>
     let min = Infinity, max = -Infinity
@@ -67,7 +67,7 @@ describe('blockGrid — сетка кубов из блоков', () => {
     g.dispose()
   })
 
-  it('пустой список блоков → пустая геометрия', () => {
+  it('empty block list → empty geometry', () => {
     const g = blockGridGeometry([])
     expect(g.getAttribute('position').array.length).toBe(0)
     g.dispose()

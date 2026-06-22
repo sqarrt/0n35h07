@@ -5,9 +5,9 @@ import { DEATH_BURST_LIFE } from '../../src/constants'
 
 const DT = 0.016
 
-// Хлопок частиц — чистая визуальная логика (THREE без WebGL), тестируем в jsdom.
+// Particle burst — pure visual logic (THREE without WebGL), tested in jsdom.
 describe('DeathBurst', () => {
-  it('emit разбрасывает частицы; со временем гаснут до нуля', () => {
+  it('emit scatters particles; they fade to zero over time', () => {
     const b = new DeathBurst(new THREE.Color('#4af'))
     expect(b.aliveCount).toBe(0)
     b.emit(new THREE.Vector3(0, 1.7, 0))
@@ -17,8 +17,8 @@ describe('DeathBurst', () => {
     expect(b.aliveCount).toBe(0)
   })
 
-  it('частицы движутся и падают под гравитацией', () => {
-    // Детерминируем разлёт: rnd=0.25 → горизонтальная скорость ≠0 и умеренная vy (гравитация успеет вернуть).
+  it('particles move and fall under gravity', () => {
+    // Determinize the scatter: rnd=0.25 → horizontal speed ≠0 and moderate vy (gravity has time to pull back).
     const spy = vi.spyOn(Math, 'random').mockReturnValue(0.25)
     const b = new DeathBurst(new THREE.Color('#4af'))
     b.emit(new THREE.Vector3(0, 5, 0))
@@ -26,8 +26,8 @@ describe('DeathBurst', () => {
     for (let i = 0; i < 14; i++) b.update(DT)
     const meshes = b.object3d.children as THREE.Mesh[]
     const moved = meshes.some(m => Math.abs(m.position.x) > 0.01 || Math.abs(m.position.z) > 0.01)
-    expect(moved).toBe(true)                                   // разлетелись по горизонтали
+    expect(moved).toBe(true)                                   // scattered horizontally
     const minY = Math.min(...meshes.filter(m => m.visible).map(m => m.position.y))
-    expect(minY).toBeLessThan(5)                               // уже падают (гравитация)
+    expect(minY).toBeLessThan(5)                               // already falling (gravity)
   })
 })

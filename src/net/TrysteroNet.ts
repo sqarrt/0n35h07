@@ -4,16 +4,16 @@ import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 import { POOL_NAMESPACE } from './poolNamespace'
 
-// appId разделяет даже ручной вход по коду: несовместимые версия/платформа не подключатся друг к другу.
+// appId separates even manual code entry: incompatible version/platform won't connect to each other.
 export const APP_ID = `oneshot-fps-v1:${POOL_NAMESPACE}`
 
 interface Channel { action: MessageAction<DataPayload>; handlers: NetHandler[] }
 
 /**
- * Транспорт поверх Trystero (WebRTC через публичные трекеры Nostr — serverless P2P).
- * Один action на тег (имена ≤12 байт). STUN по умолчанию; iceServers (TURN) идут в rtcConfig
- * для мобильных/симметричных NAT. onPeerJoin/Leave у Trystero — присваиваемые свойства (один
- * обработчик), поэтому мультиплексируем через свои списки.
+ * Transport over Trystero (WebRTC via public Nostr trackers — serverless P2P).
+ * One action per tag (names ≤12 bytes). STUN by default; iceServers (TURN) go into rtcConfig
+ * for mobile/symmetric NAT. Trystero's onPeerJoin/Leave are assignable properties (a single
+ * handler), so we multiplex through our own lists.
  */
 export class TrysteroNet implements INet {
   readonly selfId: PeerId = selfId
@@ -24,8 +24,8 @@ export class TrysteroNet implements INet {
 
   constructor(roomId: string, relayUrls: string[] = [], iceServers: RTCIceServer[] = []) {
     const config: JoinRoomConfig = { appId: APP_ID }
-    // Закрепляем подтверждённо живые релеи (проба на входе в меню) — иначе Trystero выбирает фиксированную
-    // пятёрку по хешу appId, и при их падении пиры не находят друг друга.
+    // Pin relays confirmed alive (probed on menu entry) — otherwise Trystero picks a fixed
+    // five by appId hash, and if those go down peers can't find each other.
     if (relayUrls.length) config.relayConfig = { urls: relayUrls }
     if (iceServers.length) config.rtcConfig = { iceServers }
     this.room = joinRoom(config, roomId)
@@ -60,10 +60,10 @@ export class TrysteroNet implements INet {
 
 let warmed = false
 /**
- * Прогрев стека Trystero. Первый joinRoom синхронно инициализирует крипто (secp256k1/WASM), WebRTC и
- * nostr-сигналинг (~860мс) → фриз на «Создать комнату». Поднимаем «warmup»-комнату заранее (в простое меню)
- * и сразу выходим — тяжёлая инициализация проходит в фоне, реальное создание комнаты потом мгновенно.
- * Один раз за сессию.
+ * Warm up the Trystero stack. The first joinRoom synchronously initializes crypto (secp256k1/WASM), WebRTC and
+ * nostr signaling (~860ms) → a freeze on "Create room". We bring up a "warmup" room ahead of time (while the menu
+ * is idle) and immediately leave — the heavy init runs in the background, so real room creation is instant later.
+ * Once per session.
  */
 export function warmTrystero(): void {
   if (warmed) return
@@ -71,5 +71,5 @@ export function warmTrystero(): void {
   try {
     const room = joinRoom({ appId: APP_ID }, 'warm-' + Math.random().toString(36).slice(2, 8))
     setTimeout(() => { try { room.leave() } catch { /* best-effort */ } }, 300)
-  } catch { /* прогрев — best-effort, ошибки игнорируем */ }
+  } catch { /* warmup is best-effort, ignore errors */ }
 }

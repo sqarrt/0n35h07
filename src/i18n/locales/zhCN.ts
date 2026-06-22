@@ -1,6 +1,6 @@
 import type { Dict } from '../dict'
 
-// Упрощённый китайский: верхний регистр неприменим — только иероглифы
+// Simplified Chinese: uppercase doesn't apply — characters only
 export const zhCN = {
   menuPlay: '开始游戏',
   lobbyBecomeHost: '成为主机',

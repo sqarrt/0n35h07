@@ -2,26 +2,26 @@ import { describe, it, expect } from 'vitest'
 import { MAPS, MAP_IDS } from '../../src/game/maps'
 import { DEFAULT_MAP_ID } from '../../src/constants'
 
-describe('maps — реестр карт', () => {
-  it('MAP_IDS совпадает с ключами MAPS, дефолт входит в список', () => {
-    expect(MAP_IDS.length).toBe(Object.keys(MAPS).length)   // без магического числа — растёт с реестром
+describe('maps — map registry', () => {
+  it('MAP_IDS matches MAPS keys, default is in the list', () => {
+    expect(MAP_IDS.length).toBe(Object.keys(MAPS).length)   // no magic number — grows with the registry
     expect([...MAP_IDS].sort()).toEqual(Object.keys(MAPS).sort())
     expect(MAP_IDS).toContain(DEFAULT_MAP_ID)
   })
 
-  it('у каждой карты валидные id, спавны и блоки', () => {
+  it('every map has valid id, spawns and blocks', () => {
     for (const id of MAP_IDS) {
       const m = MAPS[id]
       expect(m.id).toBe(id)
-      // ровно два спавна (host, opponent), оба — числовые тройки
+      // exactly two spawns (host, opponent), both numeric triples
       expect(m.spawns).toHaveLength(2)
       for (const sp of m.spawns) {
         expect(sp).toHaveLength(3)
         expect(sp.every(n => Number.isFinite(n))).toBe(true)
       }
-      // спавны разнесены (друг напротив друга), не совпадают
+      // spawns are spread apart (facing each other), not equal
       expect(m.spawns[0]).not.toEqual(m.spawns[1])
-      // блоки — положительные полу-размеры
+      // blocks have positive half-sizes
       expect(m.blocks.length).toBeGreaterThan(0)
       for (const b of m.blocks) {
         expect(b.size.every(s => s > 0)).toBe(true)
@@ -29,7 +29,7 @@ describe('maps — реестр карт', () => {
     }
   })
 
-  it('карты загружены из данных редактора (есть периметр-стены blocksBeam:false)', () => {
+  it('maps are loaded from editor data (perimeter walls with blocksBeam:false exist)', () => {
     for (const id of MAP_IDS) {
       expect(MAPS[id].blocks.some(b => b.blocksBeam === false)).toBe(true)
     }

@@ -1,27 +1,27 @@
 import { test, expect } from './fixtures'
 import { unlockPointer, holdKey, getCameraPos, aimAtBot } from './helpers'
 
-// Физика Rapier (KinematicCharacterController) работает в реальном Chromium (WASM).
+// Rapier physics (KinematicCharacterController) runs in real Chromium (WASM).
 
-test('не проходит сквозь стену', async ({ page }) => {
+test('does not pass through a wall', async ({ page }) => {
   await page.goto('/')
-  await unlockPointer(page, { difficulty: 'passive' })   // человек смотрит вдоль −Z
-  // Идём вбок (в стену x=+20): соперник спавнится прямо по курсу −Z (z=−5) и перекрыл бы путь к стене,
-  // а боковая полоса (x) свободна — тестируем именно столкновение со стеной, а не с игроком.
+  await unlockPointer(page, { difficulty: 'passive' })   // the human faces along −Z
+  // Move sideways (into the wall at x=+20): the opponent spawns straight ahead along −Z (z=−5) and would
+  // block the path to the wall, while the side lane (x) is clear — so we test the wall collision, not the player one.
   await holdKey(page, 'KeyD', 4500)
   const pos = await getCameraPos(page)
-  expect(Math.abs(pos.x)).toBeLessThan(19.6) // капсула не пробила стену
-  expect(pos.x).toBeGreaterThan(15)          // но дошёл до неё
+  expect(Math.abs(pos.x)).toBeLessThan(19.6) // the capsule didn't punch through the wall
+  expect(pos.x).toBeGreaterThan(15)          // but reached it
 })
 
-test('отброс от бота вместо коллизии', async ({ page }) => {
+test('knockback from the bot instead of collision', async ({ page }) => {
   await page.goto('/')
   await unlockPointer(page, { difficulty: 'passive' })
-  // Коллизии между игроками нет — вместо неё резкий отброс при пересечении тел (maybeKnockback).
-  // Подходим к боту (homing-прицел) и давим W; срабатывание отброса детерминированно фиксирует
-  // счётчик __debugKnockCount. Спавны разнесены (≈32 по Z на os_arena) — идём дольше, пока не упрёмся.
-  // Короче шаг + чаще перенаводимся (плотнее homing) и больше попыток: под CPU-контеншеном (workers:4)
-  // редкий промах схождения за длинный 500мс-шаг давал knocks=0. Цикл выходит сразу при первом отбросе.
+  // There's no collision between players — instead a sharp knockback when bodies overlap (maybeKnockback).
+  // We approach the bot (homing aim) and press W; the knockback firing is deterministically recorded by
+  // the __debugKnockCount counter. Spawns are far apart (≈32 along Z on os_arena) — keep going until we hit.
+  // Shorter step + more frequent re-aim (denser homing) and more attempts: under CPU contention (workers:4)
+  // a rare convergence miss over a long 500ms step gave knocks=0. The loop exits on the first knockback.
   const knockCount = () => page.evaluate(() => window.__debugKnockCount ?? 0)
   let knocks = 0
   for (let i = 0; i < 40 && knocks === 0; i++) {
@@ -29,5 +29,5 @@ test('отброс от бота вместо коллизии', async ({ page }
     await holdKey(page, 'KeyW', 250)
     knocks = await knockCount()
   }
-  expect(knocks).toBeGreaterThan(0)   // пересечение тел дало импульс-отброс, а не залипание/проход насквозь
+  expect(knocks).toBeGreaterThan(0)   // overlapping bodies produced an impulse knockback, not sticking/pass-through
 })

@@ -6,18 +6,18 @@ import { DepthTexture, Uniform, Vector2, WebGLRenderTarget } from 'three'
 import type { Camera, Scene, Texture, WebGLRenderer, WebGLRenderTarget as RT } from 'three'
 
 /**
- * Экранный контур видимых рёбер ТОЛЬКО на блоках (кубы/клинья на слое BLOCK_LAYER).
- * Блоки рендерятся в отдельный буфер нормалей+глубины (слой-ограниченный NormalPass). Ребро = разрыв нормалей
- * соседних пикселей, НО только там, где блок реально виден: его глубина совпадает со сценной (не перекрыт
- * игроком/стеной). Пол/стены/игроки не на слое → их нет в буфере, контур их не задевает; перекрытые блоки
- * тоже не подсвечиваются. Цвет ребра = цвет блока из кадра, осветлённый.
+ * Screen-space outline of visible edges ONLY on blocks (cubes/wedges on BLOCK_LAYER).
+ * Blocks are rendered into a separate normals+depth buffer (a layer-limited NormalPass). An edge = a normal
+ * discontinuity between neighboring pixels, BUT only where the block is actually visible: its depth matches the
+ * scene's (not occluded by player/wall). Floor/walls/players aren't on the layer → absent from the buffer, the
+ * outline doesn't touch them; occluded blocks aren't highlighted either. Edge color = block's frame color, lightened.
  */
 export const BLOCK_LAYER = 1
 
-const THICKNESS = 1.0     // толщина выборки в ЭКРАННЫХ px → одинаковая на любой дистанции; тоньше
-const THRESH = 0.1        // порог суммы расстояний нормалей соседей
-const GAIN = 2.0          // во сколько раз светлее цвет блока на ребре
-const DEPTH_EPS = 0.15    // допуск сравнения глубин в МИРОВЫХ единицах (через getViewZ) — без протекания на игрока
+const THICKNESS = 1.0     // sampling thickness in SCREEN px → constant at any distance; thinner
+const THRESH = 0.1        // threshold for the sum of neighbor normal distances
+const GAIN = 2.0          // how many times lighter the block color is on the edge
+const DEPTH_EPS = 0.15    // depth-compare tolerance in WORLD units (via getViewZ) — no bleeding onto the player
 
 const fragmentShader = /* glsl */`
 uniform sampler2D uNormal;
@@ -38,8 +38,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   float dN = distance(n, nl) + distance(n, nr) + distance(n, nd) + distance(n, nu);
 
   float blockD = texture2D(uBlockDepth, uv).r;
-  float isBlock = step(blockD, 0.9999);                          // в этом пикселе есть блок (не дальняя плоскость)
-  // Видим, если сцена не ближе блока более чем на eps (мировые единицы) — иначе блок перекрыт игроком/стеной.
+  float isBlock = step(blockD, 0.9999);                          // this pixel has a block (not the far plane)
+  // Visible if the scene isn't closer than the block by more than eps (world units) — otherwise block is occluded by player/wall.
   float visible = step(getViewZ(depth) - getViewZ(blockD), uDepthEps);
 
   float edge = isBlock * visible * smoothstep(uThresh, uThresh * 2.0, dN);
@@ -48,8 +48,8 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
 }
 `
 
-/** NormalPass, рендерящий ТОЛЬКО слой блоков. Ограничиваем все камеры, которыми может рендерить
- * внутренний renderPass (this.camera / renderPass.camera / renderPass.mainCamera), на BLOCK_LAYER. */
+/** NormalPass rendering ONLY the blocks layer. We restrict every camera the internal renderPass might render
+ * with (this.camera / renderPass.camera / renderPass.mainCamera) to BLOCK_LAYER. */
 class BlockNormalPass extends NormalPass {
   override render(renderer: WebGLRenderer, inputBuffer: RT | null, outputBuffer: RT | null, deltaTime?: number, stencilTest?: boolean) {
     const self = this as unknown as { camera?: Camera; renderPass?: { camera?: Camera; mainCamera?: Camera } }
@@ -79,13 +79,13 @@ class EdgeEffect extends Effect {
   }
 }
 
-/** Композер с блочным NormalPass (+глубина) и эффектом-контуром. Ставится внутри Canvas. */
+/** Composer with the block NormalPass (+depth) and the outline effect. Mounted inside Canvas. */
 export const MapEdges = forwardRef<unknown>(function MapEdges(_props, _ref) {
   const scene = useThree(s => s.scene)
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
 
-  // Свой RT с depthTexture — чтобы у блочного пасса была и нормаль, и глубина блоков.
+  // Own RT with a depthTexture — so the block pass has both the normal and the blocks' depth.
   const target = useMemo(() => {
     const rt = new WebGLRenderTarget(size.width, size.height)
     rt.depthTexture = new DepthTexture(size.width, size.height)

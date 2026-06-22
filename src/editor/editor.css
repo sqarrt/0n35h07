@@ -1,4 +1,4 @@
-/* Редактор карт — единый «индустриально-терминальный» язык с игрой (моно, акцент #4af, плоско, без градиентов). */
+/* Map editor — shares the game's "industrial-terminal" language (mono, #4af accent, flat, no gradients). */
 .editor-root { position: fixed; inset: 0; background: var(--bg); font-family: var(--ui-font); color: var(--text); }
 .editor-root canvas { display: block; }
 
@@ -43,7 +43,7 @@
 .editor-exit { color: var(--muted); font-size: 11px; letter-spacing: 0.1em; text-decoration: none; }
 .editor-exit:hover { color: var(--accent-dim); }
 
-/* Экран выбора карты (/#editor) — в стиле главного меню (.menu-panel + .btn). */
+/* Map picker screen (/#editor) — styled like the main menu (.menu-panel + .btn). */
 .editor-picker { display: flex; align-items: center; justify-content: center; }
 .editor-pick-panel { width: min(560px, 92vw); }
 .editor-pick { align-items: stretch; justify-content: flex-start; gap: 12px; padding-top: 7vh; }

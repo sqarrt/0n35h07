@@ -9,7 +9,7 @@ interface ScreenFlashesProps {
 export function ScreenFlashes({ beamFlash, playerHit, shieldBlock, shieldVisible }: ScreenFlashesProps) {
   return (
     <>
-      {/* Виньетка + сетка при активном щите */}
+      {/* Vignette + grid while the shield is active */}
       <div style={{
         position: 'fixed', inset: 0,
         boxShadow: shieldVisible ? 'inset 0 0 140px rgba(65,105,225,0.6)' : 'none',

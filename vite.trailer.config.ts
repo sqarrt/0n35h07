@@ -6,15 +6,15 @@ import { TRAILER_SHOTS, CLIP_FILES } from './src/components/trailer/trailerEdl'
 import pkg from './package.json'
 
 /**
- * Сборка ЗАМОРОЖЕННОГО (immutable) трейлера в trailer-dist/ — независимая от остального проекта копия:
- * правки игры её не сломают. Сам этот конфиг и его плагин в артефакт НЕ попадают (конфиги не бандлятся,
- * плагин работает только на этапе сборки). Вся оптимизация — здесь, общий код не меняется: плагин подменяет
- * два модуля графа трейлера виртуальными,
- *  - trailerEdl: индексы кадров ремапятся под ОБРЕЗАННЫЕ демки (оставляем только показываемые кадры);
- *  - stems: вместо glob всех музыкальных стемов — только 4 используемых трейлером,
- * эмитит обрезанные демки в demos/ и переименовывает выходной html в index.html.
+ * Builds the FROZEN (immutable) trailer into trailer-dist/ — a copy independent of the rest of the project:
+ * game changes won't break it. This config and its plugin do NOT end up in the artifact (configs aren't bundled,
+ * the plugin runs only at build time). All optimization lives here, shared code stays untouched: the plugin
+ * replaces two modules of the trailer graph with virtual ones,
+ *  - trailerEdl: frame indices are remapped onto the TRIMMED demos (only the shown frames are kept);
+ *  - stems: instead of a glob of all music stems — only the 4 used by the trailer,
+ * emits the trimmed demos into demos/ and renames the output html to index.html.
  *
- * Пересобрать копию: npm run build:trailer  →  закоммитить trailer-dist/. Просмотр: npx serve trailer-dist
+ * Rebuild the copy: npm run build:trailer  →  commit trailer-dist/. Preview: npx serve trailer-dist
  */
 const ROOT = process.cwd()
 const DEMO_SRC = resolve(ROOT, 'public/demos')
@@ -22,7 +22,7 @@ const DEMO_SRC = resolve(ROOT, 'public/demos')
 const VIRT_EDL = '\0virtual:trailer-edl'
 const VIRT_STEMS = '\0virtual:trailer-stems'
 
-// Музыка трейлера — только эти стемы (см. TrailerMusic). Пути root-относительные (кроссплатформенно).
+// Trailer music — only these stems (see TrailerMusic). Paths are root-relative (cross-platform).
 const USED_STEMS: { id: string; role: 'kicks' | 'bass' | 'lead'; file: string }[] = [
   { id: 'kicks/sub_long', role: 'kicks', file: '/src/assets/music/kicks/sub_long.opus' },
   { id: 'bass/kutting', role: 'bass', file: '/src/assets/music/bass/kutting.opus' },
@@ -31,7 +31,7 @@ const USED_STEMS: { id: string; role: 'kicks' | 'bass' | 'lead'; file: string }[
 ]
 
 function trailerOptimize() {
-  // Обрезаем каждую демку до объединения показываемых кадров и ремапим индексы EDL.
+  // Trim each demo down to the union of shown frames and remap the EDL indices.
   const trimmed: Record<string, string> = {}
   const shots = JSON.parse(JSON.stringify(TRAILER_SHOTS)) as typeof TRAILER_SHOTS
 
@@ -75,14 +75,14 @@ function trailerOptimize() {
       return null
     },
     generateBundle() {
-      // Обрезанные демки кладём в demos/ (без хэша имени — путь фиксирован в коде).
+      // Place the trimmed demos into demos/ (no name hash — the path is fixed in code).
       for (const [file, source] of Object.entries(trimmed)) {
-        // @ts-expect-error emitFile есть в контексте плагина-хука
+        // @ts-expect-error emitFile exists in the plugin-hook context
         this.emitFile({ type: 'asset', fileName: `demos/${file}`, source })
       }
     },
     closeBundle() {
-      // Выходной html → index.html (чтобы `npx serve trailer-dist` отдавал его по умолчанию).
+      // Output html → index.html (so `npx serve trailer-dist` serves it by default).
       const out = resolve(ROOT, 'trailer-dist')
       if (existsSync(resolve(out, 'trailer.html'))) renameSync(resolve(out, 'trailer.html'), resolve(out, 'index.html'))
     },
@@ -92,7 +92,7 @@ function trailerOptimize() {
 export default defineConfig({
   root: ROOT,
   base: './',
-  publicDir: false,   // не копируем public/ (там полные демки/иконки) — нужное эмитим сами
+  publicDir: false,   // don't copy public/ (it has full demos/icons) — we emit what's needed ourselves
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [trailerOptimize(), react()],
   build: {

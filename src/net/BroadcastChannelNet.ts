@@ -1,22 +1,22 @@
 import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 
-const PRESENCE_PING_MS    = 1000   // период объявления «я здесь»
-const PRESENCE_TIMEOUT_MS = 3500   // без вестей дольше — пир считается ушедшим
+const PRESENCE_PING_MS    = 1000   // interval for "I'm here" announcements
+const PRESENCE_TIMEOUT_MS = 3500   // silent for longer — peer is considered gone
 
 type WireKind = 'msg' | 'ping' | 'bye'
 interface Wire {
   kind: WireKind
   from: PeerId
-  to?:  PeerId       // если задан — адресная отправка
+  to?:  PeerId       // if set — directed send
   tag?: NetTag
   data?: unknown
 }
 
 /**
- * Транспорт поверх BroadcastChannel: связь между вкладками одного браузера (same-origin).
- * Presence — пинг/таймаут. Используется для локальной игры «в две вкладки» и для e2e
- * (?net=bc) без внешних трекеров. BroadcastChannel НЕ доставляет сообщения самому себе.
+ * Transport over BroadcastChannel: communication between tabs of one browser (same-origin).
+ * Presence via ping/timeout. Used for local "two-tab" play and for e2e
+ * (?net=bc) without external trackers. BroadcastChannel does NOT deliver messages to itself.
  */
 export class BroadcastChannelNet implements INet {
   readonly selfId: PeerId
@@ -44,7 +44,7 @@ export class BroadcastChannelNet implements INet {
     if (!this.seen.has(from)) {
       this.seen.set(from, Date.now())
       this.joinCbs.forEach(cb => cb(from))
-      this.announce()   // отвечаем, чтобы новичок узнал о нас
+      this.announce()   // reply so the newcomer learns about us
     } else {
       this.seen.set(from, Date.now())
     }
@@ -94,6 +94,6 @@ export class BroadcastChannelNet implements INet {
     clearInterval(this.pruneTimer)
     this.handlers.clear()
     this.seen.clear()
-    setTimeout(() => this.ch.close(), 0)   // даём 'bye' уйти до закрытия канала (мгновенный детект)
+    setTimeout(() => this.ch.close(), 0)   // let 'bye' go out before closing the channel (instant detection)
   }
 }

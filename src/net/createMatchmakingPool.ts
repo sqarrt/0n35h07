@@ -7,8 +7,8 @@ import { resolveNetKind } from './createNet'
 import { POOL_NAMESPACE } from './poolNamespace'
 
 /**
- * IDiscovery по выбранному транспорту: `bc` → BroadcastChannel (same-origin вкладки + e2e);
- * иначе → Nostr (интернет-масштаб: pub/sub эфемерных событий по релеям, без mesh).
+ * IDiscovery by the chosen transport: `bc` → BroadcastChannel (same-origin tabs + e2e);
+ * otherwise → Nostr (internet-scale: pub/sub of ephemeral events over relays, no mesh).
  */
 export function createDiscovery(): IDiscovery {
   return resolveNetKind() === 'bc' ? new BroadcastChannelDiscovery() : new NostrDiscovery()

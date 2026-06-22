@@ -10,8 +10,8 @@ function makeMatch(sfx?: FakeSfxEngine) {
   const controls = { current: { pointerSpeed: 1 } }
   const keys = { current: { forward: false, back: false, left: false, right: false, jump: false } }
   const roster: RosterEntry[] = [
-    { id: 0, name: 'Вы', color: '#4af', kind: 'human' },
-    { id: 1, name: 'Бот', color: '#5af', kind: 'bot', difficulty: 'passive' },
+    { id: 0, name: 'You', color: '#4af', kind: 'human' },
+    { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
   ]
   return new Match({
     scene, camera, controls: controls as never, keys: keys as never, dispatch: vi.fn(),
@@ -20,23 +20,23 @@ function makeMatch(sfx?: FakeSfxEngine) {
 }
 
 describe('Match × SFX', () => {
-  it('без sfxEngine update не падает', () => {
+  it('without sfxEngine update does not throw', () => {
     const m = makeMatch()
     m.forceLiveForTest()
     expect(() => m.update(0.016)).not.toThrow()
   })
 
-  it('с sfxEngine конструируется без ошибок', () => {
+  it('constructs without errors with sfxEngine', () => {
     expect(() => makeMatch(new FakeSfxEngine())).not.toThrow()
   })
 
-  it('«go» играет один раз на входе в live (завершение отсчёта)', () => {
+  it('"go" plays once on entering live (countdown finished)', () => {
     const fake = new FakeSfxEngine()
     const m = makeMatch(fake)
-    expect(fake.played('go')).toBe(0)   // до live — нет
+    expect(fake.played('go')).toBe(0)   // not before live
     m.forceLiveForTest()
     m.update(0.016)
     m.update(0.016)
-    expect(fake.played('go')).toBe(1)   // ровно один раз
+    expect(fake.played('go')).toBe(1)   // exactly once
   })
 })

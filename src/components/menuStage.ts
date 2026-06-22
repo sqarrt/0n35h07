@@ -1,26 +1,26 @@
 import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
 
-/** Экраны, которые обслуживает фон меню. */
+/** Screens served by the menu background. */
 export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
 
-/** Последний кликнутый блок экрана «Внешность» — выбирает ракурс камеры.
- *  paintFront/paintBack — рисование спереди/сзади (камера облетает шар на нужную сторону). */
+/** Last clicked block of the "Appearance" screen — selects the camera angle.
+ *  paintFront/paintBack — painting front/back (camera orbits the orb to the needed side). */
 export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield' | 'paintFront' | 'paintBack'
 
-/** Состояния камеры фона меню. Позы хранятся в menuCameraPoses.json (правятся клавишей J в dev).
- *  room — ты хост (вдвоём); roomClient — ты подключился клиентом (вдвоём, свой ракурс). */
+/** Camera states for the menu background. Poses are stored in menuCameraPoses.json (edited with the J key in dev).
+ *  room — you are the host (both present); roomClient — you joined as a client (both present, your own angle). */
 export type MenuCameraState = 'default' | 'room' | 'roomClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield' | 'appearancePaintFront' | 'appearancePaintBack'
 
 export interface CameraPose { position: [number, number, number]; target: [number, number, number] }
 export type CameraPoses = Record<MenuCameraState, CameraPose>
 
-/** Сценические точки игроков (позиция ГЛАЗ, как спавн в матче). Модели стоят — двигается камера. */
+/** Stage spots for players (EYE position, like a match spawn). Models stay put — the camera moves. */
 export const PLAYER_SPOT = new THREE.Vector3(0, EYE_HEIGHT, 0)
 export const OPPONENT_SPOT = new THREE.Vector3(1.8, EYE_HEIGHT, 0)
 
-/** Камера-состояние по экрану и контексту: комната вдвоём (хост/клиент — разные ракурсы),
- *  блоки «Внешности», иначе дефолт. */
+/** Camera state by screen and context: room with both present (host/client — different angles),
+ *  "Appearance" blocks, otherwise default. */
 export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: boolean, part: AppearancePart): MenuCameraState {
   if (mode === 'appearance') {
     if (part === 'shot') return 'appearanceShot'

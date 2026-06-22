@@ -25,15 +25,15 @@ function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolea
   )
 }
 
-/** Лёгкий оверлей готовности над ареной. Клик в любом месте = готов. */
+/** Lightweight ready overlay above the arena. Click anywhere = ready. */
 export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayProps) {
   const sfx = useSfx()
   const t = useT()
   const host = roster.find(r => r.id === HOST_ID)
   const opponent = roster.find(r => r.id === OPPONENT_ID)
-  const iAmReady = ready.includes(localId)   // готов и жду второго → меняем подсказку
+  const iAmReady = ready.includes(localId)   // ready and waiting for the other → swap the hint
   const handleReady = () => {
-    if (!iAmReady) sfx.play2D('ready')   // звук только на переходе в «готов»
+    if (!iAmReady) sfx.play2D('ready')   // sound only on the transition to "ready"
     onReady()
   }
   return (

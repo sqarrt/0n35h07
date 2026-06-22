@@ -4,7 +4,7 @@ import { DomeShieldFx } from './DomeShieldFx'
 import { HexShieldFx } from './HexShieldFx'
 import { CrystalShieldFx } from './CrystalShieldFx'
 
-/** Фабрика скина щита (КУПОЛ/СОТЫ/КРИСТАЛЛ). Цвет не параметризуется — щит всегда синий. */
+/** Shield skin factory (DOME/HEX/CRYSTAL). Color is not parameterized — the shield is always blue. */
 export function createShieldFx(style: ShieldStyle): IShieldFx {
   switch (style) {
     case 'hex': return new HexShieldFx()

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 
 /**
- * Держит элемент смонтированным ещё `exitMs` после того, как `show` стал false — чтобы успел отыграть
- * fade-out перед размонтированием. Возвращает, нужно ли сейчас рендерить элемент.
+ * Keeps the element mounted for an extra `exitMs` after `show` becomes false — so the fade-out can
+ * play before unmounting. Returns whether the element should currently be rendered.
  */
 export function useDelayedUnmount(show: boolean, exitMs: number): boolean {
   const [mounted, setMounted] = useState(show)

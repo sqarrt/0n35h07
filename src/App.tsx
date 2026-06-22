@@ -47,6 +47,7 @@ import { IS_DESKTOP } from './platform'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { randomRoomCode } from './net/roomCode'
+import { generateModelName } from './names'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -68,17 +69,17 @@ import type { DemoFile } from './game/demo/demoTypes'
 
 type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
 
-const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // сложность бота по умолчанию на вкладке «С ботом»
+const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // default bot difficulty on the "vs Bot" tab
 
-const APPEARANCE_PANEL_MARGIN_PX = 24   // отступ панели от правого края экрана на «Внешности»
-// Прогрев Trystero запускаем не сразу по готовности canvas, а через паузу: даём ещё пару кадров отрисоваться,
-// и только потом ловим синхронный фриз init (~860мс) — он проходит ЗА предупреждением, незаметно для игрока.
+const APPEARANCE_PANEL_MARGIN_PX = 24   // panel offset from the right edge of the screen on "Appearance"
+// We start Trystero warmup not immediately on canvas-ready but after a pause: let a couple more frames render,
+// then catch the synchronous init freeze (~860ms) — it happens BEHIND the warning, unnoticed by the player.
 const TRYSTERO_WARM_DELAY_MS = 250
 
-// Редактор карт — только в dev (npm run dev), в прод-сборку не попадает (ленивый чанк не грузится).
+// Map editor — dev only (npm run dev), not included in the prod build (the lazy chunk isn't loaded).
 const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
 const isEditorHash = () => window.location.hash.startsWith('#editor')
-const MAP_FADE_MS = 700                  // длительность fade in/out фона карты (синхронно с .map-bg transition)
+const MAP_FADE_MS = 700                  // map background fade in/out duration (in sync with the .map-bg transition)
 
 interface GameNet {
   role: MatchRole
@@ -90,7 +91,7 @@ interface GameNet {
   code: string
 }
 
-// Dev: скачать записанное демо в файл (кладётся в репо, потом секвенсируется в трейлер).
+// Dev: download a recorded demo to a file (committed to the repo, later sequenced into the trailer).
 function downloadDemo(demo: DemoFile) {
   const blob = new Blob([JSON.stringify(demo)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -101,7 +102,7 @@ function downloadDemo(demo: DemoFile) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-// Конфиг камеры — модульная константа: инлайновый объект пересоздавался бы на каждом рендере.
+// Camera config — a module-level constant: an inline object would be recreated on every render.
 const GAME_CAMERA = { fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] as [number, number, number] }
 
 interface GameCanvasProps {
@@ -115,17 +116,17 @@ interface GameCanvasProps {
   audioAnalysis: AudioAnalysis
 }
 
-// HUD-экшены (прогресс заряда, скорость, таймер) ре-рендерят App десятки раз в секунду — Canvas НЕЛЬЗЯ
-// ре-рендерить вместе с ним. Configure-эффект r3f (без deps) на каждом рендере Canvas перезаписывает size
-// в r3f-сторе: rect из useMeasure (8 ключей) сравнивается со state.size (4 ключа), и is.equ в r3f 9 ВСЕГДА
-// видит «изменение». Каждый новый size будит всех подписчиков useThree (весь Game-поддерево), а ре-рендер
-// MapEdges заставляет EffectComposer пересобирать EffectPass с шейдерами каждый кадр — шторм аллокаций
-// (~18 МБ/с) и многосекундные паузы Major GC. memo + стабильные пропсы отсекают каскад в корне.
-// (Тот же класс граблей, что и memo у Game — см. комментарий в Game.tsx.)
+// HUD actions (charge progress, speed, timer) re-render App dozens of times per second — Canvas must NOT
+// be re-rendered along with it. r3f's configure effect (no deps) overwrites size in the r3f store on every
+// Canvas render: the rect from useMeasure (8 keys) is compared against state.size (4 keys), and is.equ in r3f 9
+// ALWAYS sees a "change". Each new size wakes all useThree subscribers (the whole Game subtree), and re-rendering
+// MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
+// (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
+// (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
 const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
   return (
-    /* shadows="percentage" → PCFShadowMap напрямую (PCFSoftShadowMap в three 0.184 deprecated и
-       всё равно откатывается к PCF) — тот же результат без deprecation-варнинга. */
+    /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
+       falls back to PCF anyway) — same result without the deprecation warning. */
     <Canvas shadows="percentage" camera={GAME_CAMERA}>
       <Game
         dispatch={dispatch}
@@ -147,18 +148,18 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
   )
 })
 
-// Персистентность роли хоста. `HOSTED_KEY` (localStorage) — последний СОЗДАННЫЙ нами код (переживает закрытие
-// вкладки/перезапуск браузера). `HOST_LIVE_KEY` — код, который вкладка-хост держит ПРЯМО СЕЙЧАС (снимается на
-// unload). Решение при открытии #CODE: хост, если код наш И живого хоста этого кода нет (мы — та самая вкладка
-// после refresh/повторного открытия); иначе клиент. Так refresh/reopen хоста → снова хост, а ВТОРАЯ вкладка
-// при живой первой (или вход по чужому коду) → клиент. На другом устройстве localStorage не общий → клиент.
+// Host-role persistence. `HOSTED_KEY` (localStorage) — the last code we CREATED (survives tab close/browser
+// restart). `HOST_LIVE_KEY` — the code a host tab holds RIGHT NOW (cleared on unload). Decision when opening
+// #CODE: host if the code is ours AND there's no live host for this code (we're that same tab after
+// refresh/reopen); otherwise client. So host refresh/reopen → host again, while a SECOND tab with the first
+// still alive (or entry by someone else's code) → client. On another device localStorage isn't shared → client.
 const HOSTED_KEY = 'oneshot:hosted'
 const HOST_LIVE_KEY = 'oneshot:hostLive'
 function forgetHosted() { lsRemove(HOSTED_KEY, HOST_LIVE_KEY) }
 function setHostLive(code: string) { lsSet(HOST_LIVE_KEY, code) }
 function clearHostLive(code: string) { if (lsGet(HOST_LIVE_KEY) === code) lsRemove(HOST_LIVE_KEY) }
 
-/** Fallback Suspense для ленивого редактора — под I18nProvider, отсюда useT. */
+/** Suspense fallback for the lazy editor — under I18nProvider, hence useT. */
 function EditorLoading() {
   const t = useT()
   return <div style={{ color: 'var(--accent)', fontFamily: 'var(--ui-font)', padding: 20 }}>{t.editorLoading}</div>
@@ -166,59 +167,59 @@ function EditorLoading() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
-  // Активная вкладка настроек живёт здесь, чтобы пережить заход в трейлер и вернуться на ту же вкладку.
+  // The active settings tab lives here so it survives a trip into the trailer and returns to the same tab.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('player')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
   const [locked, setLocked] = useState(false)
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
-  // initial читается провайдером один раз — не пересчитываем на каждом рендере (lazy-init, без чтения ref в рендере)
+  // initial is read by the provider once — not recomputed on every render (lazy-init, no ref read during render)
   const [initialLocale] = useState(() => profile.locale ?? detectLocale())
   const [appearancePreview, setAppearancePreview] = useState<{ color: string; model: BallModel; ringColor: string; windupStyle: WindupStyle; windupSeq: number; respawnStyle: RespawnStyle; respawnSeq: number; dashStyle: DashStyle; dashSeq: number; shieldStyle: ShieldStyle; shieldSeq: number; part: AppearancePart; ballArt: string | undefined }>(() => ({ color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, windupSeq: 0, respawnStyle: profile.respawnStyle, respawnSeq: 0, dashStyle: profile.dashStyle, dashSeq: 0, shieldStyle: profile.shieldStyle, shieldSeq: 0, part: 'color', ballArt: profile.ballArt }))
-  // Счётчики кликов превью (windupSeq/respawnSeq/dashSeq/shieldSeq) сохраняются из прежнего стейта: ими
-  // владеет App (монотонные, переживают перемонтирование «Внешности» — иначе призрачный запуск при повторном заходе).
+  // Preview click counters (windupSeq/respawnSeq/dashSeq/shieldSeq) are preserved from the previous state: App
+  // owns them (monotonic, survive remounting "Appearance" — otherwise a ghost trigger on re-entry).
   const handlePreview = useCallback((color: string, model: BallModel, ringColor: string, windupStyle: WindupStyle, respawnStyle: RespawnStyle, dashStyle: DashStyle, shieldStyle: ShieldStyle, part: AppearancePart, ballArt: string | undefined) => setAppearancePreview(p => ({ ...p, color, model, ringColor, windupStyle, respawnStyle, dashStyle, shieldStyle, part, ballArt })), [])
-  // Стиль + счётчик обновляются ОДНИМ setState: промежуточный рендер «новый seq, старый стиль»
-  // запускал превью старого стиля и тут же гасил его пересозданием эффекта (баг переключения).
+  // Style + counter are updated in ONE setState: an intermediate render of "new seq, old style"
+  // would trigger the old style's preview and immediately kill it by recreating the effect (a switching bug).
   const handleShotPreview = useCallback((windupStyle: WindupStyle) => setAppearancePreview(p => ({ ...p, windupStyle, windupSeq: p.windupSeq + 1 })), [])
-  // Ракурс камеры стоит как поставлен (никаких авто-возвратов) — меняется только следующим кликом.
+  // The camera angle stays as set (no auto-resets) — it changes only on the next click.
   const handleRespawnPreview = useCallback((respawnStyle: RespawnStyle) => setAppearancePreview(p => ({ ...p, respawnStyle, respawnSeq: p.respawnSeq + 1, part: 'respawn' })), [])
   const handleDashPreview = useCallback((dashStyle: DashStyle) => setAppearancePreview(p => ({ ...p, dashStyle, dashSeq: p.dashSeq + 1, part: 'dash' })), [])
   const handleShieldPreview = useCallback((shieldStyle: ShieldStyle) => setAppearancePreview(p => ({ ...p, shieldStyle, shieldSeq: p.shieldSeq + 1, part: 'shield' })), [])
-  const [lockReadyAt, setLockReadyAt] = useState(0)   // когда снова можно requestPointerLock (кулдаун Chrome)
-  const [now, setNow] = useState(0)                   // тик для обратного отсчёта в паузе
+  const [lockReadyAt, setLockReadyAt] = useState(0)   // when requestPointerLock is allowed again (Chrome cooldown)
+  const [now, setNow] = useState(0)                   // tick for the pause countdown
   const { state: hud, dispatch } = useGameHUD()
 
-  // Предупреждение о фоточувствительности — показываем с ПЕРВОГО рендера (чтобы не мелькнуло меню под ним).
-  // Оно перекрывает прогрев menu-canvas, но это безопасно: вся тяжёлая работа (Trystero) отложена до готовности
-  // canvas (handleMenuReady), а сам init WebGL-контекста лёгкий и проходит за предупреждением чисто. Под ?net=bc
-  // (e2e/локальные 2 вкладки) предупреждение не показываем — иначе оверлей перехватывал бы клики в тестах.
+  // Photosensitivity warning — shown from the FIRST render (so the menu doesn't flash behind it).
+  // It overlaps the menu-canvas warmup, but that's safe: all heavy work (Trystero) is deferred until canvas
+  // is ready (handleMenuReady), and the WebGL context init itself is light and passes behind the warning cleanly.
+  // Under ?net=bc (e2e/local 2 tabs) we don't show the warning — otherwise the overlay would intercept clicks in tests.
   const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
   const [menuReady, setMenuReady] = useState(false)
   const handleMenuReady = useCallback(() => setMenuReady(true), [])
-  // Canvas прогрет → теперь безопасно ловить синхронный фриз init Trystero (~860мс): он пройдёт ЗА
-  // предупреждением, до того как игрок его закроет → первое «Создать комнату» открывается мгновенно.
+  // Canvas warmed up → now it's safe to catch Trystero's synchronous init freeze (~860ms): it'll pass BEHIND
+  // the warning, before the player dismisses it → the first "Create room" opens instantly.
   useEffect(() => {
     if (!menuReady || resolveNetKind() !== 'trystero') return
     const timer = setTimeout(warmTrystero, TRYSTERO_WARM_DELAY_MS)
     return () => clearTimeout(timer)
   }, [menuReady])
 
-  // Единый SFX-движок на всё приложение (один AudioContext: меню + матч). Создаётся один раз (ленивый init).
+  // A single SFX engine for the whole app (one AudioContext: menu + match). Created once (lazy init).
   const [sfx] = useState(() => new ThreeSfxEngine())
   useEffect(() => { void sfx.load() }, [sfx])
-  // Громкость эффектов = общий × эффекты (живьём: UI-звуки в меню сразу реагируют на ползунок).
+  // Effects volume = master × effects (live: UI sounds in the menu react to the slider instantly).
   useEffect(() => { sfx.setMasterGain(profile.volumeMaster * profile.volumeSfx) }, [sfx, profile.volumeMaster, profile.volumeSfx])
 
-  // Музыка меню (отдельный движок/контекст). Громкость = общий × музыка_меню (живьём).
+  // Menu music (separate engine/context). Volume = master × menu_music (live).
   const [menuMusic] = useState(() => new MenuMusic(new WebAudioMusicEngine()))
   useEffect(() => { menuMusic.setVolume(profile.volumeMaster * profile.volumeMenuMusic) }, [menuMusic, profile.volumeMaster, profile.volumeMenuMusic])
-  // Предзагрузка буферов заранее (декод не требует жеста) → первый жест запускает мгновенно, без второго действия.
+  // Preload buffers ahead of time (decode needs no gesture) → the first gesture starts instantly, without a second action.
   useEffect(() => { void menuMusic.preload() }, [menuMusic])
 
-  // Анализ звука для визуализации: общий уровень со всех источников (SFX + музыка меню; музыку матча
-  // регистрирует Game). Питает glow шаров в меню и полосу-визуализатор в матче.
+  // Audio analysis for visualization: combined level from all sources (SFX + menu music; match music is
+  // registered by Game). Feeds the glow of the menu orbs and the visualizer bar in the match.
   const [audioAnalysis] = useState(() => new AudioAnalysis())
   useEffect(() => {
     const offs = [
@@ -229,11 +230,11 @@ export default function App() {
     ]
     return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
-  // Играет на всех не-игровых экранах, гаснет в матче. В браузере первый старт — из пользовательского жеста
-  // (autoplay-политика); на десктопе (Tauri) autoplay разрешён → стартуем сразу, без жеста.
+  // Plays on all non-game screens, fades out in the match. In the browser the first start is from a user gesture
+  // (autoplay policy); on desktop (Tauri) autoplay is allowed → we start immediately, without a gesture.
   const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
-    if (screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }   // трейлер ведёт свою музыку
+    if (screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }   // the trailer runs its own music
     if (gesturedRef.current) { void menuMusic.start(); return }
     const onGesture = () => {
       gesturedRef.current = true
@@ -248,19 +249,19 @@ export default function App() {
 
   const [lobbyTab, setLobbyTab] = useState<LobbyTab>('matchmaking')
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
-  const [botName, setBotName] = useState('')   // вкладка «С ботом»: имя бота (пусто = случайное при добавлении)
+  const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const dmRef = useRef<DualMatchmaker | null>(null)
-  const lobbyCodeRef = useRef<string>('')   // код хоста на сессию лобби (стабилен при переключении ролей)
+  const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable across role switches)
 
   const sessionRef = useRef<RoomSession | null>(null)
-  const negotiateNetRef = useRef<INet | null>(null)   // «С другом»: транспорт во время рандеву по коду до выбора роли
+  const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
   const gameApiRef = useRef<GameApi | null>(null)
 
-  // Является ли idle-состояние вкладки хостом (без активного поиска/коннекта):
-  // бот — всегда host; матчмейкинг — host, если профиль не вынуждает роль 'client'; друг — черновик до поиска.
+  // Whether the tab's idle state is host (without an active search/connection):
+  // bot — always host; matchmaking — host if the profile doesn't force the 'client' role; friend — draft until search.
   const idleIsHost = (tab: LobbyTab): boolean => tab === 'bot' || (tab === 'matchmaking' && profile.searchRole !== 'client')
 
   const leaveRoom = () => {
@@ -271,23 +272,23 @@ export default function App() {
     setGameNet(null)
   }
 
-  // Привязать RoomSession к транспорту: общие onChange/onStart/onClosed (для enterRoom и enterRoomNegotiated).
+  // Bind RoomSession to the transport: shared onChange/onStart/onClosed (for enterRoom and enterRoomNegotiated).
   const bindSession = (net: INet, role: RoomRole, code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
-      // Старт preload geo.json для карты: до монтирования Arena во время отсчёта успеет загрузиться.
+      // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
-      // Сброс результата/времени/счёта прошлого матча — иначе старый экран исхода мелькнёт поверх нового матча.
+      // Reset the previous match's result/time/score — otherwise the old result screen flashes over the new match.
       dispatch({ type: 'RESET_MATCH' })
-      // Матч стартует с ритуала готовности — заранее ставим фазу 'ready', иначе на миг мелькает оверлей паузы.
+      // The match starts with the ready ritual — set phase 'ready' ahead of time, else the pause overlay flashes briefly.
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
-      // Копия карты: чистка ростера в RoomSession.onPeerLeave не должна стирать маршрутизацию игры.
+      // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
       setScreen('game')
     })
-    // Клиент: хост ушёл из лобби / хендшейк не сложился → откат в idle-состояние текущей вкладки.
+    // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.
     session.onClosed(() => {
       setSearching(false)
       dmRef.current?.stop(); dmRef.current = null
@@ -297,18 +298,18 @@ export default function App() {
   }
 
   const enterRoom = (code: string, role: RoomRole, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
-    leaveRoom()   // чистим прежнюю сессию И незавершённый рандеву-транспорт
-    if (role === 'host') setHostLive(code)   // помечаем эту вкладку живым хостом кода (снимется на unload)
+    leaveRoom()   // clean up the previous session AND any unfinished rendezvous transport
+    if (role === 'host') setHostLive(code)   // mark this tab as the code's live host (cleared on unload)
     const net = createNet(code)
     netDiagSetContext({ role, code, selfId: net.selfId })
     netDiagSetPeers(() => net.peers())
     bindSession(net, role, code, sel)
   }
 
-  // «С другом»: оба пира входят в комнату = code; роль решается детерминированно по selfId (меньший = хост).
-  // До появления соперника висим в рандеву (negotiateNetRef), затем строим сессию резолвнутой роли на ТОМ ЖЕ транспорте.
+  // "vs Friend": both peers join room = code; the role is decided deterministically by selfId (smaller = host).
+  // Until the opponent appears we hang in rendezvous (negotiateNetRef), then build the resolved-role session on the SAME transport.
   const enterRoomNegotiated = (code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
-    leaveRoom()   // чистим прежнюю сессию И прошлый рандеву-транспорт
+    leaveRoom()   // clean up the previous session AND the prior rendezvous transport
     const net = createNet(code)
     netDiagSetContext({ role: 'negotiate', code, selfId: net.selfId })
     netDiagSetPeers(() => net.peers())
@@ -319,7 +320,7 @@ export default function App() {
       const others = net.peers()
       if (!others.length) return
       resolved = true
-      negotiateNetRef.current = null   // транспорт переходит во владение сессии
+      negotiateNetRef.current = null   // the transport passes into the session's ownership
       const peerMin = others.reduce((a, b) => (a < b ? a : b))
       const role: RoomRole = net.selfId < peerMin ? 'host' : 'client'
       if (role === 'host') setHostLive(code)
@@ -327,32 +328,35 @@ export default function App() {
       bindSession(net, role, code, sel)
     }
     net.onPeerJoin(() => tryResolve())
-    tryResolve()   // вдруг соперник уже виден
+    tryResolve()   // in case the opponent is already visible
   }
 
-  // Привести сессию в idle-состояние вкладки (без активного поиска/коннекта).
+  // Bring the session to the tab's idle state (without an active search/connection).
   const enterTabIdle = (tab: LobbyTab, sel: { map: MapFilter; durationMin: DurationFilter }) => {
     if (tab === 'bot') {
+      // Pre-resolve the name so the seat input starts populated and in sync with the slot (no empty-field mismatch).
+      const name = botName.trim() || generateModelName()
       enterRoom(lobbyCodeRef.current, 'host', sel)
-      sessionRef.current?.addBot(botDifficulty, botName)   // бот сразу в слоте (имя из поля или случайное)
+      sessionRef.current?.addBot(botDifficulty, name)   // bot straight into the slot
+      if (name !== botName) setBotName(name)
     } else if (idleIsHost(tab)) {
-      enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host-сессия для анонса
+      enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host session for the announcement
     } else {
-      leaveRoom()   // matchmaking+client / friend → черновик до поиска
+      leaveRoom()   // matchmaking+client / friend → draft until search
     }
   }
 
-  // На входе в меню прогреваем кеш живых релеев (self-healing сигналинга). Только для интернет-транспорта:
-  // под ?net=bc (e2e/локалка) реальные WebSocket-пробы не нужны и шумят в тестах.
+  // On entering the menu we warm the live relay cache (self-healing signaling). Internet transport only:
+  // under ?net=bc (e2e/local) real WebSocket probes aren't needed and add noise to tests.
   useEffect(() => {
     if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
 
-  // Прогрев превью карт на старте: к открытию комнаты картинки уже в HTTP-кэше (см. warmMapPreviews).
+  // Warm map previews on start: by the time the room opens, the images are already in the HTTP cache (see warmMapPreviews).
   useEffect(() => { warmMapPreviews() }, [])
 
-  // Случайные F5/Ctrl+W в live-матче не должны молча убивать бой — браузер спросит подтверждение.
-  // На десктопе (Tauri) гард не ставим: там beforeunload без диалога просто блокирует закрытие окна.
+  // Accidental F5/Ctrl+W in a live match must not silently kill the fight — the browser will ask for confirmation.
+  // On desktop (Tauri) we don't set the guard: there beforeunload without a dialog just blocks closing the window.
   useEffect(() => {
     if (IS_DESKTOP || screen !== 'game' || hud.matchPhase !== 'live') return
     const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault()
@@ -360,7 +364,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [screen, hud.matchPhase])
 
-  // Дев-маршрут #editor → редактор карт (только при npm run dev).
+  // Dev route #editor → map editor (only under npm run dev).
   useEffect(() => {
     const onHash = () => setEditorMode(import.meta.env.DEV && isEditorHash())
     window.addEventListener('hashchange', onHash)
@@ -377,13 +381,13 @@ export default function App() {
     return () => document.removeEventListener('pointerlockchange', onChange)
   }, [])
 
-  // Матч завершён — освобождаем курсор для клика «ВЫЙТИ».
+  // Match ended — release the cursor for clicking "EXIT".
   useEffect(() => {
     if (hud.matchResult) document.exitPointerLock?.()
   }, [hud.matchResult])
 
-  // Запись демо для трейлера — ТОЛЬКО dev: F9 старт/стоп (в матче), на стоп скачивается .demo.json.
-  // Позитивная ветка import.meta.env.DEV → в прод-сборке весь блок (и downloadDemo) вырезается DCE.
+  // Demo recording for the trailer — dev ONLY: F9 start/stop (in a match), on stop a .demo.json is downloaded.
+  // Positive import.meta.env.DEV branch → in the prod build the whole block (and downloadDemo) is stripped by DCE.
   useEffect(() => {
     if (import.meta.env.DEV) {
       const onKey = (e: KeyboardEvent) => {
@@ -392,16 +396,16 @@ export default function App() {
         if (!api) return
         if (api.isRecordingDemo()) {
           const demo = api.stopDemo()
-          if (demo) { downloadDemo(demo); console.log(`[demo] записано кадров: ${demo.frames.length}`) }
-        } else { api.startDemo(); console.log('[demo] запись начата (F9 — стоп)') }
+          if (demo) { downloadDemo(demo); console.log(`[demo] recorded frames: ${demo.frames.length}`) }
+        } else { api.startDemo(); console.log('[demo] recording started (F9 — stop)') }
       }
       window.addEventListener('keydown', onKey)
       return () => window.removeEventListener('keydown', onKey)
     }
   }, [])
 
-  // Закрытие/обновление вкладки → мгновенный 'bye' соседу (иначе детект по presence-таймауту) + снимаем флаг
-  // живого хоста этого кода (refresh/reopen этой же вкладки потом снова станет хостом; вторая живая — клиентом).
+  // Tab close/reload → an instant 'bye' to the neighbor (otherwise detected by presence timeout) + clear the
+  // live-host flag for this code (refresh/reopen of this same tab will become host again; a second live one — client).
   useEffect(() => {
     const onUnload = () => {
       const s = sessionRef.current
@@ -412,7 +416,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [])
 
-  // Пока открыта пауза — тикаем для обратного отсчёта кулдауна pointer lock.
+  // While the pause is open — tick for the pointer lock cooldown countdown.
   useEffect(() => {
     const isPaused = screen === 'game' && !locked && hud.matchPhase === 'live'
     if (!isPaused) return
@@ -421,7 +425,7 @@ export default function App() {
     return () => clearInterval(iv)
   }, [screen, locked, hud.matchPhase])
 
-  // Соперник появился: host/both — входящий занял слот (фиксируем host в матчмейкере); client — пришёл ASSIGN.
+  // Opponent appeared: host/both — the incomer took the slot (we fix host in the matchmaker); client — ASSIGN arrived.
   useEffect(() => {
     if (!searching || !roomView) return
     if (roomView.isHost && roomView.roster.length > 1) { dmRef.current?.hostConnected(); setSearching(false) }
@@ -430,14 +434,14 @@ export default function App() {
 
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
-  // Выход из игры: на десктопе (Tauri) закрывает окно через API; в браузере — window.close().
-  // Динамический импорт: @tauri-apps/api — отдельный ленивый чанк, в браузер не грузится.
+  // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
+  // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.
   const handleExit = () => {
     if (IS_DESKTOP) void import('@tauri-apps/api/window').then(({ getCurrentWindow }) => getCurrentWindow().close())
     else window.close()
   }
   const handleResume = () => { document.querySelector('canvas')?.requestPointerLock() }
-  // Готовность в матче — клик ловит pointer lock (нужен жест) и отмечает игрока готовым (host↔client синк).
+  // Ready in a match — the click grabs pointer lock (a gesture is needed) and marks the player ready (host↔client sync).
   const handleReady = () => {
     document.querySelector('canvas')?.requestPointerLock()
     gameApiRef.current?.requestReady()
@@ -445,8 +449,8 @@ export default function App() {
 
   const disposePool = () => { poolRef.current?.dispose(); poolRef.current = null }
 
-  // ИГРАТЬ → лобби. Дефолт — вкладка Матчмейкинг. both сразу поднимает host-сессию (для анонса);
-  // client — черновик без сети до ПОИСКа.
+  // PLAY → lobby. Default — the Matchmaking tab. both immediately brings up a host session (for the announcement);
+  // client — a draft without networking until SEARCH.
   const handlePlay = () => {
     disposePool()
     poolRef.current = createMatchmakingPool()
@@ -456,7 +460,7 @@ export default function App() {
     setLobbyTab('matchmaking')
     setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
     setBotName('')
-    lobbyCodeRef.current = randomRoomCode()   // фиксируем код лобби (не меняется при переключении вкладок)
+    lobbyCodeRef.current = randomRoomCode()   // fix the lobby code (doesn't change when switching tabs)
     enterTabIdle('matchmaking', sel)
     setScreen('lobby')
   }
@@ -465,19 +469,19 @@ export default function App() {
     setSearching(false)
     dmRef.current?.stop(); dmRef.current = null
     disposePool()
-    forgetHosted()   // явный выход в меню → больше не претендуем на роль хоста этого кода
+    forgetHosted()   // explicit exit to the menu → we no longer claim the host role for this code
     leaveRoom()
     setScreen('menu')
   }
 
-  // --- колбэки лобби ---
+  // --- lobby callbacks ---
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
   const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
   const onLobbySetBotName = (name: string) => { setBotName(name); sessionRef.current?.setBotName(name) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
 
-  // «С другом»: симметричный рандеву — оба вводят один код и жмут ПОИСК; роль решает selfId.
+  // "vs Friend": symmetric rendezvous — both enter the same code and press SEARCH; selfId decides the role.
   const onLobbyFriendSearch = (code: string) => {
     const c = code.trim().toUpperCase()
     if (!c) return
@@ -487,7 +491,7 @@ export default function App() {
     enterRoomNegotiated(c, draftSel)
   }
 
-  // Смена вкладки: сброс транзиентного состояния + пересборка сессии под idle-состояние вкладки. Доступна всегда.
+  // Tab switch: reset transient state + rebuild the session for the tab's idle state. Always available.
   const onLobbySetTab = (tab: LobbyTab) => {
     if (tab === lobbyTab) return
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
@@ -510,9 +514,9 @@ export default function App() {
       listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
       filter: { map: curMap, durationMin: curDur },
     })
-    // Заходим клиентом с РЕАЛЬНО выбранными параметрами поиска (в режиме both выбор живёт в host-сессии,
-    // а draftSel остаётся дефолтным — иначе хост резолвит свой выбор против дефолта клиента: пустое
-    // пересечение → карта-дефолт и время NaN/00:00).
+    // Join as a client with the ACTUALLY selected search parameters (in both mode the selection lives in the
+    // host session, while draftSel stays default — otherwise the host resolves its choice against the client's
+    // default: empty intersection → default map and time NaN/00:00).
     dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', { map: curMap, durationMin: curDur }) })
     dmRef.current = dm
     dm.start()
@@ -521,24 +525,24 @@ export default function App() {
     setSearching(false)
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
-    if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // друг: бросить рандеву → черновик
+    if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // friend: drop the rendezvous → draft
   }
 
-  // Любой live без захвата мыши — пауза (в т.ч. если первый pointer lock не удался: раньше этот
-  // кейс закрывала отдельная live-кнопка «ГОТОВ?», теперь путь один — оверлей с «ПРОДОЛЖИТЬ»).
+  // Any live state without mouse capture is a pause (including when the first pointer lock failed: this case
+  // used to be handled by a separate live "READY?" button, now there's one path — the overlay with "RESUME").
   const paused = screen === 'game' && !locked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
 
-  // На экране «войти в комнату» показываем резервный цвет (хост может занять твой основной — превью того,
-  // как ты, скорее всего, будешь выглядеть). Переход цвета плавный (лерп в MenuBackdrop).
+  // On the "join room" screen we show the reserve color (the host may take your primary — a preview of how
+  // you'll most likely look). The color transition is smooth (lerp in MenuBackdrop).
   const menuPlayer = screen === 'appearance'
     ? appearancePreview
     : { color: profile.primaryColor, model: profile.ballModel, ringColor: profile.reserveColor, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
 
-  // На «Внешности» панель прибита почти к правому краю (небольшой отступ) — всё остальное пространство
-  // отдано шару-превью. Сдвиг считается из ИЗМЕРЕННОЙ ширины панели и пересчитывается ТОЛЬКО при смене
-  // экрана/ресайзе (никакие ре-рендеры превью не двигают панель). Переезд — демпфер (MENU_ANIM_TAU).
+  // On "Appearance" the panel is pinned almost to the right edge (a small margin) — all the rest of the space
+  // is given to the preview orb. The offset is computed from the MEASURED panel width and recomputed ONLY on
+  // screen change/resize (no preview re-renders move the panel). The move is damped (MENU_ANIM_TAU).
   const [panelSlide, setPanelSlide] = useState(0)
   const panelRef = useDampedTranslateX(panelSlide)
   useEffect(() => {
@@ -552,8 +556,8 @@ export default function App() {
     return () => window.removeEventListener('resize', compute)
   }, [screen, panelRef])
 
-  // Размытый фон карты — только в комнате, с fade in/out. Держим смонтированным на время выхода-фейда;
-  // последний mapId фиксируем, чтобы при выходе (roomView уже null) фон не мигнул на дефолтную карту.
+  // Blurred map background — only in the room, with fade in/out. Kept mounted for the duration of the exit fade;
+  // we fix the last mapId so that on exit (roomView already null) the background doesn't flash to the default map.
   const showMap = screen === 'lobby'
   const mapMounted = useDelayedUnmount(showMap, MAP_FADE_MS)
   const [lastMapId, setLastMapId] = useState<MapId>(DEFAULT_MAP_ID)
@@ -562,10 +566,10 @@ export default function App() {
     if (m) setLastMapId(m)
   }, [roomView?.mapId, draftSel.map])
 
-  // Пропсы лобби: нормализуем RoomView (или черновик клиента без сессии) в форму Lobby.
+  // Lobby props: normalize RoomView (or a client draft without a session) into the Lobby shape.
   const buildLobby = () => {
     const v = roomView
-    const isHost = v ? v.isHost : idleIsHost(lobbyTab)   // без сессии: host только если idle-состояние вкладки хостовое
+    const isHost = v ? v.isHost : idleIsHost(lobbyTab)   // without a session: host only if the tab's idle state is host
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
@@ -573,7 +577,7 @@ export default function App() {
       const oppId = isHost ? OPPONENT_ID : HOST_ID
       const meE = v.roster.find(r => r.id === myId)
       if (meE) me = { name: meE.name, color: meE.color, ready: v.ready.includes(myId) }
-      // клиент видит хоста ТОЛЬКО после подключения (ASSIGN), иначе его собственная заглушка-host выглядит как «матч с собой»
+      // the client sees the host ONLY after connecting (ASSIGN), otherwise its own host stub looks like a "match with yourself"
       const oppE = (isHost || v.connected) ? v.roster.find(r => r.id === oppId) : undefined
       opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId), isBot: oppE.kind === 'bot' } : null
     }
@@ -595,7 +599,7 @@ export default function App() {
   const lobbyProps = screen === 'lobby' ? buildLobby() : null
 
   if (editorMode) {
-    // Редактор без UI смены языка — onChange не нужен
+    // The editor has no language-switch UI — onChange isn't needed
     return (
       <I18nProvider initial={initialLocale}>
         <Suspense fallback={<EditorLoading />}><EditorRoot /></Suspense>
@@ -615,13 +619,13 @@ export default function App() {
     <SfxProvider engine={sfx}>
     <div style={{ width: '100vw', height: '100vh', position: 'relative', background: 'var(--bg)' }}>
       {screen !== 'game' && screen !== 'trailer' && mapMounted && <MapBackground mapId={lastMapId} show={showMap} />}
-      {/* Свечение контуров глушится muted'ом БЕЗ размонтирования композера (мгновенно в обе стороны):
-          на «Внешности» — всегда, в остальных меню — по настройке «Свечение в меню». */}
-      {/* part только на экране «Внешность»: иначе ретенция (напр. shot/paint) держит разворот шара в меню. */}
+      {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
+          on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
+      {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
       {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
-      {/* Единая персистентная подложка: едет (не пересоздаётся) при смене экрана; внутри — контент экрана. */}
+      {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
       {screen !== 'game' && screen !== 'trailer' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
@@ -663,7 +667,7 @@ export default function App() {
             />
           )}
           {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
-          {/* Игровой HUD — только в live; во время отсчёта чистый экран (камеру крутить можно) + сам отсчёт. */}
+          {/* Game HUD — only in live; during the countdown a clean screen (camera can turn) + the countdown itself. */}
           {locked && hud.matchPhase === 'live' && (
             <>
               <WindupOverlay windupProgress={hud.windupProgress} />
@@ -689,7 +693,7 @@ export default function App() {
               <EffectDefs />
             </>
           )}
-          {/* HUD-бар: в live (при захвате указателя) сверху, в конце матча трансформируется в центр (итоговый счёт). */}
+          {/* HUD bar: at the top in live (when the pointer is captured), at match end it transforms to center (final score). */}
           {((locked && hud.matchPhase === 'live') || hud.matchPhase === 'ended') && (
             <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} ended={!!hud.matchResult} />
           )}

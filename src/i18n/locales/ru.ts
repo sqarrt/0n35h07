@@ -46,7 +46,7 @@ export const ru = {
   warnContinueHint: 'чтобы продолжить',
   warnContinueKey: 'ЛКМ',
   settingsLanguage: 'ЯЗЫК',
-  // Комната
+  // Room
   roomTitle: 'КОМНАТА',
   roomCodeLabel: 'КОД:',
   roomCopied: 'СКОПИРОВАНО',
@@ -67,7 +67,7 @@ export const ru = {
   roomBack: 'НАЗАД',
   roomWaitingHost: 'ОЖИДАНИЕ ХОСТА…',
   roomConnecting: 'ПОДКЛЮЧЕНИЕ…',
-  // Экран входа в комнату
+  // Join-room screen
   joinTitle: 'ВОЙТИ В КОМНАТУ',
   joinCodeLabel: 'КОД КОМНАТЫ',
   joinSubmit: 'ВОЙТИ',
@@ -75,7 +75,7 @@ export const ru = {
   joinStatusFound: 'КОМНАТА НАЙДЕНА · ПОДКЛЮЧЕНИЕ…',
   joinStatusNotFound: (code: string) => `КОМНАТА ${code} НЕ НАЙДЕНА`,
   joinStatusFailedConnect: 'НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ',
-  // Настройки
+  // Settings
   settingsTitle: 'НАСТРОЙКИ',
   settingsSecPlayer: 'ИГРОК',
   settingsSecSound: 'ЗВУК',
@@ -105,13 +105,13 @@ export const ru = {
   settingsShowFps: 'ВЫВОДИТЬ СЧЁТЧИК КАДРОВ',
   settingsShowSpeed: 'ВЫВОДИТЬ СКОРОСТЬ ИГРОКА',
   settingsBack: 'НАЗАД',
-  // Релеи (раздел СЕТЬ)
+  // Relays (NETWORK section)
   relaysTitle: 'РЕЛЕИ',
   relaysProbing: 'ПРОВЕРКА…',
   relaysAlive: (alive: number, total: number) => `ЖИВЫХ ${alive}/${total}`,
   relaysInUse: (n: number) => `В РАБОТЕ ${n}`,
   relaysReprobe: 'ПРОВЕРИТЬ ЗАНОВО',
-  // Внешность
+  // Appearance
   appearTitle: 'ВНЕШНОСТЬ',
   appearOnModel: 'НА МОДЕЛИ:',
   appearSlotPrimary: 'ОСНОВНОЙ',
@@ -145,7 +145,7 @@ export const ru = {
   styleShieldDome: 'КУПОЛ',
   styleShieldHex: 'СОТЫ',
   styleShieldCrystal: 'КРИСТАЛЛ',
-  // Матчевые оверлеи
+  // Match overlays
   readyStatusReady: 'ГОТОВ ✓',
   readyStatusNotReady: '○ НЕ ГОТОВ',
   readyHintAction: 'чтобы начать',
@@ -164,7 +164,7 @@ export const ru = {
   statsMin: 'мин',
   statsMs: 'мс',
   statsSpeedUnit: 'ед/с',
-  // Клавиши мыши и легенда управления
+  // Mouse buttons and controls legend
   keyLmb: 'ЛКМ',
   keyRmb: 'ПКМ',
   keyMouse: 'Мышь',
@@ -176,7 +176,7 @@ export const ru = {
   ctrlLook: 'Обзор',
   ctrlView: 'Вид 1/3',
   ctrlPause: 'Пауза',
-  // Пауза и редактор
+  // Pause and editor
   pauseTitle: 'МЕНЮ',
   pauseResume: 'ПРОДОЛЖИТЬ',
   pauseToMenu: 'В МЕНЮ',

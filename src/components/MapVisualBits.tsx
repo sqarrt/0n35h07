@@ -3,25 +3,25 @@ import { Vector3 } from 'three'
 import type { DirectionalLight } from 'three'
 
 /**
- * Общие визуальные части карты — чтобы арена выглядела одинаково в игре, редакторе, превью и фоне меню.
+ * Shared visual parts of the map — so the arena looks the same in game, editor, preview, and menu background.
  */
 
-// Свет и тень. Один дефолтный shadow.camera (ortho ±5) растянут на огромную площадь → у дальних краёв
-// арены теней нет, а в покрытой зоне разрешение мизерное → shadow-acne тонкими линиями по границам граней
-// блоков («швы»). Фрустум подгоняем ТОЧНО: как AABB арены в СВЕТОВЫХ координатах. Симметричный
-// ±(half+margin) не годился: ортобокс центрирован на наклонной оси света, и дальние углы арены вылетали
-// за его края (до ~-28.5 по световому X при границе -24) — тени стен обрезались косой линией по границе.
+// Light and shadow. A single default shadow.camera (ortho ±5) stretched over a huge area → the arena's far edges
+// have no shadows, and within the covered zone the resolution is tiny → shadow-acne as thin lines along block
+// face boundaries ("seams"). We fit the frustum EXACTLY: as the arena's AABB in LIGHT coordinates. A symmetric
+// ±(half+margin) wouldn't do: the ortho box is centered on the slanted light axis, and the arena's far corners
+// fell outside its edges (down to ~-28.5 on light X with a -24 boundary) — wall shadows were clipped by a diagonal line.
 const LIGHT_POS: [number, number, number] = [10, 20, 8]
-const SHADOW_MAP_SIZE = 2048     // разрешение карты теней (выше дефолта 512 → нет acne-«швов»)
-const SHADOW_NORMAL_BIAS = 0.03  // сдвиг вдоль нормали — убирает самозатенение (acne) на плоских гранях
+const SHADOW_MAP_SIZE = 2048     // shadow map resolution (above the default 512 → no acne "seams")
+const SHADOW_NORMAL_BIAS = 0.03  // shift along the normal — removes self-shadowing (acne) on flat faces
 const SHADOW_BIAS        = -0.0005
-const DEFAULT_SHADOW_RADIUS = 20 // полу-размер, если размер арены не передан (редактор/превью)
-const SHADOW_PAD      = 2        // запас по краям фрустума в световых координатах
-const SHADOW_TOP_Y    = 6        // верх кастеров: стены (3), блоки, игрок в прыжке
-const SHADOW_BOTTOM_Y = -1      // низ приёмников: пол с запасом
+const DEFAULT_SHADOW_RADIUS = 20 // half-size if the arena size isn't passed (editor/preview)
+const SHADOW_PAD      = 2        // padding at the frustum edges in light coordinates
+const SHADOW_TOP_Y    = 6        // top of casters: walls (3), blocks, jumping player
+const SHADOW_BOTTOM_Y = -1      // bottom of receivers: floor with margin
 
-/** Единый свет карты (одинаковая яркость/направление во всех контекстах). `half` — полу-размеры арены [X,Z]
- *  для точной подгонки фрустума тени (Arena передаёт map.half; редактор/превью — дефолт). */
+/** Unified map light (same brightness/direction in all contexts). `half` — arena half-sizes [X,Z]
+ *  for precise shadow frustum fitting (Arena passes map.half; editor/preview — default). */
 export function MapLights({ half }: { half?: [number, number] } = {}) {
   const ref = useRef<DirectionalLight>(null)
 
@@ -29,17 +29,17 @@ export function MapLights({ half }: { half?: [number, number] } = {}) {
     const light = ref.current
     if (!light) return
     const [hx, hz] = half ?? [DEFAULT_SHADOW_RADIUS, DEFAULT_SHADOW_RADIUS]
-    // Оси теневой камеры: смотрит из LIGHT_POS в центр арены (three строит её так же в updateMatrices).
+    // Shadow camera axes: looks from LIGHT_POS at the arena center (three builds it the same way in updateMatrices).
     const lightPos = new Vector3(...LIGHT_POS)
-    const zAxis = lightPos.clone().normalize()                            // от цели (0,0,0) к свету
+    const zAxis = lightPos.clone().normalize()                            // from target (0,0,0) to the light
     const xAxis = new Vector3().crossVectors(new Vector3(0, 1, 0), zAxis).normalize()
     const yAxis = new Vector3().crossVectors(zAxis, xAxis)
-    // Световой AABB по 8 углам бокса арены (пол → верх кастеров).
+    // Light-space AABB over the 8 corners of the arena box (floor → top of casters).
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minD = Infinity, maxD = -Infinity
     const v = new Vector3()
     for (const cx of [-hx, hx]) for (const cy of [SHADOW_BOTTOM_Y, SHADOW_TOP_Y]) for (const cz of [-hz, hz]) {
       v.set(cx, cy, cz).sub(lightPos)
-      const lx = v.dot(xAxis), ly = v.dot(yAxis), d = -v.dot(zAxis)       // d — глубина вдоль взгляда
+      const lx = v.dot(xAxis), ly = v.dot(yAxis), d = -v.dot(zAxis)       // d — depth along the view
       minX = Math.min(minX, lx); maxX = Math.max(maxX, lx)
       minY = Math.min(minY, ly); maxY = Math.max(maxY, ly)
       minD = Math.min(minD, d);  maxD = Math.max(maxD, d)
@@ -52,7 +52,7 @@ export function MapLights({ half }: { half?: [number, number] } = {}) {
     light.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE)
     light.shadow.normalBias = SHADOW_NORMAL_BIAS
     light.shadow.bias = SHADOW_BIAS
-    // Карта теней могла создаться с дефолтным размером до этого эффекта — сбросить, чтобы пересоздалась.
+    // The shadow map may have been created with the default size before this effect — reset it so it's recreated.
     if (light.shadow.map) { light.shadow.map.dispose(); light.shadow.map = null }
     light.shadow.needsUpdate = true
   }, [half])

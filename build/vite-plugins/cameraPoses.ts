@@ -4,10 +4,10 @@ import path from 'node:path'
 import { sendJson, readBody } from './shared'
 
 /**
- * Dev-only мостик редактора камер фона меню (клавиша J в MenuBackdrop).
- *   GET /__camera-poses → текущее содержимое файла (свежие позы: файл исключён из вотчера,
- *     модульный кэш Vite может отдавать вкладкам устаревший JSON — клиент перечитывает на старте)
- *   PUT /__camera-poses → перезаписать src/components/menuCameraPoses.json телом запроса.
+ * Dev-only bridge for the menu backdrop camera editor (J key in MenuBackdrop).
+ *   GET /__camera-poses → current file contents (fresh poses: the file is excluded from the watcher,
+ *     Vite's module cache may serve tabs stale JSON — the client re-reads on start)
+ *   PUT /__camera-poses → overwrite src/components/menuCameraPoses.json with the request body.
  */
 const POSES_FILE = path.resolve(process.cwd(), 'src/components/menuCameraPoses.json')
 
@@ -26,7 +26,7 @@ export function cameraPoses(): Plugin {
           }
           if (req.method !== 'PUT') return sendJson(res, 405, { error: 'method not allowed' })
           const body = await readBody(req)
-          JSON.parse(body)   // валидация: тело обязано быть корректным JSON
+          JSON.parse(body)   // validation: the body must be valid JSON
           await fs.writeFile(POSES_FILE, body, 'utf8')
           return sendJson(res, 200, { ok: true })
         } catch (e) {

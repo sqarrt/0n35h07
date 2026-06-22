@@ -2,16 +2,16 @@ import * as THREE from 'three'
 import type { IDashTrail, DashTrailContext } from '../../abstractions'
 import { BALL_RADIUS, BODY_MESH_Y } from '../../../constants'
 
-// РАЗРЫВ: рывок оставляет тройки RGB-копий шара (хроматический глитч-сдвиг),
-// копии мерцают с ограниченной частотой (фоточувствительность) и быстро гаснут.
-const RIFT_INTERVAL_MS    = 40    // мс между тройками
-const RIFT_LIFE_MS        = 260   // мс жизни тройки
-const RIFT_POOL           = 8     // пул троек
+// RIFT: dash leaves RGB triplet copies of the ball (chromatic glitch shift),
+// copies flicker at a limited rate (photosensitivity) and fade quickly.
+const RIFT_INTERVAL_MS    = 40    // ms between triplets
+const RIFT_LIFE_MS        = 260   // triplet lifetime, ms
+const RIFT_POOL           = 8     // triplet pool
 const RIFT_RADIUS         = BALL_RADIUS * 0.95
-const RIFT_OFFSET         = 0.12  // поперечный разнос цветовых каналов
-const RIFT_OPACITY        = 0.35  // базовая непрозрачность копии
-const FLICKER_INTERVAL_MS = 110   // период мерцания (≤ ~9 Гц)
-const FLICKER_DIM         = 0.4   // множитель прозрачности в «тёмной» фазе
+const RIFT_OFFSET         = 0.12  // lateral spread of color channels
+const RIFT_OPACITY        = 0.35  // base copy opacity
+const FLICKER_INTERVAL_MS = 110   // flicker period (<= ~9 Hz)
+const FLICKER_DIM         = 0.4   // opacity multiplier in the "dim" phase
 const RIFT_CHANNELS = ['#f33', '#3f3', '#33f'] as const   // R / G / B
 
 const UP = new THREE.Vector3(0, 1, 0)
@@ -19,21 +19,21 @@ const UP = new THREE.Vector3(0, 1, 0)
 interface Triplet {
   meshes: THREE.Mesh[]
   mats:   THREE.MeshBasicMaterial[]
-  life:   number   // оставшаяся жизнь, мс
+  life:   number   // remaining life, ms
 }
 
 export class RiftTrail implements IDashTrail {
   readonly object3d = new THREE.Group()
   private geometry: THREE.SphereGeometry
   private triplets: Triplet[] = []
-  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // центр тела относительно глаз
+  private offset = new THREE.Vector3(0, BODY_MESH_Y, 0)   // body center relative to eyes
   private emitTimer = 0
   private flickerClock = 0
   private lastPos = new THREE.Vector3()
   private hasLastPos = false
-  private perp = new THREE.Vector3(0, 0, 1)   // последняя валидная поперечная ось
+  private perp = new THREE.Vector3(0, 0, 1)   // last valid lateral axis
 
-  // Цвет игрока не используется: каналы разрыва — чистые R/G/B (суть хроматического глитча).
+  // Player color is unused: rift channels are pure R/G/B (the essence of the chromatic glitch).
   constructor(_color: string) {
     this.geometry = new THREE.SphereGeometry(RIFT_RADIUS, 8, 8)
     for (let i = 0; i < RIFT_POOL; i++) {
@@ -59,7 +59,7 @@ export class RiftTrail implements IDashTrail {
     const ms = dt * 1000
     this.flickerClock += ms
     if (ctx.dashing) {
-      // Поперечная ось — перпендикуляр к движению (вырожденная дельта → прежняя ось).
+      // Lateral axis is perpendicular to motion (degenerate delta -> keep previous axis).
       if (this.hasLastPos) {
         const delta = ctx.position.clone().sub(this.lastPos)
         if (delta.lengthSq() > 1e-8) {
@@ -88,16 +88,16 @@ export class RiftTrail implements IDashTrail {
         tr.mats.forEach(m => { m.opacity = 0 })
         continue
       }
-      const t = tr.life / RIFT_LIFE_MS   // 1 → 0
+      const t = tr.life / RIFT_LIFE_MS   // 1 -> 0
       tr.mats.forEach(m => { m.opacity = RIFT_OPACITY * t * dim })
     }
   }
 
   private emit(eyePos: THREE.Vector3) {
     const tr = this.triplets.find(x => x.life <= 0)
-    if (!tr) return   // пул исчерпан — пропускаем (визуальная мелочь)
+    if (!tr) return   // pool exhausted -- skip (minor visual detail)
     const center = eyePos.clone().add(this.offset)
-    const shifts = [1, 0, -1]   // R / G / B вдоль поперечной оси
+    const shifts = [1, 0, -1]   // R / G / B along the lateral axis
     tr.meshes.forEach((mesh, i) => {
       mesh.position.copy(center).addScaledVector(this.perp, shifts[i] * RIFT_OFFSET)
       mesh.visible = true

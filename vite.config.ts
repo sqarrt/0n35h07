@@ -7,10 +7,11 @@ import pkg from './package.json'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  // Desktop-сборка идёт через `vite build --mode tauri` (см. beforeBuildCommand в tauri.conf.json):
-  // явный режим надёжнее, чем угадывать по env (TAURI_ENV_* приходит не во всех окружениях). В desktop
-  // PWA не нужен — ассеты уже локальные, а service worker в WebView2 кэширует их персистентно и после
-  // апдейта отдаёт СТАРУЮ версию (залипание на прошлой сборке). TAURI_ENV_PLATFORM — запасной сигнал.
+  // Desktop build runs via `vite build --mode tauri` (see beforeBuildCommand in tauri.conf.json):
+  // an explicit mode is more reliable than guessing from env (TAURI_ENV_* isn't set in every environment).
+  // On desktop PWA isn't needed — assets are already local, and the WebView2 service worker caches them
+  // persistently and serves the OLD version after an update (stuck on the previous build). TAURI_ENV_PLATFORM
+  // is a fallback signal.
   const isTauriBuild = mode === 'tauri' || !!process.env.TAURI_ENV_PLATFORM
   return {
     plugins: [
@@ -18,14 +19,14 @@ export default defineConfig(({ mode }) => {
       editorMaps(),
       cameraPoses(),
       VitePWA({
-        // В Tauri-сборке — самоуничтожающийся SW: удаляет ранее зарегистрированный SW и чистит кэши
-        // (лечит уже установленные копии), сам ничего не кэширует. В вебе остаётся обычный PWA.
+        // In the Tauri build — a self-destroying SW: removes the previously registered SW and clears caches
+        // (heals already installed copies), caching nothing itself. On the web it stays a regular PWA.
         selfDestroying: isTauriBuild,
         registerType: 'autoUpdate',
         manifest: {
           name: '0N35H07',
           short_name: '0N35H07',
-          description: 'Аркадный шутер от первого лица, строго 1v1 (p2p)',
+          description: 'An arcade first-person shooter, strictly 1v1, peer-to-peer',
           theme_color: '#000000',
           background_color: '#000000',
           display: 'fullscreen',
@@ -43,24 +44,24 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     base: './',
-    // Версия игры — build-time из package.json (единый источник правды), в бандл попадает только строка.
+    // Game version — build-time from package.json (single source of truth); only the string lands in the bundle.
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
     },
     build: {
       rolldownOptions: {
         output: {
-          // Разбиваем бандл на кэшируемые чанки: vendor-библиотеки меняются реже игрового кода →
-          // при каждом деплое перезагружается только index.js, остальное остаётся в кэше браузера.
+          // Split the bundle into cacheable chunks: vendor libraries change less often than game code →
+          // each deploy reloads only index.js, the rest stays in the browser cache.
           codeSplitting: {
             groups: [
-              // Three.js — самая крупная библиотека; отдельный чанк, меняется редко.
+              // Three.js — the largest library; its own chunk, rarely changes.
               { name: 'three',   test: /node_modules[\\/](three|three-mesh-bvh)[\\/]/, priority: 30 },
-              // React Three Fiber + Rapier (physics) — инфраструктура 3D.
+              // React Three Fiber + Rapier (physics) — the 3D infrastructure.
               { name: 'r3f',     test: /node_modules[\\/](@react-three|@dimforge)[\\/]/, priority: 25 },
-              // React core — почти никогда не меняется между версиями игры.
+              // React core — almost never changes between game versions.
               { name: 'react',   test: /node_modules[\\/]react(-dom)?[\\/]/, priority: 20 },
-              // Всё остальное из node_modules (trystero, nostr-tools, @tauri-apps, …).
+              // Everything else from node_modules (trystero, nostr-tools, @tauri-apps, …).
               { name: 'vendor',  test: /node_modules/, priority: 10 },
             ],
           },
@@ -71,8 +72,8 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       watch: {
-        // Позы камер пишет dev-эндпоинт (vite-plugin-camera-poses) при отпускании J; клиент уже держит
-        // их в памяти — HMR на эту запись не нужен и ломал повторные зажатия J (перемонтирование).
+        // Camera poses are written by a dev endpoint (vite-plugin-camera-poses) when J is released; the client
+        // already holds them in memory — HMR on this write isn't needed and broke repeated J holds (remount).
         ignored: ['**/menuCameraPoses.json'],
       },
     },

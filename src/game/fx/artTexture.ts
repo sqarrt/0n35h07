@@ -2,13 +2,13 @@ import * as THREE from 'three'
 import type { BallArt } from '../ballArt'
 import { BALL_ART_SIZE } from '../ballArt'
 
-export const ART_TEX_W = BALL_ART_SIZE * 2   // перёд|зад в одной текстуре
+export const ART_TEX_W = BALL_ART_SIZE * 2   // front|back in one texture
 export const ART_TEX_H = BALL_ART_SIZE
 
-/** Заполнить RGBA-буфер (ART_TEX_W×ART_TEX_H×4) из рисунка: закрашено→0 (чёрный множитель), пусто→255. */
+/** Fill an RGBA buffer (ART_TEX_W×ART_TEX_H×4) from the art: painted→0 (black multiplier), empty→255. */
 export function writeArtData(art: BallArt | null, data: Uint8Array) {
   for (let cy = 0; cy < BALL_ART_SIZE; cy++) {
-    const ty = BALL_ART_SIZE - 1 - cy               // флип: верх редактора = верх шара
+    const ty = BALL_ART_SIZE - 1 - cy               // flip: editor top = ball top
     for (let cx = 0; cx < BALL_ART_SIZE; cx++) {
       const front = art ? art.front[cy * BALL_ART_SIZE + cx] : 0
       const back = art ? art.back[cy * BALL_ART_SIZE + cx] : 0
@@ -22,7 +22,7 @@ export function writeArtData(art: BallArt | null, data: Uint8Array) {
   }
 }
 
-/** DataTexture рисунка (32×16, NearestFilter, без мипмапов). `art=null` → белая (множитель 1). */
+/** DataTexture for the art (32×16, NearestFilter, no mipmaps). `art=null` → white (multiplier 1). */
 export function buildArtTexture(art: BallArt | null): THREE.DataTexture {
   const data = new Uint8Array(ART_TEX_W * ART_TEX_H * 4)
   writeArtData(art, data)

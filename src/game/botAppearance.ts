@@ -15,7 +15,7 @@ function pick<T>(rng: () => number, arr: readonly T[]): T {
   return arr[Math.floor(rng() * arr.length)]
 }
 
-/** Детерминированный скин бота из ника: тот же ник → тот же вид (общий seed с botPersonality). */
+/** Deterministic bot skin from name: same name → same look (shared seed with botPersonality). */
 export function botAppearance(name: string): BotAppearance {
   const rng = seededRng(name)
   return {

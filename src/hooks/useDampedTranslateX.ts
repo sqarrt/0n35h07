@@ -2,14 +2,14 @@ import { useRef, useEffect } from 'react'
 import { MENU_ANIM_TAU } from '../constants'
 
 /**
- * Демпфированный горизонтальный переезд DOM-элемента к целевому смещению (px). Та же формула/скорость, что
- * у фоновых шаров (MENU_ANIM_TAU) → подложка едет синхронно с моделями. Первый кадр — сразу в цели (без
- * проезда при загрузке); смена цели запускает плавный переезд через requestAnimationFrame, петля гаснет при
- * оседании. Возвращает ref для элемента.
+ * Damped horizontal travel of a DOM element toward a target offset (px). Same formula/speed as the
+ * background orbs (MENU_ANIM_TAU) → the backdrop moves in sync with the models. First frame snaps to the
+ * target (no travel on load); changing the target starts a smooth travel via requestAnimationFrame, the
+ * loop dies once it settles. Returns a ref for the element.
  */
 export function useDampedTranslateX(targetPx: number) {
   const ref = useRef<HTMLDivElement | null>(null)
-  const cur = useRef<number | null>(null)   // null → ещё не инициализирован
+  const cur = useRef<number | null>(null)   // null → not yet initialized
   const target = useRef(targetPx)
   const rafId = useRef<number | null>(null)
 
@@ -17,12 +17,12 @@ export function useDampedTranslateX(targetPx: number) {
     target.current = targetPx
     const apply = (x: number) => { if (ref.current) ref.current.style.transform = `translateX(${x}px)` }
 
-    if (cur.current === null) {   // первый кадр — без проезда
+    if (cur.current === null) {   // first frame — no travel
       cur.current = targetPx
       apply(targetPx)
       return
     }
-    if (rafId.current !== null) return   // петля уже идёт — подхватит новый target
+    if (rafId.current !== null) return   // loop already running — it will pick up the new target
 
     let last = performance.now()
     const tick = (now: number) => {

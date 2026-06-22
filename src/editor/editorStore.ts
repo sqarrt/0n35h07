@@ -3,30 +3,31 @@ import type { MapBlock, Vec3 } from '../game/maps'
 import { VOXEL } from '../constants'
 
 /**
- * Логика редактора карт (без React/THREE): воксельная модель, склейка в боксы, сериализация и localStorage.
- * Мир — однородные кубы ребром VOXEL на целочисленной сетке клеток (i,j,k): мировой центр клетки =
- * ((i+0.5)·S, (j+0.5)·S, (k+0.5)·S). Клетка k=0 лежит на полу (спан [0, S]).
+ * Map editor logic (no React/THREE): voxel model, box merging, serialization and localStorage.
+ * The world is uniform cubes of edge VOXEL on an integer cell grid (i,j,k): world cell center =
+ * ((i+0.5)·S, (j+0.5)·S, (k+0.5)·S). Cell k=0 sits on the floor (span [0, S]).
  */
-export { VOXEL }                                 // ребро базового куба — единый источник в src/constants
+export { VOXEL }                                 // base cube edge — single source in src/constants
 
-// Типы блоков и ориентация клина. dir: 0=+Z,1=+X,2=−Z,3=−X.
+// Block types and wedge orientation. dir: 0=+Z,1=+X,2=−Z,3=−X.
 export type BlockType = 'cube' | 'wedge'
 export type Dir = 0 | 1 | 2 | 3
-// f — клин перевёрнут по Y; bb=blocksBeam (деф. true=непростреливаемый), tr=transparent (деф. false), ps=passable (деф. false)
+// f — wedge flipped along Y; bb=blocksBeam (def. true=beam-blocking), tr=transparent (def. false), ps=passable (def. false)
 export interface Cell { t: BlockType; c: string; d: Dir; f: boolean; bb: boolean; tr: boolean; ps: boolean }
 
-/** Данные карты = форма GameMap (минус строгий id). Цвет стен не отдельным полем — периметр уже в blocks
- * (perimeter:true), его цвет оттуда и восстанавливаем при импорте. Так JSON чисто вставляется в maps.ts. */
+/** Map data = GameMap shape (minus the strict id). Wall color is not a separate field — the perimeter is
+ * already in blocks (perimeter:true), and we restore its color from there on import. So the JSON pastes
+ * cleanly into maps.ts. */
 export interface MapData {
   id?: string
-  half: [number, number]      // полу-размеры пола [X, Z]
+  half: [number, number]      // floor half-sizes [X, Z]
   floorColor: string
-  blocks: MapBlock[]          // периметр (perimeter:true) + склеенные воксели-укрытия
+  blocks: MapBlock[]          // perimeter (perimeter:true) + merged cover voxels
   spawns: [Vec3, Vec3]
-  showBlockGrid?: boolean      // рисовать ли сетку кубов в игре (по умолч. нет)
+  showBlockGrid?: boolean      // whether to draw the cube grid in-game (default no)
 }
 
-/** Цвет стен из блоков периметра (perimeter:true) — для редактора при импорте. */
+/** Wall color from perimeter blocks (perimeter:true) — for the editor on import. */
 export function wallColorOf(map: MapData, fallback = '#555'): string {
   return map.blocks.find(b => b.perimeter === true)?.color ?? fallback
 }
@@ -35,11 +36,11 @@ export const cellKey = (x: number, y: number, z: number) => `${x},${y},${z}`
 export const parseCellKey = (k: string): [number, number, number] =>
   k.split(',').map(Number) as [number, number, number]
 
-/** Атрибуты куба для склейки: сливаются только клетки с идентичными цветом и всеми флагами. */
+/** Cube attributes for merging: only cells with identical color and all flags get merged. */
 export interface CubeAttrs { c: string; bb: boolean; tr: boolean; ps: boolean }
 const sameAttrs = (a: CubeAttrs | undefined, b: CubeAttrs) => !!a && a.c === b.c && a.bb === b.bb && a.tr === b.tr && a.ps === b.ps
 
-/** Жадная склейка соседних одинаковых (цвет+флаги) вокселей в крупные боксы (меньше мешей/коллайдеров в игре). */
+/** Greedy merge of adjacent identical (color+flags) voxels into larger boxes (fewer meshes/colliders in-game). */
 export function greedyMerge(voxels: Map<string, CubeAttrs>): MapBlock[] {
   const S = VOXEL
   const visited = new Set<string>()
@@ -87,9 +88,9 @@ export function greedyMerge(voxels: Map<string, CubeAttrs>): MapBlock[] {
   return blocks
 }
 
-const HALF = VOXEL / 2          // полу-ребро куба
+const HALF = VOXEL / 2          // cube half-edge
 
-/** Не-кубовая ячейка (клин) → один MapBlock-призма. */
+/** Non-cube cell (wedge) → one prism MapBlock. */
 export function shapeBlock(x: number, y: number, z: number, cell: Cell): MapBlock {
   const S = VOXEL
   const cx = (x + 0.5) * S, cy = (y + 0.5) * S, cz = (z + 0.5) * S
@@ -100,7 +101,7 @@ export function shapeBlock(x: number, y: number, z: number, cell: Cell): MapBloc
   return b
 }
 
-/** Блоки-укрытия (без периметра): склеенные кубы + отдельные формы. Для контура рёбер и игры. */
+/** Cover blocks (no perimeter): merged cubes + standalone shapes. For edge outlines and the game. */
 export function coverBlocks(voxels: Map<string, Cell>): MapBlock[] {
   const cubes = new Map<string, CubeAttrs>()
   const shapes: MapBlock[] = []
@@ -111,7 +112,7 @@ export function coverBlocks(voxels: Map<string, Cell>): MapBlock[] {
   return [...greedyMerge(cubes), ...shapes]
 }
 
-/** Воксели + параметры → MapData (готова к игре: периметр + склеенные кубы + отдельные формы). */
+/** Voxels + params → MapData (game-ready: perimeter + merged cubes + standalone shapes). */
 export function toMapData(
   voxels: Map<string, Cell>,
   opts: { half: [number, number]; floorColor: string; wallColor: string; spawns: [Vec3, Vec3]; id?: string; showBlockGrid?: boolean },
@@ -126,14 +127,14 @@ export function toMapData(
   }
 }
 
-/** Разобрать блоки карты обратно в типизированные воксели (периметр perimeter:true пропускаем). */
+/** Parse map blocks back into typed voxels (skip the perimeter:true blocks). */
 export function voxelize(blocks: MapBlock[]): Map<string, Cell> {
   const S = VOXEL
   const v = new Map<string, Cell>()
   for (const b of blocks) {
-    if (b.perimeter === true) continue              // периметр — не воксель (рисуется отдельно)
+    if (b.perimeter === true) continue              // perimeter — not a voxel (drawn separately)
     const bb = b.blocksBeam !== false, tr = b.transparent === true, ps = b.passable === true
-    if (b.shape === 'wedge') {                      // клин (под-клеточная призма)
+    if (b.shape === 'wedge') {                      // wedge (sub-cell prism)
       const [x, y, z] = [
         Math.floor((b.pos[0] - b.size[0] + 1e-3) / S),
         Math.floor((b.pos[1] - b.size[1] + 1e-3) / S),
@@ -142,7 +143,7 @@ export function voxelize(blocks: MapBlock[]): Map<string, Cell> {
       v.set(cellKey(x, y, z), { t: 'wedge', c: b.color, d: (b.dir ?? 0) as Dir, f: !!b.flip, bb, tr, ps })
       continue
     }
-    // куб / склеенный куб-бокс → заполнить клетки
+    // cube / merged cube-box → fill the cells
     const [sx, sy, sz] = b.size
     const x0 = Math.round((b.pos[0] - sx) / S), x1 = Math.round((b.pos[0] + sx) / S)
     const y0 = Math.round((b.pos[1] - sy) / S), y1 = Math.round((b.pos[1] + sy) / S)
@@ -158,7 +159,7 @@ export function serializeMap(map: MapData): string {
   return JSON.stringify(map, null, 2)
 }
 
-/** Разбор JSON карты с валидацией формы; null при ошибке. */
+/** Parse map JSON with shape validation; null on error. */
 export function parseMap(json: string): MapData | null {
   try {
     const m = JSON.parse(json)

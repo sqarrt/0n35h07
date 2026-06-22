@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 
-/** Как useFlash, но хранит payload и сам гасит его в null через duration. trigger(null) — мгновенный сброс. */
+/** Like useFlash, but holds a payload and clears it to null after duration. trigger(null) resets instantly. */
 export function usePayloadFlash<T>(duration: number): [T | null, (v: T | null) => void] {
   const [val, setVal] = useState<T | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)

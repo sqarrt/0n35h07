@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Размер svg, отступ от края рамки, длина плеча (≈1.5× прежней).
+// Svg size, inset from the frame edge, arm length (≈1.5× the previous one).
 const S = 90, M = 4, A = 78
 
-// Углы: позиция контейнера + вершина (vx,vy) + концы горизонт. (hx,hy) и вертик. (vX,vY) плеч.
+// Corners: container position + vertex (vx,vy) + ends of the horizontal (hx,hy) and vertical (vX,vY) arms.
 const CORNERS = [
   { key: 'tl', pos: { top: 20, left: 20 },     vx: M,   vy: M,   hx: M + A, hy: M,     vX: M,     vY: M + A },
   { key: 'tr', pos: { top: 20, right: 20 },    vx: S-M, vy: M,   hx: S-M-A, hy: M,     vX: S-M,   vY: M + A },
@@ -22,7 +22,7 @@ interface ShieldBracketsProps {
   shieldBlock: boolean
 }
 
-/** Угловые рамки щита: заполняются от угла-вершины к концам по мере отката; краткий glow при готовности. */
+/** Shield corner brackets: fill from the vertex toward the ends as the cooldown elapses; brief glow when ready. */
 export function ShieldBrackets({ shieldProgress, shieldVisible, shieldBlock }: ShieldBracketsProps) {
   const [flash, setFlash] = useState(false)
   const prevReady = useRef(true)
@@ -42,8 +42,8 @@ export function ShieldBrackets({ shieldProgress, shieldVisible, shieldBlock }: S
   const opacity = shieldVisible ? 1 : (shieldProgress >= 1 ? 0.85 : 0.5)
   const off = A * (1 - shieldProgress)
 
-  // Прозрачность/свечение применяются на ГРУППЕ плеч (а не на каждом path): иначе в вершине угла, где
-  // перпендикулярные плечи перекрываются, полупрозрачности перемножаются и угол виден ярче («шов»).
+  // Opacity/glow are applied to the GROUP of arms (not to each path): otherwise at the corner vertex, where
+  // perpendicular arms overlap, the semi-transparencies multiply and the corner shows brighter (a "seam").
   const armOpacity = shieldBlock ? 1 : opacity
   const armStyle = shieldBlock
     ? { filter: 'drop-shadow(0 0 8px #fff) brightness(4)' }

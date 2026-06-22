@@ -46,7 +46,7 @@ export const it = {
   warnContinueHint: 'per continuare',
   warnContinueKey: 'CLIC SIN',
   settingsLanguage: 'LINGUA',
-  // Комната
+  // Room
   roomTitle: 'STANZA',
   roomCodeLabel: 'CODICE:',
   roomCopied: 'COPIATO',

@@ -1,6 +1,6 @@
-// Детерминированный PRNG для музыки: стабильный хеш строки → mulberry32.
+// Deterministic PRNG for music: stable string hash → mulberry32.
 
-/** FNV-1a 32-бит: строка (код комнаты) → uint32-сид. */
+/** FNV-1a 32-bit: string (room code) → uint32 seed. */
 export function hashSeed(str: string): number {
   let h = 2166136261 >>> 0
   for (let i = 0; i < str.length; i++) {
@@ -10,7 +10,7 @@ export function hashSeed(str: string): number {
   return h >>> 0
 }
 
-/** mulberry32: сид → генератор чисел в [0,1). */
+/** mulberry32: seed → generator of numbers in [0,1). */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0
   return () => {

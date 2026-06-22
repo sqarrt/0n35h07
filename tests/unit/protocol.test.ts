@@ -12,14 +12,14 @@ describe('protocol Vec3', () => {
     expect(back.z).toBeCloseTo(3)
   })
 
-  it('applyVec3 пишет в существующий вектор без аллокации', () => {
+  it('applyVec3 writes into an existing vector without allocating', () => {
     const out = new THREE.Vector3()
     const r = applyVec3([4, 5, 6], out)
     expect(r).toBe(out)
     expect(out.toArray()).toEqual([4, 5, 6])
   })
 
-  it('Snapshot JSON-сериализуем (без THREE-объектов)', () => {
+  it('Snapshot is JSON-serializable (no THREE objects)', () => {
     const snap: Snapshot = {
       ackSeq: 7,
       players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }],
@@ -28,7 +28,7 @@ describe('protocol Vec3', () => {
     expect(round).toEqual(snap)
   })
 
-  it('ballArt переживает JSON round-trip в RosterEntry', () => {
+  it('ballArt survives a JSON round-trip in RosterEntry', () => {
     const e: RosterEntry = { id: 0, name: 'A', color: '#4af', kind: 'human', ballArt: 'x'.repeat(88) }
     expect((JSON.parse(JSON.stringify(e)) as RosterEntry).ballArt).toBe('x'.repeat(88))
   })

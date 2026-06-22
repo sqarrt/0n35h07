@@ -3,9 +3,9 @@ import type { AnnounceItem } from '../hooks/useGameHUD'
 import { tierWord } from '../game/streak'
 import { EffectText } from './EffectText'
 
-/** Баннер серии/CATALYST под таймером. Появляется на месте (CSS ks-annShow), пока announce не null. */
+/** Streak/CATALYST banner under the timer. Appears in place (CSS ks-annShow) while announce is not null. */
 export function StreakBanner({ announce }: { announce: AnnounceItem | null }) {
-  // ключ форсит реанимацию появления на каждый новый анонс
+  // the key forces the appear animation to replay on each new announce
   const [seq, setSeq] = useState(0)
   useEffect(() => { if (announce) setSeq(s => s + 1) }, [announce])
   if (!announce) return null

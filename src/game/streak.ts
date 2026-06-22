@@ -1,13 +1,13 @@
 import type { SfxEvent } from './audio/sfx/types'
 
-/** Тир подсветки ника (по числу серии). */
+/** Nickname highlight tier (by streak count). */
 export type StreakTier = 'double' | 'triple' | 'singularity'
-/** Что анонсировать баннером (тир серии ЛИБО первое убийство). */
+/** What the banner announces (streak tier OR first kill). */
 export type AnnounceKind = 'catalyst' | StreakTier
 
 import { STREAK_DOUBLE, STREAK_TRIPLE, STREAK_SINGULARITY } from './streakConfig'
 
-/** Тир для постоянной подсветки ника; 0–1 → null. */
+/** Tier for the persistent nickname highlight; 0–1 → null. */
 export function streakTier(streak: number): StreakTier | null {
   if (streak >= STREAK_SINGULARITY) return 'singularity'
   if (streak >= STREAK_TRIPLE) return 'triple'
@@ -15,7 +15,7 @@ export function streakTier(streak: number): StreakTier | null {
   return null
 }
 
-/** Нужен ли баннер на этом фраге: первая кровь ИЛИ точный порог смены слова тира. */
+/** Whether this frag needs a banner: first blood OR an exact tier-word threshold. */
 export function announceKind(streak: number, firstBlood: boolean): AnnounceKind | null {
   if (firstBlood) return 'catalyst'
   if (streak === STREAK_SINGULARITY) return 'singularity'

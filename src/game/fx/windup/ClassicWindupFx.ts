@@ -2,9 +2,9 @@ import * as THREE from 'three'
 import { WINDUP_SCALE_GAIN, BOT_COLOR_WHITE } from '../../../constants'
 import type { IWindupFx, WindupTarget, WindupFrame } from './types'
 
-/** Дефолтная анимация: раздув + уход цвета в белый во время заряда, плавное сдувание после выстрела. */
+/** Default animation: swell + color shift to white during charge, smooth deflation after firing. */
 export class ClassicWindupFx implements IWindupFx {
-  readonly object3d = new THREE.Group()   // world-space части нет
+  readonly object3d = new THREE.Group()   // no world-space part
   private white = new THREE.Color(BOT_COLOR_WHITE)
 
   apply(_dt: number, t: WindupTarget, f: WindupFrame): void {
@@ -18,7 +18,7 @@ export class ClassicWindupFx implements IWindupFx {
       t.mesh.scale.setScalar(1)
       t.material.color.copy(f.baseColor)
     }
-    // Гасим emissive всегда: после переключения с rage в превью не должно остаться свечение.
+    // Always clear emissive: after switching from rage, the preview must not keep any glow.
     t.material.emissive.setScalar(0)
   }
 

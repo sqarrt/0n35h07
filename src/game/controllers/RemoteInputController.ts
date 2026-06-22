@@ -8,11 +8,11 @@ interface Edges { fire: boolean; shield: boolean; dash: boolean }
 const noEdges = (): Edges => ({ fire: false, shield: false, dash: false })
 
 /**
- * Хост: ведёт аватар удалённого игрока по присланным InputFrame через те же intent-методы,
- * что и человек (`intentsFromInput`). Движение/прицел берутся из самого свежего кадра
- * (экстраполяция до прихода нового), а рёберные действия (jump/fire/shield/dash)
- * **накапливаются** между шагами — иначе одиночный кадр с `fire` теряется, если до обработки
- * его перезапишет более свежий кадр (сообщения часто идут пачками).
+ * Host: drives the remote player's avatar from received InputFrames via the same intent-methods
+ * as a human (`intentsFromInput`). Movement/aim come from the freshest frame
+ * (extrapolated until a new one arrives), while edge actions (jump/fire/shield/dash)
+ * are **accumulated** between steps — otherwise a single frame with `fire` is lost if a fresher
+ * frame overwrites it before processing (messages often arrive in batches).
  */
 export class RemoteInputController implements Controller {
   private player: Player
@@ -26,7 +26,7 @@ export class RemoteInputController implements Controller {
     this.world = world
   }
 
-  /** Принять кадр: копим рёберные действия (fire/shield/dash); движение/прицел/прыжок(held) — из самого нового. */
+  /** Accept a frame: accumulate edge actions (fire/shield/dash); movement/aim/jump(held) — from the newest. */
   enqueue(frame: InputFrame) {
     this.edges.fire   ||= frame.fire
     this.edges.shield ||= frame.shield
@@ -41,6 +41,6 @@ export class RemoteInputController implements Controller {
     this.edges = noEdges()
   }
 
-  /** Последний применённый seq — хост кладёт в снапшот (ackSeq) для реконсиляции клиента. */
+  /** Last applied seq — the host puts it in the snapshot (ackSeq) for client reconciliation. */
   get ackSeq() { return this.appliedSeq }
 }
