@@ -559,6 +559,14 @@ function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: {
   )
 }
 
+// Dev floor grid — shown ONLY while flying (J held), so the regular menu has no debug grid. Toggled by the
+// shared `flying` flag each frame (a module flag, not React state → flip `.visible` directly, no re-render).
+function DebugGrid() {
+  const ref = useRef<THREE.GridHelper>(null)
+  useFrame(() => { if (ref.current) ref.current.visible = flying.current })
+  return <gridHelper ref={ref} args={[24, 24, '#2a3550', '#141d33']} visible={false} />
+}
+
 // React context doesn't cross the R3F Canvas boundary — so the engine comes as a prop, not via useSfx().
 interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
@@ -606,8 +614,8 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
         <OrbitingLight />
         <CameraRig state={camState} />
         {import.meta.env.DEV && <FlyCam state={camState} />}
-        {/* Debug floor: shows the models stand on the scene and only the camera moves. Dev-only. */}
-        {import.meta.env.DEV && <gridHelper args={[24, 24, '#2a3550', '#141d33']} />}
+        {/* Debug floor — visible only while flying (J held); the menu stays clean when nobody moves the camera. Dev-only. */}
+        {import.meta.env.DEV && <DebugGrid />}
         <Scene mode={mode} player={player} room={room ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
         {/* Glow on the VISIBLE model edges (principle like block highlighting) → Bloom; in silence there's no glow.
             Mounted deferred (see above) so compilation doesn't freeze entry. The settings toggle is the external gate. */}
