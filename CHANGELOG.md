@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   across machines through Steam Cloud: on launch the desktop build reconciles the local profile with the
   cloud copy (last-write-wins), and every settings change is uploaded. Boot is never blocked (a short read
   timeout) and off-Steam nothing changes — local settings behave exactly as before.
+- **Steam Rich Presence.** The desktop build now reports a status to the Steam friends list — *In menu*,
+  *In lobby* or *In a match* — following the current screen. Off-Steam it's a silent no-op. (The status
+  text comes from Rich Presence localization tokens defined in the Steamworks partner portal.)
 
 ## [0.5.9] - 2026-06-22
 
