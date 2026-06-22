@@ -131,9 +131,21 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     // a diagnostic. Doing console/IPC work here starves the SDR service thread (ClosedByPeer).
     let req_log = log_tx.clone();
     nm.session_request_callback(move |req| guard("session_request", || {
-      let who = req.remote().steam_id().map(|s| s.raw().to_string()).unwrap_or_else(|| req.remote().debug_string());
-      req.accept();
-      let _ = req_log.send(format!("[steam-net:{self_id}] session request from {who} — accepted"));
+      // steamworks-rs 0.11 BUG: SessionRequest::accept(self) calls AcceptSessionWithUser, then its
+      // Drop immediately CloseSessionWithUser()s the just-accepted session — the peer sees
+      // ClosedByPeer (app end code 1001) and no messages flow. Accept via the sys API and
+      // mem::forget the request to skip the poisonous Drop. (Forgetting leaks one Arc per accepted
+      // session — negligible for 1v1.)
+      if let Some(sid) = req.remote().steam_id() {
+        unsafe {
+          let mut ident: steamworks_sys::SteamNetworkingIdentity = std::mem::zeroed();
+          steamworks_sys::SteamAPI_SteamNetworkingIdentity_SetSteamID64(&mut ident, sid.raw());
+          let msgs = steamworks_sys::SteamAPI_SteamNetworkingMessages_SteamAPI_v002();
+          steamworks_sys::SteamAPI_ISteamNetworkingMessages_AcceptSessionWithUser(msgs, &ident);
+        }
+        let _ = req_log.send(format!("[steam-net:{self_id}] session request from {} — accepted", sid.raw()));
+      }
+      std::mem::forget(req);
     }));
     // Session failures: enqueue a diagnostic only (no I/O, no end_reason() — it panics on codes the
     // crate's enum doesn't list, and it tells us nothing useful). A transient first failure is normal.
