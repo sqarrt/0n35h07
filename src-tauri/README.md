@@ -1,4 +1,4 @@
-# Tauri wrapper (experimental)
+# Tauri wrapper
 
 Desktop build of `0N35H07` via [Tauri 2](https://v2.tauri.app/) — uses the system webview (WebKitGTK on
 Linux, WebView2 on Windows) instead of bundling Chromium. The wrapper is clean: the frontend (`../dist`) is
