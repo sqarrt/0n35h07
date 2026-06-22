@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.10] - unreleased
+
+### Added
+- **Steam achievements.** In-game events now unlock Steam achievements through the existing JS↔Rust
+  bridge: first blood (CATALYST), Double / Triple / Singularity kill streaks, a perfect block, the first
+  win and a flawless (no-death) win. Achievements fire for the local player only and are de-duplicated per
+  session. Off-Steam (browser / Tauri without Steam / unit tests) the whole path is a silent no-op.
+
 ## [0.5.9] - 2026-06-22
 
 ### Added
