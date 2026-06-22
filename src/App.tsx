@@ -36,6 +36,8 @@ import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
 import { applyScreenPresence } from './steam/richPresence'
+import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
+import { steamNetInvite, steamInviteToLobby, onSteamNetEvent } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -253,10 +255,12 @@ export default function App() {
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
   const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
+  const [steamFriendForming, setSteamFriendForming] = useState(false)   // Steam "With friend": lobby being created
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const dmRef = useRef<DualMatchmaker | null>(null)
   const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable across role switches)
+  const steamEnterToken = useRef(0)   // bumped on every tab entry/leave → discards a stale async Steam lobby
 
   const sessionRef = useRef<RoomSession | null>(null)
   const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
@@ -267,6 +271,8 @@ export default function App() {
   const idleIsHost = (tab: LobbyTab): boolean => tab === 'bot' || (tab === 'matchmaking' && profile.searchRole !== 'client')
 
   const leaveRoom = () => {
+    steamEnterToken.current++   // invalidate any in-flight Steam lobby resolution
+    setSteamFriendForming(false)
     sessionRef.current?.dispose()
     sessionRef.current = null
     if (negotiateNetRef.current) { negotiateNetRef.current.leave(); negotiateNetRef.current = null }
@@ -341,11 +347,39 @@ export default function App() {
       enterRoom(lobbyCodeRef.current, 'host', sel)
       sessionRef.current?.addBot(botDifficulty, name)   // bot straight into the slot
       if (name !== botName) setBotName(name)
+    } else if (IS_DESKTOP && tab === 'friend') {
+      void enterSteamFriendHost(sel)   // Steam "With friend": create a lobby + host, then invite
     } else if (idleIsHost(tab)) {
       enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host session for the announcement
     } else {
-      leaveRoom()   // matchmaking+client / friend → draft until search
+      leaveRoom()   // matchmaking+client / web friend → draft until search
     }
+  }
+
+  // Steam "With friend" host: create a Private lobby (async) and host a session on its SteamNet.
+  // A token guards against the user switching tabs while the lobby is still forming.
+  const enterSteamFriendHost = async (sel: { map: MapFilter; durationMin: DurationFilter }) => {
+    leaveRoom()
+    const token = ++steamEnterToken.current
+    setSteamFriendForming(true)
+    const net = await hostFriendLobby()
+    if (token !== steamEnterToken.current) { net?.leave(); return }   // superseded (tab switch/leave)
+    setSteamFriendForming(false)
+    if (net) bindSession(net, 'host', '', sel)
+  }
+
+  // Steam "With friend" client: a friend's invite/"Join game" → join their lobby + client session.
+  // Works from any screen (the listener is global). The token guards the async join.
+  const enterSteamFriendClient = async (lobbyId: string) => {
+    leaveRoom()
+    const token = ++steamEnterToken.current
+    setLobbyTab('friend')
+    setScreen('lobby')
+    setSteamFriendForming(true)
+    const net = await joinSteamLobby(lobbyId)
+    if (token !== steamEnterToken.current) { net?.leave(); return }
+    setSteamFriendForming(false)
+    if (net) bindSession(net, 'client', '', draftSel)
   }
 
   // On entering the menu we warm the live relay cache (self-healing signaling). Internet transport only:
@@ -359,6 +393,18 @@ export default function App() {
 
   // Steam Rich Presence: reflect the current screen (menu / lobby / match) in the friends list. No-op off-Steam.
   useEffect(() => { applyScreenPresence(screen) }, [screen])
+
+  // Global Steam invite listener: a friend's overlay invite / "Join game" → join their lobby as a client,
+  // from any screen. Mounted once (off-Steam it's a no-op subscription).
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    let alive = true
+    let unlisten = () => {}
+    void onSteamNetEvent(e => { if (e.kind === 'joinRequested') void enterSteamFriendClient(e.lobbyId) })
+      .then(u => { if (alive) unlisten = u; else u() })
+    return () => { alive = false; unlisten() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Accidental F5/Ctrl+W in a live match must not silently kill the fight — the browser will ask for confirmation.
   // On desktop (Tauri) we don't set the guard: there beforeunload without a dialog just blocks closing the window.
@@ -599,6 +645,9 @@ export default function App() {
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,
+      steamFriendForming,
+      onSteamInviteOverlay: () => { void steamNetInvite() },
+      onSteamInviteFriend: (id: string) => { void steamInviteToLobby(id) },
     }
   }
   const lobbyProps = screen === 'lobby' ? buildLobby() : null
