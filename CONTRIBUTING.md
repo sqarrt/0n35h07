@@ -1,4 +1,4 @@
-# Contributing to OneShot
+# Contributing to 0N35H07
 
 Thanks for taking the time to contribute! This project is a hobby game, but the codebase is held to a real standard — please skim this before opening a PR.
 

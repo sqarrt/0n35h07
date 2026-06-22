@@ -1,6 +1,8 @@
-# OneShot
+# 0N35H07
 
 > A fast, arcade first-person shooter — strictly **1v1**, peer-to-peer, right in the browser.
+
+*"0N35H07" is leetspeak for **OneShot** — the docs use the readable form "OneShot" interchangeably.*
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](./LICENSE)
 [![Assets: CC BY-SA 4.0](https://img.shields.io/badge/Assets-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)

@@ -42,6 +42,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "OneShot ${{ github.ref_name }}"
+          releaseName: "0N35H07 ${{ github.ref_name }}"
           releaseDraft: true
           prerelease: false
