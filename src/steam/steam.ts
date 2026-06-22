@@ -51,3 +51,10 @@ export async function cloudDelete(name: string): Promise<boolean> {
   try { return await invokeSteam<boolean>('steam_cloud_delete', { name }) }
   catch { return false }
 }
+
+/** Set (value=null clears) a Steam Rich Presence key shown in the friends list. No-op off-desktop. */
+export async function setRichPresence(key: string, value: string | null): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('steam_set_rich_presence', { key, value }) }
+  catch { return false }
+}

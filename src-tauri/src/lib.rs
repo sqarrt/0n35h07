@@ -62,6 +62,7 @@ pub fn run() {
       steam::steam_cloud_read,
       steam::steam_cloud_write,
       steam::steam_cloud_delete,
+      steam::steam_set_rich_presence,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
