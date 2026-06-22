@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   bridge: first blood (CATALYST), Double / Triple / Singularity kill streaks, a perfect block, the first
   win and a flawless (no-death) win. Achievements fire for the local player only and are de-duplicated per
   session. Off-Steam (browser / Tauri without Steam / unit tests) the whole path is a silent no-op.
+- **Steam Cloud saves.** The player profile (name, colors, cosmetics, audio levels, preferences) now syncs
+  across machines through Steam Cloud: on launch the desktop build reconciles the local profile with the
+  cloud copy (last-write-wins), and every settings change is uploaded. Boot is never blocked (a short read
+  timeout) and off-Steam nothing changes — local settings behave exactly as before.
 
 ## [0.5.9] - 2026-06-22
 
