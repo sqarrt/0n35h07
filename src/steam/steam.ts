@@ -121,6 +121,23 @@ export async function steamNetInvite(): Promise<void> {
   try { await invokeSteam<void>('steam_net_invite') } catch { /* ignore */ }
 }
 
+/** A Steam friend for the in-game invite picker. */
+export interface SteamFriend { id: string; name: string; online: boolean }
+
+/** Immediate Steam friends (online first, then by name). Empty off-desktop. */
+export async function steamFriendsList(): Promise<SteamFriend[]> {
+  if (!IS_DESKTOP) return []
+  try { return await invokeSteam<SteamFriend[]>('steam_friends_list') }
+  catch { return [] }
+}
+
+/** Invite a specific friend to the current lobby. False off-desktop / no lobby. */
+export async function steamInviteToLobby(friendId: string): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('steam_invite_to_lobby', { friendId }) }
+  catch { return false }
+}
+
 /** Subscribe to the "steam-net" event stream. Returns an unsubscribe fn (no-op off-desktop). */
 export async function onSteamNetEvent(cb: (e: SteamNetEvent) => void): Promise<() => void> {
   if (!IS_DESKTOP) return () => {}

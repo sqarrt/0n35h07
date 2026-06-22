@@ -1,7 +1,6 @@
 import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 import type { SteamNetEvent } from '../steam/steam'
-import { steamNetSelf, steamNetSend, steamNetLeaveLobby, onSteamNetEvent } from '../steam/steam'
 
 /** The minimal Steam plumbing SteamNet needs — injected so the transport is testable without Tauri. */
 export interface SteamNetTransport {
@@ -94,17 +93,4 @@ export class SteamNet implements INet {
     this.handlers.clear()
     this.peerSet.clear()
   }
-}
-
-/** Build a SteamNet for a real match: fetch our SteamID, wire the Tauri event stream. Null off-Steam. */
-export async function createSteamNet(): Promise<SteamNet | null> {
-  const self = await steamNetSelf()
-  if (!self) return null
-  const net = new SteamNet(self, {
-    send: (to, data) => { void steamNetSend(to, data) },
-    leave: () => { void steamNetLeaveLobby() },
-  })
-  const unlisten = await onSteamNetEvent(e => net.handleEvent(e))
-  net.setUnlisten(unlisten)
-  return net
 }

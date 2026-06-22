@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use steamworks::networking_types::{NetworkingIdentity, SendFlags};
 use steamworks::{
-  ChatMemberStateChange, Client, GameLobbyJoinRequested, LobbyChatUpdate, LobbyId, LobbyType,
-  SingleClient, SteamId,
+  ChatMemberStateChange, Client, FriendFlags, FriendState, GameLobbyJoinRequested, LobbyChatUpdate,
+  LobbyId, LobbyType, SingleClient, SteamId,
 };
 use tauri::{AppHandle, Emitter, State};
 
@@ -281,5 +281,44 @@ pub fn steam_net_invite(state: State<'_, SteamState>, net: State<'_, SteamNetSta
   let Some(client) = guard.as_ref() else { return };
   if let Some(lobby) = *net.lobby.lock().unwrap() {
     client.friends().activate_invite_dialog(lobby);
+  }
+}
+
+#[derive(serde::Serialize)]
+pub struct SteamFriendDto {
+  pub id: String, // SteamID64 as a string
+  pub name: String,
+  pub online: bool,
+}
+
+// Immediate friends, for the in-game friend picker. Online first, then by name.
+#[tauri::command]
+pub fn steam_friends_list(state: State<'_, SteamState>) -> Vec<SteamFriendDto> {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return Vec::new() };
+  let mut list: Vec<SteamFriendDto> = client
+    .friends()
+    .get_friends(FriendFlags::IMMEDIATE)
+    .into_iter()
+    .map(|f| SteamFriendDto {
+      id: f.id().raw().to_string(),
+      name: f.name(),
+      online: !matches!(f.state(), FriendState::Offline),
+    })
+    .collect();
+  list.sort_by(|a, b| b.online.cmp(&a.online).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+  list
+}
+
+// Invite a specific friend to the current lobby (Steam sends them an invite → on accept they get a
+// GameLobbyJoinRequested → join). No-op without a current lobby. InviteUserToLobby isn't exposed by
+// the crate, so go through sys (a lobby only exists when Steam is up, so the call is safe).
+#[tauri::command]
+pub fn steam_invite_to_lobby(net: State<'_, SteamNetState>, friend_id: String) -> bool {
+  let Ok(invitee) = friend_id.parse::<u64>() else { return false };
+  let Some(lobby) = *net.lobby.lock().unwrap() else { return false };
+  unsafe {
+    let mm = steamworks_sys::SteamAPI_SteamMatchmaking_v009();
+    steamworks_sys::SteamAPI_ISteamMatchmaking_InviteUserToLobby(mm, lobby.raw(), invitee)
   }
 }

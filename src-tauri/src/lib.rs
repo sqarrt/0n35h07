@@ -70,6 +70,8 @@ pub fn run() {
       steam_net::steam_net_members,
       steam_net::steam_net_send,
       steam_net::steam_net_invite,
+      steam_net::steam_friends_list,
+      steam_net::steam_invite_to_lobby,
     ])
     .setup(|app| {
       // Initialize Steam (soft-fails to None without Steam) in setup() so the networking
