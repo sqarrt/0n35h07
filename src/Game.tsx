@@ -6,6 +6,7 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import { createAchievements } from './steam/achievements'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { STEM_LIBRARY } from './game/audio/stems'
 import { RapierBridge } from './components/RapierBridge'
@@ -75,6 +76,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       seedCode,
       musicEngine,
       sfxEngine,
+      achievements: createAchievements(),
     }),
     // Match is built once per match session (recreating it would break the world/controllers); deps are intentionally empty.
     // eslint-disable-next-line react-hooks/exhaustive-deps
