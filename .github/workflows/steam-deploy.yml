@@ -3,8 +3,8 @@ name: Steam deploy (beta)
 # On a release tag: build the Windows app and upload it to SteamPipe on the BETA branch.
 # Promotion beta -> default is a manual one-click in the Steamworks partner portal.
 #
-# The steamworks crate bundles its own Steam SDK — do NOT set STEAM_SDK_LOCATION; the runtime
-# steam_api64.dll is emitted by the build (steamworks-sys OUT) and shipped next to the exe.
+# The steamworks crate bundles its own Steam SDK — do NOT set STEAM_SDK_LOCATION; build.rs copies
+# the runtime steam_api64.dll next to the exe, so the depot is just the exe + that DLL.
 # Secrets required: STEAM_USERNAME (a dedicated build account) and STEAM_CONFIG_VDF (its
 # Steam-Guard-authenticated config.vdf, base64 — see the game-ci/steam-deploy README).
 on:
@@ -51,14 +51,13 @@ jobs:
         working-directory: src-tauri
         run: cargo build --release
 
-      # Depot content = the exe + the Steam runtime DLL (emitted into steamworks-sys' OUT dir).
+      # Depot content = the exe + the Steam runtime DLL (build.rs copies it next to the exe).
       - name: Assemble depot
         shell: bash
         run: |
           mkdir -p steam-build
           cp src-tauri/target/release/app.exe steam-build/0N35H07.exe
-          dll=$(ls src-tauri/target/release/build/steamworks-sys-*/out/steam_api64.dll | head -1)
-          cp "$dll" steam-build/
+          cp src-tauri/target/release/steam_api64.dll steam-build/
           ls -la steam-build
 
       - name: Upload to SteamPipe (beta)
