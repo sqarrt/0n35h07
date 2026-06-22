@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/')
 })
 
-// Enter the lobby (default — Matchmaking tab, host session raised).
+// Enter the lobby (web build → default is the "With a friend" tab; no Matchmaking tab here).
 async function lobby(page: Page) {
   await page.getByTestId('menu-play').click()
 }
@@ -23,9 +23,10 @@ test('main menu — navigation buttons are visible', async ({ page }) => {
   await expect(page.getByTestId('menu-settings')).toBeVisible()
 })
 
-test('lobby — default Matchmaking: slot empty, action = SEARCH', async ({ page }) => {
+test('lobby — default With a friend: no Matchmaking tab, slot empty, action = SEARCH', async ({ page }) => {
   await lobby(page)
-  await expect(page.getByTestId('lobby-tab-matchmaking')).toHaveClass(/lobby-tab--on/)
+  await expect(page.getByTestId('lobby-tab-matchmaking')).toHaveCount(0)             // Steam-only
+  await expect(page.getByTestId('lobby-tab-friend')).toHaveClass(/lobby-tab--on/)
   await expect(page.getByTestId('lobby-opponent')).toHaveText('—')   // no opponent
   await expect(page.getByTestId('lobby-search')).toBeVisible()       // not READY
   await expect(page.getByTestId('lobby-ready')).toHaveCount(0)
@@ -43,7 +44,7 @@ test('lobby (With a bot) — bot in the slot and READY; leaving the tab → empt
   await page.getByTestId('lobby-tab-bot').click()
   await expect(page.getByTestId('lobby-opponent')).not.toHaveText('—')   // bot took the slot ("model" nickname)
   await expect(page.getByTestId('lobby-ready')).toBeEnabled()
-  await page.getByTestId('lobby-tab-matchmaking').click()
+  await page.getByTestId('lobby-tab-friend').click()
   await expect(page.getByTestId('lobby-opponent')).toHaveText('—')
   await expect(page.getByTestId('lobby-search')).toBeVisible()
 })

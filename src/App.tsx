@@ -27,6 +27,7 @@ import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
+import { DEFAULT_LOBBY_TAB } from './components/lobby/types'
 import type { LobbyTab } from './components/lobby/types'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
@@ -248,7 +249,7 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
   }, [screen, menuMusic])
 
-  const [lobbyTab, setLobbyTab] = useState<LobbyTab>('matchmaking')
+  const [lobbyTab, setLobbyTab] = useState<LobbyTab>(DEFAULT_LOBBY_TAB)
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
   const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
@@ -461,11 +462,11 @@ export default function App() {
     const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
     setDraftSel(sel)
     setSearching(false)
-    setLobbyTab('matchmaking')
+    setLobbyTab(DEFAULT_LOBBY_TAB)
     setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
     setBotName('')
     lobbyCodeRef.current = randomRoomCode()   // fix the lobby code (doesn't change when switching tabs)
-    enterTabIdle('matchmaking', sel)
+    enterTabIdle(DEFAULT_LOBBY_TAB, sel)
     setScreen('lobby')
   }
 
