@@ -1,7 +1,9 @@
 name: Deploy to GitHub Pages
 
-# Builds the web game and publishes it to GitHub Pages.
-# One-time setup: repo Settings → Pages → "Build and deployment" → Source: GitHub Actions.
+# Builds the web game and publishes it to GitHub Pages — ON A RELEASE TAG ONLY (the public site = the
+# last released version; master pushes run tests via ci.yml, not a deploy). Manual run via workflow_dispatch.
+# One-time setup: repo Settings → Pages → "Build and deployment" → Source: GitHub Actions; and
+# Settings → Environments → github-pages → "Deployment branches and tags" must allow the tag (e.g. `*.*.*`).
 #
 # TURN: add repo secrets VITE_TURN_USERNAME / VITE_TURN_CREDENTIAL to enable relay on symmetric
 # NATs. NOTE: a static site has no backend, so these are inlined into the client bundle and ARE
@@ -11,7 +13,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [master]
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+*"
   workflow_dispatch:
 
 permissions:

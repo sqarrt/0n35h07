@@ -30,6 +30,7 @@ type Clips = Record<string, DemoFile>
 const TRAILER_SFX_GAIN = 0.45       // game sounds are dimmed but audible — music sits slightly ahead
 const COUNTDOWN_SFX_GAIN = 1.0      // do NOT dim the countdown sound
 const ECHO_TAIL_MS = 2600           // headroom for the echo tail (fadeOut+echo ~0.8s+2s) before dispose
+const CURSOR_IDLE_MS = 2500         // hide the cursor + SKIP after this much mouse inactivity (cinematic viewing)
 const FIRST_TEXT_INDEX = TRAILER_SHOTS.findIndex(s => s.type === 'text')   // first cut — no "go" sound
 
 interface ShotViewProps {
@@ -80,6 +81,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   const [hud, setHud] = useState<DemoHud | null>(null)
   const [countdownN, setCountdownN] = useState(3)
   const [showTitle, setShowTitle] = useState(false)   // title/CTA in the finale — once the beams freeze
+  const [idle, setIdle] = useState(true)              // cinematic viewing: cursor + SKIP hidden until the mouse moves
   const [sceneReady, setSceneReady] = useState(false) // play-shot scene warmed up → lift the cover dimmer
   const onSceneReady = useCallback(() => setSceneReady(true), [])
   const [announce, setAnnounce] = useState<AnnounceItem | null>(null)
@@ -131,6 +133,15 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     return () => window.removeEventListener('keydown', onKey)
   }, [finish])
 
+  // Hide the cursor (and the SKIP button) while watching; a mouse move brings them back, then they fade
+  // out again after CURSOR_IDLE_MS of inactivity.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const wake = () => { setIdle(false); clearTimeout(t); t = setTimeout(() => setIdle(true), CURSOR_IDLE_MS) }
+    window.addEventListener('mousemove', wake)
+    return () => { window.removeEventListener('mousemove', wake); clearTimeout(t) }
+  }, [])
+
   const shot: TrailerShot | undefined = TRAILER_SHOTS[shotIndex]
 
   // End of the sequence.
@@ -180,10 +191,10 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shotIndex])
 
-  if (!clips || !shot) return <div className="trailer-root" />
+  if (!clips || !shot) return <div className={`trailer-root${idle ? ' trailer-root--idle' : ''}`} />
 
   return (
-    <div className="trailer-root">
+    <div className={`trailer-root${idle ? ' trailer-root--idle' : ''}`}>
       {/* countdown — over emptiness (no map): don't render Canvas, only the countdown overlay */}
       {shot.type === 'play' && (
         <>
@@ -224,7 +235,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
       )}
 
       <StreakBanner announce={announce} />
-      <button className="trailer-skip" onClick={finish}>SKIP ▸</button>
+      <button className={`trailer-skip${idle ? ' is-hidden' : ''}`} onClick={finish}>SKIP ▸</button>
     </div>
   )
 }
