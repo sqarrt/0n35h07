@@ -69,6 +69,13 @@ export type SteamNetEvent =
   | { kind: 'lobbyEntered'; lobbyId: string; self: string; members: string[] }
   | { kind: 'joinRequested'; lobbyId: string }
 
+/** SDR relay network status string (e.g. "Ok(Current)" once ready) — diagnostic for P2P. */
+export async function steamNetRelayStatus(): Promise<string> {
+  if (!IS_DESKTOP) return 'no desktop'
+  try { return await invokeSteam<string>('steam_net_relay_status') }
+  catch { return 'error' }
+}
+
 /** Our own SteamID64 (string), or null off-desktop / without Steam. */
 export async function steamNetSelf(): Promise<string | null> {
   if (!IS_DESKTOP) return null

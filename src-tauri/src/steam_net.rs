@@ -109,7 +109,16 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _cb_join = cb_join;
     let nm = pump_client.networking_messages();
     // Accept incoming sessions (the lobby flow gates who can reach us; 1v1).
-    nm.session_request_callback(|req| req.accept());
+    nm.session_request_callback(|req| {
+      let who = req.remote().steam_id().map(|s| s.raw().to_string()).unwrap_or_else(|| req.remote().debug_string());
+      log::info!("[steam-net] session request from {who} — accepting");
+      req.accept();
+    });
+    // Log why a session failed (the reason for ConnectFailed).
+    nm.session_failed_callback(|info| {
+      let who = info.identity_remote().and_then(|i| i.steam_id()).map(|s| s.raw().to_string()).unwrap_or_default();
+      log::warn!("[steam-net] session FAILED with {who}: end_reason={:?} state={:?}", info.end_reason(), info.state());
+    });
     loop {
       single.run_callbacks();
       for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
@@ -129,6 +138,16 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
   });
 
   SteamNetState { lobby }
+}
+
+// Current SDR relay network status (e.g. "Ok(Current)" once ready). Diagnostic for P2P setup.
+#[tauri::command]
+pub fn steam_net_relay_status(state: State<'_, SteamState>) -> String {
+  let guard = state.0.lock().unwrap();
+  match guard.as_ref() {
+    Some(client) => format!("{:?}", client.networking_utils().relay_network_status()),
+    None => "no steam".to_string(),
+  }
 }
 
 // Our own SteamID64 (string) — the synchronous selfId for the JS transport.

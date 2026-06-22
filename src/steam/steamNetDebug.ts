@@ -1,5 +1,5 @@
 import {
-  steamNetSelf, steamNetCreateLobby, steamNetJoinLobby, steamNetLeaveLobby,
+  steamNetSelf, steamNetRelayStatus, steamNetCreateLobby, steamNetJoinLobby, steamNetLeaveLobby,
   steamNetMembers, steamNetSend, steamNetInvite, onSteamNetEvent,
 } from './steam'
 
@@ -12,6 +12,7 @@ export async function installSteamNetDebug(): Promise<void> {
   await onSteamNetEvent(e => console.log('[steam-net]', e))
   const api = {
     self,
+    relay: () => steamNetRelayStatus(),
     create: () => steamNetCreateLobby(),
     invite: () => steamNetInvite(),
     join: (lobbyId: string) => steamNetJoinLobby(lobbyId),

@@ -63,6 +63,7 @@ pub fn run() {
       steam::steam_cloud_delete,
       steam::steam_set_rich_presence,
       steam_net::steam_net_self,
+      steam_net::steam_net_relay_status,
       steam_net::steam_net_create_lobby,
       steam_net::steam_net_join_lobby,
       steam_net::steam_net_leave_lobby,
