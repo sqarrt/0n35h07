@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.9] - 2026-06-22
+
+### Added
+- **Steam integration — foundation.** The desktop build now runs as a Steam application: the Steamworks
+  SDK initializes (the `steamworks` crate bundles its own SDK), a small JS↔Rust bridge exposes Steam to
+  the game (`steam_available` / `steam_user`), and everything degrades gracefully off-Steam — the browser
+  build and the unit tests are unaffected. This is the groundwork for Steam matchmaking / achievements /
+  cloud saves (each a later piece); there are no in-game Steam features yet.
+
+### Changed
+- **Releases are now fully automatic on a version tag.** Pushing an annotated tag (e.g. `0.5.9`) deploys
+  the web build to GitHub Pages, builds the desktop installers (`.msi`/`.exe`) into a published GitHub
+  Release whose notes are the tag's own message, and uploads the Windows build to a Steam **beta** branch
+  (promotion to the default branch stays manual). The site deploy moved from every `master` push to **tag-only**.
+- Trailer: the cursor and the SKIP button **hide while watching** and reappear on mouse movement, fading
+  out again after a short idle — cleaner cinematic viewing; Escape still exits at any time.
+- Branding: window/page titles and the GitHub release name use the stylized **0N35H07**; flowing prose and
+  docs keep the readable "OneShot" — the two are the same name ("0N35H07" is leetspeak for "OneShot").
+
+### Fixed
+- The Tauri installer version is synced to the release version (`tauri.conf.json` / `Cargo.toml` held a
+  stale literal), so the `.msi`/`.exe` no longer ship a wrong version number.
+
+### Internal
+- CI: a dedicated `steam-deploy` workflow (on a tag, or the manual "Run workflow" button) builds the
+  Windows app and uploads it to SteamPipe; `build.rs` copies the Steam runtime lib (`steam_api64.dll`)
+  next to the executable so the app can load it. The downloaded Steamworks SDK is not needed (the crate
+  vendors its own) and is gitignored.
+
 ## [0.5.8] - 2026-06-21
 
 ### Added
@@ -57,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (camera→reticle), while the beam visual still comes from the muzzle. First-person behavior is unchanged.
 
 ### Internal
+- The dev floor-grid in the menu background now shows only while the free-fly camera is held (`J`), instead
+  of always in dev — removing a dev-only visual that was absent from the prod build.
 - Tests now run in WSL alongside the Windows build: `node_modules` on `/mnt/c` is shared by both OSes, and
   `npm install` installs the native `rolldown` binary only for the current system. Added a self-heal
   `scripts/ensure-native.mjs` (a pre-hook of the test scripts): before running tests it checks that the
