@@ -1,7 +1,11 @@
 name: Steam deploy (beta)
 
-# On a release tag: build the Windows app and upload it to SteamPipe on the BETA branch.
+# On a release tag (or manual run): build the Windows app and upload it to SteamPipe on the BETA branch.
 # Promotion beta -> default is a manual one-click in the Steamworks partner portal.
+#
+# Two jobs by necessity: the Windows .exe must be built on a Windows runner, but game-ci/steam-deploy
+# is a Docker container action and runs ONLY on Linux. So `build` (windows) produces the depot and hands
+# it to `deploy` (ubuntu) as an artifact, which uploads it to SteamPipe.
 #
 # The steamworks crate bundles its own Steam SDK — do NOT set STEAM_SDK_LOCATION; build.rs copies
 # the runtime steam_api64.dll next to the exe, so the depot is just the exe + that DLL.
@@ -17,7 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  steam:
+  build:
+    name: Build Windows depot
     runs-on: windows-latest
     timeout-minutes: 90
     steps:
@@ -66,6 +71,26 @@ jobs:
           cp src-tauri/target/release/app.exe steam-build/0N35H07.exe
           cp src-tauri/target/release/steam_api64.dll steam-build/
           ls -la steam-build
+
+      - name: Upload depot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: steam-build
+          path: steam-build
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    name: Upload to SteamPipe (beta)
+    needs: build
+    runs-on: ubuntu-latest   # game-ci/steam-deploy is a Docker action → Linux only
+    timeout-minutes: 30
+    steps:
+      - name: Download depot artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: steam-build
+          path: steam-build
 
       - name: Upload to SteamPipe (beta)
         uses: game-ci/steam-deploy@v3
