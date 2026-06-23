@@ -68,6 +68,7 @@ export type SteamNetEvent =
   | { kind: 'peerLeave'; steamId: string }
   | { kind: 'lobbyEntered'; lobbyId: string; self: string; members: string[] }
   | { kind: 'joinRequested'; lobbyId: string }
+  | { kind: 'mmResult'; lobbies: string[] }
 
 /** SDR relay network status string (e.g. "Ok(Current)" once ready) — diagnostic for P2P. */
 export async function steamNetRelayStatus(): Promise<string> {
@@ -136,6 +137,18 @@ export async function steamInviteToLobby(friendId: string): Promise<boolean> {
   if (!IS_DESKTOP) return false
   try { return await invokeSteam<boolean>('steam_invite_to_lobby', { friendId }) }
   catch { return false }
+}
+
+/** Matchmaking: host a Public 1v1 lobby (shows up in others' searches). No-op off-desktop. */
+export async function steamMmHost(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_mm_host') } catch { /* ignore */ }
+}
+
+/** Matchmaking: search public lobbies (result arrives as an 'mmResult' event). No-op off-desktop. */
+export async function steamMmSearch(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam<void>('steam_mm_search') } catch { /* ignore */ }
 }
 
 /** Subscribe to the "steam-net" event stream. Returns an unsubscribe fn (no-op off-desktop). */

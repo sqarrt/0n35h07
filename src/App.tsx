@@ -37,6 +37,7 @@ import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
+import { SteamQuickMatch } from './steam/SteamQuickMatch'
 import { steamNetInvite, steamInviteToLobby, onSteamNetEvent } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
@@ -261,6 +262,7 @@ export default function App() {
   const dmRef = useRef<DualMatchmaker | null>(null)
   const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable across role switches)
   const steamEnterToken = useRef(0)   // bumped on every tab entry/leave → discards a stale async Steam lobby
+  const qmRef = useRef<SteamQuickMatch | null>(null)   // Steam quick-match (desktop Matchmaking tab)
 
   const sessionRef = useRef<RoomSession | null>(null)
   const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
@@ -273,6 +275,7 @@ export default function App() {
   const leaveRoom = () => {
     steamEnterToken.current++   // invalidate any in-flight Steam lobby resolution
     setSteamFriendForming(false)
+    qmRef.current?.stop(); qmRef.current = null
     sessionRef.current?.dispose()
     sessionRef.current = null
     if (negotiateNetRef.current) { negotiateNetRef.current.leave(); negotiateNetRef.current = null }
@@ -349,8 +352,10 @@ export default function App() {
       if (name !== botName) setBotName(name)
     } else if (IS_DESKTOP && tab === 'friend') {
       void enterSteamFriendHost(sel)   // Steam "With friend": create a lobby + host, then invite
+    } else if (IS_DESKTOP && tab === 'matchmaking') {
+      leaveRoom()   // Steam matchmaking is Steam-only (no WebRTC/cross-play); idle until SEARCH → quick-match
     } else if (idleIsHost(tab)) {
-      enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host session for the announcement
+      enterRoom(lobbyCodeRef.current, 'host', sel)   // web matchmaking (both): host session for the announcement
     } else {
       leaveRoom()   // matchmaking+client / web friend → draft until search
     }
@@ -547,6 +552,7 @@ export default function App() {
     if (tab === lobbyTab) return
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
     setSearching(false)
+    qmRef.current?.stop(); qmRef.current = null
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     setDraftSel(sel)
@@ -554,7 +560,23 @@ export default function App() {
     enterTabIdle(tab, sel)
   }
 
+  // Steam matchmaking: quick-match over Steam public lobbies (no WebRTC → no cross-play).
+  const startSteamQuickMatch = async () => {
+    leaveRoom()
+    setSearching(true)
+    const token = ++steamEnterToken.current
+    const qm = new SteamQuickMatch((net, role) => {
+      if (token !== steamEnterToken.current) { net.leave(); return }
+      setSearching(false)
+      bindSession(net, role, '', draftSel)
+    })
+    qmRef.current = qm
+    const ok = await qm.start()
+    if (!ok && token === steamEnterToken.current) setSearching(false)   // no Steam
+  }
+
   const onLobbySearch = () => {
+    if (IS_DESKTOP) { void startSteamQuickMatch(); return }   // desktop Matchmaking = Steam quick-match
     const pool = poolRef.current
     if (!pool) return
     setSearching(true)
@@ -574,6 +596,8 @@ export default function App() {
   }
   const onLobbyStopSearch = () => {
     setSearching(false)
+    steamEnterToken.current++   // discard any in-flight quick-match resolution
+    qmRef.current?.stop(); qmRef.current = null
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // friend: drop the rendezvous → draft

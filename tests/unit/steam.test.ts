@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { isSteamAvailable, getSteamUser, unlockAchievement, cloudRead, cloudWrite, cloudDelete, steamFriendsList, steamInviteToLobby } from '../../src/steam/steam'
 import { hostFriendLobby, joinSteamLobby } from '../../src/steam/SteamLobby'
+import { SteamQuickMatch } from '../../src/steam/SteamQuickMatch'
 
 // jsdom has no __TAURI_INTERNALS__ → IS_DESKTOP is false → the wrapper must report
 // "unavailable" WITHOUT importing or invoking Tauri (web + tests never need Steam).
@@ -22,5 +23,6 @@ describe('steam wrapper — off-desktop fallback', () => {
     await expect(steamInviteToLobby('123')).resolves.toBe(false)
     await expect(hostFriendLobby()).resolves.toBeNull()       // no SteamID → null
     await expect(joinSteamLobby('456')).resolves.toBeNull()
+    await expect(new SteamQuickMatch(() => {}).start()).resolves.toBe(false)   // no Steam → can't start
   })
 })
