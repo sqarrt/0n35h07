@@ -1,5 +1,6 @@
 import type { StemLibrary, Arrangement, IMusicEngine } from './types'
 import { ANALYSER_FFT, analyserLevel, fillBands } from './AudioAnalysis'
+import { mulberry32 } from './rng'
 
 const LOOP_SECONDS = 8.0          // musical loop length (NOT the 8.0065 file length — that's Opus padding)
 const SCHEDULE_AHEAD_SEC = 2.0    // how far ahead we schedule sources. With margin: the loop is long (8s) and
@@ -16,8 +17,32 @@ const MASTER_GAIN_DEFAULT = 0.6
 // Decaying echo at match end: silent during play, turns on at fadeOut and rings out with a tail,
 // so the track doesn't cut off abruptly. delay→feedback→delay (decay loop), input gated by echoSend.
 const ECHO_DELAY_SEC = 0.35       // echo delay time (between repeats)
-const ECHO_FEEDBACK = 0.5         // feedback coefficient (<1): each repeat quieter, tail ~2s
+const ECHO_FEEDBACK = 0.5         // match-end echo feedback (<1): each repeat quieter, tail ~2s
+const ECHO_PLAY_FEEDBACK = 0.28   // play-time echo feedback: a short slap (1–2 repeats), not a cluttered tail
 const ECHO_WET = 0.45             // echo output volume
+// Per-voice effect buses (variety): a reverb (convolution of a decaying-noise impulse) and a per-voice
+// tap into the echo delay — both fed by per-voice send levels (VoiceSpec.reverb / .echo, 0 by default).
+const REVERB_SECONDS = 1.8        // impulse-response length (reverb tail)
+const REVERB_DECAY = 2.5          // IR amplitude decay exponent (higher = shorter, tighter tail)
+const REVERB_WET = 0.5            // reverb bus output volume (scaled further by each voice's send)
+const REVERB_IR_SEED = 0x5eed     // fixed seed → identical IR across peers (deterministic reverb)
+// Doubling splits the lead into two stereo-spread copies whose COMBINED loudness ≈ the single lead
+// (≈ equal-power: 0.66² + 0.66² ≈ 0.87) — so a doubled loop reads as wider, not louder (no volume jump).
+const DOUBLE_PRIMARY_GAIN = 0.66  // primary copy gain when doubling (full when not doubling)
+const DOUBLE_COPY_GAIN = 0.66     // the offset copy's gain
+const DOUBLE_PAN = 0.6            // doubled voice is spread across stereo (primary −PAN, copy +PAN) — Haas width
+
+/** Decaying-noise stereo impulse response for the reverb convolver (deterministic — identical on every peer). */
+function makeImpulseResponse(ctx: AudioContext): AudioBuffer {
+  const len = Math.max(1, Math.floor(ctx.sampleRate * REVERB_SECONDS))
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate)
+  const rnd = mulberry32(REVERB_IR_SEED)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch)
+    for (let i = 0; i < len; i++) d[i] = (rnd() * 2 - 1) * Math.pow(1 - i / len, REVERB_DECAY)
+  }
+  return buf
+}
 // Stem loudness normalization: bring each stem to a target RMS (quiet leads are audible, loud kicks
 // don't stand out), but cap the multiplier so the PEAK stays under the ceiling (kick transients
 // don't hurt the ears). Computed from decoded PCM → deterministic and identical across peers.
@@ -76,6 +101,9 @@ export class WebAudioMusicEngine implements IMusicEngine {
   private ctx: AudioContext | null = null
   private master: GainNode | null = null
   private echoSend: GainNode | null = null   // echo input gate: 0 during play, opens on fadeOut
+  private reverbIn: GainNode | null = null   // sum point for per-voice reverb sends → convolver
+  private echoIn: GainNode | null = null     // sum point for per-voice echo sends (during play) → delay
+  private effectsOut: GainNode | null = null // play-time effect bus output; gain tracks the music volume (userGain)
   private buffers = new Map<string, AudioBuffer>()
   private norm = new Map<string, number>()   // stemId → loudness normalization multiplier
   private provider: ((loopIndex: number) => Arrangement) | null = null
@@ -124,20 +152,34 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.master!.gain.cancelScheduledValues(now)
     this.master!.gain.setValueAtTime(0, now)
     this.master!.gain.linearRampToValueAtTime(MASTER_GAIN_DEFAULT * this.userGain, now + fadeInSec)
+    if (this.effectsOut) {   // effects fade in alongside the music (to the volume level, unity at full)
+      this.effectsOut.gain.cancelScheduledValues(now)
+      this.effectsOut.gain.setValueAtTime(0, now)
+      this.effectsOut.gain.linearRampToValueAtTime(this.userGain, now + fadeInSec)
+    }
     this.nextBoundary = now + START_DELAY_SEC
     if (this.timer == null) this.timer = setInterval(() => this.tick(), SCHEDULER_TICK_MS)
     this.tick()
   }
 
-  fadeOut(): void {
+  /** Fades the music out. opts.sec — fade length; opts.tailEcho — open the long ring-out echo (match end).
+   *  Menu→game uses a short fade with NO tail so the menu music is gone within ~1s. */
+  fadeOut(opts: { tailEcho?: boolean; sec?: number } = {}): void {
+    const tailEcho = opts.tailEcho ?? true
+    const sec = opts.sec ?? END_FADE_SEC
     const ctx = this.ctx
     if (ctx && this.master) {
       const now = ctx.currentTime
       this.master.gain.cancelScheduledValues(now)
       this.master.gain.setValueAtTime(this.master.gain.value, now)
-      this.master.gain.linearRampToValueAtTime(0, now + END_FADE_SEC)
-      // Open echo: the fading dry signal feeds the delay and rings out ~2s (not an abrupt cut).
-      if (this.echoSend) {
+      this.master.gain.linearRampToValueAtTime(0, now + sec)
+      if (this.effectsOut) {   // play-time effects fade out with the music (the match-end echo tail is separate)
+        this.effectsOut.gain.cancelScheduledValues(now)
+        this.effectsOut.gain.setValueAtTime(this.effectsOut.gain.value, now)
+        this.effectsOut.gain.linearRampToValueAtTime(0, now + sec)
+      }
+      // Match end only: open the echo so the fading dry signal rings out ~2s (not an abrupt cut).
+      if (tailEcho && this.echoSend) {
         this.echoSend.gain.cancelScheduledValues(now)
         this.echoSend.gain.setValueAtTime(0, now)
         this.echoSend.gain.linearRampToValueAtTime(1, now + 0.05)
@@ -156,7 +198,10 @@ export class WebAudioMusicEngine implements IMusicEngine {
   /** User music level 0..1 (1 = the MASTER_GAIN_DEFAULT reference). Applied live and on start. */
   setMasterGain(gain: number): void {
     this.userGain = Math.min(1, Math.max(0, gain))
-    if (this.master && this.ctx) this.master.gain.setTargetAtTime(MASTER_GAIN_DEFAULT * this.userGain, this.ctx.currentTime, 0.05)
+    if (this.ctx) {
+      this.master?.gain.setTargetAtTime(MASTER_GAIN_DEFAULT * this.userGain, this.ctx.currentTime, 0.05)
+      this.effectsOut?.gain.setTargetAtTime(this.userGain, this.ctx.currentTime, 0.05)   // effects track the same slider
+    }
   }
 
   dispose(): void {
@@ -165,6 +210,9 @@ export class WebAudioMusicEngine implements IMusicEngine {
     this.ctx = null
     this.master = null
     this.echoSend = null
+    this.reverbIn = null
+    this.echoIn = null
+    this.effectsOut = null
     this.analyser = null
     this.buffers.clear()
     this.norm.clear()
@@ -179,8 +227,14 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.analyser = this.ctx.createAnalyser()                         // tap for visualization (doesn't affect sound)
       this.analyser.fftSize = ANALYSER_FFT
       this.master.connect(this.analyser)
-      // Echo bus: master → echoSend(0) → delay → feedback↺ → echoWet → destination.
-      // echoSend closed during play (echo doesn't accumulate); opens on fadeOut.
+      // Play-time effect bus output. Its gain tracks the music volume (userGain, unity at full) and the
+      // start/fade ramps, so reverb/echo respect the slider and fade with the music — while staying at the
+      // tuned level at full volume. Direct to destination (NOT through master: avoids a fadeOut feedback loop).
+      this.effectsOut = this.ctx.createGain()
+      this.effectsOut.gain.value = this.userGain
+      this.effectsOut.connect(this.ctx.destination)
+      // Match-end echo: master → echoSend(0) → delay → feedback↺ → echoWet → destination. echoSend closed
+      // during play, opens on fadeOut → the tail rings out to destination AFTER the master has faded.
       this.echoSend = this.ctx.createGain()
       this.echoSend.gain.value = 0
       const delay = this.ctx.createDelay(1.0)
@@ -192,6 +246,24 @@ export class WebAudioMusicEngine implements IMusicEngine {
       this.master.connect(this.echoSend).connect(delay)
       delay.connect(feedback).connect(delay)                            // feedback loop (decay)
       delay.connect(echoWet).connect(this.ctx.destination)
+      // Play-time echo (variety): per-voice echoIn → its OWN delay/feedback → echoWet → effectsOut (volume-matched).
+      this.echoIn = this.ctx.createGain()
+      const pDelay = this.ctx.createDelay(1.0)
+      pDelay.delayTime.value = ECHO_DELAY_SEC
+      const pFeedback = this.ctx.createGain()
+      pFeedback.gain.value = ECHO_PLAY_FEEDBACK
+      const pEchoWet = this.ctx.createGain()
+      pEchoWet.gain.value = ECHO_WET
+      this.echoIn.connect(pDelay)
+      pDelay.connect(pFeedback).connect(pDelay)
+      pDelay.connect(pEchoWet).connect(this.effectsOut)
+      // Reverb bus (variety): per-voice reverbIn → convolver(IR) → reverbWet → effectsOut.
+      this.reverbIn = this.ctx.createGain()
+      const convolver = this.ctx.createConvolver()
+      convolver.buffer = makeImpulseResponse(this.ctx)
+      const reverbWet = this.ctx.createGain()
+      reverbWet.gain.value = REVERB_WET
+      this.reverbIn.connect(convolver).connect(reverbWet).connect(this.effectsOut)
     }
     return this.ctx
   }
@@ -231,7 +303,14 @@ export class WebAudioMusicEngine implements IMusicEngine {
     const voices = new Map<string, number>()
     for (const v of arr) {
       const fade: Fade = this.prevVoices.has(v.stemId) ? 'none' : 'in'  // continues butt-jointed / enters with a crossfade
-      this.scheduleSource(v.stemId, when, v.gain, fade, LOOP_SECONDS)
+      // Doubling: the primary is panned one way and a 2nd copy (a hair later) the other → a wide, thick
+      // Haas double. Both copies are turned down (DOUBLE_*_GAIN) so the pair is the SAME loudness as the
+      // single lead — the doubling reads as width, not a volume bump.
+      const doubling = v.doubleSec !== undefined
+      const pan = doubling ? -DOUBLE_PAN : 0
+      const primaryGain = doubling ? v.gain * DOUBLE_PRIMARY_GAIN : v.gain
+      this.scheduleSource(v.stemId, when, primaryGain, fade, LOOP_SECONDS, { reverb: v.reverb, echo: v.echo, pan })
+      if (doubling) this.scheduleSource(v.stemId, when, v.gain * DOUBLE_COPY_GAIN, 'none', LOOP_SECONDS, { offset: v.doubleSec, reverb: v.reverb, echo: v.echo, pan: DOUBLE_PAN })
       if (this.buffers.has(v.stemId)) voices.set(v.stemId, v.gain)
     }
     this.prevVoices = voices
@@ -243,7 +322,7 @@ export class WebAudioMusicEngine implements IMusicEngine {
    *   - 'in'   — equal-power rise over CROSSFADE_SEC, then holds, with a de-click fall at the end;
    *   - 'out'  — tail: equal-power fall over CROSSFADE_SEC (curve starts at zero → no click on start);
    *   - 'none' — continuation: micro-fade from zero in and to zero out (no CROSSFADE needed — butt joint). */
-  private scheduleSource(stemId: string, when: number, gain: number, fade: Fade, dur: number): void {
+  private scheduleSource(stemId: string, when: number, gain: number, fade: Fade, dur: number, fx: { offset?: number; reverb?: number; echo?: number; pan?: number } = {}): void {
     const buf = this.buffers.get(stemId)
     if (!buf || !this.ctx || !this.master) return
     const src = this.ctx.createBufferSource()
@@ -251,17 +330,29 @@ export class WebAudioMusicEngine implements IMusicEngine {
     const ng = gain * (this.norm.get(stemId) ?? 1)   // role volume × stem normalization
     const g = this.ctx.createGain()
     const p = g.gain
+    const start = when + (fx.offset ?? 0)   // a doubled copy starts a hair later; the loop end stays put
     const end = when + dur
     if (fade === 'out') {
-      p.setValueCurveAtTime(equalPowerCurve(ng, 'out'), when, CROSSFADE_SEC)   // fall to 0, start at 0
+      p.setValueCurveAtTime(equalPowerCurve(ng, 'out'), start, CROSSFADE_SEC)   // fall to 0, start at 0
     } else {
-      if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(ng, 'in'), when, CROSSFADE_SEC)
-      else { p.setValueAtTime(0, when); p.linearRampToValueAtTime(ng, when + DECLICK_SEC) }  // 'none' — de-click in
+      if (fade === 'in') p.setValueCurveAtTime(equalPowerCurve(ng, 'in'), start, CROSSFADE_SEC)
+      else { p.setValueAtTime(0, start); p.linearRampToValueAtTime(ng, start + DECLICK_SEC) }  // 'none' — de-click in
       p.setValueAtTime(ng, end - DECLICK_SEC)   // de-click out at loop end (stem doesn't end on zero)
       p.linearRampToValueAtTime(0, end)
     }
-    src.connect(g).connect(this.master)
-    src.start(when)
+    src.connect(g)                                                       // dry path (optionally panned)
+    if (fx.pan) { const panner = this.ctx.createStereoPanner(); panner.pan.value = fx.pan; g.connect(panner).connect(this.master) }
+    else g.connect(this.master)
+    if (fx.reverb && this.reverbIn) g.connect(this.sendGain(fx.reverb)).connect(this.reverbIn)
+    if (fx.echo && this.echoIn) g.connect(this.sendGain(fx.echo)).connect(this.echoIn)
+    src.start(start)
     src.stop(end)
+  }
+
+  /** A fixed-level send gain node (for routing a voice into an effect bus). */
+  private sendGain(level: number): GainNode {
+    const s = this.ctx!.createGain()
+    s.gain.value = level
+    return s
   }
 }

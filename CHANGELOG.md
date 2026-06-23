@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Steam Rich Presence.** The desktop build now reports a status to the Steam friends list — *In menu*,
   *In lobby* or *In a match* — following the current screen. Off-Steam it's a silent no-op. (The status
   text comes from Rich Presence localization tokens defined in the Steamworks partner portal.)
+- **Procedural music variety.** Menu and match music now vary over time: a lead can be doubled into a
+  stereo-spread copy (loudness-matched, so it reads as width, not volume), and loops occasionally get a
+  reverb wash or a lead echo. In a match the choices are seeded from the room code, so both peers hear the
+  same thing. Effects respect the music-volume slider and fade with the music; the kick stays dry.
+- **Editor: hold-to-repeat placement.** Holding the left or right mouse button in the map editor now
+  auto-repeats place/remove at the crosshair (like rapid clicking).
 
 ### Changed
 - **Steam build hides the Trystero/relay UI.** The desktop (Steam) build plays over Steam Datagram Relay
@@ -41,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the friend invite → join → match flow works end to end.
 
 ### Fixed
+- **Doubled perimeter walls on the maps.** Each arena wall was drawn twice (a wall plus an overlapping
+  contrasting "trim" strip), causing z-fighting and a doubled shadow. The maps were cleaned up, and the
+  editor now drops such stale trim strips on import so the doubled wall can't come back on re-save.
+- **No menu music in the map editor.** The background menu music kept playing while editing a map; it is
+  now silenced in the editor.
 - **Cyrillic UI font.** The UI font (Share Tech Mono) shipped Latin glyphs only, so Cyrillic text fell back
   to a mismatched font. The Cyrillic face is now bundled under the same family (scoped by `unicode-range`),
   so the entire non-Latin UI renders in the intended font — Latin still comes from the existing web font.

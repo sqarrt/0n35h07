@@ -15,6 +15,7 @@ import { loadProfile } from '../settings'
 
 const REACH = 14
 const WALK_SPEED = 6.5
+const AUTOCLICK_MS = 110      // hold LMB/RMB to auto-repeat place/remove at the crosshair (like fast clicking)
 const PLAYER_R = 0.3          // player's horizontal half-size (for collision in walk mode)
 const WALL_HALF = 0.25        // half-thickness of the perimeter wall (as in editor walls)
 // Spawn marker — a vertical cylinder fading to transparent toward the top (host / guest differ by color).
@@ -226,28 +227,48 @@ export function EditorScene(props: Props) {
       }
     }
     const kd = onKey(true), ku = onKey(false)
-    const onMouseDown = (e: MouseEvent) => {
+    // One place/remove action at the crosshair for the given mouse button.
+    const act = (button: number) => {
       if (!document.pointerLockElement) return
       const c = pick()
       if (!c) return
-      if (e.button === 0) {
+      if (button === 0) {
         if (isSpawnTool(tool)) onSpawn(tool === 'spawn0' ? 0 : 1, snapHalf(c.point.x), snapHalf(c.point.z), c.place[1] * VOXEL)
         else {
           const f = camera.getWorldDirection(new THREE.Vector3())
           const isWedge = tool === 'wedge'
           onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
         }
-      } else if (e.button === 2) onRemove(c.remove)
+      } else if (button === 2) onRemove(c.remove)
     }
+    // Auto-repeat while a button is held (separate timer per button) — like rapid clicking.
+    const held: Partial<Record<number, ReturnType<typeof setInterval>>> = {}
+    const stop = (button: number) => { const t = held[button]; if (t != null) { clearInterval(t); delete held[button] } }
+    const stopAll = () => { stop(0); stop(2) }
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0 && e.button !== 2) return
+      if (!document.pointerLockElement) return   // first click only engages pointer lock
+      act(e.button)
+      if (held[e.button] == null) held[e.button] = setInterval(() => act(e.button), AUTOCLICK_MS)
+    }
+    const onMouseUp = (e: MouseEvent) => stop(e.button)
+    const onLockChange = () => { if (!document.pointerLockElement) stopAll() }
     const onCtx = (e: MouseEvent) => e.preventDefault()
     window.addEventListener('keydown', kd)
     window.addEventListener('keyup', ku)
     window.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mouseup', onMouseUp)
+    window.addEventListener('blur', stopAll)
+    document.addEventListener('pointerlockchange', onLockChange)
     window.addEventListener('contextmenu', onCtx)
     return () => {
+      stopAll()
       window.removeEventListener('keydown', kd)
       window.removeEventListener('keyup', ku)
       window.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('blur', stopAll)
+      document.removeEventListener('pointerlockchange', onLockChange)
       window.removeEventListener('contextmenu', onCtx)
     }
   }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn]) // eslint-disable-line react-hooks/exhaustive-deps
