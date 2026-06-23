@@ -8,8 +8,11 @@ import { Slider } from '../ui/Slider'
 import { RelaysSection } from './RelaysSection'
 import { useSfx } from '../sfx/SfxContext'
 import { LOCALES, useLocale, useT } from '../i18n'
+import { IS_DESKTOP } from '../platform'
+import { visibleSections } from './settingsSections'
+import type { SettingsSection } from './settingsSections'
 
-export type SettingsSection = 'player' | 'sound' | 'net' | 'graphics' | 'about'
+export type { SettingsSection }
 
 interface SettingsProps {
   profile: PlayerProfile
@@ -39,7 +42,7 @@ const subHeader: CSSProperties = {
   marginBottom: '1.1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--surface-line)',
 }
 
-const SECTIONS: Section[] = ['player', 'sound', 'net', 'graphics', 'about']
+const SECTIONS: Section[] = visibleSections(IS_DESKTOP)
 const SEARCH_ROLES: SearchRole[] = ['both', 'client']
 
 /** Number of columns in the language grid (10 languages → 2 rows of 5). */
@@ -65,7 +68,9 @@ export function Settings({ profile, onChange, onBack, onWatchTrailer, section: s
   const [locale, setLocale] = useLocale()
   // Controlled by the parent if section/onSectionChange are passed; otherwise — own state.
   const [sectionState, setSectionState] = useState<Section>('player')
-  const section = sectionProp ?? sectionState
+  // Clamp away a stale 'net' selection on the Steam build (the tab is hidden there).
+  const rawSection = sectionProp ?? sectionState
+  const section: Section = (IS_DESKTOP && rawSection === 'net') ? 'player' : rawSection
   const setSection = (s: Section) => { setSectionState(s); onSectionChange?.(s) }
   const [name, setName] = useState(profile.name)
   const [view, setView] = useState<DefaultView>(profile.defaultView)
