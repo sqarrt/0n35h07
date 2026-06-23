@@ -14,7 +14,7 @@ const BOUND_H = 32      // half-height of invisible perimeter walls (can't jump 
 const BOUND_T = 0.5     // half-thickness of invisible walls
 
 /** Arena from map data: shared floor/light/grid (by map size) + map blocks (batched: 2 meshes + trimesh). */
-export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
+export function Arena({ map = MAPS[DEFAULT_MAP_ID], postProcessing }: { map?: GameMap; postProcessing?: boolean }) {
   const [hx, hz] = map.half
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
@@ -45,7 +45,10 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
     Object.values(geos).forEach(g => g?.dispose())
   }, [geos])
 
-  const postFx = useMemo(() => loadProfile().postProcessing, [])
+  // Live: driven by the prop (toggled in the in-match settings). Fallback to the saved profile for any
+  // caller that doesn't pass it (keeps the outline reading correct without a prop).
+  const savedPostFx = useMemo(() => loadProfile().postProcessing, [])
+  const postFx = postProcessing ?? savedPostFx
 
   return (
     <>

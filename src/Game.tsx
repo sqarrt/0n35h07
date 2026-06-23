@@ -24,6 +24,7 @@ import { MAPS } from './game/maps'
 
 export interface GameApi {
   requestReady(): void
+  setMusicVolume(v: number): void   // live music volume (applied imperatively — no Canvas re-render)
   startDemo(): void
   stopDemo(): DemoFile | null
   isRecordingDemo(): boolean
@@ -42,14 +43,17 @@ interface GameProps {
   mapId: MapId
   seedCode: string
   sfxEngine: ISfxEngine
-  musicVolume: number   // master × music (0..1); applied to the music engine
+  // Music volume via a STABLE ref (not a value prop): live changes (the in-match volume slider) are pushed
+  // imperatively through GameApi.setMusicVolume, so dragging the slider never re-renders the Canvas.
+  musicVolumeRef: React.MutableRefObject<number>
+  postProcessing: boolean   // outline post-FX (live: toggled in the in-match settings)
   audioAnalysis: AudioAnalysis   // we register the match music level here (for visualization)
 }
 
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolume, audioAnalysis }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, postProcessing, audioAnalysis }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -83,8 +87,10 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     [],
   )
 
-  // User music volume: stored by the engine and applied at track start (entering the fight).
-  useEffect(() => { musicEngine.setMasterGain(musicVolume) }, [musicEngine, musicVolume])
+  // Initial music volume (stored by the engine, applied at track start). Live changes come through
+  // GameApi.setMusicVolume (below) — not a re-render. eslint-disable: read the ref once on mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { musicEngine.setMasterGain(musicVolumeRef.current) }, [musicEngine])
 
   // Preload (decode) music stems on mount — during the ready ritual/countdown, so the start of the fight
   // (live) doesn't hit a spike decoding ~58 buffers. start() at live then only schedules (buffers are ready).
@@ -121,7 +127,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
         isRecordingDemo: () => !!match.recorder,
       }
     }
-    if (apiRef) apiRef.current = { requestReady, ...demoApi }
+    if (apiRef) apiRef.current = { requestReady, setMusicVolume: (v: number) => musicEngine.setMasterGain(v), ...demoApi }
     const w = window
     w.__debugPhase = () => match.phase
     w.__debugReady = requestReady
@@ -180,8 +186,11 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   return (
     <Suspense>
       <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
-        <PointerLockControls ref={controlsRef} />
-        <Arena map={MAPS[mapId]} />
+        {/* selector="canvas": drei otherwise binds click→lock to the whole `document`, so ANY click —
+            including the pause menu / in-match settings — would re-grab pointer lock and dismiss the overlay.
+            Scoped to the canvas (covered by the pause overlay), only Resume (handleResume) re-locks. */}
+        <PointerLockControls ref={controlsRef} selector="canvas" />
+        <Arena map={MAPS[mapId]} postProcessing={postProcessing} />
         <RapierBridge match={match} />
 
         {/* RigidBody = physics only (capsule); player visuals are in match.root (world-space). */}

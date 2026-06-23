@@ -25,8 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   same thing. Effects respect the music-volume slider and fade with the music; the kick stays dry.
 - **Editor: hold-to-repeat placement.** Holding the left or right mouse button in the map editor now
   auto-repeats place/remove at the crosshair (like rapid clicking).
+- **In-match settings.** The pause menu now has a **Settings** entry with Sound and Graphics, applied
+  live without leaving the match — including the block-outline post-FX (previously fixed only at match
+  start). The shared sound/graphics controls back both this and the full Settings screen.
 
 ### Changed
+- **"About" moved to the main menu.** The game/developer info (and the Watch-trailer button) is now its
+  own **About** screen opened from the main menu, instead of a tab inside Settings.
 - **Steam build hides the Trystero/relay UI.** The desktop (Steam) build plays over Steam Datagram Relay
   rather than WebRTC, so the relay-specific bits are now hidden there: the Settings **Network** tab and the
   on-screen connection-status indicator are gone, and relay pre-warming / the "WebRTC may not connect"
@@ -47,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the friend invite → join → match flow works end to end.
 
 ### Fixed
+- **Pause menu re-grabbed the pointer on any click.** Drei's PointerLockControls bound its click→lock
+  to the whole document, so any click in the pause overlay re-captured the pointer and dismissed it
+  (which broke the new in-match settings). It's now scoped to the canvas — only Resume re-locks.
 - **Doubled perimeter walls on the maps.** Each arena wall was drawn twice (a wall plus an overlapping
   contrasting "trim" strip), causing z-fighting and a doubled shadow. The maps were cleaned up, and the
   editor now drops such stale trim strips on import so the doubled wall can't come back on re-save.

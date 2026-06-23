@@ -19,6 +19,7 @@ import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { PauseMenu } from './components/PauseMenu'
+import { MatchSettings } from './components/MatchSettings'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
@@ -31,6 +32,7 @@ import { DEFAULT_LOBBY_TAB } from './components/lobby/types'
 import type { LobbyTab } from './components/lobby/types'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
+import { About } from './screens/About'
 import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
@@ -72,7 +74,7 @@ import { DualMatchmaker } from './net/DualMatchmaker'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
 
-type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
+type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer'
 
 const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // default bot difficulty on the "vs Bot" tab
 
@@ -117,7 +119,8 @@ interface GameCanvasProps {
   defaultThirdPerson: boolean
   apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
-  musicVolume: number
+  musicVolumeRef: React.MutableRefObject<number>   // stable ref: live volume is pushed via GameApi, no Canvas re-render
+  postProcessing: boolean
   audioAnalysis: AudioAnalysis
 }
 
@@ -128,7 +131,7 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, postProcessing, audioAnalysis }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
@@ -146,7 +149,8 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         mapId={gameNet.mapId}
         seedCode={gameNet.code}
         sfxEngine={sfxEngine}
-        musicVolume={musicVolume}
+        musicVolumeRef={musicVolumeRef}
+        postProcessing={postProcessing}
         audioAnalysis={audioAnalysis}
       />
     </Canvas>
@@ -271,6 +275,11 @@ export default function App() {
   const sessionRef = useRef<RoomSession | null>(null)
   const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
   const gameApiRef = useRef<GameApi | null>(null)
+  // Music volume via a stable ref (read once at match start) + an imperative push for live changes — so
+  // dragging the in-match volume slider never re-renders the Canvas (which would rebuild the post-FX pass).
+  const musicVolumeRef = useRef(profile.volumeMaster * profile.volumeMusic)
+  musicVolumeRef.current = profile.volumeMaster * profile.volumeMusic
+  useEffect(() => { gameApiRef.current?.setMusicVolume(musicVolumeRef.current) }, [profile.volumeMaster, profile.volumeMusic])
 
   // Whether the tab's idle state is host (without an active search/connection):
   // bot — always host; matchmaking — host if the profile doesn't force the 'client' role; friend — draft until search.
@@ -496,6 +505,7 @@ export default function App() {
 
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
+  const handleAbout = () => setScreen('about')
   // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
   // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.
   const handleExit = () => {
@@ -614,6 +624,10 @@ export default function App() {
   const paused = screen === 'game' && !locked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
+  // Pause sub-view: the menu, or the in-match Sound/Graphics settings panel. Reset to the menu
+  // whenever the pause overlay closes (resume / leave), so re-pausing always opens the menu first.
+  const [pauseView, setPauseView] = useState<'menu' | 'settings'>('menu')
+  useEffect(() => { if (!paused) setPauseView('menu') }, [paused])
 
   // On the "join room" screen we show the reserve color (the host may take your primary — a preview of how
   // you'll most likely look). The color transition is smooth (lerp in MenuBackdrop).
@@ -709,27 +723,28 @@ export default function App() {
       {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
-      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
       {screen !== 'game' && screen !== 'trailer' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
+            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onAbout={handleAbout} onExit={handleExit} />}
             {screen === 'settings' && (
-              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} section={settingsSection} onSectionChange={setSettingsSection} />
+              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} section={settingsSection} onSectionChange={setSettingsSection} />
             )}
             {screen === 'appearance' && (
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
             )}
+            {screen === 'about' && <About onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} />}
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
       )}
 
       {screen === 'trailer' && (
-        <TrailerScreen masterVolume={profile.volumeMaster} onDone={() => setScreen('settings')} />
+        <TrailerScreen masterVolume={profile.volumeMaster} onDone={() => setScreen('about')} />
       )}
 
       {screen === 'game' && gameNet && (
@@ -741,7 +756,8 @@ export default function App() {
             defaultThirdPerson={profile.defaultView === 'tp'}
             apiRef={gameApiRef}
             sfxEngine={sfx}
-            musicVolume={profile.volumeMaster * profile.volumeMusic}
+            musicVolumeRef={musicVolumeRef}
+            postProcessing={profile.postProcessing}
             audioAnalysis={audioAnalysis}
           />
           {hud.matchPhase === 'ready' && (
@@ -790,15 +806,19 @@ export default function App() {
         </>
       )}
 
-      {paused && (
-        <PauseMenu
-          resumeDisabled={resumeDisabled}
-          cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
-          showExit={IS_DESKTOP}
-          onResume={handleResume}
-          onBack={handleBack}
-          onExit={handleExit}
-        />
+      {paused && (pauseView === 'settings'
+        ? <MatchSettings profile={profile} onChange={setProfile} onBack={() => setPauseView('menu')} />
+        : (
+          <PauseMenu
+            resumeDisabled={resumeDisabled}
+            cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
+            showExit={IS_DESKTOP}
+            onResume={handleResume}
+            onSettings={() => setPauseView('settings')}
+            onBack={handleBack}
+            onExit={handleExit}
+          />
+        )
       )}
 
       {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}

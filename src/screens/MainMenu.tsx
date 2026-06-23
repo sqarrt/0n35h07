@@ -6,13 +6,14 @@ interface MainMenuProps {
   onPlay: () => void
   onAppearance: () => void
   onSettings: () => void
+  onAbout: () => void
   onExit: () => void
 }
 
 // Main-menu buttons share one width (half the panel), so texts of different lengths don't shift them.
 const MENU_BUTTON_WIDTH = '50%'
 
-export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuProps) {
+export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onExit }: MainMenuProps) {
   const t = useT()
   const btn = { width: MENU_BUTTON_WIDTH } as const
   return (
@@ -29,6 +30,7 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onExit }: MainMenuP
       <Button variant="primary" style={btn} onClick={onPlay} data-testid="menu-play">{t.menuPlay}</Button>
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
+      <Button variant="secondary" style={btn} onClick={onAbout} data-testid="menu-about">{t.settingsSecAbout}</Button>
       {/* Exit — desktop only: in the browser window.close() is forbidden by policy for a regular tab. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
       {/* F11 hint — browser only (desktop is fullscreen already). F11 is a native browser hotkey,
