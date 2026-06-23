@@ -23,9 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Internal
 - **Steam networking — transport core (foundation).** A Steam P2P transport (`SteamNet implements
   INet`) over Steam lobbies + NetworkingMessages (SDR, no TURN), plus the Rust lobby/messaging bridge
-  (create/join/leave/invite, send, member & join-request events). Compile- and unit-verified; not yet
-  wired into the lobby UI (that and live two-client testing are the next stage). No effect on the
-  browser build, which keeps WebRTC.
+  (create/join/leave/invite, send, member & join-request events). No effect on the browser build,
+  which keeps WebRTC.
+- **Steam online play & lobby UX.** The desktop (Steam) build plays online over Steam, never WebRTC,
+  so Steam and browser players never meet. "Play with friend" is invite-based — a Steam overlay
+  invite or an in-game online-friends list (no room code). Matchmaking is Steam quick-match (public
+  lobbies). The **browser build drops the Matchmaking tab** (Steam-only) and keeps the room-code
+  "Play with friend" as before. Verified live (two Steam clients) for the transport; the lobby UI
+  wiring is in place pending end-to-end live testing.
 
 ## [0.5.9] - 2026-06-22
 
