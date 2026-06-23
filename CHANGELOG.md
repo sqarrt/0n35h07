@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.11] - unreleased
+
+### Internal
+- **CI: dropped the desktop build.** The Tauri desktop installers are no longer built in CI — the Steam
+  build is produced locally (`npm run build:steam`) and the web version ships via `deploy-pages`. A version
+  tag now publishes a **notes-only** GitHub Release (the tag message); the Steam SteamPipe CI was already
+  removed in 0.5.10.
+
 ## [0.5.10] - 2026-06-23
 
 ### Added
