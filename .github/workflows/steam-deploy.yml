@@ -92,7 +92,11 @@ jobs:
           name: steam-build
           path: steam-build
 
-      - name: Upload to SteamPipe (beta)
+      # NB: no releaseBranch → the build uploads but is NOT set live (setlive empty). Set it live on
+      # the desired branch (beta) manually in Steamworks → SteamPipe → Builds. Auto-setlive failed on
+      # the first run ("Failed to commit build : Failure") — the build account lacks set-live permission
+      # and/or the branch didn't exist. Uploading without setlive is also the safer release pattern.
+      - name: Upload to SteamPipe (no setlive)
         uses: game-ci/steam-deploy@v3
         with:
           username: ${{ secrets.STEAM_USERNAME }}
@@ -101,4 +105,3 @@ jobs:
           buildDescription: ${{ github.ref_name }}
           rootPath: steam-build
           depot1Path: .
-          releaseBranch: beta
