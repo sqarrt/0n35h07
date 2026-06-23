@@ -74,7 +74,10 @@ export default defineConfig(({ mode }) => {
       watch: {
         // Camera poses are written by a dev endpoint (vite-plugin-camera-poses) when J is released; the client
         // already holds them in memory — HMR on this write isn't needed and broke repeated J holds (remount).
-        ignored: ['**/menuCameraPoses.json'],
+        // src-tauri/** — never watch the Rust crate: under `cargo tauri dev` the watcher would try to follow
+        // freshly-built proc-macro DLLs in target/ that cargo is still writing → on Windows that's a hard
+        // EBUSY (syscall 'watch'); Linux/inotify tolerates it. `cargo tauri dev` watches the Rust side itself.
+        ignored: ['**/menuCameraPoses.json', '**/src-tauri/**'],
       },
     },
   }

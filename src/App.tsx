@@ -19,6 +19,7 @@ import { ReadyOverlay } from './components/ReadyOverlay'
 import { CountdownOverlay } from './components/CountdownOverlay'
 import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { PauseMenu } from './components/PauseMenu'
+import { MatchSettings } from './components/MatchSettings'
 import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
@@ -27,13 +28,19 @@ import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
+import { DEFAULT_LOBBY_TAB } from './components/lobby/types'
 import type { LobbyTab } from './components/lobby/types'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
+import { About } from './screens/About'
 import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
+import { applyScreenPresence } from './steam/richPresence'
+import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
+import { SteamQuickMatch } from './steam/SteamQuickMatch'
+import { steamInviteToLobby, onSteamNetEvent } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -67,7 +74,7 @@ import { DualMatchmaker } from './net/DualMatchmaker'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
 
-type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
+type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer'
 
 const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // default bot difficulty on the "vs Bot" tab
 
@@ -112,7 +119,8 @@ interface GameCanvasProps {
   defaultThirdPerson: boolean
   apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
-  musicVolume: number
+  musicVolumeRef: React.MutableRefObject<number>   // stable ref: live volume is pushed via GameApi, no Canvas re-render
+  postProcessing: boolean
   audioAnalysis: AudioAnalysis
 }
 
@@ -123,7 +131,7 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolume, audioAnalysis }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, postProcessing, audioAnalysis }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
@@ -141,7 +149,8 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         mapId={gameNet.mapId}
         seedCode={gameNet.code}
         sfxEngine={sfxEngine}
-        musicVolume={musicVolume}
+        musicVolumeRef={musicVolumeRef}
+        postProcessing={postProcessing}
         audioAnalysis={audioAnalysis}
       />
     </Canvas>
@@ -195,13 +204,13 @@ export default function App() {
   // It overlaps the menu-canvas warmup, but that's safe: all heavy work (Trystero) is deferred until canvas
   // is ready (handleMenuReady), and the WebGL context init itself is light and passes behind the warning cleanly.
   // Under ?net=bc (e2e/local 2 tabs) we don't show the warning — otherwise the overlay would intercept clicks in tests.
-  const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
+  const [showWarning, setShowWarning] = useState(() => !IS_DESKTOP && resolveNetKind() === 'trystero')
   const [menuReady, setMenuReady] = useState(false)
   const handleMenuReady = useCallback(() => setMenuReady(true), [])
   // Canvas warmed up → now it's safe to catch Trystero's synchronous init freeze (~860ms): it'll pass BEHIND
   // the warning, before the player dismisses it → the first "Create room" opens instantly.
   useEffect(() => {
-    if (!menuReady || resolveNetKind() !== 'trystero') return
+    if (!menuReady || IS_DESKTOP || resolveNetKind() !== 'trystero') return
     const timer = setTimeout(warmTrystero, TRYSTERO_WARM_DELAY_MS)
     return () => clearTimeout(timer)
   }, [menuReady])
@@ -234,7 +243,8 @@ export default function App() {
   // (autoplay policy); on desktop (Tauri) autoplay is allowed → we start immediately, without a gesture.
   const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
-    if (screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }   // the trailer runs its own music
+    // No menu music in the map editor or the match (trailer runs its own).
+    if (editorMode || screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }
     const onGesture = () => {
       gesturedRef.current = true
@@ -245,26 +255,40 @@ export default function App() {
     window.addEventListener('pointerdown', onGesture)
     window.addEventListener('keydown', onGesture)
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
-  }, [screen, menuMusic])
+  }, [screen, menuMusic, editorMode])
 
-  const [lobbyTab, setLobbyTab] = useState<LobbyTab>('matchmaking')
+  const [lobbyTab, setLobbyTab] = useState<LobbyTab>(DEFAULT_LOBBY_TAB)
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
   const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
+  const [steamFriendForming, setSteamFriendForming] = useState(false)   // Steam "With friend": lobby being created
+  // Steam "With friend" intended role while the lobby is still forming (no RoomView yet) — host (created the
+  // lobby) vs client (joined an invite). Keeps the seat side stable so "me" doesn't flip guest→host mid-forming.
+  const [steamFriendHosting, setSteamFriendHosting] = useState(true)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const dmRef = useRef<DualMatchmaker | null>(null)
   const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable across role switches)
+  const steamEnterToken = useRef(0)   // bumped on every tab entry/leave → discards a stale async Steam lobby
+  const qmRef = useRef<SteamQuickMatch | null>(null)   // Steam quick-match (desktop Matchmaking tab)
 
   const sessionRef = useRef<RoomSession | null>(null)
   const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
   const gameApiRef = useRef<GameApi | null>(null)
+  // Music volume via a stable ref (read once at match start) + an imperative push for live changes — so
+  // dragging the in-match volume slider never re-renders the Canvas (which would rebuild the post-FX pass).
+  const musicVolumeRef = useRef(profile.volumeMaster * profile.volumeMusic)
+  musicVolumeRef.current = profile.volumeMaster * profile.volumeMusic
+  useEffect(() => { gameApiRef.current?.setMusicVolume(musicVolumeRef.current) }, [profile.volumeMaster, profile.volumeMusic])
 
   // Whether the tab's idle state is host (without an active search/connection):
   // bot — always host; matchmaking — host if the profile doesn't force the 'client' role; friend — draft until search.
   const idleIsHost = (tab: LobbyTab): boolean => tab === 'bot' || (tab === 'matchmaking' && profile.searchRole !== 'client')
 
   const leaveRoom = () => {
+    steamEnterToken.current++   // invalidate any in-flight Steam lobby resolution
+    setSteamFriendForming(false)
+    qmRef.current?.stop(); qmRef.current = null
     sessionRef.current?.dispose()
     sessionRef.current = null
     if (negotiateNetRef.current) { negotiateNetRef.current.leave(); negotiateNetRef.current = null }
@@ -339,21 +363,68 @@ export default function App() {
       enterRoom(lobbyCodeRef.current, 'host', sel)
       sessionRef.current?.addBot(botDifficulty, name)   // bot straight into the slot
       if (name !== botName) setBotName(name)
+    } else if (IS_DESKTOP && tab === 'friend') {
+      void enterSteamFriendHost(sel)   // Steam "With friend": create a lobby + host, then invite
+    } else if (IS_DESKTOP && tab === 'matchmaking') {
+      leaveRoom()   // Steam matchmaking is Steam-only (no WebRTC/cross-play); idle until SEARCH → quick-match
     } else if (idleIsHost(tab)) {
-      enterRoom(lobbyCodeRef.current, 'host', sel)   // matchmaking (both): host session for the announcement
+      enterRoom(lobbyCodeRef.current, 'host', sel)   // web matchmaking (both): host session for the announcement
     } else {
-      leaveRoom()   // matchmaking+client / friend → draft until search
+      leaveRoom()   // matchmaking+client / web friend → draft until search
     }
+  }
+
+  // Steam "With friend" host: create a Private lobby (async) and host a session on its SteamNet.
+  // A token guards against the user switching tabs while the lobby is still forming.
+  const enterSteamFriendHost = async (sel: { map: MapFilter; durationMin: DurationFilter }) => {
+    leaveRoom()
+    const token = ++steamEnterToken.current
+    setSteamFriendHosting(true)
+    setSteamFriendForming(true)
+    const net = await hostFriendLobby()
+    if (token !== steamEnterToken.current) { net?.leave(); return }   // superseded (tab switch/leave)
+    setSteamFriendForming(false)
+    if (net) bindSession(net, 'host', '', sel)
+  }
+
+  // Steam "With friend" client: a friend's invite/"Join game" → join their lobby + client session.
+  // Works from any screen (the listener is global). The token guards the async join.
+  const enterSteamFriendClient = async (lobbyId: string) => {
+    leaveRoom()
+    const token = ++steamEnterToken.current
+    setLobbyTab('friend')
+    setScreen('lobby')
+    setSteamFriendHosting(false)
+    setSteamFriendForming(true)
+    const net = await joinSteamLobby(lobbyId)
+    if (token !== steamEnterToken.current) { net?.leave(); return }
+    setSteamFriendForming(false)
+    if (net) bindSession(net, 'client', '', draftSel)
   }
 
   // On entering the menu we warm the live relay cache (self-healing signaling). Internet transport only:
   // under ?net=bc (e2e/local) real WebSocket probes aren't needed and add noise to tests.
   useEffect(() => {
-    if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
+    if (screen === 'menu' && !IS_DESKTOP && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
 
   // Warm map previews on start: by the time the room opens, the images are already in the HTTP cache (see warmMapPreviews).
   useEffect(() => { warmMapPreviews() }, [])
+
+  // Steam Rich Presence: reflect the current screen (menu / lobby / match) in the friends list. No-op off-Steam.
+  useEffect(() => { applyScreenPresence(screen) }, [screen])
+
+  // Global Steam invite listener: a friend's overlay invite / "Join game" → join their lobby as a client,
+  // from any screen. Mounted once (off-Steam it's a no-op subscription).
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    let alive = true
+    let unlisten = () => {}
+    void onSteamNetEvent(e => { if (e.kind === 'joinRequested') void enterSteamFriendClient(e.lobbyId) })
+      .then(u => { if (alive) unlisten = u; else u() })
+    return () => { alive = false; unlisten() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Accidental F5/Ctrl+W in a live match must not silently kill the fight — the browser will ask for confirmation.
   // On desktop (Tauri) we don't set the guard: there beforeunload without a dialog just blocks closing the window.
@@ -434,6 +505,7 @@ export default function App() {
 
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
+  const handleAbout = () => setScreen('about')
   // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
   // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.
   const handleExit = () => {
@@ -457,11 +529,11 @@ export default function App() {
     const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
     setDraftSel(sel)
     setSearching(false)
-    setLobbyTab('matchmaking')
+    setLobbyTab(DEFAULT_LOBBY_TAB)
     setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
     setBotName('')
     lobbyCodeRef.current = randomRoomCode()   // fix the lobby code (doesn't change when switching tabs)
-    enterTabIdle('matchmaking', sel)
+    enterTabIdle(DEFAULT_LOBBY_TAB, sel)
     setScreen('lobby')
   }
 
@@ -496,6 +568,7 @@ export default function App() {
     if (tab === lobbyTab) return
     const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
     setSearching(false)
+    qmRef.current?.stop(); qmRef.current = null
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     setDraftSel(sel)
@@ -503,7 +576,23 @@ export default function App() {
     enterTabIdle(tab, sel)
   }
 
+  // Steam matchmaking: quick-match over Steam public lobbies (no WebRTC → no cross-play).
+  const startSteamQuickMatch = async () => {
+    leaveRoom()
+    setSearching(true)
+    const token = ++steamEnterToken.current
+    const qm = new SteamQuickMatch((net, role) => {
+      if (token !== steamEnterToken.current) { net.leave(); return }
+      setSearching(false)
+      bindSession(net, role, '', draftSel)
+    })
+    qmRef.current = qm
+    const ok = await qm.start()
+    if (!ok && token === steamEnterToken.current) setSearching(false)   // no Steam
+  }
+
   const onLobbySearch = () => {
+    if (IS_DESKTOP) { void startSteamQuickMatch(); return }   // desktop Matchmaking = Steam quick-match
     const pool = poolRef.current
     if (!pool) return
     setSearching(true)
@@ -523,6 +612,8 @@ export default function App() {
   }
   const onLobbyStopSearch = () => {
     setSearching(false)
+    steamEnterToken.current++   // discard any in-flight quick-match resolution
+    qmRef.current?.stop(); qmRef.current = null
     dmRef.current?.stop(); dmRef.current = null
     poolRef.current?.withdraw(); poolRef.current?.cancel()
     if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // friend: drop the rendezvous → draft
@@ -533,6 +624,10 @@ export default function App() {
   const paused = screen === 'game' && !locked && hud.matchPhase === 'live'
   const lockCooldownLeft = Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
+  // Pause sub-view: the menu, or the in-match Sound/Graphics settings panel. Reset to the menu
+  // whenever the pause overlay closes (resume / leave), so re-pausing always opens the menu first.
+  const [pauseView, setPauseView] = useState<'menu' | 'settings'>('menu')
+  useEffect(() => { if (!paused) setPauseView('menu') }, [paused])
 
   // On the "join room" screen we show the reserve color (the host may take your primary — a preview of how
   // you'll most likely look). The color transition is smooth (lerp in MenuBackdrop).
@@ -569,7 +664,11 @@ export default function App() {
   // Lobby props: normalize RoomView (or a client draft without a session) into the Lobby shape.
   const buildLobby = () => {
     const v = roomView
-    const isHost = v ? v.isHost : idleIsHost(lobbyTab)   // without a session: host only if the tab's idle state is host
+    // Without a session: Steam "With friend" uses the intended role (host created the lobby / client joined an
+    // invite) so the seat side is stable while the lobby forms; other tabs fall back to their idle host-ness.
+    const isHost = v ? v.isHost
+      : (IS_DESKTOP && lobbyTab === 'friend') ? steamFriendHosting
+      : idleIsHost(lobbyTab)
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
@@ -594,6 +693,8 @@ export default function App() {
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,
+      steamFriendForming,
+      onSteamInviteFriend: (id: string) => { void steamInviteToLobby(id) },
     }
   }
   const lobbyProps = screen === 'lobby' ? buildLobby() : null
@@ -622,27 +723,28 @@ export default function App() {
       {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
-      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
-      {screen !== 'game' && screen !== 'trailer' && resolveNetKind() === 'trystero' && <NetStatusChip />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
       {screen !== 'game' && screen !== 'trailer' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onExit={handleExit} />}
+            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onAbout={handleAbout} onExit={handleExit} />}
             {screen === 'settings' && (
-              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} section={settingsSection} onSectionChange={setSettingsSection} />
+              <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} section={settingsSection} onSectionChange={setSettingsSection} />
             )}
             {screen === 'appearance' && (
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
             )}
+            {screen === 'about' && <About onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} />}
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
       )}
 
       {screen === 'trailer' && (
-        <TrailerScreen masterVolume={profile.volumeMaster} onDone={() => setScreen('settings')} />
+        <TrailerScreen masterVolume={profile.volumeMaster} onDone={() => setScreen('about')} />
       )}
 
       {screen === 'game' && gameNet && (
@@ -654,7 +756,8 @@ export default function App() {
             defaultThirdPerson={profile.defaultView === 'tp'}
             apiRef={gameApiRef}
             sfxEngine={sfx}
-            musicVolume={profile.volumeMaster * profile.volumeMusic}
+            musicVolumeRef={musicVolumeRef}
+            postProcessing={profile.postProcessing}
             audioAnalysis={audioAnalysis}
           />
           {hud.matchPhase === 'ready' && (
@@ -703,15 +806,19 @@ export default function App() {
         </>
       )}
 
-      {paused && (
-        <PauseMenu
-          resumeDisabled={resumeDisabled}
-          cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
-          showExit={IS_DESKTOP}
-          onResume={handleResume}
-          onBack={handleBack}
-          onExit={handleExit}
-        />
+      {paused && (pauseView === 'settings'
+        ? <MatchSettings profile={profile} onChange={setProfile} onBack={() => setPauseView('menu')} />
+        : (
+          <PauseMenu
+            resumeDisabled={resumeDisabled}
+            cooldownPct={(1 - lockCooldownLeft / POINTERLOCK_COOLDOWN) * 100}
+            showExit={IS_DESKTOP}
+            onResume={handleResume}
+            onSettings={() => setPauseView('settings')}
+            onBack={handleBack}
+            onExit={handleExit}
+          />
+        )
       )}
 
       {showWarning && <EpilepsyWarning onDismiss={() => setShowWarning(false)} />}

@@ -100,6 +100,15 @@ export function loadProfile(): PlayerProfile {
   return fresh
 }
 
+// Optional sink notified after every profile save (e.g. Steam Cloud sync). Kept as a plain
+// module hook so settings.ts stays free of any platform/Steam import (DIP); unset in tests.
+let profileSaveHook: ((p: PlayerProfile) => void) | null = null
+export function setProfileSaveHook(fn: ((p: PlayerProfile) => void) | null): void {
+  profileSaveHook = fn
+}
+
 export function saveProfile(p: Partial<PlayerProfile>): void {
-  lsSet(KEY, JSON.stringify(sanitize(p)))
+  const clean = sanitize(p)
+  lsSet(KEY, JSON.stringify(clean))
+  profileSaveHook?.(clean)
 }

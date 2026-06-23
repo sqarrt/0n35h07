@@ -61,6 +61,29 @@ npm run tauri:build
 
 Requires the Rust toolchain + `cargo-tauri`.
 
+## Desktop (Steam) vs Web
+
+The desktop build **is** the Steam version: it links the Steamworks SDK and swaps WebRTC
+matchmaking for Steam's. Everything below keys off a single flag — `IS_DESKTOP`
+(`src/platform.ts`, true only inside the Tauri shell) — and degrades to a no-op on the web,
+so the two builds share one codebase.
+
+| Area | Desktop (Steam) | Web |
+|---|---|---|
+| **Matchmaking** | Steam quick-match (public lobbies) | — (room codes only) |
+| **Play with a friend** | Steam friend invite (overlay + picker), auto-join from invites | Share a `#CODE` room link |
+| **Transport** | Steam Datagram Relay (`SteamNet`, no TURN needed) | Trystero / WebRTC P2P (STUN, optional TURN) |
+| **Achievements** | 7 Steam achievements (kills, blocks, wins) | — |
+| **Cloud saves** | Profile synced via Steam Cloud (last-write-wins) | `localStorage` only |
+| **Rich presence** | Friends see In Menu / In Lobby / In Match | — |
+| **Network settings tab + status indicator** | Hidden (relay/Trystero-specific) | Shown |
+| **Menu music autoplay** | Starts immediately | Waits for the first user gesture (browser policy) |
+| **Exit button** | Closes the window | Hidden |
+| **Accidental-close guard** | — (handled by the window) | `beforeunload` prompt during a live match |
+
+Desktop and web players never match-make together — the discovery pool namespace includes the
+platform (`src/net/poolNamespace.ts`).
+
 ## Architecture (the short version)
 
 Three layers, deliberately separated:

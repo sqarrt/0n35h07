@@ -5,6 +5,68 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.10] - 2026-06-23
+
+### Added
+- **Steam achievements.** In-game events now unlock Steam achievements through the existing JS↔Rust
+  bridge: first blood (CATALYST), Double / Triple / Singularity kill streaks, a perfect block, the first
+  win and a flawless (no-death) win. Achievements fire for the local player only and are de-duplicated per
+  session. Off-Steam (browser / Tauri without Steam / unit tests) the whole path is a silent no-op.
+- **Steam Cloud saves.** The player profile (name, colors, cosmetics, audio levels, preferences) now syncs
+  across machines through Steam Cloud: on launch the desktop build reconciles the local profile with the
+  cloud copy (last-write-wins), and every settings change is uploaded. Boot is never blocked (a short read
+  timeout) and off-Steam nothing changes — local settings behave exactly as before.
+- **Steam Rich Presence.** The desktop build now reports a status to the Steam friends list — *In menu*,
+  *In lobby* or *In a match* — following the current screen. Off-Steam it's a silent no-op. (The status
+  text comes from Rich Presence localization tokens defined in the Steamworks partner portal.)
+- **Procedural music variety.** Menu and match music now vary over time: a lead can be doubled into a
+  stereo-spread copy (loudness-matched, so it reads as width, not volume), and loops occasionally get a
+  reverb wash or a lead echo. In a match the choices are seeded from the room code, so both peers hear the
+  same thing. Effects respect the music-volume slider and fade with the music; the kick stays dry.
+- **Editor: hold-to-repeat placement.** Holding the left or right mouse button in the map editor now
+  auto-repeats place/remove at the crosshair (like rapid clicking).
+- **In-match settings.** The pause menu now has a **Settings** entry with Sound and Graphics, applied
+  live without leaving the match — including the block-outline post-FX (previously fixed only at match
+  start). The shared sound/graphics controls back both this and the full Settings screen.
+
+### Changed
+- **"About" moved to the main menu.** The game/developer info (and the Watch-trailer button) is now its
+  own **About** screen opened from the main menu, instead of a tab inside Settings.
+- **Steam build hides the Trystero/relay UI.** The desktop (Steam) build plays over Steam Datagram Relay
+  rather than WebRTC, so the relay-specific bits are now hidden there: the Settings **Network** tab and the
+  on-screen connection-status indicator are gone, and relay pre-warming / the "WebRTC may not connect"
+  warning no longer run. The browser build is unchanged. (All gated on the single `IS_DESKTOP` flag.)
+
+### Internal
+- **Steam networking — transport core (foundation).** A Steam P2P transport (`SteamNet implements
+  INet`) over Steam lobbies + NetworkingMessages (SDR, no TURN), plus the Rust lobby/messaging bridge
+  (create/join/leave/invite, send, member & join-request events). No effect on the browser build,
+  which keeps WebRTC.
+- **Steam online play & lobby UX.** The desktop (Steam) build plays online over Steam, never WebRTC,
+  so Steam and browser players never meet. "Play with friend" is invite-based with a **single entry
+  point**: the empty opponent seat itself is the invite call-to-action — clicking it opens a "Choose a
+  friend" modal (search box + scrollable online-friends list); picking one sends the invite and the seat
+  switches to a "waiting" state until the friend joins (no room code, no separate panel/buttons).
+  Matchmaking is Steam quick-match (public lobbies). The **browser build drops the Matchmaking tab**
+  (Steam-only) and keeps the room-code "Play with friend" as before. Verified live (two Steam clients):
+  the friend invite → join → match flow works end to end.
+
+### Fixed
+- **Pause menu re-grabbed the pointer on any click.** Drei's PointerLockControls bound its click→lock
+  to the whole document, so any click in the pause overlay re-captured the pointer and dismissed it
+  (which broke the new in-match settings). It's now scoped to the canvas — only Resume re-locks.
+- **Doubled perimeter walls on the maps.** Each arena wall was drawn twice (a wall plus an overlapping
+  contrasting "trim" strip), causing z-fighting and a doubled shadow. The maps were cleaned up, and the
+  editor now drops such stale trim strips on import so the doubled wall can't come back on re-save.
+- **No menu music in the map editor.** The background menu music kept playing while editing a map; it is
+  now silenced in the editor.
+- **Cyrillic UI font.** The UI font (Share Tech Mono) shipped Latin glyphs only, so Cyrillic text fell back
+  to a mismatched font. The Cyrillic face is now bundled under the same family (scoped by `unicode-range`),
+  so the entire non-Latin UI renders in the intended font — Latin still comes from the existing web font.
+- **Steam "Play with friend" seat flicker.** Opening the tab briefly showed the local player in the guest
+  seat before snapping to the host seat while the lobby formed; the seat side is now stable from the first
+  frame (the intended host/client role is tracked during lobby creation).
+
 ## [0.5.9] - 2026-06-22
 
 ### Added

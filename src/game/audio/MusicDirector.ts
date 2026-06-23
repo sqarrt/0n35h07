@@ -39,6 +39,18 @@ const ROLE_SALT: Record<Role, number> = { bass: 0x1111, kicks: 0x2222, lead: 0x3
 
 const LEAD_SECTIONS: SectionType[] = ['verse', 'chorus', 'solo']   // body sections with a primary lead
 
+// --- VARIETY: occasional lead doubling + reverb/echo, deterministic from the seed (identical on both peers) ---
+const FX_SALT = 0x5151
+const DOUBLE_PROB = 0.55           // chance a lead-bearing loop thickens its primary lead with a doubled copy
+const DOUBLE_MIN_SEC = 0.035       // doubled-copy offset range — a clearly audible doubling/slap (with the
+const DOUBLE_MAX_SEC = 0.090       // stereo pan), well past subtle Haas thickening. Kept < 0.1s.
+const ECHO_SECTIONS: SectionType[] = ['chorus', 'solo', 'outro']   // sections where the lead may get echo
+const BRIDGE_REVERB = 0.34         // the sparse bridge is washed-out (atmospheric) but not harsh
+const LOOP_REVERB_PROB = 0.40      // chance another loop gets a whole-mix reverb (kicks excluded — keep the beat)
+const LOOP_REVERB = 0.22
+const LEAD_ECHO_PROB = 0.45        // chance a chorus/solo/outro lead gets a slap of echo
+const LEAD_ECHO = 0.20
+
 interface SectionPos { type: SectionType; occurrence: number; loopInSection: number; loops: number }
 
 /** Section type and position by place in the match: outro by remaining time, intro by the start, else body. */
@@ -121,6 +133,20 @@ export class MusicDirector {
     }
     const orn = ornamentLead(pos, voices.find(v => v.role === 'lead')?.stemId, seed, library)
     if (orn && !voices.some(v => v.stemId === orn.stemId)) voices.push(orn)
+    applyVariety(voices, seed, loopIndex, pos)
     return voices
   }
+}
+
+/** Seeded, deterministic per-loop variety: thicken the lead, wash the mix with reverb, slap echo on a
+ *  spotlight lead. Same seed+loop → same choices, so host and client stay in sync. Mutates `voices`. */
+function applyVariety(voices: VoiceSpec[], seed: number, loopIndex: number, pos: SectionPos): void {
+  const r = mulberry32((seed ^ FX_SALT ^ loopIndex) >>> 0)
+  const lead = voices.find(v => v.role === 'lead')
+  if (lead && LEAD_SECTIONS.includes(pos.type) && r() < DOUBLE_PROB) {
+    lead.doubleSec = DOUBLE_MIN_SEC + r() * (DOUBLE_MAX_SEC - DOUBLE_MIN_SEC)
+  }
+  const reverb = pos.type === 'bridge' ? BRIDGE_REVERB : (r() < LOOP_REVERB_PROB ? LOOP_REVERB : 0)
+  if (reverb > 0) for (const v of voices) if (v.role !== 'kicks') v.reverb = reverb   // keep the beat dry
+  if (lead && ECHO_SECTIONS.includes(pos.type) && r() < LEAD_ECHO_PROB) lead.echo = LEAD_ECHO
 }

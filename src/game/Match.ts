@@ -21,6 +21,8 @@ import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
 import type { PlayerSfxInput } from './audio/sfx/MatchSfx'
 import { streakTier, announceKind, announceSfx } from './streak'
+import type { IAchievements } from '../steam/achievements'
+import { NoopAchievements } from '../steam/achievements'
 import { bountyFrags, breakResetsCooldowns } from './overheat'
 import { createWindupFx } from './fx/windup/createWindupFx'
 import { createBeamFx } from './fx/beam/createBeamFx'
@@ -85,6 +87,7 @@ interface MatchOptions {
   seedCode?: string        // music seed source (room code); shared by both peers
   musicEngine?: IMusicEngine  // music engine (DIP); absent in unit tests → music off
   sfxEngine?: ISfxEngine      // SFX engine (DIP); absent in unit tests → silence
+  achievements?: IAchievements   // Steam achievements sink (DIP); absent → no-op (tests / off-Steam)
 }
 
 /** Match owner: owns the world, players and controllers. The single place for rules. */
@@ -137,6 +140,7 @@ export class Match {
   private resultDueAt = 0
 
   // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
+  private achievements: IAchievements   // Steam achievements sink for the local player (DIP)
   private music: MatchMusic | null = null
   private musicStarted = false
   private sfx: MatchSfx | null = null
@@ -152,6 +156,7 @@ export class Match {
     this.role = o.role
     this.localId = o.netConfig.localId
     this.durationMs = o.durationMs ?? 0
+    this.achievements = o.achievements ?? new NoopAchievements()
 
     const { human, humanController, controllers, opponentIsBot } = this.buildPlayers(o, o.netConfig)
     this.human = human
@@ -400,6 +405,7 @@ export class Match {
             const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
             if (perfect) victim.resetCooldowns()
             this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
+            if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
             if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
             else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
           } else {
@@ -619,6 +625,11 @@ export class Match {
     this.syncPhaseHud()
     // Freeze players for END_FREEZE_MS (phase='ended' freezes in tickPhase), then show the outcome screen.
     this.pendingResult = this.computeResult(reason)
+    // Steam achievements: win / flawless win (local player). endMatch runs exactly once per peer.
+    if (this.pendingResult.outcome === 'win') {
+      const myDeaths = this.byId.get(this.localId)?.deaths ?? 0
+      this.achievements.onMatchEnd(true, myDeaths === 0)
+    }
     this.resultDueAt = Date.now() + END_FREEZE_MS
     this.music?.fadeOut()   // fade the music out before the outcome screen
     this.sfx?.reset()       // kill the shield loop and reset transitions
@@ -695,6 +706,9 @@ export class Match {
   }
 
   private announceStreak(shooterId: number, victimId: number, streak: number, firstBlood: boolean) {
+    // Steam achievements for the LOCAL player only. Called by both host (resolveCombat) and client
+    // (applyEvent) on every kill → exactly one path per peer, no double-counting.
+    if (shooterId === this.localId) this.achievements.onKill(streak, firstBlood)
     this.dispatch({ type: 'SET_STREAK', id: shooterId, tier: streakTier(streak), count: streak })
     this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null, count: 0 })
     const kind = announceKind(streak, firstBlood)
@@ -790,6 +804,7 @@ export class Match {
       }
       case 'block': {
         if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // mirror the cooldown reset from the host
+        if (e.perfect && e.victim === this.localId) this.achievements.onPerfectBlock()
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
         else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
         this.sfx?.combat(e, this.sfxPos)
