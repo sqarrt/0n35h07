@@ -1,5 +1,6 @@
 import type { IMusicEngine, StemLibrary, Arrangement, StemRef } from './types'
 import { STEM_LIBRARY } from './stems'
+import { mulberry32 } from './rng'
 
 // Menu stems (ids of the form role/name from the full STEM_LIBRARY).
 const KICK_ID = 'kicks/sub_long'
@@ -16,6 +17,17 @@ const BASS_OFF_PROB = 0.25   // per-loop chance to send the bass into a rest (it
 const BASS_OFF_LOOPS = 1     // how many loops the bass rests (one)
 const BASS_PLAY_LOOPS = 1    // mandatory bass play after a rest (rests don't merge)
 const MENU_FADE_IN_SEC = 2.0 // smooth fade-in of the menu music on start (not "full volume at once")
+const MENU_FADE_OUT_SEC = 0.6 // quick fade on leaving the menu (entering a match) — gone within ~1s, no echo tail
+// Variety (occasional thickening + reverb/echo on the color layers / mix). Driven by a SEPARATE rng so the
+// existing bass/color step logic (and its tests) keep their exact random stream.
+const MENU_FX_SEED = 0x4d65
+const MENU_DOUBLE_PROB = 0.50  // chance a color layer is thickened with a (stereo-spread) doubled copy
+const MENU_DOUBLE_MIN = 0.035  // clearly audible doubling/slap offset (kept < 0.1s)
+const MENU_DOUBLE_MAX = 0.090
+const MENU_REVERB_PROB = 0.40  // chance the loop gets a reverb wash (kicks stay dry)
+const MENU_REVERB = 0.20
+const MENU_ECHO_PROB = 0.40    // chance a color layer gets a touch of echo
+const MENU_ECHO = 0.20
 
 /** Minimal library: only the needed menu stems (by id from the full STEM_LIBRARY). */
 function menuLibrary(): StemLibrary {
@@ -38,6 +50,7 @@ export class MenuMusic {
   private readonly engine: IMusicEngine
   private readonly lib: StemLibrary
   private readonly rng: () => number
+  private readonly fxRng = mulberry32(MENU_FX_SEED)   // variety stream, independent of the bass/color rng
   private started = false
   private colorOn: number[]    // per color layer: loops remaining in the on-window
   private colorRest: number[]  // per color layer: loops remaining in the mandatory rest after the window
@@ -69,7 +82,7 @@ export class MenuMusic {
   stop(): void {
     if (!this.started) return
     this.started = false
-    this.engine.fadeOut()
+    this.engine.fadeOut({ tailEcho: false, sec: MENU_FADE_OUT_SEC })   // quick, no ring-out — gone within ~1s
     this.colorOn = COLOR_IDS.map(() => 0)
     this.colorRest = COLOR_IDS.map(() => 0)
     this.bassRest = 0
@@ -91,7 +104,17 @@ export class MenuMusic {
     COLOR_IDS.forEach((id, i) => {
       if (this.stepColor(i)) voices.push({ role: 'lead', stemId: id, gain: COLOR_GAIN })
     })
+    this.applyVariety(voices)
     return voices
+  }
+
+  /** Occasional thickening + reverb/echo for variety (uses fxRng so the step logic's stream is untouched). */
+  private applyVariety(voices: Arrangement): void {
+    const r = this.fxRng
+    const color = voices.find(v => v.role === 'lead')
+    if (color && r() < MENU_DOUBLE_PROB) color.doubleSec = MENU_DOUBLE_MIN + r() * (MENU_DOUBLE_MAX - MENU_DOUBLE_MIN)
+    if (r() < MENU_REVERB_PROB) for (const v of voices) if (v.role !== 'kicks') v.reverb = MENU_REVERB   // keep the kick dry
+    if (color && r() < MENU_ECHO_PROB) color.echo = MENU_ECHO
   }
 
   /** Color layer per loop: on-window ≤ COLOR_ON_LOOPS, then a mandatory rest (never runs more than two). */

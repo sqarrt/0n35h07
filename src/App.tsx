@@ -239,7 +239,8 @@ export default function App() {
   // (autoplay policy); on desktop (Tauri) autoplay is allowed → we start immediately, without a gesture.
   const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
-    if (screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }   // the trailer runs its own music
+    // No menu music in the map editor or the match (trailer runs its own).
+    if (editorMode || screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }
     const onGesture = () => {
       gesturedRef.current = true
@@ -250,7 +251,7 @@ export default function App() {
     window.addEventListener('pointerdown', onGesture)
     window.addEventListener('keydown', onGesture)
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
-  }, [screen, menuMusic])
+  }, [screen, menuMusic, editorMode])
 
   const [lobbyTab, setLobbyTab] = useState<LobbyTab>(DEFAULT_LOBBY_TAB)
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)

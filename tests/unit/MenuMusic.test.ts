@@ -91,4 +91,16 @@ describe('MenuMusic.arrange', () => {
   it('deterministic for a given seed', () => {
     expect(arrangements(42, 20)).toEqual(arrangements(42, 20))
   })
+
+  it('adds variety (doubling/reverb/echo) over time, within sane ranges', () => {
+    const flat = arrangements(123, 300).flat()
+    expect(flat.some(v => v.doubleSec !== undefined)).toBe(true)
+    expect(flat.some(v => v.reverb !== undefined)).toBe(true)
+    expect(flat.some(v => v.echo !== undefined)).toBe(true)
+    for (const v of flat) {
+      if (v.doubleSec !== undefined) { expect(v.role).toBe('lead'); expect(v.doubleSec).toBeGreaterThan(0); expect(v.doubleSec).toBeLessThan(0.1) }
+      if (v.reverb !== undefined) { expect(v.reverb).toBeGreaterThan(0); expect(v.reverb).toBeLessThanOrEqual(1) }
+      if (v.echo !== undefined) { expect(v.role).toBe('lead'); expect(v.echo).toBeGreaterThan(0); expect(v.echo).toBeLessThanOrEqual(1) }
+    }
+  })
 })

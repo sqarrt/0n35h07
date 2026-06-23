@@ -116,3 +116,33 @@ describe('MusicDirector.compose — song form', () => {
     }
   })
 })
+
+describe('MusicDirector.compose — variety (doubling + reverb/echo)', () => {
+  const loops = Array.from({ length: 400 }, (_, i) => d.compose(42, i, LIB, FAR))
+  const flat = loops.flat()
+
+  it('is deterministic, including the variety fields', () => {
+    expect(d.compose(42, 23, LIB, FAR)).toEqual(d.compose(42, 23, LIB, FAR))
+  })
+
+  it('occasionally doubles a lead, with a slight (sub-100ms) offset', () => {
+    const doubled = flat.filter(v => v.doubleSec !== undefined)
+    expect(doubled.length).toBeGreaterThan(0)
+    for (const v of doubled) {
+      expect(v.role).toBe('lead')
+      expect(v.doubleSec!).toBeGreaterThan(0)
+      expect(v.doubleSec!).toBeLessThan(0.1)
+    }
+  })
+
+  it('applies reverb sometimes (always on the sparse bridge), and echo on some leads', () => {
+    expect(flat.some(v => v.reverb !== undefined)).toBe(true)
+    expect(flat.some(v => v.echo !== undefined)).toBe(true)
+    // bridge (abs 20..21) is atmospheric → every voice carries reverb
+    for (const v of d.compose(42, 20, LIB, FAR)) expect(v.reverb).toBeGreaterThan(0)
+    for (const v of flat) {
+      if (v.reverb !== undefined) { expect(v.reverb).toBeGreaterThan(0); expect(v.reverb).toBeLessThanOrEqual(1) }
+      if (v.echo !== undefined) { expect(v.role).toBe('lead'); expect(v.echo).toBeGreaterThan(0); expect(v.echo).toBeLessThanOrEqual(1) }
+    }
+  })
+})

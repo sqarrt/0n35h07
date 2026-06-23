@@ -65,62 +65,6 @@
       "color": "#555",
       "blocksBeam": false,
       "perimeter": true
-    },
-    {
-      "pos": [
-        0.25,
-        1.5,
-        -19.75
-      ],
-      "size": [
-        20.25,
-        1.5,
-        0.25
-      ],
-      "color": "#5a6678",
-      "blocksBeam": false
-    },
-    {
-      "pos": [
-        0,
-        1.5,
-        20.25
-      ],
-      "size": [
-        20,
-        1.5,
-        0.25
-      ],
-      "color": "#5a6678",
-      "blocksBeam": false
-    },
-    {
-      "pos": [
-        -19.75,
-        1.5,
-        0.25
-      ],
-      "size": [
-        0.25,
-        1.5,
-        19.75
-      ],
-      "color": "#5a6678",
-      "blocksBeam": false
-    },
-    {
-      "pos": [
-        20.25,
-        1.5,
-        0.25
-      ],
-      "size": [
-        0.25,
-        1.5,
-        19.75
-      ],
-      "color": "#5a6678",
-      "blocksBeam": false
     }
   ],
   "spawns": [
