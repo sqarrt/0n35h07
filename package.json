@@ -34,6 +34,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build && vite build --config vite.trailer.config.ts",
     "build:desktop": "tsc -b && vite build --mode tauri",
+    "build:steam": "node scripts/build-steam.mjs",
     "build:trailer": "vite build --config vite.trailer.config.ts",
     "lint": "eslint .",
     "preview": "vite preview",
