@@ -6,12 +6,13 @@ interface PauseMenuProps {
   cooldownPct: number     // 0..100 — cooldown fill width (left-to-right)
   showExit: boolean       // EXIT button on desktop only
   onResume: () => void
+  onSettings: () => void
   onBack: () => void
   onExit: () => void
 }
 
-/** Pause menu (Esc): resume / to menu / exit. Lives under I18nProvider — hence useT. */
-export function PauseMenu({ resumeDisabled, cooldownPct, showExit, onResume, onBack, onExit }: PauseMenuProps) {
+/** Pause menu (Esc): resume / settings / to menu / exit. Lives under I18nProvider — hence useT. */
+export function PauseMenu({ resumeDisabled, cooldownPct, showExit, onResume, onSettings, onBack, onExit }: PauseMenuProps) {
   const t = useT()
   return (
     <div className="screen" style={{ background: 'rgba(10,10,15,0.85)' }}>
@@ -39,6 +40,7 @@ export function PauseMenu({ resumeDisabled, cooldownPct, showExit, onResume, onB
         )}
         <span style={{ position: 'relative' }}>{t.pauseResume}</span>
       </button>
+      <Button variant="ghost" onClick={onSettings} data-testid="pause-settings">{t.settingsTitle}</Button>
       <Button variant="ghost" onClick={onBack} data-testid="pause-to-menu">{t.pauseToMenu}</Button>
       {showExit && <Button variant="ghost" onClick={onExit} data-testid="pause-exit">{t.pauseExit}</Button>}
     </div>

@@ -7,7 +7,7 @@ describe('screenStatusToken', () => {
     expect(screenStatusToken('game')).toBe('#Status_InMatch')
   })
   it('menu and all other non-match screens → InMenu', () => {
-    for (const s of ['menu', 'settings', 'appearance', 'trailer'] as const) {
+    for (const s of ['menu', 'settings', 'appearance', 'about', 'trailer'] as const) {
       expect(screenStatusToken(s)).toBe('#Status_InMenu')
     }
   })

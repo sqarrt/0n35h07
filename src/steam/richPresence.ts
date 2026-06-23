@@ -1,7 +1,7 @@
 import { setRichPresence } from './steam'
 
 // The app's top-level screens (mirrors App's Screen union; kept local to stay decoupled).
-export type AppScreen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'trailer'
+export type AppScreen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer'
 
 // Steam Rich Presence `steam_display` takes a localization TOKEN (defined in the partner
 // portal's Rich Presence localization, e.g. "#Status_InMatch" → "In a match"). Until those
@@ -16,7 +16,7 @@ export function screenStatusToken(screen: AppScreen): string {
   switch (screen) {
     case 'lobby': return TOKEN_LOBBY
     case 'game':  return TOKEN_MATCH
-    default:      return TOKEN_MENU   // menu / settings / appearance / trailer
+    default:      return TOKEN_MENU   // menu / settings / appearance / about / trailer
   }
 }
 
