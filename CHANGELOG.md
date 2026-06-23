@@ -31,8 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   friend" modal (search box + scrollable online-friends list); picking one sends the invite and the seat
   switches to a "waiting" state until the friend joins (no room code, no separate panel/buttons).
   Matchmaking is Steam quick-match (public lobbies). The **browser build drops the Matchmaking tab**
-  (Steam-only) and keeps the room-code "Play with friend" as before. Verified live (two Steam clients)
-  for the transport; the lobby UI wiring is in place pending end-to-end live testing.
+  (Steam-only) and keeps the room-code "Play with friend" as before. Verified live (two Steam clients):
+  the friend invite → join → match flow works end to end.
+
+### Fixed
+- **Cyrillic UI font.** The UI font (Share Tech Mono) shipped Latin glyphs only, so Cyrillic text fell back
+  to a mismatched font. The Cyrillic face is now bundled under the same family (scoped by `unicode-range`),
+  so the entire non-Latin UI renders in the intended font — Latin still comes from the existing web font.
+- **Steam "Play with friend" seat flicker.** Opening the tab briefly showed the local player in the guest
+  seat before snapping to the host seat while the lobby formed; the seat side is now stable from the first
+  frame (the intended host/client role is tracked during lobby creation).
 
 ## [0.5.9] - 2026-06-22
 

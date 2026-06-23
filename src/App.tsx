@@ -257,6 +257,9 @@ export default function App() {
   const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
   const [steamFriendForming, setSteamFriendForming] = useState(false)   // Steam "With friend": lobby being created
+  // Steam "With friend" intended role while the lobby is still forming (no RoomView yet) — host (created the
+  // lobby) vs client (joined an invite). Keeps the seat side stable so "me" doesn't flip guest→host mid-forming.
+  const [steamFriendHosting, setSteamFriendHosting] = useState(true)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
   const poolRef = useRef<MatchmakingPool | null>(null)
   const dmRef = useRef<DualMatchmaker | null>(null)
@@ -366,6 +369,7 @@ export default function App() {
   const enterSteamFriendHost = async (sel: { map: MapFilter; durationMin: DurationFilter }) => {
     leaveRoom()
     const token = ++steamEnterToken.current
+    setSteamFriendHosting(true)
     setSteamFriendForming(true)
     const net = await hostFriendLobby()
     if (token !== steamEnterToken.current) { net?.leave(); return }   // superseded (tab switch/leave)
@@ -380,6 +384,7 @@ export default function App() {
     const token = ++steamEnterToken.current
     setLobbyTab('friend')
     setScreen('lobby')
+    setSteamFriendHosting(false)
     setSteamFriendForming(true)
     const net = await joinSteamLobby(lobbyId)
     if (token !== steamEnterToken.current) { net?.leave(); return }
@@ -644,7 +649,11 @@ export default function App() {
   // Lobby props: normalize RoomView (or a client draft without a session) into the Lobby shape.
   const buildLobby = () => {
     const v = roomView
-    const isHost = v ? v.isHost : idleIsHost(lobbyTab)   // without a session: host only if the tab's idle state is host
+    // Without a session: Steam "With friend" uses the intended role (host created the lobby / client joined an
+    // invite) so the seat side is stable while the lobby forms; other tabs fall back to their idle host-ness.
+    const isHost = v ? v.isHost
+      : (IS_DESKTOP && lobbyTab === 'friend') ? steamFriendHosting
+      : idleIsHost(lobbyTab)
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
     if (v) {
