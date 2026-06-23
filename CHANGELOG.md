@@ -26,11 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (create/join/leave/invite, send, member & join-request events). No effect on the browser build,
   which keeps WebRTC.
 - **Steam online play & lobby UX.** The desktop (Steam) build plays online over Steam, never WebRTC,
-  so Steam and browser players never meet. "Play with friend" is invite-based — a Steam overlay
-  invite or an in-game online-friends list (no room code). Matchmaking is Steam quick-match (public
-  lobbies). The **browser build drops the Matchmaking tab** (Steam-only) and keeps the room-code
-  "Play with friend" as before. Verified live (two Steam clients) for the transport; the lobby UI
-  wiring is in place pending end-to-end live testing.
+  so Steam and browser players never meet. "Play with friend" is invite-based with a **single entry
+  point**: the empty opponent seat itself is the invite call-to-action — clicking it opens a "Choose a
+  friend" modal (search box + scrollable online-friends list); picking one sends the invite and the seat
+  switches to a "waiting" state until the friend joins (no room code, no separate panel/buttons).
+  Matchmaking is Steam quick-match (public lobbies). The **browser build drops the Matchmaking tab**
+  (Steam-only) and keeps the room-code "Play with friend" as before. Verified live (two Steam clients)
+  for the transport; the lobby UI wiring is in place pending end-to-end live testing.
 
 ## [0.5.9] - 2026-06-22
 

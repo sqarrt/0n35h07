@@ -38,7 +38,7 @@ import { loadProfile, saveProfile } from './settings'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamNetInvite, steamInviteToLobby, onSteamNetEvent } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -670,7 +670,6 @@ export default function App() {
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,
       steamFriendForming,
-      onSteamInviteOverlay: () => { void steamNetInvite() },
       onSteamInviteFriend: (id: string) => { void steamInviteToLobby(id) },
     }
   }
