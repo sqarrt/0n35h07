@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
+import { IS_DESKTOP } from '../platform'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
 import type { LobbySlot, OppSlot, LobbyTab } from '../components/lobby/types'
@@ -10,6 +11,7 @@ import { TimePicker } from '../components/lobby/TimePicker'
 import { LobbyAction } from '../components/lobby/LobbyAction'
 import { RoomCodeField } from '../components/lobby/RoomCodeField'
 import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
+import { SteamInvitePanel } from '../components/lobby/SteamInvitePanel'
 
 export type { LobbySlot } from '../components/lobby/types'   // re-export for App (builds me/opponent)
 
@@ -33,6 +35,10 @@ interface LobbyProps {
   onStopSearch: () => void
   onReady: () => void
   onBack: () => void
+  // Steam "With friend" (desktop): the lobby is still forming + the two invite actions.
+  steamFriendForming?: boolean
+  onSteamInviteOverlay?: () => void
+  onSteamInviteFriend?: (id: string) => void
 }
 
 /** Lobby screen with Matchmaking/With a friend/With a bot sub-tabs. Map/time/slots are shared; the mode block + action change. */
@@ -51,7 +57,9 @@ export function Lobby(props: LobbyProps) {
   //    can change params live (RoomSession sends an updated Assign to the client). A bot doesn't lock.
   const humanOpp = opponent != null && !opponent.isBot
   const optsLocked = searching || (humanOpp && !isHost) || (humanOpp && isHost && tab !== 'friend')
-  // SEARCH: on "With a friend" available only with a code entered; on matchmaking — always.
+  // On the Steam (desktop) build "With a friend" is invite-based (no room code) — a different panel + action.
+  const steamFriend = IS_DESKTOP && tab === 'friend'
+  // SEARCH: on web "With a friend" available only with a code entered; on matchmaking — always.
   const canSearch = tab === 'friend' ? !!roomCode.trim() : true
   const doSearch = tab === 'friend' ? startFriend : props.onSearch
 
@@ -74,8 +82,11 @@ export function Lobby(props: LobbyProps) {
               botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined} />
           </div>
 
-          {tab === 'friend' && (
-            <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
+          {tab === 'friend' && (steamFriend
+            ? <SteamInvitePanel
+                forming={!!props.steamFriendForming} disabled={opponent != null}
+                onInviteOverlay={() => props.onSteamInviteOverlay?.()} onInviteFriend={id => props.onSteamInviteFriend?.(id)} />
+            : <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
           )}
           {tab === 'bot' && (
             <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
@@ -83,7 +94,7 @@ export function Lobby(props: LobbyProps) {
         </div>
 
         <LobbyAction
-          tab={tab} opponent={opponent} searching={searching} canSearch={canSearch}
+          tab={tab} opponent={opponent} searching={searching} canSearch={canSearch} steamFriend={steamFriend}
           onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={doSearch}
         />
 

@@ -497,6 +497,24 @@
 .lobby-code-row { display: flex; align-items: stretch; gap: 8px; }
 .lobby-copy-btn { display: flex; align-items: center; justify-content: center; aspect-ratio: 1; background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 0; cursor: pointer; font-size: 1rem; line-height: 1; font-family: var(--ui-font); }
 .lobby-copy-btn:hover { border-color: var(--ghost-line-hover); color: var(--text); }
+/* Steam "Play with friend" invite panel. Fixed heights everywhere → no layout shift as the state
+   swaps (preparing / friends / empty) or the friend count changes; rows ellipsise long names. */
+.lobby-steam { display: flex; flex-direction: column; align-items: stretch; margin-bottom: 14px; transition: opacity 0.15s; }
+.lobby-steam--off { opacity: 0.45; pointer-events: none; }
+.lobby-steam-overlay { width: 100%; height: 40px; background: rgba(68,170,255,0.1); border: 1px solid var(--accent); color: var(--accent); font-family: var(--ui-font); font-size: 13px; letter-spacing: 0.12em; cursor: pointer; text-transform: uppercase; }
+.lobby-steam-overlay:hover:not(:disabled) { background: rgba(68,170,255,0.18); }
+.lobby-steam-overlay:disabled { opacity: 0.4; cursor: default; }
+.lobby-steam-or { display: flex; align-items: center; text-align: center; color: #556; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; margin: 12px 0; }
+.lobby-steam-or::before, .lobby-steam-or::after { content: ''; flex: 1; height: 1px; background: var(--surface-line); }
+.lobby-steam-or span { padding: 0 12px; }
+.lobby-steam-friends { height: 176px; overflow-y: auto; border: 1px solid var(--surface-line); display: flex; flex-direction: column; }
+.lobby-steam-note { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
+.lobby-friend { display: flex; align-items: center; gap: 10px; height: 40px; flex: 0 0 40px; padding: 0 12px; border-bottom: 1px solid var(--surface-line); }
+.lobby-friend:last-child { border-bottom: none; }
+.lobby-friend-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: #23b582; box-shadow: 0 0 6px -1px #23b582; }
+.lobby-friend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 13px; }
+.lobby-friend-invite { flex: 0 0 auto; background: transparent; border: 1px solid var(--line); color: var(--muted); font-family: var(--ui-font); font-size: 11px; letter-spacing: 0.08em; padding: 4px 12px; cursor: pointer; text-transform: uppercase; }
+.lobby-friend-invite:hover { border-color: var(--accent); color: var(--accent); }
 .lobby-seats { display: flex; align-items: stretch; justify-content: flex-start; gap: 16px; width: 100%; margin-bottom: 18px; }
 .lobby-seat { flex: 0 0 44%; min-width: 0; box-sizing: border-box; border: 2px dashed var(--pc, var(--surface-line)); border-radius: 7px; padding: 16px 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #0a0f17; min-height: 108px; }
 .lobby-seat--ready { border-style: solid; box-shadow: 0 0 0 1px var(--pc), 0 0 20px -4px var(--pc); }

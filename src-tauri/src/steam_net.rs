@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use steamworks::networking_types::{NetworkingIdentity, SendFlags};
 use steamworks::{
-  ChatMemberStateChange, Client, GameLobbyJoinRequested, LobbyChatUpdate, LobbyId, LobbyType,
-  SingleClient, SteamId,
+  ChatMemberStateChange, Client, FriendFlags, FriendState, GameLobbyJoinRequested, LobbyChatUpdate,
+  LobbyId, LobbyType, SingleClient, SteamId,
 };
 use tauri::{AppHandle, Emitter, State};
 
@@ -64,6 +64,8 @@ enum NetEvent {
     #[serde(rename = "lobbyId")]
     lobby_id: String,
   },
+  #[serde(rename = "mmResult")]
+  MmResult { lobbies: Vec<String> },
 }
 
 fn emit(app: &AppHandle, ev: NetEvent) {
@@ -196,15 +198,14 @@ pub fn steam_net_self(state: State<'_, SteamState>) -> Option<String> {
   Some(client.user().steam_id().raw().to_string())
 }
 
-// Create a Private 1v1 lobby; on success store it, make it joinable, advertise via Rich
-// Presence and emit `lobbyEntered`.
-#[tauri::command]
-pub fn steam_net_create_lobby(app: AppHandle, state: State<'_, SteamState>, net: State<'_, SteamNetState>) {
+// Create a 1v1 lobby of the given visibility; on success store it, make it joinable, advertise via
+// Rich Presence and emit `lobbyEntered`. Private = friend invites; Public = matchmaking (listed).
+fn spawn_create_lobby(app: AppHandle, state: &SteamState, net: &SteamNetState, ty: LobbyType) {
   let guard = state.0.lock().unwrap();
   let Some(client) = guard.as_ref() else { return };
   let client = client.clone();
   let lobby_arc = net.lobby.clone();
-  client.clone().matchmaking().create_lobby(LobbyType::Private, LOBBY_MAX_MEMBERS, move |res| {
+  client.clone().matchmaking().create_lobby(ty, LOBBY_MAX_MEMBERS, move |res| {
     let Ok(lobby) = res else { return };
     *lobby_arc.lock().unwrap() = Some(lobby);
     client.matchmaking().set_lobby_joinable(lobby, true);
@@ -215,6 +216,30 @@ pub fn steam_net_create_lobby(app: AppHandle, state: State<'_, SteamState>, net:
       self_id,
       members: members_of(&client, lobby),
     });
+  });
+}
+
+// Create a Private 1v1 lobby (friend invites).
+#[tauri::command]
+pub fn steam_net_create_lobby(app: AppHandle, state: State<'_, SteamState>, net: State<'_, SteamNetState>) {
+  spawn_create_lobby(app, &state, &net, LobbyType::Private);
+}
+
+// Create a Public 1v1 lobby (matchmaking — shows up in request_lobby_list for other searchers).
+#[tauri::command]
+pub fn steam_mm_host(app: AppHandle, state: State<'_, SteamState>, net: State<'_, SteamNetState>) {
+  spawn_create_lobby(app, &state, &net, LobbyType::Public);
+}
+
+// Search public matchmaking lobbies (the list is app-scoped → every entry is an 0N35H07 quick-match
+// lobby; friend lobbies are Private and never listed). Emits `mmResult` with the lobby ids.
+#[tauri::command]
+pub fn steam_mm_search(app: AppHandle, state: State<'_, SteamState>) {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return };
+  client.matchmaking().request_lobby_list(move |res| {
+    let lobbies = res.map(|v| v.into_iter().map(|l| l.raw().to_string()).collect()).unwrap_or_default();
+    emit(&app, NetEvent::MmResult { lobbies });
   });
 }
 
@@ -281,5 +306,44 @@ pub fn steam_net_invite(state: State<'_, SteamState>, net: State<'_, SteamNetSta
   let Some(client) = guard.as_ref() else { return };
   if let Some(lobby) = *net.lobby.lock().unwrap() {
     client.friends().activate_invite_dialog(lobby);
+  }
+}
+
+#[derive(serde::Serialize)]
+pub struct SteamFriendDto {
+  pub id: String, // SteamID64 as a string
+  pub name: String,
+  pub online: bool,
+}
+
+// Immediate friends, for the in-game friend picker. Online first, then by name.
+#[tauri::command]
+pub fn steam_friends_list(state: State<'_, SteamState>) -> Vec<SteamFriendDto> {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return Vec::new() };
+  let mut list: Vec<SteamFriendDto> = client
+    .friends()
+    .get_friends(FriendFlags::IMMEDIATE)
+    .into_iter()
+    .map(|f| SteamFriendDto {
+      id: f.id().raw().to_string(),
+      name: f.name(),
+      online: !matches!(f.state(), FriendState::Offline),
+    })
+    .collect();
+  list.sort_by(|a, b| b.online.cmp(&a.online).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+  list
+}
+
+// Invite a specific friend to the current lobby (Steam sends them an invite → on accept they get a
+// GameLobbyJoinRequested → join). No-op without a current lobby. InviteUserToLobby isn't exposed by
+// the crate, so go through sys (a lobby only exists when Steam is up, so the call is safe).
+#[tauri::command]
+pub fn steam_invite_to_lobby(net: State<'_, SteamNetState>, friend_id: String) -> bool {
+  let Ok(invitee) = friend_id.parse::<u64>() else { return false };
+  let Some(lobby) = *net.lobby.lock().unwrap() else { return false };
+  unsafe {
+    let mm = steamworks_sys::SteamAPI_SteamMatchmaking_v009();
+    steamworks_sys::SteamAPI_ISteamMatchmaking_InviteUserToLobby(mm, lobby.raw(), invitee)
   }
 }
