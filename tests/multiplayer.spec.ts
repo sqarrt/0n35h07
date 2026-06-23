@@ -67,25 +67,9 @@ async function startMatch(context: import('@playwright/test').BrowserContext) {
   return { host, client }
 }
 
-test('1v1: both in BOTH mode find each other and start', async ({ context }) => {
-  const host = await context.newPage()
-  const client = await context.newPage()
-  for (const p of [host, client]) {
-    await p.goto('/')
-    await p.getByTestId('menu-play').click()
-    await p.getByTestId('lobby-search').click()   // default BOTH: advertise(dual)+search
-  }
-  // The tie-breaker brings them into one connection → READY appears for both.
-  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  // Lobby params resolved by the human in the slot → map/time locked for both (client doesn't edit others' settings).
-  await expect(client.locator('.lobby-opts--locked')).toBeVisible()
-  await expect(host.locator('.lobby-opts--locked')).toBeVisible()
-  await host.getByTestId('lobby-ready').click()
-  await client.getByTestId('lobby-ready').click()
-  await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-  await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-})
+// NB: web matchmaking (the BOTH-mode BroadcastChannel tie-breaker) was removed from the web UI in 0.5.10 —
+// matchmaking is Steam-only now (no cross-play). The old "both in BOTH mode find each other" e2e tested that
+// removed web path and was dropped. The "With a friend" (room-code) flow below still covers web rendezvous.
 
 test('1v1 (With a friend): host can change settings, client cannot', async ({ context }) => {
   const host = await context.newPage()
