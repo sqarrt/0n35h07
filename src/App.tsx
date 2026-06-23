@@ -200,13 +200,13 @@ export default function App() {
   // It overlaps the menu-canvas warmup, but that's safe: all heavy work (Trystero) is deferred until canvas
   // is ready (handleMenuReady), and the WebGL context init itself is light and passes behind the warning cleanly.
   // Under ?net=bc (e2e/local 2 tabs) we don't show the warning — otherwise the overlay would intercept clicks in tests.
-  const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
+  const [showWarning, setShowWarning] = useState(() => !IS_DESKTOP && resolveNetKind() === 'trystero')
   const [menuReady, setMenuReady] = useState(false)
   const handleMenuReady = useCallback(() => setMenuReady(true), [])
   // Canvas warmed up → now it's safe to catch Trystero's synchronous init freeze (~860ms): it'll pass BEHIND
   // the warning, before the player dismisses it → the first "Create room" opens instantly.
   useEffect(() => {
-    if (!menuReady || resolveNetKind() !== 'trystero') return
+    if (!menuReady || IS_DESKTOP || resolveNetKind() !== 'trystero') return
     const timer = setTimeout(warmTrystero, TRYSTERO_WARM_DELAY_MS)
     return () => clearTimeout(timer)
   }, [menuReady])
@@ -395,7 +395,7 @@ export default function App() {
   // On entering the menu we warm the live relay cache (self-healing signaling). Internet transport only:
   // under ?net=bc (e2e/local) real WebSocket probes aren't needed and add noise to tests.
   useEffect(() => {
-    if (screen === 'menu' && resolveNetKind() === 'trystero') void warmRelayCache()
+    if (screen === 'menu' && !IS_DESKTOP && resolveNetKind() === 'trystero') void warmRelayCache()
   }, [screen])
 
   // Warm map previews on start: by the time the room opens, the images are already in the HTTP cache (see warmMapPreviews).
@@ -709,7 +709,7 @@ export default function App() {
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
       {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
-      {screen !== 'game' && screen !== 'trailer' && resolveNetKind() === 'trystero' && <NetStatusChip />}
+      {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
       {screen !== 'game' && screen !== 'trailer' && (

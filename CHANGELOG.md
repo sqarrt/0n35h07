@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   *In lobby* or *In a match* — following the current screen. Off-Steam it's a silent no-op. (The status
   text comes from Rich Presence localization tokens defined in the Steamworks partner portal.)
 
+### Changed
+- **Steam build hides the Trystero/relay UI.** The desktop (Steam) build plays over Steam Datagram Relay
+  rather than WebRTC, so the relay-specific bits are now hidden there: the Settings **Network** tab and the
+  on-screen connection-status indicator are gone, and relay pre-warming / the "WebRTC may not connect"
+  warning no longer run. The browser build is unchanged. (All gated on the single `IS_DESKTOP` flag.)
+
 ### Internal
 - **Steam networking — transport core (foundation).** A Steam P2P transport (`SteamNet implements
   INet`) over Steam lobbies + NetworkingMessages (SDR, no TURN), plus the Rust lobby/messaging bridge
