@@ -380,14 +380,12 @@ export class Player implements IControllable {
 
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
+  // NOTE: the local player on a client is reconciled by Match.ClientReconciler (prediction error vs ackSeq),
+  // not by a per-frame pull — so there is no setAuthoritative/reconcileLocal here anymore.
   get bodyScale() { return this.body.mesh.scale.x }   // debug: current sphere scale
   get bodyIsVisible() { return this.bodyVisible }     // FP=false (body hidden) / TP/opponent=true
   get isRespawning() { return this.respawning }
   respawnProgress() { return Math.max(0, this.respawnTimer / RESPAWN_GHOST_MS) }   // 1→0 phase remainder
-
-  /** Own player (client): remember the authoritative position from the snapshot for reconciliation. */
-  setAuthoritative(pos: THREE.Vector3) { this.body.applyNetTarget(pos) }
-  reconcileLocal(next: { x: number; y: number; z: number }) { this.body.reconcileTowardNet(next) }
 
   /** Cosmetic remote shot (client, FIRED event). */
   cosmeticFire(end: THREE.Vector3, hitPoint: THREE.Vector3 | null) {

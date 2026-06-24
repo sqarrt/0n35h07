@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.5.11] - unreleased
 
 ### Fixed
+- **Severe input lag when playing as the network client** (sticky/viscous walking, character kept
+  sliding by inertia after releasing a movement key). The client predicts its own player locally, but
+  every frame it was *unconditionally* lerped 15% toward the host's last snapshot — a position a full
+  round-trip stale — which injected the network latency straight into the locally-predicted position
+  (the camera follows it, so you felt it directly). The host felt fine because it's authoritative.
+  This reconciliation existed to fight drift from hard player–player capsule collisions, but those were
+  long since replaced by a knockback impulse (KCC ignores player capsules), so the per-frame pull no
+  longer fixed anything — it only added lag. Replaced with proper prediction reconciliation: the client
+  keeps a `seq → predicted position` history and, on each snapshot, compares the host's authoritative
+  position **at the acked input seq** against what it predicted for that same seq. Within a deadzone the
+  prediction is trusted (zero correction, zero added latency); only a genuine divergence snaps. Surfaced
+  now because e2e runs over `BroadcastChannel` (~0 RTT, where the old pull was harmless) while real Steam
+  play has real RTT.
 - **The packaged desktop/Steam build couldn't start without the Vite dev server** (showed
   `localhost refused to connect` / `ERR_CONNECTION_REFUSED`). The local depot build
   (`scripts/build-steam.mjs`) ran a plain `cargo build --release`, which — unlike `tauri build` —

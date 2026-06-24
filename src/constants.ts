@@ -142,7 +142,8 @@ export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
 export const NET_REMOTE_LERP = 0.35   // smoothing of the remote player's position toward the latest snapshot
-export const NET_RECONCILE_LERP = 0.15 // correction of your own player toward the authority (anti-drift on collisions)
+export const NET_RECONCILE_SNAP_DIST = 0.5 // client prediction error (units) above which we snap the local player to the host authority; below it the prediction is trusted (no latency injected)
+export const NET_PREDICTION_BUFFER = 64    // how many recent (seq → predicted position) samples the client keeps for reconciliation (≥ RTT worth of frames)
 export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).

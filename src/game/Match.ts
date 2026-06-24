@@ -14,6 +14,7 @@ import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
+import { ClientReconciler } from '../net/clientReconcile'
 import { MAPS } from './maps'
 import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
@@ -139,6 +140,11 @@ export class Match {
   private pendingResult: MatchResult | null = null   // deferred outcome screen (after END_FREEZE_MS)
   private resultDueAt = 0
 
+  // Client prediction reconciliation (null on host): compares our prediction at ackSeq against the host authority.
+  private reconciler: ClientReconciler | null = null
+  private predicted = new THREE.Vector3()        // local player's committed predicted position this frame (→ recorded per input seq)
+  private pendingCorrection = new THREE.Vector3() // authority correction to fold into next KCC step (0 when prediction is trusted)
+
   // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
   private achievements: IAchievements   // Steam achievements sink for the local player (DIP)
   private music: MatchMusic | null = null
@@ -155,6 +161,7 @@ export class Match {
     this.world = new World(o.scene)
     this.role = o.role
     this.localId = o.netConfig.localId
+    this.reconciler = o.role === 'client' ? new ClientReconciler() : null
     this.durationMs = o.durationMs ?? 0
     this.achievements = o.achievements ?? new NoopAchievements()
 
@@ -358,7 +365,13 @@ export class Match {
       }
       const cur = rb.translation()
       const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
-      if (this.role === 'client') p.reconcileLocal(next)   // own player: pull toward the authority (anti-drift)
+      if (this.role === 'client') {
+        // Fold in any authority correction (0 unless our prediction diverged past the deadzone), then
+        // remember the committed position so localInputFrame can tag it with this frame's input seq.
+        next.x += this.pendingCorrection.x; next.y += this.pendingCorrection.y; next.z += this.pendingCorrection.z
+        this.pendingCorrection.set(0, 0, 0)
+        this.predicted.set(next.x, next.y, next.z)
+      }
       rb.setNextKinematicTranslation(next)
       p.setGrounded(grounded)
     }
@@ -753,16 +766,24 @@ export class Match {
     this.remoteControllers.get(playerId)?.enqueue(frame)
   }
 
-  /** client: input frame of our own player to send to the host. */
-  localInputFrame(seq: number): InputFrame { return this.humanController.currentInputFrame(seq) }
+  /** client: input frame of our own player to send to the host. The position this frame predicted is
+   *  recorded under the same seq, so a later snapshot (ackSeq) can be checked against our own prediction. */
+  localInputFrame(seq: number): InputFrame {
+    const frame = this.humanController.currentInputFrame(seq)
+    this.reconciler?.record(seq, this.predicted)
+    return frame
+  }
 
-  /** client: snapshot → remotes get position/visual; our own gets the authority for soft reconciliation. */
+  /** client: snapshot → remotes interpolate to the target; our own player reconciles by prediction error (ackSeq). */
   applySnapshot(snap: Snapshot) {
     for (const ps of snap.players) {
       const p = this.byId.get(ps.id)
       if (!p) continue
-      if (ps.id === this.localId) p.setAuthoritative(fromVec3(ps.pos))   // prediction + correction toward the authority
-      else {
+      if (ps.id === this.localId) {
+        // Our own player: trust local prediction; snap toward the authority only when it diverged past the deadzone.
+        const corr = this.reconciler?.reconcile(snap.ackSeq, { x: ps.pos[0], y: ps.pos[1], z: ps.pos[2] })
+        if (corr) this.pendingCorrection.set(corr.x, corr.y, corr.z)
+      } else {
         p.applyNetState(ps)
         // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
         this.sfx?.frame([{
@@ -812,6 +833,7 @@ export class Match {
       }
       case 'respawn': {
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
+        if (e.id === this.localId) { this.reconciler?.reset(); this.pendingCorrection.set(0, 0, 0) }   // teleport invalidates predictions
         this.sfx?.combat(e, this.sfxPos)
         break
       }
