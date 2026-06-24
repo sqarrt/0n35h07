@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.5.11] - unreleased
 
 ### Fixed
+- **Pointer lock didn't fully engage after pressing "Ready" (the view wouldn't turn until a second click).**
+  The lock badge appeared, but mouse movement didn't rotate the camera until you clicked again. `PointerLockControls`
+  was mounted inside `<Suspense>`/`<Physics>`, which stays suspended while the Rapier WASM loads — but the READY
+  screen (a HUD overlay, independent of the canvas) is already clickable, so the "Ready" click grabbed pointer lock
+  before the controls existed. drei never saw that `pointerlockchange`, so its internal `isLocked` stayed false and
+  `onMouseMove` early-returned; a later canvas click re-locked through the now-mounted controls and "fixed" it.
+  `PointerLockControls` is now mounted eagerly (outside Suspense/Physics — it only needs the camera, not physics),
+  so the lock is observed immediately.
 - **Severe input lag when playing as the network client** (sticky/viscous walking, character kept
   sliding by inertia after releasing a movement key). The client predicts its own player locally, but
   every frame it was *unconditionally* lerped 15% toward the host's last snapshot — a position a full
