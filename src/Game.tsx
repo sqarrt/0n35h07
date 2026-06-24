@@ -46,14 +46,13 @@ interface GameProps {
   // Music volume via a STABLE ref (not a value prop): live changes (the in-match volume slider) are pushed
   // imperatively through GameApi.setMusicVolume, so dragging the slider never re-renders the Canvas.
   musicVolumeRef: React.MutableRefObject<number>
-  postProcessing: boolean   // outline post-FX (live: toggled in the in-match settings)
   audioAnalysis: AudioAnalysis   // we register the match music level here (for visualization)
 }
 
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, postProcessing, audioAnalysis }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -190,7 +189,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
             including the pause menu / in-match settings — would re-grab pointer lock and dismiss the overlay.
             Scoped to the canvas (covered by the pause overlay), only Resume (handleResume) re-locks. */}
         <PointerLockControls ref={controlsRef} selector="canvas" />
-        <Arena map={MAPS[mapId]} postProcessing={postProcessing} />
+        <Arena map={MAPS[mapId]} />
         <RapierBridge match={match} />
 
         {/* RigidBody = physics only (capsule); player visuals are in match.root (world-space). */}

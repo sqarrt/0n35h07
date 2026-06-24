@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useSyncExternalStore } from 'react'
 import { CuboidCollider, RigidBody, MeshCollider } from '@react-three/rapier'
 import { MAPS, getCachedMapGeo } from './game/maps'
 import type { GameMap } from './game/maps'
@@ -8,13 +8,13 @@ import { blockGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from './game/
 import { compileBlocksCached, buildGeometry } from './game/mapGeometryCache'
 import { MapLights } from './components/MapVisualBits'
 import { MapEdges, BLOCK_LAYER } from './components/EdgeOutline'
-import { loadProfile } from './settings'
+import { getPostFx, subscribePostFx } from './postFxStore'
 
 const BOUND_H = 32      // half-height of invisible perimeter walls (can't jump out of the arena; generous margin)
 const BOUND_T = 0.5     // half-thickness of invisible walls
 
 /** Arena from map data: shared floor/light/grid (by map size) + map blocks (batched: 2 meshes + trimesh). */
-export function Arena({ map = MAPS[DEFAULT_MAP_ID], postProcessing }: { map?: GameMap; postProcessing?: boolean }) {
+export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
   const [hx, hz] = map.half
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
@@ -45,10 +45,9 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID], postProcessing }: { map?: Ga
     Object.values(geos).forEach(g => g?.dispose())
   }, [geos])
 
-  // Live: driven by the prop (toggled in the in-match settings). Fallback to the saved profile for any
-  // caller that doesn't pass it (keeps the outline reading correct without a prop).
-  const savedPostFx = useMemo(() => loadProfile().postProcessing, [])
-  const postFx = postProcessing ?? savedPostFx
+  // Live outline toggle via an external store (NOT a prop): re-renders only Arena on toggle, so the Canvas/
+  // Game don't re-render (which would re-apply the player RigidBody's spawn position and reset the camera).
+  const postFx = useSyncExternalStore(subscribePostFx, getPostFx)
 
   return (
     <>

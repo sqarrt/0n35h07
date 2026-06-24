@@ -51,6 +51,7 @@ import { AudioAnalysis } from './game/audio/AudioAnalysis'
 import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_DESKTOP } from './platform'
+import { setPostFx } from './postFxStore'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { randomRoomCode } from './net/roomCode'
@@ -120,7 +121,6 @@ interface GameCanvasProps {
   apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
   musicVolumeRef: React.MutableRefObject<number>   // stable ref: live volume is pushed via GameApi, no Canvas re-render
-  postProcessing: boolean
   audioAnalysis: AudioAnalysis
 }
 
@@ -131,7 +131,7 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, postProcessing, audioAnalysis }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
@@ -150,7 +150,6 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         seedCode={gameNet.code}
         sfxEngine={sfxEngine}
         musicVolumeRef={musicVolumeRef}
-        postProcessing={postProcessing}
         audioAnalysis={audioAnalysis}
       />
     </Canvas>
@@ -280,6 +279,9 @@ export default function App() {
   const musicVolumeRef = useRef(profile.volumeMaster * profile.volumeMusic)
   musicVolumeRef.current = profile.volumeMaster * profile.volumeMusic
   useEffect(() => { gameApiRef.current?.setMusicVolume(musicVolumeRef.current) }, [profile.volumeMaster, profile.volumeMusic])
+  // Outline post-FX → external store (Arena subscribes). Toggling it must NOT re-render the Canvas/Game
+  // (that would re-apply the player RigidBody's spawn position and reset the camera).
+  useEffect(() => { setPostFx(profile.postProcessing) }, [profile.postProcessing])
 
   // Whether the tab's idle state is host (without an active search/connection):
   // bot — always host; matchmaking — host if the profile doesn't force the 'client' role; friend — draft until search.
@@ -757,7 +759,6 @@ export default function App() {
             apiRef={gameApiRef}
             sfxEngine={sfx}
             musicVolumeRef={musicVolumeRef}
-            postProcessing={profile.postProcessing}
             audioAnalysis={audioAnalysis}
           />
           {hud.matchPhase === 'ready' && (
