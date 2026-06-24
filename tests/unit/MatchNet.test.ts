@@ -40,7 +40,7 @@ describe('Match — network mode', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })
   })
 
-  it('client applySnapshot: both remote and local get a target (local — for reconciliation)', () => {
+  it('client applySnapshot: the remote gets an interpolation target; the local player does NOT (it is reconciled by prediction error, not a per-frame pull)', () => {
     const { match } = makeMatch('client', 1)
     const snap: Snapshot = {
       ackSeq: 0,
@@ -50,9 +50,8 @@ describe('Match — network mode', () => {
       ],
     }
     match.applySnapshot(snap)
-    // Remote interpolates to the target; local keeps authority for soft correction (KCC + reconcileLocal).
-    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)
-    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(true)
+    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)    // remote: interpolated from snapshots
+    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)   // local: predicted + error-gated correction
   })
 
   it('host with a bot opponent: the bot in the roster ends up in the snapshot', () => {

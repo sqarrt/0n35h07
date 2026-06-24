@@ -130,22 +130,6 @@ describe('Body', () => {
     expect(b.dashing).toBe(false)
   })
 
-  it('reconcileTowardNet pulls the position toward the authority by a fraction of NET_RECONCILE_LERP', () => {
-    const b = new Body(0, '#4af')
-    b.applyNetTarget(new THREE.Vector3(10, 0, 0))
-    const next = { x: 0, y: 0, z: 0 }
-    b.reconcileTowardNet(next)
-    expect(next.x).toBeGreaterThan(0)     // moved toward the target
-    expect(next.x).toBeLessThan(10)       // but not all the way (softly)
-  })
-
-  it('reconcileTowardNet without authority — no-op', () => {
-    const b = new Body(0, '#4af')
-    const next = { x: 1, y: 2, z: 3 }
-    b.reconcileTowardNet(next)
-    expect(next).toEqual({ x: 1, y: 2, z: 3 })
-  })
-
   it('dashProgress: 1 at rest, <1 during cooldown', () => {
     const b = new Body(0, '#4af')
     expect(b.dashProgress()).toBe(1)

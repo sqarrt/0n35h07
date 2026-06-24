@@ -3,7 +3,7 @@ import type { RapierRigidBody } from '@react-three/rapier'
 import type { MeshUserData } from '../utils/raycast'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP, NET_RECONCILE_LERP,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP,
   BALL_RADIUS, BALL_SEGMENTS,
   MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
@@ -272,14 +272,6 @@ export class Body {
       y: THREE.MathUtils.lerp(cur.y, t.y, NET_REMOTE_LERP),
       z: THREE.MathUtils.lerp(cur.z, t.z, NET_REMOTE_LERP),
     }
-  }
-
-  /** Own player (client): gently pull the KCC result toward the authority — anti-drift on collisions. */
-  reconcileTowardNet(next: XYZ) {
-    if (!this.netTarget) return
-    next.x += (this.netTarget.x - next.x) * NET_RECONCILE_LERP
-    next.y += (this.netTarget.y - next.y) * NET_RECONCILE_LERP
-    next.z += (this.netTarget.z - next.z) * NET_RECONCILE_LERP
   }
 
   /** Cache the position from the physics body (result of the previous step). */
