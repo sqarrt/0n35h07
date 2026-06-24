@@ -1,11 +1,10 @@
-name: Release (desktop)
+name: Release (notes)
 
-# Builds the Tauri desktop app (Windows .msi + NSIS .exe) on a version tag, creates a PUBLISHED
-# GitHub Release (the annotated tag's message becomes the notes) and attaches the bundles.
-# Fully automatic on the tag — no manual step. Replaces the old GitLab Tauri job.
+# On a version tag: publish a GitHub Release whose notes are the annotated tag's message. No build —
+# the desktop app is built locally for Steam (npm run build:steam), and the web version ships via
+# deploy-pages. This used to also build the Tauri .msi/.exe; that desktop build was dropped.
 #
-# Trigger: push an annotated tag like `0.5.9` (`git tag -a 0.5.9 -m "..."` — the message is the
-# release notes). Code-signing is optional (add TAURI_SIGNING_* secrets to enable).
+# Trigger: push an annotated tag like `0.5.11` (`git tag -a 0.5.11 -F notes` — the message is the notes).
 
 on:
   push:
@@ -17,9 +16,9 @@ permissions:
   contents: write
 
 jobs:
-  desktop:
-    runs-on: windows-latest
-    timeout-minutes: 90
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,34 +34,11 @@ jobs:
             echo '__TAG_EOF__'
           } >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - name: Publish GitHub Release (notes only)
+        uses: softprops/action-gh-release@v2
         with:
-          node-version: 22
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - run: npm ci
-
-      # tauri.conf.json holds a literal version; set it to the tag so the .msi/.exe version always
-      # matches the release without a manual bump (build-time patch only, not committed).
-      - name: Sync installer version to the tag
-        shell: bash
-        run: |
-          node -e "const f='src-tauri/tauri.conf.json',fs=require('fs');const c=JSON.parse(fs.readFileSync(f));c.version='${{ github.ref_name }}';fs.writeFileSync(f,JSON.stringify(c,null,2)+'\n')"
-
-      # tauri-action runs the frontend build via beforeBuildCommand (`npm run build:desktop`),
-      # then `tauri build`, and uploads the bundles to the GitHub Release for this tag.
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "0N35H07 ${{ github.ref_name }}"
-          releaseBody: ${{ steps.notes.outputs.body }}   # the annotated tag's message
-          releaseDraft: false   # publish immediately — fully automatic on the tag, no manual step
+          tag_name: ${{ github.ref_name }}
+          name: "0N35H07 ${{ github.ref_name }}"
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
           prerelease: false
