@@ -203,7 +203,9 @@ export default function App() {
   // It overlaps the menu-canvas warmup, but that's safe: all heavy work (Trystero) is deferred until canvas
   // is ready (handleMenuReady), and the WebGL context init itself is light and passes behind the warning cleanly.
   // Under ?net=bc (e2e/local 2 tabs) we don't show the warning — otherwise the overlay would intercept clicks in tests.
-  const [showWarning, setShowWarning] = useState(() => !IS_DESKTOP && resolveNetKind() === 'trystero')
+  // Epilepsy/photosensitivity warning — shown on ALL builds (desktop + web). Gated only by net kind so
+  // ?net=bc (e2e/local 2-tabs) skips it (the overlay would intercept test clicks).
+  const [showWarning, setShowWarning] = useState(() => resolveNetKind() === 'trystero')
   const [menuReady, setMenuReady] = useState(false)
   const handleMenuReady = useCallback(() => setMenuReady(true), [])
   // Canvas warmed up → now it's safe to catch Trystero's synchronous init freeze (~860ms): it'll pass BEHIND
