@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   left the `tauri` crate in dev mode (`dev = !custom-protocol`), so the exe loaded `devUrl`
   (`http://localhost:5173`) instead of the embedded frontend. The build now enables the
   `custom-protocol` feature (declared in `src-tauri/Cargo.toml`), producing a self-contained exe.
+- **Epilepsy warning missing on the desktop/Steam build.** The photosensitivity warning was accidentally
+  gated to the web build (it got bundled with the "hide WebRTC UI on Steam" change). It now shows on all
+  builds again — desktop, Steam and web (still skipped only under `?net=bc` e2e).
 - **Toggling the in-match outline post-FX teleported the player.** The setting was threaded as a prop
   through the Canvas, so toggling it re-rendered the game subtree and re-applied the player RigidBody's
   spawn position (and reset the camera). It's now driven by a small external store that re-renders only
