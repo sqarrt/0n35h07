@@ -34,8 +34,11 @@ if (process.platform !== 'win32') {
 console.log('▶ Building frontend (tauri mode)…')
 run('npm run build:desktop')
 
-console.log('▶ Building the desktop binary (release)…')
-run('cargo build --release', resolve(ROOT, 'src-tauri'))
+// --features custom-protocol is MANDATORY: it is what `tauri build` enables under the hood. Without it
+// the `tauri` crate compiles in dev mode and the exe loads devUrl (http://localhost:5173) instead of the
+// embedded frontend — so the packaged game can't start without the Vite dev server. See src-tauri/Cargo.toml.
+console.log('▶ Building the desktop binary (release, custom-protocol)…')
+run('cargo build --release --features custom-protocol', resolve(ROOT, 'src-tauri'))
 
 const bin = resolve(RELEASE, PLATFORM.bin)
 const lib = resolve(RELEASE, PLATFORM.lib)
