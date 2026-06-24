@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.11] - unreleased
+
+### Fixed
+- **Toggling the in-match outline post-FX teleported the player.** The setting was threaded as a prop
+  through the Canvas, so toggling it re-rendered the game subtree and re-applied the player RigidBody's
+  spawn position (and reset the camera). It's now driven by a small external store that re-renders only
+  the arena outline — no Canvas/Game re-render, no teleport.
+
 ## [0.5.10] - 2026-06-23
 
 ### Added
