@@ -183,31 +183,38 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   })
 
   return (
-    <Suspense>
-      <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
-        {/* selector="canvas": drei otherwise binds click→lock to the whole `document`, so ANY click —
-            including the pause menu / in-match settings — would re-grab pointer lock and dismiss the overlay.
-            Scoped to the canvas (covered by the pause overlay), only Resume (handleResume) re-locks. */}
-        <PointerLockControls ref={controlsRef} selector="canvas" />
-        <Arena map={MAPS[mapId]} />
-        <RapierBridge match={match} />
+    <>
+      {/* OUTSIDE <Suspense>/<Physics>: PointerLockControls needs only the camera, not Rapier. While the WASM
+          loads, the canvas subtree is suspended — but the READY screen (HUD in App) is already up and "Ready"
+          can be clicked, which grabs pointer lock. If the controls weren't mounted yet, drei misses that
+          pointerlockchange and its isLocked stays false → the mouse won't turn the view until a later canvas
+          click re-locks through the now-mounted controls. Mounting it eagerly fixes the "needs a second click".
+          selector="canvas": drei otherwise binds click→lock to the whole `document`, so ANY click — including
+          the pause menu / in-match settings — would re-grab pointer lock and dismiss the overlay. Scoped to the
+          canvas (covered by the pause overlay), only Resume (handleResume) re-locks. */}
+      <PointerLockControls ref={controlsRef} selector="canvas" />
+      <Suspense>
+        <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
+          <Arena map={MAPS[mapId]} />
+          <RapierBridge match={match} />
 
-        {/* RigidBody = physics only (capsule); player visuals are in match.root (world-space). */}
-        {match.players.map(p => (
-          <RigidBody
-            key={p.id}
-            type="kinematicPosition"
-            colliders={false}
-            position={[p.spawn.x, p.spawn.y, p.spawn.z]}
-            ref={p.bindBody}
-          >
-            <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} position={[0, CAPSULE_OFFSET_Y, 0]} />
-          </RigidBody>
-        ))}
+          {/* RigidBody = physics only (capsule); player visuals are in match.root (world-space). */}
+          {match.players.map(p => (
+            <RigidBody
+              key={p.id}
+              type="kinematicPosition"
+              colliders={false}
+              position={[p.spawn.x, p.spawn.y, p.spawn.z]}
+              ref={p.bindBody}
+            >
+              <CapsuleCollider args={[CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS]} position={[0, CAPSULE_OFFSET_Y, 0]} />
+            </RigidBody>
+          ))}
 
-        <primitive object={match.root} />
-      </Physics>
-    </Suspense>
+          <primitive object={match.root} />
+        </Physics>
+      </Suspense>
+    </>
   )
 }
 
