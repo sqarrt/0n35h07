@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.5.11] - unreleased
 
 ### Fixed
+- **The packaged desktop/Steam build couldn't start without the Vite dev server** (showed
+  `localhost refused to connect` / `ERR_CONNECTION_REFUSED`). The local depot build
+  (`scripts/build-steam.mjs`) ran a plain `cargo build --release`, which — unlike `tauri build` —
+  left the `tauri` crate in dev mode (`dev = !custom-protocol`), so the exe loaded `devUrl`
+  (`http://localhost:5173`) instead of the embedded frontend. The build now enables the
+  `custom-protocol` feature (declared in `src-tauri/Cargo.toml`), producing a self-contained exe.
 - **Toggling the in-match outline post-FX teleported the player.** The setting was threaded as a prop
   through the Canvas, so toggling it re-rendered the game subtree and re-applied the player RigidBody's
   spawn position (and reset the camera). It's now driven by a small external store that re-renders only
