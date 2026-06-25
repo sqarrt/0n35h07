@@ -104,6 +104,7 @@ export const de = {
   settingsVolMusic: 'SPIELMUSIK',
   settingsVolMenuMusic: 'MENÜMUSIK',
   settingsVolSfx: 'EFFEKTE',
+  settingsVolRadio: 'RADIO',
   settingsConnTimeout: 'RAUM-VERBINDUNGS-TIMEOUT',
   settingsSeconds: (s: number) => `${s} S`,
   settingsPostproc: 'POST-PROCESSING',
@@ -196,4 +197,13 @@ export const de = {
   netChipTitle: 'Signaling-Relays',
   netChipFallback: 'NETZ · RESERVE',
   netChipOk: (n: number) => `NETZ · ${n}`,
+  // Radio player
+  radioGeneration: 'Generierung',
+  radioFavorites: 'Favoriten',
+  radioPlay: 'Wiedergabe',
+  radioPause: 'Pause',
+  radioPrev: 'Vorheriger Titel',
+  radioNext: 'Nächster Titel',
+  radioLike: 'Gefällt mir',
+  radioDislike: 'Gefällt mir nicht',
 } satisfies Dict

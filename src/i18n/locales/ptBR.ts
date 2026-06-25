@@ -104,6 +104,7 @@ export const ptBR = {
   settingsVolMusic: 'MÚSICA NO JOGO',
   settingsVolMenuMusic: 'MÚSICA DO MENU',
   settingsVolSfx: 'EFEITOS',
+  settingsVolRadio: 'RÁDIO',
   settingsConnTimeout: 'TEMPO LIMITE DE CONEXÃO',
   settingsSeconds: (s: number) => `${s} S`,
   settingsPostproc: 'PÓS-PROCESSAMENTO',
@@ -196,4 +197,13 @@ export const ptBR = {
   netChipTitle: 'Relés de sinalização',
   netChipFallback: 'REDE · RESERVA',
   netChipOk: (n: number) => `REDE · ${n}`,
+  // Radio player
+  radioGeneration: 'Geração',
+  radioFavorites: 'Favoritos',
+  radioPlay: 'Reproduzir',
+  radioPause: 'Pausar',
+  radioPrev: 'Faixa anterior',
+  radioNext: 'Próxima faixa',
+  radioLike: 'Curtir',
+  radioDislike: 'Não curtir',
 } satisfies Dict

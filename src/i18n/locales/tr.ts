@@ -104,6 +104,7 @@ export const tr = {
   settingsVolMusic: 'OYUN MÜZİĞİ',
   settingsVolMenuMusic: 'MENÜ MÜZİĞİ',
   settingsVolSfx: 'EFEKTLER',
+  settingsVolRadio: 'RADYO',
   settingsConnTimeout: 'ODA BAĞLANTI ZAMAN AŞIMI',
   settingsSeconds: (s: number) => `${s} SN`,
   settingsPostproc: 'SON İŞLEME',
@@ -196,4 +197,13 @@ export const tr = {
   netChipTitle: 'Sinyal röleleri',
   netChipFallback: 'AĞ · YEDEK',
   netChipOk: (n: number) => `AĞ · ${n}`,
+  // Radio player
+  radioGeneration: 'Üretim',
+  radioFavorites: 'Favoriler',
+  radioPlay: 'Oynat',
+  radioPause: 'Duraklat',
+  radioPrev: 'Önceki parça',
+  radioNext: 'Sonraki parça',
+  radioLike: 'Beğen',
+  radioDislike: 'Beğenme',
 } satisfies Dict

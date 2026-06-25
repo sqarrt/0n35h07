@@ -104,6 +104,7 @@ export const en = {
   settingsVolMusic: 'IN-GAME MUSIC',
   settingsVolMenuMusic: 'MENU MUSIC',
   settingsVolSfx: 'EFFECTS',
+  settingsVolRadio: 'Radio',
   settingsConnTimeout: 'ROOM CONNECTION TIMEOUT',
   settingsSeconds: (s: number) => `${s} S`,
   settingsPostproc: 'POST-PROCESSING',
@@ -198,4 +199,13 @@ export const en = {
   netChipTitle: 'Signaling relays',
   netChipFallback: 'NET · BACKUP',
   netChipOk: (n: number) => `NET · ${n}`,
+  // Radio player
+  radioGeneration: 'Generation',
+  radioFavorites: 'Favorites',
+  radioPlay: 'Play',
+  radioPause: 'Pause',
+  radioPrev: 'Previous track',
+  radioNext: 'Next track',
+  radioLike: 'Like',
+  radioDislike: 'Dislike',
 }

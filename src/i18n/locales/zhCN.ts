@@ -105,6 +105,7 @@ export const zhCN = {
   settingsVolMusic: '游戏音乐',
   settingsVolMenuMusic: '菜单音乐',
   settingsVolSfx: '音效',
+  settingsVolRadio: '电台',
   settingsConnTimeout: '房间连接超时',
   settingsSeconds: (s: number) => `${s} 秒`,
   settingsPostproc: '后期处理',
@@ -197,4 +198,13 @@ export const zhCN = {
   netChipTitle: '信令中继',
   netChipFallback: '网络 · 备用',
   netChipOk: (n: number) => `网络 · ${n}`,
+  // Radio player
+  radioGeneration: '生成',
+  radioFavorites: '收藏',
+  radioPlay: '播放',
+  radioPause: '暂停',
+  radioPrev: '上一曲',
+  radioNext: '下一曲',
+  radioLike: '喜欢',
+  radioDislike: '不喜欢',
 } satisfies Dict
