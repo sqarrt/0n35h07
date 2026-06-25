@@ -1,0 +1,20 @@
+{
+  "909_hard": {
+    "kick":  ["bd*4", "bd(3,8)", "bd(4,8,1)"],
+    "snare": ["~ sd ~ sd", "~ sd ~ [sd sd]"],
+    "hh":    ["hh*8", "hh*16", "[hh hh] hh hh hh"],
+    "fills": ["[bd sd bd sd] bd*4", "bd [sd sd sd] bd*2"]
+  },
+  "808_punch": {
+    "kick":  ["bd*2 ~ bd ~", "bd ~ bd bd", "bd(3,8,2)"],
+    "snare": ["~ sd ~ sd", "~ ~ sd ~"],
+    "hh":    ["hh*8", "hh ~ hh ~ hh ~ hh hh", "hh*4"],
+    "fills": ["sd*4 bd*2", "[bd bd] sd [sd sd] bd"]
+  },
+  "industrial_clank": {
+    "kick":  ["bd*4", "bd ~ bd ~", "bd(5,8)"],
+    "snare": ["~ sd ~ sd", "sd*2 ~ sd"],
+    "hh":    ["hh*16", "[hh hh hh] hh hh hh", "hh*8"],
+    "fills": ["bd*8", "[sd sd] [bd bd] sd bd"]
+  }
+}

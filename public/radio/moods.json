@@ -1,0 +1,66 @@
+{
+  "dark_techno": {
+    "bpmRange": [128, 138], "swing": 0.0, "density": 0.7,
+    "preferredScales": ["phrygian", "aeolian", "locrian"], "preferredKeys": ["E", "A", "D"],
+    "fx": { "lpfRange": [600, 3200], "roomRange": [0.1, 0.3], "saturation": 0.6, "sidechainDepth": 0.85 },
+    "drumKits": ["909_hard", "808_punch"], "instruments": ["acid_bass", "dark_pad", "industrial_lead"],
+    "layerProbabilities": { "lead": 0.5, "atmosphere": 0.7, "perc": 0.6 },
+    "arrangementWeights": { "A": 0.5, "A_prime": 0.2, "break": 0.15, "B": 0.15 }, "graphMode": 0.6
+  },
+  "acid": {
+    "bpmRange": [130, 142], "swing": 0.0, "density": 0.85,
+    "preferredScales": ["phrygian", "harmonic_minor"], "preferredKeys": ["A", "E", "C"],
+    "fx": { "lpfRange": [400, 3600], "roomRange": [0.1, 0.25], "saturation": 0.75, "sidechainDepth": 0.8 },
+    "drumKits": ["909_hard"], "instruments": ["acid_bass", "acid_lead"],
+    "layerProbabilities": { "lead": 0.8, "atmosphere": 0.4, "perc": 0.7 },
+    "arrangementWeights": { "A": 0.45, "A_prime": 0.25, "break": 0.1, "B": 0.2 }, "graphMode": 0.7
+  },
+  "acid_dark": {
+    "bpmRange": [132, 140], "swing": 0.0, "density": 0.8,
+    "preferredScales": ["hungarian_minor", "harmonic_minor", "phrygian"], "preferredKeys": ["E", "A", "B"],
+    "fx": { "lpfRange": [450, 3400], "roomRange": [0.1, 0.3], "saturation": 0.8, "sidechainDepth": 0.85 },
+    "drumKits": ["909_hard", "industrial_clank"], "instruments": ["acid_bass", "acid_lead"],
+    "layerProbabilities": { "lead": 0.7, "atmosphere": 0.5, "perc": 0.7 },
+    "arrangementWeights": { "A": 0.45, "A_prime": 0.25, "break": 0.15, "B": 0.15 }, "graphMode": 0.65
+  },
+  "industrial": {
+    "bpmRange": [124, 134], "swing": 0.0, "density": 0.6,
+    "preferredScales": ["locrian", "phrygian", "hungarian_minor"], "preferredKeys": ["E", "D", "G"],
+    "fx": { "lpfRange": [500, 3000], "roomRange": [0.2, 0.45], "saturation": 0.9, "sidechainDepth": 0.65 },
+    "drumKits": ["industrial_clank", "909_hard"], "instruments": ["sub_bass", "dark_pad", "industrial_lead"],
+    "layerProbabilities": { "lead": 0.4, "atmosphere": 0.6, "perc": 0.8 },
+    "arrangementWeights": { "A": 0.4, "A_prime": 0.2, "break": 0.2, "B": 0.2 }, "graphMode": 0.5
+  },
+  "hard_techno": {
+    "bpmRange": [140, 150], "swing": 0.0, "density": 0.9,
+    "preferredScales": ["phrygian", "locrian", "harmonic_minor"], "preferredKeys": ["E", "F", "A"],
+    "fx": { "lpfRange": [600, 3800], "roomRange": [0.1, 0.25], "saturation": 0.85, "sidechainDepth": 0.9 },
+    "drumKits": ["909_hard", "industrial_clank"], "instruments": ["acid_bass", "industrial_lead"],
+    "layerProbabilities": { "lead": 0.6, "atmosphere": 0.4, "perc": 0.85 },
+    "arrangementWeights": { "A": 0.5, "A_prime": 0.2, "break": 0.1, "B": 0.2 }, "graphMode": 0.6
+  },
+  "dark_hypnotic": {
+    "bpmRange": [130, 138], "swing": 0.0, "density": 0.65,
+    "preferredScales": ["aeolian", "phrygian", "harmonic_minor"], "preferredKeys": ["A", "D", "E", "C"],
+    "fx": { "lpfRange": [500, 2800], "roomRange": [0.2, 0.45], "saturation": 0.55, "sidechainDepth": 0.85 },
+    "drumKits": ["909_hard", "808_punch"], "instruments": ["acid_bass", "acid_lead"],
+    "layerProbabilities": { "lead": 0.7, "atmosphere": 0.75, "perc": 0.6 },
+    "arrangementWeights": { "A": 0.4, "A_prime": 0.25, "break": 0.2, "B": 0.15 }, "graphMode": 0.5
+  },
+  "dub_techno": {
+    "bpmRange": [118, 126], "swing": 0.0, "density": 0.45,
+    "preferredScales": ["aeolian", "phrygian"], "preferredKeys": ["D", "A", "F", "C"],
+    "fx": { "lpfRange": [350, 2400], "roomRange": [0.4, 0.7], "saturation": 0.4, "sidechainDepth": 0.7 },
+    "drumKits": ["808_punch", "909_hard"], "instruments": ["sub_bass", "dark_pad"],
+    "layerProbabilities": { "lead": 0.4, "atmosphere": 0.9, "perc": 0.5 },
+    "arrangementWeights": { "A": 0.45, "A_prime": 0.25, "break": 0.2, "B": 0.1 }, "graphMode": 0.45
+  },
+  "dark_ambient": {
+    "bpmRange": [116, 124], "swing": 0.0, "density": 0.4,
+    "preferredScales": ["aeolian", "phrygian", "locrian"], "preferredKeys": ["D", "A", "E"],
+    "fx": { "lpfRange": [300, 2200], "roomRange": [0.45, 0.75], "saturation": 0.4, "sidechainDepth": 0.55 },
+    "drumKits": ["808_punch"], "instruments": ["sub_bass", "dark_pad"],
+    "layerProbabilities": { "lead": 0.3, "atmosphere": 0.9, "perc": 0.4 },
+    "arrangementWeights": { "A": 0.45, "A_prime": 0.25, "break": 0.2, "B": 0.1 }, "graphMode": 0.4
+  }
+}

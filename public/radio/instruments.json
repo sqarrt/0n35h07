@@ -1,0 +1,7 @@
+{
+  "acid_bass":       { "strudelSound": "sawtooth", "gainRange": [0.6, 0.9], "octaveRange": [1, 2], "lpfDefault": 800, "resonance": 0.7 },
+  "sub_bass":        { "strudelSound": "sine",     "gainRange": [0.7, 1.0], "octaveRange": [1, 2], "lpfDefault": 400 },
+  "dark_pad":        { "strudelSound": "sawtooth", "gainRange": [0.3, 0.6], "octaveRange": [3, 4], "lpfDefault": 1200 },
+  "industrial_lead": { "strudelSound": "square",   "gainRange": [0.3, 0.6], "octaveRange": [4, 5], "lpfDefault": 2000 },
+  "acid_lead":       { "strudelSound": "supersaw", "gainRange": [0.3, 0.6], "octaveRange": [4, 5], "lpfDefault": 1800, "resonance": 0.6 }
+}
