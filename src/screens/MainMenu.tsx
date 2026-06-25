@@ -7,13 +7,14 @@ interface MainMenuProps {
   onAppearance: () => void
   onSettings: () => void
   onAbout: () => void
+  onRadio: () => void
   onExit: () => void
 }
 
 // Main-menu buttons share one width (half the panel), so texts of different lengths don't shift them.
 const MENU_BUTTON_WIDTH = '50%'
 
-export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onExit }: MainMenuProps) {
+export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onRadio, onExit }: MainMenuProps) {
   const t = useT()
   const btn = { width: MENU_BUTTON_WIDTH } as const
   return (
@@ -31,6 +32,8 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onExit }: 
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
       <Button variant="secondary" style={btn} onClick={onAbout} data-testid="menu-about">{t.settingsSecAbout}</Button>
+      {/* Radio — generative music mode (non-localized brand label, like the track names). */}
+      <Button variant="secondary" style={btn} onClick={onRadio} data-testid="menu-radio">RADIO</Button>
       {/* Exit — desktop only: in the browser window.close() is forbidden by policy for a regular tab. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
       {/* F11 hint — browser only (desktop is fullscreen already). F11 is a native browser hotkey,

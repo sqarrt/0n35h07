@@ -29,8 +29,8 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'client' })
-    expect(loadProfile()).toEqual({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'client' })
+    saveProfile({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, radioEnabled: true, volumeRadio: 0.5, connectTimeoutSec: 20, searchRole: 'client' })
+    expect(loadProfile()).toEqual({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, radioEnabled: true, volumeRadio: 0.5, connectTimeoutSec: 20, searchRole: 'client' })
   })
 
   it('connectTimeoutSec: only from the allowed options; otherwise/missing → 10', () => {

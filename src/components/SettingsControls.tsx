@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { Slider } from '../ui/Slider'
 import { Toggle } from '../ui/Toggle'
+import { IS_DESKTOP } from '../platform'
 import { useT } from '../i18n'
 import { saveProfile } from '../settings'
 import type { PlayerProfile } from '../settings'
@@ -39,8 +40,9 @@ function ToggleRow({ checked, onChange, label: text, testid }: { checked: boolea
   )
 }
 
-/** Volume sliders (master / music / menu music / sfx). */
-export function SoundControls({ profile, onChange }: ControlsProps) {
+/** Volume sliders (master / music / menu music / sfx / radio). `radioReady`: false greys the radio slider
+ *  out until the radio module has initialised. */
+export function SoundControls({ profile, onChange, radioReady }: ControlsProps & { radioReady?: boolean }) {
   const t = useT()
   const set = (patch: Partial<PlayerProfile>) => persist(profile, onChange, patch)
   return (
@@ -50,6 +52,12 @@ export function SoundControls({ profile, onChange }: ControlsProps) {
       <Slider label={t.settingsVolMusic} value={profile.volumeMusic} onChange={v => set({ volumeMusic: v })} />
       <Slider label={t.settingsVolMenuMusic} value={profile.volumeMenuMusic} onChange={v => set({ volumeMenuMusic: v })} />
       <Slider label={t.settingsVolSfx} value={profile.volumeSfx} onChange={v => set({ volumeSfx: v })} />
+      {/* Radio volume — desktop only; non-localized brand label (see design spec). Greyed until the module initialises. */}
+      {IS_DESKTOP && (
+        <div style={radioReady === false ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
+          <Slider label="RADIO" value={profile.volumeRadio} onChange={v => set({ volumeRadio: v })} />
+        </div>
+      )}
     </>
   )
 }

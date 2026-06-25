@@ -47,12 +47,13 @@ interface GameProps {
   // imperatively through GameApi.setMusicVolume, so dragging the slider never re-renders the Canvas.
   musicVolumeRef: React.MutableRefObject<number>
   audioAnalysis: AudioAnalysis   // we register the match music level here (for visualization)
+  radioActive?: boolean   // Radio mode is playing (menu→match uninterrupted) → skip the stem-based match music
 }
 
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -77,7 +78,9 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       durationMs,
       mapId,
       seedCode,
-      musicEngine,
+      // Radio mode replaces the stem-based match music: give Match no engine → its music stays null,
+      // and start()/fadeOut() become no-ops (radio keeps playing across menu→match).
+      musicEngine: radioActive ? undefined : musicEngine,
       sfxEngine,
       achievements: createAchievements(),
     }),
@@ -93,7 +96,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
 
   // Preload (decode) music stems on mount — during the ready ritual/countdown, so the start of the fight
   // (live) doesn't hit a spike decoding ~58 buffers. start() at live then only schedules (buffers are ready).
-  useEffect(() => { void musicEngine.load(STEM_LIBRARY) }, [musicEngine])
+  useEffect(() => { if (!radioActive) void musicEngine.load(STEM_LIBRARY) }, [musicEngine, radioActive])
 
   // Register the match music level+spectrum into the shared analysis (for the visualizer); unregister on unmount.
   useEffect(() => {

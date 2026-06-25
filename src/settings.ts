@@ -30,6 +30,8 @@ export interface PlayerProfile {
   volumeMusic: number        // audio: match music 0..1; local preference
   volumeSfx: number          // audio: effects 0..1; local preference
   volumeMenuMusic: number    // audio: menu music 0..1; local preference
+  radioEnabled: boolean      // audio: generative "Radio" mode replaces stem music when on; local preference
+  volumeRadio: number        // audio: radio level 0..1; local preference
   connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
   locale?: LocaleId          // UI language; undefined = not chosen (detect system)
 }
@@ -46,11 +48,11 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, radioEnabled: false, volumeRadio: VOL_DEFAULT.radio, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
-// Default volume levels (0..1): effects at full, match and menu music quieter.
-const VOL_DEFAULT = { master: 1, sfx: 1, music: 0.3, menuMusic: 0.3 }
+// Default volume levels (0..1): effects at full, match and menu music quieter; radio louder (its own mix).
+const VOL_DEFAULT = { master: 1, sfx: 1, music: 0.3, menuMusic: 0.3, radio: 0.8 }
 
 /** Coerce volume to valid form: number in [0,1]; missing/garbage → default. */
 function clampVolume(v: unknown, dflt: number): number {
@@ -79,6 +81,8 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMusic = clampVolume(p.volumeMusic, VOL_DEFAULT.music)
   const volumeSfx = clampVolume(p.volumeSfx, VOL_DEFAULT.sfx)
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
+  const radioEnabled = typeof p.radioEnabled === 'boolean' ? p.radioEnabled : false   // off by default
+  const volumeRadio = clampVolume(p.volumeRadio, VOL_DEFAULT.radio)
   // connect timeout: only from the allowed options, otherwise default
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
   // language: only from registered locales; missing → undefined (user did not choose — detect system)
@@ -86,7 +90,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
   // ball artwork: valid base64 string → keep as is; otherwise drop the field (no artwork)
   const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
-  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, connectTimeoutSec, locale }
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, connectTimeoutSec, locale }
 }
 
 /** Load profile. First run (not in localStorage) → create a random one and save it right away. */
