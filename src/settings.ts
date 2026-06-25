@@ -5,6 +5,7 @@ import { LOCALES } from './i18n'
 import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
+import type { TrackDescriptor } from './radio/trackDescriptor'
 
 export type DefaultView = 'fp' | 'tp'
 export type SearchRole = 'both' | 'client'   // 'both' (host/client as luck has it) | client only. No explicit host (unreliable).
@@ -32,6 +33,8 @@ export interface PlayerProfile {
   volumeMenuMusic: number    // audio: menu music 0..1; local preference
   radioEnabled: boolean      // audio: generative "Radio" mode replaces stem music when on; local preference
   volumeRadio: number        // audio: radio level 0..1; local preference
+  favorites: TrackDescriptor[]   // radio: liked tracks (replayable; biases generation toward similar)
+  dislikes: TrackDescriptor[]    // radio: disliked tracks (biases generation away from similar)
   connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
   locale?: LocaleId          // UI language; undefined = not chosen (detect system)
 }
@@ -48,7 +51,38 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, radioEnabled: false, volumeRadio: VOL_DEFAULT.radio, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, radioEnabled: false, volumeRadio: VOL_DEFAULT.radio, favorites: [], dislikes: [], connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
+}
+
+// Cap on the radio favorites/dislikes lists (Steam-Cloud synced in the profile — keep it bounded).
+const RADIO_LIST_CAP = 200
+
+/** Keep only well-formed TrackDescriptors, dedup by seed+index, cap the length. */
+function sanitizeTrackList(v: unknown): TrackDescriptor[] {
+  if (!Array.isArray(v)) return []
+  const out: TrackDescriptor[] = []
+  const seen = new Set<string>()
+  for (const item of v) {
+    if (typeof item !== 'object' || item === null) continue
+    const o = item as Record<string, unknown>
+    const s = o.style as Record<string, unknown> | undefined
+    const ok = typeof o.seed === 'string' && typeof o.index === 'number' && Number.isFinite(o.index)
+      && typeof o.mood === 'string' && typeof o.key === 'string' && typeof o.scaleName === 'string'
+      && typeof o.bpm === 'number' && Number.isFinite(o.bpm)
+      && !!s && typeof s.kick === 'string' && typeof s.bass === 'string' && typeof s.lead === 'string'
+      && typeof s.bg === 'string' && typeof s.perc === 'string'
+    if (!ok) continue
+    const key = `${o.seed as string}:${o.index as number}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push({
+      seed: o.seed as string, index: o.index as number, mood: o.mood as string, key: o.key as string,
+      scaleName: o.scaleName as string, bpm: o.bpm as number,
+      style: { kick: s!.kick as string, bass: s!.bass as string, lead: s!.lead as string, bg: s!.bg as string, perc: s!.perc as string },
+    })
+    if (out.length >= RADIO_LIST_CAP) break
+  }
+  return out
 }
 
 // Default volume levels (0..1): effects at full, match and menu music quieter; radio louder (its own mix).
@@ -83,6 +117,8 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
   const radioEnabled = typeof p.radioEnabled === 'boolean' ? p.radioEnabled : false   // off by default
   const volumeRadio = clampVolume(p.volumeRadio, VOL_DEFAULT.radio)
+  const favorites = sanitizeTrackList(p.favorites)
+  const dislikes = sanitizeTrackList(p.dislikes)
   // connect timeout: only from the allowed options, otherwise default
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
   // language: only from registered locales; missing → undefined (user did not choose — detect system)
@@ -90,7 +126,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
   // ball artwork: valid base64 string → keep as is; otherwise drop the field (no artwork)
   const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
-  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, connectTimeoutSec, locale }
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, favorites, dislikes, connectTimeoutSec, locale }
 }
 
 /** Load profile. First run (not in localStorage) → create a random one and save it right away. */
