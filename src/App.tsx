@@ -25,14 +25,14 @@ import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
-import { RadioMiniPlayer } from './components/RadioMiniPlayer'
-import { Radio } from './screens/Radio'
+import { RadioPlayer } from './components/RadioPlayer'
+import { FavoritesColumn } from './components/FavoritesColumn'
 import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
 import { buildBias, sameTrack } from './radio'
 import type { RadioController, BiasProvider, TrackDescriptor } from './radio'
-import type { RadioPlayMode } from './components/RadioPlayerBar'
+import type { RadioPlayMode } from './components/RadioPlayer'
 import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
@@ -632,6 +632,13 @@ export default function App() {
     radioController?.next()
   }
   const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
+  // Regenerate the seed: start a brand-new generative session from a fresh random seed.
+  const radioRegen = () => {
+    radioGestureRef.current = true
+    if (!profile.radioEnabled) handleToggleRadio()
+    radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
+    setRadioPlayMode('gen')
+  }
   // In favorites mode, a finished track auto-advances to the next favorite (kept fresh via the ref).
   useEffect(() => {
     onTrackEndRef.current = () => {
@@ -871,14 +878,29 @@ export default function App() {
       {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { code: radioMusicalState?.strudelCode ?? '', mood: radioMusicalState?.mood ?? '' } : undefined} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
-      {/* Radio mini-player — desktop only, on every menu screen except Radio itself (which shows the same info expanded). */}
-      {IS_DESKTOP && screen !== 'game' && screen !== 'trailer' && screen !== 'radio' && (
-        <RadioMiniPlayer
-          initState={radioInitState}
-          enabled={profile.radioEnabled}
-          trackName={radioMusicalState ? radioTrackName(radioMusicalState) : null}
-          onToggle={handleToggleRadio}
+      {/* Unified radio player — desktop only. Docked (shrunk, still interactive) in the bottom-right corner on
+          menu screens; unfolds to full size on the Radio screen. Replaces the old mini-player indicator. */}
+      {IS_DESKTOP && screen !== 'game' && screen !== 'trailer' && (
+        <RadioPlayer
+          expanded={screen === 'radio'}
+          ready={radioInitState === 'ready'}
+          mode={radioPlayMode}
+          playing={profile.radioEnabled}
+          trackName={radioTrackLabel}
+          subtitle={radioSubtitle}
+          liked={radioLiked}
+          disliked={radioDisliked}
+          volume={profile.volumeRadio}
+          onMode={setRadioPlayMode}
+          onPrev={radioPrev}
+          onNext={radioNext}
+          onPlayPause={handleToggleRadio}
+          onLike={radioLike}
+          onDislike={radioDislike}
+          onRegen={radioRegen}
+          onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
           onOpen={handleRadio}
+          onBack={() => setScreen('menu')}
         />
       )}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.
@@ -899,26 +921,15 @@ export default function App() {
         </div>
       )}
 
-      {/* Radio takeover overlays (player bar + favorites column) — full-screen, over the reactive backdrop. */}
+      {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
+          (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && (
-        <Radio
-          mode={radioPlayMode}
-          playing={profile.radioEnabled}
+        <FavoritesColumn
+          open={radioPlayMode === 'fav'}
+          items={profile.favorites}
           current={radioCurrentDesc}
-          trackName={radioTrackLabel}
-          subtitle={radioSubtitle}
-          liked={radioLiked}
-          disliked={radioDisliked}
-          favorites={profile.favorites}
-          onMode={setRadioPlayMode}
-          onPrev={radioPrev}
-          onNext={radioNext}
-          onPlayPause={handleToggleRadio}
-          onLike={radioLike}
-          onDislike={radioDislike}
           onPlayFirst={radioPlayFirst}
-          onPlayFav={playFav}
-          onBack={() => setScreen('menu')}
+          onPlay={playFav}
         />
       )}
 
