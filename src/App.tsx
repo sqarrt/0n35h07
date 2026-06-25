@@ -31,6 +31,7 @@ import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
 import type { RadioController } from './radio'
+import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
@@ -239,6 +240,7 @@ export default function App() {
 
   // --- Radio mode (opt-in generative music; lazy @strudel/web) ---
   const [radioController, setRadioController] = useState<RadioController | null>(null)
+  const [radioEngine, setRadioEngine] = useState<IStrudelEngine | null>(null)
   const [radioInitState, setRadioInitState] = useState<RadioInitState>('idle')
   const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
   const radioWarmedRef = useRef(false)
@@ -254,7 +256,7 @@ export default function App() {
       const radio = await import('./radio')
       const ctrl = await warmupRadio({
         loadBanks: () => radio.loadRadioBanks(u => fetch(u), '/radio/'),
-        makeEngine: () => new radio.StrudelWebEngine(),
+        makeEngine: () => { const e = new radio.StrudelWebEngine(); setRadioEngine(e); return e },
         initEngine: e => e.init(),
         makeController: (engine, banks) => new radio.RadioController({
           engine, banks, config: radio.DEFAULT_RADIO_CONFIG,
@@ -270,6 +272,7 @@ export default function App() {
 
   // Radio volume = master × radio (live; pushed straight to the controller — no Canvas re-render).
   useEffect(() => { radioController?.setVolume(profile.volumeMaster * profile.volumeRadio) }, [radioController, profile.volumeMaster, profile.volumeRadio])
+
 
   // Start/stop the radio from radioEnabled. Like menu music, the first start needs a user gesture
   // (autoplay policy) in the browser; on desktop (Tauri) autoplay is allowed. The toggle click is a gesture.
@@ -302,6 +305,15 @@ export default function App() {
     ]
     return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
+
+  // Radio output → shared AudioAnalysis, so the menu orbs glow to the radio on every menu screen.
+  // Readers yield 0 while the radio is silent (the analyser only taps once a sound has played).
+  useEffect(() => {
+    if (!radioEngine) return
+    const offL = audioAnalysis.addReader(() => radioEngine.readLevel())
+    const offB = audioAnalysis.addBandReader(out => radioEngine.readBands(out))
+    return () => { offL(); offB() }
+  }, [radioEngine, audioAnalysis])
   // Plays on all non-game screens, fades out in the match. In the browser the first start is from a user gesture
   // (autoplay policy); on desktop (Tauri) autoplay is allowed → we start immediately, without a gesture.
   const gesturedRef = useRef(IS_DESKTOP)
