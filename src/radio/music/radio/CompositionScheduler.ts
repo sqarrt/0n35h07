@@ -57,8 +57,9 @@ export class CompositionScheduler {
   descriptor(): TrackDescriptor {
     const p = this.plan
     const kv = p.style.kickVoice
+    // seed = the SESSION seed (not the per-track `${session}:t${index}`) so playTrack(seed, index) replays exactly.
     return {
-      seed: p.seed, index: p.index, mood: p.mood, key: p.tonality.key, scaleName: p.tonality.scaleName, bpm: p.bpm,
+      seed: this.sessionSeed, index: p.index, mood: p.mood, key: p.tonality.key, scaleName: p.tonality.scaleName, bpm: p.bpm,
       style: { kick: `${kv.bank ?? ''}:${kv.n}`, bass: p.style.bassSound, lead: p.style.leadSound, bg: p.style.bg, perc: p.style.perc },
     }
   }

@@ -30,7 +30,9 @@ import { Radio } from './screens/Radio'
 import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
-import type { RadioController } from './radio'
+import { buildBias, sameTrack } from './radio'
+import type { RadioController, BiasProvider, TrackDescriptor } from './radio'
+import type { RadioPlayMode } from './components/RadioPlayerBar'
 import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
@@ -245,6 +247,15 @@ export default function App() {
   const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
   const radioWarmedRef = useRef(false)
   const radioActive = profile.radioEnabled && radioInitState === 'ready'
+  // Radio player: Generation vs Favorites mode, and refs the once-built controller reads via closures.
+  const [radioPlayMode, setRadioPlayMode] = useState<RadioPlayMode>('gen')
+  const playModeRef = useRef<RadioPlayMode>('gen')
+  const favIndexRef = useRef(0)
+  const biasRef = useRef<BiasProvider>(buildBias([], []))
+  const onTrackEndRef = useRef<() => void>(() => {})
+  useEffect(() => { playModeRef.current = radioPlayMode }, [radioPlayMode])
+  // Bias updates live as the player likes/dislikes (the composer reads biasRef on the next track pick).
+  useEffect(() => { biasRef.current = buildBias(profile.favorites, profile.dislikes) }, [profile.favorites, profile.dislikes])
 
   // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
   // The heavy @strudel/web + the radio subtree are dynamically imported → excluded from the initial bundle.
@@ -262,6 +273,8 @@ export default function App() {
           engine, banks, config: radio.DEFAULT_RADIO_CONFIG,
           volume: profile.volumeMaster * profile.volumeRadio,
           onState: setRadioMusicalState,
+          bias: { weightFor: (c, v) => biasRef.current.weightFor(c, v) },
+          onTrackEnd: () => onTrackEndRef.current(),
         }),
       }, setRadioInitState)
       if (ctrl) setRadioController(ctrl)
@@ -593,6 +606,51 @@ export default function App() {
     radioGestureRef.current = true
     setProfile(p => { const next = { ...p, radioEnabled: !p.radioEnabled }; saveProfile(next); return next })
   }
+
+  // --- Radio player controls (desktop). Favorites carry their own session seed → replay via playTrack. ---
+  const playFav = (d: TrackDescriptor) => {
+    const i = profile.favorites.findIndex(f => sameTrack(f, d))
+    favIndexRef.current = Math.max(0, i)
+    radioController?.playTrack(d.seed, d.index)
+    if (!profile.radioEnabled) handleToggleRadio()   // ensure the radio is on (gesture from this click)
+  }
+  const stepFav = (dir: number) => {
+    const favs = profile.favorites
+    if (favs.length === 0) return
+    favIndexRef.current = (favIndexRef.current + dir + favs.length) % favs.length
+    playFav(favs[favIndexRef.current])
+  }
+  const radioPrev = () => { if (radioPlayMode === 'fav') stepFav(-1); else radioController?.prev() }
+  const radioNext = () => { if (radioPlayMode === 'fav') stepFav(1); else radioController?.next() }
+  const radioLike = () => {
+    const d = radioController?.currentTrack(); if (!d) return
+    setProfile(p => p.favorites.some(f => sameTrack(f, d)) ? p : (() => { const next = { ...p, favorites: [d, ...p.favorites] }; saveProfile(next); return next })())
+  }
+  const radioDislike = () => {
+    const d = radioController?.currentTrack(); if (!d) return
+    setProfile(p => { const next = { ...p, dislikes: p.dislikes.some(x => sameTrack(x, d)) ? p.dislikes : [d, ...p.dislikes] }; saveProfile(next); return next })
+    radioController?.next()
+  }
+  const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
+  // In favorites mode, a finished track auto-advances to the next favorite (kept fresh via the ref).
+  useEffect(() => {
+    onTrackEndRef.current = () => {
+      if (playModeRef.current !== 'fav') return
+      const favs = profile.favorites
+      if (favs.length === 0) return
+      favIndexRef.current = (favIndexRef.current + 1) % favs.length
+      radioController?.playTrack(favs[favIndexRef.current].seed, favs[favIndexRef.current].index)
+    }
+  }, [profile.favorites, radioController])
+
+  // Derived radio-player display (from the emitted state of the track currently playing).
+  const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
+    ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
+    : null
+  const radioLiked = radioCurrentDesc != null && profile.favorites.some(f => sameTrack(f, radioCurrentDesc))
+  const radioDisliked = radioCurrentDesc != null && profile.dislikes.some(f => sameTrack(f, radioCurrentDesc))
+  const radioTrackLabel = radioMusicalState ? radioTrackName(radioMusicalState) : '—'
+  const radioSubtitle = radioMusicalState ? `${radioMusicalState.bpm} BPM · ${radioMusicalState.key} ${radioMusicalState.scaleName}` : ''
   // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
   // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.
   const handleExit = () => {
@@ -810,7 +868,7 @@ export default function App() {
       {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
-      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { code: radioMusicalState?.strudelCode ?? '', mood: radioMusicalState?.mood ?? '' } : undefined} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* Radio mini-player — desktop only, on every menu screen except Radio itself (which shows the same info expanded). */}
@@ -823,8 +881,9 @@ export default function App() {
           onOpen={handleRadio}
         />
       )}
-      {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
-      {screen !== 'game' && screen !== 'trailer' && (
+      {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.
+          Radio is excluded — it's a full-screen takeover (the backdrop IS the visual) with its own glass overlays. */}
+      {screen !== 'game' && screen !== 'trailer' && screen !== 'radio' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
             {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onAbout={handleAbout} onRadio={handleRadio} onExit={handleExit} />}
@@ -835,20 +894,32 @@ export default function App() {
               <Appearance profile={profile} onChange={setProfile} onPreview={handlePreview} onShotPreview={handleShotPreview} onRespawnPreview={handleRespawnPreview} onDashPreview={handleDashPreview} onShieldPreview={handleShieldPreview} onBack={() => setScreen('menu')} />
             )}
             {screen === 'about' && <About onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} />}
-            {screen === 'radio' && IS_DESKTOP && (
-              <Radio
-                initState={radioInitState}
-                enabled={profile.radioEnabled}
-                state={radioMusicalState}
-                volume={profile.volumeRadio}
-                onToggle={handleToggleRadio}
-                onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
-                onBack={() => setScreen('menu')}
-              />
-            )}
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
+      )}
+
+      {/* Radio takeover overlays (player bar + favorites column) — full-screen, over the reactive backdrop. */}
+      {screen === 'radio' && IS_DESKTOP && (
+        <Radio
+          mode={radioPlayMode}
+          playing={profile.radioEnabled}
+          current={radioCurrentDesc}
+          trackName={radioTrackLabel}
+          subtitle={radioSubtitle}
+          liked={radioLiked}
+          disliked={radioDisliked}
+          favorites={profile.favorites}
+          onMode={setRadioPlayMode}
+          onPrev={radioPrev}
+          onNext={radioNext}
+          onPlayPause={handleToggleRadio}
+          onLike={radioLike}
+          onDislike={radioDislike}
+          onPlayFirst={radioPlayFirst}
+          onPlayFav={playFav}
+          onBack={() => setScreen('menu')}
+        />
       )}
 
       {screen === 'trailer' && (

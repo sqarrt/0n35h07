@@ -33,7 +33,7 @@ describe('RadioController — track switching', () => {
     const c = makeController()
     c.playTrack('OTHER', 3)
     const d = c.currentTrack()
-    expect(d.seed).toBe('OTHER:t3')   // the per-track seed embeds the session seed
+    expect(d.seed).toBe('OTHER')   // the SESSION seed → playTrack(d.seed, d.index) replays exactly
     expect(d.index).toBe(3)
     // Determinism: a fresh controller jumped to the same track yields the same descriptor.
     const c2 = makeController(); c2.playTrack('OTHER', 3)
