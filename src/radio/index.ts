@@ -13,3 +13,8 @@ export { DEFAULT_RADIO_CONFIG, loadRadioConfig } from './music/radio/radioConfig
 export type { RadioConfig } from './music/radio/radioConfig'
 
 export type { MusicalState } from './music/radio/MusicalState'
+
+export { buildBias } from './bias'
+export type { BiasProvider } from './bias'
+export { sameTrack } from './trackDescriptor'
+export type { TrackDescriptor } from './trackDescriptor'

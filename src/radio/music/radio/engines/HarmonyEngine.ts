@@ -3,6 +3,7 @@ import { weightedPick, type Weighted } from '../weighted'
 import { AntiRepeatBuffer } from '../AntiRepeatBuffer'
 import { buildChord, keyRootMidi, voiceLead, type Chord, type ChordSequence } from '../theory'
 import type { MoodConfig, ProgressionsBank, ScalesBank } from '../banks'
+import type { BiasProvider } from '../../../bias'
 
 export interface Tonality { key: string; scaleName: string; scale: number[] }
 
@@ -15,9 +16,9 @@ export class HarmonyEngine {
     this.scales = banks.scales
   }
 
-  chooseTonality(mood: MoodConfig, rng: Rng, anti: AntiRepeatBuffer): Tonality {
-    const keyOptions: Weighted<string>[] = mood.preferredKeys.map((k) => [k, 1])
-    const scaleOptions: Weighted<string>[] = mood.preferredScales.map((s) => [s, 1])
+  chooseTonality(mood: MoodConfig, rng: Rng, anti: AntiRepeatBuffer, bias?: BiasProvider): Tonality {
+    const keyOptions: Weighted<string>[] = mood.preferredKeys.map((k) => [k, bias?.weightFor('key', k) ?? 1])
+    const scaleOptions: Weighted<string>[] = mood.preferredScales.map((s) => [s, bias?.weightFor('scale', s) ?? 1])
     const key = weightedPick(rng, anti.penalize('key', keyOptions))
     const scaleName = weightedPick(rng, anti.penalize('scale', scaleOptions))
     anti.record('key', key)

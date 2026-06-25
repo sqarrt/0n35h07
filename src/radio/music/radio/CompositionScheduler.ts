@@ -8,6 +8,7 @@ import type { ChordSequence } from './theory'
 import type { MoodConfig, RadioBanks } from './banks'
 import type { RadioConfig } from './radioConfig'
 import type { TrackDescriptor } from '../../trackDescriptor'
+import type { BiasProvider } from '../../bias'
 
 export interface TrackPlan {
   index: number
@@ -30,14 +31,16 @@ export class CompositionScheduler {
   private readonly sessionSeed: string
   private readonly harmony: HarmonyEngine
   private readonly anti: AntiRepeatBuffer
+  private readonly bias?: BiasProvider
   private trackIndex = 0
   private sectionPos = 0
   private plan: TrackPlan
   private trackRng: Rng
 
-  constructor(deps: { banks: RadioBanks; config: RadioConfig; sessionSeed: string }) {
+  constructor(deps: { banks: RadioBanks; config: RadioConfig; sessionSeed: string; bias?: BiasProvider }) {
     this.banks = deps.banks
     this.sessionSeed = deps.sessionSeed
+    this.bias = deps.bias
     this.harmony = new HarmonyEngine(this.banks)
     this.anti = new AntiRepeatBuffer(deps.config.antiRepeatWindow)
     this.trackRng = createRng(`${this.sessionSeed}:t0`)
@@ -82,10 +85,10 @@ export class CompositionScheduler {
     const moodNames = Object.keys(this.banks.moods)
     // Every track (including the first) picks its mood by rng with anti-repeat, so
     // different seeds open on different moods — not always the first one in the bank.
-    const mood = weightedPick(rng, this.anti.penalize('mood', moodNames.map((n) => [n, 1] as Weighted<string>)))
+    const mood = weightedPick(rng, this.anti.penalize('mood', moodNames.map((n) => [n, this.bias?.weightFor('mood', n) ?? 1] as Weighted<string>)))
     this.anti.record('mood', mood)
     const m: MoodConfig = this.banks.moods[mood]
-    const tonality = this.harmony.chooseTonality(m, rng, this.anti)
+    const tonality = this.harmony.chooseTonality(m, rng, this.anti, this.bias)
     const [lo, hi] = m.bpmRange
     const bpm = Math.round(lo + rng.next() * (hi - lo))
     const arc = buildArc(rng, m.density < 0.5) // energy graph; deep moods get a gentler one

@@ -12,9 +12,10 @@ import type { PercKind, BgKind } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
+import type { BiasProvider } from '../../bias'
 import { sidechainGain } from './fx'
 
-export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig }
+export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig; bias?: BiasProvider }
 
 const ORBIT = { kicks: 2, perc: 3, bass: 4, pad: 5, lead: 6, snare: 7, fx: 8, arp: 9 } as const
 
@@ -45,6 +46,7 @@ export class RadioComposer {
   private readonly melody: MelodyEngine
   private readonly bass: BassEngine
   private readonly timbre: TimbreEngine
+  private readonly bias?: BiasProvider
   private scheduler: CompositionScheduler
   private seed: string
 
@@ -66,7 +68,8 @@ export class RadioComposer {
     this.melody = new MelodyEngine()
     this.bass = new BassEngine()
     this.timbre = new TimbreEngine(this.banks)
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed })
+    this.bias = deps.bias
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed, bias: this.bias })
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
@@ -80,7 +83,7 @@ export class RadioComposer {
   /** Replay tracks from a DIFFERENT session seed (a saved favorite): rebuild the scheduler, then jumpTo. */
   reseed(seed: string): void {
     this.seed = seed
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed })
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed, bias: this.bias })
     this.resetTrackState()
   }
 

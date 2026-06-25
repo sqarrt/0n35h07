@@ -3,6 +3,7 @@ import type { RadioBanks } from '../music/radio/banks'
 import type { RadioConfig } from '../music/radio/radioConfig'
 import type { MusicalState } from '../music/radio/MusicalState'
 import type { TrackDescriptor } from '../trackDescriptor'
+import type { BiasProvider } from '../bias'
 
 /** Minimal engine surface the controller needs — satisfied by the app's EngineApi. */
 export interface RadioEngine {
@@ -18,6 +19,8 @@ export interface RadioControllerDeps {
   onState?: (state: MusicalState) => void
   /** Fired when the current track's arc completes and the loop auto-advances (drives favorites auto-next). */
   onTrackEnd?: () => void
+  /** Bias generation by the player's likes/dislikes (mood/key/scale). */
+  bias?: BiasProvider
   /** Initial base volume (0..1); defaults to 0.8. */
   volume?: number
 }
@@ -58,7 +61,7 @@ export class RadioController {
 
   constructor(deps: RadioControllerDeps) {
     this.engine = deps.engine
-    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config })
+    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config, bias: deps.bias })
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
     this.onTrackEnd = deps.onTrackEnd
