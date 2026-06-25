@@ -7,6 +7,7 @@ import { chooseStyle, type TrackStyle } from './trackStyle'
 import type { ChordSequence } from './theory'
 import type { MoodConfig, RadioBanks } from './banks'
 import type { RadioConfig } from './radioConfig'
+import type { TrackDescriptor } from '../../trackDescriptor'
 
 export interface TrackPlan {
   index: number
@@ -47,6 +48,25 @@ export class CompositionScheduler {
   rng(): Rng { return this.trackRng }
   sectionInTrack(): number { return this.sectionPos }
   isTrackStart(): boolean { return this.sectionPos === 0 }
+  currentIndex(): number { return this.trackIndex }
+
+  /** Compact, comparable identity of the current track (for favorites + like/dislike bias). */
+  descriptor(): TrackDescriptor {
+    const p = this.plan
+    const kv = p.style.kickVoice
+    return {
+      seed: p.seed, index: p.index, mood: p.mood, key: p.tonality.key, scaleName: p.tonality.scaleName, bpm: p.bpm,
+      style: { kick: `${kv.bank ?? ''}:${kv.n}`, bass: p.style.bassSound, lead: p.style.leadSound, bg: p.style.bg, perc: p.style.perc },
+    }
+  }
+
+  /** Jump to an explicit track index (deterministic — rebuilds that track's plan from its seed). */
+  jumpTo(index: number): void {
+    this.trackIndex = Math.max(0, Math.floor(index))
+    this.sectionPos = 0
+    this.trackRng = createRng(`${this.sessionSeed}:t${this.trackIndex}`)
+    this.plan = this.buildTrack(this.trackIndex, this.trackRng)
+  }
 
   tick(): void {
     this.sectionPos++

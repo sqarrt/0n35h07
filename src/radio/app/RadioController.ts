@@ -2,6 +2,7 @@ import { RadioComposer } from '../music/radio/RadioComposer'
 import type { RadioBanks } from '../music/radio/banks'
 import type { RadioConfig } from '../music/radio/radioConfig'
 import type { MusicalState } from '../music/radio/MusicalState'
+import type { TrackDescriptor } from '../trackDescriptor'
 
 /** Minimal engine surface the controller needs — satisfied by the app's EngineApi. */
 export interface RadioEngine {
@@ -15,6 +16,8 @@ export interface RadioControllerDeps {
   banks: RadioBanks
   config: RadioConfig
   onState?: (state: MusicalState) => void
+  /** Fired when the current track's arc completes and the loop auto-advances (drives favorites auto-next). */
+  onTrackEnd?: () => void
   /** Initial base volume (0..1); defaults to 0.8. */
   volume?: number
 }
@@ -46,6 +49,7 @@ export class RadioController {
   private readonly composer: RadioComposer
   private readonly bars: number
   private readonly onState?: (state: MusicalState) => void
+  private readonly onTrackEnd?: () => void
   private timer: ReturnType<typeof setTimeout> | null = null
   private running = false
   private prevTrackIndex: number | null = null
@@ -57,10 +61,30 @@ export class RadioController {
     this.composer = new RadioComposer({ banks: deps.banks, config: deps.config })
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
+    this.onTrackEnd = deps.onTrackEnd
     if (deps.volume !== undefined) this.engine.setVolume(deps.volume)
   }
 
   get isRunning(): boolean { return this.running }
+
+  /** Compact identity of the track playing now (for like/dislike + favorites). */
+  currentTrack(): TrackDescriptor { return this.composer.descriptor() }
+
+  /** Skip to the next generated track. */
+  next(): void { this.composer.jumpTo(this.composer.currentIndex() + 1); this.restartCurrent() }
+  /** Back to the previous generated track (deterministic replay; floored at 0). */
+  prev(): void { this.composer.jumpTo(Math.max(0, this.composer.currentIndex() - 1)); this.restartCurrent() }
+  /** Replay a specific track (e.g. a favorite from another session) by seed+index. */
+  playTrack(seed: string, index: number): void { this.composer.reseed(seed); this.composer.jumpTo(index); this.restartCurrent() }
+
+  /** Restart the loop on the freshly-selected track (no auto-advance event for a manual switch). */
+  private restartCurrent(): void {
+    if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
+    this.prevTrackIndex = null   // suppress the onTrackEnd that tick() fires on an auto-advance
+    this.startMs = Date.now()
+    this.nextBoundaryMs = 0
+    if (this.running) this.tick()
+  }
 
   /** Set the master volume on the engine. */
   setVolume(volume: number): void {
@@ -86,6 +110,7 @@ export class RadioController {
     const { strudelCode, musicalState } = this.composer.buildNextPattern()
     const isNewTrack = this.prevTrackIndex !== null && musicalState.trackIndex !== this.prevTrackIndex
     this.prevTrackIndex = musicalState.trackIndex
+    if (isNewTrack) this.onTrackEnd?.()   // the previous track's arc completed (auto-advance)
 
     // NEW TRACK: no fade. The previous outro has played out; switch to silence so its
     // reverb/delay tails ring into a short gap, then start the new track on the grid.

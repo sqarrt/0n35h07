@@ -11,6 +11,7 @@ import { shapeFor, type SectionRole } from './arrangement'
 import type { PercKind, BgKind } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
+import type { TrackDescriptor } from '../../trackDescriptor'
 import { sidechainGain } from './fx'
 
 export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig }
@@ -44,8 +45,8 @@ export class RadioComposer {
   private readonly melody: MelodyEngine
   private readonly bass: BassEngine
   private readonly timbre: TimbreEngine
-  private readonly scheduler: CompositionScheduler
-  private readonly seed: string
+  private scheduler: CompositionScheduler
+  private seed: string
 
   private drift: DriftState
   private lead: LeadState = initialLeadState()
@@ -66,6 +67,30 @@ export class RadioComposer {
     this.bass = new BassEngine()
     this.timbre = new TimbreEngine(this.banks)
     this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed })
+    this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
+  }
+
+  /** Current track's compact identity (for favorites + bias). */
+  descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
+  currentIndex(): number { return this.scheduler.currentIndex() }
+
+  /** Jump to a track index within the current session seed (deterministic). Resets per-track state. */
+  jumpTo(index: number): void { this.scheduler.jumpTo(index); this.resetTrackState() }
+
+  /** Replay tracks from a DIFFERENT session seed (a saved favorite): rebuild the scheduler, then jumpTo. */
+  reseed(seed: string): void {
+    this.seed = seed
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed })
+    this.resetTrackState()
+  }
+
+  /** Reset the composer's per-track mutable state (mirrors the track-start reset in buildNextPattern). */
+  private resetTrackState(): void {
+    this.lead = initialLeadState()
+    this.afterBreak = false
+    this.bar = 0
+    this.kitTrackIndex = -1
+    this.trackDrums = null
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
