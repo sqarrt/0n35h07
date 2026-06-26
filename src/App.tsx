@@ -293,7 +293,9 @@ export default function App() {
   const radioGestureRef = useRef(IS_DESKTOP)
   useEffect(() => {
     if (!radioController) return
-    if (!profile.radioEnabled) { radioController.stop(); return }
+    // The TRAILER runs its own audio → the radio must stop for it (the in-MATCH radio is intentional, via
+    // radioActive, so it keeps playing in 'game'). start() is idempotent, so re-running on screen changes is safe.
+    if (!profile.radioEnabled || screen === 'trailer') { radioController.stop(); return }
     const startRadio = () => { radioController.setVolume(profile.volumeMaster * profile.volumeRadio); radioController.start() }
     if (radioGestureRef.current) { startRadio(); return }
     const onGesture = () => {
@@ -305,7 +307,7 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
     // volume read fresh inside startRadio; kept out of deps to avoid restarting on slider drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [radioController, profile.radioEnabled])
+  }, [radioController, profile.radioEnabled, screen])
 
   // Audio analysis for visualization: combined level from all sources (SFX + menu music; match music is
   // registered by Game). Feeds the glow of the menu orbs and the visualizer bar in the match.
