@@ -188,6 +188,16 @@ export class RadioComposer {
     const bgEnter = entered('bg') ? easeIn : ''
     const percEnter = entered('perc') ? easeIn : '' // perc no longer slams in at build→peak
 
+    // LEAD presence + the DROP before its first entry. leadOnFor mirrors the lead gate (below) for ANY role, so
+    // we can tell when the lead FIRST appears (the previous section had no lead). When it does, DIVIDE the track:
+    // the kick/bass/perc duck to SILENCE on bar 0 (a held breath while the lead's filter opens) and the groove
+    // SLAMS back on bar 1 with a crash — the lead arrives as an event, not a pile-on (Switch Angel: drop-before-lead).
+    const leadOnFor = (r?: SectionRole): boolean =>
+      !!r && shapeFor(r).layers.lead && (style.leadPresence === 'full' || r === 'float' || (style.leadPresence === 'sparse' && r === 'peak'))
+    const leadOn = leadOnFor(role)
+    const leadEntered = leadOn && pos > 0 && role !== 'float' && !leadOnFor(track.arc[pos - 1] as SectionRole)
+    const dropDuck = leadEntered ? `.gain("${seqAligned(['0', ...Array(Math.max(1, bars - 1)).fill('1')])}")` : ''
+
     this.drift = this.timbre.drift(mood, rng, this.drift)
     // Lock the kit + velocity curve for the whole track so the drum SOUND stays put
     // across section boundaries (continuity); a track-stable rng makes it deterministic.
@@ -256,8 +266,11 @@ export class RadioComposer {
       // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
-      layers.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}`, ORBIT.kicks))
+      layers.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}`, ORBIT.kicks))
     }
+
+    // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
+    if (leadEntered) layers.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
 
     // pre-device — the last bar of the outgoing section
     if (preKind === 'snareRoll') layers.push(orbit(`s("${lastBar('[sd*4 sd*8]')}").gain(${g(0.52)}).hpf(400).lpf(7000)${fxFor(0, 0.4)}`, ORBIT.snare))
@@ -279,17 +292,17 @@ export class RadioComposer {
     if (shape.layers.perc) {
       // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail).
       const hats = `s("${style.hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(MIX.hat)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
-      layers.push(orbit(hats, ORBIT.perc))
+      layers.push(orbit(hats + dropDuck, ORBIT.perc))
       const snPly = peak ? 0.28 : 0.14
       // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs.
-      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare)})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)`, ORBIT.snare))
+      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare)})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}`, ORBIT.snare))
       // peak-only claps on the backbeat (one extra layer, eased in — the ghost-snare layer was
       // dropped to avoid stacking too many things at once).
       if (peak) {
-        layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)`, ORBIT.snare))
+        layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
       const perc = this.percLayer(style.perc, g)
-      if (perc) layers.push(orbit(`${perc}${percEnter}`, ORBIT.perc))
+      if (perc) layers.push(orbit(`${perc}${percEnter}${dropDuck}`, ORBIT.perc))
     }
 
     // ── BASS — locked riff, root follows the progression; clarity sweeps up in intro/build
@@ -328,12 +341,12 @@ export class RadioComposer {
       const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
       // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent;
       // its level is trimmed a touch so the kick/snares read 1.5× more forward.
-      layers.push(orbit(`${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${pump}`, ORBIT.bass))
+      layers.push(orbit(`${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${dropDuck}${pump}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub)})${bassEnter}.lpf(150)${pump}`, ORBIT.fx))
+      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub)})${bassEnter}${dropDuck}.lpf(150)${pump}`, ORBIT.fx))
     }
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
@@ -350,7 +363,7 @@ export class RadioComposer {
     // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
     //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
     //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
-    const leadOn = shape.layers.lead && (style.leadPresence === 'full' || role === 'float' || (style.leadPresence === 'sparse' && peak))
+    //    (leadOn / leadEntered are computed up top so the kick/bass can drop before the lead's first entry.)
     if (leadOn) {
       // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
       // aggressive, loud and detached from the track). Just the track's own width, if any.

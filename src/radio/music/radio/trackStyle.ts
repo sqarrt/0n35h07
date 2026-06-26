@@ -119,8 +119,9 @@ const PAD: PadMode[] = ['stab', 'stab', 'off', 'drone', 'arp']
 // Straight, no shuffle — swing reads as groovy/playful; dark techno stays rigid.
 const SWING = [0]
 const DROP_LEAD: DropLead[] = ['stab', 'stab', 'arp', 'lead']
-// Leads appear LESS: ~30% of tracks have no lead at all, ~40% only in peaks, ~30% full.
-const LEAD_PRESENCE: LeadPresence[] = ['none', 'none', 'none', 'sparse', 'sparse', 'sparse', 'sparse', 'full', 'full', 'full']
+// Leads appear LESS: ~20% of tracks have no lead at all, ~40% only in peaks, ~40% full.
+// (Picked with anti-repeat — not a per-track coin-flip — so it's consistent, not arbitrary.)
+const LEAD_PRESENCE: LeadPresence[] = ['none', 'none', 'sparse', 'sparse', 'sparse', 'sparse', 'full', 'full', 'full', 'full']
 const OH = ['~ oh ~ oh', '~ oh ~ oh', '', '~ ~ oh ~', 'oh ~ oh ~', '~ oh', '[~ oh]*2']
 const BASS_GROOVE = [
   '1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1', // driving 16ths
