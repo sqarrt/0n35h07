@@ -74,21 +74,24 @@ const RADIO_EMOJI_MAX = 130
 // Emoji spawn ONLY on a beat — a batch of 2..5 by beat strength (NO constant trickle) → the beat "births" them.
 const RADIO_EMOJI_BURST_MIN = 2
 const RADIO_EMOJI_BURST_MAX = 5
-const RADIO_EMOJI_FALL_MIN = 0.3      // base fall speed (the BEAT dash drives the motion)
+const RADIO_EMOJI_FALL_MIN = 0.35     // base fall speed (the BEAT dash drives the motion)
 const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost
-const RADIO_EMOJI_DASH_MIN = 0.4      // beat dash floor (gentle at quiet)
-const RADIO_EMOJI_DASH_LEVEL = 6.0    // strong loudness-scaled dash (the emoji react hard to loud beats)
-const RADIO_EMOJI_DASH_TAU_MIN = 0.08 // dash DURATION (decay τ) in silence
-const RADIO_EMOJI_DASH_TAU_LEVEL = 0.16
+const RADIO_EMOJI_DASH_MIN = 0.8      // beat dash floor (already snappy at quiet)
+const RADIO_EMOJI_DASH_LEVEL = 9.0    // strong loudness-scaled dash — already-falling emoji jolt hard on a beat
+const RADIO_EMOJI_DASH_TAU_MIN = 0.07 // dash DURATION (decay τ) — short = snappy
+const RADIO_EMOJI_DASH_TAU_LEVEL = 0.12
 const RADIO_EMOJI_SPRITE_PX = 64
 const RADIO_EMOJI_FONT_PX = 48
 const RADIO_EMOJI_SCALE = 0.12
-const RADIO_EMOJI_SPAWN_Y = 4.0
-const RADIO_EMOJI_SPAWN_Y_SPREAD = 3.0
-const RADIO_EMOJI_KILL_Y = -3.5
-const RADIO_EMOJI_SPREAD_X = 7.0
 const RADIO_EMOJI_DEPTH = 3.2
 const RADIO_EMOJI_RENDER_ORDER = 20
+// Spawn/kill are computed from the camera's visible rectangle at RADIO_EMOJI_DEPTH (fractions of the half-extents),
+// so emoji appear ON-SCREEN at the top THE MOMENT a beat fires (previously they spawned far above view and only
+// drifted in seconds later → looked unsynced).
+const RADIO_EMOJI_SPAWN_TOP = 0.78    // spawn Y = halfHeight × this (near the visible top, instantly on-screen)
+const RADIO_EMOJI_SPAWN_TOP_JIT = 0.18 // ± jitter (avoids a visible single-Y "row")
+const RADIO_EMOJI_SPREAD_FRAC = 0.9   // horizontal spread = halfWidth × this
+const RADIO_EMOJI_KILL_FRAC = 1.08    // kill just below the visible bottom
 
 const MOOD_EMOJI: Record<string, string[]> = {
   dark:   ['💀', '🔥', '⚡', '🩸', '🕸️', '☠️'],
@@ -161,15 +164,15 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     if (!t) { t = makeEmojiTexture(glyph); texCache.current.set(glyph, t) }
     return t
   }
-  const spawnOne = (free: Drop) => {
+  const spawnOne = (free: Drop, halfW: number, halfH: number) => {
     const mat = free.sprite.material as THREE.SpriteMaterial
     mat.map = texFor(set[Math.floor(Math.random() * set.length)])
     mat.needsUpdate = true
     free.active = true
     free.sprite.visible = true
     free.sprite.position.set(
-      (Math.random() - 0.5) * RADIO_EMOJI_SPREAD_X,
-      RADIO_EMOJI_SPAWN_Y + Math.random() * RADIO_EMOJI_SPAWN_Y_SPREAD,
+      (Math.random() - 0.5) * 2 * halfW * RADIO_EMOJI_SPREAD_FRAC,
+      halfH * (RADIO_EMOJI_SPAWN_TOP + (Math.random() - 0.5) * 2 * RADIO_EMOJI_SPAWN_TOP_JIT),
       0,
     )
   }
@@ -182,6 +185,12 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     g.position.copy(camera.position).addScaledVector(_fwd, RADIO_EMOJI_DEPTH)
     g.quaternion.copy(camera.quaternion)
 
+    // Visible half-extents at the emoji plane → spawn on-screen at the top, kill just past the bottom.
+    const cam = camera as THREE.PerspectiveCamera
+    const halfH = RADIO_EMOJI_DEPTH * Math.tan((cam.fov * Math.PI / 180) / 2)
+    const halfW = halfH * cam.aspect
+    const killY = -halfH * RADIO_EMOJI_KILL_FRAC
+
     const level = analysis?.level() ?? 0
     const strength = _beat.strength
     if (_beat.fired) {
@@ -193,7 +202,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
       for (let k = 0; k < batch; k++) {
         const free = drops.find(d => !d.active)
         if (!free) break
-        spawnOne(free)
+        spawnOne(free, halfW, halfH)
       }
     }
     dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / dashTau.current))
@@ -202,7 +211,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     for (const d of drops) {
       if (!d.active) continue
       d.sprite.position.y -= fall * dt
-      if (d.sprite.position.y <= RADIO_EMOJI_KILL_Y) { d.active = false; d.sprite.visible = false }
+      if (d.sprite.position.y <= killY) { d.active = false; d.sprite.visible = false }
     }
   })
 
