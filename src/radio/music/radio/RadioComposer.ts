@@ -390,18 +390,38 @@ export class RadioComposer {
         // thinned notes and a gentler feedback so it dissolves instead of stabbing the ear.
         layers.push(orbit(`note("${firstBar(`[${steps.join(' ')}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
-      // (1) UPLIFTER across the WHOLE 8 bars — filter AND level climb the entire section and
-      //     climax HARD so it hands off to the peak at full energy. .late aligns the climb's END
-      //     to the section boundary (so the riser doesn't peak mid-bar / spill into the next part).
-      layers.push(orbit(`s("white*16").dec(0.08).lpf(saw.range(400, 11000).slow(${n})${lateAlign}).hpf(250).gain(saw.range(0.06, ${g(0.82)}).slow(${n})${lateAlign}).pan(sine.slow(5))${fxFor(0.3, 0.5)}`, ORBIT.fx))
-      // (2) SNARE ROLL that stays out for the first half then ACCELERATES (2→4→8→16 hits/bar)
-      //     and BUZZES on the final bar (sd*16), level peaking with it — meets the drop loud.
-      //     seqAligned + .late keep the acceleration locked to the section so it climaxes ON the boundary.
-      layers.push(orbit(`s("${seqAligned(['~', '~', '~', '~', '[sd sd]', '[sd*2 sd*2]', '[sd*4 sd*4]', '[sd*8 sd*16]'])}").gain(saw.range(0.1, ${g(0.82)}).slow(${n})${lateAlign}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
-      // colour: a tom fill that thickens, plus a lone echo-drenched chord stab for harmony.
+      // (1) BUILD-BACK — diversified per break (seeded) so it ISN'T the same white-noise riser every
+      //     time. 'drop' is the minimal alternative (mostly air → only the last 2 bars lift), so not
+      //     every break risers hard. seqAligned/.late keep every climb locked to the section boundary.
+      const rRng = createRng(`${track.seed}:riser${pos}`)
+      const scheme = (['noise', 'snare', 'pitch', 'drop'] as const)[rRng.int(4)]
+      const rollAccel = seqAligned(['~', '~', '~', '~', '[sd sd]', '[sd*2 sd*2]', '[sd*4 sd*4]', '[sd*8 sd*16]'])
+      if (scheme === 'noise') {
+        layers.push(orbit(`s("white*16").dec(0.08).lpf(saw.range(400, 11000).slow(${n})${lateAlign}).hpf(250).gain(saw.range(0.06, ${g(0.82)}).slow(${n})${lateAlign}).pan(sine.slow(5))${fxFor(0.3, 0.5)}`, ORBIT.fx))
+        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.1, ${g(0.82)}).slow(${n})${lateAlign}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
+      } else if (scheme === 'snare') {
+        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.12, ${g(0.9)}).slow(${n})${lateAlign}).hpf(220).lpf(7000).room(0.3).shape(0.06)${fxFor(0.2, 0.5)}`, ORBIT.snare))
+        layers.push(orbit(`s("hh*16").gain(saw.range(0.02, ${g(0.3)}).slow(${n})${lateAlign}).hpf(8000)`, ORBIT.perc))
+      } else if (scheme === 'pitch') {
+        const rRoot = ((chord.notes[0] % 12) + 12) % 12 + 36 // a tone gliding UP an octave = a pitched riser
+        layers.push(orbit(`note("${rRoot}").s("sawtooth").add(note(saw.range(0, 12).slow(${n})${lateAlign})).lpf(saw.range(500, 5000).slow(${n})${lateAlign}).gain(saw.range(0.05, ${g(0.42)}).slow(${n})${lateAlign}).hpf(200)${fxFor(0.3, 0.5)}`, ORBIT.fx))
+        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.08, ${g(0.6)}).slow(${n})${lateAlign}).hpf(260).lpf(6000)${fxFor(0.2, 0.4)}`, ORBIT.snare))
+      } else {
+        const last2 = seqAligned([...Array(Math.max(1, bars - 2)).fill('~'), '[sd*4 sd*4]', '[sd*8 sd*16]'])
+        layers.push(orbit(`s("${last2}").gain(${g(0.72)}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
+      }
+      // colour: a tom fill + a lone echo-drenched chord stab (harmony), in every scheme.
       layers.push(orbit(`s("${seqAligned(['~', '[lt mt]', '~', '[mt lt mt]', '~', '[lt mt lt]', '~', '[mt*4]'])}").gain(${g(0.4)}).room(0.3)${fxFor(0.3, 0.4)}`, ORBIT.perc))
       const stabRoot = ((chord.notes[0] % 12) + 12) % 12 + 48 // tonic, mid register
       layers.push(orbit(`note("${seqAligned([String(stabRoot), '~', '~', '~'])}").s("${style.stabSound}").lpf(1200).dec(0.4).gain(${g(0.28)})${fxFor(0.8, 0.9)}`, ORBIT.fx))
+      // PREVIEW LEAD — a soft, dark chord arp that swells in over the break's last ~4 bars: same
+      // harmony as the coming drop but a DIFFERENT voice/figure (a teaser that "fits but differs").
+      const pcs = chord.notes.slice(0, 3).map((nn) => ((nn % 12) + 12) % 12 + 48)
+      const fig = `[${pcs.join(' ')}]`
+      const figR = `[${pcs.slice().reverse().join(' ')}]`
+      const preview = Array<string>(bars).fill('~')
+      for (let i = Math.max(0, bars - 4); i < bars; i++) preview[i] = (i % 2 === 0 ? fig : figR)
+      layers.push(orbit(`note("${seqAligned(preview)}").s("${style.stabSound}").lpf(saw.range(300, 1400).slow(${n})${lateAlign}).lpq(3).dec(0.18).gain(saw.range(0.02, ${g(0.16)}).slow(${n})${lateAlign}).hpf(250)${fxFor(0.6, 0.9)}`, ORBIT.arp))
     }
 
     // Through-line FM-pulse riser texture (Switch-Angel style): an evolving tension
