@@ -13,9 +13,9 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
 
 // --- Beat detection (shared) — low-band ENERGY ONSET (flux) + a refractory gap -------------------
 const RADIO_BANDS = 8
-const RADIO_BEAT_FLUX = 0.04          // rise in low-band energy that counts as a kick onset
-const RADIO_BEAT_FLOOR = 0.05         // tiny floor — beats register even in quiet parts (only STRENGTH scales)
-const RADIO_BEAT_REFRACTORY = 0.11    // min seconds between beats
+const RADIO_BEAT_FLUX = 0.09          // rise in low-band energy that counts as a kick onset (strict → only real kicks)
+const RADIO_BEAT_FLOOR = 0.25         // the low band must be genuinely loud — ignores reverb tails / quiet noise (no OUTRO false hits)
+const RADIO_BEAT_REFRACTORY = 0.13    // min seconds between beats
 /** Kick energy = the two lowest bands. Returns whether a fresh beat fired this frame. */
 function detectBeat(bands: Float32Array, prev: { current: number }, cd: { current: number }, dt: number): boolean {
   const kick = (bands[0] ?? 0) + (bands[1] ?? 0)
@@ -33,11 +33,11 @@ function detectBeat(bands: Float32Array, prev: { current: number }, cd: { curren
 const RADIO_CAMERA_PRIORITY = 0
 // Camera reacts ONLY to beats with a SMOOTH zoom punch: a beat SETS a target (fast attack), which then "deflates"
 // slowly. A new beat re-arms the target (SET, not added) so overlapping beats can't run the zoom to infinity.
-const RADIO_CAM_PUNCH_BASE = 0.3     // beat zoom in silence (world units along the camera forward)
-const RADIO_CAM_PUNCH_LEVEL = 0.5    // extra zoom at the music peak (max ≈ 0.8 — gentle, not a big lunge)
+const RADIO_CAM_PUNCH_BASE = 0.15    // beat zoom in silence (world units along the camera forward)
+const RADIO_CAM_PUNCH_LEVEL = 0.25   // extra zoom at the music peak (max ≈ 0.4 — subtle)
 const RADIO_CAM_ATTACK_TAU = 0.045   // FAST smooth rise on a beat
 const RADIO_CAM_DECAY_TAU = 0.35     // slower deflation
-const RADIO_CAM_SHAKE_AMP = 0.012    // a barely-noticeable shimmer on a beat (NOT an epileptic jitter)
+const RADIO_CAM_SHAKE_AMP = 0.005    // a barely-perceptible shimmer on a beat
 const RADIO_CAM_SHAKE_DECAY_TAU = 0.08
 
 // --- Emoji rain ---------------------------------------------------------------------------------
