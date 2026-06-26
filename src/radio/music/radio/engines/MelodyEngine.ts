@@ -62,8 +62,10 @@ const GATE_MASKS = [
 ]
 
 type Archetype = 'acidCell' | 'arpDyad' | 'gatedPhrase' | 'poolMotif' | 'atmoDyad'
-// All five archetypes are EQUALLY likely (~20% each); anti-repeat picks a DIFFERENT one than the prev track.
-const ARCHETYPES: Archetype[] = ['acidCell', 'arpDyad', 'gatedPhrase', 'poolMotif', 'atmoDyad']
+// acidCell (relentless 16th acid lines) is DROPPED from the pool — busy 16ths on a wide supersaw read as harsh
+// "disco"; the user prefers the spacious/soulful archetypes. The four here are EQUALLY likely (~25% each);
+// anti-repeat picks a DIFFERENT one than the prev track. (The acidCell code stays but is unreachable.)
+const ARCHETYPES: Archetype[] = ['arpDyad', 'gatedPhrase', 'poolMotif', 'atmoDyad']
 
 export class MelodyEngine {
   buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; atmo: boolean; state: LeadState } {
