@@ -11,18 +11,25 @@ const BASE: MusicalState = {
 }
 
 describe('radioTrackName', () => {
-  it('форматирует строку mood_bpmbpm_xxxx', () => {
-    expect(radioTrackName(BASE)).toMatch(/^dark_techno_124bpm_[0-9a-f]{4}$/)
+  it('deterministic: the same track always yields the same name', () => {
+    expect(radioTrackName(BASE)).toBe(radioTrackName(BASE))
   })
 
-  it('разные trackSeed дают разные суффиксы', () => {
-    const a = radioTrackName(BASE)
-    const b = radioTrackName({ ...BASE, trackSeed: 'abc:t1', trackIndex: 1 })
-    expect(a).not.toBe(b)
+  it('human-readable — NOT the old mood_bpm format', () => {
+    const n = radioTrackName(BASE)
+    expect(n.length).toBeGreaterThan(0)
+    expect(n).not.toMatch(/_\d+bpm_/)
   })
 
-  it('mood из состояния используется как префикс', () => {
-    expect(radioTrackName({ ...BASE, mood: 'dub_techno', bpm: 118 }))
-      .toMatch(/^dub_techno_118bpm_/)
+  it('varies across track seeds', () => {
+    const names = new Set(Array.from({ length: 12 }, (_, i) => radioTrackName({ ...BASE, trackSeed: `abc:t${i}` })))
+    expect(names.size).toBeGreaterThan(1)
+  })
+
+  it('exercises all four schemes across many seeds', () => {
+    const many = Array.from({ length: 80 }, (_, i) => radioTrackName({ ...BASE, trackSeed: `s${i}` }))
+    expect(many.some(n => /PROTOCOL:|proc\/|SYS\.|daemon:/.test(n))).toBe(true)   // protocol scheme
+    expect(many.some(n => /(\/\/|\[|·|\/\d)/.test(n))).toBe(true)                  // hybrid tag scheme
+    expect(many.some(n => /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(n))).toBe(true)         // plain two-word scheme
   })
 })

@@ -5,7 +5,7 @@ import { radioTrackName, trackSeedOf } from '../radio/trackName'
 import { sameTrack } from '../radio/trackDescriptor'
 import type { TrackDescriptor } from '../radio/trackDescriptor'
 
-const nameOf = (d: TrackDescriptor) => radioTrackName({ mood: d.mood, bpm: d.bpm, trackSeed: trackSeedOf(d) })
+const nameOf = (d: TrackDescriptor) => radioTrackName({ mood: d.mood, bpm: d.bpm, key: d.key, trackSeed: trackSeedOf(d) })
 
 interface FavoritesColumnProps {
   open: boolean
