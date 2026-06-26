@@ -25,22 +25,23 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
 const RADIO_BANDS = 8
 const RADIO_BEAT_PRIORITY = -1        // run before the camera/emoji frame callbacks (which read the result)
 const RADIO_BEAT_MIN_BPM = 60         // guard against a missing/0 bpm
-const RADIO_BEAT_PLL_FLUX = 0.06      // a low-band rise this big nudges the grid phase toward it (phase lock)
-const RADIO_BEAT_PLL_GAIN = 0.2       // how hard each onset pulls the grid phase (locks in a few beats, averages noise)
-const RADIO_BEAT_FLUX_FULL = 0.4      // flux peak that maps to strength 1 (a hard kick) — the reaction scale
-const RADIO_BEAT_FLUX_TAU_FRAC = 0.4  // strength window: recent-flux-peak decay τ = interval × this
-const RADIO_BEAT_MIN_STRENGTH = 0.12  // a tick below this is a non-kick (drone/break) → no beat (kills phantoms)
-const RADIO_BEAT_REFRACTORY_FRAC = 0.5 // min gap between beats = interval × this
+const RADIO_BEAT_ONSET_FLUX = 0.05    // min low-band rise to FIRE (low — off-grid onsets are rejected by the window)
+const RADIO_BEAT_PLL_FLUX = 0.09      // a clearer rise that pulls the grid phase toward it (only strong kicks lock phase)
+const RADIO_BEAT_PLL_GAIN = 0.2       // how hard each strong onset pulls the grid phase (locks in a few beats)
+const RADIO_BEAT_WINDOW_FRAC = 0.22   // an onset counts as a beat only if within interval × this of a grid tick
+const RADIO_BEAT_FLUX_FULL = 0.35     // flux that maps to strength 1 (a hard kick) — the reaction scale
+const RADIO_BEAT_REFRACTORY_FRAC = 0.4 // min gap between beats = interval × this
 
 // Shared per-frame beat result (one radio screen at a time). fired = a hit happened THIS frame; strength 0..1 = loudness.
 const _beat = { fired: false, strength: 0 }
 const _bandsBeat = new Float32Array(RADIO_BANDS)
 let _phase = 0          // time since the last grid tick
-let _fluxPeak = 0       // decaying peak of recent low-band flux = the kick transient's strength
 let _sinceBeat = 0      // refractory
 let _prevKickBeat = 0
 
-/** Drives the shared `_beat`: a bpm grid phase-locked to low-band onsets, each tick gated by the recent flux peak. */
+/** Drives `_beat`: fire ON a low-band ONSET when it lands near a bpm-grid tick (the grid quantizes/gates; the PLL
+ *  keeps it locked to the kicks). Firing on the onset itself (not on the tick) means a kick is never missed for
+ *  arriving a frame after the tick; the grid window rejects off-beat transients; strength = the onset's loudness. */
 function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
@@ -49,24 +50,23 @@ function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number })
     const kick = (_bandsBeat[0] ?? 0) + (_bandsBeat[1] ?? 0)
     const flux = Math.max(0, kick - _prevKickBeat)
     _prevKickBeat = kick
-    _fluxPeak = Math.max(flux, _fluxPeak * Math.exp(-dt / (interval * RADIO_BEAT_FLUX_TAU_FRAC)))
 
-    // Phase-lock: a clear low-band onset pulls the grid phase toward it, so ticks settle ON the kicks.
+    const distToTick = Math.min(_phase, interval - _phase)   // how far NOW is from the nearest grid tick (pre-nudge)
+    // Phase-lock: a clear onset pulls the grid phase toward it (gentle → averages noise, locks to the steady kicks).
     if (flux > RADIO_BEAT_PLL_FLUX) {
       let e = _phase
-      if (e > interval / 2) e -= interval   // nearest tick is the NEXT one
+      if (e > interval / 2) e -= interval
       _phase -= e * RADIO_BEAT_PLL_GAIN
     }
-
     _phase += dt
+    if (_phase >= interval) _phase -= interval
     _sinceBeat += dt
+
     _beat.fired = false
-    if (_phase >= interval) {
-      _phase -= interval
-      const strength = Math.min(1, _fluxPeak / RADIO_BEAT_FLUX_FULL)
-      if (strength > RADIO_BEAT_MIN_STRENGTH && _sinceBeat > interval * RADIO_BEAT_REFRACTORY_FRAC) {
-        _sinceBeat = 0; _beat.fired = true; _beat.strength = strength
-      }
+    if (flux > RADIO_BEAT_ONSET_FLUX && distToTick < interval * RADIO_BEAT_WINDOW_FRAC && _sinceBeat > interval * RADIO_BEAT_REFRACTORY_FRAC) {
+      _sinceBeat = 0
+      _beat.fired = true
+      _beat.strength = Math.min(1, flux / RADIO_BEAT_FLUX_FULL)
     }
   }, RADIO_BEAT_PRIORITY)
   return null
