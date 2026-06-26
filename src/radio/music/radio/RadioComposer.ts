@@ -390,9 +390,10 @@ export class RadioComposer {
           scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
         }, this.lead)
         this.lead = state
-        // quieter, softer attack, gentler resonance, more reverb (sits IN the track, not on
-        // top). lpq 2 = barely-resonant so it reads as a tone, not a screaming acid line.
-        layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.4).lpq(2).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.4, 0.6)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
+        // The EXPRESSION comes from the acid filter ENVELOPE + a bit of resonance (lesson #6), not loudness:
+        // stronger acidenv + lpq 4 give the 303 squelch, the low level + capped ceiling keep it from piercing.
+        // Wider stereo (pan 0.25–0.75) for the echoey movement Switch Angel's leads have.
+        layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.5).lpq(4).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.25, 0.75)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
       }
     }
 
@@ -407,15 +408,9 @@ export class RadioComposer {
       //     the breakdown — a tail of the previous part bleeding through. Continuity glue.
       const echoMotif = this.lead.motif
       if (echoMotif) {
-        let onset = 0
-        const steps: string[] = []
-        for (let i = 0; i < 16; i++) {
-          if (echoMotif.mask[i]) { steps.push(String(echoMotif.notes[onset % echoMotif.notes.length])); onset++ }
-          else steps.push('~')
-        }
-        // A ghostly tail, NOT a bright blast: darker filter, lower level, softer attack,
-        // thinned notes and a gentler feedback so it dissolves instead of stabbing the ear.
-        layers.push(orbit(`note("${firstBar(`[${steps.join(' ')}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
+        // Replay the movement's lead pattern ONCE on the break's first bar, drowned in long-feedback delay +
+        // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
+        layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
       // (1) BUILD-BACK — diversified per break (seeded) so it ISN'T the same white-noise riser every
       //     time. 'drop' is the minimal alternative (mostly air → only the last 2 bars lift), so not

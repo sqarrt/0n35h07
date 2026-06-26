@@ -3,128 +3,110 @@ import type { Chord } from '../theory'
 import { AntiRepeatBuffer } from '../AntiRepeatBuffer'
 import { weightedPick, type Weighted } from '../weighted'
 
-export interface LeadMotif { mask: number[]; notes: number[] }
+// A lead is (harmonic CONTENT) × (a rhythm DEVICE) — see docs/radio-leads-lessons.md (Switch Angel study).
+// We have raw Strudel (no notearp/trancegate/struct/acidenv helpers), so we EMULATE the devices directly in
+// the note pattern: 16-step driving cells (acid), arpeggiated dyads, and a per-bar GATE baked into the notes
+// (trance-gate). Content is written as SCALE DEGREES — tonic-anchored, mostly descending/returning, in-key.
+
+// motif holds the finished pattern string (inside note("…")), stable for a whole movement.
+export interface LeadMotif { pattern: string }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }
-
-const STEPS = 16
-// The motif holds for a whole movement (FX/arrangement provide the variety, not new
-// notes); the composer resets it at movement boundaries (break / new track).
 const REPHRASE = 999
-
-// RHYTHM FEELS — the lead used to be ONE busy 16th pattern, which read as cheesy "disco" and
-// made every track's lead sound the same. Now it picks (anti-repeat → differs track-to-track)
-// from several DISTINCT feels, MOST of them sparse / stabby / off-beat (dark-techno restraint);
-// the busy "driving" 16ths are kept but rare. Fewer notes = more hypnotic, less melodic-pop.
-const FEELS: Record<string, string> = {
-  stab:    'x ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~ ~ ~ ~ ~',   // two long stabs per bar
-  stabOff: '~ ~ ~ ~ x ~ ~ ~ ~ ~ ~ ~ x ~ ~ ~',   // stabs pushed onto the off-beats
-  pulse8:  'x ~ x ~ x ~ x ~ x ~ x ~ x ~ x ~',    // steady 8ths (mid density)
-  offbeat: '~ ~ x ~ ~ ~ x ~ ~ ~ x ~ ~ ~ x ~',    // syncopated off-beat pulse
-  sparse:  'x ~ ~ ~ x ~ ~ x ~ ~ x ~ ~ ~ x ~',    // loose, holey
-  clave:   'x ~ ~ x ~ ~ x ~ ~ ~ x ~ x ~ ~ ~',    // clave-ish push
-  driving: 'x ~ x x x ~ x x x ~ x x x ~ x x',     // the busy 16ths — RARE now
-}
-// Weighting via repetition in the pick list: stab/sparse common, driving uncommon.
-const FEEL_KEYS = ['stab', 'stab', 'stabOff', 'pulse8', 'offbeat', 'sparse', 'sparse', 'clave', 'driving']
-
-type Contour = 'pedal' | 'twonote' | 'descend' | 'zigzag'
-// Hypnotic pedal / two-note minimalism favoured over the wandering zigzag (which sounded melodic-pop).
-const CONTOURS: Contour[] = ['pedal', 'pedal', 'twonote', 'twonote', 'descend', 'zigzag']
-
-const DEFAULT_SCALE = [0, 2, 3, 5, 7, 8, 10] // aeolian fallback
 
 export function initialLeadState(): LeadState { return { motif: null, phrasesLeft: 0 } }
 
 export interface LeadOpts { rng: Rng; leadOctave: number; density: number; scale?: number[]; keyRoot?: number; anti?: AntiRepeatBuffer }
 
+const DEFAULT_SCALE = [0, 2, 3, 5, 7, 8, 10] // aeolian fallback
+
+// ── Curated scale-degree figures (the "good melody pool"). Degrees are SCALE STEPS (0 = root, 7 = octave,
+//    9 = octave+3rd, …); negative = below the tonic. All ANCHORED on the tonic (0), mostly descending/returning.
+const ACID_CELLS = [
+  [0, 4, 0, 9, 7],              // the canonical 0 4 0 9 7
+  [0, 0, 7, 0, 10, 0, 5, 0],
+  [0, 3, 0, 7, 0, 12, 0, 7],
+  [0, 7, 0, 5, 0, 3, 0, 0],
+  [0, 0, 12, 7, 0, 5, 0, 3],
+  [0, -3, 0, 4, 0, 7, 0, 3],
+]
+const DYAD_HIGHS = [
+  [6, 7, 4, 8], [7, 5, 8, 4], [4, 6, 7, 5], [9, 7, 6, 8], [7, 4, 9, 7],
+]
+// Sparse anchored 8-step cells (rests = ~) for the pool-motif archetype — tight, hypnotic, return to 0.
+const MOTIF_CELLS = [
+  ['0', '~', '3', '0', '~', '0', '-2', '0'],
+  ['0', '~', '~', '7', '~', '5', '~', '0'],
+  ['0', '0', '~', '3', '~', '~', '-3', '0'],
+  ['0', '~', '5', '~', '4', '~', '0', '~'],
+  ['0', '~', '-2', '0', '~', '3', '~', '0'],
+]
+// Trance-gate rhythm masks (16 steps; x = open, ~ = closed) for the gated-phrase archetype.
+const GATE_MASKS = [
+  ['x', '~', 'x', 'x', '~', 'x', '~', 'x', 'x', '~', 'x', 'x', '~', 'x', '~', 'x'],
+  ['x', 'x', '~', 'x', '~', 'x', 'x', '~', 'x', 'x', '~', 'x', '~', 'x', 'x', '~'],
+  ['x', '~', '~', 'x', 'x', '~', 'x', '~', 'x', '~', '~', 'x', 'x', '~', 'x', '~'],
+  ['x', 'x', 'x', '~', 'x', 'x', '~', 'x', 'x', 'x', '~', 'x', 'x', '~', 'x', '~'],
+]
+
+type Archetype = 'acidCell' | 'arpDyad' | 'gatedPhrase' | 'poolMotif'
+// acid + gated common; arp + pool a touch rarer. Anti-repeat picks a DIFFERENT archetype than the prev track.
+const ARCHETYPES: Archetype[] = ['acidCell', 'acidCell', 'arpDyad', 'gatedPhrase', 'gatedPhrase', 'poolMotif']
+
 export class MelodyEngine {
-  buildLead(chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; state: LeadState } {
+  buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; state: LeadState } {
     let motif = state.motif
     let phrasesLeft = state.phrasesLeft
     if (!motif || phrasesLeft <= 0) {
-      motif = this.makeMotif(chord, opts)
+      motif = this.makeMotif(opts)
       phrasesLeft = REPHRASE
     }
     phrasesLeft--
-
-    let onset = 0
-    const steps: string[] = []
-    for (let i = 0; i < STEPS; i++) {
-      if (motif.mask[i]) { steps.push(String(motif.notes[onset % motif.notes.length])); onset++ } // CYCLE the cell = riff
-      else steps.push('~')
-    }
-    return { fragment: `note("${steps.join(' ')}")`, state: { motif, phrasesLeft } }
+    return { fragment: `note("${motif.pattern}")`, state: { motif, phrasesLeft } }
   }
 
-  /** A feel (rhythm) + a contour (note cell) chosen with anti-repeat → leads differ track-to-track.
-   *  The cell wavers within the SAFE (minor-pentatonic) degrees, anchored to the tonic — never a
-   *  bright ascending run ("tropical") and never the b2/tritone clash. */
-  private makeMotif(chord: Chord, opts: LeadOpts): LeadMotif {
+  /** Build one movement's lead pattern: pick an archetype (anti-repeat) and render it as a note string. */
+  private makeMotif(opts: LeadOpts): LeadMotif {
     const { rng } = opts
     const scale = opts.scale ?? DEFAULT_SCALE
-    const keyRoot = opts.keyRoot ?? chord.notes[0]
-    const feelKey = opts.anti ? pickAnti(FEEL_KEYS, rng, opts.anti, 'lead_feel') : FEEL_KEYS[rng.int(FEEL_KEYS.length)]
-    const contour = opts.anti ? pickAnti(CONTOURS, rng, opts.anti, 'lead_contour') : CONTOURS[rng.int(CONTOURS.length)]
-    const mask = FEELS[feelKey].split(' ').map((t) => (t === 'x' ? 1 : 0))
+    const base = (opts.keyRoot ?? 0) + 12 * (opts.leadOctave - 3)
+    // scale-step → midi (wraps octaves; negative steps go below the tonic, staying in-scale)
+    const deg = (d: number): number => {
+      const L = scale.length
+      return base + 12 * Math.floor(d / L) + scale[((d % L) + L) % L]
+    }
+    const arch = opts.anti ? (pickAnti(ARCHETYPES, rng, opts.anti, 'lead_arch')) : ARCHETYPES[rng.int(ARCHETYPES.length)]
 
-    // pool = the SAFE (minor-pentatonic) degrees of the scale, across ~1 octave, sorted.
-    const base = keyRoot + 12 * (opts.leadOctave - 3)
-    const SAFE = new Set([0, 3, 5, 7, 10])
-    let safeIvs = scale.filter((iv) => SAFE.has(((iv % 12) + 12) % 12))
-    if (safeIvs.length < 3) safeIvs = scale
-    const pool: number[] = safeIvs.map((iv) => base + iv)
-    pool.push(base + 12)
-    pool.sort((a, b) => a - b)
-
-    // anchor = the pool tone closest in pitch-class to the key root (the note the bass holds).
-    let anchor = 0
-    let bestD = Infinity
-    pool.forEach((nn, i) => {
-      const d = Math.min(((nn - base) % 12 + 12) % 12, ((base - nn) % 12 + 12) % 12)
-      if (d < bestD) { bestD = d; anchor = i }
+    if (arch === 'acidCell') {
+      // a driving 16th cell (0 4 0 9 7 family), root-anchored — the expression comes from the filter env.
+      const cell = ACID_CELLS[rng.int(ACID_CELLS.length)]
+      return { pattern: Array.from({ length: 16 }, (_, i) => String(deg(cell[i % cell.length]))).join(' ') }
+    }
+    if (arch === 'arpDyad') {
+      // dyads [tonic-pedal, moving scale tone] arpeggiated into 16ths: lo hi lo hi per beat.
+      const highs = DYAD_HIGHS[rng.int(DYAD_HIGHS.length)]
+      const lo = deg(0)
+      const steps: string[] = []
+      for (let b = 0; b < 4; b++) { const hi = deg(highs[b]); steps.push(String(lo), String(hi), String(lo), String(hi)) }
+      return { pattern: steps.join(' ') }
+    }
+    if (arch === 'gatedPhrase') {
+      // a few held notes (one per bar) chopped by a 16-step gate baked per bar → a trance-gated lead.
+      const phrase = [0, rng.next() < 0.5 ? -3 : 2, rng.next() < 0.5 ? 0 : -5, 0]
+      const notes = phrase.map(deg)
+      if (rng.next() < 0.4) notes[1] += 1 // an occasional chromatic colour (#)
+      const mask = GATE_MASKS[rng.int(GATE_MASKS.length)]
+      const bars = notes.map((m) => `[${mask.map((g) => (g === 'x' ? String(m) : '~')).join(' ')}]`)
+      return { pattern: `<${bars.join(' ')}>` }
+    }
+    // poolMotif — a sparse, anchored 8-step cell with one chromatic colour note.
+    const cell = MOTIF_CELLS[rng.int(MOTIF_CELLS.length)]
+    const colourAt = rng.int(cell.length)
+    const steps = cell.map((t, i) => {
+      if (t === '~') return '~'
+      const m = deg(Number(t)) + (i === colourAt && rng.next() < 0.5 ? 1 : 0) // chromatic twist
+      return String(m)
     })
-    const lo = Math.max(0, anchor - 2)
-    const hi = Math.min(pool.length - 1, anchor + 2)
-    return { mask, notes: this.buildCell(contour, pool, anchor, lo, hi, rng) }
-  }
-
-  /** The note cell, shaped by the chosen contour. All start grounded on the tonic. */
-  private buildCell(contour: Contour, pool: number[], anchor: number, lo: number, hi: number, rng: Rng): number[] {
-    const tonic = pool[anchor]
-    // A pool index GUARANTEED different from the anchor (a step up if possible, else down) — so the cell
-    // always has ≥2 distinct notes. Without this, an edge anchor collapsed twonote/pedal to ONE repeated
-    // note (note("52 ~ 52 ~ …")), which sounded awful.
-    const upIdx = Math.min(pool.length - 1, anchor + 1)
-    const dnIdx = Math.max(0, anchor - 1)
-    const otherIdx = upIdx !== anchor ? upIdx : dnIdx
-    const far = pool[anchor <= lo ? Math.min(pool.length - 1, anchor + 2) : anchor >= hi ? Math.max(0, anchor - 2) : (rng.next() < 0.5 ? Math.min(pool.length - 1, anchor + 2) : Math.max(0, anchor - 2))]
-    const other = pool[otherIdx]
-    if (contour === 'pedal') {
-      // mostly the tonic with one neighbour — the hypnotic 303 pedal
-      return rng.next() < 0.5 ? [tonic, tonic, other, tonic] : [tonic, far !== tonic ? far : other, tonic, tonic]
-    }
-    if (contour === 'twonote') {
-      // minimal two-tone oscillation (techno restraint) — the two tones are always distinct
-      return [tonic, far !== tonic ? far : other]
-    }
-    if (contour === 'descend') {
-      // a short falling phrase that lands home — never an ascending uplift
-      const cell: number[] = []
-      let cur = Math.min(hi, anchor + 2)
-      const len = 4 + rng.int(2)
-      for (let k = 0; k < len; k++) { cell.push(pool[cur]); cur = Math.max(lo, cur - 1) }
-      return cell
-    }
-    // zigzag — a walking cell that snaps home ~22% (the old behaviour, now just one option)
-    const cellLen = 4 + rng.int(3)
-    const cell: number[] = []
-    let cur = anchor
-    for (let k = 0; k < cellLen; k++) {
-      cell.push(pool[cur])
-      if (k > 0 && rng.next() < 0.22) cur = anchor
-      else { const dir = cur <= lo ? 1 : cur >= hi ? -1 : (rng.next() < 0.5 ? 1 : -1); cur += dir }
-    }
-    return cell
+    return { pattern: steps.join(' ') }
   }
 }
 
