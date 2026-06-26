@@ -11,29 +11,48 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
  * are a different Canvas and are never touched by radio.
  */
 
-// --- Beat detection (shared) — ADAPTIVE: a kick is a low-band transient that rises above its own moving baseline.
-// (A fixed flux/threshold missed soft kicks and fired off-beat on sustained bass; the baseline-relative test adapts
-// to the track's loudness, so it catches more real kicks and rejects steady bass + quiet noise + reverb tails.)
+// --- Beat = a BPM CLOCK (the radio is generative → the tempo is KNOWN). Pure audio detection on the mixed low band
+// fails (the kick can't be told apart from the sustained bass → it either misses kicks or fires off-beat). Instead
+// we run a clock at the track's kick rate (60/bpm s), realign its phase to real low-band ONSETS, and gate it by
+// energy (so breaks/silence don't pulse). ONE shared result → the camera and the emoji react on the SAME beat.
 const RADIO_BANDS = 8
-const RADIO_BEAT_SLOW_RATE = 0.04   // baseline EMA rate (slow) — what "normal" low-band energy looks like
-const RADIO_BEAT_SENS = 1.35        // a beat = kick energy ≥ baseline × this (a clear transient over the baseline)
-const RADIO_BEAT_FLOOR = 0.12       // absolute floor — no beats in near-silence / outros
-const RADIO_BEAT_REFRACTORY = 0.12  // min seconds between beats (one kick fires once)
-interface BeatState { prev: number; slow: number; cd: number }
-function newBeatState(): BeatState { return { prev: 0, slow: 0, cd: 0 } }
-/** Detect a kick this frame; `strength` (0..1) = how far the transient rose above the baseline. */
-function detectBeat(bands: Float32Array, st: BeatState, dt: number): { beat: boolean; strength: number } {
-  const kick = (bands[0] ?? 0) + (bands[1] ?? 0)
-  st.slow += (kick - st.slow) * RADIO_BEAT_SLOW_RATE
-  st.cd -= dt
-  const rising = kick > st.prev
-  const over = kick > st.slow * RADIO_BEAT_SENS && kick > RADIO_BEAT_FLOOR
-  st.prev = kick
-  if (rising && over && st.cd <= 0) {
-    st.cd = RADIO_BEAT_REFRACTORY
-    return { beat: true, strength: Math.min(1, (kick - st.slow) / (st.slow + 0.25)) }
-  }
-  return { beat: false, strength: 0 }
+const RADIO_BEAT_PRIORITY = -1       // run before the camera/emoji frame callbacks (which read the result)
+const RADIO_BEAT_MIN_BPM = 60        // guard against a missing/0 bpm
+const RADIO_BEAT_ONSET_FLUX = 0.1    // a clear low-band transient → fire now + realign the clock phase
+const RADIO_BEAT_ENERGY_FLOOR = 0.08 // clock-filled beats need some kick energy (skip breaks / outros)
+const RADIO_BEAT_FULL_ENERGY = 1.2   // kick energy that maps to strength 1 (band0+band1, each 0..1)
+const RADIO_BEAT_MIN_GAP_FRAC = 0.45 // min gap between beats = interval × this (no double-fire from onset+clock)
+
+// Shared per-frame beat result (one radio screen at a time). fired = a beat happened THIS frame; strength 0..1.
+const _beat = { fired: false, strength: 0 }
+const _bandsBeat = new Float32Array(RADIO_BANDS)
+let _phase = 0          // time since the last grid tick
+let _sinceBeat = 0      // time since the last fired beat (refractory)
+let _prevKickBeat = 0
+
+/** Drives the shared `_beat` each frame from a BPM clock + onset realignment + energy gate. */
+function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number }) {
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(dtRaw, 0.1)
+    analysis?.bands(_bandsBeat)
+    const kick = (_bandsBeat[0] ?? 0) + (_bandsBeat[1] ?? 0)
+    const flux = kick - _prevKickBeat
+    _prevKickBeat = kick
+    const interval = 60 / Math.max(RADIO_BEAT_MIN_BPM, bpm)
+    _phase += dt
+    _sinceBeat += dt
+    _beat.fired = false
+    const strength = Math.min(1, kick / RADIO_BEAT_FULL_ENERGY)
+    const canFire = _sinceBeat > interval * RADIO_BEAT_MIN_GAP_FRAC
+    if (flux > RADIO_BEAT_ONSET_FLUX && canFire) {
+      // a real kick arrived → fire and snap the clock to it
+      _phase = 0; _sinceBeat = 0; _beat.fired = true; _beat.strength = strength
+    } else if (_phase >= interval) {
+      _phase -= interval
+      if (kick > RADIO_BEAT_ENERGY_FLOOR && canFire) { _sinceBeat = 0; _beat.fired = true; _beat.strength = strength }
+    }
+  }, RADIO_BEAT_PRIORITY)
+  return null
 }
 
 // --- Camera dolly + per-beat punch & shake (strength ∝ loudness) --------------------------------
@@ -86,8 +105,6 @@ function emojiSetFor(mood: string): string[] {
 }
 
 const _fwd = new THREE.Vector3()
-const _bandsCam = new Float32Array(RADIO_BANDS)
-const _bandsEmoji = new Float32Array(RADIO_BANDS)
 
 function makeEmojiTexture(emoji: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
@@ -110,7 +127,6 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
   const camera = useThree(s => s.camera)
   const dashMul = useRef(1)
   const dashTau = useRef(RADIO_EMOJI_DASH_TAU_MIN)
-  const beat = useRef<BeatState>(newBeatState())
   const texCache = useRef<Map<string, THREE.CanvasTexture>>(new Map())
   const set = emojiSetFor(mood)
 
@@ -167,9 +183,8 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     g.quaternion.copy(camera.quaternion)
 
     const level = analysis?.level() ?? 0
-    analysis?.bands(_bandsEmoji)
-    const { beat: hit, strength } = detectBeat(_bandsEmoji, beat.current, dt)
-    if (hit) {
+    const strength = _beat.strength
+    if (_beat.fired) {
       // Dash strength scales with loudness AND the beat strength.
       dashMul.current = 1 + (RADIO_EMOJI_DASH_MIN + RADIO_EMOJI_DASH_LEVEL * level) * strength
       dashTau.current = RADIO_EMOJI_DASH_TAU_MIN + RADIO_EMOJI_DASH_TAU_LEVEL * level
@@ -201,13 +216,11 @@ const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: A
   const target = useRef(0)   // zoom target — SET on a beat, decays slowly (the "deflation")
   const punch = useRef(0)    // actual zoom — chases the target with a fast attack (smooth)
   const shake = useRef(0)
-  const beat = useRef<BeatState>(newBeatState())
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     const level = analysis?.level() ?? 0
-    analysis?.bands(_bandsCam)
-    if (detectBeat(_bandsCam, beat.current, dt).beat) {
+    if (_beat.fired) {   // shared beat — the camera and the emoji react on the SAME frame
       target.current = RADIO_CAM_PUNCH_BASE + RADIO_CAM_PUNCH_LEVEL * level   // SET (re-armable, never accumulates)
       shake.current = RADIO_CAM_SHAKE_AMP
     }
@@ -227,10 +240,12 @@ const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: A
   return null
 })
 
-/** The full radio takeover (camera + emoji), rendered INSIDE the menu Canvas only when radioMode is set. */
-export function RadioTakeover({ radioMode, analysis }: { radioMode: { mood: string }; analysis?: AudioAnalysis }) {
+/** The full radio takeover (camera + emoji), rendered INSIDE the menu Canvas only when radioMode is set.
+ *  BeatClock runs first (priority −1) and drives the shared `_beat` from the track's known tempo. */
+export function RadioTakeover({ radioMode, analysis }: { radioMode: { mood: string; bpm: number }; analysis?: AudioAnalysis }) {
   return (
     <>
+      <BeatClock analysis={analysis} bpm={radioMode.bpm} />
       <RadioCameraMod analysis={analysis} />
       <EmojiRain analysis={analysis} mood={radioMode.mood} />
     </>
