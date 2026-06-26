@@ -72,11 +72,13 @@ export function RadioPlayer(p: RadioPlayerProps) {
   const t = useT()
   const dim: CSSProperties = p.ready ? {} : { opacity: 0.45, pointerEvents: 'none' }
   const radioWord = t.settingsVolRadio   // localized "Radio"
+  // Transport buttons stretch to fill the full width of their row.
+  const transportBtn: CSSProperties = { ...iconBtn, width: 'auto', flex: 1, height: 38 }
   const transport = (
-    <div style={{ ...center, ...dim }}>
-      <button style={iconBtn} onClick={p.onPrev} aria-label={t.radioPrev} data-testid="radio-prev">⏮</button>
-      <button style={iconBtn} onClick={p.onPlayPause} aria-label={p.playing ? t.radioPause : t.radioPlay} data-testid="radio-playpause">{p.playing ? '⏸' : '▶'}</button>
-      <button style={iconBtn} onClick={p.onNext} aria-label={t.radioNext} data-testid="radio-next">⏭</button>
+    <div style={{ display: 'flex', gap: 8, width: '100%', ...dim }}>
+      <button style={transportBtn} onClick={p.onPrev} aria-label={t.radioPrev} data-testid="radio-prev">⏮</button>
+      <button style={transportBtn} onClick={p.onPlayPause} aria-label={p.playing ? t.radioPause : t.radioPlay} data-testid="radio-playpause">{p.playing ? '⏸' : '▶'}</button>
+      <button style={transportBtn} onClick={p.onNext} aria-label={t.radioNext} data-testid="radio-next">⏭</button>
     </div>
   )
 
@@ -93,7 +95,7 @@ export function RadioPlayer(p: RadioPlayerProps) {
             {/* Row 3 — dislike (left) / like (right) */}
             <div style={{ ...spread, ...dim }}>
               <button style={heart(p.disliked)} onClick={p.onDislike} aria-label={t.radioDislike} data-testid="radio-dislike">💔</button>
-              <button style={heart(p.liked)} onClick={p.onLike} aria-label={t.radioLike} data-testid="radio-like">♥</button>
+              <button style={heart(p.liked)} onClick={p.onLike} aria-label={t.radioLike} data-testid="radio-like">❤️</button>
             </div>
             {/* Row 4 — prev / play-pause / next */}
             {transport}
@@ -105,9 +107,9 @@ export function RadioPlayer(p: RadioPlayerProps) {
               </div>
               <button style={smallBtn} onClick={p.onRegen} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
             </div>
-            {/* Volume */}
+            {/* Volume (megaphone pictogram, not the word "Radio") */}
             <div style={volRow}>
-              <span style={volLabel}>{radioWord}</span>
+              <span style={{ ...volLabel, fontSize: '0.95rem' }} aria-label="radio volume">🔊</span>
               <input className="slider" type="range" min={0} max={100} step={1}
                 value={Math.round(p.volume * 100)} aria-label="radio volume"
                 onChange={e => p.onVolume(Number(e.target.value) / 100)} style={{ flex: 1 }} />

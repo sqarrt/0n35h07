@@ -572,7 +572,7 @@ function DebugGrid() {
 // radioMode (≠ undefined) turns the backdrop into the full-screen Radio "takeover": amplified frosted-glass
 // glow + music-reactive bloom, camera dolly/shake, emoji rain and in-scene Strudel code. Implemented in a
 // dedicated in-Canvas component; the prop carries the current track's code + mood for those visuals.
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; radioMode?: { code: string; mood: string }; onReady?: () => void; sfx?: ISfxEngine }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; radioMode?: { mood: string }; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Persistent transparent backdrop for menu screens: a real scene with the player (Body at full size,
