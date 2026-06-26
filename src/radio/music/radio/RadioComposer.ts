@@ -54,6 +54,11 @@ export class RadioComposer {
   private drift: DriftState
   private lead: LeadState = initialLeadState()
   private bar = 0
+  // Inter-track gap accounting: the controller plays config.trackGapBars of silence between tracks and
+  // Strudel's cycle clock keeps running through it, so `bar` must jump by that amount at each AUTO track
+  // boundary to stay aligned — else section sweeps (risers) drift. skipNextGap suppresses it after a manual
+  // jump/reseed and for the very first track (the controller inserts no gap there).
+  private skipNextGap = true
   private afterBreak = false // true once the track passes its breakdown → 2nd movement
   // Drums (kit SOUND + velocity curve) are LOCKED per track — re-choosing them every
   // section made the kit lurch on every boundary, killing continuity. One kit per track.
@@ -106,6 +111,7 @@ export class RadioComposer {
     this.lead = initialLeadState()
     this.afterBreak = false
     this.bar = 0
+    this.skipNextGap = true   // a manual jump/reseed has no preceding inter-track gap
     this.kitTrackIndex = -1
     this.trackDrums = null
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
@@ -121,6 +127,9 @@ export class RadioComposer {
     const bars = shape.bars
     const energy = shape.energy
     const n = bars
+    // Cross-track gap accounting (see skipNextGap): on a fresh track's first section, advance `bar` by the
+    // silent gap the controller plays before it, so Strudel's cycle clock and our counter stay in step.
+    if (pos === 0) { if (this.skipNextGap) this.skipNextGap = false; else this.bar += this.config.trackGapBars }
     const off = this.bar % n // phase-align block sweeps to this section's start
     // SECTION ALIGNMENT — Strudel patterns run on the GLOBAL cycle clock, so a `<a b c d>` sequence or a `.slow(n)`
     // sweep plays element/phase `globalCycle % len`, NOT element 0 at the section start (sections have varied bar
@@ -348,16 +357,21 @@ export class RadioComposer {
       const leadVoice = style.leadUnison > 0
         ? `.s("${style.leadSound}").unison(${style.leadUnison}).detune(0.18)`
         : `.s("${style.leadSound}")`
-      // filter opens with the block but stays DARK (ceiling capped ~1650) so the lead sits
-      // inside the track instead of screaming over it.
+      // FLOAT carries the whole (drumless) passage on the lead ALONE → there it must be PROMINENT, not
+      // the under-the-groove whisper used in builds/peaks (that left float sections near-silent). So in
+      // float the lead is louder, brighter (higher ceiling) and its entry filter starts far less closed.
+      const floaty = role === 'float'
+      const leadLevel = floaty ? MIX.lead * 2.7 : MIX.lead
+      // filter opens with the block but stays DARK in builds/peaks (capped ~1300) so the lead sits
+      // inside the track; in float it opens much brighter so it actually sings.
       const ceil = Math.round(750 + (lpf - 750) * Math.max(0.3, blockProgress))
-      const ceilCap = Math.min(1300, Math.max(750, ceil)) // lower ceiling → the lead reads as a tone, never pierces
-      // TRANSITION = a filter OPEN (not a stepped gain). When the lead enters (or the peak
-      // block starts) the cutoff sweeps up from near-CLOSED (220Hz = almost inaudible) across
-      // the section start, so it eases in instead of bursting. Otherwise it breathes.
+      const ceilCap = Math.min(floaty ? 2800 : 1300, Math.max(750, ceil))
+      // TRANSITION = a filter OPEN (not a stepped gain). When the lead enters (or the peak block starts)
+      // the cutoff sweeps up across the section start so it eases in. In float it starts far less closed
+      // (520Hz, audible) instead of 220Hz (near-silent) so the opening doesn't read as dead air.
       const leadEntering = entered('lead') || (peak && pos === bStart)
       const leadLpf = leadEntering
-        ? `saw.range(220, ${ceilCap}).slow(${n})${lateAlign}`
+        ? `saw.range(${floaty ? 520 : 220}, ${ceilCap}).slow(${n})${lateAlign}`
         : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
       // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
       const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
@@ -369,7 +383,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(MIX.lead * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -378,7 +392,7 @@ export class RadioComposer {
         this.lead = state
         // quieter, softer attack, gentler resonance, more reverb (sits IN the track, not on
         // top). lpq 2 = barely-resonant so it reads as a tone, not a screaming acid line.
-        layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.4).lpq(2).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.4, 0.6)).gain(${g(MIX.lead)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
+        layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.4).lpq(2).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.4, 0.6)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
       }
     }
 

@@ -91,16 +91,21 @@ export class MelodyEngine {
   /** The note cell, shaped by the chosen contour. All start grounded on the tonic. */
   private buildCell(contour: Contour, pool: number[], anchor: number, lo: number, hi: number, rng: Rng): number[] {
     const tonic = pool[anchor]
+    // A pool index GUARANTEED different from the anchor (a step up if possible, else down) — so the cell
+    // always has ≥2 distinct notes. Without this, an edge anchor collapsed twonote/pedal to ONE repeated
+    // note (note("52 ~ 52 ~ …")), which sounded awful.
+    const upIdx = Math.min(pool.length - 1, anchor + 1)
+    const dnIdx = Math.max(0, anchor - 1)
+    const otherIdx = upIdx !== anchor ? upIdx : dnIdx
+    const far = pool[anchor <= lo ? Math.min(pool.length - 1, anchor + 2) : anchor >= hi ? Math.max(0, anchor - 2) : (rng.next() < 0.5 ? Math.min(pool.length - 1, anchor + 2) : Math.max(0, anchor - 2))]
+    const other = pool[otherIdx]
     if (contour === 'pedal') {
       // mostly the tonic with one neighbour — the hypnotic 303 pedal
-      const nb = pool[Math.min(hi, anchor + 1)]
-      const lo2 = pool[Math.max(lo, anchor - 2)]
-      return rng.next() < 0.5 ? [tonic, tonic, nb, tonic] : [tonic, lo2, tonic, tonic]
+      return rng.next() < 0.5 ? [tonic, tonic, other, tonic] : [tonic, far !== tonic ? far : other, tonic, tonic]
     }
     if (contour === 'twonote') {
-      // minimal two-tone oscillation (techno restraint)
-      const other = pool[rng.next() < 0.5 ? Math.max(lo, anchor - 2) : Math.min(hi, anchor + 2)]
-      return [tonic, other]
+      // minimal two-tone oscillation (techno restraint) — the two tones are always distinct
+      return [tonic, far !== tonic ? far : other]
     }
     if (contour === 'descend') {
       // a short falling phrase that lands home — never an ascending uplift

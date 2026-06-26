@@ -45,7 +45,8 @@ export function sectionDurationMs(bpm: number, bars: number): number {
 const SWAP_LEAD_MS = 150
 /** Silent gap between tracks (bars): the old outro concludes & its tails ring out, a
  *  beat of silence, then the new track enters — instead of a fade-out/fade-in. */
-const TRACK_GAP_BARS = 2
+// Silent bars between tracks — read from config so the composer (which advances its bar counter by the
+// same amount to stay cycle-aligned across the gap) and the controller never disagree.
 
 export class RadioController {
   private readonly engine: RadioEngine
@@ -145,7 +146,7 @@ export class RadioController {
     // reverb/delay tails ring into a short gap, then start the new track on the grid.
     if (isNewTrack) {
       void this.engine.play('silence')
-      this.nextBoundaryMs += sectionDurationMs(musicalState.bpm, TRACK_GAP_BARS)
+      this.nextBoundaryMs += sectionDurationMs(musicalState.bpm, this.config.trackGapBars)
       const waitGap = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
       this.timer = setTimeout(() => this.playSection(strudelCode, musicalState), waitGap)
       return
@@ -180,7 +181,7 @@ export class RadioController {
       this.onTrackEnd?.()
       if (this.baked !== before) return
       void this.engine.play('silence')
-      this.nextBoundaryMs += sectionDurationMs(desc.bpm, TRACK_GAP_BARS)
+      this.nextBoundaryMs += sectionDurationMs(desc.bpm, this.config.trackGapBars)
       this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
       return
     }
