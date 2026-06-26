@@ -11,38 +11,62 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
  * are a different Canvas and are never touched by radio.
  */
 
-// --- Beat = a low-band ONSET, with reaction STRENGTH ∝ the rhythm hit's loudness. The mixed low band can't tell the
-// kick from the sustained bass by absolute energy — but a kick is a TRANSIENT, so the FLUX (frame-to-frame rise of the
-// low band) is the rhythm hit and its size is the hit's loudness. Driving everything by flux means: loud kick → strong
-// reaction; soft kick → faint; sustained bass / quiet / a stray trigger → ~0 flux → ~0 reaction (no phantom beats).
-// No tempo prediction (a predicted beat on sustained energy was the phantom-beat source). ONE shared result.
+// --- Beat = a phase-locked TEMPO GRID that gates + quantizes low-band onsets; strength = the hit's loudness. --------
+// Post-mortem of what failed before:
+//   • fixed flux threshold  → missed soft kicks / fired on noise (no single threshold fits every track)
+//   • adaptive baseline     → steady techno's sustained low end raised the baseline until kicks stopped registering
+//   • free BPM clock + fill → great TIMING, but invented beats whenever the low end was loud (a bass drone read as a kick)
+//   • pure flux onset       → same miss/false problems as the fixed threshold
+// The two reliable signals are the TEMPO (known from bpm → WHEN) and the low-band TRANSIENT (flux → IS-a-kick + LOUDNESS).
+// A grid ticks at 60/bpm and phase-locks to low-band onsets (PLL) so ticks land ON the kicks. At each tick, strength =
+// the recent low-band FLUX peak: a kick is a transient (high flux), a sustained drone / break / silence is not (~0 flux),
+// so non-kick ticks are gated out (NO phantom beats) while every on-grid kick fires with strength ∝ its loudness. The
+// grid keeps ticking through soft/under-threshold kicks (NO misses); off-grid transients never reach a tick.
 const RADIO_BANDS = 8
-const RADIO_BEAT_PRIORITY = -1       // run before the camera/emoji frame callbacks (which read the result)
-const RADIO_BEAT_ONSET_FLUX = 0.08   // min low-band rise to count as a rhythm hit (anti-noise trigger)
-const RADIO_BEAT_ENERGY_FLOOR = 0.12 // need some low-band energy present (no triggers in near-silence)
-const RADIO_BEAT_FLUX_FULL = 0.45    // flux that maps to strength 1 (a hard kick) — the reaction scale
-const RADIO_BEAT_REFRACTORY = 0.09   // min seconds between hits (one kick fires once)
+const RADIO_BEAT_PRIORITY = -1        // run before the camera/emoji frame callbacks (which read the result)
+const RADIO_BEAT_MIN_BPM = 60         // guard against a missing/0 bpm
+const RADIO_BEAT_PLL_FLUX = 0.06      // a low-band rise this big nudges the grid phase toward it (phase lock)
+const RADIO_BEAT_PLL_GAIN = 0.2       // how hard each onset pulls the grid phase (locks in a few beats, averages noise)
+const RADIO_BEAT_FLUX_FULL = 0.4      // flux peak that maps to strength 1 (a hard kick) — the reaction scale
+const RADIO_BEAT_FLUX_TAU_FRAC = 0.4  // strength window: recent-flux-peak decay τ = interval × this
+const RADIO_BEAT_MIN_STRENGTH = 0.12  // a tick below this is a non-kick (drone/break) → no beat (kills phantoms)
+const RADIO_BEAT_REFRACTORY_FRAC = 0.5 // min gap between beats = interval × this
 
 // Shared per-frame beat result (one radio screen at a time). fired = a hit happened THIS frame; strength 0..1 = loudness.
 const _beat = { fired: false, strength: 0 }
 const _bandsBeat = new Float32Array(RADIO_BANDS)
-let _sinceBeat = 0      // time since the last fired hit (refractory)
+let _phase = 0          // time since the last grid tick
+let _fluxPeak = 0       // decaying peak of recent low-band flux = the kick transient's strength
+let _sinceBeat = 0      // refractory
 let _prevKickBeat = 0
 
-/** Drives the shared `_beat` each frame from low-band onset flux; strength = the hit's loudness (flux magnitude). */
-function BeatClock({ analysis }: { analysis?: AudioAnalysis }) {
+/** Drives the shared `_beat`: a bpm grid phase-locked to low-band onsets, each tick gated by the recent flux peak. */
+function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
+    const interval = 60 / Math.max(RADIO_BEAT_MIN_BPM, bpm)
     analysis?.bands(_bandsBeat)
     const kick = (_bandsBeat[0] ?? 0) + (_bandsBeat[1] ?? 0)
-    const flux = kick - _prevKickBeat
+    const flux = Math.max(0, kick - _prevKickBeat)
     _prevKickBeat = kick
+    _fluxPeak = Math.max(flux, _fluxPeak * Math.exp(-dt / (interval * RADIO_BEAT_FLUX_TAU_FRAC)))
+
+    // Phase-lock: a clear low-band onset pulls the grid phase toward it, so ticks settle ON the kicks.
+    if (flux > RADIO_BEAT_PLL_FLUX) {
+      let e = _phase
+      if (e > interval / 2) e -= interval   // nearest tick is the NEXT one
+      _phase -= e * RADIO_BEAT_PLL_GAIN
+    }
+
+    _phase += dt
     _sinceBeat += dt
     _beat.fired = false
-    if (flux > RADIO_BEAT_ONSET_FLUX && kick > RADIO_BEAT_ENERGY_FLOOR && _sinceBeat > RADIO_BEAT_REFRACTORY) {
-      _sinceBeat = 0
-      _beat.fired = true
-      _beat.strength = Math.min(1, flux / RADIO_BEAT_FLUX_FULL)   // reaction strength = how loud the hit was
+    if (_phase >= interval) {
+      _phase -= interval
+      const strength = Math.min(1, _fluxPeak / RADIO_BEAT_FLUX_FULL)
+      if (strength > RADIO_BEAT_MIN_STRENGTH && _sinceBeat > interval * RADIO_BEAT_REFRACTORY_FRAC) {
+        _sinceBeat = 0; _beat.fired = true; _beat.strength = strength
+      }
     }
   }, RADIO_BEAT_PRIORITY)
   return null
@@ -251,7 +275,7 @@ const RadioCameraMod = memo(function RadioCameraMod() {
 export function RadioTakeover({ radioMode, analysis }: { radioMode: { mood: string; bpm: number }; analysis?: AudioAnalysis }) {
   return (
     <>
-      <BeatClock analysis={analysis} />
+      <BeatClock analysis={analysis} bpm={radioMode.bpm} />
       <RadioCameraMod />
       <EmojiRain analysis={analysis} mood={radioMode.mood} />
     </>
