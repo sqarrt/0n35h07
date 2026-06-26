@@ -1,4 +1,4 @@
-import { createRng, randomSeed } from '../seededRandom'
+import { createRng, randomSeed, type Rng } from '../seededRandom'
 import type { RadioBanks } from './banks'
 import type { RadioConfig } from './radioConfig'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
@@ -357,7 +357,15 @@ export class RadioComposer {
       // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
       // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
       const gBg = (x: number) => g(MIX.bgScale * Math.min(x, MIX.bgCap))
-      layers.push(orbit(this.bgTexture(style.bg, rootPc, gBg, fxFor) + bgEnter, ORBIT.fx))
+      // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
+      // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
+      // never identical — what made a bell or sonar "jump out" when it recurred.
+      const bedV = bgVary(createRng(`${track.seed}:bg`))
+      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + bgEnter, ORBIT.fx))
+      if (style.bgAccent) {
+        const accV = bgVary(createRng(`${track.seed}:bgacc`))
+        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + bgEnter, ORBIT.fx))
+      }
     }
 
     // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
@@ -376,8 +384,10 @@ export class RadioComposer {
       // FLOAT carries the whole (drumless) passage on the lead ALONE → there it must be PROMINENT, not
       // the under-the-groove whisper used in builds/peaks (that left float sections near-silent). So in
       // float the lead is louder, brighter (higher ceiling) and its entry filter starts far less closed.
-      const floaty = role === 'float' || role === 'introB' // drumless/sparse openings the lead carries → prominent
-      const leadLevel = floaty ? MIX.lead * 2.7 : MIX.lead
+      const floaty = role === 'float' || role === 'introB' // openings → brighter filter / less-closed entry
+      // Lead vs bass: when they play TOGETHER (bass present) the lead must be NOTICEABLY quieter than the bass.
+      // float has NO bass → prominent; introB has bass → present but under it; build/peak → well under it.
+      const leadLevel = role === 'float' ? MIX.lead * 2.7 : role === 'introB' ? MIX.lead * 1.3 : MIX.lead * 0.75
       // filter opens with the block but stays DARK in builds/peaks (capped ~1300) so the lead sits
       // inside the track; in float it opens much brighter so it actually sings.
       const ceil = Math.round(750 + (lpf - 750) * Math.max(0.3, blockProgress))
@@ -496,33 +506,33 @@ export class RadioComposer {
     return { strudelCode, musicalState }
   }
 
-  /** Subtle, in-key background texture to fill/dilute the track (replaces the old pad).
-   *  20 flavours — drones, beepers, noise textures, tonal shimmers — all quiet & dark. */
-  private bgTexture(kind: BgKind, root: number, g: (x: number) => number, fxFor: (d: number, r: number) => string): string {
+  /** Subtle, in-key background texture to fill/dilute the track — PARAMETERISED per track by `v` (register via
+   *  `root`, plus struct rotation / timbre jitter / filter / pan) so a repeated kind never sounds identical. */
+  private bgTexture(kind: BgKind, root: number, g: (x: number) => number, fxFor: (d: number, r: number) => string, v: BgVary): string {
     switch (kind) {
-      // ── drones / hums ─────────────────────────────────────────────────────────────
-      case 'drone':     return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(420).gain(${g(0.11)})${fxFor(0.1, 0.5)}`
-      case 'hum':       return `note("${root - 12}").s("sawtooth").detune(0.06).unison(2).lpf(300).gain(${g(0.1)})`
-      case 'tremdrone': return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(400).gain(${g(0.12)}).gain(sine.slow(6).range(0.4, 1))`
+      // ── drones / hums (BEDS) — register shifts via `root`; a cutoff jitter varies the colour ──────────
+      case 'drone':     return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(420 * v.cut)}).gain(${g(0.11)})${fxFor(0.1, 0.5)}`
+      case 'hum':       return `note("${root - 12}").s("sawtooth").detune(0.06).unison(2).lpf(${Math.round(300 * v.cut)}).gain(${g(0.1)})`
+      case 'tremdrone': return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(400 * v.cut)}).gain(${g(0.12)}).gain(sine.slow(6).range(0.4, 1))`
       case 'organ':     return `note("[${root - 12},${root - 5}]").s("sine").attack(0.5).release(5).gain(${g(0.1)})${fxFor(0.1, 0.5)}`
       case 'sweepdrone':return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(sine.range(250, 900).slow(24)).gain(${g(0.11)})`
-      // ── pulses / beepers ──────────────────────────────────────────────────────────
-      case 'subpulse':  return `note("${root - 12}").struct("x ~ x ~").s("sine").attack(0.04).release(0.5).lpf(180).gain(${g(0.16)})`
-      case 'sonar':     return `note("${root + 24}").struct("x ~ ~ ~ ~ ~ ~ ~").s("sine").decay(0.4).gain(${g(0.07)})${fxFor(1, 1)}.pan(0.65)`
-      case 'metallic':  return `note("${root + 19}").struct("~ ~ ~ ~ x ~ ~ ~").s("sine").fm(8).fmh(3.3).decay(0.25).gain(${g(0.07)})${fxFor(0.9, 0.9)}.pan(0.4)`
-      case 'morse':     return `note("${root + 12}").struct("x x ~ x ~ ~ x ~").s("square").decay(0.05).lpf(2000).gain(${g(0.06)})${fxFor(0.6, 0.4)}.pan(0.6)`
-      case 'bell':      return `note("${root}").struct("x ~ ~ ~ ~ ~ ~ ~").s("sine").fm(3).fmh(1.4).decay(2).gain(${g(0.08)})${fxFor(0.8, 1.2)}`
-      // ── noise textures ────────────────────────────────────────────────────────────
+      // ── pulses / beepers (ACCENTS) — rotate the struct (moves the hit), jitter timbre, vary the pan ────
+      case 'subpulse':  return `note("${root - 12}").struct("${rotStruct('x ~ x ~', v.rot)}").s("sine").attack(0.04).release(0.5).lpf(180).gain(${g(0.16)})`
+      case 'sonar':     return `note("${root + 24}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").decay(${r2(0.4 * v.jitter)}).gain(${g(0.07)})${fxFor(1, 1)}.pan(${v.pan})`
+      case 'metallic':  return `note("${root + 19}").struct("${rotStruct('~ ~ ~ ~ x ~ ~ ~', v.rot)}").s("sine").fm(${r2(8 * v.jitter)}).fmh(3.3).decay(0.25).gain(${g(0.07)})${fxFor(0.9, 0.9)}.pan(${v.pan})`
+      case 'morse':     return `note("${root + 12}").struct("${rotStruct('x x ~ x ~ ~ x ~', v.rot)}").s("square").decay(0.05).lpf(${Math.round(2000 * v.cut)}).gain(${g(0.06)})${fxFor(0.6, 0.4)}.pan(${v.pan})`
+      case 'bell':      return `note("${root}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(3 * v.jitter)}).fmh(1.4).decay(${r2(2 * v.jitter)}).gain(${g(0.08)})${fxFor(0.8, 1.2)}.pan(${v.pan})`
+      // ── noise textures (BEDS) ─────────────────────────────────────────────────────────────────────────
       case 'wind':      return `s("white*8").dec(0.5).lpf(sine.range(300, 1100).slow(16)).hpf(220).gain(${g(0.07)}).pan(sine.slow(11))`
-      case 'crackle':   return `s("white*16").dec(0.01).degradeBy(0.7).hpf(1500).lpf(5000).gain(${g(0.09)}).pan(sine.slow(9))`
-      case 'hiss':      return `s("white*4").dec(0.4).hpf(3000).gain(${g(0.05)}).pan(sine.slow(13))`
+      case 'crackle':   return `s("white*16").dec(0.01).degradeBy(0.7).hpf(1500).lpf(${Math.round(5000 * v.cut)}).gain(${g(0.09)}).pan(sine.slow(9))`
+      case 'hiss':      return `s("white*4").dec(0.4).hpf(${Math.round(3000 * v.cut)}).gain(${g(0.05)}).pan(sine.slow(13))`
       case 'geiger':    return `s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(${g(0.1)}).pan(rand)`
-      case 'resonance': return `note("${root + 12}").s("sawtooth").lpf(900).lpq(16).gain(${g(0.05)})${fxFor(0.4, 0.7)}`
-      // ── tonal shimmers ────────────────────────────────────────────────────────────
-      case 'sinearp':   return `note("${root} ${root + 3} ${root + 7} ${root + 10}").slow(2).s("sine").decay(0.3).gain(${g(0.07)})${fxFor(0.7, 0.8)}.pan(sine.slow(7))`
+      case 'resonance': return `note("${root + 12}").s("sawtooth").lpf(${Math.round(900 * v.cut)}).lpq(16).gain(${g(0.05)})${fxFor(0.4, 0.7)}`
+      // ── tonal shimmers (sinearp = ACCENT — rotate the arp order) ──────────────────────────────────────
+      case 'sinearp':   return `note("${rotStruct(`${root} ${root + 3} ${root + 7} ${root + 10}`, v.rot)}").slow(2).s("sine").decay(${r2(0.3 * v.jitter)}).gain(${g(0.07)})${fxFor(0.7, 0.8)}.pan(${v.pan})`
       case 'granular':  return `s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(${g(0.06)}).pan(rand)`
-      case 'choir':     return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").attack(1.2).release(5).lpf(600).gain(${g(0.06)})${fxFor(0.3, 1.4)}`
-      case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(800).gain(${g(0.05)})${fxFor(0.4, 1)}`
+      case 'choir':     return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").attack(1.2).release(5).lpf(${Math.round(600 * v.cut)}).gain(${g(0.06)})${fxFor(0.3, 1.4)}`
+      case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(${Math.round(800 * v.cut)}).gain(${g(0.05)})${fxFor(0.4, 1)}.pan(${v.pan})`
       default:          return `note("${root - 12}").s("sine").lpf(200).gain(${g(0.1)})`
     }
   }
@@ -555,3 +565,23 @@ export class RadioComposer {
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
+
+// Per-track variation applied to a bg texture so a repeated kind never sounds identical (de-fingerprinting):
+// a register shift (octaves → stays in key), a struct rotation (moves a rhythmic hit), a timbre jitter
+// (fm/decay) and a filter/pan position. Derived from a track-stable seed so it's steady within a track.
+interface BgVary { oct: number; rot: number; jitter: number; pan: number; cut: number }
+function bgVary(rng: Rng): BgVary {
+  return {
+    oct: [-12, 0, 0, 12][rng.int(4)],
+    rot: rng.int(8),
+    jitter: r2(0.8 + rng.next() * 0.5), // 0.8..1.3
+    pan: r2(0.3 + rng.next() * 0.4),    // 0.3..0.7
+    cut: r2(0.75 + rng.next() * 0.6),   // 0.75..1.35
+  }
+}
+/** Rotate a space-separated struct pattern by n steps (moves the hit to a different beat). */
+function rotStruct(pat: string, n: number): string {
+  const a = pat.split(' ')
+  const k = ((n % a.length) + a.length) % a.length
+  return a.slice(k).concat(a.slice(0, k)).join(' ')
+}

@@ -26,6 +26,12 @@ export const BG_KINDS: BgKind[] = [
   'wind', 'crackle', 'hiss', 'geiger', 'resonance',
   'sinearp', 'granular', 'choir', 'siren', // 'reverse' removed — a swelling white-noise burst, not in-key & too foreground
 ]
+// Two tiers (see docs/radio-leads-lessons.md analysis): BEDS are subliminal drones/noise with no rhythmic/tonal
+// HOOK — safe to recur, they don't fingerprint a track. ACCENTS are the memorable ones (a bell ping, a sonar
+// blip, a morse rhythm…) — distinctive, so they're added only OCCASIONALLY and never to two near tracks.
+export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'wind', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'bell', 'sinearp', 'siren']
+const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
  *  its role, so all parts sit in one coherent space (no dry-bass-vs-wet-lead clash). */
@@ -57,7 +63,8 @@ export interface TrackStyle {
   bassGroove: string  // 16-step on/off mask for the bassline's rhythm
   fx: FxChar          // the track's shared echo/reverb space
   riser: boolean      // does this track use the through-line FM pulse riser texture?
-  bg: BgKind          // the subtle background texture that fills the track
+  bg: BgKind          // the always-on subliminal BED texture that fills the track
+  bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
 }
 
 const BASS: { sound: string; fm: number; rest: number }[] = [
@@ -169,6 +176,7 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     bassGroove: pick(rng, BASS_GROOVE, anti, 'st_bgroove'),
     fx: pick(rng, FX_SPACES, anti, 'st_fx'),
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
-    bg: pick(rng, BG_KINDS, anti, 'st_bg'),
+    bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed
+    bgAccent: rng.next() < ACCENT_CHANCE ? pick(rng, BG_ACCENTS, anti, 'st_bgacc') : null, // a rare distinctive accent
   }
 }
