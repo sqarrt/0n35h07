@@ -30,8 +30,8 @@ const MIX = {
   bass: 0.5,
   sub: 0.42,
   lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
-  bgScale: 0.42, // multiplies each bg texture's own (already small) level → near-subliminal
-  bgCap: 0.085, // HARD ceiling on a bg texture's pre-scale level so the loud ones can't pierce
+  bgScale: 0.32, // multiplies each bg texture's own (already small) level → near-subliminal
+  bgCap: 0.06,  // HARD ceiling on a bg texture's pre-scale level so the loud ones can't pierce
   hat: 0.34,
   snare: 0.46,
   clap: 0.4,
@@ -185,7 +185,8 @@ export class RadioComposer {
     const rampVals = Array.from({ length: rampN }, (_, i) => r2(0.18 + 0.82 * (i + 1) / rampN))
     const easeIn = `.gain("<${rampVals.join(' ')}${bars > rampN ? ` 1!${bars - rampN}` : ''}>")`
     const bassEnter = entered('bass') ? easeIn : ''
-    const bgEnter = entered('bg') ? easeIn : ''
+    // NB: the bg gets NO ease-in ramp — a subliminal texture must hold a STEADY level (a rising/ramping bg
+    // re-entering after each peak read as "the background is getting louder", which the user dislikes).
     const percEnter = entered('perc') ? easeIn : '' // perc no longer slams in at build→peak
 
     // LEAD presence + the DROP before its first entry. leadOnFor mirrors the lead gate (below) for ANY role, so
@@ -365,10 +366,10 @@ export class RadioComposer {
       // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
       // never identical — what made a bell or sonar "jump out" when it recurred.
       const bedV = bgVary(createRng(`${track.seed}:bg`))
-      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + bgEnter + breakDuck, ORBIT.fx))
+      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + breakDuck, ORBIT.fx))
       if (style.bgAccent) {
         const accV = bgVary(createRng(`${track.seed}:bgacc`))
-        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + bgEnter + breakDuck, ORBIT.fx))
+        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + breakDuck, ORBIT.fx))
       }
     }
 
@@ -505,7 +506,7 @@ export class RadioComposer {
       // ── drones / hums (BEDS) — register shifts via `root`; a cutoff jitter varies the colour ──────────
       case 'drone':     return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(420 * v.cut)}).gain(${g(0.11)})${fxFor(0.1, 0.5)}`
       case 'hum':       return `note("${root - 12}").s("sawtooth").detune(0.06).unison(2).lpf(${Math.round(300 * v.cut)}).gain(${g(0.1)})`
-      case 'tremdrone': return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(400 * v.cut)}).gain(${g(0.12)}).gain(sine.slow(6).range(0.4, 1))`
+      case 'tremdrone': return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(400 * v.cut)}).gain(${g(0.12)}).gain(sine.slow(6).range(0.72, 1))`
       case 'organ':     return `note("[${root - 12},${root - 5}]").s("sine").attack(0.5).release(5).gain(${g(0.1)})${fxFor(0.1, 0.5)}`
       case 'sweepdrone':return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(sine.range(250, 900).slow(24)).gain(${g(0.11)})`
       // ── pulses / beepers (ACCENTS) — rotate the struct (moves the hit), jitter timbre, vary the pan ────
