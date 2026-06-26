@@ -878,31 +878,6 @@ export default function App() {
       {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { code: radioMusicalState?.strudelCode ?? '', mood: radioMusicalState?.mood ?? '' } : undefined} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
-      {/* Unified radio player — desktop only. Docked (shrunk, still interactive) in the bottom-right corner on
-          menu screens; unfolds to full size on the Radio screen. Replaces the old mini-player indicator. */}
-      {IS_DESKTOP && screen !== 'game' && screen !== 'trailer' && (
-        <RadioPlayer
-          expanded={screen === 'radio'}
-          ready={radioInitState === 'ready'}
-          mode={radioPlayMode}
-          playing={profile.radioEnabled}
-          trackName={radioTrackLabel}
-          subtitle={radioSubtitle}
-          liked={radioLiked}
-          disliked={radioDisliked}
-          volume={profile.volumeRadio}
-          onMode={setRadioPlayMode}
-          onPrev={radioPrev}
-          onNext={radioNext}
-          onPlayPause={handleToggleRadio}
-          onLike={radioLike}
-          onDislike={radioDislike}
-          onRegen={radioRegen}
-          onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
-          onOpen={handleRadio}
-          onBack={() => setScreen('menu')}
-        />
-      )}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.
           Radio is excluded — it's a full-screen takeover (the backdrop IS the visual) with its own glass overlays. */}
       {screen !== 'game' && screen !== 'trailer' && screen !== 'radio' && (
@@ -930,6 +905,32 @@ export default function App() {
           current={radioCurrentDesc}
           onPlayFirst={radioPlayFirst}
           onPlay={playFav}
+        />
+      )}
+
+      {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).
+          Docked (shrunk, interactive) in the bottom-right corner on menu screens; unfolds, centered, on Radio. */}
+      {IS_DESKTOP && screen !== 'game' && screen !== 'trailer' && (
+        <RadioPlayer
+          expanded={screen === 'radio'}
+          ready={radioInitState === 'ready'}
+          mode={radioPlayMode}
+          playing={profile.radioEnabled}
+          trackName={radioTrackLabel}
+          subtitle={radioSubtitle}
+          liked={radioLiked}
+          disliked={radioDisliked}
+          volume={profile.volumeRadio}
+          onMode={setRadioPlayMode}
+          onPrev={radioPrev}
+          onNext={radioNext}
+          onPlayPause={handleToggleRadio}
+          onLike={radioLike}
+          onDislike={radioDislike}
+          onRegen={radioRegen}
+          onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
+          onOpen={handleRadio}
+          onBack={() => setScreen('menu')}
         />
       )}
 

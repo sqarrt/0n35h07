@@ -26,12 +26,12 @@ interface RadioPlayerProps {
   onBack: () => void
 }
 
-const COLLAPSED_SCALE = 0.62
+const COLLAPSED_SCALE = 0.8
 
 // Anchored bottom-right; expanded → translate to horizontal center & full scale, collapsed → stay in the corner,
 // shrunk (transform-origin bottom-right). One transform transition animates the dock↔expand move.
 const wrap = (expanded: boolean): CSSProperties => ({
-  position: 'fixed', right: 18, bottom: 18, zIndex: 50,
+  position: 'fixed', right: 18, bottom: 18, zIndex: 120,   // above .screen (z-index 100) so the corner stays clickable
   transformOrigin: 'bottom right',
   transform: expanded ? 'translateX(calc(-50vw + 50% + 18px)) scale(1)' : `translateX(0) scale(${COLLAPSED_SCALE})`,
   transition: 'transform 0.34s cubic-bezier(0.2,0.8,0.2,1)',

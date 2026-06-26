@@ -1,6 +1,7 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react'
+import { Suspense, memo, useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
+import { EffectComposer } from '@react-three/postprocessing'
+import { BloomEffect, EffectPass } from 'postprocessing'
 import { HalfFloatType } from 'three'
 import * as THREE from 'three'
 import { Text } from '@react-three/drei'
@@ -43,6 +44,7 @@ const RADIO_EMOJI_MAX = 48               // pooled sprite count (recycled — no
 const RADIO_EMOJI_BASE_RATE = 2          // spawns/sec in silence
 const RADIO_EMOJI_RATE_GAIN = 22         // extra spawns/sec at the music peak
 const RADIO_EMOJI_BASE_SPEED = 0.7       // SLOW base fall speed (world u/s)
+const RADIO_EMOJI_LEVEL_SPEED = 4.0      // continuous fall-speed boost ∝ music level (always reactive)
 const RADIO_EMOJI_DASH_MUL = 7.0         // fall-speed multiplier at a fresh beat ("dash" down)
 const RADIO_EMOJI_DASH_DECAY_TAU = 0.16  // the dash multiplier eases back to 1 over ~0.5s
 const RADIO_EMOJI_BEAT_DELTA = 0.10      // a sudden rise in level this big = a beat (transient)
@@ -107,7 +109,7 @@ interface Drop { sprite: THREE.Sprite; active: boolean; vx: number }
  * pooled/recycled. They fall SLOWLY; a shared `dashMul` spikes on each beat (a sudden level rise) and eases back,
  * so on every kick the whole rain "dashes" downward, then settles.
  */
-function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string }) {
+const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string }) {
   const groupRef = useRef<THREE.Group>(null)
   const camera = useThree(s => s.camera)
   const spawnAcc = useRef(0)
@@ -153,7 +155,8 @@ function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string 
     if (level - prevLevel.current > RADIO_EMOJI_BEAT_DELTA) dashMul.current = RADIO_EMOJI_DASH_MUL
     prevLevel.current = level
     dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / RADIO_EMOJI_DASH_DECAY_TAU))
-    const fallSpeed = RADIO_EMOJI_BASE_SPEED * dashMul.current
+    // Always reactive to loudness (continuous), and "dashes" on each beat.
+    const fallSpeed = RADIO_EMOJI_BASE_SPEED * (1 + RADIO_EMOJI_LEVEL_SPEED * level) * dashMul.current
 
     // Spawn rate scales with the level (denser rain on louder parts).
     spawnAcc.current += (RADIO_EMOJI_BASE_RATE + RADIO_EMOJI_RATE_GAIN * level) * dt
@@ -176,10 +179,10 @@ function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string 
   })
 
   return <group ref={groupRef} />
-}
+})
 
 /** Camera dolly + beat-shake, applied AFTER CameraRig as an additive offset (returns to 0 on unmount). */
-function RadioCameraMod({ analysis }: { analysis?: AudioAnalysis }) {
+const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: AudioAnalysis }) {
   const camera = useThree(s => s.camera)
   const dolly = useRef(0)
   const shake = useRef(0)
@@ -209,7 +212,7 @@ function RadioCameraMod({ analysis }: { analysis?: AudioAnalysis }) {
   }, RADIO_CAMERA_PRIORITY)
 
   return null
-}
+})
 
 /** Current Strudel code in-scene (semi-transparent monospace). Suspends while the font loads → keep under Suspense. */
 function RadioCode({ code }: { code: string }) {
@@ -231,31 +234,38 @@ function RadioCode({ code }: { code: string }) {
   )
 }
 
-/** Soft frosted-glass Bloom over the whole scene, intensity driven by music and eased in by `fade` (0..1). */
-function RadioBloom({ analysis, fade }: { analysis?: AudioAnalysis; fade: React.RefObject<number> }) {
-  const bloomRef = useRef<{ intensity: number } | null>(null)
+/**
+ * Soft frosted-glass Bloom over the whole scene. Built IMPERATIVELY (BloomEffect + EffectPass + <primitive>),
+ * exactly like the working MenuEdgeGlow — NOT via the <Bloom> wrapper, whose `useMemo([JSON.stringify(props)])`
+ * re-reconciles the EffectComposer on every parent re-render (here that's every section/play-pause) and crashes
+ * ("Converting circular structure to JSON"). memo + stable props mean this composer mounts ONCE; intensity is set
+ * imperatively each frame (the wrapper's ref isn't forwardRef'd, so a ref couldn't drive it anyway).
+ */
+const RadioBloom = memo(function RadioBloom({ analysis, fade }: { analysis?: AudioAnalysis; fade: React.RefObject<number> }) {
+  const camera = useThree(s => s.camera)
   const lvl = useRef(0)
+  const bloom = useMemo(() => new BloomEffect({
+    luminanceThreshold: RADIO_BLOOM_THRESHOLD,
+    luminanceSmoothing: RADIO_BLOOM_SMOOTHING,
+    mipmapBlur: true,
+    radius: RADIO_BLOOM_RADIUS,
+    intensity: RADIO_BLOOM_BASE,
+  }), [])
+  const pass = useMemo(() => new EffectPass(camera, bloom), [camera, bloom])
+  useEffect(() => () => { pass.dispose(); bloom.dispose() }, [pass, bloom])
 
   useFrame(() => {
-    if (!bloomRef.current) return
     const raw = Math.min(1, Math.sqrt((analysis?.level() ?? 0) * RADIO_BLOOM_LEVEL_GAIN))
     lvl.current += (raw - lvl.current) * RADIO_BLOOM_LEVEL_SMOOTH
-    bloomRef.current.intensity = (RADIO_BLOOM_BASE + RADIO_BLOOM_GAIN * lvl.current) * (fade.current ?? 0)
+    bloom.intensity = (RADIO_BLOOM_BASE + RADIO_BLOOM_GAIN * lvl.current) * (fade.current ?? 0)
   })
 
   return (
     <EffectComposer frameBufferType={HalfFloatType}>
-      <Bloom
-        ref={bloomRef as never}
-        intensity={RADIO_BLOOM_BASE}
-        luminanceThreshold={RADIO_BLOOM_THRESHOLD}
-        luminanceSmoothing={RADIO_BLOOM_SMOOTHING}
-        radius={RADIO_BLOOM_RADIUS}
-        mipmapBlur
-      />
+      <primitive object={pass} />
     </EffectComposer>
   )
-}
+})
 
 /** The full radio takeover, rendered INSIDE the Canvas only when radioMode is set. */
 export function RadioTakeover({ radioMode, analysis }: { radioMode: { code: string; mood: string }; analysis?: AudioAnalysis }) {
