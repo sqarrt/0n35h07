@@ -33,8 +33,8 @@ function detectBeat(bands: Float32Array, prev: { current: number }, cd: { curren
 const RADIO_CAMERA_PRIORITY = 0
 // Camera reacts ONLY to beats with a SMOOTH zoom punch: a beat SETS a target (fast attack), which then "deflates"
 // slowly. A new beat re-arms the target (SET, not added) so overlapping beats can't run the zoom to infinity.
-const RADIO_CAM_PUNCH_BASE = 0.8     // beat zoom in silence (world units along the camera forward)
-const RADIO_CAM_PUNCH_LEVEL = 1.4    // extra zoom at the music peak — higher overall amplitude
+const RADIO_CAM_PUNCH_BASE = 0.3     // beat zoom in silence (world units along the camera forward)
+const RADIO_CAM_PUNCH_LEVEL = 0.5    // extra zoom at the music peak (max ≈ 0.8 — gentle, not a big lunge)
 const RADIO_CAM_ATTACK_TAU = 0.045   // FAST smooth rise on a beat
 const RADIO_CAM_DECAY_TAU = 0.35     // slower deflation
 const RADIO_CAM_SHAKE_AMP = 0.012    // a barely-noticeable shimmer on a beat (NOT an epileptic jitter)
