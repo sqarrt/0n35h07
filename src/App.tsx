@@ -611,11 +611,14 @@ export default function App() {
     setProfile(p => { const next = { ...p, radioEnabled: !p.radioEnabled }; saveProfile(next); return next })
   }
 
-  // --- Radio player controls (desktop). Favorites carry their own session seed → replay via playTrack. ---
+  // --- Radio player controls (desktop). A favorite with a BAKED render plays it verbatim (immune to
+  //     generation changes); an old favorite without one falls back to deterministic regeneration. ---
   const playFav = (d: TrackDescriptor) => {
     const i = profile.favorites.findIndex(f => sameTrack(f, d))
     favIndexRef.current = Math.max(0, i)
-    radioController?.playTrack(d.seed, d.index)
+    const fav = i >= 0 ? profile.favorites[i] : null
+    if (fav?.baked) radioController?.playBaked(fav, fav.baked)
+    else radioController?.playTrack(d.seed, d.index)
     if (!profile.radioEnabled) handleToggleRadio()   // ensure the radio is on (gesture from this click)
   }
   const stepFav = (dir: number) => {
@@ -633,10 +636,19 @@ export default function App() {
     : null
   const radioLike = () => {
     const d = radioCurrentDesc; if (!d) return
-    // Toggle: clicking ♥ on an already-liked track UN-likes it (removes from favorites).
+    // Toggle: ♥ on a liked track UN-likes it; otherwise BAKE the full track (Strudel code of every section
+    // + its current name) so the saved favorite replays exactly, even after the generator changes.
     setProfile(p => {
       const has = p.favorites.some(f => sameTrack(f, d))
-      const next = { ...p, favorites: has ? p.favorites.filter(f => !sameTrack(f, d)) : [d, ...p.favorites] }
+      let favorites
+      if (has) favorites = p.favorites.filter(f => !sameTrack(f, d))
+      else {
+        const sections = radioController?.bake(d.seed, d.index)
+        const name = radioMusicalState ? radioTrackName(radioMusicalState) : ''
+        const fav = sections && sections.length ? { ...d, baked: { name, sections } } : d
+        favorites = [fav, ...p.favorites]
+      }
+      const next = { ...p, favorites }
       saveProfile(next); return next
     })
   }
@@ -668,14 +680,17 @@ export default function App() {
       const favs = profile.favorites
       if (favs.length === 0) return
       favIndexRef.current = (favIndexRef.current + 1) % favs.length
-      radioController?.playTrack(favs[favIndexRef.current].seed, favs[favIndexRef.current].index)
+      const f = favs[favIndexRef.current]
+      if (f.baked) radioController?.playBaked(f, f.baked)
+      else radioController?.playTrack(f.seed, f.index)
     }
   }, [profile.favorites, radioController])
 
   // Derived radio-player display.
   const radioLiked = radioCurrentDesc != null && profile.favorites.some(f => sameTrack(f, radioCurrentDesc))
   const radioDisliked = radioCurrentDesc != null && profile.dislikes.some(f => sameTrack(f, radioCurrentDesc))
-  const radioTrackLabel = radioMusicalState ? radioTrackName(radioMusicalState) : '—'
+  // A baked favorite carries its FROZEN name (state.name); a live track derives one. Never re-derive a baked name.
+  const radioTrackLabel = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : '—'
   const radioSubtitle = radioMusicalState ? `${radioMusicalState.bpm} BPM · ${radioMusicalState.key} ${radioMusicalState.scaleName}` : ''
   // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
   // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.

@@ -5,7 +5,7 @@ import { LOCALES } from './i18n'
 import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
-import type { TrackDescriptor } from './radio/trackDescriptor'
+import type { TrackDescriptor, FavoriteTrack, BakedSection } from './radio/trackDescriptor'
 
 export type DefaultView = 'fp' | 'tp'
 export type SearchRole = 'both' | 'client'   // 'both' (host/client as luck has it) | client only. No explicit host (unreliable).
@@ -33,7 +33,7 @@ export interface PlayerProfile {
   volumeMenuMusic: number    // audio: menu music 0..1; local preference
   radioEnabled: boolean      // audio: generative "Radio" mode replaces stem music when on; local preference
   volumeRadio: number        // audio: radio level 0..1; local preference
-  favorites: TrackDescriptor[]   // radio: liked tracks (replayable; biases generation toward similar)
+  favorites: FavoriteTrack[]     // radio: liked tracks (baked render replayed verbatim; biases generation toward similar)
   dislikes: TrackDescriptor[]    // radio: disliked tracks (biases generation away from similar)
   connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
   locale?: LocaleId          // UI language; undefined = not chosen (detect system)
@@ -57,10 +57,25 @@ function randomProfile(): PlayerProfile {
 // Cap on the radio favorites/dislikes lists (Steam-Cloud synced in the profile — keep it bounded).
 const RADIO_LIST_CAP = 200
 
-/** Keep only well-formed TrackDescriptors, dedup by seed+index, cap the length. */
-function sanitizeTrackList(v: unknown): TrackDescriptor[] {
+/** Validate a baked render (the full arc's Strudel code), if present. Returns undefined if malformed. */
+function sanitizeBaked(v: unknown): { name: string; sections: BakedSection[] } | undefined {
+  if (typeof v !== 'object' || v === null) return undefined
+  const o = v as Record<string, unknown>
+  if (typeof o.name !== 'string' || !Array.isArray(o.sections) || o.sections.length === 0) return undefined
+  const sections: BakedSection[] = []
+  for (const s of o.sections) {
+    if (typeof s !== 'object' || s === null) return undefined
+    const so = s as Record<string, unknown>
+    if (typeof so.code !== 'string' || typeof so.bars !== 'number' || !Number.isFinite(so.bars)) return undefined
+    sections.push({ code: so.code, bars: so.bars })
+  }
+  return { name: o.name, sections }
+}
+
+/** Keep only well-formed favorites/descriptors, dedup by seed+index, preserve the baked render, cap the length. */
+function sanitizeTrackList(v: unknown): FavoriteTrack[] {
   if (!Array.isArray(v)) return []
-  const out: TrackDescriptor[] = []
+  const out: FavoriteTrack[] = []
   const seen = new Set<string>()
   for (const item of v) {
     if (typeof item !== 'object' || item === null) continue
@@ -75,10 +90,12 @@ function sanitizeTrackList(v: unknown): TrackDescriptor[] {
     const key = `${o.seed as string}:${o.index as number}`
     if (seen.has(key)) continue
     seen.add(key)
+    const baked = sanitizeBaked(o.baked)
     out.push({
       seed: o.seed as string, index: o.index as number, mood: o.mood as string, key: o.key as string,
       scaleName: o.scaleName as string, bpm: o.bpm as number,
       style: { kick: s!.kick as string, bass: s!.bass as string, lead: s!.lead as string, bg: s!.bg as string, perc: s!.perc as string },
+      ...(baked ? { baked } : {}),
     })
     if (out.length >= RADIO_LIST_CAP) break
   }

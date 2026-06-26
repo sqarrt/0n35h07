@@ -26,4 +26,7 @@ export interface MusicalState {
   bpm: number
   bar: number        // absolute bar counter since session start
   layers: LayerFlags
+  /** Set only when replaying a BAKED favorite: its frozen name (so the UI shows the saved name,
+   *  not a re-derived one that could drift if the naming algorithm changes). */
+  name?: string
 }

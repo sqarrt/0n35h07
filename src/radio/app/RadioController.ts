@@ -2,7 +2,7 @@ import { RadioComposer } from '../music/radio/RadioComposer'
 import type { RadioBanks } from '../music/radio/banks'
 import type { RadioConfig } from '../music/radio/radioConfig'
 import type { MusicalState } from '../music/radio/MusicalState'
-import type { TrackDescriptor } from '../trackDescriptor'
+import type { TrackDescriptor, BakedSection, BakedTrack } from '../trackDescriptor'
 import type { BiasProvider } from '../bias'
 
 /** Minimal engine surface the controller needs — satisfied by the app's EngineApi. */
@@ -50,6 +50,9 @@ const TRACK_GAP_BARS = 2
 export class RadioController {
   private readonly engine: RadioEngine
   private readonly composer: RadioComposer
+  private readonly banks: RadioBanks
+  private readonly config: RadioConfig
+  private readonly bias?: BiasProvider
   private readonly bars: number
   private readonly onState?: (state: MusicalState) => void
   private readonly onTrackEnd?: () => void
@@ -58,9 +61,15 @@ export class RadioController {
   private prevTrackIndex: number | null = null
   private startMs = 0          // wall-clock at start(), for absolute scheduling
   private nextBoundaryMs = 0   // cumulative ms from start to the current section's end
+  // BAKED playback: a saved favorite plays its frozen section list (not the live composer).
+  private baked: { desc: TrackDescriptor; track: BakedTrack } | null = null
+  private bakedPos = 0
 
   constructor(deps: RadioControllerDeps) {
     this.engine = deps.engine
+    this.banks = deps.banks
+    this.config = deps.config
+    this.bias = deps.bias
     this.composer = new RadioComposer({ banks: deps.banks, config: deps.config, bias: deps.bias })
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
@@ -71,14 +80,30 @@ export class RadioController {
   get isRunning(): boolean { return this.running }
 
   /** Compact identity of the track playing now (for like/dislike + favorites). */
-  currentTrack(): TrackDescriptor { return this.composer.descriptor() }
+  currentTrack(): TrackDescriptor { return this.baked ? this.baked.desc : this.composer.descriptor() }
 
   /** Skip to the next generated track. */
-  next(): void { this.composer.jumpTo(this.composer.currentIndex() + 1); this.restartCurrent() }
+  next(): void { this.baked = null; this.composer.jumpTo(this.composer.currentIndex() + 1); this.restartCurrent() }
   /** Back to the previous generated track (deterministic replay; floored at 0). */
-  prev(): void { this.composer.jumpTo(Math.max(0, this.composer.currentIndex() - 1)); this.restartCurrent() }
-  /** Replay a specific track (e.g. a favorite from another session) by seed+index. */
-  playTrack(seed: string, index: number): void { this.composer.reseed(seed); this.composer.jumpTo(index); this.restartCurrent() }
+  prev(): void { this.baked = null; this.composer.jumpTo(Math.max(0, this.composer.currentIndex() - 1)); this.restartCurrent() }
+  /** Replay a specific track (e.g. an OLD favorite without a baked render) by seed+index (regenerates). */
+  playTrack(seed: string, index: number): void { this.baked = null; this.composer.reseed(seed); this.composer.jumpTo(index); this.restartCurrent() }
+
+  /** Render the FULL arc of a track to a frozen section list — for "baking" a favorite at save time.
+   *  Uses a throwaway composer so live playback is untouched; deterministic from seed+index. */
+  bake(seed: string, index: number): BakedSection[] {
+    const tmp = new RadioComposer({ banks: this.banks, config: this.config, bias: this.bias })
+    tmp.reseed(seed)
+    tmp.jumpTo(index)
+    return tmp.renderTrack()
+  }
+
+  /** Play a BAKED favorite: its frozen sections loop in order (immune to generation changes). */
+  playBaked(desc: TrackDescriptor, track: BakedTrack): void {
+    this.baked = { desc, track }
+    this.bakedPos = 0
+    this.restartCurrent()
+  }
 
   /** Restart the loop on the freshly-selected track (no auto-advance event for a manual switch). */
   private restartCurrent(): void {
@@ -110,6 +135,7 @@ export class RadioController {
 
   private tick(): void {
     if (!this.running) return
+    if (this.baked) { this.tickBaked(); return }
     const { strudelCode, musicalState } = this.composer.buildNextPattern()
     const isNewTrack = this.prevTrackIndex !== null && musicalState.trackIndex !== this.prevTrackIndex
     this.prevTrackIndex = musicalState.trackIndex
@@ -140,5 +166,40 @@ export class RadioController {
     this.nextBoundaryMs += dur
     const wait = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
     this.timer = setTimeout(() => this.tick(), wait)
+  }
+
+  /** BAKED playback: walk the frozen section list on the same absolute grid as the generative loop. */
+  private tickBaked(): void {
+    if (!this.running || !this.baked) return
+    const { desc, track } = this.baked
+    if (this.bakedPos >= track.sections.length) {
+      // The baked arc completed → auto-advance (favorites). If the App switches to another favorite
+      // it restarts the loop itself; otherwise we loop THIS baked track after a short silent gap.
+      this.bakedPos = 0
+      const before = this.baked
+      this.onTrackEnd?.()
+      if (this.baked !== before) return
+      void this.engine.play('silence')
+      this.nextBoundaryMs += sectionDurationMs(desc.bpm, TRACK_GAP_BARS)
+      this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
+      return
+    }
+    const sec = track.sections[this.bakedPos++]
+    this.onState?.(this.bakedState(desc, track, sec))
+    void this.engine.play(sec.code)
+    this.nextBoundaryMs += sectionDurationMs(desc.bpm, sec.bars || this.bars)
+    this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
+  }
+
+  /** Minimal MusicalState for a baked section — identity from the descriptor, code/bars from the section,
+   *  and the FROZEN baked name so the UI shows the saved name (not a re-derived one). */
+  private bakedState(desc: TrackDescriptor, track: BakedTrack, sec: BakedSection): MusicalState {
+    return {
+      seed: desc.seed, trackIndex: desc.index, trackSeed: `${desc.seed}:t${desc.index}`,
+      strudelCode: sec.code, mood: desc.mood, sectionsUntilMoodChange: 0,
+      key: desc.key, scaleName: desc.scaleName, chord: '', section: '',
+      sectionBars: sec.bars, bpm: desc.bpm, bar: 0,
+      layers: { kicks: true, bass: true, lead: false, bg: true, perc: true }, name: track.name,
+    }
   }
 }

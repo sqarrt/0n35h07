@@ -78,6 +78,19 @@ export class RadioComposer {
   descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
   currentIndex(): number { return this.scheduler.currentIndex() }
 
+  /** Render the CURRENT track's WHOLE arc to a list of sections (code + bars), deterministically.
+   *  Advances this composer through the track, so callers use a throwaway instance (see bake). */
+  renderTrack(): { code: string; bars: number }[] {
+    const startIndex = this.scheduler.currentIndex()
+    const sections: { code: string; bars: number }[] = []
+    let guard = 0
+    while (this.scheduler.currentIndex() === startIndex && guard++ < 64) {
+      const { strudelCode, musicalState } = this.buildNextPattern()
+      sections.push({ code: strudelCode, bars: musicalState.sectionBars })
+    }
+    return sections
+  }
+
   /** Jump to a track index within the current session seed (deterministic). Resets per-track state. */
   jumpTo(index: number): void { this.scheduler.jumpTo(index); this.resetTrackState() }
 
