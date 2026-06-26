@@ -70,16 +70,20 @@ const RADIO_CAM_SHAKE_AMP = 0.005    // a barely-perceptible shimmer on a beat
 const RADIO_CAM_SHAKE_DECAY_TAU = 0.08
 
 // --- Emoji rain ---------------------------------------------------------------------------------
-const RADIO_EMOJI_MAX = 64
-// Emoji spawn ONLY on a beat — a batch of 1..3 by beat strength (NO constant trickle) → the beat "births" them.
+const RADIO_EMOJI_MAX = 36
+// Emoji spawn ONLY on a beat — a batch of 1..2 by beat strength (NO constant trickle) → the beat "births" them.
 const RADIO_EMOJI_BURST_MIN = 1
-const RADIO_EMOJI_BURST_MAX = 3
+const RADIO_EMOJI_BURST_MAX = 2
 const RADIO_EMOJI_FALL_MIN = 0.35     // base fall speed (the BEAT dash drives the motion)
 const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost
 const RADIO_EMOJI_DASH_MIN = 0.8      // beat dash floor (already snappy at quiet)
 const RADIO_EMOJI_DASH_LEVEL = 9.0    // strong loudness-scaled dash — already-falling emoji jolt hard on a beat
 const RADIO_EMOJI_DASH_TAU_MIN = 0.07 // dash DURATION (decay τ) — short = snappy
 const RADIO_EMOJI_DASH_TAU_LEVEL = 0.12
+// On a beat every active emoji ALSO gets an instant downward jolt + a synchronized scale pop → an unmistakable jolt.
+const RADIO_EMOJI_JOLT = 0.22         // instant downward jump on a beat (× strength)
+const RADIO_EMOJI_PULSE_AMP = 1.7     // scale pop on a beat (× strength), eases back to 1
+const RADIO_EMOJI_PULSE_TAU = 0.08    // pop decay τ (snappy)
 const RADIO_EMOJI_SPRITE_PX = 64
 const RADIO_EMOJI_FONT_PX = 48
 const RADIO_EMOJI_SCALE = 0.12
@@ -130,6 +134,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
   const camera = useThree(s => s.camera)
   const dashMul = useRef(1)
   const dashTau = useRef(RADIO_EMOJI_DASH_TAU_MIN)
+  const pulse = useRef(1)
   const texCache = useRef<Map<string, THREE.CanvasTexture>>(new Map())
   const set = emojiSetFor(mood)
 
@@ -199,7 +204,10 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
       // Dash strength scales with loudness AND the beat strength.
       dashMul.current = 1 + (RADIO_EMOJI_DASH_MIN + RADIO_EMOJI_DASH_LEVEL * level) * strength
       dashTau.current = RADIO_EMOJI_DASH_TAU_MIN + RADIO_EMOJI_DASH_TAU_LEVEL * level
-      // Spawn a BATCH of 2..5 by beat strength — emoji appear only on a beat (the beat "births" them).
+      pulse.current = 1 + (RADIO_EMOJI_PULSE_AMP - 1) * strength   // synchronized scale pop
+      // Instant downward jolt on every already-falling emoji → an unmistakable reaction on the beat.
+      for (const d of drops) if (d.active) d.sprite.position.y -= RADIO_EMOJI_JOLT * strength
+      // Spawn a BATCH by beat strength — emoji appear only on a beat (the beat "births" them).
       const batch = RADIO_EMOJI_BURST_MIN + Math.round((RADIO_EMOJI_BURST_MAX - RADIO_EMOJI_BURST_MIN) * strength)
       for (let k = 0; k < batch; k++) {
         const free = drops.find(d => !d.active)
@@ -208,10 +216,13 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
       }
     }
     dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / dashTau.current))
+    pulse.current += (1 - pulse.current) * (1 - Math.exp(-dt / RADIO_EMOJI_PULSE_TAU))
 
     const fall = (RADIO_EMOJI_FALL_MIN + RADIO_EMOJI_FALL_LEVEL * level) * dashMul.current
+    const scale = RADIO_EMOJI_SCALE * pulse.current
     for (const d of drops) {
       if (!d.active) continue
+      d.sprite.scale.setScalar(scale)
       d.sprite.position.y -= fall * dt
       if (d.sprite.position.y <= killY) { d.active = false; d.sprite.visible = false }
     }
