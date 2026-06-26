@@ -25,10 +25,10 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
 const RADIO_BANDS = 8
 const RADIO_BEAT_PRIORITY = -1        // run before the camera/emoji frame callbacks (which read the result)
 const RADIO_BEAT_MIN_BPM = 60         // guard against a missing/0 bpm
-const RADIO_BEAT_ONSET_FLUX = 0.05    // min low-band rise to FIRE (low — off-grid onsets are rejected by the window)
+const RADIO_BEAT_ONSET_FLUX = 0.035   // min low-band rise to FIRE (low — off-grid onsets are rejected by the window)
 const RADIO_BEAT_PLL_FLUX = 0.09      // a clearer rise that pulls the grid phase toward it (only strong kicks lock phase)
 const RADIO_BEAT_PLL_GAIN = 0.2       // how hard each strong onset pulls the grid phase (locks in a few beats)
-const RADIO_BEAT_WINDOW_FRAC = 0.22   // an onset counts as a beat only if within interval × this of a grid tick
+const RADIO_BEAT_WINDOW_FRAC = 0.26   // an onset counts as a beat only if within interval × this of a grid tick
 const RADIO_BEAT_FLUX_FULL = 0.35     // flux that maps to strength 1 (a hard kick) — the reaction scale
 const RADIO_BEAT_REFRACTORY_FRAC = 0.4 // min gap between beats = interval × this
 
@@ -80,7 +80,7 @@ const RADIO_CAMERA_PRIORITY = 0
 // Camera reacts ONLY to beats with a SMOOTH zoom punch: a beat SETS a target (fast attack), which then "deflates"
 // slowly. A new beat re-arms the target (SET, not added) so overlapping beats can't run the zoom to infinity.
 const RADIO_CAM_PUNCH_BASE = 0.05    // tiny zoom floor on any hit (world units along the camera forward)
-const RADIO_CAM_PUNCH_STRENGTH = 0.55 // zoom scaled by hit loudness (max ≈ 0.6 on a hard kick, ~0 on a faint one)
+const RADIO_CAM_PUNCH_STRENGTH = 0.32 // zoom scaled by hit loudness (max ≈ 0.37 on a hard kick, ~0 on a faint one)
 const RADIO_CAM_ATTACK_TAU = 0.045   // FAST smooth rise on a beat
 const RADIO_CAM_DECAY_TAU = 0.22     // deflation (a bit quicker), still slower than the attack
 const RADIO_CAM_SHAKE_AMP = 0.006    // shimmer on a beat, scaled by hit loudness
