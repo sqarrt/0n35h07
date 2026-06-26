@@ -10,6 +10,9 @@ import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
 export type DropLead = 'stab' | 'arp' | 'lead'
+/** How present the lead is: full (build+peak), sparse (peaks only), none (no lead — many tracks
+ *  sound better without one). float sections always keep their lead regardless (it carries them). */
+export type LeadPresence = 'full' | 'sparse' | 'none'
 /** Subtle in-key background texture that fills/dilutes the track (no melodic pad). */
 export type BgKind =
   | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums
@@ -49,6 +52,7 @@ export interface TrackStyle {
   padMode: PadMode
   swing: number
   dropLead: DropLead
+  leadPresence: LeadPresence // how often the lead appears (many tracks better with little/no lead)
   ohPat: string       // offbeat open-hat pattern ('' = none)
   bassGroove: string  // 16-step on/off mask for the bassline's rhythm
   fx: FxChar          // the track's shared echo/reverb space
@@ -115,6 +119,8 @@ const PAD: PadMode[] = ['stab', 'stab', 'off', 'drone', 'arp']
 // Straight, no shuffle — swing reads as groovy/playful; dark techno stays rigid.
 const SWING = [0]
 const DROP_LEAD: DropLead[] = ['stab', 'stab', 'arp', 'lead']
+// Leads appear LESS: ~30% of tracks have no lead at all, ~40% only in peaks, ~30% full.
+const LEAD_PRESENCE: LeadPresence[] = ['none', 'none', 'none', 'sparse', 'sparse', 'sparse', 'sparse', 'full', 'full', 'full']
 const OH = ['~ oh ~ oh', '~ oh ~ oh', '', '~ ~ oh ~', 'oh ~ oh ~', '~ oh', '[~ oh]*2']
 const BASS_GROOVE = [
   '1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1', // driving 16ths
@@ -157,6 +163,7 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     padMode: pick(rng, PAD, anti, 'st_pad'),
     swing: pick(rng, SWING, anti, 'st_swing'),
     dropLead: pick(rng, DROP_LEAD, anti, 'st_droplead'),
+    leadPresence: pick(rng, LEAD_PRESENCE, anti, 'st_leadpres'),
     ohPat: pick(rng, OH, anti, 'st_oh'),
     bassGroove: pick(rng, BASS_GROOVE, anti, 'st_bgroove'),
     fx: pick(rng, FX_SPACES, anti, 'st_fx'),

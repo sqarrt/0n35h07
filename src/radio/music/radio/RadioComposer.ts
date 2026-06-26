@@ -29,8 +29,9 @@ const MIX = {
   kick: 0.9,
   bass: 0.5,
   sub: 0.42,
-  lead: 0.2,    // leads sit UNDER the groove, never on top
-  bgScale: 0.5, // multiplies each bg texture's own (already small) level → near-subliminal
+  lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
+  bgScale: 0.42, // multiplies each bg texture's own (already small) level → near-subliminal
+  bgCap: 0.085, // HARD ceiling on a bg texture's pre-scale level so the loud ones can't pierce
   hat: 0.34,
   snare: 0.46,
   clap: 0.4,
@@ -313,15 +314,17 @@ export class RadioComposer {
     //    "atmosphere" pads were binned. Barely noticeable, sits on the tonic.
     if (shape.layers.bg) {
       const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
-      // bg textures carry their own (small) levels; scale them ALL by MIX.bgScale so the
-      // background is near-subliminal in every track (no more "the bg is screaming").
-      const gBg = (x: number) => g(MIX.bgScale * x)
+      // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
+      // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
+      const gBg = (x: number) => g(MIX.bgScale * Math.min(x, MIX.bgCap))
       layers.push(orbit(this.bgTexture(style.bg, rootPc, gBg, fxFor) + bgEnter, ORBIT.fx))
     }
 
     // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
-    //    Occasional seeded note-repeat = controlled glitch. The arp is an alternate lead voice.
-    if (shape.layers.lead) {
+    //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
+    //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
+    const leadOn = shape.layers.lead && (style.leadPresence === 'full' || role === 'float' || (style.leadPresence === 'sparse' && peak))
+    if (leadOn) {
       // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
       // aggressive, loud and detached from the track). Just the track's own width, if any.
       const leadVoice = style.leadUnison > 0
@@ -329,8 +332,8 @@ export class RadioComposer {
         : `.s("${style.leadSound}")`
       // filter opens with the block but stays DARK (ceiling capped ~1650) so the lead sits
       // inside the track instead of screaming over it.
-      const ceil = Math.round(800 + (lpf - 800) * Math.max(0.3, blockProgress))
-      const ceilCap = Math.min(1650, Math.max(800, ceil))
+      const ceil = Math.round(750 + (lpf - 750) * Math.max(0.3, blockProgress))
+      const ceilCap = Math.min(1300, Math.max(750, ceil)) // lower ceiling → the lead reads as a tone, never pierces
       // TRANSITION = a filter OPEN (not a stepped gain). When the lead enters (or the peak
       // block starts) the cutoff sweeps up from near-CLOSED (220Hz = almost inaudible) across
       // the section start, so it eases in instead of bursting. Otherwise it breathes.
@@ -352,7 +355,7 @@ export class RadioComposer {
       } else {
         const { fragment, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
-          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key),
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
         }, this.lead)
         this.lead = state
         // quieter, softer attack, gentler resonance, more reverb (sits IN the track, not on
