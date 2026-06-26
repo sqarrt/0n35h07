@@ -8,8 +8,9 @@ import { weightedPick, type Weighted } from '../weighted'
 // the note pattern: 16-step driving cells (acid), arpeggiated dyads, and a per-bar GATE baked into the notes
 // (trance-gate). Content is written as SCALE DEGREES — tonic-anchored, mostly descending/returning, in-key.
 
-// motif holds the finished pattern string (inside note("…")), stable for a whole movement.
-export interface LeadMotif { pattern: string }
+// motif holds the finished pattern string (inside note("…")), stable for a whole movement. `atmo` flags the
+// soulful "ballad" archetype so the composer applies its echo+bloom chain (not the acid squelch).
+export interface LeadMotif { pattern: string; atmo?: boolean }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }
 const REPHRASE = 999
 
@@ -40,6 +41,16 @@ const MOTIF_CELLS = [
   ['0', '~', '5', '~', '4', '~', '0', '~'],
   ['0', '~', '-2', '0', '~', '3', '~', '0'],
 ]
+// Sparse dyad "ballad" leads (atmoDyad) — held dyads [descending PEDAL, upper voice] with lots of SPACE; the
+// soulful FX (heavy echo + slow filter bloom) are applied by the caller. Each row = 8 bars, 1 element/bar, null
+// = a rest. The pedal (1st value) descends/returns (0 → -2/-3 → 0); the upper voice (2nd) is a 3rd/5th above.
+const ATMO_DYADS: (number[] | null)[][] = [
+  [[0, 4], null, null, [0, 2], null, [-3, 2], null, null],
+  [[0, 4], null, [-2, 2], null, null, [0, 4], null, null],
+  [[0, 2], null, null, [-3, 4], null, null, [0, 2], null],
+  [[-3, 2], null, [0, 4], null, null, [-5, 4], null, null],
+  [[0, 4], null, null, [-3, 2], null, [0, 4], null, [-2, 2]],
+]
 // Trance-gate rhythm masks (16 steps; x = open, ~ = closed) for the gated-phrase archetype.
 const GATE_MASKS = [
   ['x', '~', 'x', 'x', '~', 'x', '~', 'x', 'x', '~', 'x', 'x', '~', 'x', '~', 'x'],
@@ -48,12 +59,12 @@ const GATE_MASKS = [
   ['x', 'x', 'x', '~', 'x', 'x', '~', 'x', 'x', 'x', '~', 'x', 'x', '~', 'x', '~'],
 ]
 
-type Archetype = 'acidCell' | 'arpDyad' | 'gatedPhrase' | 'poolMotif'
-// acid + gated common; arp + pool a touch rarer. Anti-repeat picks a DIFFERENT archetype than the prev track.
-const ARCHETYPES: Archetype[] = ['acidCell', 'acidCell', 'arpDyad', 'gatedPhrase', 'gatedPhrase', 'poolMotif']
+type Archetype = 'acidCell' | 'arpDyad' | 'gatedPhrase' | 'poolMotif' | 'atmoDyad'
+// All five archetypes are EQUALLY likely (~20% each); anti-repeat picks a DIFFERENT one than the prev track.
+const ARCHETYPES: Archetype[] = ['acidCell', 'arpDyad', 'gatedPhrase', 'poolMotif', 'atmoDyad']
 
 export class MelodyEngine {
-  buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; state: LeadState } {
+  buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; atmo: boolean; state: LeadState } {
     let motif = state.motif
     let phrasesLeft = state.phrasesLeft
     if (!motif || phrasesLeft <= 0) {
@@ -61,7 +72,18 @@ export class MelodyEngine {
       phrasesLeft = REPHRASE
     }
     phrasesLeft--
-    return { fragment: `note("${motif.pattern}")`, state: { motif, phrasesLeft } }
+    return { fragment: `note("${motif.pattern}")`, atmo: !!motif.atmo, state: { motif, phrasesLeft } }
+  }
+
+  /** A SPARSE dyad "ballad" lead (the soulful break lead): 8 BAR-ELEMENTS of held dyads [descending pedal,
+   *  upper voice] with lots of space. Returns the per-bar elements (the CALLER wraps them with its
+   *  section-alignment + adds the heavy echo + slow filter bloom that make it weep). */
+  atmoDyad(opts: { leadOctave: number; scale?: number[]; keyRoot?: number }, rng: Rng): string[] {
+    const scale = opts.scale ?? DEFAULT_SCALE
+    const base = (opts.keyRoot ?? 0) + 12 * (opts.leadOctave - 3)
+    const deg = (d: number): number => base + 12 * Math.floor(d / scale.length) + scale[((d % scale.length) + scale.length) % scale.length]
+    const pat = ATMO_DYADS[rng.int(ATMO_DYADS.length)]
+    return pat.map((el) => (el ? `[${deg(el[0])},${deg(el[1])}]` : '~'))
   }
 
   /** Build one movement's lead pattern: pick an archetype (anti-repeat) and render it as a note string. */
@@ -76,6 +98,11 @@ export class MelodyEngine {
     }
     const arch = opts.anti ? (pickAnti(ARCHETYPES, rng, opts.anti, 'lead_arch')) : ARCHETYPES[rng.int(ARCHETYPES.length)]
 
+    if (arch === 'atmoDyad') {
+      // the soulful "ballad": sparse held dyads (the composer applies the echo + slow-bloom chain via `atmo`)
+      const els = this.atmoDyad({ leadOctave: opts.leadOctave + 1, scale: opts.scale, keyRoot: opts.keyRoot }, rng)
+      return { pattern: `<${els.join(' ')}>`, atmo: true }
+    }
     if (arch === 'acidCell') {
       // a driving 16th cell (0 4 0 9 7 family), root-anchored — the expression comes from the filter env.
       const cell = ACID_CELLS[rng.int(ACID_CELLS.length)]

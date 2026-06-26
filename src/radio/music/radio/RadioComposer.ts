@@ -197,6 +197,9 @@ export class RadioComposer {
     const leadOn = leadOnFor(role)
     const leadEntered = leadOn && pos > 0 && role !== 'float' && !leadOnFor(track.arc[pos - 1] as SectionRole)
     const dropDuck = leadEntered ? `.gain("${seqAligned(['0', ...Array(Math.max(1, bars - 1)).fill('1')])}")` : ''
+    // In a BREAK the whole body ducks to silence on the LAST bar, so the fill (silence/rhythmic/melodic) stands
+    // alone there — the last bar then differs from both the break body AND the next section.
+    const breakDuck = role === 'break' ? `.gain("${seqAligned([...Array(Math.max(1, bars - 1)).fill('1'), '0'])}")` : ''
 
     this.drift = this.timbre.drift(mood, rng, this.drift)
     // Lock the kit + velocity curve for the whole track so the drum SOUND stays put
@@ -292,17 +295,18 @@ export class RadioComposer {
     if (shape.layers.perc) {
       // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail).
       const hats = `s("${style.hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(MIX.hat)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
-      layers.push(orbit(hats + dropDuck, ORBIT.perc))
+      layers.push(orbit(hats + dropDuck + breakDuck, ORBIT.perc))
       const snPly = peak ? 0.28 : 0.14
-      // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs.
-      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare)})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}`, ORBIT.snare))
+      // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs. In a break the snare
+      // is HALVED (a lighter rhythm) and ducks on the last bar.
+      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${breakDuck}`, ORBIT.snare))
       // peak-only claps on the backbeat (one extra layer, eased in — the ghost-snare layer was
       // dropped to avoid stacking too many things at once).
       if (peak) {
         layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
       const perc = this.percLayer(style.perc, g)
-      if (perc) layers.push(orbit(`${perc}${percEnter}${dropDuck}`, ORBIT.perc))
+      if (perc) layers.push(orbit(`${perc}${percEnter}${dropDuck}${breakDuck}`, ORBIT.perc))
     }
 
     // ── BASS — locked riff, root follows the progression; clarity sweeps up in intro/build
@@ -361,10 +365,10 @@ export class RadioComposer {
       // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
       // never identical — what made a bell or sonar "jump out" when it recurred.
       const bedV = bgVary(createRng(`${track.seed}:bg`))
-      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + bgEnter, ORBIT.fx))
+      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + bgEnter + breakDuck, ORBIT.fx))
       if (style.bgAccent) {
         const accV = bgVary(createRng(`${track.seed}:bgacc`))
-        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + bgEnter, ORBIT.fx))
+        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + bgEnter + breakDuck, ORBIT.fx))
       }
     }
 
@@ -411,22 +415,26 @@ export class RadioComposer {
       if (style.dropLead === 'arp' && !memory) {
         layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
-        const { fragment, state } = this.melody.buildLead(chord, {
+        const { fragment, atmo, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
           scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
         }, this.lead)
         this.lead = state
-        // The EXPRESSION comes from the acid filter ENVELOPE + a bit of resonance (lesson #6), not loudness:
-        // stronger acidenv + lpq 4 give the 303 squelch, the low level + capped ceiling keep it from piercing.
-        // Wider stereo (pan 0.25–0.75) for the echoey movement Switch Angel's leads have.
-        layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.5).lpq(4).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.25, 0.75)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
+        if (atmo) {
+          // The soulful BALLAD chain ("space + echo + harmony = emotion"): NO acid squelch — sparse dyads weep
+          // through a slow filter bloom (leadLpf) + HEAVY echo (fb .7) + reverb; lpq 7 gives a vocal edge.
+          layers.push(orbit(`${fragment}${leadDev}${leadVoice}.lpq(7).attack(0.02).dec(0.4).delaytime(${style.fx.delayTime}).delay(0.6).delayfeedback(0.7).room(0.6).roomsize(7)${fatLead}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
+        } else {
+          // The acid chain — the EXPRESSION is the filter ENVELOPE + resonance (lesson #6), not loudness:
+          // acidenv + lpq 4 give the 303 squelch, the low level + capped ceiling keep it from piercing.
+          layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.5).lpq(4).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.25, 0.75)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
+        }
       }
     }
 
-    // ── BREAK enrichment — the 8-bar rest must EVOLVE, not idle. A long noise swell whose
-    //    filter opens across the section, a tom fill that thickens every other bar, a lone
-    //    echo-drenched chord stab to hold harmonic interest, and a riser that telegraphs
-    //    the return over the LAST 2 bars. (The kick + hats + snare groove is already on.)
+    // ── BREAK (reworked — NO risers). A breakdown with its OWN melodic identity: a soft echo-tail of the
+    //    outgoing lead, then a DIFFERENT soulful lead (the atmoDyad ballad) developing via a slow filter bloom
+    //    over the lightened groove, and a per-break FILL (silence / rhythmic / melodic) on the last bar.
     if (role === 'break') {
       // (0) ECHO THROW — the lead riff from the peak we just left (its motif is still in
       //     this.lead, reset only at the end of this call) plays ONCE on the break's first
@@ -438,45 +446,29 @@ export class RadioComposer {
         // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
         layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
-      // (1) BUILD-BACK — diversified per break (seeded) so it ISN'T the same white-noise riser every
-      //     time. 'drop' is the minimal alternative (mostly air → only the last 2 bars lift), so not
-      //     every break risers hard. seqAligned/.late keep every climb locked to the section boundary.
-      const rRng = createRng(`${track.seed}:riser${pos}`)
-      const scheme = (['noise', 'snare', 'pitch', 'drop'] as const)[rRng.int(4)]
-      const rollAccel = seqAligned(['~', '~', '~', '~', '[sd sd]', '[sd*2 sd*2]', '[sd*4 sd*4]', '[sd*8 sd*16]'])
-      if (scheme === 'noise') {
-        layers.push(orbit(`s("white*16").dec(0.08).lpf(saw.range(400, 11000).slow(${n})${lateAlign}).hpf(250).gain(saw.range(0.06, ${g(0.82)}).slow(${n})${lateAlign}).pan(sine.slow(5))${fxFor(0.3, 0.5)}`, ORBIT.fx))
-        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.1, ${g(0.82)}).slow(${n})${lateAlign}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
-      } else if (scheme === 'snare') {
-        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.12, ${g(0.9)}).slow(${n})${lateAlign}).hpf(220).lpf(7000).room(0.3).shape(0.06)${fxFor(0.2, 0.5)}`, ORBIT.snare))
-        layers.push(orbit(`s("hh*16").gain(saw.range(0.02, ${g(0.3)}).slow(${n})${lateAlign}).hpf(8000)`, ORBIT.perc))
-      } else if (scheme === 'pitch') {
-        const rRoot = ((chord.notes[0] % 12) + 12) % 12 + 36 // a tone gliding UP an octave = a pitched riser
-        layers.push(orbit(`note("${rRoot}").s("sawtooth").add(note(saw.range(0, 12).slow(${n})${lateAlign})).lpf(saw.range(500, 5000).slow(${n})${lateAlign}).gain(saw.range(0.05, ${g(0.42)}).slow(${n})${lateAlign}).hpf(200)${fxFor(0.3, 0.5)}`, ORBIT.fx))
-        layers.push(orbit(`s("${rollAccel}").gain(saw.range(0.08, ${g(0.6)}).slow(${n})${lateAlign}).hpf(260).lpf(6000)${fxFor(0.2, 0.4)}`, ORBIT.snare))
-      } else {
-        const last2 = seqAligned([...Array(Math.max(1, bars - 2)).fill('~'), '[sd*4 sd*4]', '[sd*8 sd*16]'])
-        layers.push(orbit(`s("${last2}").gain(${g(0.72)}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
+      // (1) A DIFFERENT, SOULFUL LEAD — the atmoDyad "ballad": sparse held dyads [descending pedal, upper
+      //     voice], in-key, with lots of SPACE; DEVELOPS via a slow filter BLOOM (cutoff opens 500→2200 across
+      //     the whole section) drowned in heavy echo (feedback .72) + reverb so it weeps. This replaces the old
+      //     "play a beat then speed up a riser" scheme — the break now has its OWN melodic identity.
+      const atmo = seqAligned(this.melody.atmoDyad(
+        { leadOctave: this.config.leadOctave + 1, scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key) },
+        createRng(`${track.seed}:brk${pos}`),
+      ))
+      layers.push(orbit(`note("${atmo}").s("${style.leadSound}").lpf(saw.range(500, 2200).slow(${n})${lateAlign}).lpq(7).attack(0.02).dec(0.4).delaytime(${style.fx.delayTime}).delay(0.62).delayfeedback(0.72).room(0.6).roomsize(7).hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.2)})${breakDuck}`, ORBIT.lead))
+
+      // (2) THE FILL on the last bar — one of three per break (seeded). The whole break body ducks on the last
+      //     bar (breakDuck), so the fill stands ALONE there → it differs from the break AND from the next part.
+      const fill = (['silence', 'rhythmic', 'melodic'] as const)[createRng(`${track.seed}:bfill${pos}`).int(3)]
+      if (fill === 'rhythmic') {
+        const kv = style.kickVoice
+        layers.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
+      } else if (fill === 'melodic') {
+        const rt = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
+        layers.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
       }
-      // colour: a tom fill + a lone echo-drenched chord stab (harmony), in every scheme.
-      layers.push(orbit(`s("${seqAligned(['~', '[lt mt]', '~', '[mt lt mt]', '~', '[lt mt lt]', '~', '[mt*4]'])}").gain(${g(0.4)}).room(0.3)${fxFor(0.3, 0.4)}`, ORBIT.perc))
-      const stabRoot = ((chord.notes[0] % 12) + 12) % 12 + 48 // tonic, mid register
-      layers.push(orbit(`note("${seqAligned([String(stabRoot), '~', '~', '~'])}").s("${style.stabSound}").lpf(1200).dec(0.4).gain(${g(0.28)})${fxFor(0.8, 0.9)}`, ORBIT.fx))
-      // PREVIEW LEAD — a soft, dark chord arp that swells in over the break's last ~4 bars: same
-      // harmony as the coming drop but a DIFFERENT voice/figure (a teaser that "fits but differs").
-      const pcs = chord.notes.slice(0, 3).map((nn) => ((nn % 12) + 12) % 12 + 48)
-      const fig = `[${pcs.join(' ')}]`
-      const figR = `[${pcs.slice().reverse().join(' ')}]`
-      const preview = Array<string>(bars).fill('~')
-      for (let i = Math.max(0, bars - 4); i < bars; i++) preview[i] = (i % 2 === 0 ? fig : figR)
-      layers.push(orbit(`note("${seqAligned(preview)}").s("${style.stabSound}").lpf(saw.range(300, 1400).slow(${n})${lateAlign}).lpq(3).dec(0.18).gain(saw.range(0.02, ${g(0.16)}).slow(${n})${lateAlign}).hpf(250)${fxFor(0.6, 0.9)}`, ORBIT.arp))
+      // 'silence' → nothing added; the ducks leave a clean gap before the drop.
     }
 
-    // Through-line FM-pulse riser texture (Switch-Angel style): an evolving tension
-    // shimmer that morphs via fmtime over 64 cycles — in builds and the 2nd movement.
-    if (style.riser && (role === 'build' || (this.afterBreak && role === 'peak'))) {
-      layers.push(orbit(`s("pulse!16").dec(tri.mul(0.3).fast(4)).fmtime(16, 64).hpf(900).gain(${g(0.2)}).pan(sine.slow(7))${fxFor(0.3, 0.4)}`, ORBIT.fx))
-    }
 
     const body = layers.length > 0 ? `stack(\n  ${layers.join(',\n  ')}\n)` : 'silence'
     const strudelCode = `setcpm(${track.bpm}/4)\n${body}`
