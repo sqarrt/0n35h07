@@ -110,10 +110,18 @@ export class RadioController {
   private restartCurrent(): void {
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
     this.prevTrackIndex = null   // suppress the onTrackEnd that tick() fires on an auto-advance
+    this.anchorCycle()
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
     if (this.running) this.tick()
   }
+
+  /** Re-anchor Strudel's cycle clock to OUR grid. The prelude (evaluated at init) ends in `silence`, so the
+   *  cyclist runs continuously from warmup — by the time the radio actually starts it sits at an arbitrary,
+   *  non-integer cycle, which offsets every section boundary from Strudel's integer-cycle swap grid and lets
+   *  parts cut each other mid-bar. hush() stops the cyclist; the next section's evaluate restarts it from cycle
+   *  0, lined up with startMs and the composer's bar 0 → swaps land exactly on section boundaries. */
+  private anchorCycle(): void { this.engine.stop() }
 
   /** Set the master volume on the engine. */
   setVolume(volume: number): void {
@@ -123,6 +131,7 @@ export class RadioController {
   start(): void {
     if (this.running) return
     this.running = true
+    this.anchorCycle()   // re-anchor Strudel's cycle to our grid (see anchorCycle) so swaps land on boundaries
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
     this.tick()
