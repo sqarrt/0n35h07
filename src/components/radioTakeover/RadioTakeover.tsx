@@ -11,45 +11,38 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
  * are a different Canvas and are never touched by radio.
  */
 
-// --- Beat = a BPM CLOCK (the radio is generative → the tempo is KNOWN). Pure audio detection on the mixed low band
-// fails (the kick can't be told apart from the sustained bass → it either misses kicks or fires off-beat). Instead
-// we run a clock at the track's kick rate (60/bpm s), realign its phase to real low-band ONSETS, and gate it by
-// energy (so breaks/silence don't pulse). ONE shared result → the camera and the emoji react on the SAME beat.
+// --- Beat = a low-band ONSET, with reaction STRENGTH ∝ the rhythm hit's loudness. The mixed low band can't tell the
+// kick from the sustained bass by absolute energy — but a kick is a TRANSIENT, so the FLUX (frame-to-frame rise of the
+// low band) is the rhythm hit and its size is the hit's loudness. Driving everything by flux means: loud kick → strong
+// reaction; soft kick → faint; sustained bass / quiet / a stray trigger → ~0 flux → ~0 reaction (no phantom beats).
+// No tempo prediction (a predicted beat on sustained energy was the phantom-beat source). ONE shared result.
 const RADIO_BANDS = 8
 const RADIO_BEAT_PRIORITY = -1       // run before the camera/emoji frame callbacks (which read the result)
-const RADIO_BEAT_MIN_BPM = 60        // guard against a missing/0 bpm
-const RADIO_BEAT_ONSET_FLUX = 0.1    // a clear low-band transient → fire now + realign the clock phase
-const RADIO_BEAT_ENERGY_FLOOR = 0.08 // clock-filled beats need some kick energy (skip breaks / outros)
-const RADIO_BEAT_FULL_ENERGY = 1.2   // kick energy that maps to strength 1 (band0+band1, each 0..1)
-const RADIO_BEAT_MIN_GAP_FRAC = 0.45 // min gap between beats = interval × this (no double-fire from onset+clock)
+const RADIO_BEAT_ONSET_FLUX = 0.08   // min low-band rise to count as a rhythm hit (anti-noise trigger)
+const RADIO_BEAT_ENERGY_FLOOR = 0.12 // need some low-band energy present (no triggers in near-silence)
+const RADIO_BEAT_FLUX_FULL = 0.45    // flux that maps to strength 1 (a hard kick) — the reaction scale
+const RADIO_BEAT_REFRACTORY = 0.09   // min seconds between hits (one kick fires once)
 
-// Shared per-frame beat result (one radio screen at a time). fired = a beat happened THIS frame; strength 0..1.
+// Shared per-frame beat result (one radio screen at a time). fired = a hit happened THIS frame; strength 0..1 = loudness.
 const _beat = { fired: false, strength: 0 }
 const _bandsBeat = new Float32Array(RADIO_BANDS)
-let _phase = 0          // time since the last grid tick
-let _sinceBeat = 0      // time since the last fired beat (refractory)
+let _sinceBeat = 0      // time since the last fired hit (refractory)
 let _prevKickBeat = 0
 
-/** Drives the shared `_beat` each frame from a BPM clock + onset realignment + energy gate. */
-function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number }) {
+/** Drives the shared `_beat` each frame from low-band onset flux; strength = the hit's loudness (flux magnitude). */
+function BeatClock({ analysis }: { analysis?: AudioAnalysis }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     analysis?.bands(_bandsBeat)
     const kick = (_bandsBeat[0] ?? 0) + (_bandsBeat[1] ?? 0)
     const flux = kick - _prevKickBeat
     _prevKickBeat = kick
-    const interval = 60 / Math.max(RADIO_BEAT_MIN_BPM, bpm)
-    _phase += dt
     _sinceBeat += dt
     _beat.fired = false
-    const strength = Math.min(1, kick / RADIO_BEAT_FULL_ENERGY)
-    const canFire = _sinceBeat > interval * RADIO_BEAT_MIN_GAP_FRAC
-    if (flux > RADIO_BEAT_ONSET_FLUX && canFire) {
-      // a real kick arrived → fire and snap the clock to it
-      _phase = 0; _sinceBeat = 0; _beat.fired = true; _beat.strength = strength
-    } else if (_phase >= interval) {
-      _phase -= interval
-      if (kick > RADIO_BEAT_ENERGY_FLOOR && canFire) { _sinceBeat = 0; _beat.fired = true; _beat.strength = strength }
+    if (flux > RADIO_BEAT_ONSET_FLUX && kick > RADIO_BEAT_ENERGY_FLOOR && _sinceBeat > RADIO_BEAT_REFRACTORY) {
+      _sinceBeat = 0
+      _beat.fired = true
+      _beat.strength = Math.min(1, flux / RADIO_BEAT_FLUX_FULL)   // reaction strength = how loud the hit was
     }
   }, RADIO_BEAT_PRIORITY)
   return null
@@ -62,11 +55,11 @@ function BeatClock({ analysis, bpm }: { analysis?: AudioAnalysis; bpm: number })
 const RADIO_CAMERA_PRIORITY = 0
 // Camera reacts ONLY to beats with a SMOOTH zoom punch: a beat SETS a target (fast attack), which then "deflates"
 // slowly. A new beat re-arms the target (SET, not added) so overlapping beats can't run the zoom to infinity.
-const RADIO_CAM_PUNCH_BASE = 0.15    // beat zoom in silence (world units along the camera forward)
-const RADIO_CAM_PUNCH_LEVEL = 0.25   // extra zoom at the music peak (max ≈ 0.4 — subtle)
+const RADIO_CAM_PUNCH_BASE = 0.05    // tiny zoom floor on any hit (world units along the camera forward)
+const RADIO_CAM_PUNCH_STRENGTH = 0.55 // zoom scaled by hit loudness (max ≈ 0.6 on a hard kick, ~0 on a faint one)
 const RADIO_CAM_ATTACK_TAU = 0.045   // FAST smooth rise on a beat
 const RADIO_CAM_DECAY_TAU = 0.22     // deflation (a bit quicker), still slower than the attack
-const RADIO_CAM_SHAKE_AMP = 0.005    // a barely-perceptible shimmer on a beat
+const RADIO_CAM_SHAKE_AMP = 0.006    // shimmer on a beat, scaled by hit loudness
 const RADIO_CAM_SHAKE_DECAY_TAU = 0.08
 
 // --- Emoji rain ---------------------------------------------------------------------------------
@@ -74,15 +67,12 @@ const RADIO_EMOJI_MAX = 36
 // Emoji spawn ONLY on a beat — a batch of 1..2 by beat strength (NO constant trickle) → the beat "births" them.
 const RADIO_EMOJI_BURST_MIN = 1
 const RADIO_EMOJI_BURST_MAX = 2
-const RADIO_EMOJI_FALL_MIN = 0.35     // base fall speed (the BEAT dash drives the motion)
+const RADIO_EMOJI_FALL_MIN = 0.35     // base fall speed (constant gentle drift)
 const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost
-const RADIO_EMOJI_DASH_MIN = 0.8      // beat dash floor (already snappy at quiet)
-const RADIO_EMOJI_DASH_LEVEL = 9.0    // strong loudness-scaled dash — already-falling emoji jolt hard on a beat
-const RADIO_EMOJI_DASH_TAU_MIN = 0.07 // dash DURATION (decay τ) — short = snappy
-const RADIO_EMOJI_DASH_TAU_LEVEL = 0.12
-// On a beat every active emoji ALSO gets an instant downward jolt + a synchronized scale pop → an unmistakable jolt.
-const RADIO_EMOJI_JOLT = 0.22         // instant downward jump on a beat (× strength)
-const RADIO_EMOJI_PULSE_AMP = 1.7     // scale pop on a beat (× strength), eases back to 1
+const RADIO_EMOJI_DASH_STRENGTH = 6.0 // fall-speed dash on a hit, scaled by hit loudness (faint hit ⇒ ~no dash)
+const RADIO_EMOJI_DASH_TAU = 0.09     // dash DURATION (decay τ) — short = snappy
+// On a beat every active emoji gets a synchronized scale pop (eased back) — a clear reaction WITHOUT a jarring teleport.
+const RADIO_EMOJI_PULSE_STRENGTH = 1.1 // scale-pop on a hit, scaled by hit loudness (faint hit ⇒ ~no pop)
 const RADIO_EMOJI_PULSE_TAU = 0.08    // pop decay τ (snappy)
 const RADIO_EMOJI_SPRITE_PX = 64
 const RADIO_EMOJI_FONT_PX = 48
@@ -133,7 +123,6 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
   const groupRef = useRef<THREE.Group>(null)
   const camera = useThree(s => s.camera)
   const dashMul = useRef(1)
-  const dashTau = useRef(RADIO_EMOJI_DASH_TAU_MIN)
   const pulse = useRef(1)
   const texCache = useRef<Map<string, THREE.CanvasTexture>>(new Map())
   const set = emojiSetFor(mood)
@@ -199,15 +188,11 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     const killY = -halfH * RADIO_EMOJI_KILL_FRAC
 
     const level = analysis?.level() ?? 0
-    const strength = _beat.strength
+    const strength = _beat.strength   // = the rhythm hit's loudness (flux) → all reactions scale with it
     if (_beat.fired) {
-      // Dash strength scales with loudness AND the beat strength.
-      dashMul.current = 1 + (RADIO_EMOJI_DASH_MIN + RADIO_EMOJI_DASH_LEVEL * level) * strength
-      dashTau.current = RADIO_EMOJI_DASH_TAU_MIN + RADIO_EMOJI_DASH_TAU_LEVEL * level
-      pulse.current = 1 + (RADIO_EMOJI_PULSE_AMP - 1) * strength   // synchronized scale pop
-      // Instant downward jolt on every already-falling emoji → an unmistakable reaction on the beat.
-      for (const d of drops) if (d.active) d.sprite.position.y -= RADIO_EMOJI_JOLT * strength
-      // Spawn a BATCH by beat strength — emoji appear only on a beat (the beat "births" them).
+      dashMul.current = 1 + RADIO_EMOJI_DASH_STRENGTH * strength
+      pulse.current = 1 + RADIO_EMOJI_PULSE_STRENGTH * strength
+      // Spawn a BATCH by hit loudness — emoji appear only on a beat (the beat "births" them).
       const batch = RADIO_EMOJI_BURST_MIN + Math.round((RADIO_EMOJI_BURST_MAX - RADIO_EMOJI_BURST_MIN) * strength)
       for (let k = 0; k < batch; k++) {
         const free = drops.find(d => !d.active)
@@ -215,7 +200,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
         spawnOne(free, halfW, halfH)
       }
     }
-    dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / dashTau.current))
+    dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / RADIO_EMOJI_DASH_TAU))
     pulse.current += (1 - pulse.current) * (1 - Math.exp(-dt / RADIO_EMOJI_PULSE_TAU))
 
     const fall = (RADIO_EMOJI_FALL_MIN + RADIO_EMOJI_FALL_LEVEL * level) * dashMul.current
@@ -233,7 +218,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
 
 /** Camera: a SMOOTH per-beat zoom punch (fast attack, slow deflate, re-armable without runaway) + a faint shake.
  *  Beats only — no continuous breathing. Applied right after CameraRig (priority 0, before the composer render). */
-const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: AudioAnalysis }) {
+const RadioCameraMod = memo(function RadioCameraMod() {
   const camera = useThree(s => s.camera)
   const target = useRef(0)   // zoom target — SET on a beat, decays slowly (the "deflation")
   const punch = useRef(0)    // actual zoom — chases the target with a fast attack (smooth)
@@ -241,10 +226,9 @@ const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: A
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
-    const level = analysis?.level() ?? 0
-    if (_beat.fired) {   // shared beat — the camera and the emoji react on the SAME frame
-      target.current = RADIO_CAM_PUNCH_BASE + RADIO_CAM_PUNCH_LEVEL * level   // SET (re-armable, never accumulates)
-      shake.current = RADIO_CAM_SHAKE_AMP
+    if (_beat.fired) {   // shared beat — the camera and the emoji react on the SAME frame; strength = hit loudness
+      target.current = RADIO_CAM_PUNCH_BASE + RADIO_CAM_PUNCH_STRENGTH * _beat.strength   // SET (re-armable, never accumulates)
+      shake.current = RADIO_CAM_SHAKE_AMP * _beat.strength
     }
     target.current += (0 - target.current) * (1 - Math.exp(-dt / RADIO_CAM_DECAY_TAU))   // slow deflation
     punch.current += (target.current - punch.current) * (1 - Math.exp(-dt / RADIO_CAM_ATTACK_TAU))   // fast smooth rise
@@ -263,12 +247,12 @@ const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: A
 })
 
 /** The full radio takeover (camera + emoji), rendered INSIDE the menu Canvas only when radioMode is set.
- *  BeatClock runs first (priority −1) and drives the shared `_beat` from the track's known tempo. */
+ *  BeatClock runs first (priority −1) and drives the shared `_beat` from the low-band onset flux. */
 export function RadioTakeover({ radioMode, analysis }: { radioMode: { mood: string; bpm: number }; analysis?: AudioAnalysis }) {
   return (
     <>
-      <BeatClock analysis={analysis} bpm={radioMode.bpm} />
-      <RadioCameraMod analysis={analysis} />
+      <BeatClock analysis={analysis} />
+      <RadioCameraMod />
       <EmojiRain analysis={analysis} mood={radioMode.mood} />
     </>
   )
