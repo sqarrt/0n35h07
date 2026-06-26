@@ -180,9 +180,11 @@ export function MenuEdgeGlow({ analysis, muted = false, enabled = true, softBloo
     <EffectComposer enabled={enabled} frameBufferType={HalfFloatType}>
       {[
         <primitive key="depth" object={pass} />,
+        // soft frosted haze FIRST (radio only) → then the edge outline + its sharp bloom render ON TOP, so the
+        // orb edge glow stays visible over the haze instead of being washed out by it.
+        ...(softBloom ? [<primitive key="soft" object={softPass} />] : []),
         <primitive key="edge" object={edgePass} />,
         <Bloom key="sharp" intensity={BLOOM_INTENSITY} luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={BLOOM_SMOOTHING} radius={BLOOM_RADIUS} mipmapBlur />,
-        ...(softBloom ? [<primitive key="soft" object={softPass} />] : []),
       ]}
     </EffectComposer>
   )

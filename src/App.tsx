@@ -324,7 +324,10 @@ export default function App() {
   // Readers yield 0 while the radio is silent (the analyser only taps once a sound has played).
   useEffect(() => {
     if (!radioEngine) return
-    const offL = audioAnalysis.addReader(() => radioEngine.readLevel())
+    // Radio is louder than the menu music; scale its level down so it doesn't pin the orb glow at max (then it
+    // visibly reacts). Beat detection reads the bands (unscaled), so it's unaffected.
+    const RADIO_LEVEL_SCALE = 0.6
+    const offL = audioAnalysis.addReader(() => radioEngine.readLevel() * RADIO_LEVEL_SCALE)
     const offB = audioAnalysis.addBandReader(out => radioEngine.readBands(out))
     return () => { offL(); offB() }
   }, [radioEngine, audioAnalysis])
