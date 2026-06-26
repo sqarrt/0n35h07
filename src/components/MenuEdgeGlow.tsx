@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
-import { EffectComposer } from '@react-three/postprocessing'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 import { BloomEffect, Effect, EffectAttribute, EffectPass, Pass } from 'postprocessing'
 import { DepthTexture, HalfFloatType, Uniform, Vector2, WebGLRenderTarget } from 'three'
 import type { Camera, Scene, Texture, WebGLRenderer, WebGLRenderTarget as RT } from 'three'
@@ -147,15 +147,15 @@ export function MenuEdgeGlow({ analysis, muted = false, enabled = true, softBloo
   }, [])
   const pass = useMemo(() => new ObjDepthPass(scene as Scene, camera, target), [scene, camera, target])
   const effect = useMemo(() => new EdgeGlowEffect(target.depthTexture as Texture, target.texture, new Vector2(1 / size.width, 1 / size.height)), [target]) // eslint-disable-line react-hooks/exhaustive-deps
-  // The edge effect is a SEPARATE pass; the sharp Bloom (imperative) then blurs the HDR edge into a glow.
+  // The edge effect is a SEPARATE pass; the sharp Bloom (the working <Bloom> wrapper) blurs the HDR edge into a glow.
   const edgePass = useMemo(() => new EffectPass(camera, effect), [camera, effect])
-  const sharp = useMemo(() => new BloomEffect({ luminanceThreshold: BLOOM_THRESHOLD, luminanceSmoothing: BLOOM_SMOOTHING, mipmapBlur: true, radius: BLOOM_RADIUS, intensity: BLOOM_INTENSITY }), [])
-  const sharpPass = useMemo(() => new EffectPass(camera, sharp), [camera, sharp])
-  // Soft full-scene frosted bloom for the radio takeover — always in the composer, intensity 0 until softBloom.
+  // Soft full-scene frosted bloom for the radio takeover — an imperative pass added to the SAME composer ONLY while
+  // softBloom is on. Always-present (even at intensity 0) it killed the edge glow; conditional → the plain menu is
+  // EXACTLY the original composition. The pass object persists (useMemo) so toggling doesn't recompile the edge passes.
   const soft = useMemo(() => new BloomEffect({ luminanceThreshold: SOFT_THRESHOLD, luminanceSmoothing: SOFT_SMOOTHING, mipmapBlur: true, radius: SOFT_RADIUS, intensity: 0 }), [])
   const softPass = useMemo(() => new EffectPass(camera, soft), [camera, soft])
   useEffect(() => { (effect.uniforms.get('uTexel')!.value as Vector2).set(1 / size.width, 1 / size.height) }, [effect, size])
-  useEffect(() => () => { pass.dispose(); effect.dispose(); edgePass.dispose(); sharp.dispose(); sharpPass.dispose(); soft.dispose(); softPass.dispose(); target.dispose() }, [pass, effect, edgePass, sharp, sharpPass, soft, softPass, target])
+  useEffect(() => () => { pass.dispose(); effect.dispose(); edgePass.dispose(); soft.dispose(); softPass.dispose(); target.dispose() }, [pass, effect, edgePass, soft, softPass, target])
 
   const lvl = useRef(0)
   const softLvl = useRef(0)
@@ -174,14 +174,16 @@ export function MenuEdgeGlow({ analysis, muted = false, enabled = true, softBloo
     soft.intensity = (SOFT_BASE + SOFT_GAIN * softLvl.current) * fade.current
   })
 
-  // HDR buffer (HalfFloat): an edge brighter than 1.0 survives the buffer → sharp Bloom catches ONLY it (≤1 untouched);
-  // the soft Bloom (threshold 0) is the radio frosted haze over everything. Both imperative — no <Bloom> wrapper.
+  // HDR buffer (HalfFloat): an edge brighter than 1.0 survives → the sharp Bloom catches ONLY it (≤1 untouched).
+  // The soft frosted Bloom (radio only) is appended over the whole scene. The plain menu is the original 3 passes.
   return (
     <EffectComposer enabled={enabled} frameBufferType={HalfFloatType}>
-      <primitive object={pass} />
-      <primitive object={edgePass} />
-      <primitive object={sharpPass} />
-      <primitive object={softPass} />
+      {[
+        <primitive key="depth" object={pass} />,
+        <primitive key="edge" object={edgePass} />,
+        <Bloom key="sharp" intensity={BLOOM_INTENSITY} luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={BLOOM_SMOOTHING} radius={BLOOM_RADIUS} mipmapBlur />,
+        ...(softBloom ? [<primitive key="soft" object={softPass} />] : []),
+      ]}
     </EffectComposer>
   )
 }
