@@ -108,6 +108,18 @@ export class RadioComposer {
     const energy = shape.energy
     const n = bars
     const off = this.bar % n // phase-align block sweeps to this section's start
+    // SECTION ALIGNMENT — Strudel patterns run on the GLOBAL cycle clock, so a `<a b c d>` sequence or a `.slow(n)`
+    // sweep plays element/phase `globalCycle % len`, NOT element 0 at the section start (sections have varied bar
+    // counts, so this.bar % len ≠ 0). That made layers "enter mid-loop" and risers/fills land on the wrong bar.
+    // `lateAlign` shifts an n-bar LFO so its phase-0 lands on the section's first bar; `seqAligned` rotates a bar
+    // sequence so element 0 lands on the first bar (element p on the section's bar p).
+    const lateAlign = off > 0 ? `.late(${off})` : ''
+    const seqAligned = (elems: string[]): string => {
+      const len = elems.length
+      const rot = new Array<string>(len)
+      for (let p = 0; p < len; p++) rot[(this.bar + p) % len] = elems[p]
+      return `<${rot.join(' ')}>`
+    }
     const nextRole = track.arc[pos + 1]
     const fillNext = nextRole === 'break' || nextRole === 'outro' || nextRole === undefined
     const muffled = role === 'intro'
@@ -135,8 +147,8 @@ export class RadioComposer {
     // (bass holds and re-asserts on bar 4). Floors keep every voice audible — never silent.
     const peak = role === 'peak'
     const leadFwd = peak && (pos - bStart) % 2 === 1
-    const bassEmph = !peak ? '' : leadFwd ? '.gain("<0.85 0.85 0.85 1>")' : '.gain("<1 1 1 0.84>")'
-    const leadEmph = !peak ? '' : leadFwd ? '' : '.gain("<0.7 0.7 0.7 1>")'
+    const bassEmph = !peak ? '' : leadFwd ? `.gain("${seqAligned(['0.85', '0.85', '0.85', '1'])}")` : `.gain("${seqAligned(['1', '1', '1', '0.84'])}")`
+    const leadEmph = !peak ? '' : leadFwd ? '' : `.gain("${seqAligned(['0.7', '0.7', '0.7', '1'])}")`
 
     // EASE-IN — a part that was OFF in the previous section must NOT slam in: ramp its gain
     // over the first ~2 bars so it eases/transitions in (a "pre-lead"). Not only the lead —
@@ -200,18 +212,20 @@ export class RadioComposer {
       : peak ? 'crash'
       : postKinds[createRng(`${track.seed}:tIn${pos}`).int(postKinds.length)]
     const lastN = Math.max(1, bars - 1)
-    const lastBar = (x: string) => `<~!${lastN} ${x}>`   // value only on the section's FINAL bar
-    const firstBar = (x: string) => `<${x} ~!${lastN}>`  // value only on the section's FIRST bar
+    const lastBar = (x: string) => seqAligned([...Array(lastN).fill('~'), x])   // value only on the section's FINAL bar
+    const firstBar = (x: string) => seqAligned([x, ...Array(lastN).fill('~')])  // value only on the section's FIRST bar
 
     // ── KICK ──
     if (shape.layers.kicks) {
       const deep = role === 'break' // steady, darker kick that holds the rest together
-      let kickPat = mood.density < 0.5 || deep ? 'bd*4' : style.kickPat
-      if (preKind === 'kickDrop') kickPat = `<${kickPat}!${lastN} ~>` // drop the last bar = tension gap
-      else if (boundaryOut) kickPat = `<${kickPat}!${lastN} ${fillNext ? '[bd*2 bd bd bd]' : '[bd bd bd bd]'}>`
-      // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap —
-      // the "everything drops for a beat before it slams back" drop-prep.
-      else if (deep) kickPat = `<${kickPat}!${lastN} ~>`
+      const base = mood.density < 0.5 || deep ? 'bd*4' : style.kickPat
+      let kickPat = base
+      // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
+      // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
+      if (preKind === 'kickDrop') kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~']) // drop the last bar
+      else if (boundaryOut) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), fillNext ? '[bd*2 bd bd bd]' : '[bd bd bd bd]'])
+      // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
+      else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
       // Kick is the loud global reference (drives the whole balance). Composition-independent.
       const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0))
       const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
@@ -291,8 +305,7 @@ export class RadioComposer {
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      const subRoots = roots.join(' ')
-      layers.push(orbit(`note("<${subRoots}>").s("sine").gain(${g(MIX.sub)})${bassEnter}.lpf(150)${pump}`, ORBIT.fx))
+      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub)})${bassEnter}.lpf(150)${pump}`, ORBIT.fx))
     }
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
@@ -333,7 +346,7 @@ export class RadioComposer {
       // DESCENDING / returning only — an ASCENDING climb (e.g. 0 3 5 7) reads as a cheesy
       // "tropical" uplift, which is banned. These fall back home or hold, like the reference.
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
-      const leadDev = this.afterBreak ? `.add(note("<${LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)]}>"))` : ''
+      const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
         layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(MIX.lead * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
@@ -370,17 +383,17 @@ export class RadioComposer {
         layers.push(orbit(`note("${firstBar(`[${steps.join(' ')}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
       // (1) UPLIFTER across the WHOLE 8 bars — filter AND level climb the entire section and
-      //     climax HARD so it hands off to the peak at full energy (it used to under-rise).
-      layers.push(orbit(`s("white*16").dec(0.08).lpf(saw.range(400, 11000).slow(${n})).hpf(250).gain(saw.range(0.06, ${g(0.82)}).slow(${n})).pan(sine.slow(5))${fxFor(0.3, 0.5)}`, ORBIT.fx))
+      //     climax HARD so it hands off to the peak at full energy. .late aligns the climb's END
+      //     to the section boundary (so the riser doesn't peak mid-bar / spill into the next part).
+      layers.push(orbit(`s("white*16").dec(0.08).lpf(saw.range(400, 11000).slow(${n})${lateAlign}).hpf(250).gain(saw.range(0.06, ${g(0.82)}).slow(${n})${lateAlign}).pan(sine.slow(5))${fxFor(0.3, 0.5)}`, ORBIT.fx))
       // (2) SNARE ROLL that stays out for the first half then ACCELERATES (2→4→8→16 hits/bar)
       //     and BUZZES on the final bar (sd*16), level peaking with it — meets the drop loud.
-      // NO waveshaper here — distortion is what made this roll stab the ear. Power comes from
-      // the rising gain + density; a lpf ceiling keeps the buzz from getting piercing.
-      layers.push(orbit(`s("<~ ~ ~ ~ [sd sd] [sd*2 sd*2] [sd*4 sd*4] [sd*8 sd*16]>").gain(saw.range(0.1, ${g(0.82)}).slow(${n})).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
+      //     seqAligned + .late keep the acceleration locked to the section so it climaxes ON the boundary.
+      layers.push(orbit(`s("${seqAligned(['~', '~', '~', '~', '[sd sd]', '[sd*2 sd*2]', '[sd*4 sd*4]', '[sd*8 sd*16]'])}").gain(saw.range(0.1, ${g(0.82)}).slow(${n})${lateAlign}).hpf(260).lpf(6500)${fxFor(0.2, 0.4)}`, ORBIT.snare))
       // colour: a tom fill that thickens, plus a lone echo-drenched chord stab for harmony.
-      layers.push(orbit(`s("<~ [lt mt] ~ [mt lt mt] ~ [lt mt lt] ~ [mt*4]>").gain(${g(0.4)}).room(0.3)${fxFor(0.3, 0.4)}`, ORBIT.perc))
+      layers.push(orbit(`s("${seqAligned(['~', '[lt mt]', '~', '[mt lt mt]', '~', '[lt mt lt]', '~', '[mt*4]'])}").gain(${g(0.4)}).room(0.3)${fxFor(0.3, 0.4)}`, ORBIT.perc))
       const stabRoot = ((chord.notes[0] % 12) + 12) % 12 + 48 // tonic, mid register
-      layers.push(orbit(`note("<${stabRoot} ~ ~ ~>").s("${style.stabSound}").lpf(1200).dec(0.4).gain(${g(0.28)})${fxFor(0.8, 0.9)}`, ORBIT.fx))
+      layers.push(orbit(`note("${seqAligned([String(stabRoot), '~', '~', '~'])}").s("${style.stabSound}").lpf(1200).dec(0.4).gain(${g(0.28)})${fxFor(0.8, 0.9)}`, ORBIT.fx))
     }
 
     // Through-line FM-pulse riser texture (Switch-Angel style): an evolving tension
