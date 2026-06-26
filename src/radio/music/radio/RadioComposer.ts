@@ -292,9 +292,14 @@ export class RadioComposer {
         rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
         saturation: muffled ? 0.08 : 0.3 + mood.fx.saturation * 0.3, acidenv: acidenvExpr,
       })
-      // filter breathes within the section (.slow) AND its ceiling opens over the block
+      // filter breathes within the section (.slow) AND its ceiling opens over the block.
+      // When the bass ENTERS, it slams in too hard → instead sweep the cutoff up from near-CLOSED
+      // (90Hz) across the section start, so the bass eases in tonally (a light filter build-up) on
+      // top of the gain ramp (bassEnter). .late aligns the sweep's start to the section's first bar.
       const ceil = Math.round(560 + (0.35 + 0.65 * blockProgress) * (muffled ? 400 : 1000))
-      const bassLpf = `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n}).late(${off})`
+      const bassLpf = entered('bass')
+        ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
+        : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
       const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
       // FAT (peak only — keep the intro soft): octave-up gritty mid-bass + wide unison reese
       const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
@@ -339,8 +344,8 @@ export class RadioComposer {
       // the section start, so it eases in instead of bursting. Otherwise it breathes.
       const leadEntering = entered('lead') || (peak && pos === bStart)
       const leadLpf = leadEntering
-        ? `saw.range(220, ${ceilCap}).slow(${n})`
-        : `saw.range(560, ${ceilCap}).slow(${n}).late(${off})`
+        ? `saw.range(220, ${ceilCap}).slow(${n})${lateAlign}`
+        : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
       // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
       const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
       // AFTER THE BREAK: develop the lead with an in-key TRANSPOSITION pattern (Switch-Angel
