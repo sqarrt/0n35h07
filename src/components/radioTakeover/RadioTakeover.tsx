@@ -38,17 +38,20 @@ const RADIO_SHAKE_BAND = 7
 const RADIO_BANDS = 8
 
 // --- Emoji rain (rhythm-driven, NOT loudness-driven) --------------------------------------------
-const RADIO_EMOJI_MAX = 110              // pooled sprite count (small & dense)
-const RADIO_EMOJI_BASE_RATE = 10         // constant trickle (spawns/sec) — they always fall, regardless of level
+const RADIO_EMOJI_MAX = 110              // pooled sprite count (kept — not increased)
+const RADIO_EMOJI_BASE_RATE = 8          // constant trickle (spawns/sec) — they always fall, regardless of level
 const RADIO_EMOJI_BURST = 8              // extra emoji spawned ON each beat
-const RADIO_EMOJI_FALL_SPEED = 1.6       // constant fall speed (world u/s) — independent of loudness
-const RADIO_EMOJI_DASH_MUL = 3.5         // fall-speed multiplier on a fresh beat (the rain "dashes" on the kick)
-const RADIO_EMOJI_DASH_DECAY_TAU = 0.16  // dash multiplier eases back to 1
-const RADIO_EMOJI_BEAT_BAND = 1          // low band ≈ kick/bass — the beat we listen to
-const RADIO_EMOJI_BEAT_THRESHOLD = 0.42  // rising-edge magnitude that counts as a beat
+const RADIO_EMOJI_FALL_SPEED = 0.5       // SLOW constant fall speed (world u/s) — loudness-independent
+const RADIO_EMOJI_DASH_MUL = 7.0         // big fall-speed multiplier on a beat → a clear "dash" down on each kick
+const RADIO_EMOJI_DASH_DECAY_TAU = 0.18  // dash eases back to 1 over ~0.5s
+// Beat = a flux (rising-energy onset) in the low (kick) bands — robust to a sustained bassline, with a refractory
+// gap so one kick fires once. (Absolute thresholds missed most kicks.)
+const RADIO_EMOJI_BEAT_FLUX = 0.06       // jump in low-band energy that counts as an onset
+const RADIO_EMOJI_BEAT_FLOOR = 0.12      // minimum low-band energy for a beat (ignore quiet noise)
+const RADIO_EMOJI_BEAT_REFRACTORY = 0.11 // min seconds between beats (≤ ~9 kicks/sec)
 const RADIO_EMOJI_SPRITE_PX = 64
 const RADIO_EMOJI_FONT_PX = 48
-const RADIO_EMOJI_SCALE = 0.28           // sprite world size (half the old size → twice as many read on screen)
+const RADIO_EMOJI_SCALE = 0.18           // sprite world size (smaller; count unchanged)
 const RADIO_EMOJI_SPAWN_Y = 4.0
 const RADIO_EMOJI_KILL_Y = -3.5
 const RADIO_EMOJI_SPREAD_X = 7.0
@@ -105,33 +108,46 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
   const spawnAcc = useRef(0)
   const dashMul = useRef(1)
   const prevKick = useRef(0)
+  const beatCd = useRef(0)
+  const texCache = useRef<Map<string, THREE.CanvasTexture>>(new Map())   // glyph → texture, kept across moods
+  const set = emojiSetFor(mood)                                          // current mood's glyphs (used for NEW spawns)
 
-  const { textures, drops } = useMemo(() => {
-    const set = emojiSetFor(mood)
-    const texList = set.map(makeEmojiTexture)
+  // Pool created ONCE (NOT keyed by mood) → switching tracks doesn't despawn the falling emoji; new spawns just
+  // pick a glyph from the (now current) mood set and swap their sprite's texture.
+  const drops = useMemo(() => {
     const pool: Drop[] = []
     for (let i = 0; i < RADIO_EMOJI_MAX; i++) {
-      const mat = new THREE.SpriteMaterial({ map: texList[i % texList.length], transparent: true, depthWrite: false, depthTest: false })
+      const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false })
       const sprite = new THREE.Sprite(mat)
       sprite.scale.setScalar(RADIO_EMOJI_SCALE)
       sprite.renderOrder = RADIO_EMOJI_RENDER_ORDER
       sprite.visible = false
       pool.push({ sprite, active: false, vx: 0 })
     }
-    return { textures: texList, drops: pool }
-  }, [mood])
+    return pool
+  }, [])
 
   useEffect(() => {
     const g = groupRef.current
     if (!g) return
+    const cache = texCache.current
     for (const d of drops) g.add(d.sprite)
     return () => {
       for (const d of drops) { g.remove(d.sprite); (d.sprite.material as THREE.SpriteMaterial).dispose() }
-      for (const t of textures) t.dispose()
+      for (const t of cache.values()) t.dispose()
+      cache.clear()
     }
-  }, [drops, textures])
+  }, [drops])
 
+  const texFor = (glyph: string): THREE.CanvasTexture => {
+    let t = texCache.current.get(glyph)
+    if (!t) { t = makeEmojiTexture(glyph); texCache.current.set(glyph, t) }
+    return t
+  }
   const spawnOne = (free: Drop) => {
+    const mat = free.sprite.material as THREE.SpriteMaterial
+    mat.map = texFor(set[Math.floor(Math.random() * set.length)])
+    mat.needsUpdate = true
     free.active = true
     free.sprite.visible = true
     free.sprite.position.set((Math.random() - 0.5) * RADIO_EMOJI_SPREAD_X, RADIO_EMOJI_SPAWN_Y, 0)
@@ -146,12 +162,14 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     g.position.copy(camera.position).addScaledVector(_fwd, RADIO_EMOJI_DEPTH)
     g.quaternion.copy(camera.quaternion)
 
-    // Beat = a rising edge in the low (kick) band — drives bursts + the dash. NOT the overall level.
+    // Beat = a low-band (kick) energy ONSET (flux), with a refractory gap so each kick fires once.
     analysis?.bands(_bandsEmoji)
-    const kick = _bandsEmoji[RADIO_EMOJI_BEAT_BAND] ?? 0
-    const beat = kick >= RADIO_EMOJI_BEAT_THRESHOLD && prevKick.current < RADIO_EMOJI_BEAT_THRESHOLD
+    const kick = (_bandsEmoji[0] ?? 0) + (_bandsEmoji[1] ?? 0)
+    const flux = kick - prevKick.current
     prevKick.current = kick
-    if (beat) dashMul.current = RADIO_EMOJI_DASH_MUL
+    beatCd.current -= dt
+    const beat = flux > RADIO_EMOJI_BEAT_FLUX && kick > RADIO_EMOJI_BEAT_FLOOR && beatCd.current <= 0
+    if (beat) { dashMul.current = RADIO_EMOJI_DASH_MUL; beatCd.current = RADIO_EMOJI_BEAT_REFRACTORY }
     dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / RADIO_EMOJI_DASH_DECAY_TAU))
 
     // Constant trickle + a burst on the beat.

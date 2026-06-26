@@ -28,7 +28,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 // Output metering for the visualizer (level + spectrum). A small analyser window is enough for
 // time-domain RMS. Math mirrors the game's AudioAnalysis, inlined to keep the radio subtree
 // self-contained (no radio→game import).
-const ANALYSER_FFT = 256
+const ANALYSER_FFT = 1024   // larger window → finer low-frequency bins (the visualizer's kick/beat detection)
 const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
 /** RMS level 0..1 from an analyser (time domain). */
 function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
