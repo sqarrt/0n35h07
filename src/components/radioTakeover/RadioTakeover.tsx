@@ -70,10 +70,10 @@ const RADIO_CAM_SHAKE_AMP = 0.005    // a barely-perceptible shimmer on a beat
 const RADIO_CAM_SHAKE_DECAY_TAU = 0.08
 
 // --- Emoji rain ---------------------------------------------------------------------------------
-const RADIO_EMOJI_MAX = 130
-// Emoji spawn ONLY on a beat — a batch of 2..5 by beat strength (NO constant trickle) → the beat "births" them.
-const RADIO_EMOJI_BURST_MIN = 2
-const RADIO_EMOJI_BURST_MAX = 5
+const RADIO_EMOJI_MAX = 64
+// Emoji spawn ONLY on a beat — a batch of 1..3 by beat strength (NO constant trickle) → the beat "births" them.
+const RADIO_EMOJI_BURST_MIN = 1
+const RADIO_EMOJI_BURST_MAX = 3
 const RADIO_EMOJI_FALL_MIN = 0.35     // base fall speed (the BEAT dash drives the motion)
 const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost
 const RADIO_EMOJI_DASH_MIN = 0.8      // beat dash floor (already snappy at quiet)
@@ -140,7 +140,9 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
       const mat = new THREE.SpriteMaterial({ transparent: true, depthWrite: false, depthTest: false })
       const sprite = new THREE.Sprite(mat)
       sprite.scale.setScalar(RADIO_EMOJI_SCALE)
-      sprite.renderOrder = RADIO_EMOJI_RENDER_ORDER
+      // Unique renderOrder per sprite → a stable transparency draw order. With depthTest off and EQUAL camera
+      // distance (all at z=0), a shared renderOrder made the sort flicker when two overlapped.
+      sprite.renderOrder = RADIO_EMOJI_RENDER_ORDER + i
       sprite.visible = false
       pool.push({ sprite, active: false })
     }
