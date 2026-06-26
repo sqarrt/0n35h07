@@ -627,8 +627,9 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
         {radioMode && <RadioTakeover radioMode={radioMode} analysis={analysis} />}
         {/* Glow on the VISIBLE model edges (principle like block highlighting) → Bloom; in silence there's no glow.
             Mounted deferred (see above) so compilation doesn't freeze entry. The settings toggle is the external gate.
-            Suppressed during the radio takeover (its soft bloom replaces this sharp one — never two composers). */}
-        {!radioMode && glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} />}
+            During the radio takeover it stays MOUNTED but disabled (the soft bloom renders instead) — remounting it
+            on exit would recompile its shaders and freeze the frame. enabled toggles which composer renders. */}
+        {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} enabled={!radioMode} />}
       </Canvas>
     </div>
   )

@@ -119,7 +119,7 @@ class EdgeGlowEffect extends Effect {
 /** Composer: model-layer depth (real materials) → bright edge from the depth discontinuity → Bloom (glow).
  *  `muted` — instantly kills the glow (intensity → 0) WITHOUT unmounting: the composer stays
  *  compiled, re-enabling has no delay (the "Appearance" screen mutes the outline). */
-export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnalysis; muted?: boolean }) {
+export function MenuEdgeGlow({ analysis, muted = false, enabled = true }: { analysis?: AudioAnalysis; muted?: boolean; enabled?: boolean }) {
   const scene = useThree(s => s.scene)
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
@@ -150,7 +150,7 @@ export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnal
 
   // HDR buffer (HalfFloat): an edge brighter than 1.0 survives the buffer → Bloom catches ONLY it, not surface/background (≤1).
   return (
-    <EffectComposer frameBufferType={HalfFloatType}>
+    <EffectComposer enabled={enabled} frameBufferType={HalfFloatType}>
       <primitive object={pass} />
       <primitive object={edgePass} />
       <Bloom intensity={BLOOM_INTENSITY} luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={BLOOM_SMOOTHING} radius={BLOOM_RADIUS} mipmapBlur />

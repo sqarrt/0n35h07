@@ -90,11 +90,10 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
         {p.expanded ? (
           <>
-            {/* Row 2 — details */}
-            <div style={subRow}>{p.subtitle || radioWord}</div>
-            {/* Row 3 — dislike (left) / like (right) */}
-            <div style={{ ...spread, ...dim }}>
+            {/* Row 2 — dislike (left) · BPM/key (centre) · like (right) */}
+            <div style={{ ...spread, ...dim, gap: 10 }}>
               <button style={heart(p.disliked)} onClick={p.onDislike} aria-label={t.radioDislike} data-testid="radio-dislike">💔</button>
+              <div style={{ ...subRow, flex: 1 }}>{p.subtitle || radioWord}</div>
               <button style={heart(p.liked)} onClick={p.onLike} aria-label={t.radioLike} data-testid="radio-like">❤️</button>
             </div>
             {/* Row 4 — prev / play-pause / next */}

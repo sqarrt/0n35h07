@@ -6,7 +6,7 @@ import { glassCard } from './glass'
 const panel: CSSProperties = {
   position: 'fixed', top: 18, left: 18, zIndex: 120,
   ...glassCard,
-  width: 540, maxHeight: '70vh', padding: '12px 16px',
+  width: '20vw', maxHeight: '70vh', padding: '12px 16px',
   overflow: 'auto',
   fontFamily: 'ui-monospace, "Share Tech Mono", monospace',
   fontSize: '0.72rem', lineHeight: 1.5, letterSpacing: '0.02em',
