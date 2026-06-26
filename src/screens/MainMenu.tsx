@@ -32,8 +32,8 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onRadio, o
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
       <Button variant="secondary" style={btn} onClick={onAbout} data-testid="menu-about">{t.settingsSecAbout}</Button>
-      {/* Radio — generative music mode (non-localized brand label, like the track names). */}
-      <Button variant="secondary" style={btn} onClick={onRadio} data-testid="menu-radio">RADIO</Button>
+      {/* Radio — generative music mode (localized "Radio" word). */}
+      <Button variant="secondary" style={btn} onClick={onRadio} data-testid="menu-radio">{t.settingsVolRadio}</Button>
       {/* Exit — desktop only: in the browser window.close() is forbidden by policy for a regular tab. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
       {/* F11 hint — browser only (desktop is fullscreen already). F11 is a native browser hotkey,

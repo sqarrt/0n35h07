@@ -52,10 +52,10 @@ export function SoundControls({ profile, onChange, radioReady }: ControlsProps &
       <Slider label={t.settingsVolMusic} value={profile.volumeMusic} onChange={v => set({ volumeMusic: v })} />
       <Slider label={t.settingsVolMenuMusic} value={profile.volumeMenuMusic} onChange={v => set({ volumeMenuMusic: v })} />
       <Slider label={t.settingsVolSfx} value={profile.volumeSfx} onChange={v => set({ volumeSfx: v })} />
-      {/* Radio volume — desktop only; non-localized brand label (see design spec). Greyed until the module initialises. */}
+      {/* Radio volume — desktop only. Greyed until the module initialises. */}
       {IS_DESKTOP && (
         <div style={radioReady === false ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
-          <Slider label="RADIO" value={profile.volumeRadio} onChange={v => set({ volumeRadio: v })} />
+          <Slider label={t.settingsVolRadio} value={profile.volumeRadio} onChange={v => set({ volumeRadio: v })} />
         </div>
       )}
     </>
