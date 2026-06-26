@@ -22,13 +22,15 @@ const DEFAULT_SCALE = [0, 2, 3, 5, 7, 8, 10] // aeolian fallback
 
 // ── Curated scale-degree figures (the "good melody pool"). Degrees are SCALE STEPS (0 = root, 7 = octave,
 //    9 = octave+3rd, …); negative = below the tonic. All ANCHORED on the tonic (0), mostly descending/returning.
+// Tight, tonic-anchored cells WITHIN an octave (no harsh octave+ leaps / high screamers — those sounded awful
+// on a wide supersaw). Mostly stepwise, returning home, with the odd note below the tonic; steps stay in -2..5.
 const ACID_CELLS = [
-  [0, 4, 0, 9, 7],              // the canonical 0 4 0 9 7
-  [0, 0, 7, 0, 10, 0, 5, 0],
-  [0, 3, 0, 7, 0, 12, 0, 7],
-  [0, 7, 0, 5, 0, 3, 0, 0],
-  [0, 0, 12, 7, 0, 5, 0, 3],
-  [0, -3, 0, 4, 0, 7, 0, 3],
+  [0, 4, 0, 5, 0, 3, 2, 0],
+  [0, 0, 5, 3, 0, 2, 0, 0],
+  [0, 2, 3, 2, 0, -2, 0, 0],
+  [0, 5, 3, 0, 2, 0, 4, 0],
+  [0, 0, 3, 0, 4, 3, 2, 0],
+  [0, -2, 0, 3, 2, 0, 5, 0],
 ]
 const DYAD_HIGHS = [
   [6, 7, 4, 8], [7, 5, 8, 4], [4, 6, 7, 5], [9, 7, 6, 8], [7, 4, 9, 7],

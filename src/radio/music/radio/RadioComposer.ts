@@ -220,7 +220,15 @@ export class RadioComposer {
     // No drift.gain, no mood.density — so the balance can't shift track-to-track. energyEnv
     // scales every role together (intros softer, peaks fuller) WITHOUT changing their ratios.
     const energyEnv = 0.74 + 0.26 * energy
-    const g = (level: number) => r2(MASTER * level * energyEnv)
+    // LOUDNESS NORMALISATION — trim the parts in a FULL section so they don't pile up louder than the body
+    // average (the KICK keeps its own energy curve as the steady reference). partSq = the combined non-kick
+    // load; normScale brings an over-full section (a peak with perc stacked on) back toward a target. It only
+    // TRIMS, never boosts → sparser sections (intro/build) are untouched, so the track stays ~even throughout.
+    const partSq = (shape.layers.bass ? MIX.bass * MIX.bass + MIX.sub * MIX.sub : 0)
+      + (shape.layers.perc ? MIX.hat * MIX.hat + MIX.snare * MIX.snare + (peak ? MIX.clap * MIX.clap : 0) : 0)
+    const NORM_TARGET = 0.8
+    const normScale = partSq > 0 ? Math.min(1, NORM_TARGET / Math.sqrt(partSq)) : 1
+    const g = (level: number) => r2(MASTER * level * energyEnv * normScale)
     const pump = sidechainGain(mood.fx.sidechainDepth)
     // Every part draws echo/reverb from the track's ONE fx space (scaled by role), so
     // parts cohere — no dry bass under a wet lead. dFactor/rFactor = this part's share.
