@@ -88,8 +88,8 @@ const RADIO_EMOJI_RENDER_ORDER = 20
 // Spawn/kill are computed from the camera's visible rectangle at RADIO_EMOJI_DEPTH (fractions of the half-extents),
 // so emoji appear ON-SCREEN at the top THE MOMENT a beat fires (previously they spawned far above view and only
 // drifted in seconds later → looked unsynced).
-const RADIO_EMOJI_SPAWN_TOP = 0.78    // spawn Y = halfHeight × this (near the visible top, instantly on-screen)
-const RADIO_EMOJI_SPAWN_TOP_JIT = 0.18 // ± jitter (avoids a visible single-Y "row")
+const RADIO_EMOJI_SPAWN_TOP = 1.06    // spawn Y = halfHeight × this — right AT/just above the top edge (enter from
+const RADIO_EMOJI_SPAWN_TOP_JIT = 0.12 // off-screen top on the beat, no mid-screen pop-in); ± jitter avoids a "row"
 const RADIO_EMOJI_SPREAD_FRAC = 0.9   // horizontal spread = halfWidth × this
 const RADIO_EMOJI_KILL_FRAC = 1.08    // kill just below the visible bottom
 
