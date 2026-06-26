@@ -145,8 +145,8 @@ export class RadioComposer {
     }
     const nextRole = track.arc[pos + 1]
     const fillNext = nextRole === 'break' || nextRole === 'outro' || nextRole === undefined
-    const muffled = role === 'intro'
-    const memory = role === 'intro' || role === 'break' // atmospheric, echo-drenched
+    const muffled = role === 'intro' || role === 'introB'
+    const memory = role === 'intro' || role === 'introB' || role === 'break' // atmospheric, echo-drenched
 
     // Progress THROUGH the current block (a run of meat loops / builds) so parts can
     // EVOLVE over the block — filter opens, acid env moves — instead of looping flat.
@@ -193,7 +193,7 @@ export class RadioComposer {
     // the kick/bass/perc duck to SILENCE on bar 0 (a held breath while the lead's filter opens) and the groove
     // SLAMS back on bar 1 with a crash — the lead arrives as an event, not a pile-on (Switch Angel: drop-before-lead).
     const leadOnFor = (r?: SectionRole): boolean =>
-      !!r && shapeFor(r).layers.lead && (style.leadPresence === 'full' || r === 'float' || (style.leadPresence === 'sparse' && r === 'peak'))
+      !!r && shapeFor(r).layers.lead && (style.leadPresence === 'full' || r === 'float' || r === 'introB' || (style.leadPresence === 'sparse' && r === 'peak'))
     const leadOn = leadOnFor(role)
     const leadEntered = leadOn && pos > 0 && role !== 'float' && !leadOnFor(track.arc[pos - 1] as SectionRole)
     const dropDuck = leadEntered ? `.gain("${seqAligned(['0', ...Array(Math.max(1, bars - 1)).fill('1')])}")` : ''
@@ -364,7 +364,10 @@ export class RadioComposer {
     //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
     //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
     //    (leadOn / leadEntered are computed up top so the kick/bass can drop before the lead's first entry.)
-    if (leadOn) {
+    // INTERMITTENT: the lead RESTS on every 4th peak loop (it does not play the whole time — Switch Angel) so it
+    // breathes; the groove (bass call-and-response) carries that loop. Not on float (the lead IS the section).
+    const leadRest = peak && (pos - bStart) % 4 === 3
+    if (leadOn && !leadRest) {
       // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
       // aggressive, loud and detached from the track). Just the track's own width, if any.
       const leadVoice = style.leadUnison > 0
@@ -373,7 +376,7 @@ export class RadioComposer {
       // FLOAT carries the whole (drumless) passage on the lead ALONE → there it must be PROMINENT, not
       // the under-the-groove whisper used in builds/peaks (that left float sections near-silent). So in
       // float the lead is louder, brighter (higher ceiling) and its entry filter starts far less closed.
-      const floaty = role === 'float'
+      const floaty = role === 'float' || role === 'introB' // drumless/sparse openings the lead carries → prominent
       const leadLevel = floaty ? MIX.lead * 2.7 : MIX.lead
       // filter opens with the block but stays DARK in builds/peaks (capped ~1300) so the lead sits
       // inside the track; in float it opens much brighter so it actually sings.

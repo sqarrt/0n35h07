@@ -10,7 +10,7 @@
 import type { Rng } from '../seededRandom'
 import type { LayerFlags } from './MusicalState'
 
-export type SectionRole = 'intro' | 'build' | 'peak' | 'break' | 'outro' | 'float'
+export type SectionRole = 'intro' | 'introB' | 'build' | 'peak' | 'break' | 'outro' | 'float'
 
 export interface SectionShape {
   role: SectionRole
@@ -25,6 +25,7 @@ function L(kicks: boolean, bass: boolean, lead: boolean, bg: boolean, perc: bool
 
 const SHAPES: Record<SectionRole, Omit<SectionShape, 'role'>> = {
   intro: { energy: 0.22, bars: 8, layers: L(true, true, false, true, false) },  // muffled kick+bass + memory pad
+  introB: { energy: 0.3, bars: 8, layers: L(false, true, true, true, false) },  // a drumless bass+lead opening (kick drops in at the build)
   build: { energy: 0.55, bars: 8, layers: L(true, true, true, true, false) },   // clarity rises, lead enters
   peak: { energy: 0.94, bars: 4, layers: L(true, true, true, false, true) },    // FULL peak — bass forward, lead answers on bar 4 (call & response WITHIN the loop)
   break: { energy: 0.4, bars: 8, layers: L(true, false, false, true, true) }, // rest from bass/lead, but kick + hats + snare + fills + a build-back keep it alive
@@ -49,7 +50,10 @@ export function buildArc(rng: Rng, gentle = false): SectionRole[] {
   // lead then carries straight into the first build/peak (which also has the lead on), so it
   // never cuts out. float must always be followed by a lead-bearing section, never intro/
   // break/outro, or the sustained lead would just stop dead.
-  const arc: SectionRole[] = rng.next() < 0.35 ? ['float'] : ['intro']
+  // Vary the OPENING (Switch Angel: intros aren't always one combo): float = lead+bg, introB = bass+lead,
+  // intro = kick+bass+bg. A lead-bearing opening always runs into a build/meat, so the lead never stops dead.
+  const r0 = rng.next()
+  const arc: SectionRole[] = r0 < 0.22 ? ['float'] : r0 < 0.40 ? ['introB'] : ['intro']
   const builds = (k: number) => { for (let i = 0; i < k; i++) arc.push('build') }
 
   if (form === 'anthem') {
