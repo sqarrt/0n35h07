@@ -307,6 +307,11 @@
   color: var(--muted); pointer-events: none; user-select: none;
 }
 
+/* Radio player buttons — hover/active feedback via filter/transform (works over the inline glass styles). */
+.radio-player-root button { transition: filter 0.12s ease, transform 0.08s ease; }
+.radio-player-root button:hover { filter: brightness(1.45); }
+.radio-player-root button:active { transform: scale(0.93); }
+
 /* F11 hint in the main menu (web only) — a quiet line under the buttons. */
 .menu-hint {
   margin: 1.6rem 0 0; font-family: var(--ui-font); font-size: 11px;

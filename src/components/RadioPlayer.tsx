@@ -31,7 +31,8 @@ const COLLAPSED_SCALE = 0.8
 // Anchored bottom-right; expanded → translate to horizontal center & full scale, collapsed → stay in the corner,
 // shrunk (transform-origin bottom-right). One transform transition animates the dock↔expand move.
 const wrap = (expanded: boolean): CSSProperties => ({
-  position: 'fixed', right: 18, bottom: 18, zIndex: 120,   // above .screen (z-index 100) so the corner stays clickable
+  position: 'fixed', right: 18, bottom: 44, zIndex: 200,   // above .screen (100) and .version-chip (105); clears the version
+  pointerEvents: 'auto',
   transformOrigin: 'bottom right',
   transform: expanded ? 'translateX(calc(-50vw + 50% + 18px)) scale(1)' : `translateX(0) scale(${COLLAPSED_SCALE})`,
   transition: 'transform 0.34s cubic-bezier(0.2,0.8,0.2,1)',
@@ -83,7 +84,7 @@ export function RadioPlayer(p: RadioPlayerProps) {
   )
 
   return (
-    <div style={wrap(p.expanded)} data-testid="radio-player">
+    <div className="radio-player-root" style={wrap(p.expanded)} data-testid="radio-player">
       <div style={card}>
         {/* Row 1 — track name (collapsed: click to open) */}
         <div style={title(!p.expanded)} title={p.trackName} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>

@@ -4,7 +4,7 @@ import { glassCard } from './glass'
 // Fixed-size liquid-glass panel in the top-left corner showing the full current Strudel program (scrolls if long).
 // DOM (not in-scene) so the whole code is guaranteed on-screen; a soft CSS glow keeps it in the takeover's style.
 const panel: CSSProperties = {
-  position: 'fixed', top: 18, left: 18, zIndex: 120,
+  position: 'fixed', top: 18, left: 18, zIndex: 110, pointerEvents: 'none',   // display-only — never blocks player clicks
   ...glassCard,
   width: '20vw', maxHeight: '70vh', padding: '12px 16px',
   overflow: 'auto',

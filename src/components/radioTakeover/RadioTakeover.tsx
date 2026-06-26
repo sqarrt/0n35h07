@@ -11,19 +11,29 @@ import type { AudioAnalysis } from '../../game/audio/AudioAnalysis'
  * are a different Canvas and are never touched by radio.
  */
 
-// --- Beat detection (shared) — low-band ENERGY ONSET (flux) + a refractory gap -------------------
+// --- Beat detection (shared) — ADAPTIVE: a kick is a low-band transient that rises above its own moving baseline.
+// (A fixed flux/threshold missed soft kicks and fired off-beat on sustained bass; the baseline-relative test adapts
+// to the track's loudness, so it catches more real kicks and rejects steady bass + quiet noise + reverb tails.)
 const RADIO_BANDS = 8
-const RADIO_BEAT_FLUX = 0.09          // rise in low-band energy that counts as a kick onset (strict → only real kicks)
-const RADIO_BEAT_FLOOR = 0.25         // the low band must be genuinely loud — ignores reverb tails / quiet noise (no OUTRO false hits)
-const RADIO_BEAT_REFRACTORY = 0.13    // min seconds between beats
-/** Kick energy = the two lowest bands. Returns whether a fresh beat fired this frame. */
-function detectBeat(bands: Float32Array, prev: { current: number }, cd: { current: number }, dt: number): boolean {
+const RADIO_BEAT_SLOW_RATE = 0.04   // baseline EMA rate (slow) — what "normal" low-band energy looks like
+const RADIO_BEAT_SENS = 1.35        // a beat = kick energy ≥ baseline × this (a clear transient over the baseline)
+const RADIO_BEAT_FLOOR = 0.12       // absolute floor — no beats in near-silence / outros
+const RADIO_BEAT_REFRACTORY = 0.12  // min seconds between beats (one kick fires once)
+interface BeatState { prev: number; slow: number; cd: number }
+function newBeatState(): BeatState { return { prev: 0, slow: 0, cd: 0 } }
+/** Detect a kick this frame; `strength` (0..1) = how far the transient rose above the baseline. */
+function detectBeat(bands: Float32Array, st: BeatState, dt: number): { beat: boolean; strength: number } {
   const kick = (bands[0] ?? 0) + (bands[1] ?? 0)
-  const flux = kick - prev.current
-  prev.current = kick
-  cd.current -= dt
-  if (flux > RADIO_BEAT_FLUX && kick > RADIO_BEAT_FLOOR && cd.current <= 0) { cd.current = RADIO_BEAT_REFRACTORY; return true }
-  return false
+  st.slow += (kick - st.slow) * RADIO_BEAT_SLOW_RATE
+  st.cd -= dt
+  const rising = kick > st.prev
+  const over = kick > st.slow * RADIO_BEAT_SENS && kick > RADIO_BEAT_FLOOR
+  st.prev = kick
+  if (rising && over && st.cd <= 0) {
+    st.cd = RADIO_BEAT_REFRACTORY
+    return { beat: true, strength: Math.min(1, (kick - st.slow) / (st.slow + 0.25)) }
+  }
+  return { beat: false, strength: 0 }
 }
 
 // --- Camera dolly + per-beat punch & shake (strength ∝ loudness) --------------------------------
@@ -41,13 +51,14 @@ const RADIO_CAM_SHAKE_AMP = 0.005    // a barely-perceptible shimmer on a beat
 const RADIO_CAM_SHAKE_DECAY_TAU = 0.08
 
 // --- Emoji rain ---------------------------------------------------------------------------------
-const RADIO_EMOJI_MAX = 110
-const RADIO_EMOJI_BASE_RATE = 8       // constant trickle (spawns/sec) — they always fall
-const RADIO_EMOJI_BURST = 8           // extra emoji spawned ON each beat
-const RADIO_EMOJI_FALL_MIN = 0.3      // base fall speed (mostly constant — the BEAT drives the motion, like the camera)
-const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost (beat dash dominates)
-const RADIO_EMOJI_DASH_MIN = 0.6      // beat dash strength (added to ×1) in silence
-const RADIO_EMOJI_DASH_LEVEL = 3.0    // extra dash strength at full level
+const RADIO_EMOJI_MAX = 130
+// Emoji spawn ONLY on a beat — a batch of 2..5 by beat strength (NO constant trickle) → the beat "births" them.
+const RADIO_EMOJI_BURST_MIN = 2
+const RADIO_EMOJI_BURST_MAX = 5
+const RADIO_EMOJI_FALL_MIN = 0.3      // base fall speed (the BEAT dash drives the motion)
+const RADIO_EMOJI_FALL_LEVEL = 0.4    // small continuous loudness boost
+const RADIO_EMOJI_DASH_MIN = 0.4      // beat dash floor (gentle at quiet)
+const RADIO_EMOJI_DASH_LEVEL = 6.0    // strong loudness-scaled dash (the emoji react hard to loud beats)
 const RADIO_EMOJI_DASH_TAU_MIN = 0.08 // dash DURATION (decay τ) in silence
 const RADIO_EMOJI_DASH_TAU_LEVEL = 0.16
 const RADIO_EMOJI_SPRITE_PX = 64
@@ -97,11 +108,9 @@ interface Drop { sprite: THREE.Sprite; active: boolean }
 const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string }) {
   const groupRef = useRef<THREE.Group>(null)
   const camera = useThree(s => s.camera)
-  const spawnAcc = useRef(0)
   const dashMul = useRef(1)
   const dashTau = useRef(RADIO_EMOJI_DASH_TAU_MIN)
-  const prevKick = useRef(0)
-  const beatCd = useRef(0)
+  const beat = useRef<BeatState>(newBeatState())
   const texCache = useRef<Map<string, THREE.CanvasTexture>>(new Map())
   const set = emojiSetFor(mood)
 
@@ -159,22 +168,20 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
 
     const level = analysis?.level() ?? 0
     analysis?.bands(_bandsEmoji)
-    const beat = detectBeat(_bandsEmoji, prevKick, beatCd, dt)
-    if (beat) {
-      dashMul.current = 1 + RADIO_EMOJI_DASH_MIN + RADIO_EMOJI_DASH_LEVEL * level
+    const { beat: hit, strength } = detectBeat(_bandsEmoji, beat.current, dt)
+    if (hit) {
+      // Dash strength scales with loudness AND the beat strength.
+      dashMul.current = 1 + (RADIO_EMOJI_DASH_MIN + RADIO_EMOJI_DASH_LEVEL * level) * strength
       dashTau.current = RADIO_EMOJI_DASH_TAU_MIN + RADIO_EMOJI_DASH_TAU_LEVEL * level
+      // Spawn a BATCH of 2..5 by beat strength — emoji appear only on a beat (the beat "births" them).
+      const batch = RADIO_EMOJI_BURST_MIN + Math.round((RADIO_EMOJI_BURST_MAX - RADIO_EMOJI_BURST_MIN) * strength)
+      for (let k = 0; k < batch; k++) {
+        const free = drops.find(d => !d.active)
+        if (!free) break
+        spawnOne(free)
+      }
     }
     dashMul.current += (1 - dashMul.current) * (1 - Math.exp(-dt / dashTau.current))
-
-    spawnAcc.current += RADIO_EMOJI_BASE_RATE * dt
-    let toSpawn = Math.floor(spawnAcc.current)
-    spawnAcc.current -= toSpawn
-    if (beat) toSpawn += RADIO_EMOJI_BURST
-    for (let k = 0; k < toSpawn; k++) {
-      const free = drops.find(d => !d.active)
-      if (!free) break
-      spawnOne(free)
-    }
 
     const fall = (RADIO_EMOJI_FALL_MIN + RADIO_EMOJI_FALL_LEVEL * level) * dashMul.current
     for (const d of drops) {
@@ -194,14 +201,13 @@ const RadioCameraMod = memo(function RadioCameraMod({ analysis }: { analysis?: A
   const target = useRef(0)   // zoom target — SET on a beat, decays slowly (the "deflation")
   const punch = useRef(0)    // actual zoom — chases the target with a fast attack (smooth)
   const shake = useRef(0)
-  const prevKick = useRef(0)
-  const beatCd = useRef(0)
+  const beat = useRef<BeatState>(newBeatState())
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     const level = analysis?.level() ?? 0
     analysis?.bands(_bandsCam)
-    if (detectBeat(_bandsCam, prevKick, beatCd, dt)) {
+    if (detectBeat(_bandsCam, beat.current, dt).beat) {
       target.current = RADIO_CAM_PUNCH_BASE + RADIO_CAM_PUNCH_LEVEL * level   // SET (re-armable, never accumulates)
       shake.current = RADIO_CAM_SHAKE_AMP
     }

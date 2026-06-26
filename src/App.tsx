@@ -626,13 +626,31 @@ export default function App() {
   }
   const radioPrev = () => { if (radioPlayMode === 'fav') stepFav(-1); else radioController?.prev() }
   const radioNext = () => { if (radioPlayMode === 'fav') stepFav(1); else radioController?.next() }
+  // Descriptor of the track AUDIBLY playing now (from the emitted state). NOT controller.currentTrack(), which the
+  // composer advances a section ahead — that mismatch put the wrong track into favorites.
+  const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
+    ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
+    : null
   const radioLike = () => {
-    const d = radioController?.currentTrack(); if (!d) return
-    setProfile(p => p.favorites.some(f => sameTrack(f, d)) ? p : (() => { const next = { ...p, favorites: [d, ...p.favorites] }; saveProfile(next); return next })())
+    const d = radioCurrentDesc; if (!d) return
+    // Toggle: clicking ♥ on an already-liked track UN-likes it (removes from favorites).
+    setProfile(p => {
+      const has = p.favorites.some(f => sameTrack(f, d))
+      const next = { ...p, favorites: has ? p.favorites.filter(f => !sameTrack(f, d)) : [d, ...p.favorites] }
+      saveProfile(next); return next
+    })
   }
   const radioDislike = () => {
-    const d = radioController?.currentTrack(); if (!d) return
-    setProfile(p => { const next = { ...p, dislikes: p.dislikes.some(x => sameTrack(x, d)) ? p.dislikes : [d, ...p.dislikes] }; saveProfile(next); return next })
+    const d = radioCurrentDesc; if (!d) return
+    // Dislike removes the track from favorites (un-likes it) AND records the dislike.
+    setProfile(p => {
+      const next = {
+        ...p,
+        favorites: p.favorites.filter(f => !sameTrack(f, d)),
+        dislikes: p.dislikes.some(x => sameTrack(x, d)) ? p.dislikes : [d, ...p.dislikes],
+      }
+      saveProfile(next); return next
+    })
     radioController?.next()
   }
   const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
@@ -654,10 +672,7 @@ export default function App() {
     }
   }, [profile.favorites, radioController])
 
-  // Derived radio-player display (from the emitted state of the track currently playing).
-  const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
-    ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
-    : null
+  // Derived radio-player display.
   const radioLiked = radioCurrentDesc != null && profile.favorites.some(f => sameTrack(f, radioCurrentDesc))
   const radioDisliked = radioCurrentDesc != null && profile.dislikes.some(f => sameTrack(f, radioCurrentDesc))
   const radioTrackLabel = radioMusicalState ? radioTrackName(radioMusicalState) : '—'
