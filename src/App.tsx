@@ -109,6 +109,7 @@ interface GameNet {
   mapId: MapId
   code: string
   achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
+  radioForMatch: boolean         // was the radio the soundtrack at match START? single authority for music gating
 }
 
 // Dev: download a recorded demo to a file (committed to the repo, later sequenced into the trailer).
@@ -301,6 +302,9 @@ export default function App() {
     // The TRAILER runs its own audio → the radio must stop for it (the in-MATCH radio is intentional, via
     // radioActive, so it keeps playing in 'game'). start() is idempotent, so re-running on screen changes is safe.
     if (!profile.radioEnabled || screen === 'trailer') { radioController.stop(); return }
+    // If THIS match decided to use its own stem music (radio wasn't ready when it started), don't let the radio
+    // play OVER it — stop it for the match's duration; it resumes back in the menu. (Single authority: gameNet.)
+    if (screen === 'game' && gameNet && !gameNet.radioForMatch) { radioController.stop(); return }
     const startRadio = () => { radioController.setVolume(profile.volumeMaster * profile.volumeRadio); radioController.start() }
     if (radioGestureRef.current) { startRadio(); return }
     const onGesture = () => {
@@ -312,7 +316,7 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
     // volume read fresh inside startRadio; kept out of deps to avoid restarting on slider drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [radioController, profile.radioEnabled, screen])
+  }, [radioController, profile.radioEnabled, screen, gameNet])
 
   // Ban accidental RELOAD in the desktop game window — Ctrl/Cmd+R and F5 reload the webview, which drops the
   // match / P2P connection (and the radio) dead. Captured so it fires before anything else. Desktop only: in a
@@ -431,7 +435,7 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.
@@ -1017,7 +1021,7 @@ export default function App() {
             sfxEngine={sfx}
             musicVolumeRef={musicVolumeRef}
             audioAnalysis={audioAnalysis}
-            radioActive={radioActive}
+            radioActive={gameNet.radioForMatch}
           />
           {hud.matchPhase === 'ready' && (
             <ReadyOverlay

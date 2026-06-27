@@ -66,6 +66,7 @@ export class RadioController {
   private startMs = 0          // wall-clock at start(), for absolute scheduling
   private nextBoundaryMs = 0   // cumulative ms from start to the current section's end
   private epoch = 0            // bumped on every restart — lets tick()/tickBaked() bail if onTrackEnd re-entered
+  private audibleIndex = 0     // the track index the listener currently HEARS (composer.currentIndex runs ahead)
   // BAKED playback: a saved favorite plays its frozen section list (not the live composer).
   private baked: { desc: TrackDescriptor; track: BakedTrack } | null = null
   private bakedPos = 0
@@ -87,10 +88,12 @@ export class RadioController {
   /** Compact identity of the track playing now (for like/dislike + favorites). */
   currentTrack(): TrackDescriptor { return this.baked ? this.baked.desc : this.composer.descriptor() }
 
+  // next/prev target relative to the AUDIBLE track, not composer.currentIndex() (which look-ahead-advances a
+  // section early — so during the outro it sits a track ahead, making Next skip one and Prev replay the current).
   /** Skip to the next generated track. */
-  next(): void { this.baked = null; this.composer.jumpTo(this.composer.currentIndex() + 1); this.restartCurrent() }
+  next(): void { this.baked = null; this.composer.jumpTo(this.audibleIndex + 1); this.restartCurrent() }
   /** Back to the previous generated track (deterministic replay; floored at 0). */
-  prev(): void { this.baked = null; this.composer.jumpTo(Math.max(0, this.composer.currentIndex() - 1)); this.restartCurrent() }
+  prev(): void { this.baked = null; this.composer.jumpTo(Math.max(0, this.audibleIndex - 1)); this.restartCurrent() }
   /** Leave BAKED (favorite) playback and resume the live generator from where it stands. No-op if already
    *  generating — used by the "Generation" mode toggle so a baked favorite doesn't loop forever. */
   resumeGenerative(): void { if (!this.baked) return; this.baked = null; this.restartCurrent() }
@@ -121,6 +124,7 @@ export class RadioController {
     this.anchorCycle()
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
+    this.audibleIndex = this.composer.currentIndex()   // nothing playing yet → the jumped-to track IS the audible one
     if (this.running) this.tick()
   }
 
@@ -187,6 +191,7 @@ export class RadioController {
   /** Emit a section's state + audio, then schedule the next tick on the absolute grid. */
   private playSection(strudelCode: string, musicalState: MusicalState): void {
     if (!this.running) return
+    this.audibleIndex = musicalState.trackIndex   // the track the LISTENER hears (composer.currentIndex is a section ahead)
     this.onState?.(musicalState)
     void this.engine.play(strudelCode)
     // Absolute, self-correcting schedule: advance the cumulative boundary by this
