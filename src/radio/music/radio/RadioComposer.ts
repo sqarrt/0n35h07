@@ -195,8 +195,18 @@ export class RadioComposer {
     // SLAMS back on bar 1 with a crash — the lead arrives as an event, not a pile-on (Switch Angel: drop-before-lead).
     const leadOnFor = (r?: SectionRole): boolean =>
       !!r && shapeFor(r).layers.lead && (style.leadPresence === 'full' || r === 'float' || r === 'introB' || (style.leadPresence === 'sparse' && r === 'peak'))
-    const leadOn = leadOnFor(role)
-    const leadEntered = leadOn && pos > 0 && role !== 'float' && !leadOnFor(track.arc[pos - 1] as SectionRole)
+    // CONTINUITY: when a track OPENS on a lead-featured section (float/introB), the lead must CARRY through the
+    // rest of the FIRST movement (every lead-layer section up to the first break) instead of dropping dead in
+    // the next build — otherwise a solo lead in the intro is followed by a bandful with NO lead (a broken track).
+    // The arc already guarantees a lead-bearing section follows the opening; this stops `sparse` from muting it.
+    const openLead = track.arc[0] === 'float' || track.arc[0] === 'introB'
+    const firstBreak = ((): number => { const i = track.arc.findIndex((r) => r === 'break' || r === 'outro'); return i < 0 ? track.arc.length : i })()
+    const leadOnAt = (p: number): boolean => {
+      const r = track.arc[p] as SectionRole | undefined
+      return !!r && (leadOnFor(r) || (openLead && p < firstBreak && shapeFor(r).layers.lead))
+    }
+    const leadOn = leadOnAt(pos)
+    const leadEntered = leadOn && pos > 0 && role !== 'float' && !leadOnAt(pos - 1)
     const dropDuck = leadEntered ? `.gain("${seqAligned(['0', ...Array(Math.max(1, bars - 1)).fill('1')])}")` : ''
     // Atmospheric "exit" sections — a BREAK or an INTRO — duck their whole body to silence on the LAST bar, so
     // the per-exit FILL (silence/rhythmic/melodic) stands ALONE there: the last bar then differs from both the
@@ -387,9 +397,10 @@ export class RadioComposer {
     //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
     //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
     //    (leadOn / leadEntered are computed up top so the kick/bass can drop before the lead's first entry.)
-    // INTERMITTENT: the lead RESTS on every 4th peak loop (it does not play the whole time — Switch Angel) so it
+    // INTERMITTENT: the lead RESTS on every 8th peak loop (it does not play the whole time — Switch Angel) so it
     // breathes; the groove (bass call-and-response) carries that loop. Not on float (the lead IS the section).
-    const leadRest = peak && (pos - bStart) % 4 === 3
+    // (Eased from every-4th — the leads are loved, let them play longer between breaths.)
+    const leadRest = peak && (pos - bStart) % 8 === 7
     if (leadOn && !leadRest) {
       // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
       // aggressive, loud and detached from the track). Just the track's own width, if any.
