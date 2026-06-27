@@ -32,9 +32,10 @@ export function MainMenu({ onPlay, onAppearance, onSettings, onAbout, onRadio, o
       <Button variant="secondary" style={btn} onClick={onAppearance} data-testid="menu-appearance">{t.menuAppearance}</Button>
       <Button variant="secondary" style={btn} onClick={onSettings} data-testid="menu-settings">{t.menuSettings}</Button>
       <Button variant="secondary" style={btn} onClick={onAbout} data-testid="menu-about">{t.settingsSecAbout}</Button>
-      {/* Radio — generative music mode (localized "Radio" word). Uppercased to match the all-caps menu (the
-          label is borrowed from the settings volume string, which is title-case). */}
-      <Button variant="secondary" style={btn} onClick={onRadio} data-testid="menu-radio">{t.settingsVolRadio.toUpperCase()}</Button>
+      {/* Radio — generative music mode. DESKTOP ONLY: warmup is IS_DESKTOP-gated and the radio screen's controls
+          (player/favorites/code panel + the only "back") are all desktop-only, so in a browser the screen is a
+          dead-end. Label borrowed from the settings volume string (title-case) → uppercased to match the menu. */}
+      {IS_DESKTOP && <Button variant="secondary" style={btn} onClick={onRadio} data-testid="menu-radio">{t.settingsVolRadio.toUpperCase()}</Button>}
       {/* Exit — desktop only: in the browser window.close() is forbidden by policy for a regular tab. */}
       {IS_DESKTOP && <Button variant="ghost" style={btn} onClick={onExit} data-testid="menu-exit">{t.menuExit}</Button>}
       {/* F11 hint — browser only (desktop is fullscreen already). F11 is a native browser hotkey,

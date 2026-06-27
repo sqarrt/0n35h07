@@ -662,14 +662,16 @@ export default function App() {
     setProfile(p => {
       const has = p.favorites.some(f => sameTrack(f, d))
       let favorites
+      let dislikes = p.dislikes
       if (has) favorites = p.favorites.filter(f => !sameTrack(f, d))
       else {
         const sections = radioController?.bake(d.seed, d.index)
         const name = radioMusicalState ? radioTrackName(radioMusicalState) : ''
         const fav = sections && sections.length ? { ...d, baked: { name, sections } } : d
         favorites = [fav, ...p.favorites]
+        dislikes = p.dislikes.filter(x => !sameTrack(x, d))   // liking a track clears any prior dislike (mutual exclusion)
       }
-      const next = { ...p, favorites }
+      const next = { ...p, favorites, dislikes }
       saveProfile(next); return next
     })
   }
@@ -684,7 +686,7 @@ export default function App() {
       }
       saveProfile(next); return next
     })
-    radioController?.next()
+    radioNext()   // mode-aware: in fav mode advance to the next FAVORITE, not an unrelated generated track
   }
   const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.

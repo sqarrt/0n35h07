@@ -172,7 +172,7 @@ export class RadioController {
     // section's exact length, then wait until SWAP_LEAD_MS before that absolute time.
     // Timer jitter can't accumulate (we target an absolute grid), and the early
     // trigger lets Strudel quantize each swap onto the bar boundary.
-    const dur = sectionDurationMs(musicalState.bpm, musicalState.sectionBars || this.bars)
+    const dur = sectionDurationMs(musicalState.bpm, musicalState.sectionBars > 0 ? musicalState.sectionBars : this.bars)
     this.nextBoundaryMs += dur
     const wait = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
     this.timer = setTimeout(() => this.tick(), wait)
@@ -197,7 +197,7 @@ export class RadioController {
     const sec = track.sections[this.bakedPos++]
     this.onState?.(this.bakedState(desc, track, sec))
     void this.engine.play(sec.code)
-    this.nextBoundaryMs += sectionDurationMs(desc.bpm, sec.bars || this.bars)
+    this.nextBoundaryMs += sectionDurationMs(desc.bpm, sec.bars > 0 ? sec.bars : this.bars)
     this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
   }
 
