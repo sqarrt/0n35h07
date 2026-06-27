@@ -103,6 +103,9 @@ const RADIO_EMOJI_FONT_PX = 48
 const RADIO_EMOJI_SCALE = 0.12
 const RADIO_EMOJI_DEPTH = 3.2
 const RADIO_EMOJI_RENDER_ORDER = 20
+// Per-emoji random spread so they don't all fall in lockstep at one size.
+const RADIO_EMOJI_SPEED_VAR = 0.9 // fall-speed multiplier ∈ [1-½var, 1+½var] ≈ 0.55..1.45 (noticeable)
+const RADIO_EMOJI_SIZE_VAR = 0.8  // size multiplier ∈ ≈ 0.6..1.4 (noticeable)
 // Spawn/kill are computed from the camera's visible rectangle at RADIO_EMOJI_DEPTH (fractions of the half-extents),
 // so emoji appear ON-SCREEN at the top THE MOMENT a beat fires (previously they spawned far above view and only
 // drifted in seconds later → looked unsynced).
@@ -111,14 +114,19 @@ const RADIO_EMOJI_SPAWN_TOP_JIT = 0.12 // off-screen top on the beat, no mid-scr
 const RADIO_EMOJI_SPREAD_FRAC = 0.9   // horizontal spread = halfWidth × this
 const RADIO_EMOJI_KILL_FRAC = 1.08    // kill just below the visible bottom
 
+// Mood → emoji set. Dark/ominous palette (curated with the user). Keys are matched as SUBSTRINGS of the mood
+// in THIS order (specific qualifiers before generic) so compound moods land in the right set: e.g. dark_hypnotic
+// → occult, dark_ambient → ambient, dub_techno → dub, acid_dark → acid, dark_techno/hard_techno → techno.
 const MOOD_EMOJI: Record<string, string[]> = {
-  dark:   ['💀', '🔥', '⚡', '🩸', '🕸️', '☠️'],
-  techno: ['💀', '⚙️', '⚡', '🔩', '🕸️', '🔥'],
-  dub:    ['🌫️', '🕳️', '🩶', '⛓️', '🌑'],
-  deep:   ['🌑', '🕳️', '🩶', '🌫️', '⛓️'],
-  acid:   ['☢️', '🧪', '⚗️', '👁️', '🦠'],
+  hypnotic:   ['👁️', '🔮', '🕯️', '🧿', '🪬', '🎭', '♟️', '⚱️'],          // dark_hypnotic
+  ambient:    ['🌑', '🌚', '🕳️', '🌫️', '🩶', '❄️', '🧊', '🖤'],          // dark_ambient
+  acid:       ['☢️', '☣️', '⚠️', '🧬', '🩸', '👁️', '🩻'],                // acid, acid_dark (no syringe — Steam)
+  dub:        ['🌑', '🌫️', '🕳️', '🌀', '🩶', '⛓️', '🌊', '🧊'],          // dub_techno
+  industrial: ['⚙️', '🔩', '🔗', '⛓️', '🔪', '⚡', '🪦', '🩻', '☠️'],      // industrial
+  techno:     ['💀', '⚙️', '🔩', '🔗', '⛓️', '🔪', '⚡', '🩻', '☠️'],      // dark_techno, hard_techno
+  dark:       ['💀', '☠️', '🦴', '⚰️', '🪦', '🩸', '🔪', '⛓️', '⚡', '👁️', '🧠'], // dark (generic)
 }
-const FALLBACK_EMOJI = ['💀', '⚡', '🔥', '🩻', '⛓️', '🕷️']
+const FALLBACK_EMOJI = ['💀', '⚡', '🩻', '⛓️', '🌑', '👁️']
 function emojiSetFor(mood: string): string[] {
   const id = mood.toLowerCase()
   for (const key of Object.keys(MOOD_EMOJI)) if (id.includes(key)) return MOOD_EMOJI[key]
@@ -141,7 +149,7 @@ function makeEmojiTexture(emoji: string): THREE.CanvasTexture {
   return tex
 }
 
-interface Drop { sprite: THREE.Sprite; active: boolean }
+interface Drop { sprite: THREE.Sprite; active: boolean; speed: number; size: number }
 
 const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: AudioAnalysis; mood: string }) {
   const groupRef = useRef<THREE.Group>(null)
@@ -162,7 +170,7 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
       // distance (all at z=0), a shared renderOrder made the sort flicker when two overlapped.
       sprite.renderOrder = RADIO_EMOJI_RENDER_ORDER + i
       sprite.visible = false
-      pool.push({ sprite, active: false })
+      pool.push({ sprite, active: false, speed: 1, size: 1 })
     }
     return pool
   }, [])
@@ -189,6 +197,8 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     mat.map = texFor(set[Math.floor(Math.random() * set.length)])
     mat.needsUpdate = true
     free.active = true
+    free.speed = 1 + (Math.random() - 0.5) * RADIO_EMOJI_SPEED_VAR
+    free.size = 1 + (Math.random() - 0.5) * RADIO_EMOJI_SIZE_VAR
     free.sprite.visible = true
     free.sprite.position.set(
       (Math.random() - 0.5) * 2 * halfW * RADIO_EMOJI_SPREAD_FRAC,
@@ -231,8 +241,8 @@ const EmojiRain = memo(function EmojiRain({ analysis, mood }: { analysis?: Audio
     const scale = RADIO_EMOJI_SCALE * pulse.current
     for (const d of drops) {
       if (!d.active) continue
-      d.sprite.scale.setScalar(scale)
-      d.sprite.position.y -= fall * dt
+      d.sprite.scale.setScalar(scale * d.size)       // per-emoji size spread
+      d.sprite.position.y -= fall * d.speed * dt      // per-emoji fall-speed spread
       if (d.sprite.position.y <= killY) { d.active = false; d.sprite.visible = false }
     }
   })
