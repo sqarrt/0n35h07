@@ -65,7 +65,13 @@ export interface TrackStyle {
   riser: boolean      // does this track use the through-line FM pulse riser texture?
   bg: BgKind          // the always-on subliminal BED texture that fills the track
   bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
+  bassArchetype: BassArchetype // which bass CHARACTER the track uses (co-designed tournament winners + the original)
 }
+
+// Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
+// winners (see docs/radio-part-archetypes.md). Each is rendered by the composer's BASS_VOICES map.
+export type BassArchetype = 'existing' | 'rootPulse' | 'bitcrush' | 'wobble' | 'chromaDescent' | 'pulseHorror' | 'tritone'
+const BASS_ARCHETYPES: BassArchetype[] = ['existing', 'rootPulse', 'bitcrush', 'wobble', 'chromaDescent', 'pulseHorror', 'tritone']
 
 const BASS: { sound: string; fm: number; rest: number }[] = [
   { sound: 'sawtooth', fm: 0, rest: 0.12 }, // classic acid
@@ -174,6 +180,7 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     leadPresence: pick(rng, LEAD_PRESENCE, anti, 'st_leadpres'),
     ohPat: pick(rng, OH, anti, 'st_oh'),
     bassGroove: pick(rng, BASS_GROOVE, anti, 'st_bgroove'),
+    bassArchetype: pick(rng, BASS_ARCHETYPES, anti, 'st_bassarch'),
     fx: pick(rng, FX_SPACES, anti, 'st_fx'),
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
     bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed

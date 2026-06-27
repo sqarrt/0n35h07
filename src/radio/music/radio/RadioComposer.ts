@@ -8,7 +8,7 @@ import { BassEngine } from './engines/BassEngine'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
 import { shapeFor, type SectionRole } from './arrangement'
-import type { PercKind, BgKind } from './trackStyle'
+import type { PercKind, BgKind, BassArchetype } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
@@ -338,43 +338,47 @@ export class RadioComposer {
       if (perc && role !== 'break') layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
 
-    // ── BASS — locked riff, root follows the progression; clarity sweeps up in intro/build
+    // ── BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/
+    //    electronic winner (tournament — docs/radio-part-archetypes.md). All follow the progression root per bar
+    //    (.add(note("<roots>"))), never go silent (no `~`), and share the entry filter sweep + gain/pump/ducks.
     if (shape.layers.bass) {
       const roots = seq.map((c) => ((c.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 1))
-      const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
-      // acid env never sits still: it WANDERS within the section so the squelch doesn't go
-      // stale. HARD-capped at 0.65. The motion shape is chosen per-section (rise / fall /
-      // sine / abrupt per-bar jumps) so consecutive sections don't move identically.
-      const aRng = createRng(`${track.seed}:aenv${pos}`)
-      const center = Math.min(0.6, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25)
-      const amp = muffled ? 0.08 : 0.16
-      const aHi = r2(Math.min(0.65, center + amp))
-      const aLo = r2(Math.max(0.12, center - amp))
-      const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
-      let acidenvExpr: string
-      if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-      else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
-      else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-      else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"` // abrupt per-bar steps
-      const frag = this.bass.buildBass({
-        rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
-        saturation: muffled ? 0.08 : 0.3 + mood.fx.saturation * 0.3, acidenv: acidenvExpr,
-      })
-      // filter breathes within the section (.slow) AND its ceiling opens over the block.
-      // When the bass ENTERS, it slams in too hard → instead sweep the cutoff up from near-CLOSED
-      // (90Hz) across the section start, so the bass eases in tonally (a light filter build-up) on
-      // top of the gain ramp (bassEnter). .late aligns the sweep's start to the section's first bar.
+      // filter breathes within the section (.slow) AND its ceiling opens over the block; on ENTRY it sweeps up
+      // from near-CLOSED (90Hz) so the bass eases in tonally. .late aligns the sweep to the section's first bar.
       const ceil = Math.round(560 + (0.35 + 0.65 * blockProgress) * (muffled ? 400 : 1000))
       const bassLpf = entered('bass')
         ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
         : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
-      const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
-      // FAT (peak only — keep the intro soft): octave-up gritty mid-bass + wide unison reese
-      const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
-      const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
-      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent;
-      // its level is trimmed a touch so the kick/snares read 1.5× more forward.
-      layers.push(orbit(`${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      let bassMain: string
+      if (style.bassArchetype === 'existing') {
+        const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
+        // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
+        const aRng = createRng(`${track.seed}:aenv${pos}`)
+        const center = Math.min(0.6, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25)
+        const amp = muffled ? 0.08 : 0.16
+        const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
+        const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
+        let acidenvExpr: string
+        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
+        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
+        const frag = this.bass.buildBass({
+          rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
+          saturation: muffled ? 0.08 : 0.3 + mood.fx.saturation * 0.3, acidenv: acidenvExpr,
+        })
+        const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
+        const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
+        const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
+        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}`
+      } else {
+        // co-designed dark/electronic archetype, transposed onto the progression roots.
+        const v = BASS_VOICES[style.bassArchetype]
+        const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
+        bassMain = `note("${v.off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}`
+      }
+      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read forward.
+      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
@@ -595,6 +599,21 @@ export class RadioComposer {
 }
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
+
+// Per-archetype bass CORE (the co-designed dark/electronic tournament winners — docs/radio-part-archetypes.md).
+// `off` = 16-step OFFSET pattern relative to the section root (0 = root, 6 = tritone…; no bare `~` — the BASS LAW
+// forbids silence, gaps are `_` sustains or ghost notes). `src` = source+synth, `fx` = character chain. Optional:
+// `shove` (per-bar transpose), `drift` (continuous downward pitch slide), `filt` (filter override, else the shared
+// entry sweep). The composer appends `.add(note("<roots>"))` so each rides the progression root per bar.
+interface BassVoice { off: string; src: string; fx: string; shove?: string; drift?: (n: number, la: string) => string; filt?: (n: number, la: string) => string }
+const BASS_VOICES: Record<Exclude<BassArchetype, 'existing'>, BassVoice> = {
+  rootPulse: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.4)', fx: '.acidenv(0.7).lpq(9).distort("1.2:0.3")' },
+  bitcrush: { off: '0 0 0 6 0 0 0 0 0 0 6 0 5 0 0 0', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.crush(4).distort("1.3:0.45").release(0.14).lpq(5).acidenv(0.4).gain("1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5")' },
+  wobble: { off: '0 0 0 0 0 0 6 0 0 0 0 0 0 0 5 0', src: '.s("supersaw").unison(5).detune(0.5)', fx: '.lpq(13).distort("1.4:0.45")', filt: (n, la) => `.lpf(sine.range(160, 1700).slow(${Math.max(2, n)})${la})` },
+  chromaDescent: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51)', fx: '.lpq(6).distort("1.4:0.45").gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5")', drift: (n, la) => `.add(note(saw.range(0, -12).slow(${n})${la}))`, filt: (_n, la) => `.lpf(saw.range(200, 1100).slow(2)${la})` },
+  pulseHorror: { off: '0*16', shove: '.add(note("<0 0 6 0>"))', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.6 1 0.5 0.8 0.5 1 0.5 0.7 0.6")', filt: () => '.lpf(perlin.range(220, 1700).fast(2))' },
+  tritone: { off: '0 _ _ 6 _ _ 0 _ 6 _ 5 _ 4 _ 0 _', src: '.s("sine").fm(4).fmh(2.49)', fx: '.lpq(7).acidenv(0.45).distort("1.6:0.5")' },
+}
 
 // Per-archetype synth+FX chain (the co-designed lead set — docs/radio-lead-archetypes.md). `src` overrides the
 // source (omit → use the track's voice); `fx` is the character chain; `filt` overrides the entry-sweep filter;
