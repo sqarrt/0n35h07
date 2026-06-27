@@ -43,6 +43,9 @@ export function sectionDurationMs(bpm: number, bars: number): number {
  * or entering off-beat. Must be < one bar (≈1.6 s+ here) and > engine eval latency.
  */
 const SWAP_LEAD_MS = 150
+/** If the wall clock runs this far PAST our absolute grid (system sleep/resume, NTP step, a long-stalled
+ *  thread), re-anchor instead of firing every overdue section back-to-back in a burst. */
+const SCHED_REANCHOR_MS = 4000
 /** Silent gap between tracks (bars): the old outro concludes & its tails ring out, a
  *  beat of silence, then the new track enters — instead of a fade-out/fade-in. */
 // Silent bars between tracks — read from config so the composer (which advances its bar counter by the
@@ -62,6 +65,7 @@ export class RadioController {
   private prevTrackIndex: number | null = null
   private startMs = 0          // wall-clock at start(), for absolute scheduling
   private nextBoundaryMs = 0   // cumulative ms from start to the current section's end
+  private epoch = 0            // bumped on every restart — lets tick()/tickBaked() bail if onTrackEnd re-entered
   // BAKED playback: a saved favorite plays its frozen section list (not the live composer).
   private baked: { desc: TrackDescriptor; track: BakedTrack } | null = null
   private bakedPos = 0
@@ -87,6 +91,9 @@ export class RadioController {
   next(): void { this.baked = null; this.composer.jumpTo(this.composer.currentIndex() + 1); this.restartCurrent() }
   /** Back to the previous generated track (deterministic replay; floored at 0). */
   prev(): void { this.baked = null; this.composer.jumpTo(Math.max(0, this.composer.currentIndex() - 1)); this.restartCurrent() }
+  /** Leave BAKED (favorite) playback and resume the live generator from where it stands. No-op if already
+   *  generating — used by the "Generation" mode toggle so a baked favorite doesn't loop forever. */
+  resumeGenerative(): void { if (!this.baked) return; this.baked = null; this.restartCurrent() }
   /** Replay a specific track (e.g. an OLD favorite without a baked render) by seed+index (regenerates). */
   playTrack(seed: string, index: number): void { this.baked = null; this.composer.reseed(seed); this.composer.jumpTo(index); this.restartCurrent() }
 
@@ -108,6 +115,7 @@ export class RadioController {
 
   /** Restart the loop on the freshly-selected track (no auto-advance event for a manual switch). */
   private restartCurrent(): void {
+    this.epoch++   // invalidate any tick()/tickBaked() that is mid-flight (e.g. the one whose onTrackEnd re-entered here)
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
     this.prevTrackIndex = null   // suppress the onTrackEnd that tick() fires on an auto-advance
     this.anchorCycle()
@@ -143,20 +151,33 @@ export class RadioController {
     this.engine.stop()
   }
 
+  /** ms to wait until SWAP_LEAD_MS before the next boundary on the absolute grid. If the wall clock has jumped
+   *  far past the grid (sleep/resume, NTP step), re-anchor startMs so we don't burst-fire every overdue section. */
+  private waitMs(): number {
+    if (Date.now() - this.startMs > this.nextBoundaryMs + SCHED_REANCHOR_MS) this.startMs = Date.now() - this.nextBoundaryMs
+    return Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+  }
+
   private tick(): void {
     if (!this.running) return
     if (this.baked) { this.tickBaked(); return }
     const { strudelCode, musicalState } = this.composer.buildNextPattern()
     const isNewTrack = this.prevTrackIndex !== null && musicalState.trackIndex !== this.prevTrackIndex
     this.prevTrackIndex = musicalState.trackIndex
-    if (isNewTrack) this.onTrackEnd?.()   // the previous track's arc completed (auto-advance)
+    if (isNewTrack) {
+      const epoch = this.epoch
+      this.onTrackEnd?.()   // the previous track's arc completed (auto-advance)
+      // onTrackEnd may synchronously restart us (favorites auto-next → playBaked/playTrack → restartCurrent,
+      // which started a fresh schedule). If so, bail — otherwise we'd silence/reschedule the stale track over it.
+      if (this.epoch !== epoch) return
+    }
 
     // NEW TRACK: no fade. The previous outro has played out; switch to silence so its
     // reverb/delay tails ring into a short gap, then start the new track on the grid.
     if (isNewTrack) {
       void this.engine.play('silence')
       this.nextBoundaryMs += sectionDurationMs(musicalState.bpm, this.config.trackGapBars)
-      const waitGap = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+      const waitGap = this.waitMs()
       this.timer = setTimeout(() => this.playSection(strudelCode, musicalState), waitGap)
       return
     }
@@ -174,7 +195,7 @@ export class RadioController {
     // trigger lets Strudel quantize each swap onto the bar boundary.
     const dur = sectionDurationMs(musicalState.bpm, musicalState.sectionBars > 0 ? musicalState.sectionBars : this.bars)
     this.nextBoundaryMs += dur
-    const wait = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+    const wait = this.waitMs()
     this.timer = setTimeout(() => this.tick(), wait)
   }
 
@@ -191,14 +212,14 @@ export class RadioController {
       if (this.baked !== before) return
       void this.engine.play('silence')
       this.nextBoundaryMs += sectionDurationMs(desc.bpm, this.config.trackGapBars)
-      this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
+      this.timer = setTimeout(() => this.tickBaked(), this.waitMs())
       return
     }
     const sec = track.sections[this.bakedPos++]
     this.onState?.(this.bakedState(desc, track, sec))
     void this.engine.play(sec.code)
     this.nextBoundaryMs += sectionDurationMs(desc.bpm, sec.bars > 0 ? sec.bars : this.bars)
-    this.timer = setTimeout(() => this.tickBaked(), Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS))
+    this.timer = setTimeout(() => this.tickBaked(), this.waitMs())
   }
 
   /** Minimal MusicalState for a baked section — identity from the descriptor, code/bars from the section,

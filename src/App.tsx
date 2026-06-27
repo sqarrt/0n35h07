@@ -281,6 +281,9 @@ export default function App() {
         }),
       }, setRadioInitState)
       if (ctrl) setRadioController(ctrl)
+      // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
+      // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
+      else radioWarmedRef.current = false
     })()
     // Runs once (guarded by radioWarmedRef); the initial volume is read at construction.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -650,6 +653,13 @@ export default function App() {
   }
   const radioPrev = () => { if (radioPlayMode === 'fav') stepFav(-1); else radioController?.prev() }
   const radioNext = () => { if (radioPlayMode === 'fav') stepFav(1); else radioController?.next() }
+  // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
+  // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
+  const onRadioMode = (m: RadioPlayMode) => {
+    if (m === radioPlayMode) return
+    setRadioPlayMode(m)
+    if (m === 'gen') radioController?.resumeGenerative()
+  }
   // Descriptor of the track AUDIBLY playing now (from the emitted state). NOT controller.currentTrack(), which the
   // composer advances a section ahead — that mismatch put the wrong track into favorites.
   const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
@@ -979,7 +989,7 @@ export default function App() {
           liked={radioLiked}
           disliked={radioDisliked}
           volume={profile.volumeRadio}
-          onMode={setRadioPlayMode}
+          onMode={onRadioMode}
           onPrev={radioPrev}
           onNext={radioNext}
           onPlayPause={handleToggleRadio}
