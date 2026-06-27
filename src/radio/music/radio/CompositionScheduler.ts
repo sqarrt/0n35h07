@@ -64,12 +64,20 @@ export class CompositionScheduler {
     }
   }
 
-  /** Jump to an explicit track index (deterministic — rebuilds that track's plan from its seed). */
+  /** Jump to an explicit track index, DETERMINISTICALLY. buildTrack mutates the shared anti-repeat buffer, so a
+   *  bare rebuild at N would see whatever history the live session happened to be in — a different mood/key/scale
+   *  than a sequential run reaches at N (so favorites/bakes played a different, mislabeled track). Instead replay
+   *  the buffer from scratch: clear it and rebuild 0..N in order, exactly as tick() would. (HarmonyEngine is
+   *  stateless, so anti is the only cross-track state.) O(N) but N is tiny for favorites. */
   jumpTo(index: number): void {
-    this.trackIndex = Math.max(0, Math.floor(index))
+    const target = Math.max(0, Math.floor(index))
+    this.anti.clear()
+    for (let i = 0; i <= target; i++) {
+      this.trackRng = createRng(`${this.sessionSeed}:t${i}`)
+      this.plan = this.buildTrack(i, this.trackRng)
+    }
+    this.trackIndex = target
     this.sectionPos = 0
-    this.trackRng = createRng(`${this.sessionSeed}:t${this.trackIndex}`)
-    this.plan = this.buildTrack(this.trackIndex, this.trackRng)
   }
 
   tick(): void {
