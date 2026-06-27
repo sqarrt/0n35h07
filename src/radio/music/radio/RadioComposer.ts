@@ -316,10 +316,14 @@ export class RadioComposer {
 
     // ── PERC — snares are the "fat" of the peak; light hats keep drive (louder in movement 2)
     if (shape.layers.perc) {
-      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail).
-      const hats = `s("${style.hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(MIX.hat)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
+      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
+      // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
+      const hatPat = role === 'break' ? '[hh ~]*2' : style.hatPat
+      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
       layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
-      const snPly = peak ? 0.28 : 0.14
+      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat.
+      const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
       // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs. In a break the snare
       // is HALVED (a lighter rhythm) and ducks on the last bar.
       layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
@@ -328,8 +332,10 @@ export class RadioComposer {
       if (peak) {
         layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
+      // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
+      // the kick + simple hats + halved snare are enough to keep the rest alive.
       const perc = this.percLayer(style.perc, g)
-      if (perc) layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
+      if (perc && role !== 'break') layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
 
     // ── BASS — locked riff, root follows the progression; clarity sweeps up in intro/build
