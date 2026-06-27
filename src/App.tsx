@@ -309,6 +309,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radioController, profile.radioEnabled, screen])
 
+  // Ban accidental RELOAD in the desktop game window — Ctrl/Cmd+R and F5 reload the webview, which drops the
+  // match / P2P connection (and the radio) dead. Captured so it fires before anything else. Desktop only: in a
+  // browser tab Ctrl+R is a native, expected action (and dev relies on it).
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [])
+
   // Audio analysis for visualization: combined level from all sources (SFX + menu music; match music is
   // registered by Game). Feeds the glow of the menu orbs and the visualizer bar in the match.
   const [audioAnalysis] = useState(() => new AudioAnalysis())
