@@ -108,6 +108,7 @@ interface GameNet {
   durationMs: number
   mapId: MapId
   code: string
+  achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
 }
 
 // Dev: download a recorded demo to a file (committed to the repo, later sequenced into the trailer).
@@ -164,6 +165,7 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         musicVolumeRef={musicVolumeRef}
         audioAnalysis={audioAnalysis}
         radioActive={radioActive}
+        achievementsEnabled={gameNet.achievementsEnabled}
       />
     </Canvas>
   )
@@ -424,7 +426,9 @@ export default function App() {
       // The match starts with the ready ritual — set phase 'ready' ahead of time, else the pause overlay flashes briefly.
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
+      // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
+      const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.

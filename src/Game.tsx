@@ -6,7 +6,7 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
-import { createAchievements } from './steam/achievements'
+import { createAchievements, NoopAchievements } from './steam/achievements'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { STEM_LIBRARY } from './game/audio/stems'
 import { RapierBridge } from './components/RapierBridge'
@@ -48,12 +48,13 @@ interface GameProps {
   musicVolumeRef: React.MutableRefObject<number>
   audioAnalysis: AudioAnalysis   // we register the match music level here (for visualization)
   radioActive?: boolean   // Radio mode is playing (menu→match uninterrupted) → skip the stem-based match music
+  achievementsEnabled?: boolean   // false vs a PASSIVE bot → no achievements for the match (default on)
 }
 
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -82,7 +83,8 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       // and start()/fadeOut() become no-ops (radio keeps playing across menu→match).
       musicEngine: radioActive ? undefined : musicEngine,
       sfxEngine,
-      achievements: createAchievements(),
+      // No achievements against a PASSIVE bot (a punching bag); a normal bot or a human counts.
+      achievements: achievementsEnabled ? createAchievements() : new NoopAchievements(),
     }),
     // Match is built once per match session (recreating it would break the world/controllers); deps are intentionally empty.
     // eslint-disable-next-line react-hooks/exhaustive-deps
