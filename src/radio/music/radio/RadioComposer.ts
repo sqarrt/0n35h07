@@ -471,23 +471,20 @@ export class RadioComposer {
         // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
         layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
-      // (1) A DIFFERENT lead — VARIED per track (so breaks differ track-to-track) but ALWAYS restful (the break's
-      //     job is to rest the ears): one of three — the atmoDyad ballad / a slow sparse chord arp / sparse
-      //     echoey stabs. All low, drowned in echo + a slow filter BLOOM (development), distinct from the main
-      //     lead and from the energetic parts. (No risers. The sustained attack(2)/release(6) PAD was cut — it
-      //     "wailed" unpleasantly.)
+      // (1) A DIFFERENT lead — one of the RESTFUL archetypes (the same 18-voice set as the main lead, filtered to
+      //     the atmospheric ones), with its OWN timbre, picked to DIFFER from the track's main lead. Rendered LOW
+      //     + echo-drowned (its own delay/room + a soft level + the last-bar exitDuck) so it rests the ears.
+      //     Non-timbre voices get the break's slow filter BLOOM. (No risers; no wailing sustained pad.)
       const brkLpf = `.lpf(saw.range(500, 2000).slow(${n})${lateAlign})`
-      const brkEcho = `.delaytime(${style.fx.delayTime}).delay(0.62).delayfeedback(0.72).room(0.6).roomsize(7)`
-      const brkVariant = createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`).int(3)
-      if (brkVariant === 0) {
-        const atmo = seqAligned(this.melody.atmoDyad({ leadOctave: this.config.leadOctave + 1, scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key) }, createRng(`${track.seed}:brk${pos}`)))
-        layers.push(orbit(`note("${atmo}").s("${style.leadSound}")${brkLpf}.lpq(7).attack(0.02).dec(0.4)${brkEcho}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.2)})${exitDuck}`, ORBIT.lead))
-      } else if (brkVariant === 1) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}.slow(2)${brkLpf}.lpq(5).dec(0.3)${brkEcho}.hpf(180).pan(sine.slow(5)).gain(${g(0.16)})${exitDuck}`, ORBIT.arp))
-      } else {
-        const root = ((chord.notes[0] % 12) + 12) % 12 + 48
-        layers.push(orbit(`note("${seqAligned([String(root), '~', '~', '~', String(root + 7), '~', '~', '~'])}").s("${style.stabSound}").dec(0.6)${brkLpf}.lpq(4)${brkEcho}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.2)})${exitDuck}`, ORBIT.lead))
-      }
+      const brk = this.melody.buildBreakLead({
+        rng: createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`),
+        leadOctave: this.config.leadOctave + 1, density: mood.density,
+        scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key),
+      }, this.lead.motif?.voice)
+      const brkSpec = LEAD_VOICES[brk.voice]
+      const brkSrc = brkSpec.src ?? `.s("${style.leadSound}")`
+      const brkFilt = brkSpec.filt ?? brkLpf
+      layers.push(orbit(`note("${brk.pattern}")${brkSrc}${brkSpec.fx}${brkFilt}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.18)})${exitDuck}`, ORBIT.lead))
     }
 
     // ── EXIT FILL — on the LAST bar of an atmospheric exit (break OR intro→build), one of three per exit

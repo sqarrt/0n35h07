@@ -49,6 +49,13 @@ const ARCHETYPES: LeadVoiceId[] = [
   'leadingTone', 'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
 ]
+// The break's job is to REST the ears → only the atmospheric/restful archetypes (no driving acid/stab/glitch).
+// The composer renders one of these through the break's low-gain, echo-drowned chain (a different lead than the
+// track's main one, by design).
+const RESTFUL_LEADS: LeadVoiceId[] = [
+  'atmoDyad', 'lament', 'callResponse', 'bellMelody', 'ghostVoice', 'glassArp', 'detunedDrift', 'warpedBox',
+  'doubleStop', 'crushBell',
+]
 
 // 4-bar phrases (each bar = an El[]) and 16-step single lines (an El[]), as scale-DEGREE figures. The builder
 // maps degrees → absolute MIDI via the active `deg`. Chromatic archetypes pass their own modal `deg`.
@@ -98,18 +105,30 @@ export class MelodyEngine {
     return pat.map((el) => (el ? `[${deg(el[0])},${deg(el[1])}]` : '~'))
   }
 
-  /** Build one movement's lead pattern: pick an archetype (anti-repeat) and render it to absolute-MIDI note text. */
+  /** Build one movement's lead: pick an archetype (anti-repeat) and render its note content. */
   private makeMotif(opts: LeadOpts): LeadMotif {
+    const voice = opts.anti ? pickAnti(ARCHETYPES, opts.rng, opts.anti, 'lead_arch') : ARCHETYPES[opts.rng.int(ARCHETYPES.length)]
+    return { pattern: this.patternFor(voice, opts), voice }
+  }
+
+  /** Pick a RESTFUL archetype for a BREAK (different from the track's main lead `avoid`) and render its pattern.
+   *  The caller renders it through the break's low-gain, echo-drowned chain — so the break rests the ears with a
+   *  DIFFERENT lead (its own timbre) each time, drawn from the same 18-voice set as the main lead. */
+  buildBreakLead(opts: LeadOpts, avoid?: LeadVoiceId): { pattern: string; voice: LeadVoiceId } {
+    const pool = RESTFUL_LEADS.filter((v) => v !== avoid)
+    const voice = pool[opts.rng.int(pool.length)]
+    return { pattern: this.patternFor(voice, opts), voice }
+  }
+
+  /** Render a given archetype's note CONTENT (absolute MIDI) for the track's key/scale. */
+  private patternFor(voice: LeadVoiceId, opts: LeadOpts): string {
     const { rng } = opts
     const scale = opts.scale ?? DEFAULT_SCALE
     const base = (opts.keyRoot ?? 0) + 12 * (opts.leadOctave - 3)
     const deg = degFn(scale, base)
-    const voice = opts.anti ? pickAnti(ARCHETYPES, rng, opts.anti, 'lead_arch') : ARCHETYPES[rng.int(ARCHETYPES.length)]
-
     // atmoDyad — the soulful ballad (sparse held dyads, 8 bars).
     if (voice === 'atmoDyad') {
-      const els = this.atmoDyad({ leadOctave: opts.leadOctave + 1, scale: opts.scale, keyRoot: opts.keyRoot }, rng)
-      return { pattern: `<${els.join(' ')}>`, voice }
+      return `<${this.atmoDyad({ leadOctave: opts.leadOctave + 1, scale: opts.scale, keyRoot: opts.keyRoot }, rng).join(' ')}>`
     }
     // arpDyad — dyads [tonic-pedal, moving scale tone] arpeggiated into 16ths: lo hi lo hi per beat.
     if (voice === 'arpDyad') {
@@ -117,25 +136,22 @@ export class MelodyEngine {
       const lo = deg(0)
       const steps: string[] = []
       for (let b = 0; b < 4; b++) { const hi = deg(highs[b]); steps.push(String(lo), String(hi), String(lo), String(hi)) }
-      return { pattern: steps.join(' '), voice }
+      return steps.join(' ')
     }
     // chordStab — syncopated TRIADS [root, 3rd, moving top]; the top voice walks for melodic interest.
     if (voice === 'chordStab') {
       const tops: El[] = [7, '~', 10, 7, '~', 5, 7, '~', 12, '~', 7, 9, '~', 7, '~', '~']
-      const pat = tops.map((t) => (t === '~' ? '~' : `[${deg(0)},${deg(3)},${deg(t as number)}]`)).join(' ')
-      return { pattern: pat, voice }
+      return tops.map((t) => (t === '~' ? '~' : `[${deg(0)},${deg(3)},${deg(t as number)}]`)).join(' ')
     }
     // Chromatic/modal archetypes impose their OWN mode from the key root (independent of the track scale).
-    if (voice === 'leadingTone') return { pattern: phrase(PHRASES.leadingTone!, degFn(HARM_MINOR, base)), voice }
-    if (voice === 'phrygianHalf') return { pattern: phrase(PHRASES.phrygianHalf!, degFn(PHRYGIAN, base)), voice }
-    if (voice === 'tritone') return { pattern: phrase(PHRASES.tritone!, (d: number) => base + (TRITONE_SEMI[((d % TRITONE_SEMI.length) + TRITONE_SEMI.length) % TRITONE_SEMI.length] + 12 * Math.floor(d / TRITONE_SEMI.length))), voice }
+    if (voice === 'leadingTone') return phrase(PHRASES.leadingTone!, degFn(HARM_MINOR, base))
+    if (voice === 'phrygianHalf') return phrase(PHRASES.phrygianHalf!, degFn(PHRYGIAN, base))
+    if (voice === 'tritone') return phrase(PHRASES.tritone!, (d: number) => base + (TRITONE_SEMI[((d % TRITONE_SEMI.length) + TRITONE_SEMI.length) % TRITONE_SEMI.length] + 12 * Math.floor(d / TRITONE_SEMI.length)))
     // The remaining phrase- and line-based archetypes render straight off the track scale.
     const ph = PHRASES[voice]
-    if (ph) return { pattern: phrase(ph, deg), voice }
+    if (ph) return phrase(ph, deg)
     const ln = LINES[voice]
-    if (ln) return { pattern: line(ln, deg), voice }
-    // Unreachable (every voice is handled) — fall back to a plain tonic pulse.
-    return { pattern: line(LINES.octavePulse!, deg), voice: 'octavePulse' }
+    return line(ln ?? LINES.octavePulse!, deg)
   }
 }
 
