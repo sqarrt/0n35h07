@@ -2,6 +2,8 @@ import { RadioComposer } from '../music/radio/RadioComposer'
 import type { RadioBanks } from '../music/radio/banks'
 import type { RadioConfig } from '../music/radio/radioConfig'
 import type { MusicalState } from '../music/radio/MusicalState'
+import type { TrackDescriptor, BakedSection, BakedTrack } from '../trackDescriptor'
+import type { BiasProvider } from '../bias'
 
 /** Minimal engine surface the controller needs — satisfied by the app's EngineApi. */
 export interface RadioEngine {
@@ -15,6 +17,10 @@ export interface RadioControllerDeps {
   banks: RadioBanks
   config: RadioConfig
   onState?: (state: MusicalState) => void
+  /** Fired when the current track's arc completes and the loop auto-advances (drives favorites auto-next). */
+  onTrackEnd?: () => void
+  /** Bias generation by the player's likes/dislikes (mood/key/scale). */
+  bias?: BiasProvider
   /** Initial base volume (0..1); defaults to 0.8. */
   volume?: number
 }
@@ -37,30 +43,97 @@ export function sectionDurationMs(bpm: number, bars: number): number {
  * or entering off-beat. Must be < one bar (≈1.6 s+ here) and > engine eval latency.
  */
 const SWAP_LEAD_MS = 150
+/** If the wall clock runs this far PAST our absolute grid (system sleep/resume, NTP step, a long-stalled
+ *  thread), re-anchor instead of firing every overdue section back-to-back in a burst. */
+const SCHED_REANCHOR_MS = 4000
 /** Silent gap between tracks (bars): the old outro concludes & its tails ring out, a
  *  beat of silence, then the new track enters — instead of a fade-out/fade-in. */
-const TRACK_GAP_BARS = 2
+// Silent bars between tracks — read from config so the composer (which advances its bar counter by the
+// same amount to stay cycle-aligned across the gap) and the controller never disagree.
 
 export class RadioController {
   private readonly engine: RadioEngine
   private readonly composer: RadioComposer
+  private readonly banks: RadioBanks
+  private readonly config: RadioConfig
+  private readonly bias?: BiasProvider
   private readonly bars: number
   private readonly onState?: (state: MusicalState) => void
+  private readonly onTrackEnd?: () => void
   private timer: ReturnType<typeof setTimeout> | null = null
   private running = false
   private prevTrackIndex: number | null = null
   private startMs = 0          // wall-clock at start(), for absolute scheduling
   private nextBoundaryMs = 0   // cumulative ms from start to the current section's end
+  private epoch = 0            // bumped on every restart — lets tick()/tickBaked() bail if onTrackEnd re-entered
+  private audibleIndex = 0     // the track index the listener currently HEARS (composer.currentIndex runs ahead)
+  // BAKED playback: a saved favorite plays its frozen section list (not the live composer).
+  private baked: { desc: TrackDescriptor; track: BakedTrack } | null = null
+  private bakedPos = 0
 
   constructor(deps: RadioControllerDeps) {
     this.engine = deps.engine
-    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config })
+    this.banks = deps.banks
+    this.config = deps.config
+    this.bias = deps.bias
+    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config, bias: deps.bias })
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
+    this.onTrackEnd = deps.onTrackEnd
     if (deps.volume !== undefined) this.engine.setVolume(deps.volume)
   }
 
   get isRunning(): boolean { return this.running }
+
+  /** Compact identity of the track playing now (for like/dislike + favorites). */
+  currentTrack(): TrackDescriptor { return this.baked ? this.baked.desc : this.composer.descriptor() }
+
+  // next/prev target relative to the AUDIBLE track, not composer.currentIndex() (which look-ahead-advances a
+  // section early — so during the outro it sits a track ahead, making Next skip one and Prev replay the current).
+  /** Skip to the next generated track. */
+  next(): void { this.baked = null; this.composer.jumpTo(this.audibleIndex + 1); this.restartCurrent() }
+  /** Back to the previous generated track (deterministic replay; floored at 0). */
+  prev(): void { this.baked = null; this.composer.jumpTo(Math.max(0, this.audibleIndex - 1)); this.restartCurrent() }
+  /** Leave BAKED (favorite) playback and resume the live generator from where it stands. No-op if already
+   *  generating — used by the "Generation" mode toggle so a baked favorite doesn't loop forever. */
+  resumeGenerative(): void { if (!this.baked) return; this.baked = null; this.restartCurrent() }
+  /** Replay a specific track (e.g. an OLD favorite without a baked render) by seed+index (regenerates). */
+  playTrack(seed: string, index: number): void { this.baked = null; this.composer.reseed(seed); this.composer.jumpTo(index); this.restartCurrent() }
+
+  /** Render the FULL arc of a track to a frozen section list — for "baking" a favorite at save time.
+   *  Uses a throwaway composer so live playback is untouched; deterministic from seed+index. */
+  bake(seed: string, index: number): BakedSection[] {
+    const tmp = new RadioComposer({ banks: this.banks, config: this.config, bias: this.bias })
+    tmp.reseed(seed)
+    tmp.jumpTo(index)
+    return tmp.renderTrack()
+  }
+
+  /** Play a BAKED favorite: its frozen sections loop in order (immune to generation changes). */
+  playBaked(desc: TrackDescriptor, track: BakedTrack): void {
+    this.baked = { desc, track }
+    this.bakedPos = 0
+    this.restartCurrent()
+  }
+
+  /** Restart the loop on the freshly-selected track (no auto-advance event for a manual switch). */
+  private restartCurrent(): void {
+    this.epoch++   // invalidate any tick()/tickBaked() that is mid-flight (e.g. the one whose onTrackEnd re-entered here)
+    if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
+    this.prevTrackIndex = null   // suppress the onTrackEnd that tick() fires on an auto-advance
+    this.anchorCycle()
+    this.startMs = Date.now()
+    this.nextBoundaryMs = 0
+    this.audibleIndex = this.composer.currentIndex()   // nothing playing yet → the jumped-to track IS the audible one
+    if (this.running) this.tick()
+  }
+
+  /** Re-anchor Strudel's cycle clock to OUR grid. The prelude (evaluated at init) ends in `silence`, so the
+   *  cyclist runs continuously from warmup — by the time the radio actually starts it sits at an arbitrary,
+   *  non-integer cycle, which offsets every section boundary from Strudel's integer-cycle swap grid and lets
+   *  parts cut each other mid-bar. hush() stops the cyclist; the next section's evaluate restarts it from cycle
+   *  0, lined up with startMs and the composer's bar 0 → swaps land exactly on section boundaries. */
+  private anchorCycle(): void { this.engine.stop() }
 
   /** Set the master volume on the engine. */
   setVolume(volume: number): void {
@@ -70,6 +143,7 @@ export class RadioController {
   start(): void {
     if (this.running) return
     this.running = true
+    this.anchorCycle()   // re-anchor Strudel's cycle to our grid (see anchorCycle) so swaps land on boundaries
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
     this.tick()
@@ -81,18 +155,33 @@ export class RadioController {
     this.engine.stop()
   }
 
+  /** ms to wait until SWAP_LEAD_MS before the next boundary on the absolute grid. If the wall clock has jumped
+   *  far past the grid (sleep/resume, NTP step), re-anchor startMs so we don't burst-fire every overdue section. */
+  private waitMs(): number {
+    if (Date.now() - this.startMs > this.nextBoundaryMs + SCHED_REANCHOR_MS) this.startMs = Date.now() - this.nextBoundaryMs
+    return Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+  }
+
   private tick(): void {
     if (!this.running) return
+    if (this.baked) { this.tickBaked(); return }
     const { strudelCode, musicalState } = this.composer.buildNextPattern()
     const isNewTrack = this.prevTrackIndex !== null && musicalState.trackIndex !== this.prevTrackIndex
     this.prevTrackIndex = musicalState.trackIndex
+    if (isNewTrack) {
+      const epoch = this.epoch
+      this.onTrackEnd?.()   // the previous track's arc completed (auto-advance)
+      // onTrackEnd may synchronously restart us (favorites auto-next → playBaked/playTrack → restartCurrent,
+      // which started a fresh schedule). If so, bail — otherwise we'd silence/reschedule the stale track over it.
+      if (this.epoch !== epoch) return
+    }
 
     // NEW TRACK: no fade. The previous outro has played out; switch to silence so its
     // reverb/delay tails ring into a short gap, then start the new track on the grid.
     if (isNewTrack) {
       void this.engine.play('silence')
-      this.nextBoundaryMs += sectionDurationMs(musicalState.bpm, TRACK_GAP_BARS)
-      const waitGap = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+      this.nextBoundaryMs += sectionDurationMs(musicalState.bpm, this.config.trackGapBars)
+      const waitGap = this.waitMs()
       this.timer = setTimeout(() => this.playSection(strudelCode, musicalState), waitGap)
       return
     }
@@ -102,15 +191,51 @@ export class RadioController {
   /** Emit a section's state + audio, then schedule the next tick on the absolute grid. */
   private playSection(strudelCode: string, musicalState: MusicalState): void {
     if (!this.running) return
+    this.audibleIndex = musicalState.trackIndex   // the track the LISTENER hears (composer.currentIndex is a section ahead)
     this.onState?.(musicalState)
     void this.engine.play(strudelCode)
     // Absolute, self-correcting schedule: advance the cumulative boundary by this
     // section's exact length, then wait until SWAP_LEAD_MS before that absolute time.
     // Timer jitter can't accumulate (we target an absolute grid), and the early
     // trigger lets Strudel quantize each swap onto the bar boundary.
-    const dur = sectionDurationMs(musicalState.bpm, musicalState.sectionBars || this.bars)
+    const dur = sectionDurationMs(musicalState.bpm, musicalState.sectionBars > 0 ? musicalState.sectionBars : this.bars)
     this.nextBoundaryMs += dur
-    const wait = Math.max(0, this.nextBoundaryMs - (Date.now() - this.startMs) - SWAP_LEAD_MS)
+    const wait = this.waitMs()
     this.timer = setTimeout(() => this.tick(), wait)
+  }
+
+  /** BAKED playback: walk the frozen section list on the same absolute grid as the generative loop. */
+  private tickBaked(): void {
+    if (!this.running || !this.baked) return
+    const { desc, track } = this.baked
+    if (this.bakedPos >= track.sections.length) {
+      // The baked arc completed → auto-advance (favorites). If the App switches to another favorite
+      // it restarts the loop itself; otherwise we loop THIS baked track after a short silent gap.
+      this.bakedPos = 0
+      const before = this.baked
+      this.onTrackEnd?.()
+      if (this.baked !== before) return
+      void this.engine.play('silence')
+      this.nextBoundaryMs += sectionDurationMs(desc.bpm, this.config.trackGapBars)
+      this.timer = setTimeout(() => this.tickBaked(), this.waitMs())
+      return
+    }
+    const sec = track.sections[this.bakedPos++]
+    this.onState?.(this.bakedState(desc, track, sec))
+    void this.engine.play(sec.code)
+    this.nextBoundaryMs += sectionDurationMs(desc.bpm, sec.bars > 0 ? sec.bars : this.bars)
+    this.timer = setTimeout(() => this.tickBaked(), this.waitMs())
+  }
+
+  /** Minimal MusicalState for a baked section — identity from the descriptor, code/bars from the section,
+   *  and the FROZEN baked name so the UI shows the saved name (not a re-derived one). */
+  private bakedState(desc: TrackDescriptor, track: BakedTrack, sec: BakedSection): MusicalState {
+    return {
+      seed: desc.seed, trackIndex: desc.index, trackSeed: `${desc.seed}:t${desc.index}`,
+      strudelCode: sec.code, mood: desc.mood, sectionsUntilMoodChange: 0,
+      key: desc.key, scaleName: desc.scaleName, chord: '', section: '',
+      sectionBars: sec.bars, bpm: desc.bpm, bar: 0,
+      layers: { kicks: true, bass: true, lead: false, bg: true, perc: true }, name: track.name,
+    }
   }
 }

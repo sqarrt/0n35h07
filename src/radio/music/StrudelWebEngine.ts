@@ -25,6 +25,32 @@ const UZU_WAVETABLES = 'https://strudel.b-cdn.net/uzu-wavetables.json'
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
+// Output metering for the visualizer (level + spectrum). A small analyser window is enough for
+// time-domain RMS. Math mirrors the game's AudioAnalysis, inlined to keep the radio subtree
+// self-contained (no radio→game import).
+const ANALYSER_FFT = 1024   // larger window → finer low-frequency bins (the visualizer's kick/beat detection)
+const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
+/** RMS level 0..1 from an analyser (time domain). */
+function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
+  analyser.getByteTimeDomainData(buf)
+  let sumSq = 0
+  for (let i = 0; i < buf.length; i++) { const x = (buf[i] - BYTE_MID) / BYTE_MID; sumSq += x * x }
+  return Math.sqrt(sumSq / buf.length)
+}
+/** Max-combine the analyser spectrum into out[] (N bands, 0..1) with a LOG frequency split. */
+function maxCombineBands(analyser: AnalyserNode, freqBuf: Uint8Array<ArrayBuffer>, out: Float32Array): void {
+  analyser.getByteFrequencyData(freqBuf)
+  const total = freqBuf.length, n = out.length, minBin = 1
+  for (let i = 0; i < n; i++) {
+    const lo = Math.floor(minBin * Math.pow(total / minBin, i / n))
+    const hi = Math.max(lo + 1, Math.floor(minBin * Math.pow(total / minBin, (i + 1) / n)))
+    let m = 0
+    for (let j = lo; j < hi && j < total; j++) if (freqBuf[j] > m) m = freqBuf[j]
+    const v = m / 255
+    if (v > out[i]) out[i] = v
+  }
+}
+
 // AudioWorklet recorder: runs on the audio render thread and posts a copy of every
 // input quantum back to the main thread. Loaded once via a Blob URL so it needs no
 // separate bundled asset. Mono input is duplicated to stereo.
@@ -82,6 +108,9 @@ export class StrudelWebEngine implements IStrudelEngine {
   #initPromise: Promise<void> | null = null
   #volume = DEFAULT_VOLUME
   #recorderModuleLoaded = false
+  #analyser: AnalyserNode | null = null
+  #timeBuf: Uint8Array<ArrayBuffer> | null = null
+  #freqBuf: Uint8Array<ArrayBuffer> | null = null
 
   get isReady() {
     return this.#initialized
@@ -141,6 +170,39 @@ export class StrudelWebEngine implements IStrudelEngine {
   setVolume(volume: number): void {
     this.#volume = clamp01(volume)
     this.#applyVolume()
+  }
+
+  readLevel(): number {
+    this.#ensureAnalyser()
+    if (!this.#analyser || !this.#timeBuf) return 0
+    return rmsLevel(this.#analyser, this.#timeBuf)
+  }
+
+  readBands(out: Float32Array): void {
+    this.#ensureAnalyser()
+    if (!this.#analyser || !this.#freqBuf) return
+    maxCombineBands(this.#analyser, this.#freqBuf, out)
+  }
+
+  /** Lazily tap the superdough master node with an analyser. The controller is created on the
+   *  first sound, so this connects once playback has begun; safe to call every frame. */
+  #ensureAnalyser(): void {
+    if (this.#analyser) return
+    try {
+      const controller = getSuperdoughAudioController()
+      const node = controller?.output?.destinationGain ?? controller?.output?.output
+      if (!node) return
+      const ctx = getAudioContext()
+      if (!ctx) return
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = ANALYSER_FFT
+      node.connect(analyser)   // passive tap (no onward connection) — doesn't alter the output
+      this.#analyser = analyser
+      this.#timeBuf = new Uint8Array(analyser.fftSize)
+      this.#freqBuf = new Uint8Array(analyser.frequencyBinCount)
+    } catch {
+      // Controller/context not ready yet; retried on the next read.
+    }
   }
 
   /**

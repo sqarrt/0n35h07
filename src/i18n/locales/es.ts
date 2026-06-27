@@ -104,6 +104,7 @@ export const es = {
   settingsVolMusic: 'MÚSICA EN JUEGO',
   settingsVolMenuMusic: 'MÚSICA DEL MENÚ',
   settingsVolSfx: 'EFECTOS',
+  settingsVolRadio: 'RADIO',
   settingsConnTimeout: 'TIEMPO DE CONEXIÓN A SALA',
   settingsSeconds: (s: number) => `${s} S`,
   settingsPostproc: 'POSPROCESADO',
@@ -196,4 +197,13 @@ export const es = {
   netChipTitle: 'Relés de señalización',
   netChipFallback: 'RED · RESPALDO',
   netChipOk: (n: number) => `RED · ${n}`,
+  // Radio player
+  radioGeneration: 'Generación',
+  radioFavorites: 'Favoritos',
+  radioPlay: 'Reproducir',
+  radioPause: 'Pausa',
+  radioPrev: 'Pista anterior',
+  radioNext: 'Pista siguiente',
+  radioLike: 'Me gusta',
+  radioDislike: 'No me gusta',
 } satisfies Dict

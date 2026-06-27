@@ -10,6 +10,9 @@ import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
 export type DropLead = 'stab' | 'arp' | 'lead'
+/** How present the lead is: full (build+peak), sparse (peaks only), none (no lead — many tracks
+ *  sound better without one). float sections always keep their lead regardless (it carries them). */
+export type LeadPresence = 'full' | 'sparse' | 'none'
 /** Subtle in-key background texture that fills/dilutes the track (no melodic pad). */
 export type BgKind =
   | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums
@@ -23,6 +26,12 @@ export const BG_KINDS: BgKind[] = [
   'wind', 'crackle', 'hiss', 'geiger', 'resonance',
   'sinearp', 'granular', 'choir', 'siren', // 'reverse' removed — a swelling white-noise burst, not in-key & too foreground
 ]
+// Two tiers (see docs/radio-leads-lessons.md analysis): BEDS are subliminal drones/noise with no rhythmic/tonal
+// HOOK — safe to recur, they don't fingerprint a track. ACCENTS are the memorable ones (a bell ping, a sonar
+// blip, a morse rhythm…) — distinctive, so they're added only OCCASIONALLY and never to two near tracks.
+export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'wind', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'bell', 'sinearp', 'siren']
+const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
  *  its role, so all parts sit in one coherent space (no dry-bass-vs-wet-lead clash). */
@@ -49,11 +58,13 @@ export interface TrackStyle {
   padMode: PadMode
   swing: number
   dropLead: DropLead
+  leadPresence: LeadPresence // how often the lead appears (many tracks better with little/no lead)
   ohPat: string       // offbeat open-hat pattern ('' = none)
   bassGroove: string  // 16-step on/off mask for the bassline's rhythm
   fx: FxChar          // the track's shared echo/reverb space
   riser: boolean      // does this track use the through-line FM pulse riser texture?
-  bg: BgKind          // the subtle background texture that fills the track
+  bg: BgKind          // the always-on subliminal BED texture that fills the track
+  bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
 }
 
 const BASS: { sound: string; fm: number; rest: number }[] = [
@@ -115,6 +126,9 @@ const PAD: PadMode[] = ['stab', 'stab', 'off', 'drone', 'arp']
 // Straight, no shuffle — swing reads as groovy/playful; dark techno stays rigid.
 const SWING = [0]
 const DROP_LEAD: DropLead[] = ['stab', 'stab', 'arp', 'lead']
+// The leads are loved → out as much as possible: ~90% full, ~10% lead-less (kept only for contrast). 'sparse'
+// (peaks-only) dropped — it made leads scarce. (Anti-repeat pick — consistent, not a per-track coin-flip.)
+const LEAD_PRESENCE: LeadPresence[] = ['none', 'full', 'full', 'full', 'full', 'full', 'full', 'full', 'full', 'full']
 const OH = ['~ oh ~ oh', '~ oh ~ oh', '', '~ ~ oh ~', 'oh ~ oh ~', '~ oh', '[~ oh]*2']
 const BASS_GROOVE = [
   '1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1', // driving 16ths
@@ -157,10 +171,12 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     padMode: pick(rng, PAD, anti, 'st_pad'),
     swing: pick(rng, SWING, anti, 'st_swing'),
     dropLead: pick(rng, DROP_LEAD, anti, 'st_droplead'),
+    leadPresence: pick(rng, LEAD_PRESENCE, anti, 'st_leadpres'),
     ohPat: pick(rng, OH, anti, 'st_oh'),
     bassGroove: pick(rng, BASS_GROOVE, anti, 'st_bgroove'),
     fx: pick(rng, FX_SPACES, anti, 'st_fx'),
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
-    bg: pick(rng, BG_KINDS, anti, 'st_bg'),
+    bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed
+    bgAccent: rng.next() < ACCENT_CHANCE ? pick(rng, BG_ACCENTS, anti, 'st_bgacc') : null, // a rare distinctive accent
   }
 }

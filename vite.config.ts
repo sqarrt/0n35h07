@@ -61,6 +61,10 @@ export default defineConfig(({ mode }) => {
               { name: 'r3f',     test: /node_modules[\\/](@react-three|@dimforge)[\\/]/, priority: 25 },
               // React core — almost never changes between game versions.
               { name: 'react',   test: /node_modules[\\/]react(-dom)?[\\/]/, priority: 20 },
+              // Strudel (generative "Radio" music) — only ever reached via dynamic import('./radio').
+              // Its OWN chunk keeps it out of the eagerly-loaded `vendor` chunk (it'd otherwise bloat the
+              // initial load for everyone, including the browser build that never uses radio).
+              { name: 'strudel', test: /node_modules[\\/](@strudel[\\/]|superdough)/, priority: 15 },
               // Everything else from node_modules (trystero, nostr-tools, @tauri-apps, …).
               { name: 'vendor',  test: /node_modules/, priority: 10 },
             ],

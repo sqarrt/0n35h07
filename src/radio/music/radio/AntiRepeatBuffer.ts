@@ -7,6 +7,9 @@ export class AntiRepeatBuffer {
 
   constructor(window: number) { this.window = Math.max(0, window) }
 
+  /** Forget all history — used to replay the buffer to a deterministic state on a track jump. */
+  clear(): void { this.recent.clear() }
+
   record(category: string, value: string): void {
     if (this.window === 0) return
     const arr = this.recent.get(category) ?? []

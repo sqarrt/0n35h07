@@ -25,6 +25,17 @@ import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
+import { RadioPlayer } from './components/RadioPlayer'
+import { FavoritesColumn } from './components/FavoritesColumn'
+import { RadioCodePanel } from './components/RadioCodePanel'
+import { warmupRadio } from './radio/warmup'
+import { radioTrackName } from './radio/trackName'
+import type { RadioInitState } from './radio/warmup'
+import { buildBias, sameTrack } from './radio'
+import type { RadioController, BiasProvider, TrackDescriptor } from './radio'
+import type { RadioPlayMode } from './components/RadioPlayer'
+import type { IStrudelEngine } from './radio/music/IStrudelEngine'
+import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
@@ -75,7 +86,7 @@ import { DualMatchmaker } from './net/DualMatchmaker'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
 
-type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer'
+type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer' | 'radio'
 
 const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // default bot difficulty on the "vs Bot" tab
 
@@ -97,6 +108,8 @@ interface GameNet {
   durationMs: number
   mapId: MapId
   code: string
+  achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
+  radioForMatch: boolean         // was the radio the soundtrack at match START? single authority for music gating
 }
 
 // Dev: download a recorded demo to a file (committed to the repo, later sequenced into the trailer).
@@ -122,6 +135,7 @@ interface GameCanvasProps {
   sfxEngine: ISfxEngine
   musicVolumeRef: React.MutableRefObject<number>   // stable ref: live volume is pushed via GameApi, no Canvas re-render
   audioAnalysis: AudioAnalysis
+  radioActive: boolean   // Radio mode plays through the match → skip the stem-based match music
 }
 
 // HUD actions (charge progress, speed, timer) re-render App dozens of times per second — Canvas must NOT
@@ -131,7 +145,7 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
@@ -151,6 +165,8 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         sfxEngine={sfxEngine}
         musicVolumeRef={musicVolumeRef}
         audioAnalysis={audioAnalysis}
+        radioActive={radioActive}
+        achievementsEnabled={gameNet.achievementsEnabled}
       />
     </Canvas>
   )
@@ -228,6 +244,95 @@ export default function App() {
   // Preload buffers ahead of time (decode needs no gesture) → the first gesture starts instantly, without a second action.
   useEffect(() => { void menuMusic.preload() }, [menuMusic])
 
+  // --- Radio mode (opt-in generative music; lazy @strudel/web) ---
+  const [radioController, setRadioController] = useState<RadioController | null>(null)
+  const [radioEngine, setRadioEngine] = useState<IStrudelEngine | null>(null)
+  const [radioInitState, setRadioInitState] = useState<RadioInitState>('idle')
+  const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
+  const radioWarmedRef = useRef(false)
+  const radioActive = profile.radioEnabled && radioInitState === 'ready'
+  // Radio player: Generation vs Favorites mode, and refs the once-built controller reads via closures.
+  const [radioPlayMode, setRadioPlayMode] = useState<RadioPlayMode>('gen')
+  const playModeRef = useRef<RadioPlayMode>('gen')
+  const favIndexRef = useRef(0)
+  const biasRef = useRef<BiasProvider>(buildBias([], []))
+  const onTrackEndRef = useRef<() => void>(() => {})
+  useEffect(() => { playModeRef.current = radioPlayMode }, [radioPlayMode])
+  // Bias updates live as the player likes/dislikes (the composer reads biasRef on the next track pick).
+  useEffect(() => { biasRef.current = buildBias(profile.favorites, profile.dislikes) }, [profile.favorites, profile.dislikes])
+
+  // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
+  // The heavy @strudel/web + the radio subtree are dynamically imported → excluded from the initial bundle.
+  useEffect(() => {
+    // Desktop/Steam only: the browser build never loads @strudel/web or runs the radio.
+    if (!IS_DESKTOP || radioWarmedRef.current || editorMode || screen === 'game' || screen === 'trailer') return
+    radioWarmedRef.current = true
+    void (async () => {
+      const radio = await import('./radio')
+      const ctrl = await warmupRadio({
+        loadBanks: () => radio.loadRadioBanks(u => fetch(u), '/radio/'),
+        makeEngine: () => { const e = new radio.StrudelWebEngine(); setRadioEngine(e); return e },
+        initEngine: e => e.init(),
+        makeController: (engine, banks) => new radio.RadioController({
+          engine, banks, config: radio.DEFAULT_RADIO_CONFIG,
+          volume: profile.volumeMaster * profile.volumeRadio,
+          onState: setRadioMusicalState,
+          bias: { weightFor: (c, v) => biasRef.current.weightFor(c, v) },
+          onTrackEnd: () => onTrackEndRef.current(),
+        }),
+      }, setRadioInitState)
+      if (ctrl) setRadioController(ctrl)
+      // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
+      // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
+      else radioWarmedRef.current = false
+    })()
+    // Runs once (guarded by radioWarmedRef); the initial volume is read at construction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, editorMode])
+
+  // Radio volume = master × radio (live; pushed straight to the controller — no Canvas re-render).
+  useEffect(() => { radioController?.setVolume(profile.volumeMaster * profile.volumeRadio) }, [radioController, profile.volumeMaster, profile.volumeRadio])
+
+
+  // Start/stop the radio from radioEnabled. Like menu music, the first start needs a user gesture
+  // (autoplay policy) in the browser; on desktop (Tauri) autoplay is allowed. The toggle click is a gesture.
+  const radioGestureRef = useRef(IS_DESKTOP)
+  useEffect(() => {
+    if (!radioController) return
+    // The TRAILER runs its own audio → the radio must stop for it (the in-MATCH radio is intentional, via
+    // radioActive, so it keeps playing in 'game'). start() is idempotent, so re-running on screen changes is safe.
+    if (!profile.radioEnabled || screen === 'trailer') { radioController.stop(); return }
+    // If THIS match decided to use its own stem music (radio wasn't ready when it started), don't let the radio
+    // play OVER it — stop it for the match's duration; it resumes back in the menu. (Single authority: gameNet.)
+    if (screen === 'game' && gameNet && !gameNet.radioForMatch) { radioController.stop(); return }
+    const startRadio = () => { radioController.setVolume(profile.volumeMaster * profile.volumeRadio); radioController.start() }
+    if (radioGestureRef.current) { startRadio(); return }
+    const onGesture = () => {
+      radioGestureRef.current = true
+      startRadio()
+      window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture)
+    }
+    window.addEventListener('pointerdown', onGesture); window.addEventListener('keydown', onGesture)
+    return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
+    // volume read fresh inside startRadio; kept out of deps to avoid restarting on slider drag.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radioController, profile.radioEnabled, screen, gameNet])
+
+  // Ban accidental RELOAD in the desktop game window — Ctrl/Cmd+R and F5 reload the webview, which drops the
+  // match / P2P connection (and the radio) dead. Captured so it fires before anything else. Desktop only: in a
+  // browser tab Ctrl+R is a native, expected action (and dev relies on it).
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R'))) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
+  }, [])
+
   // Audio analysis for visualization: combined level from all sources (SFX + menu music; match music is
   // registered by Game). Feeds the glow of the menu orbs and the visualizer bar in the match.
   const [audioAnalysis] = useState(() => new AudioAnalysis())
@@ -240,12 +345,27 @@ export default function App() {
     ]
     return () => { for (const off of offs) off() }
   }, [audioAnalysis, sfx, menuMusic])
+
+  // Radio output → shared AudioAnalysis, so the menu orbs glow to the radio on every menu screen.
+  // Readers yield 0 while the radio is silent (the analyser only taps once a sound has played).
+  useEffect(() => {
+    if (!radioEngine) return
+    // Radio is louder than the menu music; scale its level down so it doesn't pin the orb glow at max (then it
+    // visibly reacts). Beat detection reads the bands (unscaled), so it's unaffected.
+    const RADIO_LEVEL_SCALE = 0.6
+    const offL = audioAnalysis.addReader(() => radioEngine.readLevel() * RADIO_LEVEL_SCALE)
+    const offB = audioAnalysis.addBandReader(out => radioEngine.readBands(out))
+    return () => { offL(); offB() }
+  }, [radioEngine, audioAnalysis])
   // Plays on all non-game screens, fades out in the match. In the browser the first start is from a user gesture
   // (autoplay policy); on desktop (Tauri) autoplay is allowed → we start immediately, without a gesture.
   const gesturedRef = useRef(IS_DESKTOP)
   useEffect(() => {
     // No menu music in the map editor or the match (trailer runs its own).
     if (editorMode || screen === 'game' || screen === 'trailer') { menuMusic.stop(); return }
+    // Radio mode replaces menu music: when it's active, the menu stays silent (radio drives the audio).
+    // radioActive is desktop-only (false in the browser build), so the browser keeps its menu music.
+    if (radioActive) { menuMusic.stop(); return }
     if (gesturedRef.current) { void menuMusic.start(); return }
     const onGesture = () => {
       gesturedRef.current = true
@@ -256,7 +376,7 @@ export default function App() {
     window.addEventListener('pointerdown', onGesture)
     window.addEventListener('keydown', onGesture)
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
-  }, [screen, menuMusic, editorMode])
+  }, [screen, menuMusic, editorMode, radioActive])
 
   const [lobbyTab, setLobbyTab] = useState<LobbyTab>(DEFAULT_LOBBY_TAB)
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
@@ -313,7 +433,9 @@ export default function App() {
       // The match starts with the ready ritual — set phase 'ready' ahead of time, else the pause overlay flashes briefly.
       dispatch({ type: 'SET_MATCH_PHASE', phase: 'ready', ready: [], countdown: 0 })
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code })
+      // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
+      const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.
@@ -510,6 +632,103 @@ export default function App() {
   const handleSettings = () => setScreen('settings')
   const handleAppearance = () => setScreen('appearance')
   const handleAbout = () => setScreen('about')
+  const handleRadio = () => setScreen('radio')
+  // Toggle radio on/off. This click is a user gesture (lets the AudioContext start) — the start/stop effect reacts.
+  const handleToggleRadio = () => {
+    radioGestureRef.current = true
+    setProfile(p => { const next = { ...p, radioEnabled: !p.radioEnabled }; saveProfile(next); return next })
+  }
+
+  // --- Radio player controls (desktop). A favorite with a BAKED render plays it verbatim (immune to
+  //     generation changes); an old favorite without one falls back to deterministic regeneration. ---
+  const playFav = (d: TrackDescriptor) => {
+    const i = profile.favorites.findIndex(f => sameTrack(f, d))
+    favIndexRef.current = Math.max(0, i)
+    const fav = i >= 0 ? profile.favorites[i] : null
+    if (fav?.baked) radioController?.playBaked(fav, fav.baked)
+    else radioController?.playTrack(d.seed, d.index)
+    if (!profile.radioEnabled) handleToggleRadio()   // ensure the radio is on (gesture from this click)
+  }
+  const stepFav = (dir: number) => {
+    const favs = profile.favorites
+    if (favs.length === 0) return
+    favIndexRef.current = (favIndexRef.current + dir + favs.length) % favs.length
+    playFav(favs[favIndexRef.current])
+  }
+  const radioPrev = () => { if (radioPlayMode === 'fav') stepFav(-1); else radioController?.prev() }
+  const radioNext = () => { if (radioPlayMode === 'fav') stepFav(1); else radioController?.next() }
+  // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
+  // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
+  const onRadioMode = (m: RadioPlayMode) => {
+    if (m === radioPlayMode) return
+    setRadioPlayMode(m)
+    if (m === 'gen') radioController?.resumeGenerative()
+  }
+  // Descriptor of the track AUDIBLY playing now (from the emitted state). NOT controller.currentTrack(), which the
+  // composer advances a section ahead — that mismatch put the wrong track into favorites.
+  const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
+    ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
+    : null
+  const radioLike = () => {
+    const d = radioCurrentDesc; if (!d) return
+    // Toggle: ♥ on a liked track UN-likes it; otherwise BAKE the full track (Strudel code of every section
+    // + its current name) so the saved favorite replays exactly, even after the generator changes.
+    setProfile(p => {
+      const has = p.favorites.some(f => sameTrack(f, d))
+      let favorites
+      let dislikes = p.dislikes
+      if (has) favorites = p.favorites.filter(f => !sameTrack(f, d))
+      else {
+        const sections = radioController?.bake(d.seed, d.index)
+        const name = radioMusicalState ? radioTrackName(radioMusicalState) : ''
+        const fav = sections && sections.length ? { ...d, baked: { name, sections } } : d
+        favorites = [fav, ...p.favorites]
+        dislikes = p.dislikes.filter(x => !sameTrack(x, d))   // liking a track clears any prior dislike (mutual exclusion)
+      }
+      const next = { ...p, favorites, dislikes }
+      saveProfile(next); return next
+    })
+  }
+  const radioDislike = () => {
+    const d = radioCurrentDesc; if (!d) return
+    // Dislike removes the track from favorites (un-likes it) AND records the dislike.
+    setProfile(p => {
+      const next = {
+        ...p,
+        favorites: p.favorites.filter(f => !sameTrack(f, d)),
+        dislikes: p.dislikes.some(x => sameTrack(x, d)) ? p.dislikes : [d, ...p.dislikes],
+      }
+      saveProfile(next); return next
+    })
+    radioNext()   // mode-aware: in fav mode advance to the next FAVORITE, not an unrelated generated track
+  }
+  const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
+  // Regenerate the seed: start a brand-new generative session from a fresh random seed.
+  const radioRegen = () => {
+    radioGestureRef.current = true
+    if (!profile.radioEnabled) handleToggleRadio()
+    radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
+    setRadioPlayMode('gen')
+  }
+  // In favorites mode, a finished track auto-advances to the next favorite (kept fresh via the ref).
+  useEffect(() => {
+    onTrackEndRef.current = () => {
+      if (playModeRef.current !== 'fav') return
+      const favs = profile.favorites
+      if (favs.length === 0) return
+      favIndexRef.current = (favIndexRef.current + 1) % favs.length
+      const f = favs[favIndexRef.current]
+      if (f.baked) radioController?.playBaked(f, f.baked)
+      else radioController?.playTrack(f.seed, f.index)
+    }
+  }, [profile.favorites, radioController])
+
+  // Derived radio-player display.
+  const radioLiked = radioCurrentDesc != null && profile.favorites.some(f => sameTrack(f, radioCurrentDesc))
+  const radioDisliked = radioCurrentDesc != null && profile.dislikes.some(f => sameTrack(f, radioCurrentDesc))
+  // A baked favorite carries its FROZEN name (state.name); a live track derives one. Never re-derive a baked name.
+  const radioTrackLabel = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : '—'
+  const radioSubtitle = radioMusicalState ? `${radioMusicalState.bpm} BPM · ${radioMusicalState.key} ${radioMusicalState.scaleName}` : ''
   // Exit the game: on desktop (Tauri) closes the window via the API; in the browser — window.close().
   // Dynamic import: @tauri-apps/api is a separate lazy chunk, not loaded into the browser.
   const handleExit = () => {
@@ -727,14 +946,15 @@ export default function App() {
       {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
-      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={profile.menuGlow ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || !profile.menuGlow} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { mood: radioMusicalState?.mood ?? '', bpm: radioMusicalState?.bpm ?? 120 } : undefined} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
-      {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content. */}
-      {screen !== 'game' && screen !== 'trailer' && (
+      {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.
+          Radio is excluded — it's a full-screen takeover (the backdrop IS the visual) with its own glass overlays. */}
+      {screen !== 'game' && screen !== 'trailer' && screen !== 'radio' && (
         <div className="screen">
           <div className="menu-panel" ref={panelRef}>
-            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onAbout={handleAbout} onExit={handleExit} />}
+            {screen === 'menu' && <MainMenu onPlay={handlePlay} onAppearance={handleAppearance} onSettings={handleSettings} onAbout={handleAbout} onRadio={handleRadio} onExit={handleExit} />}
             {screen === 'settings' && (
               <Settings profile={profile} onChange={setProfile} onBack={() => setScreen('menu')} section={settingsSection} onSectionChange={setSettingsSection} />
             )}
@@ -745,6 +965,45 @@ export default function App() {
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
           </div>
         </div>
+      )}
+
+      {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
+          (so it animates the dock↔expand). The backdrop IS the visual. */}
+      {screen === 'radio' && IS_DESKTOP && (
+        <FavoritesColumn
+          open={radioPlayMode === 'fav'}
+          items={profile.favorites}
+          current={radioCurrentDesc}
+          onPlayFirst={radioPlayFirst}
+          onPlay={playFav}
+        />
+      )}
+      {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
+
+      {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).
+          Docked (shrunk, interactive) in the bottom-right corner on menu screens; unfolds, centered, on Radio. */}
+      {IS_DESKTOP && screen !== 'game' && screen !== 'trailer' && (
+        <RadioPlayer
+          expanded={screen === 'radio'}
+          ready={radioInitState === 'ready'}
+          mode={radioPlayMode}
+          playing={profile.radioEnabled}
+          trackName={radioTrackLabel}
+          subtitle={radioSubtitle}
+          liked={radioLiked}
+          disliked={radioDisliked}
+          volume={profile.volumeRadio}
+          onMode={onRadioMode}
+          onPrev={radioPrev}
+          onNext={radioNext}
+          onPlayPause={handleToggleRadio}
+          onLike={radioLike}
+          onDislike={radioDislike}
+          onRegen={radioRegen}
+          onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
+          onOpen={handleRadio}
+          onBack={() => setScreen('menu')}
+        />
       )}
 
       {screen === 'trailer' && (
@@ -762,6 +1021,7 @@ export default function App() {
             sfxEngine={sfx}
             musicVolumeRef={musicVolumeRef}
             audioAnalysis={audioAnalysis}
+            radioActive={gameNet.radioForMatch}
           />
           {hud.matchPhase === 'ready' && (
             <ReadyOverlay

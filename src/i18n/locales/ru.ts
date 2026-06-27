@@ -104,6 +104,7 @@ export const ru = {
   settingsVolMusic: 'МУЗЫКА В ИГРЕ',
   settingsVolMenuMusic: 'МУЗЫКА В МЕНЮ',
   settingsVolSfx: 'ЭФФЕКТЫ',
+  settingsVolRadio: 'РАДИО',
   settingsConnTimeout: 'ТАЙМАУТ ПОДКЛЮЧЕНИЯ К КОМНАТЕ',
   settingsSeconds: (s: number) => `${s} С`,
   settingsPostproc: 'ПОСТПРОЦЕССИНГ',
@@ -196,4 +197,13 @@ export const ru = {
   netChipTitle: 'Сигналинг-релеи',
   netChipFallback: 'СЕТЬ · РЕЗЕРВ',
   netChipOk: (n: number) => `СЕТЬ · ${n}`,
+  // Radio player
+  radioGeneration: 'Генерация',
+  radioFavorites: 'Избранное',
+  radioPlay: 'Играть',
+  radioPause: 'Пауза',
+  radioPrev: 'Предыдущий трек',
+  radioNext: 'Следующий трек',
+  radioLike: 'Нравится',
+  radioDislike: 'Не нравится',
 } satisfies Dict

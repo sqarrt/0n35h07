@@ -104,6 +104,7 @@ export const pl = {
   settingsVolMusic: 'MUZYKA W GRZE',
   settingsVolMenuMusic: 'MUZYKA W MENU',
   settingsVolSfx: 'EFEKTY',
+  settingsVolRadio: 'RADIO',
   settingsConnTimeout: 'LIMIT CZASU POŁĄCZENIA',
   settingsSeconds: (s: number) => `${s} S`,
   settingsPostproc: 'POST-PROCESSING',
@@ -196,4 +197,13 @@ export const pl = {
   netChipTitle: 'Przekaźniki sygnalizacyjne',
   netChipFallback: 'SIEĆ · ZAPAS',
   netChipOk: (n: number) => `SIEĆ · ${n}`,
+  // Radio player
+  radioGeneration: 'Generowanie',
+  radioFavorites: 'Ulubione',
+  radioPlay: 'Odtwórz',
+  radioPause: 'Pauza',
+  radioPrev: 'Poprzedni utwór',
+  radioNext: 'Następny utwór',
+  radioLike: 'Lubię to',
+  radioDislike: 'Nie lubię',
 } satisfies Dict

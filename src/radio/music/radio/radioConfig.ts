@@ -20,6 +20,10 @@ export interface RadioConfig {
   leadDensity: number
   /** Octave the bass sits in. */
   bassOctave: number
+  /** Silent bars inserted between tracks. MUST be shared by the controller (which schedules the gap)
+   *  AND the composer (which advances its bar counter by it, so section-aligned sweeps stay locked to
+   *  Strudel's continuous cycle clock across the gap). */
+  trackGapBars: number
 }
 
 export const DEFAULT_RADIO_CONFIG: RadioConfig = {
@@ -33,11 +37,12 @@ export const DEFAULT_RADIO_CONFIG: RadioConfig = {
   leadOctave: 3,
   leadDensity: 0.5,
   bassOctave: 1, // main bass at C1–B1 (was C2–B2 — too high); sub follows an octave below
+  trackGapBars: 2,
 }
 
 const NUMERIC_KEYS = [
   'moodRotationSections', 'antiRepeatWindow', 'sectionLengthBars', 'motifLockEveryBars', 'driftStepMax',
-  'sectionsPerTrack', 'leadOctave', 'leadDensity', 'bassOctave',
+  'sectionsPerTrack', 'leadOctave', 'leadDensity', 'bassOctave', 'trackGapBars',
 ] as const
 
 /** Storage key holding a JSON partial RadioConfig (for debugging tweaks). */

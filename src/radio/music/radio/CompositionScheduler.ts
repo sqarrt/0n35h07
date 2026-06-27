@@ -7,6 +7,8 @@ import { chooseStyle, type TrackStyle } from './trackStyle'
 import type { ChordSequence } from './theory'
 import type { MoodConfig, RadioBanks } from './banks'
 import type { RadioConfig } from './radioConfig'
+import type { TrackDescriptor } from '../../trackDescriptor'
+import type { BiasProvider } from '../../bias'
 
 export interface TrackPlan {
   index: number
@@ -29,14 +31,16 @@ export class CompositionScheduler {
   private readonly sessionSeed: string
   private readonly harmony: HarmonyEngine
   private readonly anti: AntiRepeatBuffer
+  private readonly bias?: BiasProvider
   private trackIndex = 0
   private sectionPos = 0
   private plan: TrackPlan
   private trackRng: Rng
 
-  constructor(deps: { banks: RadioBanks; config: RadioConfig; sessionSeed: string }) {
+  constructor(deps: { banks: RadioBanks; config: RadioConfig; sessionSeed: string; bias?: BiasProvider }) {
     this.banks = deps.banks
     this.sessionSeed = deps.sessionSeed
+    this.bias = deps.bias
     this.harmony = new HarmonyEngine(this.banks)
     this.anti = new AntiRepeatBuffer(deps.config.antiRepeatWindow)
     this.trackRng = createRng(`${this.sessionSeed}:t0`)
@@ -47,6 +51,34 @@ export class CompositionScheduler {
   rng(): Rng { return this.trackRng }
   sectionInTrack(): number { return this.sectionPos }
   isTrackStart(): boolean { return this.sectionPos === 0 }
+  currentIndex(): number { return this.trackIndex }
+
+  /** Compact, comparable identity of the current track (for favorites + like/dislike bias). */
+  descriptor(): TrackDescriptor {
+    const p = this.plan
+    const kv = p.style.kickVoice
+    // seed = the SESSION seed (not the per-track `${session}:t${index}`) so playTrack(seed, index) replays exactly.
+    return {
+      seed: this.sessionSeed, index: p.index, mood: p.mood, key: p.tonality.key, scaleName: p.tonality.scaleName, bpm: p.bpm,
+      style: { kick: `${kv.bank ?? ''}:${kv.n}`, bass: p.style.bassSound, lead: p.style.leadSound, bg: p.style.bg, perc: p.style.perc },
+    }
+  }
+
+  /** Jump to an explicit track index, DETERMINISTICALLY. buildTrack mutates the shared anti-repeat buffer, so a
+   *  bare rebuild at N would see whatever history the live session happened to be in — a different mood/key/scale
+   *  than a sequential run reaches at N (so favorites/bakes played a different, mislabeled track). Instead replay
+   *  the buffer from scratch: clear it and rebuild 0..N in order, exactly as tick() would. (HarmonyEngine is
+   *  stateless, so anti is the only cross-track state.) O(N) but N is tiny for favorites. */
+  jumpTo(index: number): void {
+    const target = Math.max(0, Math.floor(index))
+    this.anti.clear()
+    for (let i = 0; i <= target; i++) {
+      this.trackRng = createRng(`${this.sessionSeed}:t${i}`)
+      this.plan = this.buildTrack(i, this.trackRng)
+    }
+    this.trackIndex = target
+    this.sectionPos = 0
+  }
 
   tick(): void {
     this.sectionPos++
@@ -62,10 +94,10 @@ export class CompositionScheduler {
     const moodNames = Object.keys(this.banks.moods)
     // Every track (including the first) picks its mood by rng with anti-repeat, so
     // different seeds open on different moods — not always the first one in the bank.
-    const mood = weightedPick(rng, this.anti.penalize('mood', moodNames.map((n) => [n, 1] as Weighted<string>)))
+    const mood = weightedPick(rng, this.anti.penalize('mood', moodNames.map((n) => [n, this.bias?.weightFor('mood', n) ?? 1] as Weighted<string>)))
     this.anti.record('mood', mood)
     const m: MoodConfig = this.banks.moods[mood]
-    const tonality = this.harmony.chooseTonality(m, rng, this.anti)
+    const tonality = this.harmony.chooseTonality(m, rng, this.anti, this.bias)
     const [lo, hi] = m.bpmRange
     const bpm = Math.round(lo + rng.next() * (hi - lo))
     const arc = buildArc(rng, m.density < 0.5) // energy graph; deep moods get a gentler one

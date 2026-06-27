@@ -11,6 +11,7 @@ import { Body } from '../game/Body'
 import { decodeBallArt } from '../game/ballArt'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
 import { MenuEdgeGlow, MENU_GLOW_LAYER } from './MenuEdgeGlow'
+import { RadioTakeover } from './radioTakeover/RadioTakeover'
 import { createWindupFx } from '../game/fx/windup/createWindupFx'
 import { BeamWeapon } from '../game/BeamWeapon'
 import { createBeamFx } from '../game/fx/beam/createBeamFx'
@@ -568,14 +569,17 @@ function DebugGrid() {
 }
 
 // React context doesn't cross the R3F Canvas boundary — so the engine comes as a prop, not via useSfx().
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; onReady?: () => void; sfx?: ISfxEngine }
+// radioMode (≠ undefined) turns the backdrop into the full-screen Radio "takeover": amplified frosted-glass
+// glow + music-reactive bloom, camera dolly/shake, emoji rain and in-scene Strudel code. Implemented in a
+// dedicated in-Canvas component; the prop carries the current track's code + mood for those visuals.
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; radioMode?: { mood: string; bpm: number }; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Persistent transparent backdrop for menu screens: a real scene with the player (Body at full size,
  * standing on a spot; in a room — two). The frame is built ONLY by the camera (CameraRig, poses from menuCameraPoses.json);
  * the only "game" movement is the ghost run in the respawn preview. Dev: floor grid + fly via J.
  */
-export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, onReady, sfx }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, radioMode, onReady, sfx }: MenuBackdropProps) {
   // The heavy glow composer (Bloom + edge-effect + depth-pass) SYNCHRONOUSLY compiles its shaders on the first
   // render — this blocks the main thread (whole-UI freeze) and "eats" the ball fade. So we mount it NOT on the
   // critical entry path but with a delay: by then the ball has already appeared, and the glow in silence is still 0
@@ -617,9 +621,16 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
         {/* Debug floor — visible only while flying (J held); the menu stays clean when nobody moves the camera. Dev-only. */}
         {import.meta.env.DEV && <DebugGrid />}
         <Scene mode={mode} player={player} room={room ?? null} appearancePart={appearancePart} onReady={onReady} sfx={sfx} />
+        {/* Radio takeover: while a track is on the Radio screen the backdrop becomes a full-screen visualizer —
+            soft frosted-glass bloom + camera dolly/shake + emoji rain + in-scene Strudel code. Its own (soft) Bloom
+            composer renders instead of MenuEdgeGlow's (sharp) one — only ONE composer runs at a time. */}
+        {radioMode && <RadioTakeover radioMode={radioMode} analysis={analysis} />}
         {/* Glow on the VISIBLE model edges (principle like block highlighting) → Bloom; in silence there's no glow.
-            Mounted deferred (see above) so compilation doesn't freeze entry. The settings toggle is the external gate. */}
-        {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} />}
+            Mounted deferred (see above) so compilation doesn't freeze entry. The settings toggle is the external gate.
+            ONE composer for both modes: it stays mounted and renders always (so the orb glow keeps working in radio
+            and there's no remount/recompile freeze on exit). softBloom adds the radio takeover's soft frosted bloom
+            inside the SAME composer and amplifies the edge glow. */}
+        {glow && glowReady && <MenuEdgeGlow analysis={analysis} muted={glowMuted} softBloom={!!radioMode} />}
       </Canvas>
     </div>
   )

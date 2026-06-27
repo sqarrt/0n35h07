@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.5.11] - unreleased
 
+### Added
+- **Radio — a generative music mode (desktop).** An endless stream of dark-techno / acid / industrial / ambient
+  tracks composed live, each with its own mood, key, BPM, arrangement and a wide variety of melodic leads.
+  Like/dislike tracks: favorites are saved and replay exactly, and your taste steers what's generated next. The
+  menu visualizer reacts to the music while it plays.
+
 ### Fixed
 - **Pointer lock didn't fully engage after pressing "Ready" (the view wouldn't turn until a second click).**
   The lock badge appeared, but mouse movement didn't rotate the camera until you clicked again. `PointerLockControls`

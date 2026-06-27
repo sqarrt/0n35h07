@@ -1,0 +1,45 @@
+import type { TrackDescriptor } from './trackDescriptor'
+
+// Generation bias from the player's likes/dislikes. Each track contributes its discrete attributes
+// (mood, key, scale, and the style sound choices). A candidate value's weight multiplier compounds:
+// every favorite sharing it lifts the weight (toward CAP), every dislike sharing it lowers it (toward
+// FLOOR). A track close to disliked ones therefore compounds toward "rarely picked".
+const BOOST = 1.25     // per favorite sharing a value
+const PENALTY = 0.4    // per dislike sharing a value
+const FLOOR = 0.05     // a disliked value is never fully impossible (anti-repeat still composes on top)
+const CAP = 3          // a liked value is boosted but can't dominate
+
+export interface BiasProvider {
+  /** Weight multiplier for a categorical candidate (1 = neutral). */
+  weightFor(category: string, value: string): number
+}
+
+/** (category, value) pairs that define a track's comparable "vibe". */
+function pairs(d: TrackDescriptor): [string, string][] {
+  return [
+    ['mood', d.mood], ['key', d.key], ['scale', d.scaleName],
+    ['kick', d.style.kick], ['bass', d.style.bass], ['lead', d.style.lead],
+    ['bg', d.style.bg], ['perc', d.style.perc],
+  ]
+}
+const keyOf = (category: string, value: string) => `${category}|${value}`
+
+/** Build a bias provider from the favorites/dislikes lists. Empty lists → neutral (always 1). */
+export function buildBias(favorites: TrackDescriptor[], dislikes: TrackDescriptor[]): BiasProvider {
+  const fav = new Map<string, number>()
+  const dis = new Map<string, number>()
+  const tally = (list: TrackDescriptor[], into: Map<string, number>) => {
+    for (const d of list) for (const [c, v] of pairs(d)) { const k = keyOf(c, v); into.set(k, (into.get(k) ?? 0) + 1) }
+  }
+  tally(favorites, fav)
+  tally(dislikes, dis)
+  return {
+    weightFor(category, value) {
+      const k = keyOf(category, value)
+      const f = fav.get(k) ?? 0
+      const n = dis.get(k) ?? 0
+      if (f === 0 && n === 0) return 1
+      return Math.min(CAP, Math.max(FLOOR, Math.pow(BOOST, f) * Math.pow(PENALTY, n)))
+    },
+  }
+}
