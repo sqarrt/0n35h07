@@ -472,20 +472,18 @@ export class RadioComposer {
         layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
       // (1) A DIFFERENT lead — VARIED per track (so breaks differ track-to-track) but ALWAYS restful (the break's
-      //     job is to rest the ears): one of four — the atmoDyad ballad / a slow sparse chord arp / a sustained
-      //     pad opening via filter / sparse echoey stabs. All low, drowned in echo + a slow filter BLOOM
-      //     (development), distinct from the main lead and from the energetic parts. (No risers.)
+      //     job is to rest the ears): one of three — the atmoDyad ballad / a slow sparse chord arp / sparse
+      //     echoey stabs. All low, drowned in echo + a slow filter BLOOM (development), distinct from the main
+      //     lead and from the energetic parts. (No risers. The sustained attack(2)/release(6) PAD was cut — it
+      //     "wailed" unpleasantly.)
       const brkLpf = `.lpf(saw.range(500, 2000).slow(${n})${lateAlign})`
       const brkEcho = `.delaytime(${style.fx.delayTime}).delay(0.62).delayfeedback(0.72).room(0.6).roomsize(7)`
-      const brkVariant = createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`).int(4)
+      const brkVariant = createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`).int(3)
       if (brkVariant === 0) {
         const atmo = seqAligned(this.melody.atmoDyad({ leadOctave: this.config.leadOctave + 1, scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key) }, createRng(`${track.seed}:brk${pos}`)))
         layers.push(orbit(`note("${atmo}").s("${style.leadSound}")${brkLpf}.lpq(7).attack(0.02).dec(0.4)${brkEcho}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.2)})${exitDuck}`, ORBIT.lead))
       } else if (brkVariant === 1) {
         layers.push(orbit(`${this.arp(chord, style.stabSound)}.slow(2)${brkLpf}.lpq(5).dec(0.3)${brkEcho}.hpf(180).pan(sine.slow(5)).gain(${g(0.16)})${exitDuck}`, ORBIT.arp))
-      } else if (brkVariant === 2) {
-        const pcs = chord.notes.slice(0, 3).map((nn) => ((nn % 12) + 12) % 12 + 48)
-        layers.push(orbit(`note("[${pcs.join(',')}]").s("sawtooth").attack(2).release(6)${brkLpf}.lpq(3)${brkEcho}.pan(sine.slow(7)).gain(${g(0.18)})${exitDuck}`, ORBIT.pad))
       } else {
         const root = ((chord.notes[0] % 12) + 12) % 12 + 48
         layers.push(orbit(`note("${seqAligned([String(root), '~', '~', '~', String(root + 7), '~', '~', '~'])}").s("${style.stabSound}").dec(0.6)${brkLpf}.lpq(4)${brkEcho}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.2)})${exitDuck}`, ORBIT.lead))
