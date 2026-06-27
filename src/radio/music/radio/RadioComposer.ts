@@ -229,7 +229,9 @@ export class RadioComposer {
     // GLOBAL balance: level = MASTER × role-level × a gentle, UNIFORM section-energy envelope.
     // No drift.gain, no mood.density — so the balance can't shift track-to-track. energyEnv
     // scales every role together (intros softer, peaks fuller) WITHOUT changing their ratios.
-    const energyEnv = 0.74 + 0.26 * energy
+    // Raised floor (was 0.74 + 0.26·energy) so the low-energy sections (intro/break/outro) sit a bit LOUDER —
+    // they read as quiet without being too quiet; peaks (energy≈0.94) barely move.
+    const energyEnv = 0.83 + 0.17 * energy
     // LOUDNESS NORMALISATION — trim the parts in a FULL section so they don't pile up louder than the body
     // average (the KICK keeps its own energy curve as the steady reference). partSq = the combined non-kick
     // load; normScale brings an over-full section (a peak with perc stacked on) back toward a target. It only
