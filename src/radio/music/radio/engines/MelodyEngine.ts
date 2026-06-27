@@ -46,9 +46,11 @@ type El = '~' | number | number[]
 // All 18 archetypes are EQUALLY likely; anti-repeat picks a DIFFERENT one than the previous track.
 const ARCHETYPES: LeadVoiceId[] = [
   'arpDyad', 'atmoDyad', 'chordStab', 'lament', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
-  'leadingTone', 'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
+  'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
 ]
+// leadingTone (harmonic-minor raised-7th, ascending 0→5→6→7 drama) DROPPED from the pool — it read as too
+// melodic/uplifting in the live mix, against the dark vibe. (Its voice/pattern code stays but is unreachable.)
 // The break's job is to REST the ears → only the atmospheric/restful archetypes (no driving acid/stab/glitch).
 // The composer renders one of these through the break's low-gain, echo-drowned chain (a different lead than the
 // track's main one, by design).
