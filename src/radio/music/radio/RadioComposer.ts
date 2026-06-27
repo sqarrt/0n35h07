@@ -8,7 +8,7 @@ import { BassEngine } from './engines/BassEngine'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
 import { shapeFor, type SectionRole } from './arrangement'
-import type { PercKind, BgKind, BassArchetype } from './trackStyle'
+import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
@@ -274,10 +274,14 @@ export class RadioComposer {
     const lastBar = (x: string) => seqAligned([...Array(lastN).fill('~'), x])   // value only on the section's FINAL bar
     const firstBar = (x: string) => seqAligned([x, ...Array(lastN).fill('~')])  // value only on the section's FIRST bar
 
+    // The track's drum GROOVE kit (null = the original 4-floor техно, per-element style fields). A BREAK always
+    // reverts to a steady 4-floor kick regardless of kit, so it stays the calm anchor.
+    const drumKit = style.drumArchetype !== 'existing' ? DRUM_KITS[style.drumArchetype] : null
+
     // ── KICK ──
     if (shape.layers.kicks) {
       const deep = role === 'break' // steady, darker kick that holds the rest together
-      const base = mood.density < 0.5 || deep ? 'bd*4' : style.kickPat
+      const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
       let kickPat = base
       // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
       // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
@@ -286,9 +290,9 @@ export class RadioComposer {
       // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
       else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
       // Kick is the loud global reference (drives the whole balance). Composition-independent.
-      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0))
+      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0) + (!deep && drumKit?.shape ? drumKit.shape : 0))
       const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
-      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : mood.density < 0.5 ? '.lpf(2200)' : ''
+      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : drumKit?.lpf ?? (mood.density < 0.5 ? '.lpf(2200)' : '')
       // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
@@ -318,19 +322,23 @@ export class RadioComposer {
     if (shape.layers.perc) {
       // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
       // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
-      const hatPat = role === 'break' ? '[hh ~]*2' : style.hatPat
+      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
       const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
-      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
+      const swing = drumKit ? drumKit.swing : style.swing
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
       layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
-      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat.
+      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
+      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
       const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
-      // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs. In a break the snare
-      // is HALVED (a lighter rhythm) and ducks on the last bar.
-      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // peak-only claps on the backbeat (one extra layer, eased in — the ghost-snare layer was
-      // dropped to avoid stacking too many things at once).
+      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
+      layers.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
+      if (drumKit?.ghost && role !== 'break') layers.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
+      if (drumKit?.rim && role !== 'break') layers.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
+      // peak-only claps on the backbeat (one extra layer, eased in). The kit's clap pattern when present.
       if (peak) {
-        layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
+        layers.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
       // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
       // the kick + simple hats + halved snare are enough to keep the rest alive.
@@ -599,6 +607,19 @@ export class RadioComposer {
 }
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
+
+// Drum GROOVE kits (co-designed — docs/radio-part-archetypes.md). 1-BAR patterns so they fit the kick block's
+// fill-wrapping. The user's taste runs BROKEN/SYNCOPATED (amen/broken won) over straight 4-floor. `kick` = base
+// kick pattern; `hat`/`snare`/`clap` = those layers' patterns; `ghost` = an extra quiet snare layer (amen rattle);
+// `rim` = a dubby off-pulse (minimal); `shape`/`lpf` tweak the kick; `swing` the hats. (Drums MAY rest — no
+// no-silence rule here.) 'existing' (the original 4-floor techno) is NOT in this map — it keeps the per-element style fields.
+interface DrumKit { kick: string; shape?: number; lpf?: string; hat: string; snare: string; clap: string; ghost?: string; rim?: string; swing: number }
+const DRUM_KITS: Record<Exclude<DrumArchetype, 'existing'>, DrumKit> = {
+  amen: { kick: 'bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~', hat: 'hh*16', snare: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~', clap: '~ cp ~ cp', ghost: '~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~', swing: 0.06 },
+  industrial: { kick: 'bd*4', shape: 0.3, hat: 'white*16', snare: '~ cp ~ cp', clap: '~ cp ~ cp', swing: 0 },
+  broken: { kick: 'bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~', hat: 'hh*16', snare: '~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp', clap: '~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp', swing: 0.13 },
+  minimal: { kick: 'bd*4', lpf: '.lpf(2200)', hat: '~ hh ~ hh', snare: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', clap: '~ cp ~ cp', rim: '~ rim ~ rim', swing: 0 },
+}
 
 // Per-archetype bass CORE (the co-designed dark/electronic tournament winners — docs/radio-part-archetypes.md).
 // `off` = 16-step OFFSET pattern relative to the section root (0 = root, 6 = tritone…; no bare `~` — the BASS LAW
