@@ -3,14 +3,17 @@ import type { Chord } from '../theory'
 import { AntiRepeatBuffer } from '../AntiRepeatBuffer'
 import { weightedPick, type Weighted } from '../weighted'
 
-// A lead is (harmonic CONTENT) × (a rhythm DEVICE) — see docs/radio-leads-lessons.md (Switch Angel study).
-// We have raw Strudel (no notearp/trancegate/struct/acidenv helpers), so we EMULATE the devices directly in
-// the note pattern: 16-step driving cells (acid), arpeggiated dyads, and a per-bar GATE baked into the notes
-// (trance-gate). Content is written as SCALE DEGREES — tonic-anchored, mostly descending/returning, in-key.
+// A lead is (harmonic CONTENT) × (a rhythm/timbre DEVICE) — see docs/radio-leads-lessons.md +
+// docs/radio-lead-archetypes.md (the co-designed archetype set). The ENGINE only produces the note CONTENT
+// (absolute MIDI, no Strudel .scale()) + a `voice` tag; the COMPOSER renders the per-voice synth/FX chain.
 
-// motif holds the finished pattern string (inside note("…")), stable for a whole movement. `atmo` flags the
-// soulful "ballad" archetype so the composer applies its echo+bloom chain (not the acid squelch).
-export interface LeadMotif { pattern: string; atmo?: boolean }
+// `voice` selects the composer's synth+FX chain. Patterns are ABSOLUTE MIDI so no .scale() is needed downstream.
+export type LeadVoiceId =
+  | 'arpDyad' | 'atmoDyad' | 'chordStab' | 'lament' | 'callResponse' | 'octavePulse'
+  | 'bellMelody' | 'stutterStab' | 'leadingTone' | 'phrygianHalf' | 'doubleStop'
+  | 'glitchStorm' | 'tritone' | 'glassArp' | 'ghostVoice' | 'detunedDrift' | 'warpedBox' | 'crushBell'
+
+export interface LeadMotif { pattern: string; voice: LeadVoiceId }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }
 const REPHRASE = 999
 
@@ -19,29 +22,13 @@ export function initialLeadState(): LeadState { return { motif: null, phrasesLef
 export interface LeadOpts { rng: Rng; leadOctave: number; density: number; scale?: number[]; keyRoot?: number; anti?: AntiRepeatBuffer }
 
 const DEFAULT_SCALE = [0, 2, 3, 5, 7, 8, 10] // aeolian fallback
+// Modal colours imposed REGARDLESS of the track scale (these archetypes ARE their harmony):
+const HARM_MINOR = [0, 2, 3, 5, 7, 8, 11]    // leadingTone — the raised 7th pulls UP to the tonic
+const PHRYGIAN = [0, 1, 3, 5, 7, 8, 10]      // phrygianHalf — the b2 presses DOWN
 
-// ── Curated scale-degree figures (the "good melody pool"). Degrees are SCALE STEPS (0 = root, 7 = octave,
-//    9 = octave+3rd, …); negative = below the tonic. All ANCHORED on the tonic (0), mostly descending/returning.
-// Tight, tonic-anchored cells WITHIN an octave (no harsh octave+ leaps / high screamers — those sounded awful
-// on a wide supersaw). Mostly stepwise, returning home, with the odd note below the tonic; steps stay in -2..5.
-const ACID_CELLS = [
-  [0, 4, 0, 5, 0, 3, 2, 0],
-  [0, 0, 5, 3, 0, 2, 0, 0],
-  [0, 2, 3, 2, 0, -2, 0, 0],
-  [0, 5, 3, 0, 2, 0, 4, 0],
-  [0, 0, 3, 0, 4, 3, 2, 0],
-  [0, -2, 0, 3, 2, 0, 5, 0],
-]
+// Moving upper voices for the arpDyad (tonic-pedal + a moving scale tone, arpeggiated lo/hi).
 const DYAD_HIGHS = [
   [6, 7, 4, 8], [7, 5, 8, 4], [4, 6, 7, 5], [9, 7, 6, 8], [7, 4, 9, 7],
-]
-// Sparse anchored 8-step cells (rests = ~) for the pool-motif archetype — tight, hypnotic, return to 0.
-const MOTIF_CELLS = [
-  ['0', '~', '3', '0', '~', '0', '-2', '0'],
-  ['0', '~', '~', '7', '~', '5', '~', '0'],
-  ['0', '0', '~', '3', '~', '~', '-3', '0'],
-  ['0', '~', '5', '~', '4', '~', '0', '~'],
-  ['0', '~', '-2', '0', '~', '3', '~', '0'],
 ]
 // Sparse dyad "ballad" leads (atmoDyad) — held dyads [descending PEDAL, upper voice] with lots of SPACE; the
 // soulful FX (heavy echo + slow filter bloom) are applied by the caller. Each row = 8 bars, 1 element/bar, null
@@ -53,22 +40,43 @@ const ATMO_DYADS: (number[] | null)[][] = [
   [[-3, 2], null, [0, 4], null, null, [-5, 4], null, null],
   [[0, 4], null, null, [-3, 2], null, [0, 4], null, [-2, 2]],
 ]
-// Trance-gate rhythm masks (16 steps; x = open, ~ = closed) for the gated-phrase archetype.
-const GATE_MASKS = [
-  ['x', '~', 'x', 'x', '~', 'x', '~', 'x', 'x', '~', 'x', 'x', '~', 'x', '~', 'x'],
-  ['x', 'x', '~', 'x', '~', 'x', 'x', '~', 'x', 'x', '~', 'x', '~', 'x', 'x', '~'],
-  ['x', '~', '~', 'x', 'x', '~', 'x', '~', 'x', '~', '~', 'x', 'x', '~', 'x', '~'],
-  ['x', 'x', 'x', '~', 'x', 'x', '~', 'x', 'x', 'x', '~', 'x', 'x', '~', 'x', '~'],
+
+// A pattern ELEMENT: a rest, a single scale-step, or a stacked chord/dyad of scale-steps.
+type El = '~' | number | number[]
+// All 18 archetypes are EQUALLY likely; anti-repeat picks a DIFFERENT one than the previous track.
+const ARCHETYPES: LeadVoiceId[] = [
+  'arpDyad', 'atmoDyad', 'chordStab', 'lament', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
+  'leadingTone', 'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
+  'detunedDrift', 'warpedBox', 'crushBell',
 ]
 
-type Archetype = 'acidCell' | 'arpDyad' | 'gatedPhrase' | 'poolMotif' | 'atmoDyad'
-// acidCell (relentless 16th acid lines) is DROPPED from the pool — busy 16ths on a wide supersaw read as harsh
-// "disco"; the user prefers the spacious/soulful archetypes. The four here are EQUALLY likely (~25% each);
-// anti-repeat picks a DIFFERENT one than the prev track. (The acidCell code stays but is unreachable.)
-const ARCHETYPES: Archetype[] = ['arpDyad', 'gatedPhrase', 'poolMotif', 'atmoDyad']
+// 4-bar phrases (each bar = an El[]) and 16-step single lines (an El[]), as scale-DEGREE figures. The builder
+// maps degrees → absolute MIDI via the active `deg`. Chromatic archetypes pass their own modal `deg`.
+const PHRASES: Partial<Record<LeadVoiceId, El[][]>> = {
+  lament: [[6, '~', 4, '~', 3, '~', 2, '~'], ['~', 2, '~', 0, '~', -2, '~', '~'], [4, '~', '~', 3, 2, '~', 0, '~'], ['~', 0, '~', -3, '~', 0, '~', '~']],
+  callResponse: [[0, '~', 3, '~', 2, '~', 0, '~'], ['~', 0, '~', '~', '~', '~', '~', '~'], [5, '~', 7, '~', 5, '~', 3, '~'], ['~', 3, '~', 2, '~', 0, '~', '~']],
+  bellMelody: [[0, '~', '~', 3, '~', 2, '~', '~'], ['~', '~', 5, '~', 3, '~', 2, '~'], ['~', 0, '~', -2, '~', '~', 0, '~'], [3, '~', 2, '~', 0, '~', '~', '~']],
+  stutterStab: [[0, '~', 0, '~', 3, '~', 0, '~'], [0, '~', 3, '~', 2, '~', 0, '~'], [5, '~', 3, '~', 0, '~', 2, '~'], [3, '~', 0, '~', -2, '~', 0, '~']],
+  leadingTone: [[0, '~', 5, '~', 6, '~', 7, '~'], ['~', 5, '~', 3, '~', 2, '~', 0], [3, '~', 6, '~', 7, '~', 6, '~'], ['~', 5, '~', 2, '~', 0, '~', '~']],
+  phrygianHalf: [[0, '~', 1, '~', 0, '~', -2, '~'], ['~', -1, '~', -2, '~', 0, '~', 1], [2, '~', 1, '~', 0, '~', 1, '~'], ['~', 0, '~', -2, '~', 0, '~', '~']],
+  doubleStop: [[[0, 4], '~', [3, 7], '~', '~', '~', '~', '~'], [[2, 6], '~', [0, 4], '~', '~', '~', '~', '~'], [[5, 9], '~', [3, 7], '~', '~', '~', '~', '~'], [[0, 4], '~', '~', '~', '~', '~', '~', '~']],
+  tritone: [[0, '~', 4, '~', 3, '~', 2, '~'], ['~', '~', '~', '~', '~', '~', '~', '~'], [0, '~', 3, '~', '~', '~', 0, '~'], ['~', '~', '~', -2, '~', 0, '~', '~']],
+  ghostVoice: [[0, '~', '~', 3, '~', 2, '~', '~'], ['~', 0, '~', '~', -2, '~', 0, '~'], [3, '~', 2, '~', 0, '~', -3, '~'], ['~', 0, '~', '~', '~', '~', '~', '~']],
+  detunedDrift: [[0, '~', '~', -2, '~', '~', '~', '~'], [3, '~', '~', 0, '~', '~', '~', '~'], [-2, '~', '~', 0, '~', '~', '~', '~'], [0, '~', '~', '~', '~', '~', '~', '~']],
+  warpedBox: [[0, '~', 3, '~', 5, '~', 3, '~'], [2, '~', 0, '~', -2, '~', 0, '~'], [3, '~', 5, '~', 7, '~', 5, '~'], [3, '~', 2, '~', 0, '~', '~', '~']],
+  crushBell: [[0, '~', 3, '~', 0, '~', 5, '~'], [3, '~', 2, '~', 0, '~', -2, '~'], [5, '~', 3, '~', 7, '~', 5, '~'], [3, '~', 0, '~', 2, '~', 0, '~']],
+}
+const LINES: Partial<Record<LeadVoiceId, El[]>> = {
+  octavePulse: [0, '~', '~', 7, '~', 0, '~', '~', 0, '~', 7, '~', '~', 4, '~', 0],
+  glitchStorm: [0, 3, 7, 0, 2, 5, 0, 3, 0, 7, 2, 0, 5, 0, 3, 2],
+  glassArp: [0, 7, 3, 7, 5, 7, 0, 9, 3, 7, 5, 9, 7, 5, 3, 0],
+}
+// tritone needs the b5 (a chromatic note absent from any heptatonic mode) — its degrees are raw SEMITONE offsets
+// from the tonic, not scale steps. {0,1,3,5,6,7} → root, b2, b3, 4, b5(diabolus), 5.
+const TRITONE_SEMI = [0, 2, 3, 4, 6, 7] // index → semitones (deg 4 = 6 = the b5)
 
 export class MelodyEngine {
-  buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; atmo: boolean; state: LeadState } {
+  buildLead(_chord: Chord, opts: LeadOpts, state: LeadState): { fragment: string; voice: LeadVoiceId; state: LeadState } {
     let motif = state.motif
     let phrasesLeft = state.phrasesLeft
     if (!motif || phrasesLeft <= 0) {
@@ -76,7 +84,7 @@ export class MelodyEngine {
       phrasesLeft = REPHRASE
     }
     phrasesLeft--
-    return { fragment: `note("${motif.pattern}")`, atmo: !!motif.atmo, state: { motif, phrasesLeft } }
+    return { fragment: `note("${motif.pattern}")`, voice: motif.voice, state: { motif, phrasesLeft } }
   }
 
   /** A SPARSE dyad "ballad" lead (the soulful break lead): 8 BAR-ELEMENTS of held dyads [descending pedal,
@@ -85,60 +93,71 @@ export class MelodyEngine {
   atmoDyad(opts: { leadOctave: number; scale?: number[]; keyRoot?: number }, rng: Rng): string[] {
     const scale = opts.scale ?? DEFAULT_SCALE
     const base = (opts.keyRoot ?? 0) + 12 * (opts.leadOctave - 3)
-    const deg = (d: number): number => base + 12 * Math.floor(d / scale.length) + scale[((d % scale.length) + scale.length) % scale.length]
+    const deg = degFn(scale, base)
     const pat = ATMO_DYADS[rng.int(ATMO_DYADS.length)]
     return pat.map((el) => (el ? `[${deg(el[0])},${deg(el[1])}]` : '~'))
   }
 
-  /** Build one movement's lead pattern: pick an archetype (anti-repeat) and render it as a note string. */
+  /** Build one movement's lead pattern: pick an archetype (anti-repeat) and render it to absolute-MIDI note text. */
   private makeMotif(opts: LeadOpts): LeadMotif {
     const { rng } = opts
     const scale = opts.scale ?? DEFAULT_SCALE
     const base = (opts.keyRoot ?? 0) + 12 * (opts.leadOctave - 3)
-    // scale-step → midi (wraps octaves; negative steps go below the tonic, staying in-scale)
-    const deg = (d: number): number => {
-      const L = scale.length
-      return base + 12 * Math.floor(d / L) + scale[((d % L) + L) % L]
-    }
-    const arch = opts.anti ? (pickAnti(ARCHETYPES, rng, opts.anti, 'lead_arch')) : ARCHETYPES[rng.int(ARCHETYPES.length)]
+    const deg = degFn(scale, base)
+    const voice = opts.anti ? pickAnti(ARCHETYPES, rng, opts.anti, 'lead_arch') : ARCHETYPES[rng.int(ARCHETYPES.length)]
 
-    if (arch === 'atmoDyad') {
-      // the soulful "ballad": sparse held dyads (the composer applies the echo + slow-bloom chain via `atmo`)
+    // atmoDyad — the soulful ballad (sparse held dyads, 8 bars).
+    if (voice === 'atmoDyad') {
       const els = this.atmoDyad({ leadOctave: opts.leadOctave + 1, scale: opts.scale, keyRoot: opts.keyRoot }, rng)
-      return { pattern: `<${els.join(' ')}>`, atmo: true }
+      return { pattern: `<${els.join(' ')}>`, voice }
     }
-    if (arch === 'acidCell') {
-      // a driving 16th cell (0 4 0 9 7 family), root-anchored — the expression comes from the filter env.
-      const cell = ACID_CELLS[rng.int(ACID_CELLS.length)]
-      return { pattern: Array.from({ length: 16 }, (_, i) => String(deg(cell[i % cell.length]))).join(' ') }
-    }
-    if (arch === 'arpDyad') {
-      // dyads [tonic-pedal, moving scale tone] arpeggiated into 16ths: lo hi lo hi per beat.
+    // arpDyad — dyads [tonic-pedal, moving scale tone] arpeggiated into 16ths: lo hi lo hi per beat.
+    if (voice === 'arpDyad') {
       const highs = DYAD_HIGHS[rng.int(DYAD_HIGHS.length)]
       const lo = deg(0)
       const steps: string[] = []
       for (let b = 0; b < 4; b++) { const hi = deg(highs[b]); steps.push(String(lo), String(hi), String(lo), String(hi)) }
-      return { pattern: steps.join(' ') }
+      return { pattern: steps.join(' '), voice }
     }
-    if (arch === 'gatedPhrase') {
-      // a few held notes (one per bar) chopped by a 16-step gate baked per bar → a trance-gated lead.
-      const phrase = [0, rng.next() < 0.5 ? -3 : 2, rng.next() < 0.5 ? 0 : -5, 0]
-      const notes = phrase.map(deg)
-      if (rng.next() < 0.4) notes[1] += 1 // an occasional chromatic colour (#)
-      const mask = GATE_MASKS[rng.int(GATE_MASKS.length)]
-      const bars = notes.map((m) => `[${mask.map((g) => (g === 'x' ? String(m) : '~')).join(' ')}]`)
-      return { pattern: `<${bars.join(' ')}>` }
+    // chordStab — syncopated TRIADS [root, 3rd, moving top]; the top voice walks for melodic interest.
+    if (voice === 'chordStab') {
+      const tops: El[] = [7, '~', 10, 7, '~', 5, 7, '~', 12, '~', 7, 9, '~', 7, '~', '~']
+      const pat = tops.map((t) => (t === '~' ? '~' : `[${deg(0)},${deg(3)},${deg(t as number)}]`)).join(' ')
+      return { pattern: pat, voice }
     }
-    // poolMotif — a sparse, anchored 8-step cell with one chromatic colour note.
-    const cell = MOTIF_CELLS[rng.int(MOTIF_CELLS.length)]
-    const colourAt = rng.int(cell.length)
-    const steps = cell.map((t, i) => {
-      if (t === '~') return '~'
-      const m = deg(Number(t)) + (i === colourAt && rng.next() < 0.5 ? 1 : 0) // chromatic twist
-      return String(m)
-    })
-    return { pattern: steps.join(' ') }
+    // Chromatic/modal archetypes impose their OWN mode from the key root (independent of the track scale).
+    if (voice === 'leadingTone') return { pattern: phrase(PHRASES.leadingTone!, degFn(HARM_MINOR, base)), voice }
+    if (voice === 'phrygianHalf') return { pattern: phrase(PHRASES.phrygianHalf!, degFn(PHRYGIAN, base)), voice }
+    if (voice === 'tritone') return { pattern: phrase(PHRASES.tritone!, (d: number) => base + (TRITONE_SEMI[((d % TRITONE_SEMI.length) + TRITONE_SEMI.length) % TRITONE_SEMI.length] + 12 * Math.floor(d / TRITONE_SEMI.length))), voice }
+    // The remaining phrase- and line-based archetypes render straight off the track scale.
+    const ph = PHRASES[voice]
+    if (ph) return { pattern: phrase(ph, deg), voice }
+    const ln = LINES[voice]
+    if (ln) return { pattern: line(ln, deg), voice }
+    // Unreachable (every voice is handled) — fall back to a plain tonic pulse.
+    return { pattern: line(LINES.octavePulse!, deg), voice: 'octavePulse' }
   }
+}
+
+/** scale-step → midi (wraps octaves; negative steps go below the tonic, staying in the given mode). */
+function degFn(scale: number[], base: number): (d: number) => number {
+  const L = scale.length
+  return (d: number) => base + 12 * Math.floor(d / L) + scale[((d % L) + L) % L]
+}
+
+/** Render one El to note text: rest, single step, or a stacked [a,b,…] chord/dyad. */
+function renderEl(el: El, deg: (d: number) => number): string {
+  if (el === '~') return '~'
+  if (Array.isArray(el)) return `[${el.map(deg).join(',')}]`
+  return String(deg(el))
+}
+/** A 4-bar phrase → `<[…] [.…] […] […]>` (one bar per cycle). */
+function phrase(bars: El[][], deg: (d: number) => number): string {
+  return `<${bars.map((bar) => `[${bar.map((el) => renderEl(el, deg)).join(' ')}]`).join(' ')}>`
+}
+/** A 16-step single-bar line → `a b ~ c …`. */
+function line(els: El[], deg: (d: number) => number): string {
+  return els.map((el) => renderEl(el, deg)).join(' ')
 }
 
 function pickAnti<T>(arr: readonly T[], rng: Rng, anti: AntiRepeatBuffer, cat: string): T {

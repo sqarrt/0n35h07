@@ -3,7 +3,7 @@ import type { RadioBanks } from './banks'
 import type { RadioConfig } from './radioConfig'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
-import { MelodyEngine, initialLeadState, type LeadState } from './engines/MelodyEngine'
+import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
 import { BassEngine } from './engines/BassEngine'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
@@ -426,20 +426,21 @@ export class RadioComposer {
       if (style.dropLead === 'arp' && !memory) {
         layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
-        const { fragment, atmo, state } = this.melody.buildLead(chord, {
+        const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
           scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
         }, this.lead)
         this.lead = state
-        if (atmo) {
-          // The soulful BALLAD chain ("space + echo + harmony = emotion"): NO acid squelch — sparse dyads weep
-          // through a slow filter bloom (leadLpf) + HEAVY echo (fb .7) + reverb; lpq 7 gives a vocal edge.
-          layers.push(orbit(`${fragment}${leadDev}${leadVoice}.lpq(7).attack(0.02).dec(0.4).delaytime(${style.fx.delayTime}).delay(0.6).delayfeedback(0.7).room(0.6).roomsize(7)${fatLead}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
-        } else {
-          // The acid chain — the EXPRESSION is the filter ENVELOPE + resonance (lesson #6), not loudness:
-          // acidenv + lpq 4 give the 303 squelch, the low level + capped ceiling keep it from piercing.
-          layers.push(orbit(`${fragment}${leadDev}${leadVoice}.acidenv(0.5).lpq(4).attack(0.012).dec(0.12)${fxFor(0.7, 1.2)}${fatLead}.asym("1:0.9").hpf(200).pan(sine.slow(6).range(0.25, 0.75)).gain(${g(leadLevel)})${leadEmph}.lpf(${leadLpf})`, ORBIT.lead))
-        }
+        // Render the picked archetype's synth+FX chain (LEAD_VOICES). `src` overrides the source (else the
+        // track voice); a timbre voice may bring its own `filt`; otherwise the shared entry-sweep filter eases
+        // it in (its ceiling raised for bright timbres). The composer owns level (loudness norm), pan and emphasis.
+        const spec = LEAD_VOICES[voice]
+        const src = spec.src ?? leadVoice
+        const target = Math.max(spec.ceil ?? 0, ceilCap)
+        const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
+        const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
+        const fat = spec.fat ? fatLead : ''
+        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
       }
     }
 
@@ -580,6 +581,34 @@ export class RadioComposer {
 }
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
+
+// Per-archetype synth+FX chain (the co-designed lead set — docs/radio-lead-archetypes.md). `src` overrides the
+// source (omit → use the track's voice); `fx` is the character chain; `filt` overrides the entry-sweep filter;
+// `ceil` raises the filter ceiling for bright timbres; `fat` adds the octave-down shadow; `lvl` scales the gain.
+interface LeadVoiceSpec { src?: string; fx: string; ceil?: number; fat?: boolean; filt?: string; lvl?: number }
+const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
+  // — existing —
+  arpDyad: { fx: '.acidenv(0.5).lpq(4).attack(0.012).dec(0.12).delay(0.13).delaytime(0.25).delayfeedback(0.3).room(0.5).roomsize(8).asym("1:0.9").hpf(200)', fat: true },
+  atmoDyad: { fx: '.lpq(7).attack(0.02).dec(0.4).delay(0.6).delaytime(0.375).delayfeedback(0.7).room(0.6).roomsize(7).hpf(180)', fat: true },
+  // — neutral (track voice) —
+  chordStab: { fx: '.lpq(5).dec(0.16).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.4).roomsize(6)', ceil: 1700, lvl: 1.1 },
+  lament: { fx: '.lpq(6).attack(0.01).dec(0.22).delay(0.6).delaytime(0.375).delayfeedback(0.68).room(0.58).roomsize(7)', ceil: 1700, fat: true },
+  callResponse: { fx: '.lpq(6).attack(0.01).dec(0.2).delay(0.55).delaytime(0.375).delayfeedback(0.66).room(0.5).roomsize(7)', ceil: 1800, fat: true },
+  octavePulse: { fx: '.acidenv(0.55).lpq(9).dec(0.15).attack(0.005).delay(0.4).delaytime(0.1875).delayfeedback(0.52).room(0.4).roomsize(6)', ceil: 2000, fat: true },
+  doubleStop: { fx: '.lpq(5).attack(0.01).dec(0.32).delay(0.5).delaytime(0.375).delayfeedback(0.66).room(0.6).roomsize(7)', ceil: 1700 },
+  leadingTone: { fx: '.lpq(6).attack(0.01).dec(0.2).delay(0.55).delaytime(0.375).delayfeedback(0.66).room(0.55).roomsize(7)', ceil: 2400, fat: true },
+  phrygianHalf: { src: '.s("square")', fx: '.lpq(7).attack(0.01).dec(0.18).delay(0.5).delaytime(0.375).delayfeedback(0.64).room(0.52).roomsize(7)', ceil: 1900, fat: true },
+  tritone: { fx: '.lpq(7).attack(0.01).dec(0.2).delay(0.5).delaytime(0.375).delayfeedback(0.64).room(0.55).roomsize(7)', ceil: 1900, fat: true },
+  // — dictated timbres —
+  bellMelody: { src: '.s("sine").fm(2.5).fmh("<2 1.5 3 2>").attack(0.004).decay(0.55)', fx: '.lpq(2).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.7).roomsize(8)', ceil: 2400 },
+  glassArp: { src: '.s("sine").fm(1.6).fmh("<2 3 2 4>").attack(0.002).decay(0.16)', fx: '.lpq(2).delay(0.5).delaytime(0.375).delayfeedback(0.66).room(0.78).roomsize(9)', ceil: 3600, lvl: 0.85 },
+  ghostVoice: { src: '.s("sawtooth").vowel("<a e o aa>")', fx: '.lpq(2).attack(0.05).release(0.45).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.72).roomsize(8)', ceil: 2000 },
+  stutterStab: { src: '.s("square").ply("<1 1 2 1 3 1>")', fx: '.lpq(6).dec(0.11).attack(0.004).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.4).roomsize(6)', ceil: 1900, fat: true },
+  glitchStorm: { src: '.s("square").ply("<1 2 1 1 2 1 3 1>").degradeBy(0.25).sometimesBy(0.25, x => x.add(note(12))).distort("2.5:0.4")', fx: '.lpq(9).dec(0.07).delay(0.18).delaytime(0.125).delayfeedback(0.45).room(0.3).roomsize(5)', filt: '.lpf(perlin.range(500, 3000).fast(2))' },
+  detunedDrift: { src: '.s("supersaw").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6)', fx: '.lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8)', filt: '.lpf(saw.range(450, 1500).slow(8))', lvl: 0.95 },
+  warpedBox: { src: '.s("sine").fm(3).fmh(7).attack(0.001).decay(0.4).add(note(sine.range(-0.15, 0.15).slow(1.5))).crush(6)', fx: '.delay(0.3).delaytime(0.375).delayfeedback(0.5).room(0.72).roomsize(9)', filt: '.lpf(2600)' },
+  crushBell: { src: '.s("square").fm(2).fmh(4).attack(0.001).decay(0.2).crush(4).speed("<1 1 0.98 1>")', fx: '.delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.5).roomsize(7)', filt: '.lpf(3000)' },
+}
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
 
 // Per-track variation applied to a bg texture so a repeated kind never sounds identical (de-fingerprinting):
