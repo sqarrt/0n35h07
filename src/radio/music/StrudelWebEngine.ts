@@ -33,7 +33,7 @@ const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
 // The analyser taps the master AFTER the volume gain, so a quiet slider would starve the visualizer. The visualizer
 // must behave the SAME at any volume → normalise readings to a fixed reference level (≈ a comfortable mid-low volume),
 // capping the boost so a near-zero slider doesn't amplify the noise floor.
-const VIS_REF_LEVEL = 0.06
+const VIS_REF_LEVEL = 0.03
 const VIS_MAX_GAIN = 5
 const VIS_MIN_VOLUME = 0.03
 /** RMS level 0..1 from an analyser (time domain). */
