@@ -12,15 +12,19 @@ export async function migrateProfileToLibrary(
 ): Promise<boolean> {
   if (await lib.hasMarker(MARKER)) return false
   for (const f of favorites) {
-    const sections = f.baked?.sections ?? bake(f.seed, f.index)
-    if (!sections.length) continue
-    const name = f.baked?.name ?? `${f.mood} ${f.bpm}`
-    const payload: TrackPayload = {
-      v: 1, seed: f.seed, index: f.index, name,
-      mood: f.mood, key: f.key, scaleName: f.scaleName, bpm: f.bpm, style: f.style,
-      baked: { name, sections },
-    }
-    await lib.saveTrack('', payload)
+    // Per-favorite isolation: one bad bake/save must NOT abort the loop (it would leave the marker unset → the whole
+    // migration re-runs next launch and DUPLICATES every already-saved favorite).
+    try {
+      const sections = f.baked?.sections ?? bake(f.seed, f.index)
+      if (!sections.length) continue
+      const name = f.baked?.name ?? `${f.mood} ${f.bpm}`
+      const payload: TrackPayload = {
+        v: 1, seed: f.seed, index: f.index, name,
+        mood: f.mood, key: f.key, scaleName: f.scaleName, bpm: f.bpm, style: f.style,
+        baked: { name, sections },
+      }
+      await lib.saveTrack('', payload)
+    } catch { /* skip this favorite, keep migrating the rest */ }
   }
   await lib.setMarker(MARKER)
   return true

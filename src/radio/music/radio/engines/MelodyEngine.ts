@@ -2,6 +2,7 @@ import type { Rng } from '../../seededRandom'
 import type { Chord } from '../theory'
 import { AntiRepeatBuffer } from '../AntiRepeatBuffer'
 import { weightedPick, type Weighted } from '../weighted'
+import { rotate } from '../seqDisguise'
 
 // A lead is (harmonic CONTENT) × (a rhythm/timbre DEVICE) — see docs/radio-leads-lessons.md +
 // docs/radio-lead-archetypes.md (the co-designed archetype set). The ENGINE only produces the note CONTENT
@@ -181,7 +182,7 @@ export class MelodyEngine {
 
 // ── Phrase DISGUISE (kills cross-track recognizability) — seeded recombination + rotation of the authored cells,
 //    all at the DEGREE level so it stays diatonic. Same notes, re-shaped contour → you stop recognizing the source.
-function rotate<T>(a: T[], k: number): T[] { const n = a.length; if (n === 0) return a; k = ((k % n) + n) % n; return a.slice(k).concat(a.slice(0, k)) }
+//    (rotate<T> is shared from seqDisguise.)
 
 /** Disguise a 4-bar phrase: always re-phase the figure within each bar; sometimes reorder/swap whole bars. */
 function transformPhrase(bars: El[][], rng: Rng): El[][] {

@@ -1,6 +1,6 @@
 import type { Rng } from '../seededRandom'
 
-function rotate<T>(a: T[], k: number): T[] { const n = a.length; if (n === 0) return a; k = ((k % n) + n) % n; return a.slice(k).concat(a.slice(0, k)) }
+export function rotate<T>(a: T[], k: number): T[] { const n = a.length; if (n === 0) return a; k = ((k % n) + n) % n; return a.slice(k).concat(a.slice(0, k)) }
 
 /**
  * Disguise a step-sequence pattern (space-separated tokens, with `_` holds and `~` rests) by reordering its NOTE

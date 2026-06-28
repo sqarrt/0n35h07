@@ -43,8 +43,10 @@ export function trackId(seed: string, index: number): string { return `${seed}:$
 
 function join(dir: string, name: string): string { return dir ? `${dir}/${name}` : name }
 function sanitizeName(name: string): string {
-  // strip path separators / illegal filename chars so a track name can't escape its folder
-  return name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'track'
+  // strip path separators / illegal filename chars so a track name can't escape its folder; ALSO strip leading
+  // '_' / '.' — listDir treats those as hidden control files, so such a name would make the entry vanish.
+  const cleaned = name.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/^[._]+/, '').trim()
+  return cleaned || 'track'
 }
 
 export class RadioLibrary {
@@ -68,9 +70,15 @@ export class RadioLibrary {
     return [...folders.sort(byName), ...tracks.sort(byName)]
   }
 
-  /** Read + parse a track file. */
+  /** Read + parse + VALIDATE a track file. Throws on a corrupt / hand-edited / wrong-shaped file so callers can
+   *  skip it instead of feeding an undefined `baked` into the player (which would crash the radio loop). */
   async readTrack(path: string): Promise<TrackPayload> {
-    return JSON.parse(await this.fs.readTextFile(path)) as TrackPayload
+    const d = JSON.parse(await this.fs.readTextFile(path)) as TrackPayload
+    if (!d || typeof d.seed !== 'string' || typeof d.index !== 'number'
+      || !d.baked || !Array.isArray(d.baked.sections) || d.baked.sections.length === 0) {
+      throw new Error(`invalid track file: ${path}`)
+    }
+    return d
   }
 
   /** Write a track into `folder` as `<name>.json`; a name collision gets a ` (2)`/`(3)` suffix. Returns the path. */

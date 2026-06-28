@@ -29,6 +29,7 @@ export function RadioVisualizer({ engine, active, mode }: RadioVisualizerProps) 
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
+    if (!active) { ctx.clearRect(0, 0, canvas.width, canvas.height); return } // minimized/off → don't burn a 60fps rAF loop
     let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2
     const bands = new Float32Array(BANDS), sm = new Float32Array(BANDS)
     let raf = 0, phase = 0, lvl = 0, bassEnv = 0, impulse = 0, frame = 0

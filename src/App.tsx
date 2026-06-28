@@ -287,13 +287,13 @@ export default function App() {
         // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
         const fsmod = await import('./radio/library/tauriFs')
         const lib = fsmod.createRadioLibrary()
-        if (lib) { try {
-          await lib.ensureRoot()
-          // one-time migration of the old localStorage favorites → on-disk track files
-          const { migrateProfileToLibrary } = await import('./radio/library/migrate')
-          await migrateProfileToLibrary(lib, profile.favorites, (s, i) => ctrl.bake(s, i))
-          setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs())
-        } catch { /* fs unavailable */ } }
+        if (lib) {
+          // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
+          // must not leave the whole library UI absent for the session).
+          try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
+          // one-time migration of the old localStorage favorites → on-disk track files (best-effort, isolated)
+          try { const { migrateProfileToLibrary } = await import('./radio/library/migrate'); await migrateProfileToLibrary(lib, profile.favorites, (s, i) => ctrl.bake(s, i)) } catch { /* migration failed — new saves still work */ }
+        }
       }
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
       // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
@@ -365,7 +365,9 @@ export default function App() {
     if (!radioEngine) return
     // Radio is louder than the menu music; scale its level down so it doesn't pin the orb glow at max (then it
     // visibly reacts). Beat detection reads the bands (unscaled), so it's unaffected.
-    const RADIO_LEVEL_SCALE = 0.6
+    // readLevel() is now volume-normalised to VIS_REF_LEVEL (~0.03), ~20x smaller than the old raw RMS; compensate
+    // here so the menu's audio-reactive glow keeps pulsing to the radio at the same magnitude as before.
+    const RADIO_LEVEL_SCALE = 12
     const offL = audioAnalysis.addReader(() => radioEngine.readLevel() * RADIO_LEVEL_SCALE)
     const offB = audioAnalysis.addBandReader(out => radioEngine.readBands(out))
     return () => { offL(); offB() }
@@ -655,13 +657,18 @@ export default function App() {
   // --- Radio player controls (desktop). Two sources: the live generative stream ('gen'/Эфир) and a library
   //     FOLDER QUEUE ('fav') of baked tracks, played in order and looping. ---
   const payloadDesc = (p: TrackPayload): TrackDescriptor => ({ seed: p.seed, index: p.index, mood: p.mood, key: p.key, scaleName: p.scaleName, bpm: p.bpm, style: p.style })
+  // Play a queue track: use its frozen render if valid, else REGENERATE deterministically from the seed (a missing/
+  // empty baked would crash the scheduler and kill the radio for the session).
+  const playQueueTrack = (p: TrackPayload) => {
+    if (p.baked?.sections?.length) radioController?.playBaked(payloadDesc(p), p.baked)
+    else radioController?.playTrack(p.seed, p.index)
+  }
   const playQueueAt = (i: number) => {
     const { q } = radioQueueRef.current
     if (!q.length) return
     const idx = ((i % q.length) + q.length) % q.length
     radioQueueRef.current.i = idx
-    const p = q[idx]
-    radioController?.playBaked(payloadDesc(p), p.baked)
+    playQueueTrack(q[idx])
     if (!profile.radioEnabled) handleToggleRadio()
   }
   // The explorer plays a track (or a whole folder): the folder's baked tracks become the queue.
@@ -709,9 +716,9 @@ export default function App() {
       if (!q.length) return
       const idx = (i + 1) % q.length
       radioQueueRef.current.i = idx
-      const p = q[idx]
-      radioController?.playBaked({ seed: p.seed, index: p.index, mood: p.mood, key: p.key, scaleName: p.scaleName, bpm: p.bpm, style: p.style }, p.baked)
+      playQueueTrack(q[idx])
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radioController])
 
   // A baked favorite carries its FROZEN name (state.name); a live track derives one. Never re-derive a baked name.

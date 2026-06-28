@@ -403,7 +403,9 @@ export class RadioComposer {
         const v = BASS_VOICES[style.bassArchetype]
         const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
         // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
-        const off = disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
+        // SKIP voices carrying a positional .gain("…") accent pattern — reordering the notes would mis-align the
+        // (un-reordered) per-step accents with the pitches.
+        const off = /\.gain\("/.test(v.fx) ? v.off : disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
         bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
       }
       // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read

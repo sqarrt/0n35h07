@@ -45,6 +45,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
   const [copied, setCopied] = useState(false) // brief ✓ flash after clicking the address bar to copy the path
   const [viz, setViz] = useState<VizMode>(() => { const v = localStorage.getItem('radio.viz') as VizMode | null; return v && VIZ_MODES.includes(v) ? v : 'auto' })
   const gridRef = useRef<HTMLDivElement>(null)
+  const renameCancel = useRef(false) // set by Escape so the rename input's blur doesn't commit the edit
   const refresh = () => setBump((b) => b + 1)
   const clearSel = () => { setSel(new Set()); setAnchor(null) }
   const cycleViz = () => setViz((v) => { const next = VIZ_MODES[(VIZ_MODES.indexOf(v) + 1) % VIZ_MODES.length]; try { localStorage.setItem('radio.viz', next) } catch { /* private mode */ } return next })
@@ -66,7 +67,8 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
   const tracks = entries.filter((e) => e.kind === 'track')
   const ordered = [...folders, ...tracks]
   const dirName = path ? path.slice(path.lastIndexOf('/') + 1) : t.radioLibrary
-  const absPath = rootAbsPath + (path ? '\\' + path.replace(/\//g, '\\') : '')
+  const sep = rootAbsPath.includes('\\') ? '\\' : '/' // match the OS separator of the Tauri-provided root (win vs *nix)
+  const absPath = rootAbsPath + (path ? sep + path.replace(/\//g, sep) : '')
 
   const toFiles = (p: string) => { setPath(p); clearSel() }
   const navInto = (folder: string) => { setHist((h) => [...h, path]); toFiles(folder) }
@@ -74,24 +76,30 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
   const goBack = () => { if (!hist.length) return; setPath(hist[hist.length - 1]); setHist(hist.slice(0, -1)); clearSel() }
   const goHome = () => { setHist((h) => (path ? [...h, path] : h)); toFiles('') }
 
+  // Read every track in a folder, but DON'T let one corrupt/hand-edited sibling abort the whole folder (filtered out).
+  async function readMany(entriesIn: LibEntry[]): Promise<{ path: string; p: TrackPayload }[]> {
+    const read = await Promise.all(entriesIn.map(async (e) => { try { return { path: e.path, p: await lib.readTrack(e.path) } } catch { return null } }))
+    return read.filter((x): x is { path: string; p: TrackPayload } => x !== null)
+  }
   async function playTrack(file: string) {
-    const payloads = await Promise.all(tracks.map((e) => lib.readTrack(e.path)))
-    const idx = tracks.findIndex((e) => e.path === file)
-    if (idx >= 0) onPlay(payloads, idx)
+    const ok = await readMany(tracks)
+    const idx = ok.findIndex((x) => x.path === file)
+    if (idx >= 0) onPlay(ok.map((x) => x.p), idx)
   }
   async function playFolder(folder: string) {
     const inside = (await lib.listDir(folder)).filter((e) => e.kind === 'track')
-    const payloads = await Promise.all(inside.map((e) => lib.readTrack(e.path)))
-    if (payloads.length) onPlay(payloads, 0)
+    const ok = await readMany(inside)
+    if (ok.length) onPlay(ok.map((x) => x.p), 0)
   }
   const openEntry = (e: LibEntry) => { if (e.kind === 'folder') navInto(e.path); else void playTrack(e.path) }
 
   async function doNewFolder() { await lib.makeFolder(path, t.radioCtxNewFolder); refresh() }
   async function doDeleteSel() { for (const e of entries.filter((x) => sel.has(x.path))) await lib.deleteTrack(e.path, e.kind === 'folder'); clearSel(); refresh() }
   function doCopySel() { setClip(tracks.filter((e) => sel.has(e.path)).map((e) => e.path)) }
-  async function doPaste() { for (const src of clip) { const p = await lib.readTrack(src); await lib.saveTrack(path, p) } refresh() }
+  async function doPaste() { for (const src of clip) { try { const p = await lib.readTrack(src); await lib.saveTrack(path, p) } catch { /* source gone / bad */ } } refresh() }
   async function commitRename(e: LibEntry, name: string) {
     setRenaming(null)
+    if (renameCancel.current) { renameCancel.current = false; return } // Escape cancelled — don't commit the (blurred) edit
     if (name.trim() && name !== e.name) { await lib.rename(e.path, name.trim()); refresh() }
   }
 
@@ -110,6 +118,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
   // keyboard shortcuts (the ones shown in the context menu): F2 rename, Del delete, Ctrl+C copy, Ctrl+V paste
   useEffect(() => {
     const onKey = (ev: globalThis.KeyboardEvent) => {
+      if (hidden) return // minimized: the explorer is non-interactive — don't let Del wipe the selection from the page body
       const tag = (ev.target as HTMLElement | null)?.tagName
       if (renaming || tag === 'INPUT' || tag === 'TEXTAREA') return
       if (ev.key === 'F2' && sel.size === 1) { ev.preventDefault(); setRenaming([...sel][0]) }
@@ -120,12 +129,14 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, clip, renaming, entries, path])
+  }, [sel, clip, renaming, entries, path, hidden])
 
   function onDragStartTrack(ev: DragEvent, e: LibEntry) {
-    const paths = sel.has(e.path) ? [...sel] : [e.path]
     if (!sel.has(e.path)) { setSel(new Set([e.path])); setAnchor(e.path) }
-    ev.dataTransfer.setData(DT_MOVE, JSON.stringify(paths))
+    // ONLY tracks move via DT_MOVE — folders go through moveTrack which would corrupt a directory into "name.json".
+    const trackPaths = new Set(tracks.map((t) => t.path))
+    const paths = (sel.has(e.path) ? [...sel] : [e.path]).filter((p) => trackPaths.has(p))
+    ev.dataTransfer.setData(DT_MOVE, JSON.stringify(paths.length ? paths : [e.path]))
     ev.dataTransfer.effectAllowed = 'copyMove'
   }
   function onDropTo(ev: DragEvent, folder: string) {
@@ -206,7 +217,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
       {renaming === e.path
         ? <input className="rexp-rename" autoFocus defaultValue={e.name}
             onBlur={(ev) => void commitRename(e, ev.target.value)}
-            onKeyDown={(ev: KeyboardEvent<HTMLInputElement>) => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur(); if (ev.key === 'Escape') setRenaming(null) }} />
+            onKeyDown={(ev: KeyboardEvent<HTMLInputElement>) => { if (ev.key === 'Enter') (ev.target as HTMLInputElement).blur(); if (ev.key === 'Escape') { renameCancel.current = true; (ev.target as HTMLInputElement).blur() } }} />
         : <div className="lbl">{e.name}</div>}
     </div>
   )
