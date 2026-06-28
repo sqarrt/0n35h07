@@ -679,6 +679,10 @@ const BASS_VOICES: Record<Exclude<BassArchetype, 'existing'>, BassVoice> = {
   chromaDescent: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51)', fx: '.lpq(6).distort("1.4:0.45").gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5")', drift: (n, la) => `.add(note(saw.range(0, -12).slow(${n})${la}))`, filt: (_n, la) => `.lpf(saw.range(200, 1100).slow(2)${la})` },
   pulseHorror: { off: '0*16', shove: '.add(note("<0 0 6 0>"))', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.6 1 0.5 0.8 0.5 1 0.5 0.7 0.6")', filt: () => '.lpf(perlin.range(220, 1700).fast(2))' },
   tritone: { off: '0 _ _ 6 _ _ 0 _ 6 _ 5 _ 4 _ 0 _', src: '.s("sine").fm(4).fmh(2.49)', fx: '.lpq(7).acidenv(0.45).distort("1.6:0.5")' },
+  // — library lessons (sub+timbre stack / wavetable / heavy diode drive / cycling FM). Our sub-sine is the weight;
+  //   these supply the CHARACTER layer on top, like the reference substk_* basses. —
+  wtFlute: { off: '0 _ _ 6 _ 0 _ _ 5 _ _ 4 _ 0 _ _', src: '.s("wt_flute").unison(2)', fx: '.wt(0).wtenv(0.7).acidenv(0.45).distort("4:0.5").dec(0.13).lpq(2).fm("<1 ~ ~ 2>")' },
+  wtDigital: { off: '0 _ 6 _ _ 0 _ 5 _ _ 4 _ _ 0 _ _', src: '.s("wt_digital").unison(2)', fx: '.wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4)' },
 }
 
 // Per-archetype synth+FX chain (the co-designed lead set — docs/radio-lead-archetypes.md). `src` overrides the
@@ -712,6 +716,9 @@ const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
   digitalChime: { src: '.s("sine").fm(2).fmh(2.01).attack(0.005).decay(0.5)', fx: '.delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9)', filt: '.lpf(3200)', lvl: 1.15 },
   rustString: { src: '.s("sawtooth").attack(0.04).release(1.2).add(note(perlin.range(-0.15, 0.15).slow(2))).crush(10).distort("1.1:0.2")', fx: '.lpq(3).delay(0.45).delaytime(0.5).delayfeedback(0.5).room(0.7).roomsize(10)', filt: '.lpf(1400)', lvl: 1.3 },
   digitalRain: { src: '.s("triangle").fm(1.5).fmh(2.0).attack(0.002).decay(0.3)', fx: '.delay(0.5).delaytime(0.1875).delayfeedback(0.65).room(0.7).roomsize(10)', filt: '.lpf(3000)', lvl: 1.15 },
+  // — PROCEDURAL random-walk leads (library lessons: acid-line + wavetable). Contour is generated fresh per track. —
+  genWalk: { src: '.s("supersaw").unison(3).detune(0.3)', fx: '.acidenv(0.5).lpq(8).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.45).roomsize(7)', ceil: 2400, fat: true },
+  genWeave: { src: '.s("wt_digital").unison(2).detune(0.2).wt(0).wtenv(0.5)', fx: '.acidenv(0.55).lpq(6).delay(0.4).delaytime(0.375).delayfeedback(0.55).room(0.6).roomsize(8)', ceil: 2200, lvl: 1.05 },
 }
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
 
