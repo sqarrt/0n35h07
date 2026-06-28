@@ -52,16 +52,21 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
       if (cw && ch && (canvas.width !== cw || canvas.height !== ch)) { canvas.width = cw; canvas.height = ch }
       W = canvas.width; H = canvas.height; cx = W / 2; cy = H / 2
       const on = !!engine?.isReady && active
-      if (on) { engine!.readBands(bands); lvl += (engine!.readLevel() - lvl) * 0.2 } else { bands.fill(0); lvl += (0 - lvl) * 0.05 }
-      for (let i = 0; i < BANDS; i++) sm[i] += (bands[i] - sm[i]) * 0.3
+      // readBands MAX-combines into out and never decays it — so it MUST be cleared each frame, else the bands
+      // pin at their running peak and the visual freezes into one constant loop (looks like a canned animation).
+      bands.fill(0)
+      if (on) { engine!.readBands(bands); lvl += (engine!.readLevel() - lvl) * 0.35 } else { lvl += (0 - lvl) * 0.06 }
+      // punchy attack, slower release → the ball "hits" on transients and eases back on calm passages
+      for (let i = 0; i < BANDS; i++) { const a = bands[i] > sm[i] ? 0.6 : 0.16; sm[i] += (bands[i] - sm[i]) * a }
       const bass = avg(sm, 0, 6), mid = avg(sm, 6, 15), high = avg(sm, 15, BANDS)
-      phase += 0.004 + mid * 0.03
+      const energy = bass + mid + high
+      phase += 0.003 + bass * 0.06 + mid * 0.04 + high * 0.025   // faster, more chaotic when energetic; near-still when calm
       // clean redraw each frame (no trail accumulation, no bloom) — crisp thin lines over the frosted glass
       ctx.clearRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'lighter'
-      const base = Math.min(W, H) * 0.16 * (0.55 + bass * 1.1 + lvl * 0.5)
-      const groups = [0.35 + bass * 1.3, 0.4 + mid * 1.5, 0.3 + high * 1.8]
-      SETS.forEach((s, i) => trace(s, base, phase * (0.15 + i * 0.05) + i, Math.min(1.4, groups[i])))
+      const base = Math.min(W, H) * 0.16 * (0.45 + bass * 1.6 + lvl * 0.7)
+      const groups = [0.28 + bass * 1.9, 0.3 + mid * 2.1, 0.24 + high * 2.4]
+      SETS.forEach((s, i) => trace(s, base, phase * (0.15 + i * 0.05) + i + energy * 0.5, Math.min(2.0, groups[i])))
     }
     draw()
     return () => cancelAnimationFrame(raf)
