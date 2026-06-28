@@ -100,3 +100,6 @@
 .rexp.hidden { opacity: 0; transform: translateY(14px) scale(.96); pointer-events: none; }
 .rexp-anim-in { animation: rexp-bar-in .2s cubic-bezier(.2,.8,.2,1); }
 @keyframes rexp-bar-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* rubber-band (marquee) selection — drag a box over empty grid space */
+.rexp-marquee { position: fixed; z-index: 200; border: 1px solid var(--accent); background: rgba(68,170,255,.14); border-radius: 2px; pointer-events: none; box-shadow: 0 0 12px rgba(68,170,255,.2); }

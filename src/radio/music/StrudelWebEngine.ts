@@ -40,7 +40,7 @@ const VIS_REF_LEVEL = 0.03
 const VIS_MAX_GAIN = 5
 const VIS_MIN_VOLUME = 0.03
 const VIS_MIN_DB = -85   // dB window (at full volume) the spectrum is mapped into; tune VIS_MAX_DB for band liveliness
-const VIS_MAX_DB = -18
+const VIS_MAX_DB = -24
 /** RMS level 0..1 from an analyser (time domain). */
 function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buf)

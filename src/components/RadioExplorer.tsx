@@ -1,4 +1,4 @@
-import { useEffect, useState, type DragEvent, type KeyboardEvent, type MouseEvent as ReactMouse } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent as ReactMouse } from 'react'
 import { useT } from '../i18n'
 import { RadioVisualizer } from './RadioVisualizer'
 import type { IStrudelEngine } from '../radio/music/IStrudelEngine'
@@ -45,6 +45,8 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   const [geo, setGeo] = useState(() => ({ x: Math.round(window.innerWidth / 2 - W0 / 2 + 170), y: Math.round(window.innerHeight * 0.44 - H0 / 2), w: W0, h: H0 }))
   const [win, setWin] = useState<'normal' | 'max'>('normal')
   const [live, setLive] = useState(false) // dragging/resizing → suspend the geometry transition (else the window lags the cursor)
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
   const refresh = () => setBump((b) => b + 1)
   const clearSel = () => { setSel(new Set()); setAnchor(null) }
 
@@ -136,7 +138,15 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
     const track = ev.dataTransfer.getData(DT_TRACK)
     const move = ev.dataTransfer.getData(DT_MOVE)
     if (track) { try { void lib.saveTrack(folder, JSON.parse(track) as TrackPayload).then(refresh) } catch { /* bad payload */ } }
-    else if (move) { try { const ps = (JSON.parse(move) as string[]).filter((p) => p !== folder && !p.startsWith(folder + '/')); void Promise.all(ps.map((p) => lib.moveTrack(p, folder))).then(refresh) } catch { /* bad list */ } }
+    else if (move) {
+      try {
+        const ps = (JSON.parse(move) as string[]).filter((p) => {
+          const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : ''
+          return parent !== folder && p !== folder && !folder.startsWith(p + '/') // skip same-folder / self / own-descendant
+        })
+        if (ps.length) void Promise.all(ps.map((p) => lib.moveTrack(p, folder))).then(refresh)
+      } catch { /* bad list */ }
+    }
   }
 
   type MItem = { label: string; k: string; acc?: string; danger?: boolean; dis?: boolean; act: () => void }
@@ -164,8 +174,29 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
     document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
   }
 
+  // Windows-style rubber-band: press on empty grid space and drag a box → selects every icon it touches.
+  function startMarquee(e: ReactMouse) {
+    if (trashMode || e.button !== 0 || (e.target as HTMLElement).closest('.rexp-it')) return
+    const x0 = e.clientX, y0 = e.clientY
+    const baseSel = e.ctrlKey || e.metaKey ? new Set(sel) : new Set<string>()
+    setSel(baseSel); setAnchor(null); setMarquee({ x0, y0, x1: x0, y1: y0 })
+    const onMove = (ev: globalThis.MouseEvent) => {
+      setMarquee({ x0, y0, x1: ev.clientX, y1: ev.clientY })
+      const grid = gridRef.current; if (!grid) return
+      const L = Math.min(x0, ev.clientX), R = Math.max(x0, ev.clientX), T = Math.min(y0, ev.clientY), B = Math.max(y0, ev.clientY)
+      const hit = new Set(baseSel)
+      grid.querySelectorAll<HTMLElement>('[data-path]').forEach((el) => {
+        const r = el.getBoundingClientRect()
+        if (!(r.right < L || r.left > R || r.bottom < T || r.top > B)) { const p = el.dataset.path; if (p) hit.add(p) }
+      })
+      setSel(hit)
+    }
+    const onUp = () => { setMarquee(null); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
+  }
+
   const renderItem = (e: LibEntry) => (
-    <div key={e.path} data-testid={`rexp-${e.kind}`}
+    <div key={e.path} data-testid={`rexp-${e.kind}`} data-path={e.path}
       className={`rexp-it${sel.has(e.path) ? ' sel' : ''}${dropFolder === e.path ? ' dropok' : ''}`}
       draggable={e.kind === 'track' && renaming !== e.path}
       onDragStart={(ev) => { if (e.kind === 'track') onDragStartTrack(ev, e) }}
@@ -213,7 +244,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
           <button className="rexp-tb home" onClick={goHome} aria-label={t.radioHome}>⌂</button>
         </div>
         <div className="rexp-addr"><div className="field" title={t.radioCtxCopy} onClick={() => void navigator.clipboard?.writeText(absPath)}>{absPath}</div></div>
-        <div className="rexp-grid" onClick={clearSel}
+        <div className="rexp-grid" ref={gridRef} onMouseDown={startMarquee}
           onDragOver={(ev) => { if (!trashMode) ev.preventDefault() }}
           onDrop={(ev) => { if (!trashMode) onDropTo(ev, path) }}>
           {trashMode ? trashItems.map(renderTrash) : <>{folders.map(renderItem)}{tracks.map(renderItem)}</>}
@@ -221,6 +252,13 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
         <div className="rexp-status">{count} {t.radioItems}{!trashMode && ` · ${folders.length} ${t.radioFolders}`}{sel.size > 1 && ` · ${sel.size} ✓`}</div>
         {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
       </div>
+
+      {marquee && !hidden && (
+        <div className="rexp-marquee" style={{
+          left: Math.min(marquee.x0, marquee.x1), top: Math.min(marquee.y0, marquee.y1),
+          width: Math.abs(marquee.x1 - marquee.x0), height: Math.abs(marquee.y1 - marquee.y0),
+        }} />
+      )}
 
       {!hidden && ctx && (
         <div className="rexp-ctx" style={{ left: Math.min(ctx.x, window.innerWidth - 220), top: ctx.y }} onPointerDown={(e) => e.stopPropagation()}>
