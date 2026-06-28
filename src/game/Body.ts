@@ -27,6 +27,16 @@ const _knock = new THREE.Vector3()   // scratch: normalized 3D knockback directi
  * Body only ACCUMULATES movement intent (desired) and caches the position from rb. The sphere mesh is
  * the visual, the hitbox is the combat raycast target with entityId. Shared by player and bots.
  */
+
+/** Movement-relevant Body state captured per tick for client prediction replay (and sent by the host as the
+ *  authoritative restore point). Value copy — no THREE objects, so it's safe to keep in the prediction log. */
+export interface BodyState {
+  pos: [number, number, number]; vy: number; grounded: boolean
+  airJumps: number; jumpHeld: boolean; prevJumpHeld: boolean
+  dashTimer: number; dashCooldown: number; knockTimer: number
+  velH: [number, number, number]
+}
+
 export class Body {
   readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)   // cache of rb.translation()
   private prevTickPos = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the previous tick (render interpolation)
@@ -101,6 +111,24 @@ export class Body {
 
   /** Teleport/init: collapse both snapshots to the live position so interpolation doesn't sweep across the jump. */
   resetTickPos() { this.curTickPos.copy(this.position); this.prevTickPos.copy(this.position) }
+
+  /** Snapshot the movement-relevant state for prediction replay (value copy — safe to keep across ticks). */
+  saveState(): BodyState {
+    return {
+      pos: [this.position.x, this.position.y, this.position.z], vy: this.velocityY, grounded: this.grounded,
+      airJumps: this.airJumps, jumpHeld: this.jumpHeld, prevJumpHeld: this.prevJumpHeld,
+      dashTimer: this.dashTimer, dashCooldown: this.dashCooldown, knockTimer: this.knockTimer,
+      velH: [this.velH.x, this.velH.y, this.velH.z],
+    }
+  }
+
+  /** Restore state before replaying inputs (re-seeds the position cache). */
+  restoreState(s: BodyState): void {
+    this.position.set(s.pos[0], s.pos[1], s.pos[2]); this.velocityY = s.vy; this.grounded = s.grounded
+    this.airJumps = s.airJumps; this.jumpHeld = s.jumpHeld; this.prevJumpHeld = s.prevJumpHeld
+    this.dashTimer = s.dashTimer; this.dashCooldown = s.dashCooldown; this.knockTimer = s.knockTimer
+    this.velH.set(s.velH[0], s.velH[1], s.velH[2])
+  }
 
   /** Desired horizontal velocity this frame (NOT integrated immediately — stepHorizontal accumulates it via velH). */
   move(worldDir: THREE.Vector3, _dt: number) {
