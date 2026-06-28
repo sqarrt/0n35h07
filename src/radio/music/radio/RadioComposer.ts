@@ -5,6 +5,7 @@ import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
 import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
 import { BassEngine } from './engines/BassEngine'
+import { rollMutations } from './MutationEngine'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
 import { shapeFor, type SectionRole } from './arrangement'
@@ -244,9 +245,9 @@ export class RadioComposer {
     // parts cohere — no dry bass under a wet lead. dFactor/rFactor = this part's share.
     const fx = style.fx
     const fxFor = (dFactor: number, rFactor: number): string => {
-      const dly = r2(Math.min(0.85, fx.delay * dFactor))
-      const rm = r2(Math.min(0.85, fx.room * rFactor))
-      return (dly > 0.02 ? `.delay(${dly}).delaytime(${fx.delayTime}).delayfeedback(${fx.delayFb})` : '')
+      const dly = r2(Math.min(0.85, fx.delay * dFactor * mut.delay))
+      const rm = r2(Math.min(0.85, fx.room * rFactor * mut.room))
+      return (dly > 0.02 ? `.delay(${dly}).delaytime(${fx.delayTime}).delayfeedback(${r2(Math.min(0.82, fx.delayFb * mut.delay))})` : '')
         + (rm > 0.02 ? `.room(${rm}).roomsize(${fx.roomSize})` : '')
     }
     // Bass riff is LOCKED per movement; the 2nd movement (after break) gets a new riff.
@@ -261,6 +262,8 @@ export class RadioComposer {
     const SHADOW_PROB = 0.6
     const shadowRng = createRng(`${track.seed}:shadow`)
     const bassShadow: 'A' | 'B' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'A' : 'B') : null
+    // Per-track MUTATIONS — 3-4 parameters nudged from default within safe bounds (uniqueness; see MutationEngine).
+    const mut = rollMutations(track.seed)
     // GUARDRAIL: a fixed-semitone interval on absolute notes makes parallel OUT-OF-KEY clashes (a fixed minor-3rd is
     // NOT the diatonic 3rd on most degrees → the "off sounds awful" regression). So the lead shadow is the
     // independent in-scale phrase (D) only; the third-canon (C) is parked until it's built diatonically (degree-based).
@@ -334,8 +337,8 @@ export class RadioComposer {
       // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
       const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
       const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
-      const swing = drumKit ? drumKit.swing : style.swing
-      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
+      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
       layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
       // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
       // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
@@ -375,7 +378,7 @@ export class RadioComposer {
         const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
         // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
         const aRng = createRng(`${track.seed}:aenv${pos}`)
-        const center = Math.min(0.6, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25)
+        const center = Math.min(0.6, Math.max(0.12, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25 + mut.acidenv))
         const amp = muffled ? 0.08 : 0.16
         const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
         const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
@@ -386,11 +389,12 @@ export class RadioComposer {
         else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
         const frag = this.bass.buildBass({
           rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
-          saturation: muffled ? 0.08 : 0.3 + mood.fx.saturation * 0.3, acidenv: acidenvExpr,
+          saturation: muffled ? 0.08 : r2((0.3 + mood.fx.saturation * 0.3) * mut.drive), acidenv: acidenvExpr,
+          dec: r2(0.16 * mut.env),
         })
-        const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
+        const fm = style.bassFm > 0 ? `.fm(${r2(style.bassFm * mut.fm)}).fmh(2)` : ''
         const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
-        const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
+        const wide = !muffled && style.bassSound === 'supersaw' ? `.unison(5).detune(${r2(0.5 * mut.width)})` : ''
         bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
       } else {
         // co-designed dark/electronic archetype, transposed onto the progression roots.
@@ -477,7 +481,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -493,7 +497,7 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        layers.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
       }
       // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
       // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.

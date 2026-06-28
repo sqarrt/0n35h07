@@ -15,7 +15,7 @@ export class BassEngine {
       rng: Rng; roots: number[]; sound: string
       // acidenv is the EXPRESSION placed inside .acidenv(...): a number string OR a
       // moving signal (e.g. "saw.range(.3,.6).slow(8)") so the squelch never sits still.
-      saturation: number; acidenv?: string; rest?: number; groove?: boolean[]
+      saturation: number; acidenv?: string; rest?: number; groove?: boolean[]; dec?: number
     },
   ): string {
     // The bass MUSCLE never goes silent while it's playing: EVERY step sounds (no '~').
@@ -38,7 +38,7 @@ export class BassEngine {
     // No .lpf here — the composer appends it (a number, or a swept signal in builds).
     return (
       `note("${offsets.join(' ')}").add(note("<${roots}>")).s("${opts.sound}")` +
-      `.acidenv(${acidenv}).lpq(9).attack(0.006).dec(0.16)` +
+      `.acidenv(${acidenv}).lpq(9).attack(0.006).dec(${opts.dec ?? 0.16})` +
       `.gain("${gains.join(' ')}")${sat}`
     )
   }
