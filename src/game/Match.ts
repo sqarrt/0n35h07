@@ -113,6 +113,7 @@ export class Match {
 
   // Rapier (via RapierBridge)
   private physicsWorld: PhysicsWorld | null = null
+  private stepFn: ((dt: number) => void) | null = null   // manual Rapier step (from useRapier, via RapierBridge)
   private kcc: Kcc | null = null
   private kccNoStep: Kcc | null = null   // no autostep — to recompute a frame where autostep lifted but didn't anchor
 
@@ -262,6 +263,12 @@ export class Match {
     this.kccNoStep = this.makeKcc(world, KCC_OFFSET, false)   // fallback KCC without autostep (anti-jitter for a false step)
   }
 
+  /** Rapier's manual step fn (from useRapier). The fixed-tick driver calls `step(FIXED_DT)` once per tick. */
+  setStep(fn: (dt: number) => void) { this.stepFn = fn }
+
+  /** Advance the physics world by one fixed step (no-op until the world/step is attached, e.g. unit tests). */
+  step(dt: number) { this.stepFn?.(dt) }
+
   /** Create and configure a KCC. offset — capsule↔world gap (numerical stability); autostep — whether to enable auto-step. */
   private makeKcc(world: PhysicsWorld, offset: number, autostep: boolean): Kcc {
     const kcc = world.createCharacterController(offset)
@@ -276,6 +283,7 @@ export class Match {
     return kcc
   }
   detachWorld() {
+    this.stepFn = null
     if (this.physicsWorld) {
       if (this.kcc) this.physicsWorld.removeCharacterController(this.kcc)
       if (this.kccNoStep) this.physicsWorld.removeCharacterController(this.kccNoStep)
