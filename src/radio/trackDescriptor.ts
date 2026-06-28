@@ -1,5 +1,5 @@
 // Compact, comparable identity of a generated track. A track is fully reproducible from {seed, index}
-// (deterministic RNG); the other fields are kept for the favorites UI labels and like/dislike biasing.
+// (deterministic RNG); the other fields are kept for the library/favorites labels.
 
 export interface TrackStyleId { kick: string; bass: string; lead: string; bg: string; perc: string }
 

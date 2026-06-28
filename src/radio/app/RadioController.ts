@@ -80,7 +80,7 @@ export class RadioController {
 
   get isRunning(): boolean { return this.running }
 
-  /** Compact identity of the track playing now (for like/dislike + favorites). */
+  /** Compact identity of the track playing now (for saving to the library). */
   currentTrack(): TrackDescriptor { return this.baked ? this.baked.desc : this.composer.descriptor() }
 
   // next/prev target relative to the AUDIBLE track, not composer.currentIndex() (which look-ahead-advances a
