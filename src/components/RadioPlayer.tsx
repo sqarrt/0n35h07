@@ -31,6 +31,11 @@ interface RadioPlayerProps {
   onPlayPause: () => void
   onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
   onRegen: () => void
+  trial?: { gensLeft: number; savesLeft: number } | null // free-trial remaining; null = unlimited/unresolved → no strip
+  genLimited?: boolean               // daily free generations spent → show the limit message
+  saveLimited?: boolean              // a save was just blocked → transient inline prompt
+  canRegen?: boolean                 // 🎲 enabled? (false at the gen limit)
+  onUnlock?: () => void              // open the Steam DLC store overlay
   libraryMin?: boolean               // the explorer is minimized → show a "LIBRARY" bar above the card (same as BACK)
   onRestoreLibrary?: () => void
   onVolume: (v: number) => void
@@ -73,6 +78,10 @@ const airBtn = (on: boolean): CSSProperties => ({
 })
 const volRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
 const volLabel: CSSProperties = { color: '#667', fontSize: '0.62rem', letterSpacing: '0.14em', flex: '0 0 auto' }
+// Free-trial strip + limit prompt (only shown on the trial; the player width stays fixed so nothing jumps).
+const trialRow: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2, paddingTop: 7, borderTop: '1px solid rgba(255,255,255,0.08)', color: 'var(--accent-dim)', fontSize: '0.66rem', letterSpacing: '0.06em' }
+const unlockBtn: CSSProperties = { appearance: 'none', cursor: 'pointer', flex: '0 0 auto', padding: '3px 10px', borderRadius: 8, border: '1px solid rgba(68,170,255,0.45)', background: 'rgba(68,170,255,0.12)', color: '#bcd', font: 'inherit', fontSize: '0.62rem', letterSpacing: '0.06em' }
+const limitMsg: CSSProperties = { textAlign: 'center', color: '#e9a', fontSize: '0.64rem', letterSpacing: '0.04em', marginTop: 2 }
 const backBtn: CSSProperties = {
   ...glassCard, appearance: 'none', cursor: 'pointer', padding: '9px 0',
   color: '#cdd', font: 'inherit', fontFamily: 'var(--ui-font)', fontSize: '0.74rem', letterSpacing: '0.16em', textAlign: 'center',
@@ -120,7 +129,8 @@ export function RadioPlayer(p: RadioPlayerProps) {
             {/* Air toggle (live generative stream) + new-seed die */}
             <div style={{ ...center, ...dim, gap: 8 }}>
               <button style={airBtn(p.mode === 'gen')} onClick={() => p.onMode('gen')} data-testid="radio-air">◉ {t.radioAir}</button>
-              <button style={smallBtn} onClick={p.onRegen} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
+              <button style={p.canRegen === false ? { ...smallBtn, opacity: 0.4, cursor: 'default' } : smallBtn}
+                onClick={p.onRegen} disabled={p.canRegen === false} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
             </div>
             {/* Volume (megaphone pictogram, not the word "Radio") */}
             <div style={volRow}>
@@ -129,6 +139,15 @@ export function RadioPlayer(p: RadioPlayerProps) {
                 value={Math.round(p.volume * 100)} aria-label="radio volume"
                 onChange={e => p.onVolume(Number(e.target.value) / 100)} style={{ flex: 1 }} />
             </div>
+            {/* Free-trial: remaining daily quota + an "Unlock Radio" CTA (only on the trial; hidden when owned/dev). */}
+            {p.trial && (
+              <div style={trialRow} data-testid="radio-trial">
+                <span>{t.radioFreeToday} · ⟳ {p.trial.gensLeft} · 💾 {p.trial.savesLeft}</span>
+                {p.onUnlock && <button style={unlockBtn} onClick={p.onUnlock} data-testid="radio-unlock">{t.radioUnlock}</button>}
+              </div>
+            )}
+            {p.genLimited && <div style={limitMsg} data-testid="radio-gen-limit">{t.radioGenLimit}</div>}
+            {p.saveLimited && <div style={limitMsg} data-testid="radio-save-limit">{t.radioSaveLimit}</div>}
           </>
         ) : (
           // Collapsed: only the transport (prev / play-pause / next).
