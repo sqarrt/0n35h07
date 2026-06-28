@@ -52,6 +52,14 @@ export function decideProfileSync(cloud: CloudBlob | null, localTs: number): Syn
   return { kind: 'noop' }
 }
 
+/** When ADOPTING the cloud profile, a stale machine must not "refund" the radio trial: for the SAME local day,
+ *  keep the HIGHER gens/saves of (adopted cloud, local). Different day / missing trial → adopted as-is. Pure. */
+export function mergeSameDayTrial(adopted: PlayerProfile, local: PlayerProfile): PlayerProfile {
+  const a = adopted.radioTrial, l = local.radioTrial
+  if (!a || !l || a.day !== l.day) return adopted
+  return { ...adopted, radioTrial: { day: a.day, gens: Math.max(a.gens, l.gens), saves: Math.max(a.saves, l.saves) } }
+}
+
 /** Upload the profile to the cloud and bump the local stamp. Fire-and-forget; no-op off-Steam. */
 export function pushProfileToCloud(profile: PlayerProfile, store: CloudStore = steamStore): void {
   const updatedAt = Date.now()
@@ -71,7 +79,7 @@ export async function syncProfileOnStartup(store: CloudStore = steamStore): Prom
   const raw = await withTimeout(store.read(CLOUD_FILE), READ_TIMEOUT_MS, null)
   const decision = decideProfileSync(parseCloudBlob(raw), localUpdatedAt())
   if (decision.kind === 'adopt') {
-    saveProfile(decision.profile)            // sanitize + persist locally
+    saveProfile(mergeSameDayTrial(decision.profile, loadProfile())) // adopt cloud, but keep the higher same-day trial counts
     setLocalUpdatedAt(decision.updatedAt)    // mark this version as our synced baseline
   } else if (decision.kind === 'push') {
     pushProfileToCloud(loadProfile(), store)

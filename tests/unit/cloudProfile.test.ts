@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { parseCloudBlob, decideProfileSync, pushProfileToCloud, type CloudBlob, type CloudStore } from '../../src/steam/cloudProfile'
+import { parseCloudBlob, decideProfileSync, pushProfileToCloud, mergeSameDayTrial, type CloudBlob, type CloudStore } from '../../src/steam/cloudProfile'
 import { loadProfile, type PlayerProfile } from '../../src/settings'
 
 const PROFILE: PlayerProfile = loadProfile()   // a valid, sanitized profile to embed
@@ -51,5 +51,24 @@ describe('pushProfileToCloud', () => {
     expect(parsed?.updatedAt).toBeGreaterThan(0)
     // local stamp now matches the uploaded blob → next boot would be a 'noop'
     expect(decideProfileSync(parsed, Number(localStorage.getItem('oneshot:profile:updatedAt')))).toEqual({ kind: 'noop' })
+  })
+})
+
+describe('mergeSameDayTrial — anti stale-machine reset', () => {
+  const prof = (over: Partial<PlayerProfile>): PlayerProfile => ({ ...loadProfile(), ...over })
+  it('keeps the MAX gens/saves for the same trial day', () => {
+    const local = prof({ radioTrial: { day: '2026-06-28', gens: 8, saves: 4 } })
+    const cloud = prof({ radioTrial: { day: '2026-06-28', gens: 3, saves: 1 } })
+    expect(mergeSameDayTrial(cloud, local).radioTrial).toEqual({ day: '2026-06-28', gens: 8, saves: 4 })
+  })
+  it('different day → adopted cloud trial as-is', () => {
+    const local = prof({ radioTrial: { day: '2026-06-27', gens: 8, saves: 4 } })
+    const cloud = prof({ radioTrial: { day: '2026-06-28', gens: 1, saves: 0 } })
+    expect(mergeSameDayTrial(cloud, local).radioTrial).toEqual({ day: '2026-06-28', gens: 1, saves: 0 })
+  })
+  it('missing trial on either side → adopted unchanged', () => {
+    const local = prof({ radioTrial: undefined })
+    const cloud = prof({ radioTrial: { day: '2026-06-28', gens: 2, saves: 1 } })
+    expect(mergeSameDayTrial(cloud, local).radioTrial).toEqual({ day: '2026-06-28', gens: 2, saves: 1 })
   })
 })
