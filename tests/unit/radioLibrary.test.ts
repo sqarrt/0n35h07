@@ -86,4 +86,22 @@ describe('RadioLibrary', () => {
     // the _trash.json control file must NOT appear in the listing
     expect((await lib.listDir('')).map((e) => e.name)).toEqual(['Keep'])
   })
+
+  it('renames a track and a folder (collision-safe)', async () => {
+    const lib = new RadioLibrary(memFs())
+    await lib.saveTrack('', mk('Old'))
+    expect(await lib.rename('Old.json', 'New')).toBe('New.json')
+    expect((await lib.listDir('')).map((e) => e.name)).toEqual(['New'])
+    const f = await lib.makeFolder('', 'F')
+    expect(await lib.rename(f, 'G')).toBe('G')
+    expect((await lib.listDir('')).map((e) => `${e.kind}:${e.name}`)).toEqual(['folder:G', 'track:New'])
+  })
+
+  it('deletes a folder recursively', async () => {
+    const lib = new RadioLibrary(memFs())
+    const f = await lib.makeFolder('', 'Box')
+    await lib.saveTrack(f, mk('Inside'))
+    await lib.deleteTrack(f, true)
+    expect(await lib.listDir('')).toEqual([])
+  })
 })

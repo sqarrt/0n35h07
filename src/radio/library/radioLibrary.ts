@@ -84,7 +84,18 @@ export class RadioLibrary {
     return path
   }
 
-  async deleteTrack(path: string): Promise<void> { await this.fs.remove(path) }
+  /** Delete a track file, or a folder (recursive: true). */
+  async deleteTrack(path: string, recursive = false): Promise<void> { await this.fs.remove(path, { recursive }) }
+
+  /** Rename a track/folder in place (collision-safe). Returns the new path. */
+  async rename(path: string, newName: string): Promise<string> {
+    const slash = path.lastIndexOf('/')
+    const parent = slash >= 0 ? path.slice(0, slash) : ''
+    const isTrack = path.endsWith(TRACK_EXT)
+    const dest = await this.freePath(parent, sanitizeName(newName), isTrack ? TRACK_EXT : '')
+    if (dest !== path) await this.fs.rename(path, dest)
+    return dest
+  }
 
   /** Create a subfolder (collision-safe). Returns its path. */
   async makeFolder(parent: string, name: string): Promise<string> {
