@@ -75,13 +75,13 @@
   background: linear-gradient(135deg, transparent 55%, var(--line) 55%, var(--line) 63%, transparent 63%, transparent 74%, var(--line) 74%, var(--line) 82%, transparent 82%); }
 .rexp-cass.dead { opacity: .45; filter: grayscale(.5); border-color: var(--muted); box-shadow: none; }
 
-/* minimized explorer — a liquid-glass bar above the player; click to restore */
+/* minimized explorer — same liquid-glass surface as the player's BACK button (just with a label); click to restore */
 .rexp-min { position: fixed; left: 50%; bottom: 326px; transform: translateX(-50%); z-index: 180; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 240px; max-width: 340px; padding: 10px 20px;
-  font-family: var(--ui-font); font-size: .76rem; letter-spacing: .14em; color: var(--accent-dim); text-transform: uppercase;
+  width: 300px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 9px 0;
+  font-family: var(--ui-font); font-size: .74rem; letter-spacing: .16em; color: #cdd; text-transform: uppercase;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  background: rgba(10,15,20,0.62); backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 30px rgba(0,0,0,.5), 0 0 18px rgba(68,170,255,.12); transition: color .15s, border-color .15s; }
-.rexp-min:hover { color: var(--accent); border-color: rgba(68,170,255,.42); }
-.rexp-min-ic { color: var(--accent); text-shadow: 0 0 8px rgba(68,170,255,.6); }
+  background: rgba(10, 15, 20, 0.55); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 40px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06); transition: color .15s; }
+.rexp-min:hover { color: #eef; }
+.rexp-min-ic { color: var(--accent-dim); }
