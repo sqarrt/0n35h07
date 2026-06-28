@@ -31,6 +31,8 @@ interface RadioPlayerProps {
   onPlayPause: () => void
   onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
   onRegen: () => void
+  libraryMin?: boolean               // the explorer is minimized → show a "LIBRARY" bar above the card (same as BACK)
+  onRestoreLibrary?: () => void
   onVolume: (v: number) => void
   onOpen: () => void
   onBack: () => void
@@ -98,6 +100,9 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
   return (
     <div className="radio-player-root" style={wrap(p.expanded)} data-testid="radio-player">
+      {p.expanded && p.libraryMin && (
+        <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">▣ {t.radioLibrary}</button>
+      )}
       <div style={card}>
         {/* Row 1 — track name (collapsed: click to open) */}
         <div style={title(!p.expanded)} title={p.trackName} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>

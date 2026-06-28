@@ -262,6 +262,7 @@ export default function App() {
   const [radioRoot, setRadioRoot] = useState('')
   const [radioReload, setRadioReload] = useState(0)
   const [radioTrashSig, setRadioTrashSig] = useState(0) // bumped on trash-bin double-click → opens the trash view
+  const [radioExpOpen, setRadioExpOpen] = useState(true) // explorer window shown? minimized → a LIBRARY bar over the player
   const radioQueueRef = useRef<{ q: TrackPayload[]; i: number }>({ q: [], i: 0 })
   const trashedRef = useRef<Set<string>>(new Set())
 
@@ -698,8 +699,17 @@ export default function App() {
   }
   // Trash = "never appears again": block the exact seed:index (persisted to _trash.json).
   const blockTrack = (id: string, name?: string) => { trashedRef.current.add(id); void radioLib?.trashAdd(id, name) }
-  const onTrashPlayer = (json: string) => { try { const p = JSON.parse(json) as TrackPayload; blockTrack(`${p.seed}:${p.index}`, p.name); if (playModeRef.current === 'gen') radioController?.next() } catch { /* bad payload */ } }
-  const onTrashFile = (file: string) => { void (async () => { if (!radioLib) return; try { const p = await radioLib.readTrack(file); blockTrack(`${p.seed}:${p.index}`, p.name); await radioLib.deleteTrack(file); setRadioReload(r => r + 1) } catch { /* gone */ } })() }
+  // Trashing the PLAYING track skips to the next; trashing a file (one or many — multi-select) blocks + deletes each.
+  const onTrashPlayer = (json: string) => { try { const p = JSON.parse(json) as TrackPayload; blockTrack(`${p.seed}:${p.index}`, p.name); radioNext() } catch { /* bad payload */ } }
+  const onTrashFile = (data: string) => { void (async () => {
+    if (!radioLib) return
+    let paths: string[]; try { paths = JSON.parse(data) as string[] } catch { paths = [data] }
+    const cur = radioMusicalState ? `${radioMusicalState.seed}:${radioMusicalState.trackIndex}` : null
+    let skip = false
+    for (const file of paths) { try { const p = await radioLib.readTrack(file); const id = `${p.seed}:${p.index}`; blockTrack(id, p.name); if (id === cur) skip = true; await radioLib.deleteTrack(file) } catch { /* gone */ } }
+    setRadioReload(r => r + 1)
+    if (skip) radioNext()
+  })() }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
   const radioRegen = () => {
     radioGestureRef.current = true
@@ -971,9 +981,10 @@ export default function App() {
           (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
         <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} trashSignal={radioTrashSig}
-          onPlay={onPlayLibrary} onRestore={(id) => trashedRef.current.delete(id)} engine={radioEngine} active={radioActive} />
+          onPlay={onPlayLibrary} onRestore={(id) => trashedRef.current.delete(id)} onMinimize={() => setRadioExpOpen(false)}
+          hidden={!radioExpOpen} engine={radioEngine} active={radioActive} />
       )}
-      {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} onOpen={() => setRadioTrashSig(s => s + 1)} />}
+      {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} onOpen={() => { setRadioExpOpen(true); setRadioTrashSig(s => s + 1) }} />}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
 
       {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).
@@ -993,6 +1004,8 @@ export default function App() {
           onPlayPause={handleToggleRadio}
           onDragTrack={currentTrackJSON}
           onRegen={radioRegen}
+          libraryMin={screen === 'radio' && !radioExpOpen && !!radioLib}
+          onRestoreLibrary={() => setRadioExpOpen(true)}
           onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
           onOpen={handleRadio}
           onBack={() => setScreen('menu')}

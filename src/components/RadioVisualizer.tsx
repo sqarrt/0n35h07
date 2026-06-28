@@ -23,7 +23,7 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
-    const W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2
+    let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2
     const bands = new Float32Array(BANDS)
     const sm = new Float32Array(BANDS)
     let raf = 0, phase = 0, lvl = 0
@@ -47,14 +47,19 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
 
     const draw = () => {
       raf = requestAnimationFrame(draw)
+      // keep the drawing buffer 1:1 with the displayed size → the oscilloscope never stretches with the window
+      const cw = canvas.clientWidth, ch = canvas.clientHeight
+      if (cw && ch && (canvas.width !== cw || canvas.height !== ch)) { canvas.width = cw; canvas.height = ch }
+      W = canvas.width; H = canvas.height; cx = W / 2; cy = H / 2
       const on = !!engine?.isReady && active
       if (on) { engine!.readBands(bands); lvl += (engine!.readLevel() - lvl) * 0.2 } else { bands.fill(0); lvl += (0 - lvl) * 0.05 }
       for (let i = 0; i < BANDS; i++) sm[i] += (bands[i] - sm[i]) * 0.3
       const bass = avg(sm, 0, 6), mid = avg(sm, 6, 15), high = avg(sm, 15, BANDS)
       phase += 0.004 + mid * 0.03
-      // motion-trail decay (instead of a hard clear) → the loops smear into a glowing afterimage
-      ctx.globalCompositeOperation = 'source-over'
-      ctx.fillStyle = 'rgba(5,7,11,0.26)'; ctx.fillRect(0, 0, W, H)
+      // motion-trail decay that fades prior frames toward TRANSPARENT (not dark) — keeps the canvas see-through so
+      // the window's frosted-glass surface (and the game behind it) shows through; only the glowing lines persist.
+      ctx.globalCompositeOperation = 'destination-out'
+      ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'lighter'
       const base = Math.min(W, H) * 0.16 * (0.55 + bass * 1.1 + lvl * 0.5)
       const groups = [0.35 + bass * 1.3, 0.4 + mid * 1.5, 0.3 + high * 1.8]
