@@ -164,12 +164,39 @@ export class MelodyEngine {
     if (voice === 'leadingTone') return phrase(PHRASES.leadingTone!, degFn(HARM_MINOR, base))
     if (voice === 'phrygianHalf') return phrase(PHRASES.phrygianHalf!, degFn(PHRYGIAN, base))
     if (voice === 'tritone') return phrase(PHRASES.tritone!, (d: number) => base + (TRITONE_SEMI[((d % TRITONE_SEMI.length) + TRITONE_SEMI.length) % TRITONE_SEMI.length] + 12 * Math.floor(d / TRITONE_SEMI.length)))
-    // The remaining phrase- and line-based archetypes render straight off the track scale.
+    // The remaining phrase- and line-based archetypes render straight off the track scale — DISGUISED per track
+    // (seeded recombination/rotation of the cells) so the same authored shape isn't recognizable across tracks.
     const ph = PHRASES[voice]
-    if (ph) return phrase(ph, deg)
+    if (ph) return phrase(transformPhrase(ph, rng), deg)
     const ln = LINES[voice]
-    return line(ln ?? LINES.octavePulse!, deg)
+    return line(transformLine(ln ?? LINES.octavePulse!, rng), deg)
   }
+}
+
+// ── Phrase DISGUISE (kills cross-track recognizability) — seeded recombination + rotation of the authored cells,
+//    all at the DEGREE level so it stays diatonic. Same notes, re-shaped contour → you stop recognizing the source.
+function rotate<T>(a: T[], k: number): T[] { const n = a.length; if (n === 0) return a; k = ((k % n) + n) % n; return a.slice(k).concat(a.slice(0, k)) }
+
+/** Disguise a 4-bar phrase: always re-phase the figure within each bar; sometimes reorder/swap whole bars. */
+function transformPhrase(bars: El[][], rng: Rng): El[][] {
+  let out = bars.map((b) => b.slice())
+  out = out.map((bar) => rotate(bar, 1 + rng.int(3)))           // ALWAYS: re-phase the figure inside each bar (shared shift = stays coherent)
+  if (rng.next() < 0.6 && out.length > 1) out = rotate(out, 1 + rng.int(out.length - 1)) // new entry bar
+  if (rng.next() < 0.45 && out.length >= 2) {                   // light recombination: swap a pair of bars
+    const i = rng.int(out.length), j = rng.int(out.length)
+    const t = out[i]; out[i] = out[j]; out[j] = t
+  }
+  return out
+}
+/** Disguise a 16-step line: always rotate; sometimes recombine its 4-step cells. */
+function transformLine(els: El[], rng: Rng): El[] {
+  let out = rotate(els.slice(), 1 + rng.int(els.length - 1))
+  if (rng.next() < 0.5) {
+    const cells: El[][] = []
+    for (let i = 0; i < out.length; i += 4) cells.push(out.slice(i, i + 4))
+    out = rotate(cells, 1 + rng.int(Math.max(1, cells.length - 1))).flat()
+  }
+  return out
 }
 
 /** scale-step → midi (wraps octaves; negative steps go below the tonic, staying in the given mode). */
