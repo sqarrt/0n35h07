@@ -145,6 +145,10 @@ export const NET_REMOTE_LERP = 0.35   // smoothing of the remote player's positi
 export const NET_RECONCILE_SNAP_DIST = 0.5 // client prediction error (units) above which we snap the local player to the host authority; below it the prediction is trusted (no latency injected)
 export const NET_PREDICTION_BUFFER = 64    // how many recent (seq → predicted position) samples the client keeps for reconciliation (≥ RTT worth of frames)
 export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
+// Fixed-tick simulation (netcode foundation). The sim advances only in whole FIXED_DT steps, independent of refresh.
+export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
+export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating
+export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — spiral-of-death guard (shed the rest)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
