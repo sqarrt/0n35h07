@@ -675,6 +675,11 @@ const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
   detunedDrift: { src: '.s("supersaw").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6)', fx: '.lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8)', filt: '.lpf(saw.range(450, 1500).slow(8))', lvl: 0.95 },
   warpedBox: { src: '.s("sine").fm(3).fmh(7).attack(0.001).decay(0.4).add(note(sine.range(-0.15, 0.15).slow(1.5))).crush(6)', fx: '.delay(0.3).delaytime(0.375).delayfeedback(0.5).room(0.72).roomsize(9)', filt: '.lpf(2600)' },
   crushBell: { src: '.s("square").fm(2).fmh(4).attack(0.001).decay(0.2).crush(4).speed("<1 1 0.98 1>")', fx: '.delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.5).roomsize(7)', filt: '.lpf(3000)' },
+  // — co-designed CALM/atmospheric (Silent Hill + virtual). Boosted lvl (they read quiet); fixed lpf as in the demos. —
+  fogMelody: { src: '.s("triangle").attack(0.02).release(0.7).add(note(sine.range(-0.12, 0.12).slow(3)))', fx: '.delay(0.5).delaytime(0.5).delayfeedback(0.55).room(0.78).roomsize(11)', filt: '.lpf(2200)', lvl: 1.3 },
+  digitalChime: { src: '.s("sine").fm(2).fmh(2.01).attack(0.005).decay(0.5)', fx: '.delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9)', filt: '.lpf(3200)', lvl: 1.15 },
+  rustString: { src: '.s("sawtooth").attack(0.04).release(1.2).add(note(perlin.range(-0.15, 0.15).slow(2))).crush(10).distort("1.1:0.2")', fx: '.lpq(3).delay(0.45).delaytime(0.5).delayfeedback(0.5).room(0.7).roomsize(10)', filt: '.lpf(1400)', lvl: 1.3 },
+  digitalRain: { src: '.s("triangle").fm(1.5).fmh(2.0).attack(0.002).decay(0.3)', fx: '.delay(0.5).delaytime(0.1875).delayfeedback(0.65).room(0.7).roomsize(10)', filt: '.lpf(3000)', lvl: 1.15 },
 }
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
 

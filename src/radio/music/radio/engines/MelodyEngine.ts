@@ -12,6 +12,7 @@ export type LeadVoiceId =
   | 'arpDyad' | 'atmoDyad' | 'chordStab' | 'lament' | 'callResponse' | 'octavePulse'
   | 'bellMelody' | 'stutterStab' | 'leadingTone' | 'phrygianHalf' | 'doubleStop'
   | 'glitchStorm' | 'tritone' | 'glassArp' | 'ghostVoice' | 'detunedDrift' | 'warpedBox' | 'crushBell'
+  | 'fogMelody' | 'digitalChime' | 'rustString' | 'digitalRain' // co-designed CALM/atmospheric (Silent Hill + virtual)
 
 export interface LeadMotif { pattern: string; voice: LeadVoiceId }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }
@@ -48,6 +49,7 @@ const ARCHETYPES: LeadVoiceId[] = [
   'atmoDyad', 'chordStab', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
   'doubleStop', 'glitchStorm', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
+  'fogMelody', 'digitalChime', 'rustString', 'digitalRain', // co-designed calm/atmospheric (SH + virtual)
 ]
 // DROPPED from the pool (in the live mix they read wrong; voice/pattern code stays but is unreachable):
 //  • leadingTone — harmonic-minor raised-7th, ascending 0→5→6→7 drama → too melodic/uplifting for the dark vibe.
@@ -64,6 +66,7 @@ const ARCHETYPES: LeadVoiceId[] = [
 const RESTFUL_LEADS: LeadVoiceId[] = [
   'atmoDyad', 'callResponse', 'bellMelody', 'ghostVoice', 'glassArp', 'detunedDrift', 'warpedBox',
   'doubleStop', 'crushBell',
+  'fogMelody', 'digitalChime', 'rustString', 'digitalRain', // the calm co-designs — perfect for the break's rest
 ]
 
 // 4-bar phrases (each bar = an El[]) and 16-step single lines (an El[]), as scale-DEGREE figures. The builder
@@ -81,6 +84,11 @@ const PHRASES: Partial<Record<LeadVoiceId, El[][]>> = {
   detunedDrift: [[0, '~', '~', -2, '~', '~', '~', '~'], [3, '~', '~', 0, '~', '~', '~', '~'], [-2, '~', '~', 0, '~', '~', '~', '~'], [0, '~', '~', '~', '~', '~', '~', '~']],
   warpedBox: [[0, '~', 3, '~', 5, '~', 3, '~'], [2, '~', 0, '~', -2, '~', 0, '~'], [3, '~', 5, '~', 7, '~', 5, '~'], [3, '~', 2, '~', 0, '~', '~', '~']],
   crushBell: [[0, '~', 3, '~', 0, '~', 5, '~'], [3, '~', 2, '~', 0, '~', -2, '~'], [5, '~', 3, '~', 7, '~', 5, '~'], [3, '~', 0, '~', 2, '~', 0, '~']],
+  // co-designed CALM/atmospheric leads — sparse, lots of space (a whole rest-bar to breathe). SH + virtual.
+  fogMelody: [[4, '~', '~', '~', 3, '~', '~', '~'], [2, '~', '~', '~', '~', '~', '~', '~'], [3, '~', '~', 2, '~', '~', 0, '~'], ['~', '~', '~', '~', '~', '~', '~', '~']],
+  digitalChime: [[0, '~', 4, '~', 7, '~', 4, '~'], ['~', '~', 5, '~', '~', '~', 2, '~'], [7, '~', 9, '~', 7, '~', 4, '~'], ['~', 2, '~', '~', 0, '~', '~', '~']],
+  rustString: [[0, '~', '~', 2, '~', '~', '~', '~'], [3, '~', '~', 2, '~', 0, '~', '~'], ['~', '~', 0, '~', '~', -2, '~', '~'], [0, '~', '~', '~', '~', '~', '~', '~']],
+  digitalRain: [[0, '~', 2, '~', 4, '~', 2, '~'], [4, '~', 6, '~', 4, '~', 2, '~'], ['~', 2, '~', 4, '~', 2, '~', 0], ['~', '~', 0, '~', '~', '~', '~', '~']],
 }
 const LINES: Partial<Record<LeadVoiceId, El[]>> = {
   octavePulse: [0, '~', '~', 7, '~', 0, '~', '~', 0, '~', 7, '~', '~', 4, '~', 0],
