@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use steamworks::networking_types::{NetworkingIdentity, SendFlags};
 use steamworks::{
-  ChatMemberStateChange, Client, FriendFlags, FriendState, GameLobbyJoinRequested, LobbyChatUpdate,
-  LobbyId, LobbyType, SingleClient, SteamId,
+  ChatMemberStateChange, Client, FriendFlags, FriendState, GameLobbyJoinRequested, GameOverlayActivated,
+  LobbyChatUpdate, LobbyId, LobbyType, SingleClient, SteamId,
 };
 use tauri::{AppHandle, Emitter, State};
 
@@ -122,12 +122,20 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _ = tx_join.send(NetEvent::JoinRequested { lobby_id: r.lobby_steam_id.raw().to_string() });
   }));
 
+  // Steam overlay closed → the user may have just BOUGHT the Radio DLC via the store overlay; tell JS to
+  // re-check ownership for a live unlock (steamworks 0.11 has no DlcInstalled callback).
+  let overlay_app = app.clone();
+  let cb_overlay = client.register_callback(move |o: GameOverlayActivated| guard("GameOverlayActivated", || {
+    if !o.active { let _ = overlay_app.emit("radio-recheck-dlc", ()); }
+  }));
+
   let pump_app = app;
   let pump_client = client.clone();
   std::thread::spawn(move || {
     // Keep the callback handles alive for the life of the pump (drop = unregister).
     let _cb_chat = cb_chat;
     let _cb_join = cb_join;
+    let _cb_overlay = cb_overlay;
     let nm = pump_client.networking_messages();
     // Accept incoming sessions — ZERO I/O here (runs under the Steam lock): just accept + enqueue
     // a diagnostic. Doing console/IPC work here starves the SDR service thread (ClosedByPeer).
