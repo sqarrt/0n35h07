@@ -101,7 +101,7 @@ export function RadioPlayer(p: RadioPlayerProps) {
   return (
     <div className="radio-player-root" style={wrap(p.expanded)} data-testid="radio-player">
       {p.expanded && p.libraryMin && (
-        <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">▣ {t.radioLibrary}</button>
+        <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button>
       )}
       <div style={card}>
         {/* Row 1 — track name (collapsed: click to open) */}

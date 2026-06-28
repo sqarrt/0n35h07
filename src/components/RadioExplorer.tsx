@@ -46,6 +46,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   const [win, setWin] = useState<'normal' | 'max'>('normal')
   const [live, setLive] = useState(false) // dragging/resizing → suspend the geometry transition (else the window lags the cursor)
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
+  const [copied, setCopied] = useState(false) // brief ✓ flash after clicking the address bar to copy the path
   const gridRef = useRef<HTMLDivElement>(null)
   const refresh = () => setBump((b) => b + 1)
   const clearSel = () => { setSel(new Set()); setAnchor(null) }
@@ -234,7 +235,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
         onContextMenu={(ev) => { if (!trashMode) { ev.preventDefault(); clearSel(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null, trash: null }) } }}>
         <RadioVisualizer engine={engine} active={active && !hidden} />
         <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
-          <span className="dot" /><b>{dirName}</b><span style={{ flex: 1 }} />
+          <b>{dirName}</b><span style={{ flex: 1 }} />
           <span className="rexp-wbtn" onClick={onMinimize}>_</span>
           <span className="rexp-wbtn" onClick={() => setWin((w) => (w === 'max' ? 'normal' : 'max'))}>▢</span>
           <span className="rexp-wbtn x" onClick={onMinimize}>✕</span></div>
@@ -243,7 +244,11 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
           <button className="rexp-tb" onClick={goUp} disabled={!trashMode && !path} aria-label="up">▲</button>
           <button className="rexp-tb home" onClick={goHome} aria-label={t.radioHome}>⌂</button>
         </div>
-        <div className="rexp-addr"><div className="field" title={t.radioCtxCopy} onClick={() => void navigator.clipboard?.writeText(absPath)}>{absPath}</div></div>
+        <div className="rexp-addr">
+          <div className={`field${copied ? ' copied' : ''}`} title={t.radioCtxCopy}
+            onClick={() => { void navigator.clipboard?.writeText(absPath); setCopied(true); window.setTimeout(() => setCopied(false), 1100) }}>{absPath}</div>
+          {copied && <span className="rexp-copied">✓</span>}
+        </div>
         <div className="rexp-grid" ref={gridRef} onMouseDown={startMarquee}
           onDragOver={(ev) => { if (!trashMode) ev.preventDefault() }}
           onDrop={(ev) => { if (!trashMode) onDropTo(ev, path) }}>

@@ -42,4 +42,23 @@ export class BassEngine {
       `.gain("${gains.join(' ')}")${sat}`
     )
   }
+
+  /**
+   * Switch-Angel layer "A": a sparse melodic SECOND bass an octave above the main riff, on a DIFFERENT
+   * (rest-pocked) rhythm and degrees → the two basses interlock into a line neither plays alone. The composer
+   * renders it quiet so it colours the groove rather than doubling its weight.
+   */
+  buildCounter(opts: { rng: Rng; roots: number[]; sound: string }): string {
+    const DEGS = [0, 7, 5, 10, 3, 12, 8, 7] // root / fifth / fourth / b7 / minor-3rd / octave — movement, not a pedal
+    const offs: string[] = []
+    for (let i = 0; i < STEPS / 2; i++) {
+      const r = opts.rng.next()
+      offs.push(r < 0.3 ? '~' : String(DEGS[opts.rng.int(DEGS.length)])) // ~30% rests so it breathes against the main
+    }
+    const roots = opts.roots.length > 0 ? opts.roots.join(' ') : '36'
+    return (
+      `note("${offs.join(' ')}").add(note("<${roots}>")).add(note(12)).s("${opts.sound}")` +
+      `.attack(0.006).dec(0.18).lpf(950)`
+    )
+  }
 }

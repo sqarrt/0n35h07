@@ -26,12 +26,12 @@ const ORBIT = { kicks: 2, perc: 3, bass: 4, pad: 5, lead: 6, snare: 7, fx: 8, ar
 const MASTER = 0.92
 const MIX = {
   kick: 0.9,
-  bass: 0.5,
-  sub: 0.42,
+  bass: 0.58,   // bumped 0.5→0.58: the bass still read too quiet on some tracks
+  sub: 0.47,
   lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
-  bgScale: 0.35, // multiplies each bg texture's own (already small) level. 0.32→0.7 (triage demos were too quiet) was
-                 // too much in the real full mix → halved to 0.35: a subtle but present bed. Per-texture trims below.
-  bgCap: 0.18,  // HARD ceiling on a bg texture's pre-scale level (raised from 0.06 with bgScale so per-texture levels matter)
+  bgScale: 0.27, // multiplies each bg texture's own (already small) level. 0.35→0.27: bg still spiked too loud on some
+                 // tracks → trimmed further so the bed stays under the groove. Per-texture trims below.
+  bgCap: 0.15,  // HARD ceiling on a bg texture's pre-scale level (lowered 0.18→0.15 with the bgScale trim)
   hat: 0.34,
   snare: 0.46,
   clap: 0.4,
@@ -254,6 +254,15 @@ export class RadioComposer {
 
     const layers: string[] = []
 
+    // ── SECOND-VOICE LAYERS (Switch-Angel) — a track may grow a quiet shadow voice on its bass and/or its lead so
+    //    the overlap births a melody neither part plays alone. Decided per-TRACK (stable across sections via the
+    //    track seed): ~60% chance each, then a strategy — bass A=ghost counter-line / B=transposed superimpose;
+    //    lead C=diatonic-third .off canon / D=independent second phrase. null = no shadow this track.
+    const SHADOW_PROB = 0.6
+    const shadowRng = createRng(`${track.seed}:shadow`)
+    const bassShadow: 'A' | 'B' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'A' : 'B') : null
+    const leadShadow: 'C' | 'D' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'C' : 'D') : null
+
     // ── TRANSITIONS — deterministic glue between sections (all 4 families). A "pre"
     //    device fires on the LAST bar of a block (fill/roll/riser/kick-drop/echo-throw);
     //    a "post" impact (crash/sub-drop/downlifter) hits the downbeat we cross INTO.
@@ -356,6 +365,8 @@ export class RadioComposer {
       const bassLpf = entered('bass')
         ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
         : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
+      // layer B — a quiet fifth-up copy of the bass, 1/16 late, on a squarer timbre (a transposed shadow riff)
+      const bassSuper = bassShadow === 'B' && !muffled ? '.superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32))' : ''
       let bassMain: string
       if (style.bassArchetype === 'existing') {
         const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
@@ -377,12 +388,12 @@ export class RadioComposer {
         const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
         const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
         const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
-        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}`
+        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
       } else {
         // co-designed dark/electronic archetype, transposed onto the progression roots.
         const v = BASS_VOICES[style.bassArchetype]
         const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
-        bassMain = `note("${v.off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}`
+        bassMain = `note("${v.off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
       }
       // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
       // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
@@ -395,6 +406,11 @@ export class RadioComposer {
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
       layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      // layer A — a quiet melodic ghost-bass (octave up, rest-pocked, different degrees) interlocking with the riff
+      if (bassShadow === 'A') {
+        const counter = this.bass.buildCounter({ rng: createRng(`${track.seed}:cbass${pos}`), roots, sound: style.bassSound })
+        layers.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      }
     }
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
@@ -450,6 +466,9 @@ export class RadioComposer {
         : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
       // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
       const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
+      // layer C — a quiet third-up canon answering 3/16 later (sine + room/delay): reads as a counter-melody when
+      // the lead has gaps, a gentle thickening when it's dense. (Minor-third in semitones; our leads lean minor.)
+      const leadOff = leadShadow === 'C' ? '.off(0.1875, x => x.add(note(3)).gain(0.32).s("sine").lpf(2200).room(0.45).delay(0.18))' : ''
       // AFTER THE BREAK: develop the lead with an in-key TRANSPOSITION pattern (Switch-Angel
       // style — .add(<changing offsets>)). The same riff shifts harmonically per bar (over a
       // root pedal it reads as an implied progression) and is KEPT to the track's end.
@@ -458,7 +477,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}${leadOff}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -474,7 +493,16 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}${leadOff}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+      }
+      // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
+      // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
+      if (leadShadow === 'D') {
+        const ghost = this.melody.buildLead(chord, {
+          rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+        }, initialLeadState())
+        layers.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
       }
     }
 
