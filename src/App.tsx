@@ -26,13 +26,13 @@ import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { RadioPlayer } from './components/RadioPlayer'
-import { FavoritesColumn } from './components/FavoritesColumn'
+import { RadioExplorer } from './components/RadioExplorer'
 import { RadioCodePanel } from './components/RadioCodePanel'
+import type { RadioLibrary, TrackPayload } from './radio/library/radioLibrary'
 import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
-import { buildBias, sameTrack } from './radio'
-import type { RadioController, BiasProvider, TrackDescriptor } from './radio'
+import type { RadioController, TrackDescriptor } from './radio'
 import type { RadioPlayMode } from './components/RadioPlayer'
 import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
@@ -251,15 +251,17 @@ export default function App() {
   const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
   const radioWarmedRef = useRef(false)
   const radioActive = profile.radioEnabled && radioInitState === 'ready'
-  // Radio player: Generation vs Favorites mode, and refs the once-built controller reads via closures.
+  // Radio player: 'gen' = the live generative stream (Эфир), 'fav' = playing a library folder queue.
   const [radioPlayMode, setRadioPlayMode] = useState<RadioPlayMode>('gen')
   const playModeRef = useRef<RadioPlayMode>('gen')
-  const favIndexRef = useRef(0)
-  const biasRef = useRef<BiasProvider>(buildBias([], []))
   const onTrackEndRef = useRef<() => void>(() => {})
   useEffect(() => { playModeRef.current = radioPlayMode }, [radioPlayMode])
-  // Bias updates live as the player likes/dislikes (the composer reads biasRef on the next track pick).
-  useEffect(() => { biasRef.current = buildBias(profile.favorites, profile.dislikes) }, [profile.favorites, profile.dislikes])
+  // On-disk library (desktop): the lib, its OS root path (address bar), a refresh nonce, the folder play-queue.
+  const [radioLib, setRadioLib] = useState<RadioLibrary | null>(null)
+  const [radioRoot, setRadioRoot] = useState('')
+  const [radioReload] = useState(0) // external refresh nonce for the explorer (library edits self-refresh internally)
+  const [radioExpOpen, setRadioExpOpen] = useState(true) // explorer window shown? minimized → a LIBRARY bar over the player
+  const radioQueueRef = useRef<{ q: TrackPayload[]; i: number }>({ q: [], i: 0 })
 
   // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
   // The heavy @strudel/web + the radio subtree are dynamically imported → excluded from the initial bundle.
@@ -277,11 +279,22 @@ export default function App() {
           engine, banks, config: radio.DEFAULT_RADIO_CONFIG,
           volume: profile.volumeMaster * profile.volumeRadio,
           onState: setRadioMusicalState,
-          bias: { weightFor: (c, v) => biasRef.current.weightFor(c, v) },
           onTrackEnd: () => onTrackEndRef.current(),
         }),
       }, setRadioInitState)
-      if (ctrl) setRadioController(ctrl)
+      if (ctrl) {
+        setRadioController(ctrl)
+        // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
+        const fsmod = await import('./radio/library/tauriFs')
+        const lib = fsmod.createRadioLibrary()
+        if (lib) {
+          // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
+          // must not leave the whole library UI absent for the session).
+          try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
+          // one-time migration of the old localStorage favorites → on-disk track files (best-effort, isolated)
+          try { const { migrateProfileToLibrary } = await import('./radio/library/migrate'); await migrateProfileToLibrary(lib, profile.favorites, (s, i) => ctrl.bake(s, i)) } catch { /* migration failed — new saves still work */ }
+        }
+      }
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
       // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
       else radioWarmedRef.current = false
@@ -352,7 +365,9 @@ export default function App() {
     if (!radioEngine) return
     // Radio is louder than the menu music; scale its level down so it doesn't pin the orb glow at max (then it
     // visibly reacts). Beat detection reads the bands (unscaled), so it's unaffected.
-    const RADIO_LEVEL_SCALE = 0.6
+    // readLevel() is now volume-normalised to VIS_REF_LEVEL (~0.03), ~20x smaller than the old raw RMS; compensate
+    // here so the menu's audio-reactive glow keeps pulsing to the radio at the same magnitude as before.
+    const RADIO_LEVEL_SCALE = 12
     const offL = audioAnalysis.addReader(() => radioEngine.readLevel() * RADIO_LEVEL_SCALE)
     const offB = audioAnalysis.addBandReader(out => radioEngine.readBands(out))
     return () => { offL(); offB() }
@@ -639,24 +654,32 @@ export default function App() {
     setProfile(p => { const next = { ...p, radioEnabled: !p.radioEnabled }; saveProfile(next); return next })
   }
 
-  // --- Radio player controls (desktop). A favorite with a BAKED render plays it verbatim (immune to
-  //     generation changes); an old favorite without one falls back to deterministic regeneration. ---
-  const playFav = (d: TrackDescriptor) => {
-    const i = profile.favorites.findIndex(f => sameTrack(f, d))
-    favIndexRef.current = Math.max(0, i)
-    const fav = i >= 0 ? profile.favorites[i] : null
-    if (fav?.baked) radioController?.playBaked(fav, fav.baked)
-    else radioController?.playTrack(d.seed, d.index)
-    if (!profile.radioEnabled) handleToggleRadio()   // ensure the radio is on (gesture from this click)
+  // --- Radio player controls (desktop). Two sources: the live generative stream ('gen'/Эфир) and a library
+  //     FOLDER QUEUE ('fav') of baked tracks, played in order and looping. ---
+  const payloadDesc = (p: TrackPayload): TrackDescriptor => ({ seed: p.seed, index: p.index, mood: p.mood, key: p.key, scaleName: p.scaleName, bpm: p.bpm, style: p.style })
+  // Play a queue track: use its frozen render if valid, else REGENERATE deterministically from the seed (a missing/
+  // empty baked would crash the scheduler and kill the radio for the session).
+  const playQueueTrack = (p: TrackPayload) => {
+    if (p.baked?.sections?.length) radioController?.playBaked(payloadDesc(p), p.baked)
+    else radioController?.playTrack(p.seed, p.index)
   }
-  const stepFav = (dir: number) => {
-    const favs = profile.favorites
-    if (favs.length === 0) return
-    favIndexRef.current = (favIndexRef.current + dir + favs.length) % favs.length
-    playFav(favs[favIndexRef.current])
+  const playQueueAt = (i: number) => {
+    const { q } = radioQueueRef.current
+    if (!q.length) return
+    const idx = ((i % q.length) + q.length) % q.length
+    radioQueueRef.current.i = idx
+    playQueueTrack(q[idx])
+    if (!profile.radioEnabled) handleToggleRadio()
   }
-  const radioPrev = () => { if (radioPlayMode === 'fav') stepFav(-1); else radioController?.prev() }
-  const radioNext = () => { if (radioPlayMode === 'fav') stepFav(1); else radioController?.next() }
+  // The explorer plays a track (or a whole folder): the folder's baked tracks become the queue.
+  const onPlayLibrary = (queue: TrackPayload[], startIndex: number) => {
+    radioGestureRef.current = true
+    radioQueueRef.current = { q: queue, i: startIndex }
+    setRadioPlayMode('fav')
+    playQueueAt(startIndex)
+  }
+  const radioPrev = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
+  const radioNext = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
   // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
   // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
   const onRadioMode = (m: RadioPlayMode) => {
@@ -669,40 +692,15 @@ export default function App() {
   const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
     ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
     : null
-  const radioLike = () => {
-    const d = radioCurrentDesc; if (!d) return
-    // Toggle: ♥ on a liked track UN-likes it; otherwise BAKE the full track (Strudel code of every section
-    // + its current name) so the saved favorite replays exactly, even after the generator changes.
-    setProfile(p => {
-      const has = p.favorites.some(f => sameTrack(f, d))
-      let favorites
-      let dislikes = p.dislikes
-      if (has) favorites = p.favorites.filter(f => !sameTrack(f, d))
-      else {
-        const sections = radioController?.bake(d.seed, d.index)
-        const name = radioMusicalState ? radioTrackName(radioMusicalState) : ''
-        const fav = sections && sections.length ? { ...d, baked: { name, sections } } : d
-        favorites = [fav, ...p.favorites]
-        dislikes = p.dislikes.filter(x => !sameTrack(x, d))   // liking a track clears any prior dislike (mutual exclusion)
-      }
-      const next = { ...p, favorites, dislikes }
-      saveProfile(next); return next
-    })
+  // The CURRENT track baked to a self-contained library payload (for the player's drag-to-save). bake() is pure/sync.
+  const currentTrackJSON = (): string | null => {
+    const d = radioCurrentDesc; if (!d || !radioController) return null
+    const sections = radioController.bake(d.seed, d.index)
+    if (!sections.length) return null
+    const name = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : 'track'
+    const p: TrackPayload = { v: 1, seed: d.seed, index: d.index, name, mood: d.mood, key: d.key, scaleName: d.scaleName, bpm: d.bpm, style: d.style, baked: { name, sections } }
+    return JSON.stringify(p)
   }
-  const radioDislike = () => {
-    const d = radioCurrentDesc; if (!d) return
-    // Dislike removes the track from favorites (un-likes it) AND records the dislike.
-    setProfile(p => {
-      const next = {
-        ...p,
-        favorites: p.favorites.filter(f => !sameTrack(f, d)),
-        dislikes: p.dislikes.some(x => sameTrack(x, d)) ? p.dislikes : [d, ...p.dislikes],
-      }
-      saveProfile(next); return next
-    })
-    radioNext()   // mode-aware: in fav mode advance to the next FAVORITE, not an unrelated generated track
-  }
-  const radioPlayFirst = () => { if (profile.favorites[0]) playFav(profile.favorites[0]) }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
   const radioRegen = () => {
     radioGestureRef.current = true
@@ -710,22 +708,19 @@ export default function App() {
     radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
     setRadioPlayMode('gen')
   }
-  // In favorites mode, a finished track auto-advances to the next favorite (kept fresh via the ref).
+  // A finished folder-queue track auto-advances to the next in the folder (loops). Reads the live queue ref.
   useEffect(() => {
     onTrackEndRef.current = () => {
       if (playModeRef.current !== 'fav') return
-      const favs = profile.favorites
-      if (favs.length === 0) return
-      favIndexRef.current = (favIndexRef.current + 1) % favs.length
-      const f = favs[favIndexRef.current]
-      if (f.baked) radioController?.playBaked(f, f.baked)
-      else radioController?.playTrack(f.seed, f.index)
+      const { q, i } = radioQueueRef.current
+      if (!q.length) return
+      const idx = (i + 1) % q.length
+      radioQueueRef.current.i = idx
+      playQueueTrack(q[idx])
     }
-  }, [profile.favorites, radioController])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [radioController])
 
-  // Derived radio-player display.
-  const radioLiked = radioCurrentDesc != null && profile.favorites.some(f => sameTrack(f, radioCurrentDesc))
-  const radioDisliked = radioCurrentDesc != null && profile.dislikes.some(f => sameTrack(f, radioCurrentDesc))
   // A baked favorite carries its FROZEN name (state.name); a live track derives one. Never re-derive a baked name.
   const radioTrackLabel = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : '—'
   const radioSubtitle = radioMusicalState ? `${radioMusicalState.bpm} BPM · ${radioMusicalState.key} ${radioMusicalState.scaleName}` : ''
@@ -969,14 +964,10 @@ export default function App() {
 
       {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
           (so it animates the dock↔expand). The backdrop IS the visual. */}
-      {screen === 'radio' && IS_DESKTOP && (
-        <FavoritesColumn
-          open={radioPlayMode === 'fav'}
-          items={profile.favorites}
-          current={radioCurrentDesc}
-          onPlayFirst={radioPlayFirst}
-          onPlay={playFav}
-        />
+      {screen === 'radio' && IS_DESKTOP && radioLib && (
+        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload}
+          onPlay={onPlayLibrary} onMinimize={() => setRadioExpOpen(false)}
+          hidden={!radioExpOpen} engine={radioEngine} active={radioActive} />
       )}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
 
@@ -990,16 +981,15 @@ export default function App() {
           playing={profile.radioEnabled}
           trackName={radioTrackLabel}
           subtitle={radioSubtitle}
-          liked={radioLiked}
-          disliked={radioDisliked}
           volume={profile.volumeRadio}
           onMode={onRadioMode}
           onPrev={radioPrev}
           onNext={radioNext}
           onPlayPause={handleToggleRadio}
-          onLike={radioLike}
-          onDislike={radioDislike}
+          onDragTrack={currentTrackJSON}
           onRegen={radioRegen}
+          libraryMin={screen === 'radio' && !radioExpOpen && !!radioLib}
+          onRestoreLibrary={() => setRadioExpOpen(true)}
           onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
           onOpen={handleRadio}
           onBack={() => setScreen('menu')}

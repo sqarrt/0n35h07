@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - unreleased
+
+### Added
+- **Radio — a track library you can organise (desktop).** A built-in file explorer over a real folder in the app
+  data dir replaces the old favorites list: **drag the playing track (grab anywhere on the player) into a folder to
+  save it**, play a single track or a whole folder as a looping playlist, multi-select (Ctrl/Shift-click + rubber-band
+  box), and right-click for play / new folder / rename / copy / paste / delete (with F2 / Del / Ctrl-C / Ctrl-V
+  shortcuts). The window is draggable, resizable and minimises into a bar over the player or maximises full-screen.
+- **Radio — audio-reactive visualizers behind the explorer.** Four modes — oscilloscope, spectrum bars, radial ring,
+  particle field — switchable from the window, plus an **AUTO** mode that rotates through them.
+- **Radio — a richer, more unique generative palette.** New co-designed **bass** characters (reese wobble, bit-crush,
+  chromatic-drift, glitch, acid-pulse, wavetable flute/digital), **drum grooves** (amen breakbeat, industrial, broken,
+  minimal), **background textures** (tape-choir, drone-cluster, radio-scanner, tape-warble, insect swarm, funeral bell)
+  and **leads** (Silent-Hill fog/rust, virtual chime/data-rain, and procedural random-walk leads). Every track also
+  varies its bass and drum character, applies per-track parameter **mutations** (filter / space / drive / groove + a
+  few safe melody tweaks) and **disguises its lead and bass riffs** (seeded cell recombination) so no two tracks sound
+  alike.
+
+### Changed
+- **Radio generation is no longer biased by your likes/dislikes** — the stream is purely varied and your saved tracks
+  live in the on-disk library instead. Old favorites migrate to the library automatically on first run.
+- Background textures now sit further under the groove (lower ceiling) so they never pierce on exposed intros.
+- Some leads/basses that read wrong in the live mix were dropped from the rotation.
+
 ## [0.5.11] - unreleased
 
 ### Added

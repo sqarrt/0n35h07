@@ -30,6 +30,17 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 // self-contained (no radio→game import).
 const ANALYSER_FFT = 1024   // larger window → finer low-frequency bins (the visualizer's kick/beat detection)
 const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
+// The analyser taps the master AFTER the volume gain, so a quiet slider would starve the visualizer; it must behave
+// the SAME at any volume. TWO different scales need compensating:
+//  • readLevel is time-domain (LINEAR in amplitude) → divide back to a fixed reference level (capped near zero).
+//  • readBands is getByteFrequencyData (LOGARITHMIC, dB) → a linear divide is WRONG (it over-compensates at low
+//    volume → activity paradoxically RISES). Instead shift the analyser's dB window down by the volume attenuation:
+//    the signal drops by the same dB, so its position in the window — hence every band byte — is volume-independent.
+const VIS_REF_LEVEL = 0.03
+const VIS_MAX_GAIN = 5
+const VIS_MIN_VOLUME = 0.03
+const VIS_MIN_DB = -85   // dB window (at full volume) the spectrum is mapped into; tune VIS_MAX_DB for band liveliness
+const VIS_MAX_DB = -24
 /** RMS level 0..1 from an analyser (time domain). */
 function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buf)
@@ -172,15 +183,24 @@ export class StrudelWebEngine implements IStrudelEngine {
     this.#applyVolume()
   }
 
+  /** Compensate the post-gain analyser tap back to VIS_REF_LEVEL so the visualizer is volume-independent. */
+  #visGain(): number {
+    return Math.min(VIS_MAX_GAIN, VIS_REF_LEVEL / Math.max(this.#volume, VIS_MIN_VOLUME))
+  }
+
   readLevel(): number {
     this.#ensureAnalyser()
     if (!this.#analyser || !this.#timeBuf) return 0
-    return rmsLevel(this.#analyser, this.#timeBuf)
+    return Math.min(1, rmsLevel(this.#analyser, this.#timeBuf) * this.#visGain())
   }
 
   readBands(out: Float32Array): void {
     this.#ensureAnalyser()
     if (!this.#analyser || !this.#freqBuf) return
+    // shift the dB window by the volume attenuation → band bytes are volume-independent (NOT a linear divide)
+    const vDb = 20 * Math.log10(Math.max(this.#volume, VIS_MIN_VOLUME))
+    this.#analyser.minDecibels = VIS_MIN_DB + vDb
+    this.#analyser.maxDecibels = VIS_MAX_DB + vDb
     maxCombineBands(this.#analyser, this.#freqBuf, out)
   }
 

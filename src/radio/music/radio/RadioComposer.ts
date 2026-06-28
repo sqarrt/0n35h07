@@ -5,17 +5,18 @@ import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
 import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
 import { BassEngine } from './engines/BassEngine'
+import { rollMutations } from './MutationEngine'
+import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
 import { shapeFor, type SectionRole } from './arrangement'
-import type { PercKind, BgKind } from './trackStyle'
+import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
-import type { BiasProvider } from '../../bias'
 import { sidechainGain } from './fx'
 
-export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig; bias?: BiasProvider }
+export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig }
 
 const ORBIT = { kicks: 2, perc: 3, bass: 4, pad: 5, lead: 6, snare: 7, fx: 8, arp: 9 } as const
 
@@ -27,11 +28,13 @@ const ORBIT = { kicks: 2, perc: 3, bass: 4, pad: 5, lead: 6, snare: 7, fx: 8, ar
 const MASTER = 0.92
 const MIX = {
   kick: 0.9,
-  bass: 0.5,
-  sub: 0.42,
+  bass: 0.58,   // bumped 0.5→0.58: the bass still read too quiet on some tracks
+  sub: 0.47,
   lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
-  bgScale: 0.32, // multiplies each bg texture's own (already small) level → near-subliminal
-  bgCap: 0.06,  // HARD ceiling on a bg texture's pre-scale level so the loud ones can't pierce
+  bgScale: 0.18, // multiplies each bg texture's own (already small) level. 0.27→0.18: bg still pierced on exposed
+                 // intros (normScale only TRIMS, so a sparse intro never trims the bed AND nothing masks it).
+  bgCap: 0.09,  // HARD ceiling on a bg texture's pre-scale level (0.15→0.09 — clamps the loudest textures hard)
+  bgGainCeil: 0.022, // ABSOLUTE final-gain ceiling for any bg layer → it can never blast, whatever the norm does
   hat: 0.34,
   snare: 0.46,
   clap: 0.4,
@@ -47,7 +50,6 @@ export class RadioComposer {
   private readonly melody: MelodyEngine
   private readonly bass: BassEngine
   private readonly timbre: TimbreEngine
-  private readonly bias?: BiasProvider
   private scheduler: CompositionScheduler
   private seed: string
 
@@ -74,12 +76,11 @@ export class RadioComposer {
     this.melody = new MelodyEngine()
     this.bass = new BassEngine()
     this.timbre = new TimbreEngine(this.banks)
-    this.bias = deps.bias
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed, bias: this.bias })
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed })
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
-  /** Current track's compact identity (for favorites + bias). */
+  /** Current track's compact identity (for saving to the library + the trash block id). */
   descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
   currentIndex(): number { return this.scheduler.currentIndex() }
 
@@ -102,7 +103,7 @@ export class RadioComposer {
   /** Replay tracks from a DIFFERENT session seed (a saved favorite): rebuild the scheduler, then jumpTo. */
   reseed(seed: string): void {
     this.seed = seed
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed, bias: this.bias })
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed })
     this.resetTrackState()
   }
 
@@ -246,15 +247,29 @@ export class RadioComposer {
     // parts cohere — no dry bass under a wet lead. dFactor/rFactor = this part's share.
     const fx = style.fx
     const fxFor = (dFactor: number, rFactor: number): string => {
-      const dly = r2(Math.min(0.85, fx.delay * dFactor))
-      const rm = r2(Math.min(0.85, fx.room * rFactor))
-      return (dly > 0.02 ? `.delay(${dly}).delaytime(${fx.delayTime}).delayfeedback(${fx.delayFb})` : '')
+      const dly = r2(Math.min(0.85, fx.delay * dFactor * mut.delay))
+      const rm = r2(Math.min(0.85, fx.room * rFactor * mut.room))
+      return (dly > 0.02 ? `.delay(${dly}).delaytime(${fx.delayTime}).delayfeedback(${r2(Math.min(0.82, fx.delayFb * mut.delay))})` : '')
         + (rm > 0.02 ? `.room(${rm}).roomsize(${fx.roomSize})` : '')
     }
     // Bass riff is LOCKED per movement; the 2nd movement (after break) gets a new riff.
     const bassRng = createRng(`${track.seed}:bass${this.afterBreak ? '2' : ''}`)
 
     const layers: string[] = []
+
+    // ── SECOND-VOICE LAYERS (Switch-Angel) — a track may grow a quiet shadow voice on its bass and/or its lead so
+    //    the overlap births a melody neither part plays alone. Decided per-TRACK (stable across sections via the
+    //    track seed): ~60% chance each, then a strategy — bass A=ghost counter-line / B=transposed superimpose;
+    //    lead C=diatonic-third .off canon / D=independent second phrase. null = no shadow this track.
+    const SHADOW_PROB = 0.6
+    const shadowRng = createRng(`${track.seed}:shadow`)
+    const bassShadow: 'A' | 'B' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'A' : 'B') : null
+    // Per-track MUTATIONS — 3-4 parameters nudged from default within safe bounds (uniqueness; see MutationEngine).
+    const mut = rollMutations(track.seed)
+    // GUARDRAIL: a fixed-semitone interval on absolute notes makes parallel OUT-OF-KEY clashes (a fixed minor-3rd is
+    // NOT the diatonic 3rd on most degrees → the "off sounds awful" regression). So the lead shadow is the
+    // independent in-scale phrase (D) only; the third-canon (C) is parked until it's built diatonically (degree-based).
+    const leadShadow: 'D' | null = shadowRng.next() < SHADOW_PROB ? 'D' : null
 
     // ── TRANSITIONS — deterministic glue between sections (all 4 families). A "pre"
     //    device fires on the LAST bar of a block (fill/roll/riser/kick-drop/echo-throw);
@@ -274,10 +289,14 @@ export class RadioComposer {
     const lastBar = (x: string) => seqAligned([...Array(lastN).fill('~'), x])   // value only on the section's FINAL bar
     const firstBar = (x: string) => seqAligned([x, ...Array(lastN).fill('~')])  // value only on the section's FIRST bar
 
+    // The track's drum GROOVE kit (null = the original 4-floor техно, per-element style fields). A BREAK always
+    // reverts to a steady 4-floor kick regardless of kit, so it stays the calm anchor.
+    const drumKit = style.drumArchetype !== 'existing' ? DRUM_KITS[style.drumArchetype] : null
+
     // ── KICK ──
     if (shape.layers.kicks) {
       const deep = role === 'break' // steady, darker kick that holds the rest together
-      const base = mood.density < 0.5 || deep ? 'bd*4' : style.kickPat
+      const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
       let kickPat = base
       // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
       // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
@@ -286,9 +305,9 @@ export class RadioComposer {
       // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
       else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
       // Kick is the loud global reference (drives the whole balance). Composition-independent.
-      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0))
+      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0) + (!deep && drumKit?.shape ? drumKit.shape : 0))
       const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
-      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : mood.density < 0.5 ? '.lpf(2200)' : ''
+      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : drumKit?.lpf ?? (mood.density < 0.5 ? '.lpf(2200)' : '')
       // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
@@ -318,19 +337,24 @@ export class RadioComposer {
     if (shape.layers.perc) {
       // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
       // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
-      const hatPat = role === 'break' ? '[hh ~]*2' : style.hatPat
+      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
       const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
-      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain)})${percEnter}.pan(sine.slow(4))` + (style.swing > 0 ? `.swingBy(${r2(style.swing)}, 4)` : '')
+      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
       layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
-      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat.
+      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
+      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
       const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
-      // gentler waveshaper + a lpf so the snare body stays punchy without piercing highs. In a break the snare
-      // is HALVED (a lighter rhythm) and ducks on the last bar.
-      layers.push(orbit(`s("~ sd ~ sd").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // peak-only claps on the backbeat (one extra layer, eased in — the ghost-snare layer was
-      // dropped to avoid stacking too many things at once).
-      if (peak) {
-        layers.push(orbit(`s("${style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
+      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
+      layers.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
+      if (drumKit?.ghost && role !== 'break') layers.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
+      if (drumKit?.rim && role !== 'break') layers.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
+      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
+      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
+      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
+        layers.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
       // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
       // the kick + simple hats + halved snare are enough to keep the rest alive.
@@ -338,48 +362,68 @@ export class RadioComposer {
       if (perc && role !== 'break') layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
 
-    // ── BASS — locked riff, root follows the progression; clarity sweeps up in intro/build
+    // ── BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/
+    //    electronic winner (tournament — docs/radio-part-archetypes.md). All follow the progression root per bar
+    //    (.add(note("<roots>"))), never go silent (no `~`), and share the entry filter sweep + gain/pump/ducks.
     if (shape.layers.bass) {
       const roots = seq.map((c) => ((c.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 1))
-      const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
-      // acid env never sits still: it WANDERS within the section so the squelch doesn't go
-      // stale. HARD-capped at 0.65. The motion shape is chosen per-section (rise / fall /
-      // sine / abrupt per-bar jumps) so consecutive sections don't move identically.
-      const aRng = createRng(`${track.seed}:aenv${pos}`)
-      const center = Math.min(0.6, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25)
-      const amp = muffled ? 0.08 : 0.16
-      const aHi = r2(Math.min(0.65, center + amp))
-      const aLo = r2(Math.max(0.12, center - amp))
-      const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
-      let acidenvExpr: string
-      if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-      else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
-      else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-      else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"` // abrupt per-bar steps
-      const frag = this.bass.buildBass({
-        rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
-        saturation: muffled ? 0.08 : 0.3 + mood.fx.saturation * 0.3, acidenv: acidenvExpr,
-      })
-      // filter breathes within the section (.slow) AND its ceiling opens over the block.
-      // When the bass ENTERS, it slams in too hard → instead sweep the cutoff up from near-CLOSED
-      // (90Hz) across the section start, so the bass eases in tonally (a light filter build-up) on
-      // top of the gain ramp (bassEnter). .late aligns the sweep's start to the section's first bar.
+      // filter breathes within the section (.slow) AND its ceiling opens over the block; on ENTRY it sweeps up
+      // from near-CLOSED (90Hz) so the bass eases in tonally. .late aligns the sweep to the section's first bar.
       const ceil = Math.round(560 + (0.35 + 0.65 * blockProgress) * (muffled ? 400 : 1000))
       const bassLpf = entered('bass')
         ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
         : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
-      const fm = style.bassFm > 0 ? `.fm(${style.bassFm}).fmh(2)` : ''
-      // FAT (peak only — keep the intro soft): octave-up gritty mid-bass + wide unison reese
-      const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
-      const wide = !muffled && style.bassSound === 'supersaw' ? '.unison(5).detune(0.5)' : ''
-      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent;
-      // its level is trimmed a touch so the kick/snares read 1.5× more forward.
-      layers.push(orbit(`${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      // layer B — a quiet fifth-up copy of the bass, 1/16 late, on a squarer timbre (a transposed shadow riff)
+      const bassSuper = bassShadow === 'B' && !muffled ? '.superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32))' : ''
+      let bassMain: string
+      if (style.bassArchetype === 'existing') {
+        const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
+        // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
+        const aRng = createRng(`${track.seed}:aenv${pos}`)
+        const center = Math.min(0.6, Math.max(0.12, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25 + mut.acidenv))
+        const amp = muffled ? 0.08 : 0.16
+        const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
+        const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
+        let acidenvExpr: string
+        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
+        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
+        const frag = this.bass.buildBass({
+          rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
+          saturation: muffled ? 0.08 : r2((0.3 + mood.fx.saturation * 0.3) * mut.drive), acidenv: acidenvExpr,
+          dec: r2(0.16 * mut.env),
+        })
+        const fm = style.bassFm > 0 ? `.fm(${r2(style.bassFm * mut.fm)}).fmh(2)` : ''
+        const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
+        const wide = !muffled && style.bassSound === 'supersaw' ? `.unison(5).detune(${r2(0.5 * mut.width)})` : ''
+        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
+      } else {
+        // co-designed dark/electronic archetype, transposed onto the progression roots.
+        const v = BASS_VOICES[style.bassArchetype]
+        const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
+        // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
+        // SKIP voices carrying a positional .gain("…") accent pattern — reordering the notes would mis-align the
+        // (un-reordered) per-step accents with the pitches.
+        const off = /\.gain\("/.test(v.fx) ? v.off : disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
+        bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
+      }
+      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
+      // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
+      // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
+      const BASS_EXPOSED_BOOST = 1.4
+      const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
+      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      // layer A — a quiet melodic ghost-bass (octave up, rest-pocked, different degrees) interlocking with the riff
+      if (bassShadow === 'A') {
+        const counter = this.bass.buildCounter({ rng: createRng(`${track.seed}:cbass${pos}`), roots, sound: style.bassSound })
+        layers.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      }
     }
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
@@ -389,7 +433,7 @@ export class RadioComposer {
       const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
       // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
       // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
-      const gBg = (x: number) => g(MIX.bgScale * Math.min(x, MIX.bgCap))
+      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
       // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
       // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
       // never identical — what made a bell or sonar "jump out" when it recurred.
@@ -443,7 +487,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -459,7 +503,16 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        layers.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+      }
+      // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
+      // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
+      if (leadShadow === 'D') {
+        const ghost = this.melody.buildLead(chord, {
+          rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+        }, initialLeadState())
+        layers.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
       }
     }
 
@@ -549,21 +602,28 @@ export class RadioComposer {
       case 'sweepdrone':return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(sine.range(250, 900).slow(24)).gain(${g(0.11)})`
       // ── pulses / beepers (ACCENTS) — rotate the struct (moves the hit), jitter timbre, vary the pan ────
       case 'subpulse':  return `note("${root - 12}").struct("${rotStruct('x ~ x ~', v.rot)}").s("sine").attack(0.04).release(0.5).lpf(180).gain(${g(0.16)})`
-      case 'sonar':     return `note("${root + 24}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").decay(${r2(0.4 * v.jitter)}).gain(${g(0.07)})${fxFor(1, 1)}.pan(${v.pan})`
-      case 'metallic':  return `note("${root + 19}").struct("${rotStruct('~ ~ ~ ~ x ~ ~ ~', v.rot)}").s("sine").fm(${r2(8 * v.jitter)}).fmh(3.3).decay(0.25).gain(${g(0.07)})${fxFor(0.9, 0.9)}.pan(${v.pan})`
-      case 'morse':     return `note("${root + 12}").struct("${rotStruct('x x ~ x ~ ~ x ~', v.rot)}").s("square").decay(0.05).lpf(${Math.round(2000 * v.cut)}).gain(${g(0.06)})${fxFor(0.6, 0.4)}.pan(${v.pan})`
+      case 'sonar':     return `note("${root + 24}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").decay(${r2(0.4 * v.jitter)}).gain(${g(0.12)})${fxFor(1, 1)}.pan(${v.pan})`
+      case 'metallic':  return `note("${root + 19}").struct("${rotStruct('~ ~ ~ ~ x ~ ~ ~', v.rot)}").s("sine").fm(${r2(8 * v.jitter)}).fmh(3.3).decay(0.25).gain(${g(0.05)})${fxFor(0.9, 0.9)}.pan(${v.pan})`
+      case 'morse':     return `note("${root + 12}").struct("${rotStruct('x x ~ x ~ ~ x ~', v.rot)}").s("square").decay(0.05).lpf(${Math.round(2000 * v.cut)}).gain(${g(0.11)})${fxFor(0.6, 0.4)}.pan(${v.pan})`
       case 'bell':      return `note("${root}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(3 * v.jitter)}).fmh(1.4).decay(${r2(2 * v.jitter)}).gain(${g(0.08)})${fxFor(0.8, 1.2)}.pan(${v.pan})`
       // ── noise textures (BEDS) ─────────────────────────────────────────────────────────────────────────
       case 'wind':      return `s("white*8").dec(0.5).lpf(sine.range(300, 1100).slow(16)).hpf(220).gain(${g(0.07)}).pan(sine.slow(11))`
       case 'crackle':   return `s("white*16").dec(0.01).degradeBy(0.7).hpf(1500).lpf(${Math.round(5000 * v.cut)}).gain(${g(0.09)}).pan(sine.slow(9))`
-      case 'hiss':      return `s("white*4").dec(0.4).hpf(${Math.round(3000 * v.cut)}).gain(${g(0.05)}).pan(sine.slow(13))`
+      case 'hiss':      return `s("white*4").dec(0.4).hpf(${Math.round(3000 * v.cut)}).gain(${g(0.1)}).pan(sine.slow(13))`
       case 'geiger':    return `s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(${g(0.1)}).pan(rand)`
       case 'resonance': return `note("${root + 12}").s("sawtooth").lpf(${Math.round(900 * v.cut)}).lpq(16).gain(${g(0.05)})${fxFor(0.4, 0.7)}`
       // ── tonal shimmers (sinearp = ACCENT — rotate the arp order) ──────────────────────────────────────
-      case 'sinearp':   return `note("${rotStruct(`${root} ${root + 3} ${root + 7} ${root + 10}`, v.rot)}").slow(2).s("sine").decay(${r2(0.3 * v.jitter)}).gain(${g(0.07)})${fxFor(0.7, 0.8)}.pan(${v.pan})`
-      case 'granular':  return `s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(${g(0.06)}).pan(rand)`
+      case 'sinearp':   return `note("${rotStruct(`${root} ${root + 3} ${root + 7} ${root + 10}`, v.rot)}").slow(2).s("sine").decay(${r2(0.3 * v.jitter)}).gain(${g(0.15)})${fxFor(0.7, 0.8)}.pan(${v.pan})`
+      case 'granular':  return `s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(${g(0.1)}).pan(rand)`
       case 'choir':     return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").attack(1.2).release(5).lpf(${Math.round(600 * v.cut)}).gain(${g(0.06)})${fxFor(0.3, 1.4)}`
-      case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(${Math.round(800 * v.cut)}).gain(${g(0.05)})${fxFor(0.4, 1)}.pan(${v.pan})`
+      case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(${Math.round(800 * v.cut)}).gain(${g(0.14)})${fxFor(0.4, 1)}.pan(${v.pan})`
+      // ── co-designed dark/horror (docs/radio-part-archetypes.md) — beds + the deepBell accent ─────────────
+      case 'tapeChoir':   return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").vowel("<aa oo aa ee>").attack(1.5).release(4).add(note(perlin.range(-0.25, 0.25).slow(3))).crush(7).lpf(${Math.round(1700 * v.cut)}).hpf(220).gain(${g(0.14)})${fxFor(0.8, 1.4)}.pan(${v.pan})`
+      case 'droneCluster':return `note("[${root - 12},${root - 6},${root + 1}]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(${g(0.14)})${fxFor(0.5, 1)}.pan(${v.pan})`
+      case 'scanner':     return `s("white*4").dec(2).attack(0.5).hpf(300).lpf(sine.range(400, 3000).slow(6)).lpq(14).gain(${g(0.07)}).pan(sine.slow(9))`
+      case 'tapeWarble':  return `note("${root - 12}").s("sawtooth").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(${Math.round(700 * v.cut)}).crush(8).gain(${g(0.1)})${fxFor(0.4, 0.8)}.pan(${v.pan})`
+      case 'insectoid':   return `s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(${g(0.13)}).pan(rand)`
+      case 'deepBell':    return `note("${root - 12}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(2.5 * v.jitter)}).fmh(1.41).attack(0.001).decay(3).lpf(1400).distort("1.05:0.2").gain(${g(0.2)})${fxFor(0.9, 1.4)}.pan(${v.pan})`
       default:          return `note("${root - 12}").s("sine").lpf(200).gain(${g(0.1)})`
     }
   }
@@ -596,6 +656,37 @@ export class RadioComposer {
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
 
+// Drum GROOVE kits (co-designed — docs/radio-part-archetypes.md). 1-BAR patterns so they fit the kick block's
+// fill-wrapping. The user's taste runs BROKEN/SYNCOPATED (amen/broken won) over straight 4-floor. `kick` = base
+// kick pattern; `hat`/`snare`/`clap` = those layers' patterns; `ghost` = an extra quiet snare layer (amen rattle);
+// `rim` = a dubby off-pulse (minimal); `shape`/`lpf` tweak the kick; `swing` the hats. (Drums MAY rest — no
+// no-silence rule here.) 'existing' (the original 4-floor techno) is NOT in this map — it keeps the per-element style fields.
+interface DrumKit { kick: string; shape?: number; lpf?: string; hat: string; snare: string; clap: string; ghost?: string; rim?: string; swing: number }
+const DRUM_KITS: Record<Exclude<DrumArchetype, 'existing'>, DrumKit> = {
+  amen: { kick: 'bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~', hat: 'hh*16', snare: '~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~', clap: '~ cp ~ cp', ghost: '~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~', swing: 0.06 },
+  industrial: { kick: 'bd*4', shape: 0.3, hat: 'white*16', snare: '~ cp ~ cp', clap: '~ cp ~ cp', swing: 0 },
+  broken: { kick: 'bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~', hat: 'hh*16', snare: '~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp', clap: '~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp', swing: 0.13 },
+  minimal: { kick: 'bd*4', lpf: '.lpf(2200)', hat: '~ hh ~ hh', snare: '~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~', clap: '~ cp ~ cp', rim: '~ rim ~ rim', swing: 0 },
+}
+
+// Per-archetype bass CORE (the co-designed dark/electronic tournament winners — docs/radio-part-archetypes.md).
+// `off` = 16-step OFFSET pattern relative to the section root (0 = root, 6 = tritone…; no bare `~` — the BASS LAW
+// forbids silence, gaps are `_` sustains or ghost notes). `src` = source+synth, `fx` = character chain. Optional:
+// `shove` (per-bar transpose), `drift` (continuous downward pitch slide), `filt` (filter override, else the shared
+// entry sweep). The composer appends `.add(note("<roots>"))` so each rides the progression root per bar.
+interface BassVoice { off: string; src: string; fx: string; shove?: string; drift?: (n: number, la: string) => string; filt?: (n: number, la: string) => string }
+const BASS_VOICES: Record<Exclude<BassArchetype, 'existing'>, BassVoice> = {
+  rootPulse: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.4)', fx: '.acidenv(0.7).lpq(9).distort("1.2:0.3")' },
+  bitcrush: { off: '0 0 0 6 0 0 0 0 0 0 6 0 5 0 0 0', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.crush(4).distort("1.3:0.45").release(0.14).lpq(5).acidenv(0.4).gain("1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5")' },
+  wobble: { off: '0 0 0 0 0 0 6 0 0 0 0 0 0 0 5 0', src: '.s("supersaw").unison(5).detune(0.5)', fx: '.lpq(13).distort("1.4:0.45")', filt: (n, la) => `.lpf(sine.range(160, 1700).slow(${Math.max(2, n)})${la})` },
+  chromaDescent: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51)', fx: '.lpq(6).distort("1.4:0.45").gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5")', drift: (n, la) => `.add(note(saw.range(0, -12).slow(${n})${la}))`, filt: (_n, la) => `.lpf(saw.range(200, 1100).slow(2)${la})` },
+  pulseHorror: { off: '0*16', shove: '.add(note("<0 0 6 0>"))', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.6 1 0.5 0.8 0.5 1 0.5 0.7 0.6")', filt: () => '.lpf(perlin.range(220, 1700).fast(2))' },
+  // — library lessons (sub+timbre stack / wavetable / heavy diode drive / cycling FM). Our sub-sine is the weight;
+  //   these supply the CHARACTER layer on top, like the reference substk_* basses. —
+  wtFlute: { off: '0 _ _ 6 _ 0 _ _ 5 _ _ 4 _ 0 _ _', src: '.s("wt_flute").unison(2)', fx: '.wt(0).wtenv(0.7).acidenv(0.45).distort("4:0.5").dec(0.13).lpq(2).fm("<1 ~ ~ 2>")' },
+  wtDigital: { off: '0 _ 6 _ _ 0 _ 5 _ _ 4 _ _ 0 _ _', src: '.s("wt_digital").unison(2)', fx: '.wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4)' },
+}
+
 // Per-archetype synth+FX chain (the co-designed lead set — docs/radio-lead-archetypes.md). `src` overrides the
 // source (omit → use the track's voice); `fx` is the character chain; `filt` overrides the entry-sweep filter;
 // `ceil` raises the filter ceiling for bright timbres; `fat` adds the octave-down shadow; `lvl` scales the gain.
@@ -622,6 +713,14 @@ const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
   detunedDrift: { src: '.s("supersaw").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6)', fx: '.lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8)', filt: '.lpf(saw.range(450, 1500).slow(8))', lvl: 0.95 },
   warpedBox: { src: '.s("sine").fm(3).fmh(7).attack(0.001).decay(0.4).add(note(sine.range(-0.15, 0.15).slow(1.5))).crush(6)', fx: '.delay(0.3).delaytime(0.375).delayfeedback(0.5).room(0.72).roomsize(9)', filt: '.lpf(2600)' },
   crushBell: { src: '.s("square").fm(2).fmh(4).attack(0.001).decay(0.2).crush(4).speed("<1 1 0.98 1>")', fx: '.delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.5).roomsize(7)', filt: '.lpf(3000)' },
+  // — co-designed CALM/atmospheric (Silent Hill + virtual). Boosted lvl (they read quiet); fixed lpf as in the demos. —
+  fogMelody: { src: '.s("triangle").attack(0.02).release(0.7).add(note(sine.range(-0.12, 0.12).slow(3)))', fx: '.delay(0.5).delaytime(0.5).delayfeedback(0.55).room(0.78).roomsize(11)', filt: '.lpf(2200)', lvl: 1.3 },
+  digitalChime: { src: '.s("sine").fm(2).fmh(2.01).attack(0.005).decay(0.5)', fx: '.delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9)', filt: '.lpf(3200)', lvl: 1.15 },
+  rustString: { src: '.s("sawtooth").attack(0.04).release(1.2).add(note(perlin.range(-0.15, 0.15).slow(2))).crush(10).distort("1.1:0.2")', fx: '.lpq(3).delay(0.45).delaytime(0.5).delayfeedback(0.5).room(0.7).roomsize(10)', filt: '.lpf(1400)', lvl: 1.3 },
+  digitalRain: { src: '.s("triangle").fm(1.5).fmh(2.0).attack(0.002).decay(0.3)', fx: '.delay(0.5).delaytime(0.1875).delayfeedback(0.65).room(0.7).roomsize(10)', filt: '.lpf(3000)', lvl: 1.15 },
+  // — PROCEDURAL random-walk leads (library lessons: acid-line + wavetable). Contour is generated fresh per track. —
+  genWalk: { src: '.s("supersaw").unison(3).detune(0.3)', fx: '.acidenv(0.5).lpq(8).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.45).roomsize(7)', ceil: 2400, fat: true },
+  genWeave: { src: '.s("wt_digital").unison(2).detune(0.2).wt(0).wtenv(0.5)', fx: '.acidenv(0.55).lpq(6).delay(0.4).delaytime(0.375).delayfeedback(0.55).room(0.6).roomsize(8)', ceil: 2200, lvl: 1.05 },
 }
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
 

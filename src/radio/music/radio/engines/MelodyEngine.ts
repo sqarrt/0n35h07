@@ -2,6 +2,7 @@ import type { Rng } from '../../seededRandom'
 import type { Chord } from '../theory'
 import { AntiRepeatBuffer } from '../AntiRepeatBuffer'
 import { weightedPick, type Weighted } from '../weighted'
+import { rotate } from '../seqDisguise'
 
 // A lead is (harmonic CONTENT) × (a rhythm/timbre DEVICE) — see docs/radio-leads-lessons.md +
 // docs/radio-lead-archetypes.md (the co-designed archetype set). The ENGINE only produces the note CONTENT
@@ -12,6 +13,8 @@ export type LeadVoiceId =
   | 'arpDyad' | 'atmoDyad' | 'chordStab' | 'lament' | 'callResponse' | 'octavePulse'
   | 'bellMelody' | 'stutterStab' | 'leadingTone' | 'phrygianHalf' | 'doubleStop'
   | 'glitchStorm' | 'tritone' | 'glassArp' | 'ghostVoice' | 'detunedDrift' | 'warpedBox' | 'crushBell'
+  | 'fogMelody' | 'digitalChime' | 'rustString' | 'digitalRain' // co-designed CALM/atmospheric (Silent Hill + virtual)
+  | 'genWalk' | 'genWeave'  // PROCEDURAL — a seeded random walk over scale degrees (library lesson: irand().seg().sc())
 
 export interface LeadMotif { pattern: string; voice: LeadVoiceId }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }
@@ -45,16 +48,28 @@ const ATMO_DYADS: (number[] | null)[][] = [
 type El = '~' | number | number[]
 // All 18 archetypes are EQUALLY likely; anti-repeat picks a DIFFERENT one than the previous track.
 const ARCHETYPES: LeadVoiceId[] = [
-  'arpDyad', 'atmoDyad', 'chordStab', 'lament', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
-  'leadingTone', 'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
+  'atmoDyad', 'chordStab', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
+  'doubleStop', 'glitchStorm', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
+  'fogMelody', 'digitalChime', 'rustString', 'digitalRain', // co-designed calm/atmospheric (SH + virtual)
+  'genWalk', 'genWeave', // procedural random-walk leads (never repeat a contour → no recognizability)
 ]
+// DROPPED from the pool (in the live mix they read wrong; voice/pattern code stays but is unreachable):
+//  • leadingTone — harmonic-minor raised-7th, ascending 0→5→6→7 drama → too melodic/uplifting for the dark vibe.
+//  • tritone — the b5 "diabolus" LEAD (great as a BASS, kept there) → too dissonant/ugly as a lead in the mix.
+//  • arpDyad — the old busy 16th tonic-pedal-arp (predates the dark co-design) → reads as disco/busy, the type
+//    the user consistently rejects (acidCell/mono303 family).
+//  • lament — the descending melancholic phrase. Dropped from BOTH pools below — it was in ARCHETYPES *and*
+//    RESTFUL_LEADS, so it surfaced far more often than the rest, and the user didn't want it.
+//  • phrygianHalf — busy phrygian melody pivoting on the b2 (minor 2nd). Busy AND dissonant → exactly the type
+//    the user keeps rejecting in the live mix.
 // The break's job is to REST the ears → only the atmospheric/restful archetypes (no driving acid/stab/glitch).
 // The composer renders one of these through the break's low-gain, echo-drowned chain (a different lead than the
 // track's main one, by design).
 const RESTFUL_LEADS: LeadVoiceId[] = [
-  'atmoDyad', 'lament', 'callResponse', 'bellMelody', 'ghostVoice', 'glassArp', 'detunedDrift', 'warpedBox',
+  'atmoDyad', 'callResponse', 'bellMelody', 'ghostVoice', 'glassArp', 'detunedDrift', 'warpedBox',
   'doubleStop', 'crushBell',
+  'fogMelody', 'digitalChime', 'rustString', 'digitalRain', // the calm co-designs — perfect for the break's rest
 ]
 
 // 4-bar phrases (each bar = an El[]) and 16-step single lines (an El[]), as scale-DEGREE figures. The builder
@@ -72,6 +87,11 @@ const PHRASES: Partial<Record<LeadVoiceId, El[][]>> = {
   detunedDrift: [[0, '~', '~', -2, '~', '~', '~', '~'], [3, '~', '~', 0, '~', '~', '~', '~'], [-2, '~', '~', 0, '~', '~', '~', '~'], [0, '~', '~', '~', '~', '~', '~', '~']],
   warpedBox: [[0, '~', 3, '~', 5, '~', 3, '~'], [2, '~', 0, '~', -2, '~', 0, '~'], [3, '~', 5, '~', 7, '~', 5, '~'], [3, '~', 2, '~', 0, '~', '~', '~']],
   crushBell: [[0, '~', 3, '~', 0, '~', 5, '~'], [3, '~', 2, '~', 0, '~', -2, '~'], [5, '~', 3, '~', 7, '~', 5, '~'], [3, '~', 0, '~', 2, '~', 0, '~']],
+  // co-designed CALM/atmospheric leads — sparse, lots of space (a whole rest-bar to breathe). SH + virtual.
+  fogMelody: [[4, '~', '~', '~', 3, '~', '~', '~'], [2, '~', '~', '~', '~', '~', '~', '~'], [3, '~', '~', 2, '~', '~', 0, '~'], ['~', '~', '~', '~', '~', '~', '~', '~']],
+  digitalChime: [[0, '~', 4, '~', 7, '~', 4, '~'], ['~', '~', 5, '~', '~', '~', 2, '~'], [7, '~', 9, '~', 7, '~', 4, '~'], ['~', 2, '~', '~', 0, '~', '~', '~']],
+  rustString: [[0, '~', '~', 2, '~', '~', '~', '~'], [3, '~', '~', 2, '~', 0, '~', '~'], ['~', '~', 0, '~', '~', -2, '~', '~'], [0, '~', '~', '~', '~', '~', '~', '~']],
+  digitalRain: [[0, '~', 2, '~', 4, '~', 2, '~'], [4, '~', 6, '~', 4, '~', 2, '~'], ['~', 2, '~', 4, '~', 2, '~', 0], ['~', '~', 0, '~', '~', '~', '~', '~']],
 }
 const LINES: Partial<Record<LeadVoiceId, El[]>> = {
   octavePulse: [0, '~', '~', 7, '~', 0, '~', '~', 0, '~', 7, '~', '~', 4, '~', 0],
@@ -147,12 +167,59 @@ export class MelodyEngine {
     if (voice === 'leadingTone') return phrase(PHRASES.leadingTone!, degFn(HARM_MINOR, base))
     if (voice === 'phrygianHalf') return phrase(PHRASES.phrygianHalf!, degFn(PHRYGIAN, base))
     if (voice === 'tritone') return phrase(PHRASES.tritone!, (d: number) => base + (TRITONE_SEMI[((d % TRITONE_SEMI.length) + TRITONE_SEMI.length) % TRITONE_SEMI.length] + 12 * Math.floor(d / TRITONE_SEMI.length)))
-    // The remaining phrase- and line-based archetypes render straight off the track scale.
+    // PROCEDURAL — a seeded random walk over scale degrees → a fresh, in-scale contour every track (no catalog to
+    // recognise). genWalk = a flowing 16-step line; genWeave = a sparser 4-bar phrase with more space.
+    if (voice === 'genWalk') return line(genWalk(rng, { steps: 16, rest: 0.4, spread: 7 }), deg)
+    if (voice === 'genWeave') return phrase([0, 0, 0, 0].map(() => genWalk(rng, { steps: 8, rest: 0.5, spread: 9 })), deg)
+    // The remaining phrase- and line-based archetypes render straight off the track scale — DISGUISED per track
+    // (seeded recombination/rotation of the cells) so the same authored shape isn't recognizable across tracks.
     const ph = PHRASES[voice]
-    if (ph) return phrase(ph, deg)
+    if (ph) return phrase(transformPhrase(ph, rng), deg)
     const ln = LINES[voice]
-    return line(ln ?? LINES.octavePulse!, deg)
+    return line(transformLine(ln ?? LINES.octavePulse!, rng), deg)
   }
+}
+
+// ── Phrase DISGUISE (kills cross-track recognizability) — seeded recombination + rotation of the authored cells,
+//    all at the DEGREE level so it stays diatonic. Same notes, re-shaped contour → you stop recognizing the source.
+//    (rotate<T> is shared from seqDisguise.)
+
+/** Disguise a 4-bar phrase: always re-phase the figure within each bar; sometimes reorder/swap whole bars. */
+function transformPhrase(bars: El[][], rng: Rng): El[][] {
+  let out = bars.map((b) => b.slice())
+  out = out.map((bar) => rotate(bar, 1 + rng.int(3)))           // ALWAYS: re-phase the figure inside each bar (shared shift = stays coherent)
+  if (rng.next() < 0.6 && out.length > 1) out = rotate(out, 1 + rng.int(out.length - 1)) // new entry bar
+  if (rng.next() < 0.45 && out.length >= 2) {                   // light recombination: swap a pair of bars
+    const i = rng.int(out.length), j = rng.int(out.length)
+    const t = out[i]; out[i] = out[j]; out[j] = t
+  }
+  return out
+}
+/** Disguise a 16-step line: always rotate; sometimes recombine its 4-step cells. */
+function transformLine(els: El[], rng: Rng): El[] {
+  let out = rotate(els.slice(), 1 + rng.int(els.length - 1))
+  if (rng.next() < 0.5) {
+    const cells: El[][] = []
+    for (let i = 0; i < out.length; i += 4) cells.push(out.slice(i, i + 4))
+    out = rotate(cells, 1 + rng.int(Math.max(1, cells.length - 1))).flat()
+  }
+  return out
+}
+
+// A seeded random WALK over scale DEGREES → an ever-fresh, in-scale lead contour (library lesson: irand().seg().sc(),
+// done deterministically in TS so it lands in the note() pipeline). Small diatonic steps + rests + a mild DOWNWARD
+// bias (the dark aesthetic resolves down — never a "tropical" climb).
+function genWalk(rng: Rng, opts: { steps: number; rest: number; spread: number }): El[] {
+  const STEP = [-2, -1, -1, -1, 1, 2, 0] // small steps, biased downward
+  let d = rng.int(3)
+  const els: El[] = []
+  for (let i = 0; i < opts.steps; i++) {
+    if (rng.next() < opts.rest) { els.push('~'); continue }
+    d = Math.max(-opts.spread, Math.min(opts.spread, d + STEP[rng.int(STEP.length)]))
+    els.push(d)
+  }
+  if (!els.some((e) => e !== '~')) els[0] = 0 // never a silent bar
+  return els
 }
 
 /** scale-step → midi (wraps octaves; negative steps go below the tonic, staying in the given mode). */

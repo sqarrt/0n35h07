@@ -15,22 +15,24 @@ export type DropLead = 'stab' | 'arp' | 'lead'
 export type LeadPresence = 'full' | 'sparse' | 'none'
 /** Subtle in-key background texture that fills/dilutes the track (no melodic pad). */
 export type BgKind =
-  | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums
+  | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums (culled in triage)
   | 'subpulse' | 'sonar' | 'metallic' | 'morse' | 'bell'        // pulses / beepers
   | 'wind' | 'crackle' | 'hiss' | 'geiger' | 'resonance'        // noise textures
   | 'sinearp' | 'granular' | 'choir' | 'siren'                  // tonal shimmers
+  | 'tapeChoir' | 'droneCluster' | 'scanner' | 'tapeWarble' | 'insectoid' | 'deepBell' // co-designed dark/horror
 
 export const BG_KINDS: BgKind[] = [
-  'drone', 'hum', 'tremdrone', 'organ', 'sweepdrone',
-  'subpulse', 'sonar', 'metallic', 'morse', 'bell',
-  'wind', 'crackle', 'hiss', 'geiger', 'resonance',
-  'sinearp', 'granular', 'choir', 'siren', // 'reverse' removed — a swelling white-noise burst, not in-key & too foreground
+  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren',
+  'crackle', 'hiss', 'geiger', 'granular',
+  'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid', 'deepBell',
 ]
-// Two tiers (see docs/radio-leads-lessons.md analysis): BEDS are subliminal drones/noise with no rhythmic/tonal
-// HOOK — safe to recur, they don't fingerprint a track. ACCENTS are the memorable ones (a bell ping, a sonar
-// blip, a morse rhythm…) — distinctive, so they're added only OCCASIONALLY and never to two near tracks.
-export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'wind', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
-export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'bell', 'sinearp', 'siren']
+// Two tiers: BEDS are subliminal drones/noise with no rhythmic/tonal HOOK — safe to recur, they don't fingerprint
+// a track. ACCENTS are the memorable ones (a bell ping, a sonar blip, a morse rhythm…) — distinctive, so added only
+// OCCASIONALLY and never to two near tracks. Palette TRIAGED by ear (docs/radio-part-archetypes.md): the plain tonal
+// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED; the dark/horror co-designs
+// (tapeChoir/droneCluster/scanner/tapeWarble/insectoid beds + deepBell accent) added. Dead bgTexture cases remain.
+export const BG_BEDS: BgKind[] = ['hiss', 'crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell']
 const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
@@ -65,7 +67,19 @@ export interface TrackStyle {
   riser: boolean      // does this track use the through-line FM pulse riser texture?
   bg: BgKind          // the always-on subliminal BED texture that fills the track
   bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
+  bassArchetype: BassArchetype // which bass CHARACTER the track uses (co-designed tournament winners + the original)
+  drumArchetype: DrumArchetype // which drum GROOVE the track uses (amen/industrial/broken/minimal + the original)
 }
+
+// Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
+// winners (see docs/radio-part-archetypes.md). Each is rendered by the composer's BASS_VOICES map.
+export type BassArchetype = 'existing' | 'rootPulse' | 'bitcrush' | 'wobble' | 'chromaDescent' | 'pulseHorror' | 'wtFlute' | 'wtDigital'
+const BASS_ARCHETYPES: BassArchetype[] = ['existing', 'rootPulse', 'bitcrush', 'wobble', 'chromaDescent', 'pulseHorror', 'wtFlute', 'wtDigital']
+
+// Drum GROOVE character (kick/hat/snare/clap pattern + swing): 'existing' = the original 4-floor techno (per-element
+// style fields); the rest are the co-designed grooves (docs/radio-part-archetypes.md), rendered via DRUM_KITS.
+export type DrumArchetype = 'existing' | 'amen' | 'industrial' | 'broken' | 'minimal'
+const DRUM_ARCHETYPES: DrumArchetype[] = ['existing', 'amen', 'industrial', 'broken', 'minimal']
 
 const BASS: { sound: string; fm: number; rest: number }[] = [
   { sound: 'sawtooth', fm: 0, rest: 0.12 }, // classic acid
@@ -174,6 +188,8 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     leadPresence: pick(rng, LEAD_PRESENCE, anti, 'st_leadpres'),
     ohPat: pick(rng, OH, anti, 'st_oh'),
     bassGroove: pick(rng, BASS_GROOVE, anti, 'st_bgroove'),
+    bassArchetype: pick(rng, BASS_ARCHETYPES, anti, 'st_bassarch'),
+    drumArchetype: pick(rng, DRUM_ARCHETYPES, anti, 'st_drumarch'),
     fx: pick(rng, FX_SPACES, anti, 'st_fx'),
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
     bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed
