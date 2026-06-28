@@ -31,9 +31,10 @@ const MIX = {
   bass: 0.58,   // bumped 0.5→0.58: the bass still read too quiet on some tracks
   sub: 0.47,
   lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
-  bgScale: 0.27, // multiplies each bg texture's own (already small) level. 0.35→0.27: bg still spiked too loud on some
-                 // tracks → trimmed further so the bed stays under the groove. Per-texture trims below.
-  bgCap: 0.15,  // HARD ceiling on a bg texture's pre-scale level (lowered 0.18→0.15 with the bgScale trim)
+  bgScale: 0.18, // multiplies each bg texture's own (already small) level. 0.27→0.18: bg still pierced on exposed
+                 // intros (normScale only TRIMS, so a sparse intro never trims the bed AND nothing masks it).
+  bgCap: 0.09,  // HARD ceiling on a bg texture's pre-scale level (0.15→0.09 — clamps the loudest textures hard)
+  bgGainCeil: 0.022, // ABSOLUTE final-gain ceiling for any bg layer → it can never blast, whatever the norm does
   hat: 0.34,
   snare: 0.46,
   clap: 0.4,
@@ -430,7 +431,7 @@ export class RadioComposer {
       const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
       // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
       // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
-      const gBg = (x: number) => g(MIX.bgScale * Math.min(x, MIX.bgCap))
+      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
       // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
       // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
       // never identical — what made a bell or sonar "jump out" when it recurred.
