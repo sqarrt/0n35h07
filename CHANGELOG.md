@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.1]
+
+### Fixed
+- **Multiplayer: the client no longer gets flung off the map / thrashed.** Client prediction reconciliation
+  compounded authority corrections across the in-flight input window (only visible at real network latency),
+  causing overshoot, oscillation and a jerking camera. Corrections are now rebased so only new divergence corrects.
+- **Radio: the volume slider can be dragged again.** "Drag the player from any empty area to save" had hijacked
+  mousedowns on the slider/buttons; controls now keep their native behaviour.
+
 ## [0.6.0] - 2026-06-28
 
 ### Added
