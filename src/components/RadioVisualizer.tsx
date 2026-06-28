@@ -67,5 +67,5 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
     return () => cancelAnimationFrame(raf)
   }, [engine, active])
 
-  return <canvas ref={ref} width={760} height={720} className="radio-vis" data-testid="radio-visualizer" />
+  return <canvas ref={ref} width={612} height={372} className="rexp-vis" data-testid="radio-visualizer" />
 }

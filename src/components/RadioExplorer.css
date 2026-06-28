@@ -1,10 +1,12 @@
 /* Radio Explorer — the on-disk track-library window. Off-centre, translucent (the audio visualizer glows behind/
    through it), retro icon-grid skinned in the game theme. Icons are CSS-drawn → must live in a stylesheet. */
 .rexp { position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%) translateX(180px); width: 612px; height: 372px; z-index: 140;
-  background: rgba(9, 12, 18, 0.60); backdrop-filter: blur(7px) saturate(130%); -webkit-backdrop-filter: blur(7px) saturate(130%);
+  overflow: hidden; background: rgba(7, 10, 15, 0.93); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
   border: 1px solid var(--line); border-radius: 3px; display: flex; flex-direction: column;
   box-shadow: 0 0 0 1px rgba(68,170,255,.08), 0 18px 60px rgba(0,0,0,.55), 0 0 34px rgba(68,170,255,.16);
   font-family: var(--ui-font); color: var(--text); user-select: none; }
+/* window chrome + content sit ABOVE the in-window visualizer canvas */
+.rexp-title, .rexp-tools, .rexp-addr, .rexp-grid, .rexp-status { position: relative; z-index: 1; }
 .rexp-title { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-bottom: 1px solid var(--surface-line);
   background: linear-gradient(180deg, rgba(68,170,255,.12), rgba(68,170,255,.03)); }
 .rexp-title .dot { width: 9px; height: 9px; border: 1px solid var(--accent); transform: rotate(45deg); box-shadow: 0 0 8px var(--accent); }
@@ -62,5 +64,5 @@
 .rtrash.over { transform: scale(1.1); }
 .rtrash.over .lid, .rtrash.over .body { border-color: #f99; box-shadow: 0 0 14px rgba(255,102,102,.5); }
 
-/* Audio-reactive visualizer canvas — RadioVisualizer.tsx. Dim, centred, BEHIND the explorer/player. */
-.radio-vis { position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 760px; height: 720px; z-index: 110; opacity: 0.62; pointer-events: none; }
+/* Audio-reactive visualizer — the explorer window's LIVING BACKGROUND (behind the file grid, clipped to the window). */
+.rexp-vis { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; }

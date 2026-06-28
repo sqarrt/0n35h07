@@ -1,5 +1,7 @@
 import { useEffect, useState, type DragEvent, type KeyboardEvent } from 'react'
 import { useT } from '../i18n'
+import { RadioVisualizer } from './RadioVisualizer'
+import type { IStrudelEngine } from '../radio/music/IStrudelEngine'
 import type { RadioLibrary, LibEntry, TrackPayload } from '../radio/library/radioLibrary'
 import './RadioExplorer.css'
 
@@ -13,11 +15,13 @@ interface RadioExplorerProps {
   rootAbsPath: string                 // OS path of the radio root — shown in the address bar
   reloadKey: number                   // bump from the parent to refresh after an external save/trash
   onPlay: (queue: TrackPayload[], startIndex: number) => void
+  engine: IStrudelEngine | null       // for the audio-reactive visualizer (the window's living background)
+  active: boolean
 }
 
 type Ctx = { x: number; y: number; entry: LibEntry | null }
 
-export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay }: RadioExplorerProps) {
+export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, engine, active }: RadioExplorerProps) {
   const t = useT()
   const [path, setPath] = useState('')
   const [entries, setEntries] = useState<LibEntry[]>([])
@@ -124,6 +128,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay }: RadioExpl
 
   return (
     <div className="rexp" data-testid="radio-explorer" onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null }) }}>
+      <RadioVisualizer engine={engine} active={active} />
       <div className="rexp-title"><span className="dot" /><b>{dirName}</b><span style={{ flex: 1 }} />
         <span className="rexp-wbtn">_</span><span className="rexp-wbtn">▢</span><span className="rexp-wbtn x">✕</span></div>
       <div className="rexp-tools">

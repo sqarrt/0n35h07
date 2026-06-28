@@ -28,7 +28,6 @@ import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { RadioPlayer } from './components/RadioPlayer'
 import { RadioExplorer } from './components/RadioExplorer'
 import { RadioTrash } from './components/RadioTrash'
-import { RadioVisualizer } from './components/RadioVisualizer'
 import { RadioCodePanel } from './components/RadioCodePanel'
 import type { RadioLibrary, TrackPayload } from './radio/library/radioLibrary'
 import { warmupRadio } from './radio/warmup'
@@ -969,9 +968,8 @@ export default function App() {
 
       {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
           (so it animates the dock↔expand). The backdrop IS the visual. */}
-      {screen === 'radio' && IS_DESKTOP && <RadioVisualizer engine={radioEngine} active={radioActive} />}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
-        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} onPlay={onPlayLibrary} />
+        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} onPlay={onPlayLibrary} engine={radioEngine} active={radioActive} />
       )}
       {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} />}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
