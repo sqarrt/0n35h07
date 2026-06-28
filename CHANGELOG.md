@@ -5,6 +5,80 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-06-28
+
+### Added
+- **Radio — a track library you can organise (desktop).** A built-in file explorer over a real folder in the app
+  data dir replaces the old favorites list: **drag the playing track (grab anywhere on the player) into a folder to
+  save it**, play a single track or a whole folder as a looping playlist, multi-select (Ctrl/Shift-click + rubber-band
+  box), and right-click for play / new folder / rename / copy / paste / delete (with F2 / Del / Ctrl-C / Ctrl-V
+  shortcuts). The window is draggable, resizable and minimises into a bar over the player or maximises full-screen.
+- **Radio — audio-reactive visualizers behind the explorer.** Four modes — oscilloscope, spectrum bars, radial ring,
+  particle field — switchable from the window, plus an **AUTO** mode that rotates through them.
+- **Radio — a richer, more unique generative palette.** New co-designed **bass** characters (reese wobble, bit-crush,
+  chromatic-drift, glitch, acid-pulse, wavetable flute/digital), **drum grooves** (amen breakbeat, industrial, broken,
+  minimal), **background textures** (tape-choir, drone-cluster, radio-scanner, tape-warble, insect swarm, funeral bell)
+  and **leads** (Silent-Hill fog/rust, virtual chime/data-rain, and procedural random-walk leads). Every track also
+  varies its bass and drum character, applies per-track parameter **mutations** (filter / space / drive / groove + a
+  few safe melody tweaks) and **disguises its lead and bass riffs** (seeded cell recombination) so no two tracks sound
+  alike.
+
+### Changed
+- **Radio generation is no longer biased by your likes/dislikes** — the stream is purely varied and your saved tracks
+  live in the on-disk library instead. Old favorites migrate to the library automatically on first run.
+- Background textures now sit further under the groove (lower ceiling) so they never pierce on exposed intros.
+- Some leads/basses that read wrong in the live mix were dropped from the rotation.
+
+## [0.5.11] - unreleased
+
+### Added
+- **Radio — a generative music mode (desktop).** An endless stream of dark-techno / acid / industrial / ambient
+  tracks composed live, each with its own mood, key, BPM, arrangement and a wide variety of melodic leads.
+  Like/dislike tracks: favorites are saved and replay exactly, and your taste steers what's generated next. The
+  menu visualizer reacts to the music while it plays.
+
+### Fixed
+- **Pointer lock didn't fully engage after pressing "Ready" (the view wouldn't turn until a second click).**
+  The lock badge appeared, but mouse movement didn't rotate the camera until you clicked again. `PointerLockControls`
+  was mounted inside `<Suspense>`/`<Physics>`, which stays suspended while the Rapier WASM loads — but the READY
+  screen (a HUD overlay, independent of the canvas) is already clickable, so the "Ready" click grabbed pointer lock
+  before the controls existed. drei never saw that `pointerlockchange`, so its internal `isLocked` stayed false and
+  `onMouseMove` early-returned; a later canvas click re-locked through the now-mounted controls and "fixed" it.
+  `PointerLockControls` is now mounted eagerly (outside Suspense/Physics — it only needs the camera, not physics),
+  so the lock is observed immediately.
+- **Severe input lag when playing as the network client** (sticky/viscous walking, character kept
+  sliding by inertia after releasing a movement key). The client predicts its own player locally, but
+  every frame it was *unconditionally* lerped 15% toward the host's last snapshot — a position a full
+  round-trip stale — which injected the network latency straight into the locally-predicted position
+  (the camera follows it, so you felt it directly). The host felt fine because it's authoritative.
+  This reconciliation existed to fight drift from hard player–player capsule collisions, but those were
+  long since replaced by a knockback impulse (KCC ignores player capsules), so the per-frame pull no
+  longer fixed anything — it only added lag. Replaced with proper prediction reconciliation: the client
+  keeps a `seq → predicted position` history and, on each snapshot, compares the host's authoritative
+  position **at the acked input seq** against what it predicted for that same seq. Within a deadzone the
+  prediction is trusted (zero correction, zero added latency); only a genuine divergence snaps. Surfaced
+  now because e2e runs over `BroadcastChannel` (~0 RTT, where the old pull was harmless) while real Steam
+  play has real RTT.
+- **The packaged desktop/Steam build couldn't start without the Vite dev server** (showed
+  `localhost refused to connect` / `ERR_CONNECTION_REFUSED`). The local depot build
+  (`scripts/build-steam.mjs`) ran a plain `cargo build --release`, which — unlike `tauri build` —
+  left the `tauri` crate in dev mode (`dev = !custom-protocol`), so the exe loaded `devUrl`
+  (`http://localhost:5173`) instead of the embedded frontend. The build now enables the
+  `custom-protocol` feature (declared in `src-tauri/Cargo.toml`), producing a self-contained exe.
+- **Epilepsy warning missing on the desktop/Steam build.** The photosensitivity warning was accidentally
+  gated to the web build (it got bundled with the "hide WebRTC UI on Steam" change). It now shows on all
+  builds again — desktop, Steam and web (still skipped only under `?net=bc` e2e).
+- **Toggling the in-match outline post-FX teleported the player.** The setting was threaded as a prop
+  through the Canvas, so toggling it re-rendered the game subtree and re-applied the player RigidBody's
+  spawn position (and reset the camera). It's now driven by a small external store that re-renders only
+  the arena outline — no Canvas/Game re-render, no teleport.
+
+### Internal
+- **CI: dropped the desktop build.** The Tauri desktop installers are no longer built in CI — the Steam
+  build is produced locally (`npm run build:steam`) and the web version ships via `deploy-pages`. A version
+  tag now publishes a **notes-only** GitHub Release (the tag message); the Steam SteamPipe CI was already
+  removed in 0.5.10.
+
 ## [0.5.10] - 2026-06-23
 
 ### Added

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
-import { EffectComposer, Bloom } from '@react-three/postprocessing'
-import { Effect, EffectAttribute, EffectPass, Pass } from 'postprocessing'
+import { EffectComposer } from '@react-three/postprocessing'
+import { BloomEffect, Effect, EffectAttribute, EffectPass, Pass } from 'postprocessing'
 import { DepthTexture, HalfFloatType, Uniform, Vector2, WebGLRenderTarget } from 'three'
 import type { Camera, Scene, Texture, WebGLRenderer, WebGLRenderTarget as RT } from 'three'
 import type { AudioAnalysis } from '../game/audio/AudioAnalysis'
@@ -27,6 +27,18 @@ const BLOOM_INTENSITY = 1.5
 const BLOOM_THRESHOLD = 1.1  // blooms only the HDR-bright edge (>1), not the surface/background
 const BLOOM_SMOOTHING = 0.3
 const BLOOM_RADIUS = 0.55    // tighter radius → the halo is denser at the edge, doesn't spread onto the background when loud
+
+// Radio takeover: a SECOND, SOFT full-scene bloom in the SAME composer (one composer → no remount/recompile/freeze).
+// Both blooms are built IMPERATIVELY as <primitive> passes (mixing the <Bloom> JSX wrapper with imperative passes
+// broke the edge glow). The soft bloom stays at intensity 0 until softBloom (radio) eases it in.
+const SOFT_THRESHOLD = 0.0   // bloom EVERYTHING → diffuse frosted-glass haze (not crisp edges)
+const SOFT_RADIUS = 0.95     // wide, blurry halo ("light through fogged glass")
+const SOFT_BASE = 0.35       // hazy glow even in silence (once radio is on)
+const SOFT_GAIN = 1.4
+const SOFT_LEVEL_GAIN = 1.6
+const SOFT_LEVEL_SMOOTH = 0.18
+const SOFT_FADE_TAU = 0.06   // ~0.2s ease in/out as softBloom toggles
+const RADIO_EDGE_BOOST = 1.8 // the orb edge glow is amplified during radio (the user's "усиливается")
 
 // 16 disk points (two rings) — we average the edge over them (= outline blur).
 const fragmentShader = /* glsl */`
@@ -119,7 +131,7 @@ class EdgeGlowEffect extends Effect {
 /** Composer: model-layer depth (real materials) → bright edge from the depth discontinuity → Bloom (glow).
  *  `muted` — instantly kills the glow (intensity → 0) WITHOUT unmounting: the composer stays
  *  compiled, re-enabling has no delay (the "Appearance" screen mutes the outline). */
-export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnalysis; muted?: boolean }) {
+export function MenuEdgeGlow({ analysis, muted = false, enabled = true, softBloom = false }: { analysis?: AudioAnalysis; muted?: boolean; enabled?: boolean; softBloom?: boolean }) {
   const scene = useThree(s => s.scene)
   const camera = useThree(s => s.camera)
   const size = useThree(s => s.size)
@@ -134,26 +146,43 @@ export function MenuEdgeGlow({ analysis, muted = false }: { analysis?: AudioAnal
   }, [])
   const pass = useMemo(() => new ObjDepthPass(scene as Scene, camera, target), [scene, camera, target])
   const effect = useMemo(() => new EdgeGlowEffect(target.depthTexture as Texture, target.texture, new Vector2(1 / size.width, 1 / size.height)), [target]) // eslint-disable-line react-hooks/exhaustive-deps
-  // The edge effect is a SEPARATE pass, then the <Bloom> component blurs it with its own pass.
   const edgePass = useMemo(() => new EffectPass(camera, effect), [camera, effect])
+  // ONE Bloom that MORPHS between two looks (no second Bloom pass — two of them in a composer clamps the HDR buffer
+  // and kills the edge glow). MENU: threshold 1.1 + tight radius → blooms ONLY the HDR orb edges (crisp edge glow).
+  // RADIO: threshold → 0 + wide radius → blooms the WHOLE scene (frosted-glass haze) AND the edges (the orb glow
+  // stays, just softer). luminanceMaterial.threshold / mipmapBlurPass.radius / intensity are all runtime-settable.
+  const bloom = useMemo(() => new BloomEffect({ luminanceThreshold: BLOOM_THRESHOLD, luminanceSmoothing: BLOOM_SMOOTHING, mipmapBlur: true, radius: BLOOM_RADIUS, intensity: BLOOM_INTENSITY }), [])
+  const bloomPass = useMemo(() => new EffectPass(camera, bloom), [camera, bloom])
   useEffect(() => { (effect.uniforms.get('uTexel')!.value as Vector2).set(1 / size.width, 1 / size.height) }, [effect, size])
-  useEffect(() => () => { pass.dispose(); effect.dispose(); edgePass.dispose(); target.dispose() }, [pass, effect, edgePass, target])
+  useEffect(() => () => { pass.dispose(); effect.dispose(); edgePass.dispose(); bloom.dispose(); bloomPass.dispose(); target.dispose() }, [pass, effect, edgePass, bloom, bloomPass, target])
 
   const lvl = useRef(0)
-  useFrame(() => {
-    // √x — perceptual loudness: quiet music noticeably lights the edge, peaks don't flatten at the ceiling
-    const tgt = muted ? 0 : Math.min(1, Math.sqrt((analysis?.level() ?? 0) * LEVEL_GAIN))
+  const softLvl = useRef(0)
+  const fade = useRef(0)
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(dtRaw, 0.1)
+    const level = analysis?.level() ?? 0
+    // Edge outline brightness — reacts to music (√x perceptual), amplified during radio.
+    const tgt = muted ? 0 : Math.min(1, Math.sqrt(level * LEVEL_GAIN))
     lvl.current += (tgt - lvl.current) * GLOW_SMOOTH
-    const u = effect.uniforms.get('uIntensity')!
-    u.value = INTENSITY_BASE + lvl.current * INTENSITY_GAIN
+    effect.uniforms.get('uIntensity')!.value = (INTENSITY_BASE + lvl.current * INTENSITY_GAIN) * (softBloom ? RADIO_EDGE_BOOST : 1)
+    // Morph the single Bloom toward the frosted (radio) look, eased over ~0.2s; its radio intensity follows the music.
+    fade.current += ((softBloom ? 1 : 0) - fade.current) * (1 - Math.exp(-dt / SOFT_FADE_TAU))
+    const f = fade.current
+    softLvl.current += (Math.min(1, Math.sqrt(level * SOFT_LEVEL_GAIN)) - softLvl.current) * SOFT_LEVEL_SMOOTH
+    const radioIntensity = SOFT_BASE + SOFT_GAIN * softLvl.current
+    bloom.luminanceMaterial.threshold = BLOOM_THRESHOLD + (SOFT_THRESHOLD - BLOOM_THRESHOLD) * f
+    bloom.mipmapBlurPass.radius = BLOOM_RADIUS + (SOFT_RADIUS - BLOOM_RADIUS) * f
+    bloom.intensity = BLOOM_INTENSITY + (radioIntensity - BLOOM_INTENSITY) * f
   })
 
-  // HDR buffer (HalfFloat): an edge brighter than 1.0 survives the buffer → Bloom catches ONLY it, not surface/background (≤1).
+  // HDR buffer (HalfFloat): the edge effect makes the orb outline brighter than 1.0; the Bloom turns that into a glow
+  // (and, in radio, also the whole scene). One composer, fixed 3 passes — nothing added/removed → no recompile/freeze.
   return (
-    <EffectComposer frameBufferType={HalfFloatType}>
+    <EffectComposer enabled={enabled} frameBufferType={HalfFloatType}>
       <primitive object={pass} />
       <primitive object={edgePass} />
-      <Bloom intensity={BLOOM_INTENSITY} luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={BLOOM_SMOOTHING} radius={BLOOM_RADIUS} mipmapBlur />
+      <primitive object={bloomPass} />
     </EffectComposer>
   )
 }

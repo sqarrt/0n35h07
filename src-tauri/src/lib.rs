@@ -54,6 +54,8 @@ pub fn run() {
   purge_stale_service_worker();
 
   tauri::Builder::default()
+    .plugin(tauri_plugin_fs::init())      // radio explorer — read/write track files in app-data radio/
+    .plugin(tauri_plugin_opener::init())  // radio explorer — reveal the folder in the system file manager
     .invoke_handler(tauri::generate_handler![
       steam::steam_available,
       steam::steam_user,

@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.5.10"
+version = "0.6.0"
 description = "0N35H07 — arcade 1v1 FPS"
 authors = ["Dmitry Shatalov"]
 license = ""
@@ -14,6 +14,14 @@ rust-version = "1.77.2"
 name = "app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[features]
+# Production builds MUST enable this (the `tauri build` CLI turns it on automatically). It flips the
+# `tauri` crate out of dev mode (build.rs: `dev = !custom-protocol`), so the app serves the embedded
+# frontend (frontendDist = ../dist) via the `tauri://` custom protocol instead of loading devUrl
+# (http://localhost:5173). Without it a plain `cargo build --release` produces a dev-mode exe that
+# can't start without the Vite dev server. DO NOT REMOVE — see scripts/build-steam.mjs.
+custom-protocol = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2.6.2", features = [] }
 
@@ -23,5 +31,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
+tauri-plugin-fs = "2"       # radio explorer — real on-disk track files in the app-data radio/ folder
+tauri-plugin-opener = "2"   # radio explorer — "reveal folder in the system file manager"
 steamworks = "0.11"
 steamworks-sys = "0.11"   # raw sys structs (e.g. reading a connection end_reason the high-level enum can't map)

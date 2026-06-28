@@ -7,6 +7,18 @@
   ],
   "permissions": [
     "core:default",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "fs:allow-mkdir",
+    "fs:allow-read-dir",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-remove",
+    "fs:allow-exists",
+    "fs:allow-rename",
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$APPDATA/radio" }, { "path": "$APPDATA/radio/**" }]
+    },
+    "opener:allow-reveal-item-in-dir"
   ]
 }

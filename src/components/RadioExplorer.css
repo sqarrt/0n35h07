@@ -1,0 +1,85 @@
+/* Radio Explorer — the on-disk track-library window. Off-centre, translucent (the audio visualizer glows behind/
+   through it), retro icon-grid skinned in the game theme. Icons are CSS-drawn → must live in a stylesheet. */
+.rexp { position: fixed; width: 612px; height: 372px; z-index: 180; overflow: hidden; display: flex; flex-direction: column;
+  background: rgba(10, 15, 20, 0.55); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 18px 60px rgba(0,0,0,0.5), 0 0 30px rgba(68,170,255,.14);
+  font-family: var(--ui-font); color: var(--text); user-select: none; }
+/* window chrome + content sit ABOVE the in-window visualizer canvas */
+.rexp-title, .rexp-tools, .rexp-addr, .rexp-grid, .rexp-status { position: relative; z-index: 1; }
+.rexp-title { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px; border-bottom: 1px solid var(--surface-line);
+  background: linear-gradient(180deg, rgba(68,170,255,.12), rgba(68,170,255,.03)); }
+.rexp-title b { color: var(--accent); text-shadow: 0 0 10px rgba(68,170,255,.5); font-weight: 400; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+.rexp-wbtn { width: 22px; height: 19px; border: 1px solid var(--ghost-line); color: var(--muted); display: grid; place-items: center; font-size: 11px; border-radius: 3px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.rexp-wbtn:hover { background: rgba(68,170,255,.16); color: var(--accent-dim); border-color: var(--line); }
+.rexp-wbtn.x { border-color: #5a2b33; color: #c77; }
+.rexp-wbtn.x:hover { background: rgba(255,102,102,.2); color: #f99; border-color: #b85563; }
+.rexp-tools { display: flex; align-items: center; gap: 6px; padding: 8px; border-bottom: 1px solid var(--surface-line); }
+.rexp-tb { display: grid; place-items: center; height: 26px; min-width: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 3px;
+  color: var(--accent-dim); font-size: 12px; background: rgba(68,170,255,.05); cursor: pointer; }
+.rexp-tb:hover { background: rgba(68,170,255,.14); }
+.rexp-tb.home { color: var(--ink); background: var(--accent-fill); border-color: var(--accent-bright); box-shadow: 0 0 12px rgba(68,170,255,.35); }
+.rexp-tb:disabled { opacity: .4; cursor: default; }
+.rexp-addr { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-bottom: 1px solid var(--surface-line); position: relative; }
+.rexp-addr .lab { color: var(--muted); font-size: 11px; }
+.rexp-addr .field { flex: 1; height: 24px; line-height: 24px; padding: 0 9px; border: 1px solid var(--surface-line); border-radius: 3px; cursor: pointer;
+  background: rgba(5,8,13,.7); color: var(--text); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; transition: border-color .12s, color .12s; }
+.rexp-addr .field:hover { border-color: var(--line); color: #eef; }
+.rexp-addr .field.copied { border-color: var(--ok); color: var(--ok); box-shadow: 0 0 10px rgba(68,255,170,.18) inset; }
+.rexp-copied { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--ok); font-size: 13px; text-shadow: 0 0 8px rgba(68,255,170,.55); pointer-events: none; }
+/* fixed-size cells that DON'T stretch — more/fewer fit as the window resizes (Windows-Explorer behaviour) */
+.rexp-grid { padding: 18px 16px; display: grid; grid-template-columns: repeat(auto-fill, 104px); justify-content: start; gap: 18px 8px; align-content: start; flex: 1; overflow-y: auto; overflow-x: hidden; }
+.rexp-it { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 4px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; }
+.rexp-it:hover { border-color: var(--ghost-line-hover); background: rgba(68,170,255,.05); }
+.rexp-it.sel { border-color: var(--accent); background: rgba(68,170,255,.12); box-shadow: 0 0 16px rgba(68,170,255,.16) inset; }
+.rexp-it.dropok { border: 1px dashed var(--ok); background: rgba(68,255,170,.10); }
+.rexp-it .lbl { font-size: 11.5px; color: var(--text); text-align: center; line-height: 1.25; text-shadow: 0 1px 4px #000; word-break: break-word; max-width: 96px; }
+.rexp-it .lbl.cur { color: var(--accent-dim); }
+.rexp-rename { width: 92px; font: inherit; font-size: 11px; text-align: center; background: #070a0f; color: var(--text); border: 1px solid var(--accent); border-radius: 3px; outline: none; }
+.rexp-folder { width: 46px; height: 36px; position: relative; }
+.rexp-folder::before { content: ""; position: absolute; left: 2px; top: 0; width: 20px; height: 7px; background: var(--accent-fill); border-radius: 2px 4px 0 0; }
+.rexp-folder::after { content: ""; position: absolute; left: 0; top: 5px; width: 46px; height: 31px; background: linear-gradient(180deg, #1c5e8f, #123c5b); border: 1px solid var(--accent-dim); border-radius: 3px; box-shadow: 0 0 10px rgba(68,170,255,.18); }
+.rexp-it.dropok .rexp-folder::after { box-shadow: 0 0 14px rgba(68,255,170,.4); border-color: var(--ok); }
+.rexp-cass { width: 52px; height: 34px; border: 1px solid var(--accent); border-radius: 5px; background: linear-gradient(180deg, #16486b, #0a1424); box-shadow: 0 0 10px rgba(68,170,255,.2); position: relative; }
+.rexp-cass .reel { position: absolute; top: 7px; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--accent-dim); background: #0a0c11; }
+.rexp-cass .reel.l { left: 10px; } .rexp-cass .reel.r { right: 10px; }
+.rexp-cass::before { content: ""; position: absolute; left: 21px; top: 11px; width: 10px; height: 3px; background: var(--accent-dim); opacity: .6; }
+.rexp-cass::after { content: ""; position: absolute; left: 7px; right: 7px; bottom: 5px; height: 6px; border-radius: 2px; background: rgba(68,170,255,.16); }
+.rexp-status { height: 26px; display: flex; align-items: center; padding: 0 12px; border-top: 1px solid var(--surface-line); font-size: 11px; color: var(--muted); background: rgba(68,170,255,.03); }
+/* context menu — liquid glass, game font */
+.rexp-ctx { position: fixed; min-width: 208px; font-family: var(--ui-font); padding: 6px; z-index: 210;
+  background: rgba(14, 19, 27, 0.78); backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 14px 44px rgba(0,0,0,.6), 0 0 22px rgba(68,170,255,.12); }
+.rexp-mi { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border-radius: 8px; color: var(--text); font-size: 12.5px; letter-spacing: .04em; cursor: pointer; }
+.rexp-mi .k { width: 15px; text-align: center; color: var(--accent-dim); }
+.rexp-mi:hover { background: rgba(68,170,255,.16); color: #eaf5ff; }
+.rexp-mi.danger { color: #f88; } .rexp-mi.danger .k { color: #f88; }
+.rexp-mi.dis { color: var(--muted); cursor: default; } .rexp-mi.dis:hover { background: transparent; }
+.rexp-mi.dis .k { opacity: .5; }
+.rexp-mi .acc { margin-left: auto; color: var(--muted); font-size: 10px; padding-left: 14px; }
+.rexp-sep { height: 1px; background: var(--surface-line); margin: 4px 8px; }
+
+/* Audio-reactive visualizer — the explorer window's LIVING BACKGROUND (behind the file grid, clipped to the window). */
+.rexp-vis { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; }
+
+/* window move (title bar) + resize (corner) */
+.rexp-title { cursor: move; }
+.rexp-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 2;
+  background: linear-gradient(135deg, transparent 55%, var(--line) 55%, var(--line) 63%, transparent 63%, transparent 74%, var(--line) 74%, var(--line) 82%, transparent 82%); }
+
+/* animations: minimize/restore = fade + lift (kept mounted via .hidden); maximize/restore = geometry transition
+   (suspended while dragging by dropping .anim so the window tracks the cursor 1:1) */
+.rexp { transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1); }
+.rexp.anim { transition: opacity .22s cubic-bezier(.2,.8,.2,1), transform .22s cubic-bezier(.2,.8,.2,1), left .26s cubic-bezier(.2,.8,.2,1), top .26s cubic-bezier(.2,.8,.2,1), width .26s cubic-bezier(.2,.8,.2,1), height .26s cubic-bezier(.2,.8,.2,1); }
+.rexp.hidden { opacity: 0; transform: translateY(14px) scale(.96); pointer-events: none; }
+.rexp-anim-in { animation: rexp-bar-in .2s cubic-bezier(.2,.8,.2,1); }
+@keyframes rexp-bar-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* rubber-band (marquee) selection — drag a box over empty grid space */
+.rexp-marquee { position: fixed; z-index: 200; border: 1px solid var(--accent); background: rgba(68,170,255,.14); border-radius: 2px; pointer-events: none; box-shadow: 0 0 12px rgba(68,170,255,.2); }
+
+/* visualizer mode switch (status bar) — click to cycle scope/bars/radial/field, AUTO rotates them */
+.rexp-viz { cursor: pointer; color: var(--accent-dim); font-size: 10px; line-height: 1; letter-spacing: 1.5px; padding: 0 8px; border: 1px solid var(--ghost-line); border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 92px; height: 18px; white-space: nowrap; overflow: hidden; transition: color .12s, border-color .12s, background .12s; }
+.rexp-viz:hover { color: var(--accent); border-color: var(--line); background: rgba(68,170,255,.1); }

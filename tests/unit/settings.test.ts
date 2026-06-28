@@ -29,8 +29,22 @@ describe('settings / PlayerProfile', () => {
   })
 
   it('save → load roundtrip', () => {
-    saveProfile({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'client' })
-    expect(loadProfile()).toEqual({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, connectTimeoutSec: 20, searchRole: 'client' })
+    saveProfile({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, radioEnabled: true, volumeRadio: 0.5, connectTimeoutSec: 20, searchRole: 'client' })
+    expect(loadProfile()).toEqual({ name: 'Fighter', primaryColor: '#a4f', reserveColor: '#4ff', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'wave', shieldStyle: 'crystal', postProcessing: false, showFps: true, showSpeed: true, menuGlow: false, audioViz: false, volumeMaster: 0.5, volumeMusic: 0.3, volumeSfx: 0.8, volumeMenuMusic: 0.6, radioEnabled: true, volumeRadio: 0.5, favorites: [], connectTimeoutSec: 20, searchRole: 'client' })
+  })
+
+  it('favorites: valid entries roundtrip, garbage dropped, deduped by seed+index', () => {
+    const d = (i: number) => ({ seed: 'S', index: i, mood: 'm', key: 'C', scaleName: 'minor', bpm: 120, style: { kick: 'a', bass: 'b', lead: 'c', bg: 'd', perc: 'e' } })
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', favorites: [d(1), d(1), d(2), 'junk' as never, { seed: 'S' } as never] })
+    const p = loadProfile()
+    expect(p.favorites.map(f => f.index)).toEqual([1, 2])   // deduped, garbage + malformed dropped
+    expect(p.favorites[0].style.kick).toBe('a')
+  })
+
+  it('favorites: missing → empty array', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4' })
+    const p = loadProfile()
+    expect(p.favorites).toEqual([])
   })
 
   it('connectTimeoutSec: only from the allowed options; otherwise/missing → 10', () => {
