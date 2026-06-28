@@ -71,10 +71,6 @@ const airBtn = (on: boolean): CSSProperties => ({
   color: on ? 'var(--ok)' : '#bcd', borderColor: on ? 'rgba(68,255,170,0.45)' : 'rgba(255,255,255,0.14)',
   background: on ? 'rgba(68,255,170,0.10)' : 'transparent', boxShadow: on ? '0 0 10px rgba(68,255,170,0.15)' : 'none',
 })
-// Grip handle — press & drag to save the current track into the explorer (or the trash).
-const grip: CSSProperties = { alignSelf: 'center', display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 14px 0', cursor: 'grab' }
-const gripRow: CSSProperties = { display: 'flex', gap: 4 }
-const gripDot: CSSProperties = { width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-dim)', boxShadow: '0 0 5px rgba(68,170,255,.5)' }
 const volRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
 const volLabel: CSSProperties = { color: '#667', fontSize: '0.62rem', letterSpacing: '0.14em', flex: '0 0 auto' }
 const backBtn: CSSProperties = {
@@ -103,19 +99,20 @@ export function RadioPlayer(p: RadioPlayerProps) {
       {p.expanded && p.libraryMin && (
         <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button>
       )}
-      <div style={card}>
+      {/* Drag from ANY empty area of the player to save the current track (the controls are excluded below). */}
+      <div style={p.expanded ? { ...card, cursor: 'grab' } : card} data-testid="radio-drag"
+        draggable={p.expanded}
+        onDragStart={e => {
+          if ((e.target as HTMLElement).closest('button, input, .slider')) { e.preventDefault(); return } // let controls work
+          const j = p.onDragTrack()
+          if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; setCassetteDragImage(e.dataTransfer) }
+          else e.preventDefault()
+        }}>
         {/* Row 1 — track name (collapsed: click to open) */}
         <div style={title(!p.expanded)} title={p.trackName} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>
 
         {p.expanded ? (
           <>
-            {/* grip — press & drag to save the current track to a folder / the trash */}
-            <div style={grip} draggable
-              onDragStart={e => { const j = p.onDragTrack(); if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; setCassetteDragImage(e.dataTransfer) } else e.preventDefault() }}
-              data-testid="radio-drag">
-              <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
-              <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
-            </div>
             {/* subtitle — BPM / key */}
             <div style={{ ...subRow, ...dim }}>{p.subtitle || radioWord}</div>
             {/* transport */}

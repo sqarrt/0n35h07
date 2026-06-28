@@ -205,11 +205,9 @@ export const ptBR = {
   radioPrev: 'Faixa anterior',
   radioNext: 'Próxima faixa',
   radioLike: 'Curtir',
-  radioDislike: 'Não curtir',
   radioLibrary: 'Biblioteca',
   radioAir: 'No ar',
   radioPath: 'Caminho',
-  radioTrash: 'Lixeira',
   radioHome: 'Início',
   radioItems: 'itens',
   radioFolders: 'pastas',
@@ -219,5 +217,4 @@ export const ptBR = {
   radioCtxCopy: 'Copiar',
   radioCtxPaste: 'Colar',
   radioCtxDelete: 'Excluir',
-  radioRestore: 'Restaurar',
 } satisfies Dict

@@ -205,11 +205,9 @@ export const it = {
   radioPrev: 'Traccia precedente',
   radioNext: 'Traccia successiva',
   radioLike: 'Mi piace',
-  radioDislike: 'Non mi piace',
   radioLibrary: 'Libreria',
   radioAir: 'In onda',
   radioPath: 'Percorso',
-  radioTrash: 'Cestino',
   radioHome: 'Home',
   radioItems: 'elementi',
   radioFolders: 'cartelle',
@@ -219,5 +217,4 @@ export const it = {
   radioCtxCopy: 'Copia',
   radioCtxPaste: 'Incolla',
   radioCtxDelete: 'Elimina',
-  radioRestore: 'Ripristina',
 } satisfies Dict

@@ -60,39 +60,13 @@
 .rexp-mi .acc { margin-left: auto; color: var(--muted); font-size: 10px; padding-left: 14px; }
 .rexp-sep { height: 1px; background: var(--surface-line); margin: 4px 8px; }
 
-/* Trash bin (bottom-left) — RadioTrash.tsx */
-.rtrash { position: fixed; left: 40px; bottom: 96px; z-index: 140; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 78px; user-select: none; transition: transform .12s; font-family: var(--ui-font); }
-.rtrash-bin { width: 54px; height: 54px; position: relative; }
-.rtrash-bin .lid { position: absolute; top: 0; left: 4px; width: 46px; height: 9px; border-radius: 3px; border: 1px solid var(--accent-dim);
-  background: linear-gradient(180deg, #1c5e8f, #123c5b); box-shadow: 0 0 11px rgba(68,170,255,.32); }
-.rtrash-bin .lid::before { content: ""; position: absolute; top: -5px; left: 16px; width: 16px; height: 5px; border: 1px solid var(--accent-dim); border-bottom: none; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #1c5e8f, #143850); }
-.rtrash-bin .body { position: absolute; top: 11px; left: 7px; width: 40px; height: 43px; border-radius: 0 0 8px 8px; border: 1px solid var(--accent-dim);
-  background: linear-gradient(180deg, #1c5e8f, #0a1c2c); box-shadow: 0 0 13px rgba(68,170,255,.3), inset 0 0 12px rgba(0,0,0,.4); }
-.rtrash-bin .body::before, .rtrash-bin .body::after { content: ""; position: absolute; top: 7px; width: 2px; height: 29px; border-radius: 1px; background: rgba(140,210,255,.65); }
-.rtrash-bin .body::before { left: 13px; } .rtrash-bin .body::after { right: 13px; }
-.rtrash-label { color: var(--accent-dim); font-size: 12px; letter-spacing: 2px; text-shadow: 0 0 8px rgba(68,170,255,.45); }
-.rtrash.over { transform: scale(1.1); }
-.rtrash.over .lid, .rtrash.over .body { border-color: var(--ok); box-shadow: 0 0 16px rgba(68,255,170,.55); }
-
 /* Audio-reactive visualizer — the explorer window's LIVING BACKGROUND (behind the file grid, clipped to the window). */
 .rexp-vis { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; }
 
-/* window move (title bar) + resize (corner) + dead cassette in the trash view */
+/* window move (title bar) + resize (corner) */
 .rexp-title { cursor: move; }
 .rexp-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 2;
   background: linear-gradient(135deg, transparent 55%, var(--line) 55%, var(--line) 63%, transparent 63%, transparent 74%, var(--line) 74%, var(--line) 82%, transparent 82%); }
-.rexp-cass.dead { opacity: .45; filter: grayscale(.5); border-color: var(--muted); box-shadow: none; }
-
-/* minimized explorer — same liquid-glass surface as the player's BACK button (just with a label); click to restore */
-.rexp-min { position: fixed; left: 50%; bottom: 326px; transform: translateX(-50%); z-index: 180; cursor: pointer;
-  width: 300px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 9px 0;
-  font-family: var(--ui-font); font-size: .74rem; letter-spacing: .16em; color: #cdd; text-transform: uppercase;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  background: rgba(10, 15, 20, 0.55); backdrop-filter: blur(24px) saturate(160%); -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border: 1px solid rgba(255,255,255,0.12); border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 40px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.06); transition: color .15s; }
-.rexp-min:hover { color: #eef; }
-.rexp-min-ic { color: var(--accent-dim); }
 
 /* animations: minimize/restore = fade + lift (kept mounted via .hidden); maximize/restore = geometry transition
    (suspended while dragging by dropping .anim so the window tracks the cursor 1:1) */

@@ -205,11 +205,9 @@ export const tr = {
   radioPrev: 'Önceki parça',
   radioNext: 'Sonraki parça',
   radioLike: 'Beğen',
-  radioDislike: 'Beğenme',
   radioLibrary: 'Kütüphane',
   radioAir: 'Yayında',
   radioPath: 'Yol',
-  radioTrash: 'Çöp',
   radioHome: 'Ana sayfa',
   radioItems: 'öğe',
   radioFolders: 'klasör',
@@ -219,5 +217,4 @@ export const tr = {
   radioCtxCopy: 'Kopyala',
   radioCtxPaste: 'Yapıştır',
   radioCtxDelete: 'Sil',
-  radioRestore: 'Geri yükle',
 } satisfies Dict

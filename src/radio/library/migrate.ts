@@ -1,18 +1,16 @@
 import type { RadioLibrary, TrackPayload, BakedSection } from './radioLibrary'
-import type { FavoriteTrack, TrackDescriptor } from '../trackDescriptor'
+import type { FavoriteTrack } from '../trackDescriptor'
 
 const MARKER = '.migrated' // hidden control file at the radio root → migration runs only once
 
-/** One-time: turn the old localStorage favorites/dislikes into on-disk track files + the trash block-list.
- *  Favorites with no baked snapshot are baked on the fly. Idempotent (guarded by the .migrated marker). */
+/** One-time: turn the old localStorage favorites into on-disk track files. Favorites with no baked snapshot are
+ *  baked on the fly. Idempotent (guarded by the .migrated marker). */
 export async function migrateProfileToLibrary(
   lib: RadioLibrary,
   favorites: FavoriteTrack[],
-  dislikes: TrackDescriptor[],
   bake: (seed: string, index: number) => BakedSection[],
 ): Promise<boolean> {
   if (await lib.hasMarker(MARKER)) return false
-  for (const d of dislikes) await lib.trashAdd(`${d.seed}:${d.index}`)
   for (const f of favorites) {
     const sections = f.baked?.sections ?? bake(f.seed, f.index)
     if (!sections.length) continue

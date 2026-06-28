@@ -16,24 +16,19 @@ interface RadioExplorerProps {
   lib: RadioLibrary
   rootAbsPath: string
   reloadKey: number
-  trashSignal: number
   onPlay: (queue: TrackPayload[], startIndex: number) => void
-  onRestore: (id: string) => void
   onMinimize: () => void              // collapse → the parent shows a "LIBRARY" bar above the player
   hidden: boolean                     // minimized: kept MOUNTED (so state persists) but faded out + non-interactive
   engine: IStrudelEngine | null
   active: boolean
 }
 
-type TrashItem = { id: string; name: string }
-type Ctx = { x: number; y: number; entry: LibEntry | null; trash: TrashItem | null }
+type Ctx = { x: number; y: number; entry: LibEntry | null }
 
-export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay, onRestore, onMinimize, hidden, engine, active }: RadioExplorerProps) {
+export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize, hidden, engine, active }: RadioExplorerProps) {
   const t = useT()
   const [path, setPath] = useState('')
-  const [trashMode, setTrashMode] = useState(false)
   const [entries, setEntries] = useState<LibEntry[]>([])
-  const [trashItems, setTrashItems] = useState<TrashItem[]>([])
   const [hist, setHist] = useState<string[]>([])
   const [sel, setSel] = useState<Set<string>>(new Set())  // selected paths (multi-select)
   const [anchor, setAnchor] = useState<string | null>(null) // shift-range anchor
@@ -53,12 +48,9 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
 
   useEffect(() => {
     let alive = true
-    if (trashMode) lib.trashEntries().then((e) => { if (alive) setTrashItems(e) }).catch(() => { if (alive) setTrashItems([]) })
-    else lib.listDir(path).then((e) => { if (alive) setEntries(e) }).catch(() => { if (alive) setEntries([]) })
+    lib.listDir(path).then((e) => { if (alive) setEntries(e) }).catch(() => { if (alive) setEntries([]) })
     return () => { alive = false }
-  }, [lib, path, trashMode, reloadKey, bump])
-
-  useEffect(() => { if (trashSignal > 0) { setTrashMode(true); setWin('normal'); clearSel(); setCtx(null) } }, [trashSignal])
+  }, [lib, path, reloadKey, bump])
 
   useEffect(() => {
     if (!ctx) return
@@ -70,14 +62,14 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   const folders = entries.filter((e) => e.kind === 'folder')
   const tracks = entries.filter((e) => e.kind === 'track')
   const ordered = [...folders, ...tracks]
-  const dirName = trashMode ? t.radioTrash : (path ? path.slice(path.lastIndexOf('/') + 1) : t.radioLibrary)
-  const absPath = trashMode ? `🗑 ${t.radioTrash}` : rootAbsPath + (path ? '\\' + path.replace(/\//g, '\\') : '')
+  const dirName = path ? path.slice(path.lastIndexOf('/') + 1) : t.radioLibrary
+  const absPath = rootAbsPath + (path ? '\\' + path.replace(/\//g, '\\') : '')
 
-  const toFiles = (p: string) => { setTrashMode(false); setPath(p); clearSel() }
+  const toFiles = (p: string) => { setPath(p); clearSel() }
   const navInto = (folder: string) => { setHist((h) => [...h, path]); toFiles(folder) }
-  const goUp = () => { if (trashMode) return toFiles(''); if (path) toFiles(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '') }
-  const goBack = () => { if (trashMode) return toFiles(path); if (!hist.length) return; setPath(hist[hist.length - 1]); setHist(hist.slice(0, -1)); clearSel() }
-  const goHome = () => { setHist((h) => (path && !trashMode ? [...h, path] : h)); toFiles('') }
+  const goUp = () => { if (path) toFiles(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '') }
+  const goBack = () => { if (!hist.length) return; setPath(hist[hist.length - 1]); setHist(hist.slice(0, -1)); clearSel() }
+  const goHome = () => { setHist((h) => (path ? [...h, path] : h)); toFiles('') }
 
   async function playTrack(file: string) {
     const payloads = await Promise.all(tracks.map((e) => lib.readTrack(e.path)))
@@ -95,7 +87,6 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   async function doDeleteSel() { for (const e of entries.filter((x) => sel.has(x.path))) await lib.deleteTrack(e.path, e.kind === 'folder'); clearSel(); refresh() }
   function doCopySel() { setClip(tracks.filter((e) => sel.has(e.path)).map((e) => e.path)) }
   async function doPaste() { for (const src of clip) { const p = await lib.readTrack(src); await lib.saveTrack(path, p) } refresh() }
-  async function doRestore(id: string) { await lib.trashRemove(id); onRestore(id); refresh() }
   async function commitRename(e: LibEntry, name: string) {
     setRenaming(null)
     if (name.trim() && name !== e.name) { await lib.rename(e.path, name.trim()); refresh() }
@@ -117,7 +108,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   useEffect(() => {
     const onKey = (ev: globalThis.KeyboardEvent) => {
       const tag = (ev.target as HTMLElement | null)?.tagName
-      if (renaming || trashMode || tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (renaming || tag === 'INPUT' || tag === 'TEXTAREA') return
       if (ev.key === 'F2' && sel.size === 1) { ev.preventDefault(); setRenaming([...sel][0]) }
       else if (ev.key === 'Delete' && sel.size) { ev.preventDefault(); void doDeleteSel() }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'c' && sel.size) { ev.preventDefault(); doCopySel() }
@@ -126,7 +117,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, clip, renaming, trashMode, entries, path])
+  }, [sel, clip, renaming, entries, path])
 
   function onDragStartTrack(ev: DragEvent, e: LibEntry) {
     const paths = sel.has(e.path) ? [...sel] : [e.path]
@@ -152,7 +143,6 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
 
   type MItem = { label: string; k: string; acc?: string; danger?: boolean; dis?: boolean; act: () => void }
   const menu = (c: Ctx): MItem[] => {
-    if (c.trash) return [{ label: t.radioRestore, k: '↺', act: () => void doRestore(c.trash!.id) }]
     const e = c.entry, items: MItem[] = []
     if (e) items.push({ label: t.radioCtxPlay, k: '▶', act: () => (e.kind === 'folder' ? void playFolder(e.path) : void playTrack(e.path)) })
     items.push({ label: t.radioCtxNewFolder, k: '＋', act: () => void doNewFolder() })
@@ -177,7 +167,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
 
   // Windows-style rubber-band: press on empty grid space and drag a box → selects every icon it touches.
   function startMarquee(e: ReactMouse) {
-    if (trashMode || e.button !== 0 || (e.target as HTMLElement).closest('.rexp-it')) return
+    if (e.button !== 0 || (e.target as HTMLElement).closest('.rexp-it')) return
     const x0 = e.clientX, y0 = e.clientY
     const baseSel = e.ctrlKey || e.metaKey ? new Set(sel) : new Set<string>()
     setSel(baseSel); setAnchor(null); setMarquee({ x0, y0, x1: x0, y1: y0 })
@@ -206,7 +196,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
       onDrop={(ev) => { if (e.kind === 'folder') { ev.stopPropagation(); onDropTo(ev, e.path) } }}
       onClick={(ev) => clickItem(ev, e)}
       onDoubleClick={() => openEntry(e)}
-      onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) { setSel(new Set([e.path])); setAnchor(e.path) } setCtx({ x: ev.clientX, y: ev.clientY, entry: e, trash: null }) }}>
+      onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); if (!sel.has(e.path)) { setSel(new Set([e.path])); setAnchor(e.path) } setCtx({ x: ev.clientX, y: ev.clientY, entry: e }) }}>
       <div className={e.kind === 'folder' ? 'rexp-folder' : 'rexp-cass'}>
         {e.kind === 'track' && <><span className="reel l" /><span className="reel r" /></>}
       </div>
@@ -217,14 +207,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
         : <div className="lbl">{e.name}</div>}
     </div>
   )
-  const renderTrash = (it: TrashItem) => (
-    <div key={it.id} className="rexp-it trash" onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null, trash: it }) }}>
-      <div className="rexp-cass dead"><span className="reel l" /><span className="reel r" /></div>
-      <div className="lbl">{it.name}</div>
-    </div>
-  )
 
-  const count = trashMode ? trashItems.length : entries.length
   const maxed = win === 'max'
   return (
     <>
@@ -232,7 +215,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
         style={maxed
           ? { left: 8, top: 8, width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)' }
           : { left: geo.x, top: geo.y, width: geo.w, height: geo.h }}
-        onContextMenu={(ev) => { if (!trashMode) { ev.preventDefault(); clearSel(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null, trash: null }) } }}>
+        onContextMenu={(ev) => { ev.preventDefault(); clearSel(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null }) }}>
         <RadioVisualizer engine={engine} active={active && !hidden} />
         <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
           <b>{dirName}</b><span style={{ flex: 1 }} />
@@ -240,8 +223,8 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
           <span className="rexp-wbtn" onClick={() => setWin((w) => (w === 'max' ? 'normal' : 'max'))}>▢</span>
           <span className="rexp-wbtn x" onClick={onMinimize}>✕</span></div>
         <div className="rexp-tools">
-          <button className="rexp-tb" onClick={goBack} disabled={!trashMode && !hist.length} aria-label="back">◀</button>
-          <button className="rexp-tb" onClick={goUp} disabled={!trashMode && !path} aria-label="up">▲</button>
+          <button className="rexp-tb" onClick={goBack} disabled={!hist.length} aria-label="back">◀</button>
+          <button className="rexp-tb" onClick={goUp} disabled={!path} aria-label="up">▲</button>
           <button className="rexp-tb home" onClick={goHome} aria-label={t.radioHome}>⌂</button>
         </div>
         <div className="rexp-addr">
@@ -250,11 +233,11 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
           {copied && <span className="rexp-copied">✓</span>}
         </div>
         <div className="rexp-grid" ref={gridRef} onMouseDown={startMarquee}
-          onDragOver={(ev) => { if (!trashMode) ev.preventDefault() }}
-          onDrop={(ev) => { if (!trashMode) onDropTo(ev, path) }}>
-          {trashMode ? trashItems.map(renderTrash) : <>{folders.map(renderItem)}{tracks.map(renderItem)}</>}
+          onDragOver={(ev) => ev.preventDefault()}
+          onDrop={(ev) => onDropTo(ev, path)}>
+          {folders.map(renderItem)}{tracks.map(renderItem)}
         </div>
-        <div className="rexp-status">{count} {t.radioItems}{!trashMode && ` · ${folders.length} ${t.radioFolders}`}{sel.size > 1 && ` · ${sel.size} ✓`}</div>
+        <div className="rexp-status">{entries.length} {t.radioItems} · {folders.length} {t.radioFolders}{sel.size > 1 && ` · ${sel.size} ✓`}</div>
         {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
       </div>
 

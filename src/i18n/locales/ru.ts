@@ -205,11 +205,9 @@ export const ru = {
   radioPrev: 'Предыдущий трек',
   radioNext: 'Следующий трек',
   radioLike: 'Нравится',
-  radioDislike: 'Не нравится',
   radioLibrary: 'Библиотека',
   radioAir: 'Эфир',
   radioPath: 'Путь',
-  radioTrash: 'Корзина',
   radioHome: 'Домой',
   radioItems: 'элем.',
   radioFolders: 'папок',
@@ -219,5 +217,4 @@ export const ru = {
   radioCtxCopy: 'Копировать',
   radioCtxPaste: 'Вставить',
   radioCtxDelete: 'Удалить',
-  radioRestore: 'Восстановить',
 } satisfies Dict

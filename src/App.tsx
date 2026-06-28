@@ -27,7 +27,6 @@ import { VersionChip } from './components/VersionChip'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { RadioPlayer } from './components/RadioPlayer'
 import { RadioExplorer } from './components/RadioExplorer'
-import { RadioTrash } from './components/RadioTrash'
 import { RadioCodePanel } from './components/RadioCodePanel'
 import type { RadioLibrary, TrackPayload } from './radio/library/radioLibrary'
 import { warmupRadio } from './radio/warmup'
@@ -257,14 +256,12 @@ export default function App() {
   const playModeRef = useRef<RadioPlayMode>('gen')
   const onTrackEndRef = useRef<() => void>(() => {})
   useEffect(() => { playModeRef.current = radioPlayMode }, [radioPlayMode])
-  // On-disk library (desktop): the lib, its OS root path (address bar), a refresh nonce, the folder play-queue, the trash block-set.
+  // On-disk library (desktop): the lib, its OS root path (address bar), a refresh nonce, the folder play-queue.
   const [radioLib, setRadioLib] = useState<RadioLibrary | null>(null)
   const [radioRoot, setRadioRoot] = useState('')
-  const [radioReload, setRadioReload] = useState(0)
-  const [radioTrashSig, setRadioTrashSig] = useState(0) // bumped on trash-bin double-click → opens the trash view
+  const [radioReload] = useState(0) // external refresh nonce for the explorer (library edits self-refresh internally)
   const [radioExpOpen, setRadioExpOpen] = useState(true) // explorer window shown? minimized → a LIBRARY bar over the player
   const radioQueueRef = useRef<{ q: TrackPayload[]; i: number }>({ q: [], i: 0 })
-  const trashedRef = useRef<Set<string>>(new Set())
 
   // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
   // The heavy @strudel/web + the radio subtree are dynamically imported → excluded from the initial bundle.
@@ -287,15 +284,15 @@ export default function App() {
       }, setRadioInitState)
       if (ctrl) {
         setRadioController(ctrl)
-        // Build the on-disk track library + load the trash block-list (desktop fs). Soft-fails (radio still works).
+        // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
         const fsmod = await import('./radio/library/tauriFs')
         const lib = fsmod.createRadioLibrary()
         if (lib) { try {
           await lib.ensureRoot()
-          // one-time migration of the old localStorage favorites/dislikes → on-disk files + trash
+          // one-time migration of the old localStorage favorites → on-disk track files
           const { migrateProfileToLibrary } = await import('./radio/library/migrate')
-          await migrateProfileToLibrary(lib, profile.favorites, profile.dislikes, (s, i) => ctrl.bake(s, i))
-          setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()); trashedRef.current = new Set(await lib.trashList())
+          await migrateProfileToLibrary(lib, profile.favorites, (s, i) => ctrl.bake(s, i))
+          setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs())
         } catch { /* fs unavailable */ } }
       }
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
@@ -697,19 +694,6 @@ export default function App() {
     const p: TrackPayload = { v: 1, seed: d.seed, index: d.index, name, mood: d.mood, key: d.key, scaleName: d.scaleName, bpm: d.bpm, style: d.style, baked: { name, sections } }
     return JSON.stringify(p)
   }
-  // Trash = "never appears again": block the exact seed:index (persisted to _trash.json).
-  const blockTrack = (id: string, name?: string) => { trashedRef.current.add(id); void radioLib?.trashAdd(id, name) }
-  // Trashing the PLAYING track skips to the next; trashing a file (one or many — multi-select) blocks + deletes each.
-  const onTrashPlayer = (json: string) => { try { const p = JSON.parse(json) as TrackPayload; blockTrack(`${p.seed}:${p.index}`, p.name); radioNext() } catch { /* bad payload */ } }
-  const onTrashFile = (data: string) => { void (async () => {
-    if (!radioLib) return
-    let paths: string[]; try { paths = JSON.parse(data) as string[] } catch { paths = [data] }
-    const cur = radioMusicalState ? `${radioMusicalState.seed}:${radioMusicalState.trackIndex}` : null
-    let skip = false
-    for (const file of paths) { try { const p = await radioLib.readTrack(file); const id = `${p.seed}:${p.index}`; blockTrack(id, p.name); if (id === cur) skip = true; await radioLib.deleteTrack(file) } catch { /* gone */ } }
-    setRadioReload(r => r + 1)
-    if (skip) radioNext()
-  })() }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
   const radioRegen = () => {
     radioGestureRef.current = true
@@ -729,12 +713,6 @@ export default function App() {
       radioController?.playBaked({ seed: p.seed, index: p.index, mood: p.mood, key: p.key, scaleName: p.scaleName, bpm: p.bpm, style: p.style }, p.baked)
     }
   }, [radioController])
-
-  // Skip a TRASHED track if the live stream lands on one (it never appears again).
-  useEffect(() => {
-    if (playModeRef.current !== 'gen' || !radioMusicalState) return
-    if (trashedRef.current.has(`${radioMusicalState.seed}:${radioMusicalState.trackIndex}`)) radioController?.next()
-  }, [radioMusicalState, radioController])
 
   // A baked favorite carries its FROZEN name (state.name); a live track derives one. Never re-derive a baked name.
   const radioTrackLabel = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : '—'
@@ -980,11 +958,10 @@ export default function App() {
       {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
           (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
-        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} trashSignal={radioTrashSig}
-          onPlay={onPlayLibrary} onRestore={(id) => trashedRef.current.delete(id)} onMinimize={() => setRadioExpOpen(false)}
+        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload}
+          onPlay={onPlayLibrary} onMinimize={() => setRadioExpOpen(false)}
           hidden={!radioExpOpen} engine={radioEngine} active={radioActive} />
       )}
-      {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} onOpen={() => { setRadioExpOpen(true); setRadioTrashSig(s => s + 1) }} />}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
 
       {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).

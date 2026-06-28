@@ -205,11 +205,9 @@ export const es = {
   radioPrev: 'Pista anterior',
   radioNext: 'Pista siguiente',
   radioLike: 'Me gusta',
-  radioDislike: 'No me gusta',
   radioLibrary: 'Biblioteca',
   radioAir: 'En vivo',
   radioPath: 'Ruta',
-  radioTrash: 'Papelera',
   radioHome: 'Inicio',
   radioItems: 'elementos',
   radioFolders: 'carpetas',
@@ -219,5 +217,4 @@ export const es = {
   radioCtxCopy: 'Copiar',
   radioCtxPaste: 'Pegar',
   radioCtxDelete: 'Eliminar',
-  radioRestore: 'Restaurar',
 } satisfies Dict

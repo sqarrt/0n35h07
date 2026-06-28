@@ -206,11 +206,9 @@ export const zhCN = {
   radioPrev: '上一曲',
   radioNext: '下一曲',
   radioLike: '喜欢',
-  radioDislike: '不喜欢',
   radioLibrary: '库',
   radioAir: '直播',
   radioPath: '路径',
-  radioTrash: '回收站',
   radioHome: '主页',
   radioItems: '项',
   radioFolders: '文件夹',
@@ -220,5 +218,4 @@ export const zhCN = {
   radioCtxCopy: '复制',
   radioCtxPaste: '粘贴',
   radioCtxDelete: '删除',
-  radioRestore: '恢复',
 } satisfies Dict

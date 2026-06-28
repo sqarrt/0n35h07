@@ -207,11 +207,9 @@ export const en = {
   radioPrev: 'Previous track',
   radioNext: 'Next track',
   radioLike: 'Like',
-  radioDislike: 'Dislike',
   radioLibrary: 'Library',
   radioAir: 'On Air',
   radioPath: 'Path',
-  radioTrash: 'Trash',
   radioHome: 'Home',
   radioItems: 'items',
   radioFolders: 'folders',
@@ -221,5 +219,4 @@ export const en = {
   radioCtxCopy: 'Copy',
   radioCtxPaste: 'Paste',
   radioCtxDelete: 'Delete',
-  radioRestore: 'Restore',
 }

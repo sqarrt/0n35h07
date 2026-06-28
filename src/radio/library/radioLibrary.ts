@@ -3,7 +3,6 @@
 // imports). All paths here are LIBRARY-RELATIVE to the radio root ('' = root, 'Folder', 'Folder/Track.json').
 
 const TRACK_EXT = '.json'
-const TRASH_FILE = '_trash.json' // hidden control file at the root — the blocked-track list; never shown as an entry
 const HIDDEN_PREFIX = '_'        // entries starting with '_' (and the migration marker '.') are control files, hidden
 
 /** The filesystem operations the library needs. The real impl wraps @tauri-apps/plugin-fs; tests pass an in-memory mock. */
@@ -39,9 +38,7 @@ export type LibEntry =
   | { kind: 'folder'; name: string; path: string }
   | { kind: 'track'; name: string; path: string }
 
-export interface TrashData { blocked: string[]; names?: Record<string, string> } // ids are "<seed>:<index>"
-
-/** A track's stable block id (what the trash stores). */
+/** A track's stable id (seed:index). */
 export function trackId(seed: string, index: number): string { return `${seed}:${index}` }
 
 function join(dir: string, name: string): string { return dir ? `${dir}/${name}` : name }
@@ -121,38 +118,6 @@ export class RadioLibrary {
       const path = join(dir, name)
       if (!(await this.fs.exists(path))) return path
     }
-  }
-
-  // ── trash (the "never appears again" block list; keeps a display name per id) ──────────────────────
-  private async readTrash(): Promise<TrashData> {
-    if (!(await this.fs.exists(TRASH_FILE))) return { blocked: [] }
-    try { const d = JSON.parse(await this.fs.readTextFile(TRASH_FILE)) as TrashData; return { blocked: d.blocked ?? [], names: d.names } }
-    catch { return { blocked: [] } }
-  }
-
-  async trashList(): Promise<string[]> { return (await this.readTrash()).blocked }
-
-  /** Trashed entries with their display names (for the trash view). */
-  async trashEntries(): Promise<{ id: string; name: string }[]> {
-    const d = await this.readTrash()
-    return d.blocked.map((id) => ({ id, name: d.names?.[id] ?? id }))
-  }
-
-  async trashAdd(id: string, name?: string): Promise<void> {
-    const d = await this.readTrash()
-    if (!d.blocked.includes(id)) d.blocked.push(id)
-    if (name) { d.names = d.names ?? {}; d.names[id] = name }
-    await this.fs.writeTextFile(TRASH_FILE, JSON.stringify(d satisfies TrashData, null, 2))
-  }
-
-  async trashHas(id: string): Promise<boolean> { return (await this.readTrash()).blocked.includes(id) }
-
-  /** Un-block a trashed id (restore from the trash view). */
-  async trashRemove(id: string): Promise<void> {
-    const d = await this.readTrash()
-    d.blocked = d.blocked.filter((x) => x !== id)
-    if (d.names) delete d.names[id]
-    await this.fs.writeTextFile(TRASH_FILE, JSON.stringify(d satisfies TrashData, null, 2))
   }
 
   // ── one-time markers (e.g. '.migrated') — hidden control files at the root ────────────────────────

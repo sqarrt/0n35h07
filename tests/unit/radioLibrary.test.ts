@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { RadioLibrary, type FsLike, type TrackPayload } from '../../src/radio/library/radioLibrary'
 import { migrateProfileToLibrary } from '../../src/radio/library/migrate'
-import type { FavoriteTrack, TrackDescriptor } from '../../src/radio/trackDescriptor'
+import type { FavoriteTrack } from '../../src/radio/trackDescriptor'
 
 // In-memory FsLike — mirrors the real plugin-fs behaviour the library relies on (library-relative paths).
 function memFs(): FsLike {
@@ -76,19 +76,6 @@ describe('RadioLibrary', () => {
     expect(await lib.listDir('')).toEqual([])
   })
 
-  it('trash: add/has/list, deduped, and not shown as a file entry', async () => {
-    const lib = new RadioLibrary(memFs())
-    await lib.saveTrack('', mk('Keep'))
-    await lib.trashAdd('seedA:3')
-    await lib.trashAdd('seedA:3') // dedupe
-    await lib.trashAdd('seedB:7')
-    expect(await lib.trashList()).toEqual(['seedA:3', 'seedB:7'])
-    expect(await lib.trashHas('seedA:3')).toBe(true)
-    expect(await lib.trashHas('nope:0')).toBe(false)
-    // the _trash.json control file must NOT appear in the listing
-    expect((await lib.listDir('')).map((e) => e.name)).toEqual(['Keep'])
-  })
-
   it('renames a track and a folder (collision-safe)', async () => {
     const lib = new RadioLibrary(memFs())
     await lib.saveTrack('', mk('Old'))
@@ -107,14 +94,12 @@ describe('RadioLibrary', () => {
     expect(await lib.listDir('')).toEqual([])
   })
 
-  it('migrates old favorites→files + dislikes→trash, once', async () => {
+  it('migrates old favorites→files, once', async () => {
     const lib = new RadioLibrary(memFs())
     const style = { kick: '', bass: '', lead: '', bg: '', perc: '' }
     const fav: FavoriteTrack = { seed: 'S', index: 1, mood: 'dread', key: 'E', scaleName: 'minor', bpm: 130, style, baked: { name: 'Saved One', sections: [{ code: 'note("0")', bars: 4 }] } }
-    const dis: TrackDescriptor = { seed: 'S', index: 2, mood: 'calm', key: 'A', scaleName: 'minor', bpm: 110, style }
-    expect(await migrateProfileToLibrary(lib, [fav], [dis], () => [{ code: 'b', bars: 2 }])).toBe(true)
+    expect(await migrateProfileToLibrary(lib, [fav], () => [{ code: 'b', bars: 2 }])).toBe(true)
     expect((await lib.listDir('')).map((e) => e.name)).toEqual(['Saved One'])
-    expect(await lib.trashHas('S:2')).toBe(true)
-    expect(await migrateProfileToLibrary(lib, [fav], [], () => [])).toBe(false) // idempotent
+    expect(await migrateProfileToLibrary(lib, [fav], () => [])).toBe(false) // idempotent
   })
 })
