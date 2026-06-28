@@ -5,8 +5,8 @@ import type { MatchNet } from '../../src/net/NetSession'
 import type { InputFrame, Snapshot, MatchEvent, PhaseMsg } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
 
-function frame(seq: number): InputFrame {
-  return { seq, keys: { f: true, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false }
+function frame(tick: number): InputFrame {
+  return { tick, keys: { f: true, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false }
 }
 const SNAP: Snapshot = { ackSeq: 3, players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }] }
 const EVENT: MatchEvent = { t: 'kill', shooter: 0, victim: 1 }
@@ -33,7 +33,7 @@ function stub(role: MatchRole, localId: number): Stub {
     pushRemoteInput: (pid, f) => { pushed.push([pid, f]) },
     applySnapshot: s => { snaps.push(s) },
     applyEvent: e => { events.push(e) },
-    localInputFrame: seq => frame(seq),
+    localInputFrame: () => frame(7),
     markReady: id => { readyCalls.push(id) },
     applyPhase: p => { phases.push(p) },
     serializePhase: () => PHASE,
@@ -54,7 +54,7 @@ describe('NetSession (host ↔ client over LoopbackNet)', () => {
     clientSession.afterUpdate(0)
     expect(host.pushed).toHaveLength(1)
     expect(host.pushed[0][0]).toBe(1)              // client's playerId
-    expect(host.pushed[0][1].seq).toBe(0)
+    expect(host.pushed[0][1].tick).toBe(7)
   })
 
   it('host broadcasts events and a snapshot → client applies them', () => {

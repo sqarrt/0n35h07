@@ -12,7 +12,7 @@ export interface MatchNet {
   pushRemoteInput(playerId: number, frame: InputFrame): void
   applySnapshot(snap: Snapshot): void
   applyEvent(e: MatchEvent): void
-  localInputFrame(seq: number): InputFrame
+  localInputFrame(): InputFrame
   markReady(id: number): void
   applyPhase(p: PhaseMsg): void
   serializePhase(): PhaseMsg
@@ -31,7 +31,6 @@ export class NetSession {
   private net: INet
   private match: MatchNet
   private peerToPlayer: Map<PeerId, number>
-  private seq = 0
   private lastSnapshotAt = 0
   private readonly snapshotInterval = 1000 / NET_SNAPSHOT_HZ
 
@@ -81,7 +80,7 @@ export class NetSession {
         this.net.broadcast('snapshot', this.match.serializeSnapshot())
       }
     } else if (this.match.role === 'client') {
-      this.net.broadcast('input', this.match.localInputFrame(this.seq++))
+      this.net.broadcast('input', this.match.localInputFrame())
     }
   }
 

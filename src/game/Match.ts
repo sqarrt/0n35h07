@@ -14,7 +14,11 @@ import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
-import { ClientReconciler } from '../net/clientReconcile'
+import { PredictionLog } from '../net/clientReconcile'
+import { applyInputMovement } from '../net/input'
+import type { RapierRigidBody } from '@react-three/rapier'
+import { emptyBodyState } from './Body'
+import type { BodyState } from './Body'
 import { MAPS } from './maps'
 import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
@@ -36,7 +40,7 @@ import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
-  BALL_RADIUS,
+  BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -141,10 +145,9 @@ export class Match {
   private pendingResult: MatchResult | null = null   // deferred outcome screen (after END_FREEZE_MS)
   private resultDueAt = 0
 
-  // Client prediction reconciliation (null on host): compares our prediction at ackSeq against the host authority.
-  private reconciler: ClientReconciler | null = null
-  private predicted = new THREE.Vector3()        // local player's committed predicted position this frame (→ recorded per input seq)
-  private pendingCorrection = new THREE.Vector3() // authority correction to fold into next KCC step (0 when prediction is trusted)
+  // Client prediction (null on host): records (tick → input, BodyState); reconciles by REPLAY against the host authority.
+  private predictionLog: PredictionLog | null = null
+  private tick = 0   // monotonic sim tick; the client stamps each input + prediction with it (host echoes it as ackTick)
 
   // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
   private achievements: IAchievements   // Steam achievements sink for the local player (DIP)
@@ -162,7 +165,7 @@ export class Match {
     this.world = new World(o.scene)
     this.role = o.role
     this.localId = o.netConfig.localId
-    this.reconciler = o.role === 'client' ? new ClientReconciler() : null
+    this.predictionLog = o.role === 'client' ? new PredictionLog() : null
     this.durationMs = o.durationMs ?? 0
     this.achievements = o.achievements ?? new NoopAchievements()
 
@@ -294,6 +297,7 @@ export class Match {
   }
 
   update(dt: number) {
+    this.tick++   // advance the sim tick (client stamps its input/prediction with it; host echoes applied ticks)
     this.players.forEach(p => p.syncFromBody())
     this.tickPhase()   // readiness/countdown → freeze + HUD
 
@@ -340,17 +344,47 @@ export class Match {
     this.humanController.renderCamera?.(alpha)   // local human only (host + client both have one)
   }
 
+  /** A collider filter that excludes ALL player capsules — movement collides only with the static arena
+   *  (no hard player-player collision; overlap is a knockback impulse). Recomputed each call (replay reuses it). */
+  private playerIgnore(): (collider: { handle: number }) => boolean {
+    const handles = new Set<number>()
+    for (const pp of this.players) {
+      const c = pp.rb?.collider(0) as { handle: number } | undefined
+      if (c) handles.add(c.handle)
+    }
+    return (collider: { handle: number }) => !handles.has(collider.handle)
+  }
+
+  /** One player's KCC movement step (gravity/jump/horizontal/dash/knockback → sweep vs static → commit). The
+   *  input intents must already be applied (live: by the controller; replay: by applyInputMovement). DRY: used by
+   *  both `applyPhysics` and prediction `replayFrom`. */
+  private stepPlayerMovement(p: Player, rb: RapierRigidBody, dt: number, ignorePlayers: (c: { handle: number }) => boolean) {
+    const groundNormal = this.groundNormalUnder(p)                  // normal under the player (for slopes)
+    p.stepJump()                                                    // jump/double/auto-bhop (held input)
+    p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // windup slows the fall
+    p.stepHorizontal(dt, groundNormal)                             // speed model + slope following
+    p.stepDash(dt)                                                  // dash adds to desired
+    this.maybeKnockback(p)                                          // knockback impulse on overlap with another player
+    p.stepKnockback(dt)                                             // knockback accumulates into desired (KCC won't let it through walls)
+    p.consumeDesired(_desired)
+    this.kcc!.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
+    let c = this.kcc!.computedMovement()
+    let grounded = this.kcc!.computedGrounded()
+    // Anti-jitter: autostep lifted the capsule but it didn't anchor → false probe; recompute without autostep.
+    if (this.kccNoStep && !grounded && c.y - _desired.y > AUTOSTEP_LIFT_EPS) {
+      this.kccNoStep.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
+      c = this.kccNoStep.computedMovement()
+      grounded = this.kccNoStep.computedGrounded()
+    }
+    const cur = rb.translation()
+    rb.setNextKinematicTranslation({ x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z })
+    p.setGrounded(grounded)
+  }
+
   /** Movement via KinematicCharacterController. Without Rapier (unit tests) — no-op. */
   private applyPhysics(dt: number) {
     if (!this.kcc) return
-    // KCC ignores player capsules: no hard player-player collision (wall glitch removed,
-    // networking simpler). Overlap is resolved by a knockback impulse (maybeKnockback) into desired.
-    const playerHandles = new Set<number>()
-    for (const pp of this.players) {
-      const c = pp.rb?.collider(0) as { handle: number } | undefined
-      if (c) playerHandles.add(c.handle)
-    }
-    const ignorePlayers = (collider: { handle: number }) => !playerHandles.has(collider.handle)
+    const ignorePlayers = this.playerIgnore()
     for (const p of this.players) {
       const rb = p.rb
       if (!rb) continue
@@ -361,36 +395,25 @@ export class Match {
       }
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
-      const groundNormal = this.groundNormalUnder(p)                  // normal under the player (for slopes)
-      p.stepJump()                                                    // jump/double/auto-bhop (held input)
-      p.stepVertical(dt * (p.isWindingUp ? WINDUP_MOVE_FACTOR : 1))   // windup slows the fall
-      p.stepHorizontal(dt, groundNormal)                             // speed model + slope following
-      p.stepDash(dt)                                                  // dash adds to desired
-      this.maybeKnockback(p)                                          // knockback impulse on overlap with another player
-      p.stepKnockback(dt)                                             // knockback accumulates into desired (like dash → KCC won't let it through walls)
-      p.consumeDesired(_desired)
-      this.kcc.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
-      let c = this.kcc.computedMovement()
-      let grounded = this.kcc.computedGrounded()
-      // Anti-jitter: autostep lifted the capsule (cy above gravity) but it didn't anchor (not grounded) —
-      // meaning a false probe to step over an impassable block. Recompute the frame without autostep (clean stop).
-      // A successful step onto a stair (h=1) anchors → grounded → this path doesn't touch it.
-      if (this.kccNoStep && !grounded && c.y - _desired.y > AUTOSTEP_LIFT_EPS) {
-        this.kccNoStep.computeColliderMovement(rb.collider(0), _desired, undefined, undefined, ignorePlayers)
-        c = this.kccNoStep.computedMovement()
-        grounded = this.kccNoStep.computedGrounded()
-      }
-      const cur = rb.translation()
-      const next = { x: cur.x + c.x, y: cur.y + c.y, z: cur.z + c.z }
-      if (this.role === 'client') {
-        // Fold in any authority correction (0 unless our prediction diverged past the deadzone), then
-        // remember the committed position so localInputFrame can tag it with this frame's input seq.
-        next.x += this.pendingCorrection.x; next.y += this.pendingCorrection.y; next.z += this.pendingCorrection.z
-        this.pendingCorrection.set(0, 0, 0)
-        this.predicted.set(next.x, next.y, next.z)
-      }
-      rb.setNextKinematicTranslation(next)
-      p.setGrounded(grounded)
+      this.stepPlayerMovement(p, rb, dt, ignorePlayers)   // intents already applied by the controller this tick
+    }
+  }
+
+  /** client: restore the local player to the host authority at ackTick, then REPLAY the unacknowledged inputs
+   *  (each: re-apply its movement intent → one KCC step → one Rapier step) to rebuild the corrected "now". */
+  private replayFrom(authority: BodyState, inputs: InputFrame[]) {
+    const p = this.byId.get(this.localId)
+    const rb = p?.rb
+    if (!p || !rb || !this.kcc) return
+    p.restoreBodyState(authority)
+    rb.setNextKinematicTranslation({ x: authority.pos[0], y: authority.pos[1], z: authority.pos[2] })
+    this.step(FIXED_DT)                                   // push the restored position into Rapier
+    const ignorePlayers = this.playerIgnore()
+    for (const input of inputs) {
+      applyInputMovement(p, input, FIXED_DT)              // re-apply movement intent + look
+      p.setJumpInput(input.jump)                          // held jump (auto-bhop/double — Body decides)
+      this.stepPlayerMovement(p, rb, FIXED_DT, ignorePlayers)
+      this.step(FIXED_DT)
     }
   }
 
@@ -760,20 +783,21 @@ export class Match {
 
   /** host: snapshot of all players + the last processed client input. */
   serializeSnapshot(): Snapshot {
-    let ackSeq = 0
-    this.remoteControllers.forEach(c => { ackSeq = Math.max(ackSeq, c.ackSeq) })
+    let ackTick = 0
+    this.remoteControllers.forEach(c => { ackTick = Math.max(ackTick, c.ackTick) })
     if (!this._snapBuf) {
       this._snapBuf = {
-        ackSeq: 0,
+        ackTick: 0,
         players: this.players.map(p => ({
           id: p.id,
           pos: [0, 0, 0] as [number, number, number],
           aimDir: [0, 0, 0] as [number, number, number],
           alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false,
+          restore: emptyBodyState(),   // overwritten by fillState
         })),
       }
     }
-    this._snapBuf.ackSeq = ackSeq
+    this._snapBuf.ackTick = ackTick
     for (let i = 0; i < this.players.length; i++) this.players[i].fillState(this._snapBuf.players[i])
     return this._snapBuf
   }
@@ -783,23 +807,25 @@ export class Match {
     this.remoteControllers.get(playerId)?.enqueue(frame)
   }
 
-  /** client: input frame of our own player to send to the host. The position this frame predicted is
-   *  recorded under the same seq, so a later snapshot (ackSeq) can be checked against our own prediction. */
-  localInputFrame(seq: number): InputFrame {
-    const frame = this.humanController.currentInputFrame(seq)
-    this.reconciler?.record(seq, this.predicted)
+  /** client: input frame for our own player to send to the host (stamped with the current sim tick). The
+   *  post-step BodyState this tick is recorded under that tick, so a later snapshot (ackTick) can be replayed
+   *  against our own prediction. */
+  localInputFrame(): InputFrame {
+    const frame = this.humanController.currentInputFrame(this.tick)
+    const me = this.byId.get(this.localId)
+    if (me) this.predictionLog?.record(this.tick, frame, me.saveBodyState())
     return frame
   }
 
-  /** client: snapshot → remotes interpolate to the target; our own player reconciles by prediction error (ackSeq). */
+  /** client: snapshot → remotes interpolate to the target; our own player reconciles by prediction REPLAY (ackTick). */
   applySnapshot(snap: Snapshot) {
     for (const ps of snap.players) {
       const p = this.byId.get(ps.id)
       if (!p) continue
       if (ps.id === this.localId) {
-        // Our own player: trust local prediction; snap toward the authority only when it diverged past the deadzone.
-        const corr = this.reconciler?.reconcile(snap.ackSeq, { x: ps.pos[0], y: ps.pos[1], z: ps.pos[2] })
-        if (corr) this.pendingCorrection.set(corr.x, corr.y, corr.z)
+        // Our own player: trust local prediction; on divergence past the deadzone, restore + replay (no snap).
+        const d = this.predictionLog?.decide(snap.ackTick, ps.restore, NET_RECONCILE_SNAP_DIST)
+        if (d?.kind === 'replay') this.replayFrom(d.from, d.inputs)
       } else {
         p.applyNetState(ps)
         // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
@@ -850,7 +876,7 @@ export class Match {
       }
       case 'respawn': {
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
-        if (e.id === this.localId) { this.reconciler?.reset(); this.pendingCorrection.set(0, 0, 0) }   // teleport invalidates predictions
+        if (e.id === this.localId) this.predictionLog?.reset()   // teleport invalidates predictions
         this.sfx?.combat(e, this.sfxPos)
         break
       }

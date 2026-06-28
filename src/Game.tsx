@@ -189,10 +189,10 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       match.update(FIXED_DT)        // one sim tick (syncFromBody → intents → applyPhysics(setNextKinematicTranslation) → combat → lateUpdate)
       match.step(FIXED_DT)          // manual Rapier step applies the kinematic translations + advances the world
       match.captureTick()           // snapshot sim positions for render interpolation
+      session.afterUpdate()         // net send PER TICK: client sends this tick's input; host drains events + 30Hz-throttled snapshot
       if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, FIXED_DT)   // dev: capture demo frame
     }
     match.renderInterpolate(alpha)  // position visuals + camera between ticks (smooth at any refresh)
-    session.afterUpdate()           // net send — once per render frame (Phase-1 parity; net model changes in later phases)
   })
 
   return (

@@ -37,6 +37,11 @@ export interface BodyState {
   velH: [number, number, number]
 }
 
+/** A zeroed BodyState — used to pre-allocate the snapshot buffer (overwritten by fillState). */
+export function emptyBodyState(): BodyState {
+  return { pos: [0, 0, 0], vy: 0, grounded: true, airJumps: 0, jumpHeld: false, prevJumpHeld: false, dashTimer: 0, dashCooldown: 0, knockTimer: 0, velH: [0, 0, 0] }
+}
+
 export class Body {
   readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)   // cache of rb.translation()
   private prevTickPos = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the previous tick (render interpolation)

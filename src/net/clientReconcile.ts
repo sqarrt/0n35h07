@@ -1,58 +1,37 @@
-import { NET_RECONCILE_SNAP_DIST, NET_PREDICTION_BUFFER } from '../constants'
+import { NET_PREDICTION_BUFFER } from '../constants'
+import type { BodyState } from '../game/Body'
+import type { InputFrame } from './protocol'
 
-export interface XYZ { x: number; y: number; z: number }
-interface Sample { seq: number; x: number; y: number; z: number }
+interface Sample { tick: number; input: InputFrame; state: BodyState }
+export type Decision = { kind: 'trust' } | { kind: 'replay'; from: BodyState; inputs: InputFrame[] }
 
 /**
- * Client-side prediction reconciliation against host snapshots.
- *
- * The client predicts its own player locally (KCC) and records the committed position per input `seq`.
- * Each snapshot carries `ackSeq` — the last input the host actually applied. We compare the host's
- * authoritative position at `ackSeq` against what WE predicted for that same seq:
- *   - within the deadzone → prediction is trustworthy → ZERO correction (no latency injected);
- *   - beyond it → a real divergence (knockback mismatch, dropped input, drift) → return the delta to snap.
- *
- * This replaces the old unconditional per-frame lerp toward an RTT-stale target, which injected the full
- * round-trip latency into the locally predicted position (sticky walk + inertia after key release).
+ * Client-side prediction log. Records (tick → input, post-step BodyState). On a snapshot, compares the host
+ * authority at `ackTick` against our prediction there: within `eps` → trust; beyond → REPLAY the unacknowledged
+ * inputs from the authoritative state. Full replay (not a one-shot snap) → no residual error, no compounding.
  */
-export class ClientReconciler {
+export class PredictionLog {
   private history: Sample[] = []
-  private readonly snapDist: number
-  private readonly capacity: number
+  private capacity: number
+  constructor(capacity: number = NET_PREDICTION_BUFFER) { this.capacity = capacity }
 
-  constructor(snapDist: number = NET_RECONCILE_SNAP_DIST, capacity: number = NET_PREDICTION_BUFFER) {
-    this.snapDist = snapDist
-    this.capacity = capacity
-  }
-
-  /** Record the committed predicted position for the frame that produced input `seq`. */
-  record(seq: number, pos: XYZ) {
-    this.history.push({ seq, x: pos.x, y: pos.y, z: pos.z })
+  record(tick: number, input: InputFrame, state: BodyState): void {
+    this.history.push({ tick, input, state })
     if (this.history.length > this.capacity) this.history.shift()
   }
 
-  /**
-   * Correction to ADD to the current position. `{0,0,0}` when the prediction for `ackSeq` is within the
-   * deadzone (or that seq is unknown). Prunes history older than `ackSeq`.
-   */
-  reconcile(ackSeq: number, authority: XYZ): XYZ {
-    if (ackSeq <= 0) return { x: 0, y: 0, z: 0 }   // host hasn't applied any of our input yet (appliedSeq sentinel)
-    const idx = this.history.findIndex(s => s.seq === ackSeq)
-    if (idx < 0) return { x: 0, y: 0, z: 0 }
-    const predicted = this.history[idx]
-    const dx = authority.x - predicted.x
-    const dy = authority.y - predicted.y
-    const dz = authority.z - predicted.z
-    this.history.splice(0, idx)   // drop everything older than the acked seq
-    if (dx * dx + dy * dy + dz * dz < this.snapDist * this.snapDist) return { x: 0, y: 0, z: 0 }
-    // Rebase the still-in-flight predictions (seq ≥ ackSeq) into the corrected frame. The same offset will
-    // appear on every later acked seq (the host's authority carries it forward); without this rebase each one
-    // re-returns the full delta, so over a multi-frame in-flight window the corrections COMPOUND and the client
-    // overshoots — thrash / flung off the map. After rebasing, only genuinely NEW divergence corrects again.
-    for (const s of this.history) { s.x += dx; s.y += dy; s.z += dz }
-    return { x: dx, y: dy, z: dz }
+  /** Decide what to do given the host's authoritative state at `ackTick`. Prunes the log up to & including ackTick. */
+  decide(ackTick: number, authority: BodyState, eps: number): Decision {
+    if (ackTick <= 0) return { kind: 'trust' }
+    const idx = this.history.findIndex(s => s.tick === ackTick)
+    if (idx < 0) return { kind: 'trust' }                          // we don't have that tick (too old / pruned)
+    const predicted = this.history[idx].state.pos
+    const dx = authority.pos[0] - predicted[0], dy = authority.pos[1] - predicted[1], dz = authority.pos[2] - predicted[2]
+    const inputs = this.history.slice(idx + 1).map(s => s.input)   // unacked inputs, in order
+    this.history.splice(0, idx + 1)                                 // prune ≤ ackTick
+    if (dx * dx + dy * dy + dz * dz <= eps * eps) return { kind: 'trust' }
+    return { kind: 'replay', from: authority, inputs }
   }
 
-  /** Respawn/teleport: old predictions are invalid. */
-  reset() { this.history.length = 0 }
+  reset(): void { this.history.length = 0 }
 }

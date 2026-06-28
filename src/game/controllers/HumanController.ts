@@ -36,7 +36,6 @@ export class HumanController implements Controller {
   private world: World
   // Edge actions per frame — for the network InputFrame (client sends to host). Jump is held (see keys.jump).
   private pending = { fire: false, shield: false, dash: false }
-  private lastDt = 1 / 60   // dt of the latest update — stamped onto the InputFrame so the host replays movement to scale
 
   constructor(
     player: Player,
@@ -78,12 +77,11 @@ export class HumanController implements Controller {
   }
 
   /** Build the input frame to send to the host (client). Clears the edge latches. */
-  currentInputFrame(seq: number): InputFrame {
+  currentInputFrame(tick: number): InputFrame {
     const k = this.keys.current
     const look = this.camera.getWorldDirection(this.tmp)
     const frame: InputFrame = {
-      seq,
-      dt: this.lastDt,
+      tick,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
       aimDir: toVec3(look),
       aimOrigin: toVec3(this.camera.position),   // aim origin = camera (in TP offset behind) — so the host replays the same ray
@@ -97,7 +95,6 @@ export class HumanController implements Controller {
 
   // --- intents (before physics) ---
   update(dt: number) {
-    this.lastDt = dt   // remember this frame's dt for the InputFrame the client sends after the step
     // Menu open (pointer not locked) — player doesn't move or aim, reset jump (no stuck bhop).
     if (!document.pointerLockElement) { this.player.setJumpInput(false); return }
     const { dir, right } = this.basis()   // fills _dir/_right; this.tmp = camera direction

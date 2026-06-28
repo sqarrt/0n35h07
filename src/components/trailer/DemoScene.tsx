@@ -8,7 +8,7 @@ import { useMemo, useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Player } from '../../game/Player'
-import { Body } from '../../game/Body'
+import { Body, emptyBodyState } from '../../game/Body'
 import { BeamWeapon } from '../../game/BeamWeapon'
 import { Shield } from '../../game/Shield'
 import { World } from '../../game/World'
@@ -88,7 +88,7 @@ function buildPlayer(e: RosterEntry, ringColor: string): Player {
 }
 
 function toSnap(ps: DemoPlayerState): PlayerSnapshot {
-  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning }
+  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning, restore: emptyBodyState() }
 }
 
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion()

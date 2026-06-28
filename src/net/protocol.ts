@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
+import type { BodyState } from '../game/Body'
 
 /**
  * OneShot network protocol (host-authoritative). All payloads are
@@ -40,9 +41,8 @@ export interface Start { durationMs: number; mapId: MapId }
 // --- client input → host (frequent) ---
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
 export interface InputFrame {
-  seq:    number
-  dt?:    number     // the client's frame dt for THIS input — the host replays movement with it so distance matches
-                     // the client's prediction regardless of frame rate (absent on legacy clients → host uses 1/60)
+  tick:   number     // the client SIM TICK this input was produced on (fixed 60 Hz) — the host applies it tick-aligned
+                     // and echoes the last-applied tick as Snapshot.ackTick for the client's prediction reconciliation
   keys:   InputKeys
   aimDir: Vec3       // look direction (for the movement basis and aim)
   aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
@@ -62,9 +62,10 @@ export interface PlayerSnapshot {
   dashing:        boolean
   windupProgress: number
   respawning:     boolean   // ghost phase (semi-transparent, invulnerable)
+  restore:        BodyState // authoritative movement state — the LOCAL player uses it to restore before replay (opponent ignores it)
 }
 export interface Snapshot {
-  ackSeq:  number              // last processed client input seq (for reconciliation)
+  ackTick: number              // last client SIM TICK the host applied (for prediction reconciliation)
   players: PlayerSnapshot[]
 }
 

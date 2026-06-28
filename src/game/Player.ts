@@ -166,6 +166,10 @@ export class Player implements IControllable {
   /** Interpolated render position lerp(prevTick, curTick, alpha) — used by the camera (local player). */
   renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return this.body.renderPos(alpha, out) }
 
+  /** Movement-state snapshot/restore for client prediction replay (host fills the snapshot; client restores). */
+  saveBodyState() { return this.body.saveState() }
+  restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
+
   /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
    *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
   renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
@@ -363,6 +367,7 @@ export class Player implements IControllable {
       dashing: this.dashing,
       windupProgress: this.windupProgress,
       respawning: this.respawning,
+      restore: this.body.saveState(),
     }
   }
 
@@ -374,6 +379,7 @@ export class Player implements IControllable {
     out.alive = this.alive; out.shieldActive = this.shieldActive
     out.dashing = this.dashing; out.windupProgress = this.windupProgress
     out.respawning = this.respawning
+    out.restore = this.body.saveState()   // authoritative movement state — the client's local player restores from it before replay
   }
 
   /** Apply a snapshot to a remote player (client): position target + visual flags. */

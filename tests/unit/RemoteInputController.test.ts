@@ -13,7 +13,7 @@ function makePlayer() {
 }
 function frame(over: Partial<InputFrame> = {}): InputFrame {
   return {
-    seq: 0, keys: { f: false, b: false, l: false, r: false }, aimDir: [0, 0, -1],
+    tick: 0, keys: { f: false, b: false, l: false, r: false }, aimDir: [0, 0, -1],
     jump: false, fire: false, shield: false, dash: false, ...over,
   }
 }
@@ -21,78 +21,70 @@ function frame(over: Partial<InputFrame> = {}): InputFrame {
 describe('RemoteInputController — edge actions are not lost', () => {
   const world = new World(new THREE.Scene())
 
-  it('fire from a frame overwritten by a newer one before update is still applied', () => {
+  it('fire from a frame overwritten by a newer one before update is still applied (edges accumulated)', () => {
     const p = makePlayer()
     const rc = new RemoteInputController(p, world)
-    rc.enqueue(frame({ seq: 1, fire: true }))    // shot
-    rc.enqueue(frame({ seq: 2, fire: false }))   // a newer frame without fire overwrote latest
-    rc.update(0.016)
+    rc.enqueue(frame({ tick: 1, fire: true }))    // shot
+    rc.enqueue(frame({ tick: 2, fire: false }))   // a newer frame without fire
+    rc.update(1 / 60)                             // applies tick 1 (FIFO) + accumulated edges
     expect(p.isWindingUp).toBe(true)             // shot not lost
-    expect(rc.ackSeq).toBe(2)                    // movement — from the newest frame
+    expect(rc.ackTick).toBe(1)                   // tick-aligned: oldest applied first
   })
 
   it('an edge action is applied once (no auto-repeat)', () => {
     const p = makePlayer()
     const rc = new RemoteInputController(p, world)
-    rc.enqueue(frame({ seq: 1, shield: true }))
-    rc.update(0.016)
+    rc.enqueue(frame({ tick: 1, shield: true }))
+    rc.update(1 / 60)
     expect(p.shieldActive).toBe(true)
     p.activateShield()                           // can't reset — checking there's no repeat
-    rc.update(0.016)                             // without a new frame — the shield isn't re-activated by this controller
-    expect(p.shieldActive).toBe(true)            // still active (one cycle), no errors
+    rc.update(1 / 60)                            // gap (no new frame) — the shield isn't re-activated by this controller
+    expect(p.shieldActive).toBe(true)            // still active, no errors
   })
 })
 
-// How the controller CONSUMES queued input (movement per frame, edges once) — a fake player records each
-// moveIntent's dt, so we can assert no movement is dropped when frames arrive batched.
-function spyPlayer(moveDts: number[], fires: { n: number }) {
+// How the controller CONSUMES queued input tick-aligned (one frame per host tick). A fake player records each
+// movement application + edge fires.
+function spyPlayer(moves: number[], fires: { n: number }) {
   return {
     id: 1, isWindingUp: false, position: new THREE.Vector3(),
-    moveIntent: (_v: unknown, dt: number) => moveDts.push(dt),
+    moveIntent: () => moves.push(1),
     setLook: () => {}, aim: () => {}, setJumpInput: () => {},
     activateShield: () => {}, startFiring: () => { fires.n++ }, dash: () => {},
   } as never
 }
-const fdt = (seq: number, dt: number | undefined, over: Partial<InputFrame> = {}): InputFrame => ({
-  seq, dt, keys: { f: true, b: false, l: false, r: false },
+const ftick = (tick: number, over: Partial<InputFrame> = {}): InputFrame => ({
+  tick, keys: { f: true, b: false, l: false, r: false },
   aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false, ...over,
 })
 
-describe('RemoteInputController — movement replay (no loss to network batching)', () => {
+describe('RemoteInputController — tick-aligned consumption (1:1)', () => {
   const world = new World(new THREE.Scene())
 
-  it('replays EVERY queued frame with its own dt (a burst is not collapsed to the newest)', () => {
-    const moveDts: number[] = [], fires = { n: 0 }
-    const rc = new RemoteInputController(spyPlayer(moveDts, fires), world)
-    rc.enqueue(fdt(1, 0.016)); rc.enqueue(fdt(2, 0.018)); rc.enqueue(fdt(3, 0.015))
-    rc.update(0.016)
-    expect(moveDts).toEqual([0.016, 0.018, 0.015])
-    expect(rc.ackSeq).toBe(3)
+  it('applies one queued input per host tick, in order, and acks that tick', () => {
+    const moves: number[] = [], fires = { n: 0 }
+    const rc = new RemoteInputController(spyPlayer(moves, fires), world)
+    rc.enqueue(ftick(10)); rc.enqueue(ftick(11)); rc.enqueue(ftick(12))
+    rc.update(1 / 60); expect(rc.ackTick).toBe(10)
+    rc.update(1 / 60); expect(rc.ackTick).toBe(11)
+    rc.update(1 / 60); expect(rc.ackTick).toBe(12)
+    rc.update(1 / 60); expect(rc.ackTick).toBe(12)   // gap → hold last, tick unchanged
+    expect(moves.length).toBe(4)                      // 3 applied + 1 extrapolated
   })
 
-  it('a missing/garbage frame dt falls back to 1/60', () => {
-    const moveDts: number[] = [], fires = { n: 0 }
-    const rc = new RemoteInputController(spyPlayer(moveDts, fires), world)
-    rc.enqueue(fdt(1, undefined)); rc.enqueue(fdt(2, 5 /* spike */))
-    rc.update(0.016)
-    expect(moveDts).toEqual([1 / 60, 1 / 60])
-  })
-
-  it('extrapolates on a network gap (re-applies the last movement, no new edge action)', () => {
-    const moveDts: number[] = [], fires = { n: 0 }
-    const rc = new RemoteInputController(spyPlayer(moveDts, fires), world)
-    rc.enqueue(fdt(1, 0.016, { fire: true })); rc.update(0.016)   // 1 move, 1 fire
-    rc.update(0.016)                                              // gap → extrapolate, no fire
-    expect(moveDts.length).toBe(2)
+  it('fires an edge action exactly once even when batched across frames', () => {
+    const moves: number[] = [], fires = { n: 0 }
+    const rc = new RemoteInputController(spyPlayer(moves, fires), world)
+    rc.enqueue(ftick(1, { fire: true })); rc.enqueue(ftick(2, { fire: true }))
+    rc.update(1 / 60)   // applies tick 1 + accumulated edges (one fire)
     expect(fires.n).toBe(1)
   })
 
-  it('caps catch-up so a backlog cannot fling the avatar, but still acks the newest seq', () => {
-    const moveDts: number[] = [], fires = { n: 0 }
-    const rc = new RemoteInputController(spyPlayer(moveDts, fires), world)
-    for (let s = 1; s <= 20; s++) rc.enqueue(fdt(s, 0.016))
-    rc.update(0.016)
-    expect(moveDts.length).toBeLessThanOrEqual(8)
-    expect(rc.ackSeq).toBe(20)
+  it('caps the backlog so it cannot grow unboundedly, still acks the newest applied', () => {
+    const moves: number[] = [], fires = { n: 0 }
+    const rc = new RemoteInputController(spyPlayer(moves, fires), world)
+    for (let t = 1; t <= 20; t++) rc.enqueue(ftick(t))   // backlog of 20, cap 8
+    rc.update(1 / 60)
+    expect(rc.ackTick).toBeGreaterThanOrEqual(13)          // oldest dropped → applies from within the last 8
   })
 })
