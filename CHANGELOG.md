@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - unreleased
+
+### Added
+- **Radio — a much richer generative palette.** New co-designed dark/electronic **bass** characters (tritone, reese
+  wobble, bit-crush, chromatic-drift, glitch, acid-pulse), **drum grooves** (amen breakbeat, industrial, broken,
+  minimal), **background textures** (degraded tape-choir, dissonant drone-cluster, radio-scanner, tape-warble, insect
+  swarm, funeral bell) and **atmospheric leads** (Silent-Hill fog/rust + virtual chime/data-rain). Each track now
+  also varies its bass and drum character, not just the lead.
+- **Radio — a track library you can organise.** A built-in file explorer (over a real folder in the app data dir)
+  replaces the old favorites list: **drag the playing track into a folder to save it**, play a single track or a
+  whole folder as a looping playlist, and a **trash bin** — drop a track there and it never plays again. Right-click
+  for new folder / rename / copy / paste / delete. An audio-reactive oscilloscope visualizes the music behind it.
+
+### Changed
+- **Radio generation is no longer biased by your likes/dislikes** — the stream is purely varied; your saved tracks
+  live in the library instead. (Old favorites/dislikes migrate to the library + trash automatically on first run.)
+- Some leads that read as too bright or dissonant in the mix were dropped from the rotation.
+
 ## [0.5.11] - unreleased
 
 ### Added
