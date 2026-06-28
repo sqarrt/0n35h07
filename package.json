@@ -65,7 +65,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "three": "^0.184.0",
-    "three-mesh-bvh": "^0.8.3",
+    "three-mesh-bvh": "^0.9.10",
     "trystero": "^0.25.1"
   },
   "devDependencies": {
