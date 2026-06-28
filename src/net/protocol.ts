@@ -41,6 +41,8 @@ export interface Start { durationMs: number; mapId: MapId }
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
 export interface InputFrame {
   seq:    number
+  dt?:    number     // the client's frame dt for THIS input — the host replays movement with it so distance matches
+                     // the client's prediction regardless of frame rate (absent on legacy clients → host uses 1/60)
   keys:   InputKeys
   aimDir: Vec3       // look direction (for the movement basis and aim)
   aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
