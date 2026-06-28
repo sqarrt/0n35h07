@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent as ReactMouse } from 'react'
 import { useT } from '../i18n'
 import { RadioVisualizer } from './RadioVisualizer'
+import { VIZ_MODES, VIZ_ICON, type VizMode } from './radioViz'
 import type { IStrudelEngine } from '../radio/music/IStrudelEngine'
 import type { RadioLibrary, LibEntry, TrackPayload } from '../radio/library/radioLibrary'
 import './RadioExplorer.css'
@@ -42,9 +43,11 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
   const [live, setLive] = useState(false) // dragging/resizing → suspend the geometry transition (else the window lags the cursor)
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [copied, setCopied] = useState(false) // brief ✓ flash after clicking the address bar to copy the path
+  const [viz, setViz] = useState<VizMode>(() => { const v = localStorage.getItem('radio.viz') as VizMode | null; return v && VIZ_MODES.includes(v) ? v : 'auto' })
   const gridRef = useRef<HTMLDivElement>(null)
   const refresh = () => setBump((b) => b + 1)
   const clearSel = () => { setSel(new Set()); setAnchor(null) }
+  const cycleViz = () => setViz((v) => { const next = VIZ_MODES[(VIZ_MODES.indexOf(v) + 1) % VIZ_MODES.length]; try { localStorage.setItem('radio.viz', next) } catch { /* private mode */ } return next })
 
   useEffect(() => {
     let alive = true
@@ -216,7 +219,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
           ? { left: 8, top: 8, width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)' }
           : { left: geo.x, top: geo.y, width: geo.w, height: geo.h }}
         onContextMenu={(ev) => { ev.preventDefault(); clearSel(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null }) }}>
-        <RadioVisualizer engine={engine} active={active && !hidden} />
+        <RadioVisualizer engine={engine} active={active && !hidden} mode={viz} />
         <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
           <b>{dirName}</b><span style={{ flex: 1 }} />
           <span className="rexp-wbtn" onClick={onMinimize}>_</span>
@@ -237,7 +240,11 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
           onDrop={(ev) => onDropTo(ev, path)}>
           {folders.map(renderItem)}{tracks.map(renderItem)}
         </div>
-        <div className="rexp-status">{entries.length} {t.radioItems} · {folders.length} {t.radioFolders}{sel.size > 1 && ` · ${sel.size} ✓`}</div>
+        <div className="rexp-status">
+          <span>{entries.length} {t.radioItems} · {folders.length} {t.radioFolders}{sel.size > 1 && ` · ${sel.size} ✓`}</span>
+          <span style={{ flex: 1 }} />
+          <span className="rexp-viz" onClick={cycleViz} title={`visualizer: ${viz}`} data-testid="radio-viz-switch">{VIZ_ICON[viz]} {viz.toUpperCase()}</span>
+        </div>
         {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
       </div>
 
