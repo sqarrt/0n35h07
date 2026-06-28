@@ -40,6 +40,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   const [clip, setClip] = useState<string | null>(null)
   const [bump, setBump] = useState(0)
   const [geo, setGeo] = useState(() => ({ x: Math.round(window.innerWidth / 2 - W0 / 2 + 170), y: Math.round(window.innerHeight * 0.44 - H0 / 2), w: W0, h: H0 }))
+  const [win, setWin] = useState<'normal' | 'min' | 'max'>('normal') // minimize/close → 'min' (bar above player); maximize → 'max'
   const refresh = () => setBump((b) => b + 1)
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   }, [lib, path, trashMode, reloadKey, bump])
 
   // The trash bin was double-clicked → open the trash view.
-  useEffect(() => { if (trashSignal > 0) { setTrashMode(true); setSel(null); setCtx(null) } }, [trashSignal])
+  useEffect(() => { if (trashSignal > 0) { setTrashMode(true); setWin('normal'); setSel(null); setCtx(null) } }, [trashSignal])
 
   // Close the context menu on the NEXT outside click (deferred a tick so the opening right-click can't close it).
   useEffect(() => {
@@ -135,7 +136,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
       onDragStart={(ev) => { if (e.kind === 'track') { ev.dataTransfer.setData(DT_MOVE, e.path); ev.dataTransfer.effectAllowed = 'copyMove' } }}
       onDragOver={(ev) => { if (e.kind === 'folder') { ev.preventDefault(); setDropFolder(e.path) } }}
       onDragLeave={() => e.kind === 'folder' && setDropFolder((d) => (d === e.path ? null : d))}
-      onDrop={(ev) => e.kind === 'folder' && onDropFolder(ev, e.path)}
+      onDrop={(ev) => { if (e.kind === 'folder') { ev.stopPropagation(); onDropFolder(ev, e.path) } }}
       onClick={(ev) => { ev.stopPropagation(); setSel(e.path) }}
       onDoubleClick={() => openEntry(e)}
       onContextMenu={(ev) => { ev.preventDefault(); ev.stopPropagation(); setSel(e.path); setCtx({ x: ev.clientX, y: ev.clientY, entry: e, trash: null }) }}>
@@ -157,25 +158,38 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, trashSignal, onPlay
   )
 
   const count = trashMode ? trashItems.length : entries.length
+  if (win === 'min') return (
+    <div className="rexp-min" data-testid="radio-explorer-min" onClick={() => setWin('normal')} title={t.radioLibrary}>
+      <span className="rexp-min-ic">▣</span> {dirName}
+    </div>
+  )
+  const maxed = win === 'max'
   return (
     <>
-      <div className="rexp" data-testid="radio-explorer" style={{ left: geo.x, top: geo.y, width: geo.w, height: geo.h, transform: 'none' }}
+      <div className="rexp" data-testid="radio-explorer"
+        style={maxed
+          ? { left: 10, top: 10, width: 'calc(100vw - 20px)', height: 'calc(100vh - 240px)', transform: 'none' }
+          : { left: geo.x, top: geo.y, width: geo.w, height: geo.h, transform: 'none' }}
         onContextMenu={(ev) => { if (!trashMode) { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null, trash: null }) } }}>
         <RadioVisualizer engine={engine} active={active} />
-        <div className="rexp-title" onMouseDown={(e) => { if (!(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
+        <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
           <span className="dot" /><b>{dirName}</b><span style={{ flex: 1 }} />
-          <span className="rexp-wbtn">_</span><span className="rexp-wbtn">▢</span><span className="rexp-wbtn x">✕</span></div>
+          <span className="rexp-wbtn" onClick={() => setWin('min')}>_</span>
+          <span className="rexp-wbtn" onClick={() => setWin((w) => (w === 'max' ? 'normal' : 'max'))}>▢</span>
+          <span className="rexp-wbtn x" onClick={() => setWin('min')}>✕</span></div>
         <div className="rexp-tools">
           <button className="rexp-tb" onClick={goBack} disabled={!trashMode && !hist.length} aria-label="back">◀</button>
           <button className="rexp-tb" onClick={goUp} disabled={!trashMode && !path} aria-label="up">▲</button>
           <button className="rexp-tb home" onClick={goHome} aria-label={t.radioHome}>⌂</button>
         </div>
         <div className="rexp-addr"><span className="lab">{t.radioPath}:</span><div className="field">{absPath}</div></div>
-        <div className="rexp-grid" onClick={() => setSel(null)}>
+        <div className="rexp-grid" onClick={() => setSel(null)}
+          onDragOver={(ev) => { if (!trashMode) ev.preventDefault() }}
+          onDrop={(ev) => { if (!trashMode) onDropFolder(ev, path) }}>
           {trashMode ? trashItems.map(renderTrash) : <>{folders.map(renderItem)}{tracks.map(renderItem)}</>}
         </div>
         <div className="rexp-status">{count} {t.radioItems}{!trashMode && ` · ${folders.length} ${t.radioFolders}`}</div>
-        <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />
+        {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
       </div>
 
       {ctx && (
