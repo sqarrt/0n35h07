@@ -219,4 +219,5 @@ export const it = {
   radioCtxCopy: 'Copia',
   radioCtxPaste: 'Incolla',
   radioCtxDelete: 'Elimina',
+  radioRestore: 'Ripristina',
 } satisfies Dict

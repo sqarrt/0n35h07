@@ -261,6 +261,7 @@ export default function App() {
   const [radioLib, setRadioLib] = useState<RadioLibrary | null>(null)
   const [radioRoot, setRadioRoot] = useState('')
   const [radioReload, setRadioReload] = useState(0)
+  const [radioTrashSig, setRadioTrashSig] = useState(0) // bumped on trash-bin double-click → opens the trash view
   const radioQueueRef = useRef<{ q: TrackPayload[]; i: number }>({ q: [], i: 0 })
   const trashedRef = useRef<Set<string>>(new Set())
 
@@ -696,9 +697,9 @@ export default function App() {
     return JSON.stringify(p)
   }
   // Trash = "never appears again": block the exact seed:index (persisted to _trash.json).
-  const blockTrack = (id: string) => { trashedRef.current.add(id); void radioLib?.trashAdd(id) }
-  const onTrashPlayer = (json: string) => { try { const p = JSON.parse(json) as TrackPayload; blockTrack(`${p.seed}:${p.index}`); if (playModeRef.current === 'gen') radioController?.next() } catch { /* bad payload */ } }
-  const onTrashFile = (file: string) => { void (async () => { if (!radioLib) return; try { const p = await radioLib.readTrack(file); blockTrack(`${p.seed}:${p.index}`); await radioLib.deleteTrack(file); setRadioReload(r => r + 1) } catch { /* gone */ } })() }
+  const blockTrack = (id: string, name?: string) => { trashedRef.current.add(id); void radioLib?.trashAdd(id, name) }
+  const onTrashPlayer = (json: string) => { try { const p = JSON.parse(json) as TrackPayload; blockTrack(`${p.seed}:${p.index}`, p.name); if (playModeRef.current === 'gen') radioController?.next() } catch { /* bad payload */ } }
+  const onTrashFile = (file: string) => { void (async () => { if (!radioLib) return; try { const p = await radioLib.readTrack(file); blockTrack(`${p.seed}:${p.index}`, p.name); await radioLib.deleteTrack(file); setRadioReload(r => r + 1) } catch { /* gone */ } })() }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
   const radioRegen = () => {
     radioGestureRef.current = true
@@ -969,9 +970,10 @@ export default function App() {
       {/* Radio takeover: only the favorites column lives here — the player itself is rendered globally above
           (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
-        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} onPlay={onPlayLibrary} engine={radioEngine} active={radioActive} />
+        <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload} trashSignal={radioTrashSig}
+          onPlay={onPlayLibrary} onRestore={(id) => trashedRef.current.delete(id)} engine={radioEngine} active={radioActive} />
       )}
-      {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} />}
+      {screen === 'radio' && IS_DESKTOP && radioLib && <RadioTrash onTrackJSON={onTrashPlayer} onMovePath={onTrashFile} onOpen={() => setRadioTrashSig(s => s + 1)} />}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
 
       {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).

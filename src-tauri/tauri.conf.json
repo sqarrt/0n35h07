@@ -16,7 +16,8 @@
         "width": 1280,
         "height": 720,
         "resizable": true,
-        "fullscreen": true
+        "fullscreen": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {

@@ -219,4 +219,5 @@ export const ru = {
   radioCtxCopy: 'Копировать',
   radioCtxPaste: 'Вставить',
   radioCtxDelete: 'Удалить',
+  radioRestore: 'Восстановить',
 } satisfies Dict

@@ -1,6 +1,6 @@
 /* Radio Explorer — the on-disk track-library window. Off-centre, translucent (the audio visualizer glows behind/
    through it), retro icon-grid skinned in the game theme. Icons are CSS-drawn → must live in a stylesheet. */
-.rexp { position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%) translateX(180px); width: 612px; height: 372px; z-index: 140;
+.rexp { position: fixed; width: 612px; height: 372px; z-index: 180;
   overflow: hidden; background: rgba(7, 10, 15, 0.93); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
   border: 1px solid var(--line); border-radius: 3px; display: flex; flex-direction: column;
   box-shadow: 0 0 0 1px rgba(68,170,255,.08), 0 18px 60px rgba(0,0,0,.55), 0 0 34px rgba(68,170,255,.16);
@@ -43,7 +43,7 @@
 .rexp-status { height: 26px; display: flex; align-items: center; padding: 0 12px; border-top: 1px solid var(--surface-line); font-size: 11px; color: var(--muted); background: rgba(68,170,255,.03); }
 /* context menu */
 .rexp-ctx { position: fixed; min-width: 200px; background: linear-gradient(180deg, #0e131b, #0a0c11); border: 1px solid var(--line); border-radius: 5px;
-  box-shadow: 0 12px 34px rgba(0,0,0,.65), 0 0 22px rgba(68,170,255,.12); padding: 5px; z-index: 150; }
+  box-shadow: 0 12px 34px rgba(0,0,0,.65), 0 0 22px rgba(68,170,255,.12); padding: 5px; z-index: 210; }
 .rexp-mi { display: flex; align-items: center; gap: 10px; padding: 7px 11px; border-radius: 4px; color: var(--text); font-size: 12.5px; cursor: pointer; }
 .rexp-mi .k { width: 15px; text-align: center; color: var(--accent-dim); }
 .rexp-mi:hover { background: rgba(68,170,255,.16); color: #eaf5ff; }
@@ -66,3 +66,9 @@
 
 /* Audio-reactive visualizer — the explorer window's LIVING BACKGROUND (behind the file grid, clipped to the window). */
 .rexp-vis { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.5; pointer-events: none; }
+
+/* window move (title bar) + resize (corner) + dead cassette in the trash view */
+.rexp-title { cursor: move; }
+.rexp-resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; z-index: 2;
+  background: linear-gradient(135deg, transparent 55%, var(--line) 55%, var(--line) 63%, transparent 63%, transparent 74%, var(--line) 74%, var(--line) 82%, transparent 82%); }
+.rexp-cass.dead { opacity: .45; filter: grayscale(.5); border-color: var(--muted); box-shadow: none; }

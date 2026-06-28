@@ -219,4 +219,5 @@ export const tr = {
   radioCtxCopy: 'Kopyala',
   radioCtxPaste: 'Yapıştır',
   radioCtxDelete: 'Sil',
+  radioRestore: 'Geri yükle',
 } satisfies Dict

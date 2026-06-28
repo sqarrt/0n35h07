@@ -221,4 +221,5 @@ export const en = {
   radioCtxCopy: 'Copy',
   radioCtxPaste: 'Paste',
   radioCtxDelete: 'Delete',
+  radioRestore: 'Restore',
 }

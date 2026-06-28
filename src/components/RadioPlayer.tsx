@@ -1,8 +1,19 @@
-import { useRef, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { glassCard } from './glass'
 import { DT_TRACK } from './RadioExplorer'
 import './RadioExplorer.css' // the .rexp-cass cassette icon (reused as the drag image)
 import { useT } from '../i18n'
+
+// Build an off-screen cassette element, snapshot it as the drag image, then drop it (no persistent leak).
+function setCassetteDragImage(dt: DataTransfer) {
+  const ghost = document.createElement('div')
+  ghost.className = 'rexp-cass'
+  ghost.style.cssText = 'position:fixed;left:-9999px;top:0'
+  ghost.innerHTML = '<span class="reel l"></span><span class="reel r"></span>'
+  document.body.appendChild(ghost)
+  dt.setDragImage(ghost, 26, 17)
+  setTimeout(() => ghost.remove(), 0)
+}
 
 export type RadioPlayMode = 'gen' | 'fav'
 
@@ -73,7 +84,6 @@ const backBtn: CSSProperties = {
  *  bottom-right corner — collapsed shows only the track name + transport. Desktop-only (gate at the call site). */
 export function RadioPlayer(p: RadioPlayerProps) {
   const t = useT()
-  const dragImg = useRef<HTMLDivElement>(null) // a cassette icon used as the drag ghost (not the grip dots)
   const dim: CSSProperties = p.ready ? {} : { opacity: 0.45, pointerEvents: 'none' }
   const radioWord = t.settingsVolRadio   // localized "Radio"
   // Transport buttons stretch to fill the full width of their row.
@@ -96,7 +106,7 @@ export function RadioPlayer(p: RadioPlayerProps) {
           <>
             {/* grip — press & drag to save the current track to a folder / the trash */}
             <div style={grip} draggable
-              onDragStart={e => { const j = p.onDragTrack(); if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; if (dragImg.current) e.dataTransfer.setDragImage(dragImg.current, 26, 17) } else e.preventDefault() }}
+              onDragStart={e => { const j = p.onDragTrack(); if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; setCassetteDragImage(e.dataTransfer) } else e.preventDefault() }}
               data-testid="radio-drag">
               <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
               <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
@@ -126,8 +136,6 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
       {/* BACK — a separate liquid-glass button under the player (expanded only). */}
       {p.expanded && <button style={backBtn} onClick={p.onBack} data-testid="radio-back">← {t.settingsBack}</button>}
-      {/* off-screen cassette — used as the drag ghost when saving the current track */}
-      <div ref={dragImg} className="rexp-cass" style={{ position: 'fixed', top: -200, left: -200, pointerEvents: 'none' }}><span className="reel l" /><span className="reel r" /></div>
     </div>
   )
 }

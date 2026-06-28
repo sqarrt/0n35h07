@@ -5,14 +5,15 @@ import { DT_TRACK, DT_MOVE } from './RadioExplorer'
 interface RadioTrashProps {
   onTrackJSON: (json: string) => void  // a track dragged from the PLAYER (a full payload)
   onMovePath: (file: string) => void   // a file dragged from the EXPLORER (a library path)
+  onOpen: () => void                   // double-click → show the trash contents in the explorer
 }
 
 /** The trash bin (bottom-left of the radio screen). Dropping a track here blocks it — it never appears again. */
-export function RadioTrash({ onTrackJSON, onMovePath }: RadioTrashProps) {
+export function RadioTrash({ onTrackJSON, onMovePath, onOpen }: RadioTrashProps) {
   const t = useT()
   const [over, setOver] = useState(false)
   return (
-    <div className={`rtrash${over ? ' over' : ''}`} data-testid="radio-trash"
+    <div className={`rtrash${over ? ' over' : ''}`} data-testid="radio-trash" onDoubleClick={onOpen}
       onDragOver={(e) => { e.preventDefault(); setOver(true) }}
       onDragLeave={() => setOver(false)}
       onDrop={(e: DragEvent) => {

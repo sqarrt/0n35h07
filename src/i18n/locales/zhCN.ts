@@ -220,4 +220,5 @@ export const zhCN = {
   radioCtxCopy: '复制',
   radioCtxPaste: '粘贴',
   radioCtxDelete: '删除',
+  radioRestore: '恢复',
 } satisfies Dict

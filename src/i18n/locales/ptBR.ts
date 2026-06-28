@@ -219,4 +219,5 @@ export const ptBR = {
   radioCtxCopy: 'Copiar',
   radioCtxPaste: 'Colar',
   radioCtxDelete: 'Excluir',
+  radioRestore: 'Restaurar',
 } satisfies Dict
