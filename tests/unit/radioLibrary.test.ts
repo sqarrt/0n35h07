@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { RadioLibrary, type FsLike, type TrackPayload } from '../../src/radio/library/radioLibrary'
+import { migrateProfileToLibrary } from '../../src/radio/library/migrate'
+import type { FavoriteTrack, TrackDescriptor } from '../../src/radio/trackDescriptor'
 
 // In-memory FsLike — mirrors the real plugin-fs behaviour the library relies on (library-relative paths).
 function memFs(): FsLike {
@@ -103,5 +105,16 @@ describe('RadioLibrary', () => {
     await lib.saveTrack(f, mk('Inside'))
     await lib.deleteTrack(f, true)
     expect(await lib.listDir('')).toEqual([])
+  })
+
+  it('migrates old favorites→files + dislikes→trash, once', async () => {
+    const lib = new RadioLibrary(memFs())
+    const style = { kick: '', bass: '', lead: '', bg: '', perc: '' }
+    const fav: FavoriteTrack = { seed: 'S', index: 1, mood: 'dread', key: 'E', scaleName: 'minor', bpm: 130, style, baked: { name: 'Saved One', sections: [{ code: 'note("0")', bars: 4 }] } }
+    const dis: TrackDescriptor = { seed: 'S', index: 2, mood: 'calm', key: 'A', scaleName: 'minor', bpm: 110, style }
+    expect(await migrateProfileToLibrary(lib, [fav], [dis], () => [{ code: 'b', bars: 2 }])).toBe(true)
+    expect((await lib.listDir('')).map((e) => e.name)).toEqual(['Saved One'])
+    expect(await lib.trashHas('S:2')).toBe(true)
+    expect(await migrateProfileToLibrary(lib, [fav], [], () => [])).toBe(false) // idempotent
   })
 })
