@@ -30,8 +30,8 @@ const MIX = {
   bass: 0.5,
   sub: 0.42,
   lead: 0.12,   // leads sit WELL under the groove (used less than bass, just above bg) — never pierce
-  bgScale: 0.7, // multiplies each bg texture's own (already small) level. Bumped from 0.32 — the user found the BG
-                // near-inaudible across the whole triage; raised so it reads as a subtle but present bed (fine-tune by ear).
+  bgScale: 0.35, // multiplies each bg texture's own (already small) level. 0.32→0.7 (triage demos were too quiet) was
+                 // too much in the real full mix → halved to 0.35: a subtle but present bed. Per-texture trims below.
   bgCap: 0.18,  // HARD ceiling on a bg texture's pre-scale level (raised from 0.06 with bgScale so per-texture levels matter)
   hat: 0.34,
   snare: 0.46,
