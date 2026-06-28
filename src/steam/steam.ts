@@ -159,3 +159,28 @@ export async function onSteamNetEvent(cb: (e: SteamNetEvent) => void): Promise<(
     return await listen<SteamNetEvent>('steam-net', e => cb(e.payload))
   } catch { return () => {} }
 }
+
+// --- Radio DLC entitlement ---
+
+/** True if the user owns the Radio DLC (false off-desktop / no Steam / unowned). */
+export async function radioDlcOwned(): Promise<boolean> {
+  if (!IS_DESKTOP) return false
+  try { return await invokeSteam<boolean>('radio_dlc_owned') }
+  catch { return false }
+}
+
+/** Open the Steam overlay on the Radio DLC store page. No-op off-desktop / no overlay. */
+export async function openRadioStore(): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam('open_radio_store') }
+  catch { /* overlay unavailable */ }
+}
+
+/** Fired after the Steam overlay closes (the user may have just bought the DLC) → re-check ownership. */
+export async function onRadioRecheckDlc(cb: () => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen('radio-recheck-dlc', () => cb())
+  } catch { return () => {} }
+}
