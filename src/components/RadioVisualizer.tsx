@@ -60,13 +60,14 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
       for (let i = 0; i < BANDS; i++) { const a = bands[i] > sm[i] ? 0.6 : 0.16; sm[i] += (bands[i] - sm[i]) * a }
       const bass = avg(sm, 0, 6), mid = avg(sm, 6, 15), high = avg(sm, 15, BANDS)
       const energy = bass + mid + high
-      phase += 0.003 + bass * 0.06 + mid * 0.04 + high * 0.025   // faster, more chaotic when energetic; near-still when calm
+      // compressed range: a higher floor (never dead-still) + a lower ceiling (energetic ≠ tangled mush)
+      phase += 0.006 + bass * 0.028 + mid * 0.02 + high * 0.012
       // clean redraw each frame (no trail accumulation, no bloom) — crisp thin lines over the frosted glass
       ctx.clearRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'lighter'
-      const base = Math.min(W, H) * 0.16 * (0.45 + bass * 1.6 + lvl * 0.7)
-      const groups = [0.28 + bass * 1.9, 0.3 + mid * 2.1, 0.24 + high * 2.4]
-      SETS.forEach((s, i) => trace(s, base, phase * (0.15 + i * 0.05) + i + energy * 0.5, Math.min(2.0, groups[i])))
+      const base = Math.min(W, H) * 0.16 * (0.72 + bass * 0.8 + lvl * 0.4)
+      const groups = [0.62 + bass * 0.85, 0.64 + mid * 0.95, 0.56 + high * 1.05]
+      SETS.forEach((s, i) => trace(s, base, phase * (0.15 + i * 0.05) + i + energy * 0.22, Math.min(1.35, groups[i])))
     }
     draw()
     return () => cancelAnimationFrame(raf)
