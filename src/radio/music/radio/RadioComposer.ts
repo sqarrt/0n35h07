@@ -12,10 +12,9 @@ import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyl
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
-import type { BiasProvider } from '../../bias'
 import { sidechainGain } from './fx'
 
-export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig; bias?: BiasProvider }
+export interface RadioComposerDeps { banks: RadioBanks; config: RadioConfig }
 
 const ORBIT = { kicks: 2, perc: 3, bass: 4, pad: 5, lead: 6, snare: 7, fx: 8, arp: 9 } as const
 
@@ -48,7 +47,6 @@ export class RadioComposer {
   private readonly melody: MelodyEngine
   private readonly bass: BassEngine
   private readonly timbre: TimbreEngine
-  private readonly bias?: BiasProvider
   private scheduler: CompositionScheduler
   private seed: string
 
@@ -75,12 +73,11 @@ export class RadioComposer {
     this.melody = new MelodyEngine()
     this.bass = new BassEngine()
     this.timbre = new TimbreEngine(this.banks)
-    this.bias = deps.bias
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed, bias: this.bias })
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: deps.config, sessionSeed: this.seed })
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
-  /** Current track's compact identity (for favorites + bias). */
+  /** Current track's compact identity (for saving to the library + the trash block id). */
   descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
   currentIndex(): number { return this.scheduler.currentIndex() }
 
@@ -103,7 +100,7 @@ export class RadioComposer {
   /** Replay tracks from a DIFFERENT session seed (a saved favorite): rebuild the scheduler, then jumpTo. */
   reseed(seed: string): void {
     this.seed = seed
-    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed, bias: this.bias })
+    this.scheduler = new CompositionScheduler({ banks: this.banks, config: this.config, sessionSeed: seed })
     this.resetTrackState()
   }
 

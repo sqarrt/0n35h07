@@ -3,7 +3,6 @@ import type { RadioBanks } from '../music/radio/banks'
 import type { RadioConfig } from '../music/radio/radioConfig'
 import type { MusicalState } from '../music/radio/MusicalState'
 import type { TrackDescriptor, BakedSection, BakedTrack } from '../trackDescriptor'
-import type { BiasProvider } from '../bias'
 
 /** Minimal engine surface the controller needs — satisfied by the app's EngineApi. */
 export interface RadioEngine {
@@ -19,8 +18,6 @@ export interface RadioControllerDeps {
   onState?: (state: MusicalState) => void
   /** Fired when the current track's arc completes and the loop auto-advances (drives favorites auto-next). */
   onTrackEnd?: () => void
-  /** Bias generation by the player's likes/dislikes (mood/key/scale). */
-  bias?: BiasProvider
   /** Initial base volume (0..1); defaults to 0.8. */
   volume?: number
 }
@@ -56,7 +53,6 @@ export class RadioController {
   private readonly composer: RadioComposer
   private readonly banks: RadioBanks
   private readonly config: RadioConfig
-  private readonly bias?: BiasProvider
   private readonly bars: number
   private readonly onState?: (state: MusicalState) => void
   private readonly onTrackEnd?: () => void
@@ -75,8 +71,7 @@ export class RadioController {
     this.engine = deps.engine
     this.banks = deps.banks
     this.config = deps.config
-    this.bias = deps.bias
-    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config, bias: deps.bias })
+    this.composer = new RadioComposer({ banks: deps.banks, config: deps.config })
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
     this.onTrackEnd = deps.onTrackEnd
@@ -103,7 +98,7 @@ export class RadioController {
   /** Render the FULL arc of a track to a frozen section list — for "baking" a favorite at save time.
    *  Uses a throwaway composer so live playback is untouched; deterministic from seed+index. */
   bake(seed: string, index: number): BakedSection[] {
-    const tmp = new RadioComposer({ banks: this.banks, config: this.config, bias: this.bias })
+    const tmp = new RadioComposer({ banks: this.banks, config: this.config })
     tmp.reseed(seed)
     tmp.jumpTo(index)
     return tmp.renderTrack()

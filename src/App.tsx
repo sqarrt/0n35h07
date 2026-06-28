@@ -31,8 +31,8 @@ import { RadioCodePanel } from './components/RadioCodePanel'
 import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
-import { buildBias, sameTrack } from './radio'
-import type { RadioController, BiasProvider, TrackDescriptor } from './radio'
+import { sameTrack } from './radio'
+import type { RadioController, TrackDescriptor } from './radio'
 import type { RadioPlayMode } from './components/RadioPlayer'
 import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
@@ -255,11 +255,8 @@ export default function App() {
   const [radioPlayMode, setRadioPlayMode] = useState<RadioPlayMode>('gen')
   const playModeRef = useRef<RadioPlayMode>('gen')
   const favIndexRef = useRef(0)
-  const biasRef = useRef<BiasProvider>(buildBias([], []))
   const onTrackEndRef = useRef<() => void>(() => {})
   useEffect(() => { playModeRef.current = radioPlayMode }, [radioPlayMode])
-  // Bias updates live as the player likes/dislikes (the composer reads biasRef on the next track pick).
-  useEffect(() => { biasRef.current = buildBias(profile.favorites, profile.dislikes) }, [profile.favorites, profile.dislikes])
 
   // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
   // The heavy @strudel/web + the radio subtree are dynamically imported → excluded from the initial bundle.
@@ -277,7 +274,6 @@ export default function App() {
           engine, banks, config: radio.DEFAULT_RADIO_CONFIG,
           volume: profile.volumeMaster * profile.volumeRadio,
           onState: setRadioMusicalState,
-          bias: { weightFor: (c, v) => biasRef.current.weightFor(c, v) },
           onTrackEnd: () => onTrackEndRef.current(),
         }),
       }, setRadioInitState)
