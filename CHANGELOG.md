@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.6.0] - 2026-06-28
 
 ### Added
+- **Radio is a paid DLC with a free daily trial.** Non-owners get **10 free generations + 5 library saves per day**;
+  the DLC unlocks unlimited. Saved tracks always play free. The player shows the remaining daily quota and an
+  **"Unlock Radio"** button that opens the Steam store.
 - **Radio — a track library you can organise (desktop).** A built-in file explorer over a real folder in the app
   data dir replaces the old favorites list: **drag the playing track (grab anywhere on the player) into a folder to
   save it**, play a single track or a whole folder as a looping playlist, multi-select (Ctrl/Shift-click + rubber-band

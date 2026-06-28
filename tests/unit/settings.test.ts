@@ -170,4 +170,18 @@ describe('settings / searchRole', () => {
     saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', searchRole: 'xx' as never })
     expect(loadProfile().searchRole).toBe('both')
   })
+
+  it('radio DLC/trial: valid values roundtrip', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4',
+      radioDlcOwned: true, radioTrial: { day: '2026-06-28', gens: 3, saves: 1 } } as never)
+    const p = loadProfile()
+    expect(p.radioDlcOwned).toBe(true)
+    expect(p.radioTrial).toEqual({ day: '2026-06-28', gens: 3, saves: 1 })
+  })
+  it('radio DLC/trial: missing → undefined; malformed trial → undefined', () => {
+    saveProfile({ name: 'A', primaryColor: '#4af', reserveColor: '#fa4', radioTrial: { day: 5, gens: 'x' } } as never)
+    const p = loadProfile()
+    expect(p.radioDlcOwned).toBeUndefined()
+    expect(p.radioTrial).toBeUndefined()
+  })
 })

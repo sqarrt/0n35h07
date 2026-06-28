@@ -48,6 +48,8 @@ import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
 import { loadProfile, saveProfile } from './settings'
+import { entitlementFor, consumeGen, consumeSave, rollTrial, emptyTrial } from './radio/entitlement'
+import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
@@ -251,6 +253,22 @@ export default function App() {
   const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
   const radioWarmedRef = useRef(false)
   const radioActive = profile.radioEnabled && radioInitState === 'ready'
+  // ── Radio entitlement: free daily trial (10 gens + 5 saves) unless the Steam DLC is owned (or dev build). ──
+  const DEV_UNLIMITED = import.meta.env.DEV
+  const [radioOwned, setRadioOwned] = useState<boolean>(() => profile.radioDlcOwned ?? false)
+  const [radioResolved, setRadioResolved] = useState<boolean>(() => profile.radioDlcOwned !== undefined) // ownership known (cache or Steam)? → avoid a trial-strip flash
+  const ent = entitlementFor({ owned: radioOwned, devUnlimited: DEV_UNLIMITED, trial: rollTrial(profile.radioTrial, new Date()) })
+  const entRef = useRef(ent); entRef.current = ent
+  const [radioSavePrompt, setRadioSavePrompt] = useState(false) // transient "save quota used up" inline prompt
+  const bumpTrial = (kind: 'gen' | 'save') => {
+    const now = new Date()
+    setProfile((p) => {
+      const cur = p.radioTrial ?? emptyTrial(now)
+      const next = { ...p, radioTrial: kind === 'gen' ? consumeGen(cur, now) : consumeSave(cur, now) }
+      saveProfile(next)
+      return next
+    })
+  }
   // Radio player: 'gen' = the live generative stream (Эфир), 'fav' = playing a library folder queue.
   const [radioPlayMode, setRadioPlayMode] = useState<RadioPlayMode>('gen')
   const playModeRef = useRef<RadioPlayMode>('gen')
@@ -280,10 +298,17 @@ export default function App() {
           volume: profile.volumeMaster * profile.volumeRadio,
           onState: setRadioMusicalState,
           onTrackEnd: () => onTrackEndRef.current(),
+          canGenerate: () => entRef.current.canGenerate, // trial gate: stop generating when the daily quota is spent
+          onGenerated: () => bumpTrial('gen'),           // count each new live track
         }),
       }, setRadioInitState)
       if (ctrl) {
         setRadioController(ctrl)
+        // Resolve + cache DLC ownership (cache avoids a trial-strip flash for owners; Steam answer corrects it).
+        void radioDlcOwned().then((owned) => {
+          setRadioOwned(owned); setRadioResolved(true)
+          setProfile((p) => (p.radioDlcOwned === owned ? p : { ...p, radioDlcOwned: owned }))
+        })
         // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
         const fsmod = await import('./radio/library/tauriFs')
         const lib = fsmod.createRadioLibrary()
@@ -678,6 +703,14 @@ export default function App() {
     setRadioPlayMode('fav')
     playQueueAt(startIndex)
   }
+  // Player→library save, metered by the daily trial (5/day). Returns false (+ shows a prompt) when the quota is spent.
+  const onSaveTrack = async (folder: string, payload: TrackPayload): Promise<boolean> => {
+    if (!radioLib) return false
+    if (!entRef.current.canSave) { setRadioSavePrompt(true); window.setTimeout(() => setRadioSavePrompt(false), 4000); return false }
+    await radioLib.saveTrack(folder, payload)
+    bumpTrial('save')
+    return true
+  }
   const radioPrev = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
   const radioNext = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
   // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
@@ -703,11 +736,23 @@ export default function App() {
   }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
   const radioRegen = () => {
+    if (!entRef.current.canGenerate) return // daily free generations spent — the player shows the unlock prompt
     radioGestureRef.current = true
     if (!profile.radioEnabled) handleToggleRadio()
     radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
     setRadioPlayMode('gen')
   }
+  // Live-unlock: the Steam overlay closed (user may have just bought the DLC) → re-check ownership.
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    let un = () => {}
+    void onRadioRecheckDlc(() => { void radioDlcOwned().then((o) => { setRadioOwned(o); setProfile((p) => ({ ...p, radioDlcOwned: o })) }) }).then((u) => { un = u })
+    return () => un()
+  }, [])
+  // Resume a generative stream that halted at the gen limit, once generation is allowed again (new day / purchase).
+  useEffect(() => {
+    if (radioController && profile.radioEnabled && playModeRef.current === 'gen' && ent.canGenerate) radioController.start()
+  }, [ent.canGenerate, radioController, profile.radioEnabled])
   // A finished folder-queue track auto-advances to the next in the folder (loops). Reads the live queue ref.
   useEffect(() => {
     onTrackEndRef.current = () => {
@@ -966,7 +1011,7 @@ export default function App() {
           (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
         <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload}
-          onPlay={onPlayLibrary} onMinimize={() => setRadioExpOpen(false)}
+          onPlay={onPlayLibrary} onSaveTrack={onSaveTrack} onMinimize={() => setRadioExpOpen(false)}
           hidden={!radioExpOpen} engine={radioEngine} active={radioActive} />
       )}
       {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
@@ -988,6 +1033,11 @@ export default function App() {
           onPlayPause={handleToggleRadio}
           onDragTrack={currentTrackJSON}
           onRegen={radioRegen}
+          trial={ent.unlimited || !radioResolved ? null : { gensLeft: ent.gensLeft, savesLeft: ent.savesLeft }}
+          genLimited={!ent.unlimited && screen === 'radio' && profile.radioEnabled && ent.gensLeft === 0}
+          saveLimited={radioSavePrompt}
+          canRegen={ent.canGenerate}
+          onUnlock={radioOwned || DEV_UNLIMITED ? undefined : () => void openRadioStore()}
           libraryMin={screen === 'radio' && !radioExpOpen && !!radioLib}
           onRestoreLibrary={() => setRadioExpOpen(true)}
           onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}

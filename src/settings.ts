@@ -6,6 +6,7 @@ import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
 import type { FavoriteTrack, BakedSection } from './radio/trackDescriptor'
+import type { RadioTrial } from './radio/entitlement'
 
 export type DefaultView = 'fp' | 'tp'
 export type SearchRole = 'both' | 'client'   // 'both' (host/client as luck has it) | client only. No explicit host (unreliable).
@@ -34,6 +35,8 @@ export interface PlayerProfile {
   radioEnabled: boolean      // audio: generative "Radio" mode replaces stem music when on; local preference
   volumeRadio: number        // audio: radio level 0..1; local preference
   favorites: FavoriteTrack[]     // radio: liked tracks (baked render replayed verbatim)
+  radioDlcOwned?: boolean    // radio: cached last Steam DLC-ownership answer (used before the first Steam connect)
+  radioTrial?: RadioTrial    // radio: free-trial daily counters (gens/saves), local-day reset
   connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
   locale?: LocaleId          // UI language; undefined = not chosen (detect system)
 }
@@ -134,6 +137,13 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const radioEnabled = typeof p.radioEnabled === 'boolean' ? p.radioEnabled : false   // off by default
   const volumeRadio = clampVolume(p.volumeRadio, VOL_DEFAULT.radio)
   const favorites = sanitizeTrackList(p.favorites)
+  // radio DLC ownership cache + trial counters (cloud-synced via the profile)
+  const radioDlcOwned = typeof p.radioDlcOwned === 'boolean' ? p.radioDlcOwned : undefined
+  const rt = p.radioTrial as Partial<RadioTrial> | undefined
+  const radioTrial: RadioTrial | undefined =
+    rt && typeof rt.day === 'string' && typeof rt.gens === 'number' && Number.isFinite(rt.gens) && rt.gens >= 0
+       && typeof rt.saves === 'number' && Number.isFinite(rt.saves) && rt.saves >= 0
+      ? { day: rt.day, gens: Math.floor(rt.gens), saves: Math.floor(rt.saves) } : undefined
   // connect timeout: only from the allowed options, otherwise default
   const connectTimeoutSec = (CONNECT_TIMEOUT_OPTIONS as readonly number[]).includes(p.connectTimeoutSec as number) ? (p.connectTimeoutSec as number) : CONNECT_TIMEOUT_DEFAULT
   // language: only from registered locales; missing → undefined (user did not choose — detect system)
@@ -141,7 +151,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
   // ball artwork: valid base64 string → keep as is; otherwise drop the field (no artwork)
   const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
-  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, favorites, connectTimeoutSec, locale }
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, favorites, radioDlcOwned, radioTrial, connectTimeoutSec, locale }
 }
 
 /** Load profile. First run (not in localStorage) → create a random one and save it right away. */
