@@ -46,7 +46,16 @@ for (const [what, p] of [['binary', bin], ['Steam runtime lib', lib]]) {
   if (!existsSync(p)) { console.error(`✗ Missing ${what}: ${p}`); process.exit(1) }
 }
 
-rmSync(OUT, { recursive: true, force: true })
+// Windows holds brief locks on freshly-built/just-run files (the previous OneShot.exe, antivirus scans, an open
+// Explorer/terminal in steam-build) → rmSync can throw EPERM/EBUSY. Retry a few times; on a persistent lock,
+// tell the user what to close instead of dying with a raw stack trace.
+try {
+  rmSync(OUT, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+} catch (e) {
+  console.error(`✗ Could not clear ${OUT}: ${e.code || e.message}`)
+  console.error('  Something is holding it open. Close any running OneShot.exe (a launched build), any Explorer/terminal window inside steam-build, then re-run.')
+  process.exit(1)
+}
 mkdirSync(OUT, { recursive: true })
 copyFileSync(bin, resolve(OUT, PLATFORM.outBin))
 copyFileSync(lib, resolve(OUT, PLATFORM.lib))
