@@ -50,6 +50,21 @@ describe('ClientReconciler — client prediction vs host authority', () => {
     expect(r.reconcile(0, { x: 99, y: 0, z: 0 })).toEqual({ x: 0, y: 0, z: 0 })
   })
 
+  it('rebases in-flight history so one correction is not re-applied for later acked seqs (no compounding)', () => {
+    const r = new ClientReconciler(SNAP_DIST)
+    // client predicted a straight x-line for three still-in-flight inputs
+    r.record(1, { x: 1, y: 0, z: 0 })
+    r.record(2, { x: 2, y: 0, z: 0 })
+    r.record(3, { x: 3, y: 0, z: 0 })
+    // host authority for seq1 is offset by +1 (e.g. a knockback the client didn't predict) → correct once
+    expect(r.reconcile(1, { x: 2, y: 0, z: 0 })).toEqual({ x: 1, y: 0, z: 0 })
+    // The same constant offset then shows up at seq2/seq3 (authority = our prediction + the already-applied +1).
+    // Without rebasing the kept history, reconcile re-returns +1 each frame → the client overshoots and, over a
+    // multi-frame in-flight window (real latency), flies off the map. After rebasing, these are already matched.
+    expect(r.reconcile(2, { x: 3, y: 0, z: 0 })).toEqual({ x: 0, y: 0, z: 0 })
+    expect(r.reconcile(3, { x: 4, y: 0, z: 0 })).toEqual({ x: 0, y: 0, z: 0 })
+  })
+
   it('reset clears history (respawn/teleport invalidates old predictions)', () => {
     const r = new ClientReconciler(SNAP_DIST)
     r.record(5, { x: 0, y: 0, z: 0 })

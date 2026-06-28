@@ -45,6 +45,11 @@ export class ClientReconciler {
     const dz = authority.z - predicted.z
     this.history.splice(0, idx)   // drop everything older than the acked seq
     if (dx * dx + dy * dy + dz * dz < this.snapDist * this.snapDist) return { x: 0, y: 0, z: 0 }
+    // Rebase the still-in-flight predictions (seq ≥ ackSeq) into the corrected frame. The same offset will
+    // appear on every later acked seq (the host's authority carries it forward); without this rebase each one
+    // re-returns the full delta, so over a multi-frame in-flight window the corrections COMPOUND and the client
+    // overshoots — thrash / flung off the map. After rebasing, only genuinely NEW divergence corrects again.
+    for (const s of this.history) { s.x += dx; s.y += dy; s.z += dz }
     return { x: dx, y: dy, z: dz }
   }
 
