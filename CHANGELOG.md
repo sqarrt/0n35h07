@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.6.0] - unreleased
+## [0.6.0] - 2026-06-28
 
 ### Added
 - **Radio — a track library you can organise (desktop).** A built-in file explorer over a real folder in the app
