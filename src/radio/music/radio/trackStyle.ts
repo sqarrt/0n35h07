@@ -15,22 +15,24 @@ export type DropLead = 'stab' | 'arp' | 'lead'
 export type LeadPresence = 'full' | 'sparse' | 'none'
 /** Subtle in-key background texture that fills/dilutes the track (no melodic pad). */
 export type BgKind =
-  | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums
+  | 'drone' | 'hum' | 'tremdrone' | 'organ' | 'sweepdrone'      // drones / hums (culled in triage)
   | 'subpulse' | 'sonar' | 'metallic' | 'morse' | 'bell'        // pulses / beepers
   | 'wind' | 'crackle' | 'hiss' | 'geiger' | 'resonance'        // noise textures
   | 'sinearp' | 'granular' | 'choir' | 'siren'                  // tonal shimmers
+  | 'tapeChoir' | 'droneCluster' | 'scanner' | 'tapeWarble' | 'insectoid' | 'deepBell' // co-designed dark/horror
 
 export const BG_KINDS: BgKind[] = [
-  'drone', 'hum', 'tremdrone', 'organ', 'sweepdrone',
-  'subpulse', 'sonar', 'metallic', 'morse', 'bell',
-  'wind', 'crackle', 'hiss', 'geiger', 'resonance',
-  'sinearp', 'granular', 'choir', 'siren', // 'reverse' removed — a swelling white-noise burst, not in-key & too foreground
+  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren',
+  'crackle', 'hiss', 'geiger', 'granular',
+  'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid', 'deepBell',
 ]
-// Two tiers (see docs/radio-leads-lessons.md analysis): BEDS are subliminal drones/noise with no rhythmic/tonal
-// HOOK — safe to recur, they don't fingerprint a track. ACCENTS are the memorable ones (a bell ping, a sonar
-// blip, a morse rhythm…) — distinctive, so they're added only OCCASIONALLY and never to two near tracks.
-export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
-export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'bell', 'sinearp', 'siren']
+// Two tiers: BEDS are subliminal drones/noise with no rhythmic/tonal HOOK — safe to recur, they don't fingerprint
+// a track. ACCENTS are the memorable ones (a bell ping, a sonar blip, a morse rhythm…) — distinctive, so added only
+// OCCASIONALLY and never to two near tracks. Palette TRIAGED by ear (docs/radio-part-archetypes.md): the plain tonal
+// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED; the dark/horror co-designs
+// (tapeChoir/droneCluster/scanner/tapeWarble/insectoid beds + deepBell accent) added. Dead bgTexture cases remain.
+export const BG_BEDS: BgKind[] = ['hiss', 'crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell']
 const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
