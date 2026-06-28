@@ -261,7 +261,10 @@ export class RadioComposer {
     const SHADOW_PROB = 0.6
     const shadowRng = createRng(`${track.seed}:shadow`)
     const bassShadow: 'A' | 'B' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'A' : 'B') : null
-    const leadShadow: 'C' | 'D' | null = shadowRng.next() < SHADOW_PROB ? (shadowRng.next() < 0.5 ? 'C' : 'D') : null
+    // GUARDRAIL: a fixed-semitone interval on absolute notes makes parallel OUT-OF-KEY clashes (a fixed minor-3rd is
+    // NOT the diatonic 3rd on most degrees → the "off sounds awful" regression). So the lead shadow is the
+    // independent in-scale phrase (D) only; the third-canon (C) is parked until it's built diatonically (degree-based).
+    const leadShadow: 'D' | null = shadowRng.next() < SHADOW_PROB ? 'D' : null
 
     // ── TRANSITIONS — deterministic glue between sections (all 4 families). A "pre"
     //    device fires on the LAST bar of a block (fill/roll/riser/kick-drop/echo-throw);
@@ -466,9 +469,6 @@ export class RadioComposer {
         : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
       // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
       const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
-      // layer C — a quiet third-up canon answering 3/16 later (sine + room/delay): reads as a counter-melody when
-      // the lead has gaps, a gentle thickening when it's dense. (Minor-third in semitones; our leads lean minor.)
-      const leadOff = leadShadow === 'C' ? '.off(0.1875, x => x.add(note(3)).gain(0.32).s("sine").lpf(2200).room(0.45).delay(0.18))' : ''
       // AFTER THE BREAK: develop the lead with an in-key TRANSPOSITION pattern (Switch-Angel
       // style — .add(<changing offsets>)). The same riff shifts harmonically per bar (over a
       // root pedal it reads as an implied progression) and is KEPT to the track's end.
@@ -477,7 +477,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}${leadOff}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -493,7 +493,7 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}${leadOff}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        layers.push(orbit(`${fragment}${leadDev}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
       }
       // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
       // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
