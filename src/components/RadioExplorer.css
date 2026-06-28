@@ -50,3 +50,17 @@
 .rexp-mi.dis .k { opacity: .5; }
 .rexp-mi .acc { margin-left: auto; color: var(--muted); font-size: 10px; padding-left: 14px; }
 .rexp-sep { height: 1px; background: var(--surface-line); margin: 4px 8px; }
+
+/* Trash bin (bottom-left) — RadioTrash.tsx */
+.rtrash { position: fixed; left: 40px; bottom: 96px; z-index: 140; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 78px; user-select: none; transition: transform .12s; }
+.rtrash-bin { width: 52px; height: 56px; position: relative; }
+.rtrash-bin .lid { position: absolute; top: 0; left: 2px; width: 48px; height: 8px; border: 1px solid var(--danger); border-radius: 3px; background: rgba(255,102,102,.12); }
+.rtrash-bin .body { position: absolute; top: 10px; left: 6px; width: 40px; height: 46px; border: 1px solid var(--danger); border-top: none; border-radius: 0 0 6px 6px; background: linear-gradient(180deg, rgba(255,102,102,.10), rgba(255,102,102,.02)); }
+.rtrash-bin .body::before, .rtrash-bin .body::after { content: ""; position: absolute; top: 7px; width: 1px; height: 32px; background: rgba(255,102,102,.5); }
+.rtrash-bin .body::before { left: 13px; } .rtrash-bin .body::after { right: 13px; }
+.rtrash-label { color: #f88; font-size: 12px; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,102,102,.4); }
+.rtrash.over { transform: scale(1.1); }
+.rtrash.over .lid, .rtrash.over .body { border-color: #f99; box-shadow: 0 0 14px rgba(255,102,102,.5); }
+
+/* Audio-reactive visualizer canvas — RadioVisualizer.tsx. Dim, centred, BEHIND the explorer/player. */
+.radio-vis { position: fixed; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 760px; height: 720px; z-index: 110; opacity: 0.62; pointer-events: none; }

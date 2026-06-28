@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { glassCard } from './glass'
+import { DT_TRACK } from './RadioExplorer'
 import { useT } from '../i18n'
 
 export type RadioPlayMode = 'gen' | 'fav'
@@ -11,15 +12,12 @@ interface RadioPlayerProps {
   playing: boolean
   trackName: string
   subtitle: string
-  liked: boolean
-  disliked: boolean
   volume: number
   onMode: (m: RadioPlayMode) => void
   onPrev: () => void
   onNext: () => void
   onPlayPause: () => void
-  onLike: () => void
-  onDislike: () => void
+  onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
   onRegen: () => void
   onVolume: (v: number) => void
   onOpen: () => void
@@ -45,7 +43,6 @@ const title = (clickable: boolean): CSSProperties => ({
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: clickable ? 'pointer' : 'default',
 })
 const subRow: CSSProperties = { textAlign: 'center', color: 'var(--accent-dim)', fontSize: '0.7rem', letterSpacing: '0.12em' }
-const spread: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
 const center: CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }
 // grid+placeItems reliably centers symbol glyphs (flex/baseline left them low).
 const iconBtn: CSSProperties = {
@@ -53,13 +50,17 @@ const iconBtn: CSSProperties = {
   width: 42, height: 36, cursor: 'pointer', color: '#cdd', font: 'inherit', fontSize: '1.05rem',
   display: 'grid', placeItems: 'center', lineHeight: 1, padding: 0,
 }
-const heart = (on: boolean): CSSProperties => ({ ...iconBtn, color: on ? 'var(--accent)' : '#cdd', borderColor: on ? 'var(--accent)' : 'rgba(255,255,255,0.14)' })
 const smallBtn: CSSProperties = { ...iconBtn, width: 34, height: 30, fontSize: '0.9rem' }
-const modeWrap: CSSProperties = { display: 'flex', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 10, overflow: 'hidden', flex: 1 }
-const seg = (on: boolean): CSSProperties => ({
-  appearance: 'none', border: 'none', background: on ? 'rgba(120,180,255,0.18)' : 'transparent', cursor: 'pointer',
-  color: on ? 'var(--accent)' : '#9ab', font: 'inherit', fontSize: '0.7rem', letterSpacing: '0.1em', padding: '7px 0', flex: 1,
+// Air toggle: lit (green) when the live generative stream is the source; click to return to it.
+const airBtn = (on: boolean): CSSProperties => ({
+  ...iconBtn, flex: 1, width: 'auto', height: 32, fontSize: '0.72rem', letterSpacing: '0.08em',
+  color: on ? 'var(--ok)' : '#bcd', borderColor: on ? 'rgba(68,255,170,0.45)' : 'rgba(255,255,255,0.14)',
+  background: on ? 'rgba(68,255,170,0.10)' : 'transparent', boxShadow: on ? '0 0 10px rgba(68,255,170,0.15)' : 'none',
 })
+// Grip handle — press & drag to save the current track into the explorer (or the trash).
+const grip: CSSProperties = { alignSelf: 'center', display: 'flex', flexDirection: 'column', gap: 2, padding: '2px 14px 0', cursor: 'grab' }
+const gripRow: CSSProperties = { display: 'flex', gap: 4 }
+const gripDot: CSSProperties = { width: 3, height: 3, borderRadius: '50%', background: 'var(--accent-dim)', boxShadow: '0 0 5px rgba(68,170,255,.5)' }
 const volRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8 }
 const volLabel: CSSProperties = { color: '#667', fontSize: '0.62rem', letterSpacing: '0.14em', flex: '0 0 auto' }
 const backBtn: CSSProperties = {
@@ -91,20 +92,20 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
         {p.expanded ? (
           <>
-            {/* Row 2 — dislike (left) · BPM/key (centre) · like (right) */}
-            <div style={{ ...spread, ...dim, gap: 10 }}>
-              <button style={heart(p.disliked)} onClick={p.onDislike} aria-label={t.radioDislike} data-testid="radio-dislike">💔</button>
-              <div style={{ ...subRow, flex: 1 }}>{p.subtitle || radioWord}</div>
-              <button style={heart(p.liked)} onClick={p.onLike} aria-label={t.radioLike} data-testid="radio-like">❤️</button>
+            {/* grip — press & drag to save the current track to a folder / the trash */}
+            <div style={grip} draggable
+              onDragStart={e => { const j = p.onDragTrack(); if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy' } else e.preventDefault() }}
+              data-testid="radio-drag">
+              <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
+              <div style={gripRow}><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /><span style={gripDot} /></div>
             </div>
-            {/* Row 4 — prev / play-pause / next */}
+            {/* subtitle — BPM / key */}
+            <div style={{ ...subRow, ...dim }}>{p.subtitle || radioWord}</div>
+            {/* transport */}
             {transport}
-            {/* Row 5 — Generation | Favorites (+ regenerate-seed) */}
+            {/* Air toggle (live generative stream) + new-seed die */}
             <div style={{ ...center, ...dim, gap: 8 }}>
-              <div style={modeWrap}>
-                <button style={seg(p.mode === 'gen')} onClick={() => p.onMode('gen')} data-testid="radio-mode-gen">{t.radioGeneration}</button>
-                <button style={seg(p.mode === 'fav')} onClick={() => p.onMode('fav')} data-testid="radio-mode-fav">{t.radioFavorites}</button>
-              </div>
+              <button style={airBtn(p.mode === 'gen')} onClick={() => p.onMode('gen')} data-testid="radio-air">◉ {t.radioAir}</button>
               <button style={smallBtn} onClick={p.onRegen} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
             </div>
             {/* Volume (megaphone pictogram, not the word "Radio") */}

@@ -138,4 +138,8 @@ export class RadioLibrary {
   }
 
   async trashHas(id: string): Promise<boolean> { return (await this.trashList()).includes(id) }
+
+  // ── one-time markers (e.g. '.migrated') — hidden control files at the root ────────────────────────
+  async hasMarker(name: string): Promise<boolean> { return this.fs.exists(name) }
+  async setMarker(name: string): Promise<void> { await this.fs.writeTextFile(name, '1') }
 }

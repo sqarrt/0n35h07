@@ -33,3 +33,9 @@ export async function revealInExplorer(libPath = ''): Promise<void> {
   const abs = await pathJoin(await appDataDir(), ROOT, libPath)
   await revealItemInDir(abs)
 }
+
+/** Absolute OS path of the radio root (for the explorer's address bar). '' off-desktop. */
+export async function radioRootAbs(): Promise<string> {
+  if (!IS_DESKTOP) return ''
+  return pathJoin(await appDataDir(), ROOT)
+}
