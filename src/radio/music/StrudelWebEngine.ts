@@ -30,12 +30,17 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 // self-contained (no radio→game import).
 const ANALYSER_FFT = 1024   // larger window → finer low-frequency bins (the visualizer's kick/beat detection)
 const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
-// The analyser taps the master AFTER the volume gain, so a quiet slider would starve the visualizer. The visualizer
-// must behave the SAME at any volume → normalise readings to a fixed reference level (≈ a comfortable mid-low volume),
-// capping the boost so a near-zero slider doesn't amplify the noise floor.
+// The analyser taps the master AFTER the volume gain, so a quiet slider would starve the visualizer; it must behave
+// the SAME at any volume. TWO different scales need compensating:
+//  • readLevel is time-domain (LINEAR in amplitude) → divide back to a fixed reference level (capped near zero).
+//  • readBands is getByteFrequencyData (LOGARITHMIC, dB) → a linear divide is WRONG (it over-compensates at low
+//    volume → activity paradoxically RISES). Instead shift the analyser's dB window down by the volume attenuation:
+//    the signal drops by the same dB, so its position in the window — hence every band byte — is volume-independent.
 const VIS_REF_LEVEL = 0.03
 const VIS_MAX_GAIN = 5
 const VIS_MIN_VOLUME = 0.03
+const VIS_MIN_DB = -85   // dB window (at full volume) the spectrum is mapped into; tune VIS_MAX_DB for band liveliness
+const VIS_MAX_DB = -18
 /** RMS level 0..1 from an analyser (time domain). */
 function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buf)
@@ -192,9 +197,11 @@ export class StrudelWebEngine implements IStrudelEngine {
   readBands(out: Float32Array): void {
     this.#ensureAnalyser()
     if (!this.#analyser || !this.#freqBuf) return
+    // shift the dB window by the volume attenuation → band bytes are volume-independent (NOT a linear divide)
+    const vDb = 20 * Math.log10(Math.max(this.#volume, VIS_MIN_VOLUME))
+    this.#analyser.minDecibels = VIS_MIN_DB + vDb
+    this.#analyser.maxDecibels = VIS_MAX_DB + vDb
     maxCombineBands(this.#analyser, this.#freqBuf, out)
-    const g = this.#visGain()
-    if (g !== 1) for (let i = 0; i < out.length; i++) out[i] = Math.min(1, out[i] * g)
   }
 
   /** Lazily tap the superdough master node with an analyser. The controller is created on the
