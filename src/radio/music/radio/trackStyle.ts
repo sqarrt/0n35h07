@@ -29,7 +29,7 @@ export const BG_KINDS: BgKind[] = [
 // Two tiers (see docs/radio-leads-lessons.md analysis): BEDS are subliminal drones/noise with no rhythmic/tonal
 // HOOK — safe to recur, they don't fingerprint a track. ACCENTS are the memorable ones (a bell ping, a sonar
 // blip, a morse rhythm…) — distinctive, so they're added only OCCASIONALLY and never to two near tracks.
-export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'wind', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
+export const BG_BEDS: BgKind[] = ['drone', 'hum', 'tremdrone', 'sweepdrone', 'organ', 'choir', 'hiss', 'crackle', 'geiger', 'resonance', 'granular']
 export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'bell', 'sinearp', 'siren']
 const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 

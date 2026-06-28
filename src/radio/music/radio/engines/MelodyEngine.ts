@@ -45,12 +45,15 @@ const ATMO_DYADS: (number[] | null)[][] = [
 type El = '~' | number | number[]
 // All 18 archetypes are EQUALLY likely; anti-repeat picks a DIFFERENT one than the previous track.
 const ARCHETYPES: LeadVoiceId[] = [
-  'arpDyad', 'atmoDyad', 'chordStab', 'lament', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
-  'phrygianHalf', 'doubleStop', 'glitchStorm', 'tritone', 'glassArp', 'ghostVoice',
+  'atmoDyad', 'chordStab', 'lament', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
+  'phrygianHalf', 'doubleStop', 'glitchStorm', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
 ]
-// leadingTone (harmonic-minor raised-7th, ascending 0→5→6→7 drama) DROPPED from the pool — it read as too
-// melodic/uplifting in the live mix, against the dark vibe. (Its voice/pattern code stays but is unreachable.)
+// DROPPED from the pool (in the live mix they read wrong; voice/pattern code stays but is unreachable):
+//  • leadingTone — harmonic-minor raised-7th, ascending 0→5→6→7 drama → too melodic/uplifting for the dark vibe.
+//  • tritone — the b5 "diabolus" LEAD (great as a BASS, kept there) → too dissonant/ugly as a lead in the mix.
+//  • arpDyad — the old busy 16th tonic-pedal-arp (predates the dark co-design) → reads as disco/busy, the type
+//    the user consistently rejects (acidCell/mono303 family).
 // The break's job is to REST the ears → only the atmospheric/restful archetypes (no driving acid/stab/glitch).
 // The composer renders one of these through the break's low-gain, echo-drowned chain (a different lead than the
 // track's main one, by design).
