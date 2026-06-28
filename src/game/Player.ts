@@ -26,6 +26,8 @@ const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // dummy aim for the cosmetic w
  * Scene graph: bodyGroup (body + hitbox + shield) goes inside <RigidBody> (transform comes
  * from Rapier); the beam (weaponObject) is world-space, rendered in match.beams.
  */
+const _renderScratch = new THREE.Vector3()   // scratch for renderInterpolate (single-threaded → safe)
+
 export class Player implements IControllable {
   alive = true
   respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
@@ -155,8 +157,15 @@ export class Player implements IControllable {
   /** Cache the position from the physics body and move the visual group (it's in world-space). */
   syncFromBody() {
     this.body.syncFromBody()
-    this.bodyGroup.position.copy(this.body.position)
+    this.bodyGroup.position.copy(this.body.position)   // combat hitboxes (under bodyGroup) use the SIM position each tick
   }
+
+  /** Snapshot the sim position this tick (render interpolation). Called by the driver after each fixed step. */
+  captureTick() { this.body.captureTick() }
+
+  /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
+   *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
+  renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
 
   /** Freeze: during readiness/countdown/end, movement and actions are off, camera/aim are not.
    *  Enabling it kills inertia (velH/velocityY) → players really stand still (match-end freeze-frame). */

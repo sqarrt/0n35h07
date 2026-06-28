@@ -29,6 +29,8 @@ const _knock = new THREE.Vector3()   // scratch: normalized 3D knockback directi
  */
 export class Body {
   readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)   // cache of rb.translation()
+  private prevTickPos = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the previous tick (render interpolation)
+  private curTickPos  = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the current tick
   readonly object3d = new THREE.Group()                     // local (origin) — RigidBody supplies the transform
   readonly mesh:     THREE.Mesh
   readonly material: THREE.MeshStandardMaterial
@@ -87,8 +89,18 @@ export class Body {
     this.rb = rb
     this.desired.set(0, 0, 0)   // reset horizontal intent accumulated before physics was ready
     rb.setNextKinematicTranslation(this.position)   // leave velocityY alone — a jump during loading is preserved
+    this.resetTickPos()         // start interpolation from the spawn position (no sweep from origin)
   }
   unbind() { this.rb = null }
+
+  /** Snapshot this tick's sim position for render interpolation (call once per fixed tick, after the step). */
+  captureTick() { this.prevTickPos.copy(this.curTickPos); this.curTickPos.copy(this.position) }
+
+  /** Visual position for rendering: lerp(prevTick, curTick, alpha). */
+  renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return out.lerpVectors(this.prevTickPos, this.curTickPos, alpha) }
+
+  /** Teleport/init: collapse both snapshots to the live position so interpolation doesn't sweep across the jump. */
+  resetTickPos() { this.curTickPos.copy(this.position); this.prevTickPos.copy(this.position) }
 
   /** Desired horizontal velocity this frame (NOT integrated immediately — stepHorizontal accumulates it via velH). */
   move(worldDir: THREE.Vector3, _dt: number) {
@@ -250,6 +262,7 @@ export class Body {
     this.netTarget = null   // respawn/teleport — the old authority is invalid
     this.dashTimer = 0
     this.dashCooldown = 0
+    this.resetTickPos()     // don't interpolate the visual across the teleport
   }
   consumeTeleport(): THREE.Vector3 | null {
     const t = this.teleport
