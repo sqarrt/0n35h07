@@ -30,6 +30,12 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 // self-contained (no radio→game import).
 const ANALYSER_FFT = 1024   // larger window → finer low-frequency bins (the visualizer's kick/beat detection)
 const BYTE_MID = 128   // midpoint of the byte time-domain signal (silence)
+// The analyser taps the master AFTER the volume gain, so a quiet slider would starve the visualizer. The visualizer
+// must behave the SAME at any volume → normalise readings to a fixed reference level (≈ a comfortable mid-low volume),
+// capping the boost so a near-zero slider doesn't amplify the noise floor.
+const VIS_REF_LEVEL = 0.2
+const VIS_MAX_GAIN = 5
+const VIS_MIN_VOLUME = 0.03
 /** RMS level 0..1 from an analyser (time domain). */
 function rmsLevel(analyser: AnalyserNode, buf: Uint8Array<ArrayBuffer>): number {
   analyser.getByteTimeDomainData(buf)
@@ -172,16 +178,23 @@ export class StrudelWebEngine implements IStrudelEngine {
     this.#applyVolume()
   }
 
+  /** Compensate the post-gain analyser tap back to VIS_REF_LEVEL so the visualizer is volume-independent. */
+  #visGain(): number {
+    return Math.min(VIS_MAX_GAIN, VIS_REF_LEVEL / Math.max(this.#volume, VIS_MIN_VOLUME))
+  }
+
   readLevel(): number {
     this.#ensureAnalyser()
     if (!this.#analyser || !this.#timeBuf) return 0
-    return rmsLevel(this.#analyser, this.#timeBuf)
+    return Math.min(1, rmsLevel(this.#analyser, this.#timeBuf) * this.#visGain())
   }
 
   readBands(out: Float32Array): void {
     this.#ensureAnalyser()
     if (!this.#analyser || !this.#freqBuf) return
     maxCombineBands(this.#analyser, this.#freqBuf, out)
+    const g = this.#visGain()
+    if (g !== 1) for (let i = 0; i < out.length; i++) out[i] = Math.min(1, out[i] * g)
   }
 
   /** Lazily tap the superdough master node with an analyser. The controller is created on the
