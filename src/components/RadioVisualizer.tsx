@@ -61,9 +61,16 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
       // readBands MAX-combines into out and never decays it — so it MUST be cleared each frame, else the bands
       // pin at their running peak and the visual freezes into one constant loop (looks like a canned animation).
       bands.fill(0)
-      if (on) { engine!.readBands(bands); lvl += (engine!.readLevel() - lvl) * 0.4 } else { lvl += (0 - lvl) * 0.04 }
-      // fast attack (punchy) / slower release; on PAUSE wind down gently (rel→small) so it eases into idle, no snap
-      const rel = on ? 0.22 : 0.04
+      let rawLvl = 0
+      if (on) { engine!.readBands(bands); rawLvl = engine!.readLevel() }
+      let rawBands = 0; for (let i = 0; i < BANDS; i++) rawBands += bands[i]
+      // `active` only means radio-is-enabled, NOT playing — so PAUSE is detected by an actually-silent input. When
+      // silent, ease everything down gently (slow release) into idle instead of snapping. (A genuine near-silent
+      // passage gets the same graceful decay, which is fine.)
+      const silent = rawLvl < 0.015 && rawBands < 0.4
+      lvl += (rawLvl - lvl) * (silent ? 0.04 : 0.4)
+      const rel = silent ? 0.035 : 0.22
+      // fast attack (punchy) / release per the above
       for (let i = 0; i < BANDS; i++) { const a = bands[i] > sm[i] ? 0.85 : rel; sm[i] += (bands[i] - sm[i]) * a }
       const bass = avg(sm, 0, 6), mid = avg(sm, 6, 15), high = avg(sm, 15, BANDS)
       const energy = bass + mid + high
