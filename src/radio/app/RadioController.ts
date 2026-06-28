@@ -18,6 +18,10 @@ export interface RadioControllerDeps {
   onState?: (state: MusicalState) => void
   /** Fired when the current track's arc completes and the loop auto-advances (drives favorites auto-next). */
   onTrackEnd?: () => void
+  /** Gate: may the LIVE stream produce a NEW track now? false → stop after the current track. Defaults to always-true. */
+  canGenerate?: () => boolean
+  /** Fired once when a NEW live track begins (drives the trial generation counter). */
+  onGenerated?: () => void
   /** Initial base volume (0..1); defaults to 0.8. */
   volume?: number
 }
@@ -56,6 +60,9 @@ export class RadioController {
   private readonly bars: number
   private readonly onState?: (state: MusicalState) => void
   private readonly onTrackEnd?: () => void
+  private readonly canGenerate?: () => boolean
+  private readonly onGenerated?: () => void
+  private lastGenIndex = -1 // last live-track index already counted (a new track is detected + counted once)
   private timer: ReturnType<typeof setTimeout> | null = null
   private running = false
   private prevTrackIndex: number | null = null
@@ -75,6 +82,8 @@ export class RadioController {
     this.bars = deps.config.sectionLengthBars
     this.onState = deps.onState
     this.onTrackEnd = deps.onTrackEnd
+    this.canGenerate = deps.canGenerate
+    this.onGenerated = deps.onGenerated
     if (deps.volume !== undefined) this.engine.setVolume(deps.volume)
   }
 
@@ -116,6 +125,7 @@ export class RadioController {
     this.epoch++   // invalidate any tick()/tickBaked() that is mid-flight (e.g. the one whose onTrackEnd re-entered here)
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
     this.prevTrackIndex = null   // suppress the onTrackEnd that tick() fires on an auto-advance
+    this.lastGenIndex = -1       // the freshly-selected (🎲/next/start) track counts as a NEW generation
     this.anchorCycle()
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
@@ -186,6 +196,15 @@ export class RadioController {
   /** Emit a section's state + audio, then schedule the next tick on the absolute grid. */
   private playSection(strudelCode: string, musicalState: MusicalState): void {
     if (!this.running) return
+    if (musicalState.trackIndex !== this.lastGenIndex) {       // a NEW live track is about to start
+      if (this.canGenerate && !this.canGenerate()) {           // trial generations exhausted → stop here (current track already finished)
+        this.running = false
+        if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
+        return
+      }
+      this.lastGenIndex = musicalState.trackIndex
+      this.onGenerated?.()
+    }
     this.audibleIndex = musicalState.trackIndex   // the track the LISTENER hears (composer.currentIndex is a section ahead)
     this.onState?.(musicalState)
     void this.engine.play(strudelCode)
