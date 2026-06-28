@@ -6,6 +6,7 @@ import { RhythmEngine } from './engines/RhythmEngine'
 import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
 import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
+import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
 import { shapeFor, type SectionRole } from './arrangement'
@@ -400,7 +401,9 @@ export class RadioComposer {
         // co-designed dark/electronic archetype, transposed onto the progression roots.
         const v = BASS_VOICES[style.bassArchetype]
         const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
-        bassMain = `note("${v.off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
+        // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
+        const off = disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
+        bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
       }
       // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
       // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
