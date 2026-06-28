@@ -323,6 +323,15 @@ export class Match {
     this.sfxFrameHost()   // both players' moves (grounded/justJumped already fresh after applyPhysics) + emit move
   }
 
+  /** After each fixed step (driver): snapshot every player's sim position for render interpolation. */
+  captureTick() { this.players.forEach(p => p.captureTick()) }
+
+  /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
+  renderInterpolate(alpha: number) {
+    this.players.forEach(p => p.renderInterpolate(alpha))
+    this.humanController.renderCamera?.(alpha)   // local human only (host + client both have one)
+  }
+
   /** Movement via KinematicCharacterController. Without Rapier (unit tests) — no-op. */
   private applyPhysics(dt: number) {
     if (!this.kcc) return

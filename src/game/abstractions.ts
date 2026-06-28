@@ -77,6 +77,9 @@ export interface IDashTrail {
 /** A controller drives one IControllable each frame. */
 export interface Controller {
   update(dt: number): void
-  /** Called AFTER physics for all players (needed for camera placement). */
+  /** Called AFTER physics for all players (per tick): FOV / look sensitivity. */
   lateUpdate?(dt: number): void
+  /** Called once per RENDER frame with interpolation alpha ∈ [0,1): place the camera from the local player's
+   *  interpolated position (so first-person doesn't judder when refresh ≠ the fixed tick rate). */
+  renderCamera?(alpha: number): void
 }

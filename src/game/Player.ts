@@ -163,6 +163,9 @@ export class Player implements IControllable {
   /** Snapshot the sim position this tick (render interpolation). Called by the driver after each fixed step. */
   captureTick() { this.body.captureTick() }
 
+  /** Interpolated render position lerp(prevTick, curTick, alpha) — used by the camera (local player). */
+  renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return this.body.renderPos(alpha, out) }
+
   /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
    *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
   renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
