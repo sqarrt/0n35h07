@@ -29,7 +29,7 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
     let raf = 0, phase = 0, lvl = 0
 
     const trace = (comps: Comp[], R: number, rot: number, amp: number) => {
-      const pass: [string, number, number][] = [['rgba(70,160,255,0.30)', 8, 26], ['rgba(150,215,255,0.55)', 2.4, 16], ['rgba(225,248,255,0.85)', 1, 8]]
+      const pass: [string, number, number][] = [['rgba(120,195,255,0.5)', 2, 0], ['rgba(230,248,255,0.92)', 1, 0]]
       const cos = Math.cos(rot), sin = Math.sin(rot)
       for (const [col, w, glow] of pass) {
         ctx.beginPath()
@@ -56,17 +56,12 @@ export function RadioVisualizer({ engine, active }: RadioVisualizerProps) {
       for (let i = 0; i < BANDS; i++) sm[i] += (bands[i] - sm[i]) * 0.3
       const bass = avg(sm, 0, 6), mid = avg(sm, 6, 15), high = avg(sm, 15, BANDS)
       phase += 0.004 + mid * 0.03
-      // motion-trail decay that fades prior frames toward TRANSPARENT (not dark) — keeps the canvas see-through so
-      // the window's frosted-glass surface (and the game behind it) shows through; only the glowing lines persist.
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0, 0, W, H)
+      // clean redraw each frame (no trail accumulation, no bloom) — crisp thin lines over the frosted glass
+      ctx.clearRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'lighter'
       const base = Math.min(W, H) * 0.16 * (0.55 + bass * 1.1 + lvl * 0.5)
       const groups = [0.35 + bass * 1.3, 0.4 + mid * 1.5, 0.3 + high * 1.8]
       SETS.forEach((s, i) => trace(s, base, phase * (0.15 + i * 0.05) + i, Math.min(1.4, groups[i])))
-      // hot core, sized by overall level
-      ctx.shadowBlur = 30 + lvl * 40; ctx.shadowColor = '#bdf'; ctx.fillStyle = `rgba(220,245,255,${0.4 + lvl * 0.5})`
-      ctx.beginPath(); ctx.arc(cx, cy, 2 + bass * 6 + lvl * 3, 0, Math.PI * 2); ctx.fill()
     }
     draw()
     return () => cancelAnimationFrame(raf)
