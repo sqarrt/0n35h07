@@ -64,6 +64,8 @@ pub fn run() {
       steam::steam_cloud_write,
       steam::steam_cloud_delete,
       steam::steam_set_rich_presence,
+      steam::radio_dlc_owned,
+      steam::open_radio_store,
       steam_net::steam_net_self,
       steam_net::steam_net_relay_status,
       steam_net::steam_net_create_lobby,

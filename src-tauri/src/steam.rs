@@ -1,7 +1,10 @@
 use std::io::{Read, Write};
 use std::sync::Mutex;
-use steamworks::{AppId, Client, SingleClient};
+use steamworks::{AppId, Client, OverlayToStoreFlag, SingleClient};
 use tauri::State;
+
+/// The Radio is sold as a DLC; ownership unlocks unlimited generation/saves (else a free daily trial applies).
+const RADIO_DLC_APPID: u32 = 4904970;
 
 // The persistent Steam client handle (Clone + Send + Sync), or None if init failed
 // (Steam not running / game not owned / no steam_appid.txt in dev).
@@ -86,6 +89,29 @@ pub fn steam_cloud_delete(state: State<'_, SteamState>, name: String) -> bool {
   let guard = state.0.lock().unwrap();
   let Some(client) = guard.as_ref() else { return false };
   client.remote_storage().file(&name).delete()
+}
+
+// --- Radio DLC entitlement ---
+
+// True if the current user owns the Radio DLC (Steam caches licenses, so this works offline once known).
+// false without Steam → the free daily trial applies.
+#[tauri::command]
+pub fn radio_dlc_owned(state: State<'_, SteamState>) -> bool {
+  let guard = state.0.lock().unwrap();
+  match guard.as_ref() {
+    Some(client) => client.apps().is_subscribed_app(AppId(RADIO_DLC_APPID)),
+    None => false,
+  }
+}
+
+// Open the Steam overlay on the Radio DLC store page (so the user can buy it). No-op without Steam/overlay.
+#[tauri::command]
+pub fn open_radio_store(state: State<'_, SteamState>) {
+  if let Some(client) = state.0.lock().unwrap().as_ref() {
+    client
+      .friends()
+      .activate_game_overlay_to_store(AppId(RADIO_DLC_APPID), OverlayToStoreFlag::None);
+  }
 }
 
 // Initialize Steam. Soft-fails to None so the app still launches without Steam (dev,

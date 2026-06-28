@@ -18,6 +18,7 @@ interface RadioExplorerProps {
   rootAbsPath: string
   reloadKey: number
   onPlay: (queue: TrackPayload[], startIndex: number) => void
+  onSaveTrack: (folder: string, payload: TrackPayload) => Promise<boolean> // player→library save (metered by the trial); false = blocked
   onMinimize: () => void              // collapse → the parent shows a "LIBRARY" bar above the player
   hidden: boolean                     // minimized: kept MOUNTED (so state persists) but faded out + non-interactive
   engine: IStrudelEngine | null
@@ -26,7 +27,7 @@ interface RadioExplorerProps {
 
 type Ctx = { x: number; y: number; entry: LibEntry | null }
 
-export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize, hidden, engine, active }: RadioExplorerProps) {
+export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack, onMinimize, hidden, engine, active }: RadioExplorerProps) {
   const t = useT()
   const [path, setPath] = useState('')
   const [entries, setEntries] = useState<LibEntry[]>([])
@@ -143,7 +144,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onMinimize,
     ev.preventDefault(); setDropFolder(null)
     const track = ev.dataTransfer.getData(DT_TRACK)
     const move = ev.dataTransfer.getData(DT_MOVE)
-    if (track) { try { void lib.saveTrack(folder, JSON.parse(track) as TrackPayload).then(refresh) } catch { /* bad payload */ } }
+    if (track) { try { void onSaveTrack(folder, JSON.parse(track) as TrackPayload).then((ok) => { if (ok) refresh() }) } catch { /* bad payload */ } } // metered: the player→library save goes through App (trial save quota)
     else if (move) {
       try {
         const ps = (JSON.parse(move) as string[]).filter((p) => {
