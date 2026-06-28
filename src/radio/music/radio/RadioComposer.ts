@@ -337,8 +337,9 @@ export class RadioComposer {
       if (drumKit?.ghost && role !== 'break') layers.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
       // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
       if (drumKit?.rim && role !== 'break') layers.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
-      // peak-only claps on the backbeat (one extra layer, eased in). The kit's clap pattern when present.
-      if (peak) {
+      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
+      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
+      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
         layers.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
       // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
@@ -386,13 +387,17 @@ export class RadioComposer {
         const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
         bassMain = `note("${v.off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}`
       }
-      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read forward.
-      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
+      // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
+      // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
+      const BASS_EXPOSED_BOOST = 1.4
+      const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
+      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
     }
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
@@ -580,7 +585,7 @@ export class RadioComposer {
       // ── co-designed dark/horror (docs/radio-part-archetypes.md) — beds + the deepBell accent ─────────────
       case 'tapeChoir':   return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").vowel("<aa oo aa ee>").attack(1.5).release(4).add(note(perlin.range(-0.25, 0.25).slow(3))).crush(7).lpf(${Math.round(1700 * v.cut)}).hpf(220).gain(${g(0.14)})${fxFor(0.8, 1.4)}.pan(${v.pan})`
       case 'droneCluster':return `note("[${root - 12},${root - 6},${root + 1}]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(${g(0.14)})${fxFor(0.5, 1)}.pan(${v.pan})`
-      case 'scanner':     return `s("white*4").dec(2).attack(0.5).hpf(300).lpf(sine.range(400, 3000).slow(6)).lpq(20).gain(${g(0.14)}).pan(sine.slow(9))`
+      case 'scanner':     return `s("white*4").dec(2).attack(0.5).hpf(300).lpf(sine.range(400, 3000).slow(6)).lpq(14).gain(${g(0.07)}).pan(sine.slow(9))`
       case 'tapeWarble':  return `note("${root - 12}").s("sawtooth").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(${Math.round(700 * v.cut)}).crush(8).gain(${g(0.1)})${fxFor(0.4, 0.8)}.pan(${v.pan})`
       case 'insectoid':   return `s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(${g(0.13)}).pan(rand)`
       case 'deepBell':    return `note("${root - 12}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(2.5 * v.jitter)}).fmh(1.41).attack(0.001).decay(3).lpf(1400).distort("1.05:0.2").gain(${g(0.2)})${fxFor(0.9, 1.4)}.pan(${v.pan})`

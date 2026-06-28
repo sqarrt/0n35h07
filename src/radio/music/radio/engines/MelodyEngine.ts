@@ -46,7 +46,7 @@ type El = '~' | number | number[]
 // All 18 archetypes are EQUALLY likely; anti-repeat picks a DIFFERENT one than the previous track.
 const ARCHETYPES: LeadVoiceId[] = [
   'atmoDyad', 'chordStab', 'callResponse', 'octavePulse', 'bellMelody', 'stutterStab',
-  'phrygianHalf', 'doubleStop', 'glitchStorm', 'glassArp', 'ghostVoice',
+  'doubleStop', 'glitchStorm', 'glassArp', 'ghostVoice',
   'detunedDrift', 'warpedBox', 'crushBell',
 ]
 // DROPPED from the pool (in the live mix they read wrong; voice/pattern code stays but is unreachable):
@@ -56,6 +56,8 @@ const ARCHETYPES: LeadVoiceId[] = [
 //    the user consistently rejects (acidCell/mono303 family).
 //  • lament — the descending melancholic phrase. Dropped from BOTH pools below — it was in ARCHETYPES *and*
 //    RESTFUL_LEADS, so it surfaced far more often than the rest, and the user didn't want it.
+//  • phrygianHalf — busy phrygian melody pivoting on the b2 (minor 2nd). Busy AND dissonant → exactly the type
+//    the user keeps rejecting in the live mix.
 // The break's job is to REST the ears → only the atmospheric/restful archetypes (no driving acid/stab/glitch).
 // The composer renders one of these through the break's low-gain, echo-drowned chain (a different lead than the
 // track's main one, by design).
