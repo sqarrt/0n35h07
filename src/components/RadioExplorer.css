@@ -80,6 +80,6 @@
 .rexp-marquee { position: fixed; z-index: 200; border: 1px solid var(--accent); background: rgba(68,170,255,.14); border-radius: 2px; pointer-events: none; box-shadow: 0 0 12px rgba(68,170,255,.2); }
 
 /* visualizer mode switch (status bar) — click to cycle scope/bars/radial/field, AUTO rotates them */
-.rexp-viz { cursor: pointer; color: var(--accent-dim); font-size: 10px; letter-spacing: 1.5px; padding: 1px 8px; border: 1px solid var(--ghost-line); border-radius: 10px;
-  display: inline-block; box-sizing: border-box; width: 92px; text-align: center; white-space: nowrap; overflow: hidden; transition: color .12s, border-color .12s, background .12s; }
+.rexp-viz { cursor: pointer; color: var(--accent-dim); font-size: 10px; line-height: 1; letter-spacing: 1.5px; padding: 0 8px; border: 1px solid var(--ghost-line); border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 92px; height: 18px; white-space: nowrap; overflow: hidden; transition: color .12s, border-color .12s, background .12s; }
 .rexp-viz:hover { color: var(--accent); border-color: var(--line); background: rgba(68,170,255,.1); }
