@@ -73,8 +73,8 @@ export interface TrackStyle {
 
 // Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
 // winners (see docs/radio-part-archetypes.md). Each is rendered by the composer's BASS_VOICES map.
-export type BassArchetype = 'existing' | 'rootPulse' | 'bitcrush' | 'wobble' | 'chromaDescent' | 'pulseHorror' | 'tritone' | 'wtFlute' | 'wtDigital'
-const BASS_ARCHETYPES: BassArchetype[] = ['existing', 'rootPulse', 'bitcrush', 'wobble', 'chromaDescent', 'pulseHorror', 'tritone', 'wtFlute', 'wtDigital']
+export type BassArchetype = 'existing' | 'rootPulse' | 'bitcrush' | 'wobble' | 'chromaDescent' | 'pulseHorror' | 'wtFlute' | 'wtDigital'
+const BASS_ARCHETYPES: BassArchetype[] = ['existing', 'rootPulse', 'bitcrush', 'wobble', 'chromaDescent', 'pulseHorror', 'wtFlute', 'wtDigital']
 
 // Drum GROOVE character (kick/hat/snare/clap pattern + swing): 'existing' = the original 4-floor techno (per-element
 // style fields); the rest are the co-designed grooves (docs/radio-part-archetypes.md), rendered via DRUM_KITS.

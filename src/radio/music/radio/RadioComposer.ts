@@ -678,7 +678,6 @@ const BASS_VOICES: Record<Exclude<BassArchetype, 'existing'>, BassVoice> = {
   wobble: { off: '0 0 0 0 0 0 6 0 0 0 0 0 0 0 5 0', src: '.s("supersaw").unison(5).detune(0.5)', fx: '.lpq(13).distort("1.4:0.45")', filt: (n, la) => `.lpf(sine.range(160, 1700).slow(${Math.max(2, n)})${la})` },
   chromaDescent: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51)', fx: '.lpq(6).distort("1.4:0.45").gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5")', drift: (n, la) => `.add(note(saw.range(0, -12).slow(${n})${la}))`, filt: (_n, la) => `.lpf(saw.range(200, 1100).slow(2)${la})` },
   pulseHorror: { off: '0*16', shove: '.add(note("<0 0 6 0>"))', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.6 1 0.5 0.8 0.5 1 0.5 0.7 0.6")', filt: () => '.lpf(perlin.range(220, 1700).fast(2))' },
-  tritone: { off: '0 _ _ 6 _ _ 0 _ 6 _ 5 _ 4 _ 0 _', src: '.s("sine").fm(4).fmh(2.49)', fx: '.lpq(7).acidenv(0.45).distort("1.6:0.5")' },
   // — library lessons (sub+timbre stack / wavetable / heavy diode drive / cycling FM). Our sub-sine is the weight;
   //   these supply the CHARACTER layer on top, like the reference substk_* basses. —
   wtFlute: { off: '0 _ _ 6 _ 0 _ _ 5 _ _ 4 _ 0 _ _', src: '.s("wt_flute").unison(2)', fx: '.wt(0).wtenv(0.7).acidenv(0.45).distort("4:0.5").dec(0.13).lpq(2).fm("<1 ~ ~ 2>")' },
