@@ -117,8 +117,11 @@ pub fn open_radio_store(state: State<'_, SteamState>) {
 // Initialize Steam. Soft-fails to None so the app still launches without Steam (dev,
 // browser-equivalent, unowned copies). The callback pump is spawned by steam_net::start_pump
 // (run_callbacks drives stats/cloud/RP AND networking), so the SingleClient is returned here.
-pub fn init_steam(app_id: u32) -> Option<(Client, SingleClient)> {
-  match Client::init_app(AppId(app_id)) {
+// Use Client::init() (NOT init_app): Steam supplies the App ID from the LAUNCH context (the main app 4881310 or the
+// Playtest 4888710), so a playtest-launched copy identifies as the playtest — lobbies/invites land in the right app.
+// (Hardcoding init_app(4881310) forced the main app, so playtest invites mismatched. Dev still uses steam_appid.txt.)
+pub fn init_steam() -> Option<(Client, SingleClient)> {
+  match Client::init() {
     Ok((client, single)) => {
       // Load the user's current stats/achievements so set()/get() act on real state.
       client.user_stats().request_current_stats();
