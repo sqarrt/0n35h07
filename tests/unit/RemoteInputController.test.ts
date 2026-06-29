@@ -80,6 +80,17 @@ describe('RemoteInputController — tick-aligned consumption (1:1)', () => {
     expect(fires.n).toBe(1)
   })
 
+  it('appliedReal marks real-input ticks vs gaps (host captures `restore` only on real ones, matching ackTick)', () => {
+    const moves: number[] = [], fires = { n: 0 }
+    const rc = new RemoteInputController(spyPlayer(moves, fires), world)
+    rc.enqueue(ftick(5))
+    rc.update(1 / 60); expect(rc.appliedReal).toBe(true)    // applied a real frame
+    rc.update(1 / 60); expect(rc.appliedReal).toBe(false)   // gap → extrapolated, NOT a real input (ackTick stays 5)
+    expect(rc.ackTick).toBe(5)
+    rc.enqueue(ftick(6))
+    rc.update(1 / 60); expect(rc.appliedReal).toBe(true)    // real again
+  })
+
   it('caps the backlog so it cannot grow unboundedly, still acks the newest applied', () => {
     const moves: number[] = [], fires = { n: 0 }
     const rc = new RemoteInputController(spyPlayer(moves, fires), world)

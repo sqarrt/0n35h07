@@ -113,6 +113,7 @@ export class Match {
   private singularityActive = false   // SINGULARITY mode: pierce for both + transparent blocks (tracked to toggle)
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
+  private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
@@ -331,6 +332,11 @@ export class Match {
     this.controllers.forEach(c => c.update(dt))
     this.players.forEach(p => p.update(dt, this.world, this.excludeIds(p)))
     this.applyPhysics(dt)
+    // Capture each remote's authoritative state ONLY on ticks it applied a real client input — that post-step position
+    // IS the position at `ackTick`. The snapshot sends it as `restore`, so the client reconciles its prediction at
+    // ackTick against the host's position at ackTick (not the host's live, gap-extrapolated-ahead position — which
+    // would make the client replay unacked inputs from a position already past them, double-counting → jitter/snap-back).
+    this.remoteControllers.forEach((c, id) => { if (c.appliedReal) { const p = this.byId.get(id); if (p) this.remoteAuth.set(id, p.saveBodyState()) } })
     this.resolveCombat()
     this.resolveRespawns(dt)
     this.tickMatchClock(Date.now())
@@ -549,6 +555,7 @@ export class Match {
       if (p.respawnTimer <= 0) {
         const pos = p.position.clone()
         p.respawnAt(pos)
+        this.remoteAuth.delete(p.id)   // body state reset → don't reconcile against the pre-respawn capture; live restore until the next real input
         this.emit({ t: 'respawn', id: p.id, pos: toVec3(pos) })
       }
     }
@@ -845,7 +852,13 @@ export class Match {
     }
     this._snapBuf.ackTick = ackTick
     this._snapBuf.tick = this.tick   // the host's current sim tick (client tags its rendered host-tick for lag-comp)
-    for (let i = 0; i < this.players.length; i++) this.players[i].fillState(this._snapBuf.players[i])
+    for (let i = 0; i < this.players.length; i++) {
+      const p = this.players[i]
+      p.fillState(this._snapBuf.players[i])
+      // For a remote player, send its state AT ackTick (not the live one) so the client's reconcile pair is consistent.
+      const auth = this.remoteAuth.get(p.id)
+      if (auth) this._snapBuf.players[i].restore = auth
+    }
     return this._snapBuf
   }
 

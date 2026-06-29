@@ -24,6 +24,7 @@ export class RemoteInputController implements Controller {
   private last: InputFrame | null = null // newest frame seen — re-applied on a gap
   private edges: Edges = noEdges()
   private appliedTick = 0
+  private _appliedReal = false   // did THIS tick apply a real client input (vs a gap/extrapolation)?
   private _lastViewTick = 0   // viewTick of the most recently applied FIRE input (for the host's lag-comp rewind)
 
   constructor(player: Player, world: World) {
@@ -40,6 +41,7 @@ export class RemoteInputController implements Controller {
   }
 
   update(_dt: number) {
+    this._appliedReal = false
     if (this.queue.length > MAX_QUEUE) this.queue.splice(0, this.queue.length - MAX_QUEUE) // bound the backlog
     const frame = this.queue.shift()
     if (!frame) {
@@ -48,6 +50,7 @@ export class RemoteInputController implements Controller {
     }
     applyInputMovement(this.player, frame, FIXED_DT)
     this.appliedTick = frame.tick
+    this._appliedReal = true
     if ((this.edges.fire || frame.fire) && frame.viewTick) this._lastViewTick = frame.viewTick   // remember for lag-comp
     applyInputAim(this.player, { ...frame, ...this.edges }, this.world) // aim + accumulated edge actions, once
     this.edges = noEdges()
@@ -55,6 +58,10 @@ export class RemoteInputController implements Controller {
 
   /** Last applied client tick — the host puts it in the snapshot (ackTick) for client reconciliation. */
   get ackTick() { return this.appliedTick }
+
+  /** True if THIS tick applied a real client input (not a gap/extrapolation) — the host captures the authoritative
+   *  post-step state on these ticks only, so the snapshot's `restore` matches `ackTick` (consistent reconcile pair). */
+  get appliedReal() { return this._appliedReal }
 
   /** viewTick of the latest applied fire — the host rewinds the victim to it for hit validation (lag-comp). */
   get lastViewTick() { return this._lastViewTick }
