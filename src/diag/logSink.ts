@@ -1,14 +1,12 @@
 // Desktop-only file sink for diagnostic logs. Batches lines and appends them to a per-session file under
 // $APPDATA/logs. Off-desktop every method is an instant no-op. Never throws into callers — disk errors are swallowed.
-import { writeTextFile, readDir, remove, mkdir, BaseDirectory } from '@tauri-apps/plugin-fs'
-import { appDataDir, join as pathJoin } from '@tauri-apps/api/path'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
+// The @tauri-apps/* modules are imported LAZILY (inside the desktop-gated methods) so that merely importing the
+// logger never pulls native Tauri deps into the browser bundle or unit tests.
 import { IS_DESKTOP } from '../platform'
 import { LOG_DIR, LOG_KEEP_FILES, LOG_FLUSH_MS, LOG_MAX_BUFFER_LINES } from './constants'
 import { sessionFileName } from './logFormat'
 import { filesToPrune } from './logRetention'
 
-const opt = { baseDir: BaseDirectory.AppData } as const
 const path = (name: string) => `${LOG_DIR}/${name}`
 
 let fileName = ''
@@ -18,6 +16,8 @@ let started = false
 
 async function prune(): Promise<void> {
   try {
+    const { readDir, remove, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+    const opt = { baseDir: BaseDirectory.AppData } as const
     const entries = await readDir(LOG_DIR, opt)
     for (const name of filesToPrune(entries.map(e => e.name), LOG_KEEP_FILES)) {
       await remove(path(name), opt)
@@ -29,8 +29,10 @@ async function doFlush(): Promise<void> {
   if (!buffer.length) return
   const chunk = buffer.join('\n') + '\n'
   buffer = []
-  try { await writeTextFile(path(fileName), chunk, { ...opt, append: true }) }
-  catch { /* swallow: logging must never break the app */ }
+  try {
+    const { writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+    await writeTextFile(path(fileName), chunk, { baseDir: BaseDirectory.AppData, append: true })
+  } catch { /* swallow: logging must never break the app */ }
 }
 
 export const logSink = {
@@ -38,7 +40,10 @@ export const logSink = {
     if (!IS_DESKTOP || started) return
     started = true
     fileName = sessionFileName(new Date())
-    try { await mkdir(LOG_DIR, { ...opt, recursive: true }) } catch { /* exists */ }
+    try {
+      const { mkdir, BaseDirectory } = await import('@tauri-apps/plugin-fs')
+      await mkdir(LOG_DIR, { baseDir: BaseDirectory.AppData, recursive: true })
+    } catch { /* exists */ }
     await prune()
     setInterval(() => { void logSink.flush() }, LOG_FLUSH_MS)   // lives for the whole session (no teardown)
   },
@@ -55,6 +60,10 @@ export const logSink = {
   },
   async reveal(): Promise<void> {
     if (!IS_DESKTOP) return
-    try { await revealItemInDir(await pathJoin(await appDataDir(), LOG_DIR, fileName)) } catch { /* ignore */ }
+    try {
+      const { appDataDir, join } = await import('@tauri-apps/api/path')
+      const { revealItemInDir } = await import('@tauri-apps/plugin-opener')
+      await revealItemInDir(await join(await appDataDir(), LOG_DIR, fileName))
+    } catch { /* ignore */ }
   },
 }

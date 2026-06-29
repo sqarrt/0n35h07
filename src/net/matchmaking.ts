@@ -1,5 +1,6 @@
 import type { MapId, MapFilter, DurationFilter } from '../constants'
 import type { IDiscovery } from './discovery/IDiscovery'
+import { gameLog } from '../diag/gameLog'
 
 export type { MapFilter, DurationFilter }   // re-export (compatibility)
 
@@ -40,6 +41,9 @@ export function resolveMatchParams(
   // guards against undefined → default map / durationMs=NaN. Normally the intersection is non-empty (see listingMatches).
   const maps = intersect(host.map, client.map)
   const durs = intersect(host.durationMin, client.durationMin)
+  // The smoking gun for "I picked X, got Y": no overlap → the client's choice is silently dropped for the host's.
+  if (!maps.length) gameLog.warn('nego', 'map_no_overlap', { host: host.map, client: client.map, using: host.map })
+  if (!durs.length) gameLog.warn('nego', 'duration_no_overlap', { host: host.durationMin, client: client.durationMin, using: host.durationMin })
   return {
     mapId: pickMap(maps.length ? maps : host.map),
     durationMin: pickDuration(durs.length ? durs : host.durationMin),
