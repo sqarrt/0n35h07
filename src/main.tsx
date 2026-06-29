@@ -4,6 +4,7 @@ import './bvh'   // BVH-raycast patch (before first render) — speeds up combat
 import { installGameFeelGuards } from './gameFeel'
 import { installNetDiag } from './net/netDiag'
 import { installGameLog } from './diag/gameLog'
+import { installSteamDiagBridge } from './diag/steamDiagBridge'
 import { IS_DESKTOP } from './platform'
 import { getSteamUser } from './steam/steam'
 import { syncProfileOnStartup, installProfileCloudSync } from './steam/cloudProfile'
@@ -15,6 +16,7 @@ import App from './App.tsx'
 
 installGameFeelGuards()
 void installGameLog()   // desktop: open the per-session diagnostic log file (no-op in the browser/e2e)
+void installSteamDiagBridge()   // desktop: forward Rust Steam-transport diagnostics into the same log
 // RTC-capture patch: dev (for __netReport) AND desktop (feeds the ICE verdict into the session log for field diagnosis).
 if (import.meta.env.DEV || IS_DESKTOP) installNetDiag()
 // Dev proof-of-life for the Steam bridge: logs the persona name on desktop, null in the browser.
