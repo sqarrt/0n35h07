@@ -53,7 +53,7 @@ import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser, onSteamInvite } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser, onSteamInvite, declineInvite, type SteamInvite } from './steam/steam'
 import { InviteModal } from './components/InviteModal'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
@@ -195,7 +195,7 @@ function EditorLoading() {
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
   const screenRef = useRef<Screen>('menu'); screenRef.current = screen   // for event listeners (avoid stale closure)
-  const [pendingInvite, setPendingInvite] = useState<{ inviterName: string; lobbyId: string } | null>(null)
+  const [pendingInvite, setPendingInvite] = useState<SteamInvite | null>(null)
   // The active settings tab lives here so it survives a trip into the trailer and returns to the same tab.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('player')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
@@ -1023,7 +1023,7 @@ export default function App() {
         <InviteModal
           inviterName={pendingInvite.inviterName}
           onAccept={() => { const id = pendingInvite.lobbyId; setPendingInvite(null); void enterSteamFriendClient(id) }}
-          onDecline={() => setPendingInvite(null)}
+          onDecline={() => { void declineInvite(pendingInvite.inviterId); setPendingInvite(null) }}
         />
       )}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.

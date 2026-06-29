@@ -90,12 +90,29 @@ export async function steamNetCreateLobby(): Promise<void> {
   try { await invokeSteam<void>('steam_net_create_lobby') } catch { /* ignore */ }
 }
 
+export interface SteamInvite { inviterName: string; inviterId: string; lobbyId: string }
+
 /** Fires when a Steam lobby invite is RECEIVED (game running). The App shows the in-app modal (overlay can't render). */
-export async function onSteamInvite(cb: (inv: { inviterName: string; lobbyId: string }) => void): Promise<() => void> {
+export async function onSteamInvite(cb: (inv: SteamInvite) => void): Promise<() => void> {
   if (!IS_DESKTOP) return () => {}
   try {
     const { listen } = await import('@tauri-apps/api/event')
-    return await listen<{ inviterName: string; lobbyId: string }>('steam-invite', e => cb(e.payload))
+    return await listen<SteamInvite>('steam-invite', e => cb(e.payload))
+  } catch { return () => {} }
+}
+
+/** Tell the inviting host we declined → it reverts the "waiting for friend" slot (P2P by SteamID, no lobby). */
+export async function declineInvite(hostId: string): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam('steam_decline_invite', { hostId }) } catch { /* host offline / not reachable */ }
+}
+
+/** Host: fires when an invited friend declined — payload is the decliner's SteamID. Reverts the waiting slot. */
+export async function onSteamInviteDeclined(cb: (declinerId: string) => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<string>('steam-invite-declined', e => cb(e.payload))
   } catch { return () => {} }
 }
 

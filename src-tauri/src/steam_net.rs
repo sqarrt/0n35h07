@@ -113,8 +113,13 @@ unsafe impl steamworks::Callback for LobbyInvite {
 #[derive(Clone, serde::Serialize)]
 struct InviteDto {
   #[serde(rename = "inviterName")] inviter_name: String,
+  #[serde(rename = "inviterId")] inviter_id: String,   // host SteamID — the invitee sends DECLINE_MARKER here on decline
   #[serde(rename = "lobbyId")] lobby_id: String,
 }
+
+// A control message (not match traffic) the invitee sends to the host's SteamID on decline, so the host reverts the
+// "waiting for friend" slot. Sentinel chosen to never collide with the JSON match protocol.
+const DECLINE_MARKER: &str = "__oneshot_invite_declined__";
 
 pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> SteamNetState {
   let lobby: Arc<Mutex<Option<LobbyId>>> = Arc::new(Mutex::new(None));
@@ -193,13 +198,15 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: end_code={} state={:?}", raw.m_eEndReason, info.state()));
     }));
     let tx_msg = tx;
+    let (decline_tx, decline_rx) = std::sync::mpsc::channel::<String>();   // invitee→host "I declined" (out-of-match control)
     loop {
       single.run_callbacks();
       guard("receive", || {
         for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
           if let Some(from) = msg.identity_peer().steam_id() {
             let data = String::from_utf8_lossy(msg.data()).to_string();
-            let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data });
+            if data == DECLINE_MARKER { let _ = decline_tx.send(from.raw().to_string()); }
+            else { let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data }); }
           }
         }
       });
@@ -208,8 +215,10 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       // Resolve the inviter's name (Steam call — OUTSIDE the lock) and emit for the in-app invite modal.
       while let Ok((user, lobby)) = invite_rx.try_recv() {
         let name = pump_client.friends().get_friend(SteamId::from_raw(user)).name();
-        let _ = pump_app.emit("steam-invite", InviteDto { inviter_name: name, lobby_id: lobby.to_string() });
+        let _ = pump_app.emit("steam-invite", InviteDto { inviter_name: name, inviter_id: user.to_string(), lobby_id: lobby.to_string() });
       }
+      // Invitee declined → the host reverts the "waiting for friend" slot. Payload = the decliner's SteamID.
+      while let Ok(from) = decline_rx.try_recv() { let _ = pump_app.emit("steam-invite-declined", from); }
       while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
@@ -334,6 +343,20 @@ pub fn steam_net_send(state: State<'_, SteamState>, to: String, data: String) ->
   client
     .networking_messages()
     .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL)
+    .is_ok()
+}
+
+// Tell the inviting host we DECLINED their invite, so it reverts the "waiting for friend" slot. P2P by SteamID
+// (no lobby — we never joined). The host's receive loop recognizes DECLINE_MARKER and emits steam-invite-declined.
+#[tauri::command]
+pub fn steam_decline_invite(state: State<'_, SteamState>, host_id: String) -> bool {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return false };
+  let Ok(raw) = host_id.parse::<u64>() else { return false };
+  let identity = NetworkingIdentity::new_steam_id(SteamId::from_raw(raw));
+  client
+    .networking_messages()
+    .send_message_to_user(identity, SendFlags::RELIABLE, DECLINE_MARKER.as_bytes(), NET_CHANNEL)
     .is_ok()
 }
 
