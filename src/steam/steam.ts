@@ -90,6 +90,15 @@ export async function steamNetCreateLobby(): Promise<void> {
   try { await invokeSteam<void>('steam_net_create_lobby') } catch { /* ignore */ }
 }
 
+/** Fires when a Steam lobby invite is RECEIVED (game running). The App shows the in-app modal (overlay can't render). */
+export async function onSteamInvite(cb: (inv: { inviterName: string; lobbyId: string }) => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<{ inviterName: string; lobbyId: string }>('steam-invite', e => cb(e.payload))
+  } catch { return () => {} }
+}
+
 /** Read a "+connect_lobby <id>" launch parameter (set when accepting an invite launches the game), once at startup.
  *  Returns the lobby id to auto-join, or null. Lets invites be accepted without the in-game Steam overlay. */
 export async function steamTakeLaunchConnect(): Promise<string | null> {
