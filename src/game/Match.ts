@@ -13,6 +13,8 @@ import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
+import { gameLog } from '../diag/gameLog'
+import { PHASE_WATCHDOG_MS } from '../diag/constants'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
 import { PredictionLog } from '../net/clientReconcile'
 import { applyInputMovement } from '../net/input'
@@ -145,6 +147,9 @@ export class Match {
   private readySet = new Set<number>()
   private countdownEndsAt = 0
   private prevCountTick = 0   // last played countdown second (count_tick dedup)
+  private loggedPhase = ''    // diag: last phase written to the log (transition + watchdog driver)
+  private phaseEnteredAt = 0  // diag: when the current phase began (watchdog)
+  private phaseWarned = false // diag: stuck-phase warning already emitted for this phase
   private phaseDirtyFlag = false   // host: phase/readiness changed — resend to the client
   private prevPhaseSig = ''        // dedup of SET_MATCH_PHASE dispatch
   private leftIds = new Set<number>()   // disconnected players
@@ -606,6 +611,16 @@ export class Match {
       this.phase = 'live'
       this.phaseDirtyFlag = true
     }
+    // Diag: log every phase transition once (host & client) and warn if a pre-live phase is stuck.
+    if (this.phase !== this.loggedPhase) {
+      this.loggedPhase = this.phase
+      this.phaseEnteredAt = Date.now()
+      this.phaseWarned = false
+      gameLog.log('phase', this.phase, { role: this.role, ready: [...this.readySet] })
+    } else if (this.phase !== 'live' && this.phase !== 'ended' && !this.phaseWarned && Date.now() - this.phaseEnteredAt > PHASE_WATCHDOG_MS) {
+      this.phaseWarned = true
+      gameLog.warn('phase', 'stuck', { phase: this.phase, ms: Date.now() - this.phaseEnteredAt, ready: [...this.readySet] })
+    }
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
     this.syncPhaseHud()
@@ -764,6 +779,8 @@ export class Match {
   private endMatch(reason: 'time' | 'disconnect') {
     if (this.ended) return
     this.ended = true
+    gameLog.log('phase', 'match_end', { reason, role: this.role })
+    void gameLog.flush()   // make sure the match's tail reaches disk
     this.phase = 'ended'
     this.phaseDirtyFlag = true
     this.syncPhaseHud()

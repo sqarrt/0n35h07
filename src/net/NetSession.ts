@@ -2,6 +2,7 @@ import type { INet, PeerId } from './INet'
 import type { InputFrame, Snapshot, MatchEvent, PhaseMsg, HitClaim } from './protocol'
 import type { MatchRole } from '../constants'
 import { NET_SNAPSHOT_HZ } from '../constants'
+import { gameLog } from '../diag/gameLog'
 
 /** Narrow Match contract for networking — lets NetSession be tested without Rapier. */
 export interface MatchNet {
@@ -66,6 +67,7 @@ export class NetSession {
   /** Disconnect: host knows playerId by peer; for the client, the one who left is the host (id 0). */
   private onPeerLeave(peerId: PeerId) {
     const pid = this.peerToPlayer.get(peerId)
+    gameLog.warn('transport', 'peer_left', { peer: peerId, playerId: pid ?? null, role: this.match.role })
     if (pid !== undefined) this.match.handlePlayerLeft(pid)
     else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
   }
