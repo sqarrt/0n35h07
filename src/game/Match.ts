@@ -9,13 +9,15 @@ import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
-import type { Controller } from './abstractions'
+import type { Controller, FireOutcome } from './abstractions'
+import type { MeshUserData } from '../utils/raycast'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
 import { PredictionLog } from '../net/clientReconcile'
 import { applyInputMovement } from '../net/input'
+import { LagCompHistory } from './LagCompHistory'
 import type { RapierRigidBody } from '@react-three/rapier'
 import { emptyBodyState } from './Body'
 import type { BodyState } from './Body'
@@ -148,6 +150,8 @@ export class Match {
   // Client prediction (null on host): records (tick → input, BodyState); reconciles by REPLAY against the host authority.
   private predictionLog: PredictionLog | null = null
   private tick = 0   // monotonic sim tick; the client stamps each input + prediction with it (host echoes it as ackTick)
+  private history = new Map<number, LagCompHistory>()   // host: per-player hitbox positions by tick (lag compensation)
+  private _lagPos = { x: 0, y: 0, z: 0 }                 // scratch for the rewound position
 
   // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
   private achievements: IAchievements   // Steam achievements sink for the local player (DIP)
@@ -335,8 +339,38 @@ export class Match {
     this.sfxFrameHost()   // both players' moves (grounded/justJumped already fresh after applyPhysics) + emit move
   }
 
-  /** After each fixed step (driver): snapshot every player's sim position for render interpolation. */
-  captureTick() { this.players.forEach(p => p.captureTick()) }
+  /** After each fixed step (driver): snapshot every player's sim position for render interpolation + lag-comp history. */
+  captureTick() {
+    this.players.forEach(p => {
+      p.captureTick()
+      if (this.role === 'host') {
+        const rb = p.rb
+        if (rb) { const t = rb.translation(); this.histFor(p.id).record(this.tick, t.x, t.y, t.z) }
+      }
+    })
+  }
+
+  private histFor(id: number): LagCompHistory {
+    let h = this.history.get(id)
+    if (!h) { h = new LagCompHistory(); this.history.set(id, h) }
+    return h
+  }
+
+  /** Move the victim's hitbox back to where the shooter saw it (viewTick), re-raycast the same ray, and replace the
+   *  outcome's hit with the rewound result; then restore. 1v1: the host's own player is the rewind target. */
+  private lagCompRaycast(shooterId: number, o: FireOutcome, viewTick: number) {
+    const victim = this.byId.get(this.localId)
+    if (!victim || !this.histFor(victim.id).at(viewTick, this._lagPos)) return
+    const grp = victim.bodyGroup
+    const sx = grp.position.x, sy = grp.position.y, sz = grp.position.z
+    grp.position.set(this._lagPos.x, this._lagPos.y, this._lagPos.z)
+    grp.updateMatrixWorld(true)
+    const hit = this.world.raycast(o.rcOrigin, o.rcDir, [shooterId])
+    o.hitEntityId = hit ? ((hit.object.userData as MeshUserData).entityId ?? null) : null
+    o.hitPoint = hit ? hit.point.clone() : null
+    grp.position.set(sx, sy, sz)
+    grp.updateMatrixWorld(true)
+  }
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
@@ -452,6 +486,12 @@ export class Match {
     for (const shooter of this.players) {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
+      // Lag compensation: a REMOTE shooter aimed at the opponent as it saw it (~interp+latency in the past). Re-validate
+      // the hit with the victim rewound to the shooter's viewTick, so what you saw is what you hit.
+      if (o && this.role === 'host' && shooter.id !== this.localId) {
+        const vt = this.remoteControllers.get(shooter.id)?.lastViewTick ?? 0
+        if (vt > 0) this.lagCompRaycast(shooter.id, o, vt)
+      }
       if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId })
       if (o && o.hitEntityId !== null) {
         const victim = this.byId.get(o.hitEntityId)
@@ -791,6 +831,7 @@ export class Match {
     if (!this._snapBuf) {
       this._snapBuf = {
         ackTick: 0,
+        tick: 0,
         players: this.players.map(p => ({
           id: p.id,
           pos: [0, 0, 0] as [number, number, number],
@@ -801,6 +842,7 @@ export class Match {
       }
     }
     this._snapBuf.ackTick = ackTick
+    this._snapBuf.tick = this.tick   // the host's current sim tick (client tags its rendered host-tick for lag-comp)
     for (let i = 0; i < this.players.length; i++) this.players[i].fillState(this._snapBuf.players[i])
     return this._snapBuf
   }
@@ -817,6 +859,10 @@ export class Match {
     const frame = this.humanController.currentInputFrame(this.tick)
     const me = this.byId.get(this.localId)
     if (me) this.predictionLog?.record(this.tick, frame, me.saveBodyState())
+    if (frame.fire) {   // lag-comp: tell the host which host-tick we were rendering the opponent at when we fired
+      const opp = this.players.find(p => p.id !== this.localId)
+      if (opp) frame.viewTick = opp.renderHostTick()
+    }
     return frame
   }
 
@@ -830,7 +876,7 @@ export class Match {
         const d = this.predictionLog?.decide(snap.ackTick, ps.restore, NET_RECONCILE_SNAP_DIST)
         if (d?.kind === 'replay') this.replayFrom(d.from, d.inputs)
       } else {
-        p.applyNetState(ps)
+        p.applyNetState(ps, snap.tick)
         // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,

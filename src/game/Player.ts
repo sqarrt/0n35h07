@@ -170,6 +170,9 @@ export class Player implements IControllable {
   saveBodyState() { return this.body.saveState() }
   restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
 
+  /** The host-tick this (remote) player is being rendered at — stamped on a fire for lag compensation. */
+  renderHostTick() { return this.body.renderHostTick() }
+
   /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
   decayRenderError() { this.body.decayRenderError() }
   commitCorrection(predX: number, predY: number, predZ: number) { this.body.commitCorrection(predX, predY, predZ) }
@@ -387,8 +390,8 @@ export class Player implements IControllable {
   }
 
   /** Apply a snapshot to a remote player (client): position target + visual flags. */
-  applyNetState(snap: PlayerSnapshot) {
-    this.body.applyNetTarget(fromVec3(snap.pos))
+  applyNetState(snap: PlayerSnapshot, hostTick: number = 0) {
+    this.body.applyNetTarget(fromVec3(snap.pos), hostTick)
     this.alive = snap.alive
     this.respawning = snap.respawning
     this.netAimDir.copy(fromVec3(snap.aimDir))

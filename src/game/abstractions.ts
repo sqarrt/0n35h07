@@ -26,6 +26,8 @@ export interface FireOutcome {
   end:         THREE.Vector3
   hitEntityId: number | null
   hitPoint:    THREE.Vector3 | null
+  rcOrigin:    THREE.Vector3   // the hit ray's origin (host re-raycasts it with the victim rewound — lag-comp)
+  rcDir:       THREE.Vector3   // the hit ray's direction (normalized)
 }
 
 export interface IWeapon {

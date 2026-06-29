@@ -327,8 +327,8 @@ export class Body {
   }
 
   // --- networking: remote player position (client renders from buffered snapshots, ~100ms in the past) ---
-  applyNetTarget(pos: THREE.Vector3) {
-    this.interp.push(Date.now(), pos.x, pos.y, pos.z)
+  applyNetTarget(pos: THREE.Vector3, hostTick: number = 0) {
+    this.interp.push(Date.now(), pos.x, pos.y, pos.z, hostTick)
     this.hasSample = true
   }
   hasNetTarget() { return this.hasSample }
@@ -337,6 +337,8 @@ export class Body {
     if (this.interp.sample(Date.now() - NET_INTERP_DELAY_MS, this._remoteOut)) return this._remoteOut
     return this.position
   }
+  /** The host-tick this remote is currently being RENDERED at — the client stamps it on a fire (lag-comp viewTick). */
+  renderHostTick(): number { return this.interp.sampleTick(Date.now() - NET_INTERP_DELAY_MS) }
 
   /** Cache the position from the physics body (result of the previous step). */
   syncFromBody() {

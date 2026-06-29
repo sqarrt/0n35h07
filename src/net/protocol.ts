@@ -43,6 +43,7 @@ export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
 export interface InputFrame {
   tick:   number     // the client SIM TICK this input was produced on (fixed 60 Hz) — the host applies it tick-aligned
                      // and echoes the last-applied tick as Snapshot.ackTick for the client's prediction reconciliation
+  viewTick?: number  // on a FIRE: the host-tick the client was rendering the opponent at → the host rewinds to it (lag-comp)
   keys:   InputKeys
   aimDir: Vec3       // look direction (for the movement basis and aim)
   aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
@@ -66,6 +67,7 @@ export interface PlayerSnapshot {
 }
 export interface Snapshot {
   ackTick: number              // last client SIM TICK the host applied (for prediction reconciliation)
+  tick:    number              // the host's own SIM TICK at serialize (lets the client tag what host-tick it renders → lag-comp)
   players: PlayerSnapshot[]
 }
 

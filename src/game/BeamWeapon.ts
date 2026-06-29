@@ -108,7 +108,7 @@ export class BeamWeapon implements IWeapon {
       this._end.copy(this._origin).addScaledVector(this._dir, AIM_RANGE)
     }
     this.beamFx.play(this._origin, this._end)   // play does .copy() on both args → scratch is safe
-    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint }   // clone: outcome outlives the frame
+    this.outcome = { end: this._end.clone(), hitEntityId, hitPoint, rcOrigin: rcOrigin.clone(), rcDir: rcDir.clone() }   // clone: outcome outlives the frame
     this.justFired = true
   }
 

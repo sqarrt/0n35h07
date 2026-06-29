@@ -24,6 +24,7 @@ export class RemoteInputController implements Controller {
   private last: InputFrame | null = null // newest frame seen — re-applied on a gap
   private edges: Edges = noEdges()
   private appliedTick = 0
+  private _lastViewTick = 0   // viewTick of the most recently applied FIRE input (for the host's lag-comp rewind)
 
   constructor(player: Player, world: World) {
     this.player = player
@@ -47,10 +48,14 @@ export class RemoteInputController implements Controller {
     }
     applyInputMovement(this.player, frame, FIXED_DT)
     this.appliedTick = frame.tick
+    if ((this.edges.fire || frame.fire) && frame.viewTick) this._lastViewTick = frame.viewTick   // remember for lag-comp
     applyInputAim(this.player, { ...frame, ...this.edges }, this.world) // aim + accumulated edge actions, once
     this.edges = noEdges()
   }
 
   /** Last applied client tick — the host puts it in the snapshot (ackTick) for client reconciliation. */
   get ackTick() { return this.appliedTick }
+
+  /** viewTick of the latest applied fire — the host rewinds the victim to it for hit validation (lag-comp). */
+  get lastViewTick() { return this._lastViewTick }
 }
