@@ -7,7 +7,8 @@ import { generateModelName } from '../names'
 import { botAppearance } from '../game/botAppearance'
 import { MAP_IDS } from '../game/maps'
 import { resolveMatchParams } from './matchmaking'
-import { netDiagMark } from './netDiag'
+import { netDiagMark, netDiagLogVerdict } from './netDiag'
+import { gameLog } from '../diag/gameLog'
 
 export type RoomRole = 'host' | 'client'
 
@@ -78,7 +79,7 @@ export class RoomSession {
     } else {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
-      net.on('start', payload => { const s = payload as Start; this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
+      net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
       net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // found the host — introduce ourselves
       net.onPeerLeave(() => this.onHostGone())   // host left to lobby → client rolls back to search
       if (net.peers().length) this.peerSeen = true   // "with a friend" rendezvous: peer already visible before session is built
@@ -95,7 +96,9 @@ export class RoomSession {
   private onHello(hello: Hello, from: PeerId) {
     netDiagMark('helloRecv', { from })
     // Human takes the opponent slot, evicting the bot. Slot held by ANOTHER human → 1v1 room is full.
-    if (this.opponent?.kind === 'human' && this.clientPeer !== from) return
+    if (this.opponent?.kind === 'human' && this.clientPeer !== from) {
+      gameLog.warn('room', 'hello_reject_full', { from }); return   // room already has another human
+    }
     const name = (hello.name || '').trim() || 'Opponent'
     this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
     this.clientPeer = from
@@ -163,6 +166,7 @@ export class RoomSession {
 
   private sendAssign(peer: PeerId) {
     netDiagMark('assignSent', { peer })
+    gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin })
     this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds] } satisfies Assign)
   }
   private broadcastRoster() {
@@ -174,6 +178,7 @@ export class RoomSession {
     if (this.role !== 'host' || !this.opponent || this.started) return
     this.started = true
     const durationMs = this.durationMin * 60_000
+    gameLog.log('room', 'start_send', { mapId: this.mapId, durationMs })
     this.net.broadcast('start', { durationMs, mapId: this.mapId } satisfies Start)
     this.startCb(durationMs, this.mapId)
   }
@@ -210,11 +215,13 @@ export class RoomSession {
     this.durationMin = r.durationMin
     this.selMap = [r.mapId]         // after resolve the selector shows the concrete result (locked)
     this.selDuration = [r.durationMin]
+    gameLog.log('nego', 'resolved', { mapId: this.mapId, durationMin: this.durationMin })
   }
 
   setDuration(mins: DurationFilter) {
     this.selDuration = mins
     if (mins.length) this.durationMin = mins[0]
+    gameLog.log('nego', 'set_duration', { role: this.role, sel: this.selDuration, durationMin: this.durationMin })
     if (this.role === 'host') this.broadcastRoster()   // client will see the choice in Assign
     else this.emitChange()                             // client: local UI; the wish ships out in Hello
   }
@@ -222,6 +229,7 @@ export class RoomSession {
   setMap(maps: MapFilter) {
     this.selMap = maps
     if (maps.length) this.mapId = maps[0]
+    gameLog.log('nego', 'set_map', { role: this.role, sel: this.selMap, mapId: this.mapId })
     if (this.role === 'host') this.broadcastRoster()
     else this.emitChange()
   }
@@ -245,6 +253,7 @@ export class RoomSession {
     this.selMap = [a.mapId]
     this.selDuration = [a.durationMin]
     this.readyIds = new Set(a.ready)
+    gameLog.log('room', 'assign_recv', { mapId: a.mapId, durationMin: a.durationMin })
     this.emitChange()
   }
 
@@ -263,6 +272,7 @@ export class RoomSession {
   /** Client: host left the room before match start (after start, disconnects are handled by NetSession). */
   private onHostGone() {
     if (this.started || this.disposed) return
+    gameLog.warn('transport', 'host_gone', { peerSeen: this.peerSeen, connected: this.localPlayerId >= 0 })
     this.clearTimers()
     this.closedCb()
   }
@@ -271,6 +281,8 @@ export class RoomSession {
   private onConnectTimeout() {
     this.connectTimer = null
     if (this.localPlayerId >= 0 || this.started || this.disposed) return   // already connected/started/closed
+    gameLog.warn('room', 'connect_timeout', { sec: this.profile.connectTimeoutSec, peerSeen: this.peerSeen })
+    netDiagLogVerdict()   // attach the ICE/handshake failure-layer verdict
     this.clearTimers()
     this.closedCb()
   }

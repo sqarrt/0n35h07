@@ -226,4 +226,5 @@ export const zhCN = {
   radioCtxCopy: '复制',
   radioCtxPaste: '粘贴',
   radioCtxDelete: '删除',
+  revealLogs: '打开日志文件夹',
 } satisfies Dict

@@ -225,4 +225,5 @@ export const tr = {
   radioCtxCopy: 'Kopyala',
   radioCtxPaste: 'Yapıştır',
   radioCtxDelete: 'Sil',
+  revealLogs: 'Günlük klasörünü aç',
 } satisfies Dict

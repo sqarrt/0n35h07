@@ -413,6 +413,8 @@ export class Player implements IControllable {
   /** Client view of a REMOTE's shield (from snapshots). The local sim shield (`shieldActive`) isn't driven for
    *  opponents, so kill prediction must gate on THIS — don't predict a death through a visibly raised shield. */
   get netShielding() { return this.netShieldActive }
+  /** Client view of a REMOTE's dash (from snapshots) — the local sim dash flag isn't driven for opponents. */
+  get remoteDashing() { return this.netDashing }
   respawnProgress() { return Math.max(0, this.respawnTimer / RESPAWN_GHOST_MS) }   // 1→0 phase remainder
 
   /** Cosmetic remote shot (client, FIRED event). */

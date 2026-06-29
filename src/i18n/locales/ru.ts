@@ -225,4 +225,5 @@ export const ru = {
   radioCtxCopy: 'Копировать',
   radioCtxPaste: 'Вставить',
   radioCtxDelete: 'Удалить',
+  revealLogs: 'Открыть папку логов',
 } satisfies Dict

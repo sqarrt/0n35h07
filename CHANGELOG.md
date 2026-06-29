@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.0.0] - 2026-06-30
 
+### Added
+- **Diagnostic session logs.** The desktop app now writes a per-session log to `$APPDATA/logs` (auto-pruned to the
+  last 15) capturing the full online lifecycle — connect, matchmaking, handshake, the agreed map/duration (with an
+  explicit warning when your pick didn't overlap the opponent's), the phase ritual, in-match actions, periodic net
+  health, Steam-transport diagnostics, and disconnects. Click the version number (bottom-right) to open the log folder
+  for sharing.
+
 ### Changed
 - **Hit detection is now shooter-authoritative — what you shoot is what you hit.** Each shooter decides its own hits:
   the client raycasts its beam locally and sends the host a hit claim, which the host applies after a loose sanity

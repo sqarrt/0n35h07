@@ -219,7 +219,8 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       }
       // Invitee declined → the host reverts the "waiting for friend" slot. Payload = the decliner's SteamID.
       while let Ok(from) = decline_rx.try_recv() { let _ = pump_app.emit("steam-invite-declined", from); }
-      while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); }
+      // Tee transport diagnostics to the renderer's session log (in addition to stderr).
+      while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); let _ = pump_app.emit("diag", line); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
   });

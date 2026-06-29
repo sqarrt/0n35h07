@@ -24,6 +24,7 @@ import { MenuBackdrop } from './components/MenuBackdrop'
 import { MapBackground } from './components/MapBackground'
 import { NetStatusChip } from './components/NetStatusChip'
 import { VersionChip } from './components/VersionChip'
+import { gameLog } from './diag/gameLog'
 import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { RadioPlayer } from './components/RadioPlayer'
 import { RadioExplorer } from './components/RadioExplorer'
@@ -470,6 +471,8 @@ export default function App() {
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
+      gameLog.set({ role: matchRole, localId: session.netConfig().localId, code })
+      gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000 })
       // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
       // Reset the previous match's result/time/score — otherwise the old result screen flashes over the new match.
@@ -825,6 +828,7 @@ export default function App() {
     disposePool()
     poolRef.current = createMatchmakingPool()
     const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
+    gameLog.log('nego', 'play_reset', { map: sel.map, durationMin: sel.durationMin })   // selection resets to defaults on every Play
     setDraftSel(sel)
     setSearching(false)
     setLobbyTab(DEFAULT_LOBBY_TAB)

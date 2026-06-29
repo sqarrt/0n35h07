@@ -3,6 +3,7 @@ import type { MessageAction, DataPayload, JoinRoomConfig } from 'trystero'
 import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 import { POOL_NAMESPACE } from './poolNamespace'
+import { gameLog } from '../diag/gameLog'
 
 // appId separates even manual code entry: incompatible version/platform won't connect to each other.
 export const APP_ID = `oneshot-fps-v1:${POOL_NAMESPACE}`
@@ -29,8 +30,9 @@ export class TrysteroNet implements INet {
     if (relayUrls.length) config.relayConfig = { urls: relayUrls }
     if (iceServers.length) config.rtcConfig = { iceServers }
     this.room = joinRoom(config, roomId)
-    this.room.onPeerJoin = id => this.joinCbs.forEach(cb => cb(id))
-    this.room.onPeerLeave = id => this.leaveCbs.forEach(cb => cb(id))
+    gameLog.log('transport', 'join_room', { roomId, relays: relayUrls.length, ice: iceServers.length })
+    this.room.onPeerJoin = id => { gameLog.log('transport', 'peer_join', { peer: id }); this.joinCbs.forEach(cb => cb(id)) }
+    this.room.onPeerLeave = id => { gameLog.warn('transport', 'peer_leave', { peer: id }); this.leaveCbs.forEach(cb => cb(id)) }
   }
 
   private channel(tag: NetTag): Channel {
