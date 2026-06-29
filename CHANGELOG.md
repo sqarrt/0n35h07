@@ -5,6 +5,40 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-06-29
+
+### Added
+- **Accept Steam invites in-game — no overlay needed.** The Steam overlay can't render over the desktop app, so a
+  received invite now pops an **in-app toast** (the inviter's name + Accept / Decline) in the corner; Accept drops you
+  straight into their match. Invites also work when launched cold (via `+connect_lobby`) and from the friends list.
+  Declining now tells the host, which reverts its "waiting for friend" seat.
+- **Client-side hit prediction.** Your beam's impact sparks appear the instant you fire (from your own raycast),
+  instead of waiting a round-trip for the host to confirm.
+- A new player's in-game name now defaults to their **Steam name**.
+
+### Changed
+- **Multiplayer netcode rebuilt — smooth on both sides (Source/CS2 model).** The simulation now runs on a fixed
+  60 Hz tick with render interpolation, so it's frame-rate independent and smooth at any refresh. The client
+  **predicts** its own movement and reconciles against the host with **full input replay** (no more rubber-band /
+  being flung off the map). The opponent is rendered from an **interpolation buffer** (~100 ms back), so their
+  movement is smooth regardless of packet jitter. **Lag compensation** rewinds the target to what the shooter saw,
+  so shots land where you aim. Replaces the earlier per-frame, snap-correct, lerp-to-latest networking.
+- **Client jitter eliminated.** The host no longer speculatively extrapolates a remote on a packet gap (it holds the
+  avatar) and an input clock-sync keeps its jitter buffer steady — so the host's simulation stays identical to the
+  client's prediction and there's nothing to snap back. Player-collision knockback is lag-compensated too (no bump
+  when you bump). The reconciliation base is the host's state at the exact acked tick.
+- The Radio **"Unlock"** button opens the store via a `steam://` link (the overlay can't render); ownership re-checks
+  when the window regains focus, so a purchase applies without a restart.
+
+### Fixed
+- **Lag compensation registers hits on moving targets.** It now tracks the opponent through the beam's windup, so a
+  direct hit on a moving player counts.
+- **Steam Playtest invites work.** The app reads its App ID from the launch context instead of a hardcoded one, so a
+  Playtest invite joins the Playtest (not the base game).
+- The friend picker's headings use the game font.
+- **Radio: the volume slider can be dragged again.** "Drag the player from any empty area to save" had hijacked
+  mousedowns on the slider/buttons; controls now keep their native behaviour.
+
 ## [0.6.0] - 2026-06-28
 
 ### Added

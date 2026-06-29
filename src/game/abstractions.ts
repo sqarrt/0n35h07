@@ -26,6 +26,8 @@ export interface FireOutcome {
   end:         THREE.Vector3
   hitEntityId: number | null
   hitPoint:    THREE.Vector3 | null
+  rcOrigin:    THREE.Vector3   // the hit ray's origin (host re-raycasts it with the victim rewound — lag-comp)
+  rcDir:       THREE.Vector3   // the hit ray's direction (normalized)
 }
 
 export interface IWeapon {
@@ -77,6 +79,9 @@ export interface IDashTrail {
 /** A controller drives one IControllable each frame. */
 export interface Controller {
   update(dt: number): void
-  /** Called AFTER physics for all players (needed for camera placement). */
+  /** Called AFTER physics for all players (per tick): FOV / look sensitivity. */
   lateUpdate?(dt: number): void
+  /** Called once per RENDER frame with interpolation alpha ∈ [0,1): place the camera from the local player's
+   *  interpolated position (so first-person doesn't judder when refresh ≠ the fixed tick rate). */
+  renderCamera?(alpha: number): void
 }

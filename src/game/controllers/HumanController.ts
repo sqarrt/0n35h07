@@ -22,6 +22,7 @@ export class HumanController implements Controller {
   private fov = 75
   // Scratch vectors: tmp — general-purpose scratch (getWorldDirection); the rest are per-purpose.
   private tmp          = new THREE.Vector3()
+  private _camPos      = new THREE.Vector3()   // scratch: interpolated local position for the camera
   private _dir         = new THREE.Vector3()
   private _right       = new THREE.Vector3()
   private _basis       = { dir: this._dir, right: this._right }
@@ -76,11 +77,11 @@ export class HumanController implements Controller {
   }
 
   /** Build the input frame to send to the host (client). Clears the edge latches. */
-  currentInputFrame(seq: number): InputFrame {
+  currentInputFrame(tick: number): InputFrame {
     const k = this.keys.current
     const look = this.camera.getWorldDirection(this.tmp)
     const frame: InputFrame = {
-      seq,
+      tick,
       keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
       aimDir: toVec3(look),
       aimOrigin: toVec3(this.camera.position),   // aim origin = camera (in TP offset behind) — so the host replays the same ray
@@ -114,8 +115,10 @@ export class HumanController implements Controller {
   }
 
   // --- camera/view (after physics) ---
-  lateUpdate(dt: number) {
-    const pos = this.player.position
+  /** Per RENDER frame: place the camera from the local player's INTERPOLATED position (smooth at any refresh).
+   *  Position + shake live here (not in lateUpdate) so they aren't quantised to the fixed tick. */
+  renderCamera(alpha: number) {
+    const pos = this.player.renderPos(alpha, this._camPos)
     if (this.thirdPerson) {
       // getWorldDirection forces a matrixWorld update; after that the matrix columns are current.
       this.camera.getWorldDirection(this.tmp)   // tmp = camera forward (with pitch)
@@ -136,7 +139,9 @@ export class HumanController implements Controller {
       this.camera.position.y += (Math.random() - 0.5) * 0.04
       this.shakeFrames--
     }
+  }
 
+  lateUpdate(dt: number) {
     const moving = !!(this.keys.current.forward || this.keys.current.back ||
                       this.keys.current.left || this.keys.current.right)
     // Dynamic FOV works in both FP and TP; dash and ghost phase (×2 speed) cause a spike.

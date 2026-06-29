@@ -90,6 +90,40 @@ export async function steamNetCreateLobby(): Promise<void> {
   try { await invokeSteam<void>('steam_net_create_lobby') } catch { /* ignore */ }
 }
 
+export interface SteamInvite { inviterName: string; inviterId: string; lobbyId: string }
+
+/** Fires when a Steam lobby invite is RECEIVED (game running). The App shows the in-app modal (overlay can't render). */
+export async function onSteamInvite(cb: (inv: SteamInvite) => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<SteamInvite>('steam-invite', e => cb(e.payload))
+  } catch { return () => {} }
+}
+
+/** Tell the inviting host we declined → it reverts the "waiting for friend" slot (P2P by SteamID, no lobby). */
+export async function declineInvite(hostId: string): Promise<void> {
+  if (!IS_DESKTOP) return
+  try { await invokeSteam('steam_decline_invite', { hostId }) } catch { /* host offline / not reachable */ }
+}
+
+/** Host: fires when an invited friend declined — payload is the decliner's SteamID. Reverts the waiting slot. */
+export async function onSteamInviteDeclined(cb: (declinerId: string) => void): Promise<() => void> {
+  if (!IS_DESKTOP) return () => {}
+  try {
+    const { listen } = await import('@tauri-apps/api/event')
+    return await listen<string>('steam-invite-declined', e => cb(e.payload))
+  } catch { return () => {} }
+}
+
+/** Read a "+connect_lobby <id>" launch parameter (set when accepting an invite launches the game), once at startup.
+ *  Returns the lobby id to auto-join, or null. Lets invites be accepted without the in-game Steam overlay. */
+export async function steamTakeLaunchConnect(): Promise<string | null> {
+  if (!IS_DESKTOP) return null
+  try { return (await invokeSteam<string | null>('steam_take_launch_connect')) ?? null }
+  catch { return null }
+}
+
 /** Join a lobby by id (from a 'joinRequested' event); result arrives as 'lobbyEntered'. */
 export async function steamNetJoinLobby(lobbyId: string): Promise<void> {
   if (!IS_DESKTOP) return

@@ -26,6 +26,8 @@ const REMOTE_AIM = new THREE.Vector3(0, 0, -1)   // dummy aim for the cosmetic w
  * Scene graph: bodyGroup (body + hitbox + shield) goes inside <RigidBody> (transform comes
  * from Rapier); the beam (weaponObject) is world-space, rendered in match.beams.
  */
+const _renderScratch = new THREE.Vector3()   // scratch for renderInterpolate (single-threaded → safe)
+
 export class Player implements IControllable {
   alive = true
   respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
@@ -155,8 +157,29 @@ export class Player implements IControllable {
   /** Cache the position from the physics body and move the visual group (it's in world-space). */
   syncFromBody() {
     this.body.syncFromBody()
-    this.bodyGroup.position.copy(this.body.position)
+    this.bodyGroup.position.copy(this.body.position)   // combat hitboxes (under bodyGroup) use the SIM position each tick
   }
+
+  /** Snapshot the sim position this tick (render interpolation). Called by the driver after each fixed step. */
+  captureTick() { this.body.captureTick() }
+
+  /** Interpolated render position lerp(prevTick, curTick, alpha) — used by the camera (local player). */
+  renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return this.body.renderPos(alpha, out) }
+
+  /** Movement-state snapshot/restore for client prediction replay (host fills the snapshot; client restores). */
+  saveBodyState() { return this.body.saveState() }
+  restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
+
+  /** The host-tick this (remote) player is being rendered at — stamped on a fire for lag compensation. */
+  renderHostTick() { return this.body.renderHostTick() }
+
+  /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
+  decayRenderError() { this.body.decayRenderError() }
+  commitCorrection(predX: number, predY: number, predZ: number) { this.body.commitCorrection(predX, predY, predZ) }
+
+  /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
+   *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
+  renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
 
   /** Freeze: during readiness/countdown/end, movement and actions are off, camera/aim are not.
    *  Enabling it kills inertia (velH/velocityY) → players really stand still (match-end freeze-frame). */
@@ -351,6 +374,7 @@ export class Player implements IControllable {
       dashing: this.dashing,
       windupProgress: this.windupProgress,
       respawning: this.respawning,
+      restore: this.body.saveState(),
     }
   }
 
@@ -362,11 +386,12 @@ export class Player implements IControllable {
     out.alive = this.alive; out.shieldActive = this.shieldActive
     out.dashing = this.dashing; out.windupProgress = this.windupProgress
     out.respawning = this.respawning
+    out.restore = this.body.saveState()   // authoritative movement state — the client's local player restores from it before replay
   }
 
   /** Apply a snapshot to a remote player (client): position target + visual flags. */
-  applyNetState(snap: PlayerSnapshot) {
-    this.body.applyNetTarget(fromVec3(snap.pos))
+  applyNetState(snap: PlayerSnapshot, hostTick: number = 0) {
+    this.body.applyNetTarget(fromVec3(snap.pos), hostTick)
     this.alive = snap.alive
     this.respawning = snap.respawning
     this.netAimDir.copy(fromVec3(snap.aimDir))

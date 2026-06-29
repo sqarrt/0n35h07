@@ -44,8 +44,8 @@ use steam::SteamState;
 use steam_net::SteamNetState;
 use tauri::Manager;
 
-// Steam App ID (Steamworks partner portal). steam_appid.txt mirrors it for dev launches.
-const STEAM_APP_ID: u32 = 4881310;
+// Steam identifies the app from the LAUNCH context (main 4881310 or Playtest 4888710); for DEV, src-tauri/steam_appid.txt
+// (4881310) supplies it. The shipped depot must NOT contain steam_appid.txt — else it would force the main app id.
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -74,6 +74,8 @@ pub fn run() {
       steam_net::steam_net_members,
       steam_net::steam_net_send,
       steam_net::steam_net_invite,
+      steam_net::steam_take_launch_connect,
+      steam_net::steam_decline_invite,
       steam_net::steam_friends_list,
       steam_net::steam_invite_to_lobby,
       steam_net::steam_mm_host,
@@ -83,7 +85,7 @@ pub fn run() {
       // Initialize Steam (soft-fails to None without Steam) in setup() so the networking
       // callbacks/pump have an AppHandle to emit events. The pump (run_callbacks) is spawned
       // by steam_net::start_pump and drives stats/cloud/RP AND networking.
-      let (client, net_state) = match steam::init_steam(STEAM_APP_ID) {
+      let (client, net_state) = match steam::init_steam() {
         Some((client, single)) => {
           let net = steam_net::start_pump(app.handle().clone(), client.clone(), single);
           (Some(client), net)

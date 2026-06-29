@@ -1,0 +1,25 @@
+/* Invite toast — bottom-right, ABOVE the radio mini-player (right:18/bottom:44/z:200), non-blocking (no backdrop).
+   Slides in from the right like a Steam notification. Buttons are real interactive glass (cursor + hover + active). */
+.invite-toast {
+  position: fixed; right: 18px; bottom: 132px; z-index: 210;
+  box-sizing: border-box; width: 240px; padding: 13px 15px;   /* matches the docked player (300 × 0.8 scale) */
+  display: flex; flex-direction: column; gap: 11px;
+  font-family: var(--ui-font); color: var(--text);            /* game font — the title was falling back to serif */
+  animation: invite-in .24s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes invite-in { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: translateX(0); } }
+
+.invite-toast .invite-title { font-size: 12.5px; letter-spacing: .04em; line-height: 1.5; color: var(--text); overflow-wrap: break-word; }
+.invite-toast .invite-title strong { color: var(--accent); font-weight: 600; }
+
+.invite-row { display: flex; gap: 9px; }
+.invite-btn {
+  appearance: none; -webkit-appearance: none; flex: 1 1 0; padding: 8px 0; border-radius: 8px; text-align: center;
+  font: inherit; font-family: var(--ui-font); font-size: 11px; letter-spacing: .12em;
+  cursor: pointer; transition: background .12s, color .12s, border-color .12s, transform .06s;
+  border: 1px solid var(--ghost-line); background: rgba(68, 170, 255, .06); color: var(--accent-dim);
+}
+.invite-btn:hover { background: rgba(68, 170, 255, .18); color: #eaf5ff; border-color: var(--line); }
+.invite-btn:active { transform: translateY(1px); }
+.invite-btn.decline { color: var(--muted); background: rgba(255, 255, 255, .03); }
+.invite-btn.decline:hover { background: rgba(255, 102, 102, .16); color: #f99; border-color: #b85563; }

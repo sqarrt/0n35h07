@@ -155,6 +155,15 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
 }
 
 /** Load profile. First run (not in localStorage) → create a random one and save it right away. */
+/** True on the very first launch (no profile persisted yet). Capture BEFORE loadProfile() (which creates+saves one). */
+export function isFirstRun(): boolean { return lsGet(KEY) === null }
+
+/** First-run name: the Steam persona name on a fresh profile (if any), else the generated fallback. Trimmed. */
+export function chooseFirstRunName(isNew: boolean, steamName: string | null, fallback: string): string {
+  const s = steamName?.trim()
+  return isNew && s ? s : fallback
+}
+
 export function loadProfile(): PlayerProfile {
   try {
     const raw = lsGet(KEY)

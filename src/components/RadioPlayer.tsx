@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useRef, type CSSProperties } from 'react'
 import { glassCard } from './glass'
 import { DT_TRACK } from './RadioExplorer'
 import './RadioExplorer.css' // the .rexp-cass cassette icon (reused as the drag image)
@@ -91,6 +91,7 @@ const backBtn: CSSProperties = {
  *  bottom-right corner — collapsed shows only the track name + transport. Desktop-only (gate at the call site). */
 export function RadioPlayer(p: RadioPlayerProps) {
   const t = useT()
+  const cardRef = useRef<HTMLDivElement>(null)
   const dim: CSSProperties = p.ready ? {} : { opacity: 0.45, pointerEvents: 'none' }
   const radioWord = t.settingsVolRadio   // localized "Radio"
   // Transport buttons stretch to fill the full width of their row.
@@ -108,9 +109,15 @@ export function RadioPlayer(p: RadioPlayerProps) {
       {p.expanded && p.libraryMin && (
         <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button>
       )}
-      {/* Drag from ANY empty area of the player to save the current track (the controls are excluded below). */}
-      <div style={p.expanded ? { ...card, cursor: 'grab' } : card} data-testid="radio-drag"
+      {/* Drag from ANY empty area of the player to save the current track. Controls (slider/buttons) must keep their
+          native behaviour: toggle the card's draggable OFF synchronously on pointerdown over a control, else the
+          browser starts an HTML5 drag of the card instead of letting the range thumb move. */}
+      <div ref={cardRef} style={p.expanded ? { ...card, cursor: 'grab' } : card} data-testid="radio-drag"
         draggable={p.expanded}
+        onPointerDown={e => {
+          const onControl = !!(e.target as HTMLElement).closest('button, input, .slider')
+          if (cardRef.current) cardRef.current.draggable = p.expanded && !onControl
+        }}
         onDragStart={e => {
           if ((e.target as HTMLElement).closest('button, input, .slider')) { e.preventDefault(); return } // let controls work
           const j = p.onDragTrack()

@@ -98,10 +98,34 @@ fn guard<F: FnOnce()>(label: &str, f: F) {
 // SteamNetworkingSockets service thread ("service thread waited Nms for lock") and breaks the
 // P2P handshake (ClosedByPeer). So callbacks ONLY enqueue events (fast) and use eprintln (fast,
 // stderr); the pump emits to JS AFTER run_callbacks, outside the lock window.
+// LobbyInvite_t — a friend invited us to their lobby (fires when the game is running). steamworks-rs 0.11 doesn't
+// expose it, so we implement the Callback trait against the raw layout. id = k_iSteamMatchmakingCallbacks(500) + 3.
+struct LobbyInvite { user: u64, lobby: u64 }
+unsafe impl steamworks::Callback for LobbyInvite {
+  const ID: i32 = 503;
+  const SIZE: i32 = 24; // { m_ulSteamIDUser: u64, m_ulSteamIDLobby: u64, m_ulGameID: u64 }
+  unsafe fn from_raw(raw: *mut std::os::raw::c_void) -> Self {
+    let p = raw as *const u64;
+    LobbyInvite { user: *p, lobby: *p.add(1) }
+  }
+}
+
+#[derive(Clone, serde::Serialize)]
+struct InviteDto {
+  #[serde(rename = "inviterName")] inviter_name: String,
+  #[serde(rename = "inviterId")] inviter_id: String,   // host SteamID — the invitee sends DECLINE_MARKER here on decline
+  #[serde(rename = "lobbyId")] lobby_id: String,
+}
+
+// A control message (not match traffic) the invitee sends to the host's SteamID on decline, so the host reverts the
+// "waiting for friend" slot. Sentinel chosen to never collide with the JSON match protocol.
+const DECLINE_MARKER: &str = "__oneshot_invite_declined__";
+
 pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> SteamNetState {
   let lobby: Arc<Mutex<Option<LobbyId>>> = Arc::new(Mutex::new(None));
   let self_id = client.user().steam_id().raw();
   let (tx, rx) = std::sync::mpsc::channel::<NetEvent>();
+  let (invite_tx, invite_rx) = std::sync::mpsc::channel::<(u64, u64)>();   // (inviter SteamID, lobby) — resolved + emitted in the pump
   // Diagnostics enqueued from inside callbacks (which hold the Steam lock) and printed OUTSIDE it
   // — printing to the captured console is slow on Windows and starves the SDR service thread.
   let (log_tx, log_rx) = std::sync::mpsc::channel::<String>();
@@ -129,6 +153,11 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     if !o.active { let _ = overlay_app.emit("radio-recheck-dlc", ()); }
   }));
 
+  // Lobby invite RECEIVED (friend invited us, game running) → enqueue only; the pump resolves the name + emits.
+  let cb_invite = client.register_callback(move |i: LobbyInvite| guard("LobbyInvite", || {
+    let _ = invite_tx.send((i.user, i.lobby));
+  }));
+
   let pump_app = app;
   let pump_client = client.clone();
   std::thread::spawn(move || {
@@ -136,6 +165,7 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _cb_chat = cb_chat;
     let _cb_join = cb_join;
     let _cb_overlay = cb_overlay;
+    let _cb_invite = cb_invite;
     let nm = pump_client.networking_messages();
     // Accept incoming sessions — ZERO I/O here (runs under the Steam lock): just accept + enqueue
     // a diagnostic. Doing console/IPC work here starves the SDR service thread (ClosedByPeer).
@@ -168,18 +198,27 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       let _ = fail_log.send(format!("[steam-net:{self_id}] session failed with {who}: end_code={} state={:?}", raw.m_eEndReason, info.state()));
     }));
     let tx_msg = tx;
+    let (decline_tx, decline_rx) = std::sync::mpsc::channel::<String>();   // invitee→host "I declined" (out-of-match control)
     loop {
       single.run_callbacks();
       guard("receive", || {
         for msg in nm.receive_messages_on_channel(NET_CHANNEL, 32) {
           if let Some(from) = msg.identity_peer().steam_id() {
             let data = String::from_utf8_lossy(msg.data()).to_string();
-            let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data });
+            if data == DECLINE_MARKER { let _ = decline_tx.send(from.raw().to_string()); }
+            else { let _ = tx_msg.send(NetEvent::Message { from: from.raw().to_string(), data }); }
           }
         }
       });
       // Outside the Steam lock window: emit queued events + print diagnostics (both can be slow).
       while let Ok(ev) = rx.try_recv() { emit(&pump_app, ev); }
+      // Resolve the inviter's name (Steam call — OUTSIDE the lock) and emit for the in-app invite modal.
+      while let Ok((user, lobby)) = invite_rx.try_recv() {
+        let name = pump_client.friends().get_friend(SteamId::from_raw(user)).name();
+        let _ = pump_app.emit("steam-invite", InviteDto { inviter_name: name, inviter_id: user.to_string(), lobby_id: lobby.to_string() });
+      }
+      // Invitee declined → the host reverts the "waiting for friend" slot. Payload = the decliner's SteamID.
+      while let Ok(from) = decline_rx.try_recv() { let _ = pump_app.emit("steam-invite-declined", from); }
       while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
@@ -305,6 +344,42 @@ pub fn steam_net_send(state: State<'_, SteamState>, to: String, data: String) ->
     .networking_messages()
     .send_message_to_user(identity, SendFlags::RELIABLE, data.as_bytes(), NET_CHANNEL)
     .is_ok()
+}
+
+// Tell the inviting host we DECLINED their invite, so it reverts the "waiting for friend" slot. P2P by SteamID
+// (no lobby — we never joined). The host's receive loop recognizes DECLINE_MARKER and emits steam-invite-declined.
+#[tauri::command]
+pub fn steam_decline_invite(state: State<'_, SteamState>, host_id: String) -> bool {
+  let guard = state.0.lock().unwrap();
+  let Some(client) = guard.as_ref() else { return false };
+  let Ok(raw) = host_id.parse::<u64>() else { return false };
+  let identity = NetworkingIdentity::new_steam_id(SteamId::from_raw(raw));
+  client
+    .networking_messages()
+    .send_message_to_user(identity, SendFlags::RELIABLE, DECLINE_MARKER.as_bytes(), NET_CHANNEL)
+    .is_ok()
+}
+
+// Parse a "+connect_lobby <id>" token out of a command line (Steam's invite-accept launch parameter).
+fn parse_connect_lobby(cmd: &str) -> Option<String> {
+  let mut it = cmd.split_whitespace();
+  while let Some(tok) = it.next() {
+    if tok == "+connect_lobby" {
+      return it.next().filter(|s| s.chars().all(|c| c.is_ascii_digit())).map(|s| s.to_string());
+    }
+  }
+  None
+}
+
+// When a user ACCEPTS an invite while the game is NOT running, Steam launches it with "+connect_lobby <id>".
+// Read it once at startup so the client auto-joins WITHOUT the in-game overlay (which can't render over WebView2).
+// (Accepting while the game IS running already works via the GameLobbyJoinRequested callback.)
+#[tauri::command]
+pub fn steam_take_launch_connect(state: State<'_, SteamState>) -> Option<String> {
+  let guard = state.0.lock().unwrap();
+  let client = guard.as_ref()?;
+  parse_connect_lobby(&client.apps().launch_command_line())
+    .or_else(|| parse_connect_lobby(&std::env::args().collect::<Vec<_>>().join(" ")))
 }
 
 // Open the Steam overlay invite dialog for the current lobby.

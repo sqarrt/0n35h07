@@ -6,6 +6,7 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import { TickDriver } from './game/TickDriver'
 import { createAchievements, NoopAchievements } from './steam/achievements'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { STEM_LIBRARY } from './game/audio/stems'
@@ -18,7 +19,7 @@ import type { RosterEntry } from './net/protocol'
 import type { ISfxEngine } from './game/audio/sfx/types'
 import type { AudioAnalysis } from './game/audio/AudioAnalysis'
 import type { HUDAction } from './hooks/useGameHUD'
-import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y } from './constants'
+import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y, FIXED_DT } from './constants'
 import type { MatchRole, MapId } from './constants'
 import { MAPS } from './game/maps'
 
@@ -109,6 +110,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession is built once on top of match
   const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
+  const driver = useMemo(() => new TickDriver(), [])   // fixed-60Hz accumulator (drives match.update + manual Rapier step)
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
@@ -178,13 +180,19 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     }
   }, [match])
 
-  // Clamp dt: a frame spike (WASM loading, returning to the tab) must not
-  // "fast-forward" charge/cooldown/physics in a single step.
+  // Fixed-60Hz simulation: the accumulator turns a variable render dt into whole FIXED_DT ticks (it clamps spikes
+  // and caps catch-up). Each tick runs one sim step + one manual Rapier step (Physics is paused). After the loop the
+  // visuals + camera are interpolated by the fractional alpha so rendering stays smooth at any refresh rate.
   useFrame((_, dt) => {
-    const d = Math.min(dt, 0.1)
-    match.update(d)
-    if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, d)   // dev: capture demo frame
-    session.afterUpdate()
+    const { ticks, alpha } = driver.advance(dt, match.clockNudge())   // clock-sync: hold the host's input buffer near target (client only)
+    for (let i = 0; i < ticks; i++) {
+      match.update(FIXED_DT)        // one sim tick (syncFromBody → intents → applyPhysics(setNextKinematicTranslation) → combat → lateUpdate)
+      match.step(FIXED_DT)          // manual Rapier step applies the kinematic translations + advances the world
+      match.captureTick()           // snapshot sim positions for render interpolation
+      session.afterUpdate()         // net send PER TICK: client sends this tick's input; host drains events + 30Hz-throttled snapshot
+      if (import.meta.env.DEV) match.recorder?.capture(match, camera as THREE.PerspectiveCamera, FIXED_DT)   // dev: capture demo frame
+    }
+    match.renderInterpolate(alpha)  // position visuals + camera between ticks (smooth at any refresh)
   })
 
   return (
@@ -199,7 +207,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
           canvas (covered by the pause overlay), only Resume (handleResume) re-locks. */}
       <PointerLockControls ref={controlsRef} selector="canvas" />
       <Suspense>
-        <Physics timeStep="vary" interpolate={false} gravity={[0, -9.81, 0]}>
+        <Physics paused timeStep={FIXED_DT} interpolate={false} gravity={[0, -9.81, 0]}>
           <Arena map={MAPS[mapId]} />
           <RapierBridge match={match} />
 

@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 use std::sync::Mutex;
-use steamworks::{AppId, Client, OverlayToStoreFlag, SingleClient};
+use steamworks::{AppId, Client, SingleClient};
 use tauri::State;
 
 /// The Radio is sold as a DLC; ownership unlocks unlimited generation/saves (else a free daily trial applies).
@@ -104,21 +104,23 @@ pub fn radio_dlc_owned(state: State<'_, SteamState>) -> bool {
   }
 }
 
-// Open the Steam overlay on the Radio DLC store page (so the user can buy it). No-op without Steam/overlay.
+// Open the Radio DLC store page so the user can buy it. We use a steam:// URL (the Steam client opens it in its own
+// window) instead of the in-game overlay — the overlay can't render over Tauri/WebView2. Works even without the Steam
+// SDK init (the OS hands steam:// to the client).
 #[tauri::command]
-pub fn open_radio_store(state: State<'_, SteamState>) {
-  if let Some(client) = state.0.lock().unwrap().as_ref() {
-    client
-      .friends()
-      .activate_game_overlay_to_store(AppId(RADIO_DLC_APPID), OverlayToStoreFlag::None);
-  }
+pub fn open_radio_store(app: tauri::AppHandle) {
+  use tauri_plugin_opener::OpenerExt;
+  let _ = app.opener().open_url(format!("steam://store/{RADIO_DLC_APPID}"), None::<&str>);
 }
 
 // Initialize Steam. Soft-fails to None so the app still launches without Steam (dev,
 // browser-equivalent, unowned copies). The callback pump is spawned by steam_net::start_pump
 // (run_callbacks drives stats/cloud/RP AND networking), so the SingleClient is returned here.
-pub fn init_steam(app_id: u32) -> Option<(Client, SingleClient)> {
-  match Client::init_app(AppId(app_id)) {
+// Use Client::init() (NOT init_app): Steam supplies the App ID from the LAUNCH context (the main app 4881310 or the
+// Playtest 4888710), so a playtest-launched copy identifies as the playtest — lobbies/invites land in the right app.
+// (Hardcoding init_app(4881310) forced the main app, so playtest invites mismatched. Dev still uses steam_appid.txt.)
+pub fn init_steam() -> Option<(Client, SingleClient)> {
+  match Client::init() {
     Ok((client, single)) => {
       // Load the user's current stats/achievements so set()/get() act on real state.
       client.user_stats().request_current_stats();

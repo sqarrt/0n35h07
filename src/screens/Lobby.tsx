@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
 import { IS_DESKTOP } from '../platform'
+import { onSteamInviteDeclined } from '../steam/steam'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
 import type { LobbySlot, OppSlot, LobbyTab } from '../components/lobby/types'
@@ -54,6 +55,15 @@ export function Lobby(props: LobbyProps) {
   useEffect(() => { if (opponent) setInvited(null) }, [opponent])
   // Leaving the "With friend" tab cancels any pending invite and closes the modal.
   useEffect(() => { if (tab !== 'friend') { setInvited(null); setPickerOpen(false) } }, [tab])
+  // The invited friend declined → revert the seat from "waiting for {name}" to the invite CTA.
+  const invitedRef = useRef(invited); invitedRef.current = invited
+  useEffect(() => {
+    if (!IS_DESKTOP) return
+    let alive = true; let un = () => {}
+    void onSteamInviteDeclined(declinerId => { if (invitedRef.current?.id === declinerId) setInvited(null) })
+      .then(u => { if (alive) un = u; else u() })
+    return () => { alive = false; un() }
+  }, [])
 
   const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
