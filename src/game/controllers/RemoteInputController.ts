@@ -51,7 +51,10 @@ export class RemoteInputController implements Controller {
     applyInputMovement(this.player, frame, FIXED_DT)
     this.appliedTick = frame.tick
     this._appliedReal = true
-    if ((this.edges.fire || frame.fire) && frame.viewTick) this._lastViewTick = frame.viewTick   // remember for lag-comp
+    // Track the opponent's render-tick EVERY applied frame: the beam fires after a windup, so resolveCombat (same tick
+    // the beam fires) reads the latest viewTick = the opponent's render at FIRE-time, not at the press → moving targets
+    // are rewound to where the shooter actually saw them when the beam went off.
+    if (frame.viewTick) this._lastViewTick = frame.viewTick
     applyInputAim(this.player, { ...frame, ...this.edges }, this.world) // aim + accumulated edge actions, once
     this.edges = noEdges()
   }

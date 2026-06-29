@@ -874,10 +874,12 @@ export class Match {
     const frame = this.humanController.currentInputFrame(this.tick)
     const me = this.byId.get(this.localId)
     if (me) this.predictionLog?.record(this.tick, frame, me.saveBodyState())
-    if (frame.fire) {   // lag-comp: tell the host which host-tick we were rendering the opponent at when we fired
-      const opp = this.players.find(p => p.id !== this.localId)
-      if (opp) frame.viewTick = opp.renderHostTick()
-    }
+    // Lag-comp: stamp the host-tick we're CURRENTLY rendering the opponent at — EVERY frame, not just on fire. The
+    // beam has a windup, so it raycasts several ticks AFTER the press; the host rewinds the victim to the viewTick of
+    // the frame applied at FIRE-time (the latest), which tracks the opponent's render through the windup. Stamping
+    // only at press would rewind to where the target was when you clicked, missing it after it moved during windup.
+    const opp = this.players.find(p => p.id !== this.localId)
+    if (opp) frame.viewTick = opp.renderHostTick()
     return frame
   }
 
