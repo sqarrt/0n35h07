@@ -340,7 +340,7 @@ export class Match {
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
-    this.players.forEach(p => p.renderInterpolate(alpha))
+    this.players.forEach(p => { p.decayRenderError(); p.renderInterpolate(alpha) })   // ease out any post-correction offset
     this.humanController.renderCamera?.(alpha)   // local human only (host + client both have one)
   }
 
@@ -405,6 +405,7 @@ export class Match {
     const p = this.byId.get(this.localId)
     const rb = p?.rb
     if (!p || !rb || !this.kcc) return
+    const predX = p.position.x, predY = p.position.y, predZ = p.position.z   // the predicted "now" before correction
     p.restoreBodyState(authority)
     rb.setNextKinematicTranslation({ x: authority.pos[0], y: authority.pos[1], z: authority.pos[2] })
     this.step(FIXED_DT)                                   // push the restored position into Rapier
@@ -415,6 +416,8 @@ export class Match {
       this.stepPlayerMovement(p, rb, FIXED_DT, ignorePlayers)
       this.step(FIXED_DT)
     }
+    p.syncFromBody()                                     // pull the corrected position into the cache
+    p.commitCorrection(predX, predY, predZ)              // ease the visual predicted→corrected (no pop)
   }
 
   /** Knockback impulse pushing player `p` away from the opponent when sphere bodies overlap (instead of hard collision).

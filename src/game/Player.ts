@@ -170,6 +170,10 @@ export class Player implements IControllable {
   saveBodyState() { return this.body.saveState() }
   restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
 
+  /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
+  decayRenderError() { this.body.decayRenderError() }
+  commitCorrection(predX: number, predY: number, predZ: number) { this.body.commitCorrection(predX, predY, predZ) }
+
   /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
    *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
   renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
