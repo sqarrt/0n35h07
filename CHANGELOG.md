@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.6.1]
 
+### Changed
+- **Multiplayer netcode rebuilt — smooth on both sides (Source/CS2 model).** The simulation now runs on a fixed
+  60 Hz tick with render interpolation, so it's frame-rate independent and smooth at any refresh. The client
+  **predicts** its own movement and reconciles against the host with **full input replay** (no more rubber-band /
+  being flung off the map). The opponent is rendered from an **interpolation buffer** (~100 ms back), so their
+  movement is smooth regardless of packet jitter. **Lag compensation** rewinds the target to what the shooter saw,
+  so shots land where you aim. Replaces the earlier per-frame, snap-correct, lerp-to-latest networking.
+
 ### Fixed
-- **Multiplayer: playable as the client again.** Two networking bugs (both invisible on the ~0-latency test
-  transport, hence not caught earlier): client prediction reconciliation **compounded** authority corrections
-  across the in-flight input window (overshoot → flung off the map, jerking camera); and the host **collapsed each
-  batch of received input frames to the newest**, dropping the in-between movement so its authority lagged and the
-  client was constantly **pulled backwards** (rubber-band). Corrections are now rebased, and the host replays every
-  input frame with the dt the client sent — frame-rate independent.
 - **Radio: the volume slider can be dragged again.** "Drag the player from any empty area to save" had hijacked
   mousedowns on the slider/buttons; controls now keep their native behaviour.
 
