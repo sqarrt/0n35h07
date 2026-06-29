@@ -621,6 +621,9 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Entering a match drops any pending invite so it doesn't pop back up after the fight ends.
+  useEffect(() => { if (screen === 'game') setPendingInvite(null) }, [screen])
+
   // Accidental F5/Ctrl+W in a live match must not silently kill the fight — the browser will ask for confirmation.
   // On desktop (Tauri) we don't set the guard: there beforeunload without a dialog just blocks closing the window.
   useEffect(() => {
