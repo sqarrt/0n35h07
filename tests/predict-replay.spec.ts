@@ -78,3 +78,33 @@ test('client predicts smoothly under latency — own player advances with no rub
     expect(dists[i]).toBeGreaterThanOrEqual(dists[i - 1] - BACK_EPS)
   }
 })
+
+test('opponent renders smoothly under latency — no jitter in the remote position (interpolation buffer)', async ({ context }) => {
+  const { host, client } = await startLaggyMatch(context)
+  // Host moves; on the CLIENT, the host (opponent, id 0) must advance with no backward jitter (interpolation buffer).
+  await host.evaluate(() => {
+    const c = document.querySelector('canvas')!
+    Object.defineProperty(document, 'pointerLockElement', { get: () => c, configurable: true })
+    document.dispatchEvent(new Event('pointerlockchange'))
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true }))
+  })
+  const samples: { x: number; z: number }[] = await client.evaluate(async () => {
+    const w = window as { __debugPlayerPos?: (i: number) => { x: number; z: number } | null }
+    const o: { x: number; z: number }[] = []
+    const t0 = performance.now()
+    await new Promise<void>((res) => {
+      const tick = () => { const p = w.__debugPlayerPos?.(0); if (p) o.push({ x: p.x, z: p.z }); if (performance.now() - t0 > 1200) return res(); setTimeout(tick, 80) }
+      tick()
+    })
+    return o
+  })
+  await host.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW', bubbles: true })))
+
+  expect(samples.length).toBeGreaterThan(5)
+  const start = samples[0]
+  const dist = (s: { x: number; z: number }) => Math.hypot(s.x - start.x, s.z - start.z)
+  const dists = samples.map(dist)
+  expect(dists[dists.length - 1]).toBeGreaterThan(1.0)        // the opponent actually moved on our screen
+  const BACK_EPS = 0.3
+  for (let i = 1; i < dists.length; i++) expect(dists[i]).toBeGreaterThanOrEqual(dists[i - 1] - BACK_EPS)   // no jitter/backward
+})
