@@ -55,6 +55,7 @@ import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
 import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser, onSteamInvite, declineInvite, type SteamInvite } from './steam/steam'
 import { InviteModal } from './components/InviteModal'
+import { SteamNetDiag } from './components/SteamNetDiag'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -1046,6 +1047,7 @@ export default function App() {
             )}
             {screen === 'about' && <About onBack={() => setScreen('menu')} onWatchTrailer={() => setScreen('trailer')} />}
             {screen === 'lobby' && lobbyProps && <Lobby {...lobbyProps} />}
+            {screen === 'lobby' && IS_DESKTOP && <SteamNetDiag view={roomView} searching={searching} />}
           </div>
         </div>
       )}
