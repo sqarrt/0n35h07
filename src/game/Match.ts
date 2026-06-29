@@ -316,6 +316,9 @@ export class Match {
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
+          // Client-side hit prediction: the beam already renders locally; ALSO spawn the impact sparks from our OWN
+          // raycast right now, so a hit reads instantly instead of ~RTT later (the kill/score stays host-authoritative).
+          if (p.weaponJustFired && p.fireOutcome?.hitPoint) p.spawnImpact(p.fireOutcome.hitPoint)
           p.clearJustFired()   // combat is computed by the host → we reset the flag ourselves (else the ball stays bloated)
         } else {
           p.updateRemote(dt, this.world)
