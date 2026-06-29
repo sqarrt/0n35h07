@@ -1,6 +1,8 @@
 import { getStatus as getRelayStatus } from './relays'
 import { APP_ID } from './TrysteroNet'
 import { CLIENT_VERSION, CLIENT_PLATFORM } from './poolNamespace'
+import { gameLog } from '../diag/gameLog'
+import type { LogCat } from '../diag/logFormat'
 
 /**
  * Dev diagnostics for the P2P connect. The goal is to turn ONE failed connection attempt into a single
@@ -37,9 +39,18 @@ let getPeersFn: (() => string[]) | null = null
 export function netDiagSetContext(c: Partial<DiagCtx>): void { Object.assign(ctx, c) }
 export function netDiagSetPeers(fn: () => string[]): void { getPeersFn = fn }
 export function netDiagMark(tag: string, data?: unknown): void {
+  // Tee into the session file (category by tag prefix) — independent of `enabled`, so prod desktop logs marks too.
+  const cat: LogCat = (tag.startsWith('mm:') || tag.startsWith('disco:')) ? 'mm' : 'room'
+  const fields = (data && typeof data === 'object') ? data as Record<string, unknown> : (data === undefined ? undefined : { v: data })
+  gameLog.log(cat, tag.replace(/:/g, '_'), fields)
   if (!enabled) return
   marks.push({ t: rel(), tag, data })
   if (marks.length > MAX_MARKS) marks.shift()
+}
+
+/** Log the current connection verdict (which layer the failure belongs to) into the session file. */
+export function netDiagLogVerdict(): void {
+  gameLog.log('ice', 'verdict', { verdict: summarize(), role: ctx.role, code: ctx.code, selfId: ctx.selfId })
 }
 
 /** ICE candidate type from its SDP string (`... typ srflx ...`). */
