@@ -53,7 +53,8 @@ import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser, onSteamInvite } from './steam/steam'
+import { InviteModal } from './components/InviteModal'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -193,6 +194,8 @@ function EditorLoading() {
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('menu')
+  const screenRef = useRef<Screen>('menu'); screenRef.current = screen   // for event listeners (avoid stale closure)
+  const [pendingInvite, setPendingInvite] = useState<{ inviterName: string; lobbyId: string } | null>(null)
   // The active settings tab lives here so it survives a trip into the trailer and returns to the same tab.
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('player')
   const [editorMode, setEditorMode] = useState(() => import.meta.env.DEV && isEditorHash())
@@ -606,10 +609,15 @@ export default function App() {
     let unlisten = () => {}
     void onSteamNetEvent(e => { if (e.kind === 'joinRequested') void enterSteamFriendClient(e.lobbyId) })
       .then(u => { if (alive) unlisten = u; else u() })
+    // Invite RECEIVED while running → show the in-app modal (the Steam overlay can't render over WebView2). Ignore
+    // while in a match. Accept joins; latest invite wins.
+    let unInvite = () => {}
+    void onSteamInvite(inv => { if (screenRef.current !== 'game') setPendingInvite(inv) })
+      .then(u => { if (alive) unInvite = u; else u() })
     // Invite ACCEPTED while the game was not running → Steam launched us with "+connect_lobby <id>": auto-join
     // (no in-game overlay needed). Accepting while already running is handled by the 'joinRequested' event above.
     void steamTakeLaunchConnect().then(lobbyId => { if (alive && lobbyId) void enterSteamFriendClient(lobbyId) })
-    return () => { alive = false; unlisten() }
+    return () => { alive = false; unlisten(); unInvite() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1010,6 +1018,14 @@ export default function App() {
       {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { mood: radioMusicalState?.mood ?? '', bpm: radioMusicalState?.bpm ?? 120 } : undefined} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
+      {/* Steam invite received (game running, not in a match) — accept in-app since the overlay can't render. */}
+      {pendingInvite && screen !== 'game' && (
+        <InviteModal
+          inviterName={pendingInvite.inviterName}
+          onAccept={() => { const id = pendingInvite.lobbyId; setPendingInvite(null); void enterSteamFriendClient(id) }}
+          onDecline={() => setPendingInvite(null)}
+        />
+      )}
       {/* A single persistent backing: it slides (isn't recreated) on screen change; inside — the screen content.
           Radio is excluded — it's a full-screen takeover (the backdrop IS the visual) with its own glass overlays. */}
       {screen !== 'game' && screen !== 'trailer' && screen !== 'radio' && (
