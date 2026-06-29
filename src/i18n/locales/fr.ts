@@ -225,4 +225,5 @@ export const fr = {
   radioCtxCopy: 'Copier',
   radioCtxPaste: 'Coller',
   radioCtxDelete: 'Supprimer',
+  revealLogs: 'Ouvrir le dossier des journaux',
 } satisfies Dict

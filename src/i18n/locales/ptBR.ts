@@ -225,4 +225,5 @@ export const ptBR = {
   radioCtxCopy: 'Copiar',
   radioCtxPaste: 'Colar',
   radioCtxDelete: 'Excluir',
+  revealLogs: 'Abrir pasta de logs',
 } satisfies Dict

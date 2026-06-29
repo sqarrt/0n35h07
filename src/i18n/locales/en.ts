@@ -227,4 +227,5 @@ export const en = {
   radioCtxCopy: 'Copy',
   radioCtxPaste: 'Paste',
   radioCtxDelete: 'Delete',
+  revealLogs: 'Open log folder',
 }

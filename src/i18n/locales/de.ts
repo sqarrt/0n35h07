@@ -225,4 +225,5 @@ export const de = {
   radioCtxCopy: 'Kopieren',
   radioCtxPaste: 'Einfügen',
   radioCtxDelete: 'Löschen',
+  revealLogs: 'Log-Ordner öffnen',
 } satisfies Dict
