@@ -184,7 +184,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   // and caps catch-up). Each tick runs one sim step + one manual Rapier step (Physics is paused). After the loop the
   // visuals + camera are interpolated by the fractional alpha so rendering stays smooth at any refresh rate.
   useFrame((_, dt) => {
-    const { ticks, alpha } = driver.advance(dt)
+    const { ticks, alpha } = driver.advance(dt, match.clockNudge())   // clock-sync: hold the host's input buffer near target (client only)
     for (let i = 0; i < ticks; i++) {
       match.update(FIXED_DT)        // one sim tick (syncFromBody → intents → applyPhysics(setNextKinematicTranslation) → combat → lateUpdate)
       match.step(FIXED_DT)          // manual Rapier step applies the kinematic translations + advances the world

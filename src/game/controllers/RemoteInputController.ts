@@ -63,6 +63,9 @@ export class RemoteInputController implements Controller {
   /** Last applied client tick — the host puts it in the snapshot (ackTick) for client reconciliation. */
   get ackTick() { return this.appliedTick }
 
+  /** Inputs still queued (jitter-buffer depth) — echoed in the snapshot so the client nudges its tick rate to keep it near target. */
+  get pending() { return this.queue.length }
+
   /** True if THIS tick applied a real client input (not a gap/extrapolation) — the host captures the authoritative
    *  post-step state on these ticks only, so the snapshot's `restore` matches `ackTick` (consistent reconcile pair). */
   get appliedReal() { return this._appliedReal }

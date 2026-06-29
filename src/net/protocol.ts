@@ -68,6 +68,7 @@ export interface PlayerSnapshot {
 export interface Snapshot {
   ackTick: number              // last client SIM TICK the host applied (for prediction reconciliation)
   tick:    number              // the host's own SIM TICK at serialize (lets the client tag what host-tick it renders → lag-comp)
+  buffered: number             // client inputs still queued on the host (its jitter-buffer depth) — the client nudges its tick rate to hold this near target so the host never starves (gap) or overflows (drop)
   players: PlayerSnapshot[]
 }
 

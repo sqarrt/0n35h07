@@ -149,6 +149,12 @@ export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
 export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
 export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating
 export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — spiral-of-death guard (shed the rest)
+// Input clock sync (client→host): keep the host's input jitter-buffer near TARGET so it never starves (a gap → the
+// remote holds) nor overflows (a drop). The client nudges its own tick accumulator by a small fraction toward target,
+// using the buffer depth the host echoes in each snapshot. Gentle gain + a tight per-frame clamp keep it stable.
+export const NET_INPUT_BUFFER_TARGET = 2          // ticks of slack the host keeps buffered (~33 ms of jitter absorption)
+export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fraction toward target (small = stable, slow)
+export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']

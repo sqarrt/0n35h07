@@ -43,6 +43,7 @@ import {
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
   BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST,
+  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -114,6 +115,7 @@ export class Match {
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
   private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
+  private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
@@ -842,12 +844,13 @@ export class Match {
 
   /** host: snapshot of all players + the last processed client input. */
   serializeSnapshot(): Snapshot {
-    let ackTick = 0
-    this.remoteControllers.forEach(c => { ackTick = Math.max(ackTick, c.ackTick) })
+    let ackTick = 0, buffered = 0
+    this.remoteControllers.forEach(c => { ackTick = Math.max(ackTick, c.ackTick); buffered = Math.max(buffered, c.pending) })
     if (!this._snapBuf) {
       this._snapBuf = {
         ackTick: 0,
         tick: 0,
+        buffered: 0,
         players: this.players.map(p => ({
           id: p.id,
           pos: [0, 0, 0] as [number, number, number],
@@ -858,6 +861,7 @@ export class Match {
       }
     }
     this._snapBuf.ackTick = ackTick
+    this._snapBuf.buffered = buffered
     this._snapBuf.tick = this.tick   // the host's current sim tick (client tags its rendered host-tick for lag-comp)
     for (let i = 0; i < this.players.length; i++) {
       const p = this.players[i]
@@ -890,8 +894,18 @@ export class Match {
     return frame
   }
 
+  /** client: per-frame tick-rate nudge (seconds) added to the sim accumulator, holding the host's input buffer near
+   *  target. Buffer below target → host starving (gaps) → run a touch faster; above → too much input lag → slower.
+   *  Gentle gain + a tight clamp keep the clock stable; 0 on the host (it predicts nobody). */
+  clockNudge(): number {
+    if (this.role !== 'client') return 0
+    const n = (NET_INPUT_BUFFER_TARGET - this.hostBuffered) * FIXED_DT * NET_CLOCK_SYNC_GAIN
+    return Math.max(-NET_CLOCK_SYNC_MAX_NUDGE, Math.min(NET_CLOCK_SYNC_MAX_NUDGE, n))
+  }
+
   /** client: snapshot → remotes interpolate to the target; our own player reconciles by prediction REPLAY (ackTick). */
   applySnapshot(snap: Snapshot) {
+    this.hostBuffered = snap.buffered
     for (const ps of snap.players) {
       const p = this.byId.get(ps.id)
       if (!p) continue
