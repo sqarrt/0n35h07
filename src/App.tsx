@@ -53,7 +53,7 @@ import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamInviteToLobby, onSteamNetEvent } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -588,6 +588,9 @@ export default function App() {
     let unlisten = () => {}
     void onSteamNetEvent(e => { if (e.kind === 'joinRequested') void enterSteamFriendClient(e.lobbyId) })
       .then(u => { if (alive) unlisten = u; else u() })
+    // Invite ACCEPTED while the game was not running → Steam launched us with "+connect_lobby <id>": auto-join
+    // (no in-game overlay needed). Accepting while already running is handled by the 'joinRequested' event above.
+    void steamTakeLaunchConnect().then(lobbyId => { if (alive && lobbyId) void enterSteamFriendClient(lobbyId) })
     return () => { alive = false; unlisten() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

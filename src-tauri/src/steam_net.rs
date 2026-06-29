@@ -307,6 +307,28 @@ pub fn steam_net_send(state: State<'_, SteamState>, to: String, data: String) ->
     .is_ok()
 }
 
+// Parse a "+connect_lobby <id>" token out of a command line (Steam's invite-accept launch parameter).
+fn parse_connect_lobby(cmd: &str) -> Option<String> {
+  let mut it = cmd.split_whitespace();
+  while let Some(tok) = it.next() {
+    if tok == "+connect_lobby" {
+      return it.next().filter(|s| s.chars().all(|c| c.is_ascii_digit())).map(|s| s.to_string());
+    }
+  }
+  None
+}
+
+// When a user ACCEPTS an invite while the game is NOT running, Steam launches it with "+connect_lobby <id>".
+// Read it once at startup so the client auto-joins WITHOUT the in-game overlay (which can't render over WebView2).
+// (Accepting while the game IS running already works via the GameLobbyJoinRequested callback.)
+#[tauri::command]
+pub fn steam_take_launch_connect(state: State<'_, SteamState>) -> Option<String> {
+  let guard = state.0.lock().unwrap();
+  let client = guard.as_ref()?;
+  parse_connect_lobby(&client.apps().launch_command_line())
+    .or_else(|| parse_connect_lobby(&std::env::args().collect::<Vec<_>>().join(" ")))
+}
+
 // Open the Steam overlay invite dialog for the current lobby.
 #[tauri::command]
 pub fn steam_net_invite(state: State<'_, SteamState>, net: State<'_, SteamNetState>) {

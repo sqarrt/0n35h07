@@ -90,6 +90,14 @@ export async function steamNetCreateLobby(): Promise<void> {
   try { await invokeSteam<void>('steam_net_create_lobby') } catch { /* ignore */ }
 }
 
+/** Read a "+connect_lobby <id>" launch parameter (set when accepting an invite launches the game), once at startup.
+ *  Returns the lobby id to auto-join, or null. Lets invites be accepted without the in-game Steam overlay. */
+export async function steamTakeLaunchConnect(): Promise<string | null> {
+  if (!IS_DESKTOP) return null
+  try { return (await invokeSteam<string | null>('steam_take_launch_connect')) ?? null }
+  catch { return null }
+}
+
 /** Join a lobby by id (from a 'joinRequested' event); result arrives as 'lobbyEntered'. */
 export async function steamNetJoinLobby(lobbyId: string): Promise<void> {
   if (!IS_DESKTOP) return
