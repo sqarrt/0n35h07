@@ -98,10 +98,29 @@ fn guard<F: FnOnce()>(label: &str, f: F) {
 // SteamNetworkingSockets service thread ("service thread waited Nms for lock") and breaks the
 // P2P handshake (ClosedByPeer). So callbacks ONLY enqueue events (fast) and use eprintln (fast,
 // stderr); the pump emits to JS AFTER run_callbacks, outside the lock window.
+// LobbyInvite_t — a friend invited us to their lobby (fires when the game is running). steamworks-rs 0.11 doesn't
+// expose it, so we implement the Callback trait against the raw layout. id = k_iSteamMatchmakingCallbacks(500) + 3.
+struct LobbyInvite { user: u64, lobby: u64 }
+unsafe impl steamworks::Callback for LobbyInvite {
+  const ID: i32 = 503;
+  const SIZE: i32 = 24; // { m_ulSteamIDUser: u64, m_ulSteamIDLobby: u64, m_ulGameID: u64 }
+  unsafe fn from_raw(raw: *mut std::os::raw::c_void) -> Self {
+    let p = raw as *const u64;
+    LobbyInvite { user: *p, lobby: *p.add(1) }
+  }
+}
+
+#[derive(Clone, serde::Serialize)]
+struct InviteDto {
+  #[serde(rename = "inviterName")] inviter_name: String,
+  #[serde(rename = "lobbyId")] lobby_id: String,
+}
+
 pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> SteamNetState {
   let lobby: Arc<Mutex<Option<LobbyId>>> = Arc::new(Mutex::new(None));
   let self_id = client.user().steam_id().raw();
   let (tx, rx) = std::sync::mpsc::channel::<NetEvent>();
+  let (invite_tx, invite_rx) = std::sync::mpsc::channel::<(u64, u64)>();   // (inviter SteamID, lobby) — resolved + emitted in the pump
   // Diagnostics enqueued from inside callbacks (which hold the Steam lock) and printed OUTSIDE it
   // — printing to the captured console is slow on Windows and starves the SDR service thread.
   let (log_tx, log_rx) = std::sync::mpsc::channel::<String>();
@@ -129,6 +148,11 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     if !o.active { let _ = overlay_app.emit("radio-recheck-dlc", ()); }
   }));
 
+  // Lobby invite RECEIVED (friend invited us, game running) → enqueue only; the pump resolves the name + emits.
+  let cb_invite = client.register_callback(move |i: LobbyInvite| guard("LobbyInvite", || {
+    let _ = invite_tx.send((i.user, i.lobby));
+  }));
+
   let pump_app = app;
   let pump_client = client.clone();
   std::thread::spawn(move || {
@@ -136,6 +160,7 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
     let _cb_chat = cb_chat;
     let _cb_join = cb_join;
     let _cb_overlay = cb_overlay;
+    let _cb_invite = cb_invite;
     let nm = pump_client.networking_messages();
     // Accept incoming sessions — ZERO I/O here (runs under the Steam lock): just accept + enqueue
     // a diagnostic. Doing console/IPC work here starves the SDR service thread (ClosedByPeer).
@@ -180,6 +205,11 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       });
       // Outside the Steam lock window: emit queued events + print diagnostics (both can be slow).
       while let Ok(ev) = rx.try_recv() { emit(&pump_app, ev); }
+      // Resolve the inviter's name (Steam call — OUTSIDE the lock) and emit for the in-app invite modal.
+      while let Ok((user, lobby)) = invite_rx.try_recv() {
+        let name = pump_client.friends().get_friend(SteamId::from_raw(user)).name();
+        let _ = pump_app.emit("steam-invite", InviteDto { inviter_name: name, lobby_id: lobby.to_string() });
+      }
       while let Ok(line) = log_rx.try_recv() { eprintln!("{line}"); }
       std::thread::sleep(Duration::from_millis(NET_PUMP_MS));
     }
