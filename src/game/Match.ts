@@ -14,7 +14,7 @@ import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import { gameLog } from '../diag/gameLog'
-import { PHASE_WATCHDOG_MS } from '../diag/constants'
+import { PHASE_WATCHDOG_MS, HEALTH_HEARTBEAT_MS } from '../diag/constants'
 import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
 import { PredictionLog } from '../net/clientReconcile'
 import { applyInputMovement } from '../net/input'
@@ -151,6 +151,7 @@ export class Match {
   private phaseEnteredAt = 0  // diag: when the current phase began (watchdog)
   private phaseWarned = false // diag: stuck-phase warning already emitted for this phase
   private actorPrev = new Map<number, { shield: boolean; dash: boolean }>()   // diag: last shield/dash state per player (edge detection)
+  private lastHealthAt = 0    // diag: last net-health heartbeat timestamp
   private phaseDirtyFlag = false   // host: phase/readiness changed — resend to the client
   private prevPhaseSig = ''        // dedup of SET_MATCH_PHASE dispatch
   private leftIds = new Set<number>()   // disconnected players
@@ -314,7 +315,7 @@ export class Match {
     this.tick++   // advance the sim tick (client stamps its input/prediction with it; host echoes applied ticks)
     this.players.forEach(p => p.syncFromBody())
     this.tickPhase()   // readiness/countdown → freeze + HUD
-    if (this.phase === 'live') this.logActorEdges()   // diag: shield/dash on/off edges
+    if (this.phase === 'live') { this.logActorEdges(); this.healthHeartbeat() }   // diag: shield/dash edges + ~2s net-health
 
     if (this.role === 'client') {
       // Client: simulate only our own (prediction), remotes — from snapshots.
@@ -617,6 +618,18 @@ export class Match {
   }
 
   // --- entry ritual (readiness + countdown) ---
+  /** Diag: ~2s net-health line during live — the input jitter-buffer depth (host: queued client inputs; client: the
+   *  host's echoed depth) + peer count. A trend, not an action: reveals snapshot starvation / building input lag. */
+  private healthHeartbeat() {
+    const now = Date.now()
+    if (now - this.lastHealthAt < HEALTH_HEARTBEAT_MS) return
+    this.lastHealthAt = now
+    const buffered = this.role === 'host'
+      ? Math.max(0, ...[...this.remoteControllers.values()].map(c => c.pending))
+      : this.hostBuffered
+    gameLog.log('health', 'tick', { role: this.role, buffered, peers: this.players.length })
+  }
+
   /** Diag: log shield/dash on→off edges per player (local from the real sim; the client's opponent from snapshot flags). */
   private logActorEdges() {
     for (const p of this.players) {
