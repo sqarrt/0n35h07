@@ -410,6 +410,9 @@ export class Player implements IControllable {
   get bodyScale() { return this.body.mesh.scale.x }   // debug: current sphere scale
   get bodyIsVisible() { return this.bodyVisible }     // FP=false (body hidden) / TP/opponent=true
   get isRespawning() { return this.respawning }
+  /** Client view of a REMOTE's shield (from snapshots). The local sim shield (`shieldActive`) isn't driven for
+   *  opponents, so kill prediction must gate on THIS — don't predict a death through a visibly raised shield. */
+  get netShielding() { return this.netShieldActive }
   respawnProgress() { return Math.max(0, this.respawnTimer / RESPAWN_GHOST_MS) }   // 1→0 phase remainder
 
   /** Cosmetic remote shot (client, FIRED event). */

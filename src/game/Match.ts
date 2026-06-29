@@ -42,7 +42,7 @@ import {
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
   BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST, AIM_RANGE,
-  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE,
+  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE, NET_PREDICT_KILL_MS,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -116,6 +116,7 @@ export class Match {
   private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
   private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
   private pendingHitClaim: HitClaim | null = null   // client: our own shot's raycast result, to send to the host (shooter-authoritative)
+  private predictedKill: { id: number; until: number } | null = null   // client: an opponent we predicted dead, holding the ghost until the host confirms ('kill') or the grace expires (rejected → revive from snapshots)
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
@@ -323,6 +324,7 @@ export class Match {
             const o = p.fireOutcome
             if (o.hitPoint) p.spawnImpact(o.hitPoint)
             this.pendingHitClaim = { tick: this.tick, hitId: o.hitEntityId, point: o.hitPoint ? toVec3(o.hitPoint) : null, end: toVec3(o.end) }
+            if (o.hitEntityId !== null) this.predictOpponentDeath(o.hitEntityId)
           }
           p.clearJustFired()   // combat is computed by the host → we reset the flag ourselves (else the ball stays bloated)
         } else {
@@ -571,6 +573,17 @@ export class Match {
 
   /** client: the pending shooter-authoritative hit to send the host this frame (cleared on read). */
   drainHitClaim(): HitClaim | null { const c = this.pendingHitClaim; this.pendingHitClaim = null; return c }
+
+  /** client: predict the opponent's death on a local hit (instant feedback — no RTT wait for the host's 'kill').
+   *  A false positive (the host rejects — out of range, or a shield raised within RTT) self-corrects from the next
+   *  snapshot: applyNetState restores alive/respawning. Skip a visibly shielding opponent — the host would block it,
+   *  so let it decide (predicting a death through a raised shield would be the wrong call). */
+  private predictOpponentDeath(victimId: number) {
+    const victim = this.byId.get(victimId)
+    if (!victim || !victim.alive || victim.netShielding) return
+    victim.applyDeath()
+    this.predictedKill = { id: victimId, until: Date.now() + NET_PREDICT_KILL_MS }
+  }
 
   // Ghost phase: the player is invulnerable and moves on its own (via controllers+applyPhysics); when the timer
   // expires it materializes IN PLACE where it stopped (not at a random point).
@@ -931,7 +944,18 @@ export class Match {
         const d = this.predictionLog?.decide(snap.ackTick, ps.restore, NET_RECONCILE_SNAP_DIST)
         if (d?.kind === 'replay') this.replayFrom(d.from, d.inputs)
       } else {
-        p.applyNetState(ps, snap.tick)
+        // Kill prediction: while a predicted death is latched, ignore snapshots that still show the opponent alive
+        // (sent before the host processed our claim) so the ghost doesn't flicker. The host's 'kill' clears the latch
+        // (then snapshots drive the real death); if the grace expires with no kill, the host rejected → let it revive.
+        const pk = this.predictedKill
+        let state = ps
+        if (pk && pk.id === ps.id && ps.alive) {
+          if (Date.now() < pk.until) state = { ...ps, alive: false, respawning: true }
+          else this.predictedKill = null
+        } else if (pk && pk.id === ps.id && !ps.alive) {
+          this.predictedKill = null   // host confirmed the death — snapshots own it now
+        }
+        p.applyNetState(state, snap.tick)
         // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
@@ -957,6 +981,7 @@ export class Match {
         const victim = this.byId.get(e.victim)
         const shooter = this.byId.get(e.shooter)
         if (!victim) break
+        if (this.predictedKill?.id === e.victim) this.predictedKill = null   // confirmed — release the prediction latch
         victim.applyDeath()
         victim.deaths++
         victim.streak = 0

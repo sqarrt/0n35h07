@@ -5,10 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.0.0]
+## [1.0.0] - 2026-06-30
 
 ### Changed
-- _In progress._
+- **Hit detection is now shooter-authoritative — what you shoot is what you hit.** Each shooter decides its own hits:
+  the client raycasts its beam locally and sends the host a hit claim, which the host applies after a loose sanity
+  check (target alive, in range). This replaces host-side lag compensation for the client's shots and removes the
+  host's zero-latency advantage, so both players hit with the same fairness.
+- **Opponent deaths are predicted instantly on the client.** When your beam connects, the opponent drops on the spot
+  instead of after a round-trip — the kill is held briefly until the host confirms (and quietly self-corrects on the
+  rare rejection), so kills feel immediate.
+
+### Fixed
+- **"Sparks but no kill."** Hits that showed an impact on the client but weren't counted by the host are gone — the
+  client's own shot now authoritatively registers, fixing missed hits on moving targets under latency.
 
 ## [0.6.1] - 2026-06-29
 
