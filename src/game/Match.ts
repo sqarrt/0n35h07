@@ -476,11 +476,17 @@ export class Match {
    *  Starts once and plays out its window (like a dash); while in flight — not restarted. */
   private maybeKnockback(p: Player) {
     if (!p.alive || p.knocking) return
+    // Lag-comp the overlap for a REMOTE avatar (host's view of a client): measure against the opponent WHERE THE CLIENT
+    // SAW IT (rewound to the client's viewTick) — that's the geometry the client predicted its knockback against, so
+    // host & client agree and a player collision produces NO reconciliation snap. Live position otherwise.
+    const vt = this.role === 'host' ? (this.remoteControllers.get(p.id)?.lastViewTick ?? 0) : 0
     for (const o of this.players) {
       if (o === p || !o.alive) continue
-      const dx = p.position.x - o.position.x
-      const dy = p.position.y - o.position.y
-      const dz = p.position.z - o.position.z
+      let ox = o.position.x, oy = o.position.y, oz = o.position.z
+      if (vt > 0 && this.histFor(o.id).at(vt, this._lagPos)) { ox = this._lagPos.x; oy = this._lagPos.y; oz = this._lagPos.z }
+      const dx = p.position.x - ox
+      const dy = p.position.y - oy
+      const dz = p.position.z - oz
       const d = Math.hypot(dx, dy, dz)
       if (d >= PLAYER_OVERLAP_DIST) continue                       // spheres don't overlap
       if (d < PLAYER_OVERLAP_MIN_DIST) _knock.set(1, 0, 0)         // centers coincide → arbitrary direction
