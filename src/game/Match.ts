@@ -9,12 +9,11 @@ import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
-import type { Controller, FireOutcome } from './abstractions'
-import type { MeshUserData } from '../utils/raycast'
+import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
-import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
+import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
 import { PredictionLog } from '../net/clientReconcile'
 import { applyInputMovement } from '../net/input'
 import { LagCompHistory } from './LagCompHistory'
@@ -42,7 +41,7 @@ import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
-  BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST,
+  BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST, AIM_RANGE,
   NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE,
 } from '../constants'
 
@@ -116,6 +115,7 @@ export class Match {
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
   private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
   private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
+  private pendingHitClaim: HitClaim | null = null   // client: our own shot's raycast result, to send to the host (shooter-authoritative)
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
@@ -316,9 +316,14 @@ export class Match {
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
-          // Client-side hit prediction: the beam already renders locally; ALSO spawn the impact sparks from our OWN
-          // raycast right now, so a hit reads instantly instead of ~RTT later (the kill/score stays host-authoritative).
-          if (p.weaponJustFired && p.fireOutcome?.hitPoint) p.spawnImpact(p.fireOutcome.hitPoint)
+          // Shooter-authoritative: the client raycasts its OWN beam (already done in p.update). Spawn the impact from
+          // it instantly, and CLAIM the result to the host — the host validates loosely and applies the kill, so "what
+          // you shot is what you hit" (no lag-comp rewind, no host-advantage). The host's combat for our shot is gone.
+          if (p.weaponJustFired && p.fireOutcome) {
+            const o = p.fireOutcome
+            if (o.hitPoint) p.spawnImpact(o.hitPoint)
+            this.pendingHitClaim = { tick: this.tick, hitId: o.hitEntityId, point: o.hitPoint ? toVec3(o.hitPoint) : null, end: toVec3(o.end) }
+          }
           p.clearJustFired()   // combat is computed by the host → we reset the flag ourselves (else the ball stays bloated)
         } else {
           p.updateRemote(dt, this.world)
@@ -369,21 +374,6 @@ export class Match {
     return h
   }
 
-  /** Move the victim's hitbox back to where the shooter saw it (viewTick), re-raycast the same ray, and replace the
-   *  outcome's hit with the rewound result; then restore. 1v1: the host's own player is the rewind target. */
-  private lagCompRaycast(shooterId: number, o: FireOutcome, viewTick: number) {
-    const victim = this.byId.get(this.localId)
-    if (!victim || !this.histFor(victim.id).at(viewTick, this._lagPos)) return
-    const grp = victim.bodyGroup
-    const sx = grp.position.x, sy = grp.position.y, sz = grp.position.z
-    grp.position.set(this._lagPos.x, this._lagPos.y, this._lagPos.z)
-    grp.updateMatrixWorld(true)
-    const hit = this.world.raycast(o.rcOrigin, o.rcDir, [shooterId])
-    o.hitEntityId = hit ? ((hit.object.userData as MeshUserData).entityId ?? null) : null
-    o.hitPoint = hit ? hit.point.clone() : null
-    grp.position.set(sx, sy, sz)
-    grp.updateMatrixWorld(true)
-  }
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
@@ -512,49 +502,13 @@ export class Match {
     for (const shooter of this.players) {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
-      // Lag compensation: a REMOTE shooter aimed at the opponent as it saw it (~interp+latency in the past). Re-validate
-      // the hit with the victim rewound to the shooter's viewTick, so what you saw is what you hit.
-      if (o && this.role === 'host' && shooter.id !== this.localId) {
-        const vt = this.remoteControllers.get(shooter.id)?.lastViewTick ?? 0
-        if (vt > 0) this.lagCompRaycast(shooter.id, o, vt)
-      }
       if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId })
-      if (o && o.hitEntityId !== null) {
+      // Shooter-authoritative: only the host's OWN shot resolves its hit here (the host IS its shooter). A remote
+      // (client) shot's hit arrives separately as a HitClaim (applyHitClaim) — what the client saw is what it hit, no
+      // lag-comp rewind, no host advantage. The remote shot still emits `fired` above for the beam visual.
+      if (o && o.hitEntityId !== null && shooter.id === this.localId) {
         const victim = this.byId.get(o.hitEntityId)
-        if (victim && victim.alive) {   // don't finish off a dead/deflating victim
-          const res = victim.receiveHit()
-          if (res === 'blocked') {
-            const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
-            if (perfect) victim.resetCooldowns()
-            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
-            if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
-            if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
-            else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
-          } else {
-            victim.deaths++
-            const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
-            victim.streak = 0
-            let streak = 0, firstBlood = false
-            let bounty = 0, resetCd = false
-            if (shooter !== victim) {
-              bounty = bountyFrags(broken)
-              resetCd = breakResetsCooldowns(broken)
-              shooter.kills += bounty               // scored (with bounty)
-              shooter.streak++                      // killstreak — per real kill (+1)
-              streak = shooter.streak
-              if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
-              if (resetCd) shooter.resetCooldowns()
-            }
-            this.scoresDirty = true
-            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
-            this.announceStreak(shooter.id, victim.id, streak, firstBlood)
-            if (shooter === this.human && victim !== this.human) {
-              if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
-              window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
-            }
-            if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
-          }
-        }
+        if (victim) this.resolveHit(shooter, victim, o.hitPoint)
       }
       if (shooter === this.human) {
         this.dispatch({ type: 'BEAM_FLASH' })
@@ -563,6 +517,60 @@ export class Match {
       shooter.clearJustFired()
     }
   }
+
+  /** Apply an authoritative hit — block or kill + scoring + events. Shared by the host's own shot (resolveCombat) and
+   *  a client's shooter-authoritative HitClaim (applyHitClaim). */
+  private resolveHit(shooter: Player, victim: Player, hitPoint: THREE.Vector3 | null): void {
+    if (!victim.alive) return   // don't finish off a dead/deflating victim
+    const res = victim.receiveHit()
+    if (res === 'blocked') {
+      const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
+      if (perfect) victim.resetCooldowns()
+      this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
+      if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
+      if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
+      else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+    } else {
+      victim.deaths++
+      const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
+      victim.streak = 0
+      let streak = 0, firstBlood = false
+      let bounty = 0, resetCd = false
+      if (shooter !== victim) {
+        bounty = bountyFrags(broken)
+        resetCd = breakResetsCooldowns(broken)
+        shooter.kills += bounty               // scored (with bounty)
+        shooter.streak++                      // killstreak — per real kill (+1)
+        streak = shooter.streak
+        if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+        if (resetCd) shooter.resetCooldowns()
+      }
+      this.scoresDirty = true
+      this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
+      this.announceStreak(shooter.id, victim.id, streak, firstBlood)
+      if (shooter === this.human && victim !== this.human) {
+        if (hitPoint) shooter.spawnImpact(hitPoint)
+        window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
+      }
+      if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
+    }
+  }
+
+  /** host: apply a client's shooter-authoritative hit. Loose validation (P2P 1v1 with friends): the victim must be a
+   *  real, living opponent within weapon range. The shield is handled naturally by receiveHit → 'blocked'. A rejected
+   *  claim is simply dropped — the client's predicted death (if any) self-corrects from the next snapshot. */
+  applyHitClaim(shooterId: number, claim: HitClaim): void {
+    if (this.role !== 'host' || claim.hitId === null) return
+    const shooter = this.byId.get(shooterId)
+    const victim = this.byId.get(claim.hitId)
+    if (!shooter || !victim || victim === shooter || !victim.alive) return
+    const point = claim.point ? fromVec3(claim.point) : victim.position
+    if (shooter.position.distanceTo(point) > AIM_RANGE) return   // sanity: not beyond the beam's reach
+    this.resolveHit(shooter, victim, point)
+  }
+
+  /** client: the pending shooter-authoritative hit to send the host this frame (cleared on read). */
+  drainHitClaim(): HitClaim | null { const c = this.pendingHitClaim; this.pendingHitClaim = null; return c }
 
   // Ghost phase: the player is invulnerable and moves on its own (via controllers+applyPhysics); when the timer
   // expires it materializes IN PLACE where it stopped (not at a random point).
