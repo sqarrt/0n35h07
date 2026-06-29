@@ -47,13 +47,13 @@ import { About } from './screens/About'
 import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
-import { loadProfile, saveProfile } from './settings'
+import { loadProfile, saveProfile, isFirstRun, chooseFirstRunName } from './settings'
 import { entitlementFor, consumeGen, consumeSave, rollTrial, emptyTrial } from './radio/entitlement'
 import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser } from './steam/steam'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
 import { ThreeSfxEngine } from './game/audio/sfx/ThreeSfxEngine'
@@ -199,6 +199,7 @@ export default function App() {
   const [locked, setLocked] = useState(false)
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
+  const [wasFirstRun] = useState(() => isFirstRun())   // capture BEFORE loadProfile() (which creates+saves the profile)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   // initial is read by the provider once — not recomputed on every render (lazy-init, no ref read during render)
   const [initialLocale] = useState(() => profile.locale ?? detectLocale())
@@ -579,6 +580,23 @@ export default function App() {
 
   // Steam Rich Presence: reflect the current screen (menu / lobby / match) in the friends list. No-op off-Steam.
   useEffect(() => { applyScreenPresence(screen) }, [screen])
+
+  // First launch: seed the in-game name from the Steam persona name (once Steam resolves). Off-Steam keeps the
+  // generated model name; the player can rename later in settings.
+  useEffect(() => {
+    if (!IS_DESKTOP || !wasFirstRun) return
+    void getSteamUser().then(u => {
+      if (!u) return
+      setProfile(p => {
+        const name = chooseFirstRunName(true, u.name, p.name)
+        if (name === p.name) return p
+        const next = { ...p, name }
+        saveProfile(next)
+        return next
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Global Steam invite listener: a friend's overlay invite / "Join game" → join their lobby as a client,
   // from any screen. Mounted once (off-Steam it's a no-op subscription).
