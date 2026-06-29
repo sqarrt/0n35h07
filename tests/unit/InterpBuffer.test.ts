@@ -28,6 +28,15 @@ describe('InterpBuffer', () => {
   it('returns false on an empty buffer', () => {
     expect(new InterpBuffer().sample(0, out())).toBe(false)
   })
+  it('sampleTick interpolates the host-tick at the render time', () => {
+    const b = new InterpBuffer()
+    b.push(1000, 0, 0, 0, 100); b.push(1100, 10, 0, 0, 106)   // ticks 100→106 over 100ms
+    expect(b.sampleTick(1050)).toBeCloseTo(103, 1)             // halfway → tick 103
+    expect(b.sampleTick(2000)).toBe(106)                        // past newest → newest tick
+    expect(b.sampleTick(0)).toBe(100)                           // before oldest → oldest tick
+  })
+  it('sampleTick is 0 on an empty buffer', () => { expect(new InterpBuffer().sampleTick(0)).toBe(0) })
+
   it('drops samples older than the capacity window (does not grow unbounded)', () => {
     const b = new InterpBuffer(3)
     for (let t = 0; t < 10; t++) b.push(t * 100, t, 0, 0)   // 10 pushes, cap 3
