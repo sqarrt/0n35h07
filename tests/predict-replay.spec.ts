@@ -108,3 +108,23 @@ test('opponent renders smoothly under latency — no jitter in the remote positi
   const BACK_EPS = 0.3
   for (let i = 1; i < dists.length; i++) expect(dists[i]).toBeGreaterThanOrEqual(dists[i - 1] - BACK_EPS)   // no jitter/backward
 })
+
+// Lag-comp INTEGRATION smoke: under latency the client aims at the host as IT SEES it (interpolated ~100ms back) and
+// fires; the host rewinds itself to the client's viewTick and validates the hit there. This exercises the whole
+// viewTick → history → rewind-raycast path end-to-end under latency. (The rewind MATH for a MOVING target is unit-
+// tested in LagCompHistory/InterpBuffer; a moving-target e2e is too timing-flaky for CI — confirm by playtest.)
+test('lag compensation: client hits the opponent it sees under latency', async ({ context }) => {
+  const { host, client } = await startLaggyMatch(context)
+  await fakeLock(client)
+  await client.waitForTimeout(150)
+  await client.evaluate(() => {
+    const cam = (window as { __debugCamera?: { lookAt: (x: number, y: number, z: number) => void } }).__debugCamera
+    const hp = (window as { __debugPlayerPos?: (i: number) => { x: number; y: number; z: number } | null }).__debugPlayerPos?.(0)
+    if (cam && hp) cam.lookAt(hp.x, hp.y, hp.z)
+  })
+  for (let i = 0; i < 4; i++) {
+    await client.evaluate(() => window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true })))
+    await client.waitForTimeout(700)
+  }
+  await expect.poll(() => host.evaluate(() => (window as { __debugScore?: (i: number) => { deaths: number } | null }).__debugScore?.(0)?.deaths ?? 0), { timeout: 10000 }).toBeGreaterThanOrEqual(1)
+})

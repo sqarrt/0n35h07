@@ -352,7 +352,9 @@ export class Match {
 
   private histFor(id: number): LagCompHistory {
     let h = this.history.get(id)
-    if (!h) { h = new LagCompHistory(); this.history.set(id, h) }
+    // ~1s window: must cover interp delay + RTT + the beam's windup (the fire's viewTick is captured at press,
+    // but the raycast lands ~windup later) — else the rewind clamps to the oldest sample and misses.
+    if (!h) { h = new LagCompHistory(64); this.history.set(id, h) }
     return h
   }
 
