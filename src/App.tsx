@@ -774,12 +774,15 @@ export default function App() {
     radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
     setRadioPlayMode('gen')
   }
-  // Live-unlock: the Steam overlay closed (user may have just bought the DLC) → re-check ownership.
+  // Live-unlock: re-check DLC ownership when the Steam overlay closes OR the window regains focus (the user just
+  // returned from the steam:// store page, which opens in the Steam client — no overlay-close event there).
   useEffect(() => {
     if (!IS_DESKTOP) return
     let un = () => {}
-    void onRadioRecheckDlc(() => { void radioDlcOwned().then((o) => { setRadioOwned(o); setProfile((p) => ({ ...p, radioDlcOwned: o })) }) }).then((u) => { un = u })
-    return () => un()
+    const recheck = () => { void radioDlcOwned().then((o) => { setRadioOwned(o); setProfile((p) => ({ ...p, radioDlcOwned: o })) }) }
+    void onRadioRecheckDlc(recheck).then((u) => { un = u })
+    window.addEventListener('focus', recheck)
+    return () => { un(); window.removeEventListener('focus', recheck) }
   }, [])
   // Resume a generative stream that halted at the gen limit, once generation is allowed again (new day / purchase).
   useEffect(() => {
