@@ -3,11 +3,12 @@ import type { RapierRigidBody } from '@react-three/rapier'
 import type { MeshUserData } from '../utils/raycast'
 import {
   EYE_HEIGHT, GRAVITY, JUMP_FORCE, BODY_MESH_Y, HITBOX_Y,
-  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_REMOTE_LERP,
+  DASH_SPEED, DASH_DURATION, DASH_COOLDOWN, KNOCKBACK_SPEED, KNOCKBACK_DURATION, KNOCKBACK_UP_SPEED, NET_INTERP_DELAY_MS,
   BALL_RADIUS, BALL_SEGMENTS,
   MAX_AIR_JUMPS, GROUND_ACCEL, GROUND_FRICTION, AIR_ACCEL, AIR_WISH_SPEED, MAX_SPEED, SLOPE_MIN_NORMAL_Y,
 } from '../constants'
 import type { BallModel } from '../constants'
+import { InterpBuffer } from '../net/InterpBuffer'
 import { createBallMaterial, createBallRing } from './fx/ballMaterial'
 import type { BallArt } from './ballArt'
 
@@ -67,7 +68,9 @@ export class Body {
   private jumpedThisFrame = false            // jumped this frame → skip friction (bhop)
   private desired = new THREE.Vector3()
   private teleport: THREE.Vector3 | null = null
-  private netTarget: THREE.Vector3 | null = null   // target position of the remote player (client)
+  private interp = new InterpBuffer()              // remote player: timestamped snapshot samples (entity interpolation)
+  private hasSample = false                          // any remote snapshot received yet?
+  private _remoteOut = { x: 0, y: 0, z: 0 }         // scratch for the interpolated remote position
   private dashDir = new THREE.Vector3()
   private dashTimer = 0
   private dashCooldown = 0
@@ -312,7 +315,7 @@ export class Body {
     this.wishVel.set(0, 0, 0)
     this.grounded = p.y <= EYE_HEIGHT + 0.01
     this.teleport = p.clone()
-    this.netTarget = null   // respawn/teleport — the old authority is invalid
+    this.interp = new InterpBuffer(); this.hasSample = false   // respawn/teleport — old buffered history is invalid
     this.dashTimer = 0
     this.dashCooldown = 0
     this.resetTickPos()     // don't interpolate the visual across the teleport
@@ -323,21 +326,16 @@ export class Body {
     return t
   }
 
-  // --- networking: remote player position (client renders from snapshots) ---
+  // --- networking: remote player position (client renders from buffered snapshots, ~100ms in the past) ---
   applyNetTarget(pos: THREE.Vector3) {
-    if (this.netTarget) this.netTarget.copy(pos)
-    else this.netTarget = pos.clone()
+    this.interp.push(Date.now(), pos.x, pos.y, pos.z)
+    this.hasSample = true
   }
-  hasNetTarget() { return this.netTarget !== null }
-  /** Next position: smooth step from current (rb/cache) toward the network target. */
+  hasNetTarget() { return this.hasSample }
+  /** Position to render this frame: the remote interpolated at now − NET_INTERP_DELAY_MS (smooth under packet jitter). */
   nextRemoteTranslation(): XYZ {
-    const cur = this.rb ? this.rb.translation() : this.position
-    const t = this.netTarget ?? this.position
-    return {
-      x: THREE.MathUtils.lerp(cur.x, t.x, NET_REMOTE_LERP),
-      y: THREE.MathUtils.lerp(cur.y, t.y, NET_REMOTE_LERP),
-      z: THREE.MathUtils.lerp(cur.z, t.z, NET_REMOTE_LERP),
-    }
+    if (this.interp.sample(Date.now() - NET_INTERP_DELAY_MS, this._remoteOut)) return this._remoteOut
+    return this.position
   }
 
   /** Cache the position from the physics body (result of the previous step). */
