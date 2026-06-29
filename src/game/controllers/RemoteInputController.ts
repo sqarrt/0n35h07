@@ -14,8 +14,11 @@ const MAX_QUEUE = 8   // jitter buffer cap: drop the oldest beyond this so a bac
  * Host: drives the remote player's avatar from received InputFrames, TICK-ALIGNED. Both sides run the fixed 60 Hz
  * tick, so the host applies ONE client input per host tick (FIFO, in order) — the natural 1:1 mapping. The
  * last-applied client tick is reported as `ackTick` and echoed in the snapshot for the client's prediction
- * reconciliation. Edge actions (fire/shield/dash) are accumulated so a one-shot isn't lost between frames; on a
- * network gap the last frame's movement is re-applied (extrapolation) so the avatar keeps gliding.
+ * reconciliation. Edge actions (fire/shield/dash) are accumulated so a one-shot isn't lost between frames. On a
+ * network gap (no input this tick) the avatar is HELD — not extrapolated — so the host's trajectory stays identical
+ * to the client's own input sequence (one step per real input). That determinism is what lets the client's prediction
+ * reconcile with zero error: a speculative step here would desync the host and snap the client back. (Match.applyPhysics
+ * does the hold; this controller just reports `appliedReal=false` on the gap.)
  */
 export class RemoteInputController implements Controller {
   private player: Player
@@ -44,10 +47,8 @@ export class RemoteInputController implements Controller {
     this._appliedReal = false
     if (this.queue.length > MAX_QUEUE) this.queue.splice(0, this.queue.length - MAX_QUEUE) // bound the backlog
     const frame = this.queue.shift()
-    if (!frame) {
-      if (this.last) applyInputMovement(this.player, this.last, FIXED_DT) // gap → extrapolate movement, no edges
-      return
-    }
+    if (!frame) return   // network gap: no real input → Match HOLDS the avatar (applyPhysics). No extrapolation: a
+                         // speculative step here would diverge from the client's prediction → reconciliation snap-back.
     applyInputMovement(this.player, frame, FIXED_DT)
     this.appliedTick = frame.tick
     this._appliedReal = true

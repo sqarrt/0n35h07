@@ -437,6 +437,13 @@ export class Match {
       }
       const t = p.consumeTeleport()
       if (t) { rb.setNextKinematicTranslation(t); p.setGrounded(true); continue }
+      // Host: on a network gap (the remote's controller had no real input this tick) HOLD its avatar — don't step it.
+      // The authoritative trajectory then equals EXACTLY the client's own input sequence (one step per input), so the
+      // client's prediction reconciles with zero error. Extrapolating here would insert a step the client never
+      // predicted → host diverges → reconciliation snap-back (the "client jitter"). The remote just lags a hair under
+      // packet jitter (its render is interpolated anyway); it never desyncs.
+      const rc = this.remoteControllers.get(p.id)
+      if (rc && !rc.appliedReal) continue
       this.stepPlayerMovement(p, rb, dt, ignorePlayers)   // intents already applied by the controller this tick
     }
   }

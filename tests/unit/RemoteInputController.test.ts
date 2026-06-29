@@ -68,8 +68,8 @@ describe('RemoteInputController — tick-aligned consumption (1:1)', () => {
     rc.update(1 / 60); expect(rc.ackTick).toBe(10)
     rc.update(1 / 60); expect(rc.ackTick).toBe(11)
     rc.update(1 / 60); expect(rc.ackTick).toBe(12)
-    rc.update(1 / 60); expect(rc.ackTick).toBe(12)   // gap → hold last, tick unchanged
-    expect(moves.length).toBe(4)                      // 3 applied + 1 extrapolated
+    rc.update(1 / 60); expect(rc.ackTick).toBe(12)   // gap → HOLD (no move applied), tick unchanged
+    expect(moves.length).toBe(3)                      // 3 real inputs; the gap applies nothing (avatar is held)
   })
 
   it('fires an edge action exactly once even when batched across frames', () => {
