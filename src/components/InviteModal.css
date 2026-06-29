@@ -2,9 +2,9 @@
    Slides in from the right like a Steam notification. Buttons are real interactive glass (cursor + hover + active). */
 .invite-toast {
   position: fixed; right: 18px; bottom: 132px; z-index: 210;
-  width: 268px; padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 12px;
-  color: var(--text);
+  box-sizing: border-box; width: 240px; padding: 13px 15px;   /* matches the docked player (300 × 0.8 scale) */
+  display: flex; flex-direction: column; gap: 11px;
+  font-family: var(--ui-font); color: var(--text);            /* game font — the title was falling back to serif */
   animation: invite-in .24s cubic-bezier(.2, .8, .2, 1);
 }
 @keyframes invite-in { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: translateX(0); } }
