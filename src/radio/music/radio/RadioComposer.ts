@@ -8,10 +8,10 @@ import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
-import { CompositionScheduler } from './CompositionScheduler'
+import { CompositionScheduler, type TrackPlan } from './CompositionScheduler'
 import { shapeFor, type SectionRole, type SectionShape } from './arrangement'
-import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyle'
-import { keyRootMidi, type Chord } from './theory'
+import type { PercKind, BgKind, BassArchetype, DrumArchetype, TrackStyle } from './trackStyle'
+import { keyRootMidi, type Chord, type ChordSequence } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
 import { sidechainGain } from './fx'
@@ -62,6 +62,64 @@ function makeLoudness(
   const pump = sidechainGain(mood.fx.sidechainDepth)
   // energyEnv is exposed because the KICK uses it directly (its own gain, bypassing normScale/g).
   return { g, pump, energyEnv }
+}
+
+// Transition device families (a "pre" device on the outgoing block's last bar, a "post" impact on the downbeat
+// crossed into). Mirror the `as const` arrays inside buildNextPattern.
+type PreKind = 'snareRoll' | 'tomRoll' | 'riser' | 'kickDrop' | 'echoThrow'
+type PostKind = 'crash' | 'subDrop' | 'downlifter'
+
+/** Everything one section's layer renderers read — computed once in buildNextPattern, then handed to each
+ *  render*() method. A Parameter Object purely for READABILITY: correctness stays guarded by the byte-identity
+ *  snapshot, not the type system (the renderers also read/mutate shared composer state — this.lead / this.anti /
+ *  this.melody — which is reached via `this`, NOT carried here). Only fields a layer actually reads live here. */
+interface SectionContext {
+  track: TrackPlan
+  mood: MoodConfig
+  rng: Rng
+  pos: number
+  role: SectionRole
+  shape: SectionShape
+  bars: number
+  n: number
+  style: TrackStyle
+  seq: ChordSequence
+  chord: Chord
+  peak: boolean
+  muffled: boolean
+  memory: boolean
+  isExit: boolean
+  blockProgress: number
+  bStart: number
+  lpf: number
+  drums: ReturnType<RhythmEngine['buildDrums']>
+  drumKit: DrumKit | null
+  mut: ReturnType<typeof rollMutations>
+  bassShadow: 'A' | 'B' | null
+  leadShadow: 'D' | null
+  bassRng: Rng
+  g: (level: number) => number
+  pump: string
+  energyEnv: number
+  fxFor: (dFactor: number, rFactor: number) => string
+  seqAligned: (elems: string[]) => string
+  lateAlign: string
+  entered: (k: keyof SectionShape['layers']) => boolean
+  bassEmph: string
+  leadEmph: string
+  bassEnter: string
+  percEnter: string
+  dropDuck: string
+  exitDuck: string
+  leadEntered: boolean
+  leadOn: boolean
+  preKind: PreKind | null
+  postKind: PostKind | null
+  lastN: number
+  lastBar: (x: string) => string
+  firstBar: (x: string) => string
+  fillNext: boolean
+  boundaryOut: boolean
 }
 
 export class RadioComposer {
@@ -311,26 +369,16 @@ export class RadioComposer {
     // reverts to a steady 4-floor kick regardless of kit, so it stays the calm anchor.
     const drumKit = style.drumArchetype !== 'existing' ? DRUM_KITS[style.drumArchetype] : null
 
-    // ── KICK ──
-    if (shape.layers.kicks) {
-      const deep = role === 'break' // steady, darker kick that holds the rest together
-      const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
-      let kickPat = base
-      // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
-      // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
-      if (preKind === 'kickDrop') kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~']) // drop the last bar
-      else if (boundaryOut) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), fillNext ? '[bd*2 bd bd bd]' : '[bd bd bd bd]'])
-      // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
-      else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
-      // Kick is the loud global reference (drives the whole balance). Composition-independent.
-      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0) + (!deep && drumKit?.shape ? drumKit.shape : 0))
-      const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
-      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : drumKit?.lpf ?? (mood.density < 0.5 ? '.lpf(2200)' : '')
-      // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
-      const kv = style.kickVoice
-      const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
-      layers.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+    const ctx: SectionContext = {
+      track, mood, rng, pos, role, shape, bars, n, style, seq, chord,
+      peak, muffled, memory, isExit, blockProgress, bStart, lpf, drums, drumKit, mut,
+      bassShadow, leadShadow, bassRng, g, pump, energyEnv, fxFor, seqAligned, lateAlign, entered,
+      bassEmph, leadEmph, bassEnter, percEnter, dropDuck, exitDuck, leadEntered, leadOn,
+      preKind, postKind, lastN, lastBar, firstBar, fillNext, boundaryOut,
     }
+
+    // ── KICK ──
+    layers.push(...this.renderKick(ctx))
 
     // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
     if (leadEntered) layers.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
@@ -606,6 +654,33 @@ export class RadioComposer {
     this.scheduler.tick()
     if (this.scheduler.isTrackStart()) { this.lead = initialLeadState(); this.afterBreak = false }
     return { strudelCode, musicalState }
+  }
+
+  /** KICK — the loud global reference that drives the whole balance. Composition-independent; keeps its OWN energy
+   *  curve (bypasses normScale/g, by design) and takes the ducks but no pump/fx. */
+  private renderKick(ctx: SectionContext): string[] {
+    const { shape, role, drumKit, mood, style, preKind, boundaryOut, fillNext, lastN, seqAligned, peak, muffled, energyEnv, drums, dropDuck, exitDuck } = ctx
+    const out: string[] = []
+    if (shape.layers.kicks) {
+      const deep = role === 'break' // steady, darker kick that holds the rest together
+      const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
+      let kickPat = base
+      // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
+      // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
+      if (preKind === 'kickDrop') kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~']) // drop the last bar
+      else if (boundaryOut) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), fillNext ? '[bd*2 bd bd bd]' : '[bd bd bd bd]'])
+      // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
+      else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
+      // Kick is the loud global reference (drives the whole balance). Composition-independent.
+      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0) + (!deep && drumKit?.shape ? drumKit.shape : 0))
+      const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
+      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : drumKit?.lpf ?? (mood.density < 0.5 ? '.lpf(2200)' : '')
+      // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
+      const kv = style.kickVoice
+      const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
+      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+    }
+    return out
   }
 
   /** Subtle, in-key background texture to fill/dilute the track — PARAMETERISED per track by `v` (register via
