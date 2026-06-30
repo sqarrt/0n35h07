@@ -106,20 +106,6 @@ export class RadioComposer {
   descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
   currentIndex(): number { return this.scheduler.currentIndex() }
 
-  /** Render the CURRENT track's WHOLE arc to a list of sections (code + bars), deterministically.
-   *  Advances this composer through the track, so callers use a throwaway instance (see bake). */
-  renderTrack(): { code: string; bars: number }[] {
-    const startIndex = this.scheduler.currentIndex()
-    const sections: { code: string; bars: number }[] = []
-    let guard = 0
-    while (this.scheduler.currentIndex() === startIndex && guard++ < 64) {
-      this.bar = 0   // sections are arranged (cycle 0) now — no global-offset rotation (matches renderArrangedTrack)
-      const { strudelCode, musicalState } = this.buildNextPattern()
-      sections.push({ code: strudelCode, bars: musicalState.sectionBars })
-    }
-    return sections
-  }
-
   /** Render the CURRENT track as ONE `arrange(...)` Strudel program — for copy-paste into strudel.cc and (Phase C)
    *  the playback unit. Each section is rendered at bar 0, so its `<…>` sequences start at cycle 0 (`arrange` restarts
    *  every segment there — the global-offset rotation is moot). Labelled with a header + per-segment comments.

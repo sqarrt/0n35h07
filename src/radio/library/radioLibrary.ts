@@ -1,6 +1,7 @@
 // The radio's on-disk track library — a thin, TESTABLE layer over a filesystem abstraction (`FsLike`). The real
 // Tauri-backed FsLike lives in tauriFs.ts (kept separate so this module — and its unit tests — pull in NO Tauri
 // imports). All paths here are LIBRARY-RELATIVE to the radio root ('' = root, 'Folder', 'Folder/Track.json').
+import type { BakedTrack } from '../trackDescriptor'
 
 const TRACK_EXT = '.json'
 const HIDDEN_PREFIX = '_'        // entries starting with '_' (and the migration marker '.') are control files, hidden
@@ -16,21 +17,11 @@ export interface FsLike {
   rename(from: string, to: string): Promise<void>
 }
 
-/** A baked track section (frozen Strudel) — mirrors the radio's BakedSection. */
-export interface BakedSection { code: string; bars: number }
-
-/** What a `<name>.json` track file contains: identity + display meta + the frozen render. */
-export interface TrackPayload {
-  v: 1
-  seed: string
-  index: number
-  name: string
-  mood: string
-  key: string
-  scaleName: string
-  bpm: number
-  style: { kick: string; bass: string; lead: string; bg: string; perc: string }
-  baked: { name: string; sections: BakedSection[] }
+/** What a `<name>.json` track file contains: a self-contained, playable baked favorite (one arrange() program) +
+ *  a provenance/dedup `id` and the schema version. No "recipe" fields — the program IS the track. */
+export interface TrackPayload extends BakedTrack {
+  v: 2
+  id: string   // provenance/dedup id (seed:index for a live track; the name for a re-saved favorite)
 }
 
 /** One row in a folder listing. */
@@ -74,8 +65,8 @@ export class RadioLibrary {
    *  skip it instead of feeding an undefined `baked` into the player (which would crash the radio loop). */
   async readTrack(path: string): Promise<TrackPayload> {
     const d = JSON.parse(await this.fs.readTextFile(path)) as TrackPayload
-    if (!d || typeof d.seed !== 'string' || typeof d.index !== 'number'
-      || !d.baked || !Array.isArray(d.baked.sections) || d.baked.sections.length === 0) {
+    if (!d || typeof d.program !== 'string' || !d.program || typeof d.name !== 'string'
+      || typeof d.bpm !== 'number' || typeof d.bars !== 'number' || !Number.isFinite(d.bars)) {
       throw new Error(`invalid track file: ${path}`)
     }
     return d

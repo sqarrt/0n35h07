@@ -29,11 +29,12 @@ import { EpilepsyWarning } from './components/EpilepsyWarning'
 import { RadioPlayer } from './components/RadioPlayer'
 import { RadioExplorer } from './components/RadioExplorer'
 import { RadioCodePanel } from './components/RadioCodePanel'
+import { trackId } from './radio/library/radioLibrary'
 import type { RadioLibrary, TrackPayload } from './radio/library/radioLibrary'
 import { warmupRadio } from './radio/warmup'
 import { radioTrackName } from './radio/trackName'
 import type { RadioInitState } from './radio/warmup'
-import type { RadioController, TrackDescriptor } from './radio'
+import type { RadioController } from './radio'
 import type { RadioPlayMode } from './components/RadioPlayer'
 import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
@@ -321,8 +322,6 @@ export default function App() {
           // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
           // must not leave the whole library UI absent for the session).
           try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
-          // one-time migration of the old localStorage favorites → on-disk track files (best-effort, isolated)
-          try { const { migrateProfileToLibrary } = await import('./radio/library/migrate'); await migrateProfileToLibrary(lib, profile.favorites, (s, i) => ctrl.bake(s, i)) } catch { /* migration failed — new saves still work */ }
         }
       }
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
@@ -716,13 +715,8 @@ export default function App() {
 
   // --- Radio player controls (desktop). Two sources: the live generative stream ('gen'/Эфир) and a library
   //     FOLDER QUEUE ('fav') of baked tracks, played in order and looping. ---
-  const payloadDesc = (p: TrackPayload): TrackDescriptor => ({ seed: p.seed, index: p.index, mood: p.mood, key: p.key, scaleName: p.scaleName, bpm: p.bpm, style: p.style })
-  // Play a queue track: use its frozen render if valid, else REGENERATE deterministically from the seed (a missing/
-  // empty baked would crash the scheduler and kill the radio for the session).
-  const playQueueTrack = (p: TrackPayload) => {
-    if (p.baked?.sections?.length) radioController?.playBaked(payloadDesc(p), p.baked)
-    else radioController?.playTrack(p.seed, p.index)
-  }
+  // Play a queue track: a saved favorite is a self-contained arrange() program — play it directly.
+  const playQueueTrack = (p: TrackPayload) => radioController?.playBaked(p)
   const playQueueAt = (i: number) => {
     const { q } = radioQueueRef.current
     if (!q.length) return
@@ -755,18 +749,17 @@ export default function App() {
     setRadioPlayMode(m)
     if (m === 'gen') radioController?.resumeGenerative()
   }
-  // Descriptor of the track AUDIBLY playing now (from the emitted state). NOT controller.currentTrack(), which the
-  // composer advances a section ahead — that mismatch put the wrong track into favorites.
-  const radioCurrentDesc: TrackDescriptor | null = radioMusicalState
-    ? { seed: radioMusicalState.seed, index: radioMusicalState.trackIndex, mood: radioMusicalState.mood, key: radioMusicalState.key, scaleName: radioMusicalState.scaleName, bpm: radioMusicalState.bpm, style: { kick: '', bass: '', lead: '', bg: '', perc: '' } }
-    : null
-  // The CURRENT track baked to a self-contained library payload (for the player's drag-to-save). bake() is pure/sync.
+  // The CURRENT track as a self-contained v2 library payload (for the player's drag-to-save): the live arrange()
+  // program that's actually playing (works for a live track AND a baked favorite) + display meta + total bars.
   const currentTrackJSON = (): string | null => {
-    const d = radioCurrentDesc; if (!d || !radioController) return null
-    const sections = radioController.bake(d.seed, d.index)
-    if (!sections.length) return null
-    const name = radioMusicalState ? (radioMusicalState.name ?? radioTrackName(radioMusicalState)) : 'track'
-    const p: TrackPayload = { v: 1, seed: d.seed, index: d.index, name, mood: d.mood, key: d.key, scaleName: d.scaleName, bpm: d.bpm, style: d.style, baked: { name, sections } }
+    const ms = radioMusicalState
+    if (!ms || !ms.strudelCode || !radioController) return null
+    const name = ms.name ?? radioTrackName(ms)
+    const id = ms.seed ? trackId(ms.seed, ms.trackIndex) : name   // live: seed:index; baked favorite (no seed): name
+    const p: TrackPayload = {
+      v: 2, id, name, bpm: ms.bpm, bars: radioController.currentBars(),
+      info: { mood: ms.mood, key: ms.key, scale: ms.scaleName }, program: ms.strudelCode,
+    }
     return JSON.stringify(p)
   }
   // Regenerate the seed: start a brand-new generative session from a fresh random seed.
