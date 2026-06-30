@@ -119,9 +119,9 @@ const RADIO_EMOJI_KILL_FRAC = 1.08    // kill just below the visible bottom
 // → occult, dark_ambient → ambient, dub_techno → dub, acid_dark → acid, dark_techno/hard_techno → techno.
 const MOOD_EMOJI: Record<string, string[]> = {
   hypnotic:   ['👁️', '🔮', '🕯️', '🧿', '🪬', '🎭', '♟️', '⚱️'],          // dark_hypnotic
-  ambient:    ['🌑', '🌚', '🕳️', '🌫️', '🩶', '❄️', '🧊', '🖤'],          // dark_ambient
+  ambient:    ['🌑', '🌚', '🕳️', '🌫️', '🤍', '❄️', '🧊', '🖤'],          // dark_ambient
   acid:       ['☢️', '☣️', '⚠️', '🧬', '🩸', '👁️', '🩻'],                // acid, acid_dark (no syringe — Steam)
-  dub:        ['🌑', '🌫️', '🕳️', '🌀', '🩶', '⛓️', '🌊', '🧊'],          // dub_techno
+  dub:        ['🌑', '🌫️', '🕳️', '🌀', '🤍', '⛓️', '🌊', '🧊'],          // dub_techno
   industrial: ['⚙️', '🔩', '🔗', '⛓️', '🔪', '⚡', '🪦', '🩻', '☠️'],      // industrial
   techno:     ['💀', '⚙️', '🔩', '🔗', '⛓️', '🔪', '⚡', '🩻', '☠️'],      // dark_techno, hard_techno
   dark:       ['💀', '☠️', '🦴', '⚰️', '🪦', '🩸', '🔪', '⛓️', '⚡', '👁️', '🧠'], // dark (generic)
@@ -135,17 +135,35 @@ function emojiSetFor(mood: string): string[] {
 
 const _fwd = new THREE.Vector3()
 
+// Bundled emoji font (Twemoji Mozilla — a COLR/CPAL colour font Chromium renders into a canvas) so the rain looks
+// identical on every OS instead of leaning on the system emoji font. Loaded once at module init; textures created
+// before it's ready draw with the serif fallback and are re-drawn in place when the font arrives (see below).
+const RADIO_EMOJI_FONT_FAMILY = 'Twemoji Mozilla'
+const RADIO_EMOJI_FONT_URL = '/fonts/Twemoji.Mozilla.ttf'
+const RADIO_EMOJI_FONT = `${RADIO_EMOJI_FONT_PX}px "${RADIO_EMOJI_FONT_FAMILY}", serif`
+const emojiFontReady: Promise<void> =
+  (typeof FontFace !== 'undefined' && typeof document !== 'undefined' && 'fonts' in document)
+    ? new FontFace(RADIO_EMOJI_FONT_FAMILY, `url(${RADIO_EMOJI_FONT_URL})`).load()
+        .then(face => { document.fonts.add(face) }).catch(() => { /* fall back to system emoji */ })
+    : Promise.resolve()
+
+function drawEmoji(ctx: CanvasRenderingContext2D, emoji: string): void {
+  ctx.clearRect(0, 0, RADIO_EMOJI_SPRITE_PX, RADIO_EMOJI_SPRITE_PX)
+  ctx.font = RADIO_EMOJI_FONT
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(emoji, RADIO_EMOJI_SPRITE_PX / 2, RADIO_EMOJI_SPRITE_PX / 2)
+}
+
 function makeEmojiTexture(emoji: string): THREE.CanvasTexture {
   const canvas = document.createElement('canvas')
   canvas.width = RADIO_EMOJI_SPRITE_PX
   canvas.height = RADIO_EMOJI_SPRITE_PX
   const ctx = canvas.getContext('2d')!
-  ctx.font = `${RADIO_EMOJI_FONT_PX}px serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(emoji, RADIO_EMOJI_SPRITE_PX / 2, RADIO_EMOJI_SPRITE_PX / 2)
   const tex = new THREE.CanvasTexture(canvas)
+  drawEmoji(ctx, emoji)                                    // draw now (system fallback if the font isn't ready yet)
   tex.needsUpdate = true
+  void emojiFontReady.then(() => { drawEmoji(ctx, emoji); tex.needsUpdate = true })  // upgrade to Twemoji in place
   return tex
 }
 
