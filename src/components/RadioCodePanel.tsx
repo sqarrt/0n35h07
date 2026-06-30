@@ -40,7 +40,7 @@ export function RadioCodePanel({ code }: { code: string }) {
   }
   return (
     <div style={panel} data-testid="radio-code">
-      <button className="radio-code-copy" style={copyBtn(copied)} onClick={copy} aria-label="copy code" title="copy" data-testid="radio-code-copy">
+      <button className="radio-code-copy" style={copyBtn(copied)} onClick={copy} aria-label="copy code" data-testid="radio-code-copy">
         {copied ? '✓' : '⧉'}
       </button>
       <div style={codeBox}>{code || '—'}</div>

@@ -161,7 +161,7 @@ export function RadioPlayer(p: RadioPlayerProps) {
           else e.preventDefault()
         }}>
         {/* Row 1 — track name (collapsed: click to open) */}
-        <div style={title(!p.expanded)} title={p.trackName} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>
+        <div style={title(!p.expanded)} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>
 
         {p.expanded ? (
           <>
