@@ -179,19 +179,12 @@ export class RadioComposer {
     // Cross-track gap accounting (see skipNextGap): on a fresh track's first section, advance `bar` by the
     // silent gap the controller plays before it, so Strudel's cycle clock and our counter stay in step.
     if (pos === 0) { if (this.skipNextGap) this.skipNextGap = false; else this.bar += this.config.trackGapBars }
-    const off = this.bar % n // phase-align block sweeps to this section's start
-    // SECTION ALIGNMENT — Strudel patterns run on the GLOBAL cycle clock, so a `<a b c d>` sequence or a `.slow(n)`
-    // sweep plays element/phase `globalCycle % len`, NOT element 0 at the section start (sections have varied bar
-    // counts, so this.bar % len ≠ 0). That made layers "enter mid-loop" and risers/fills land on the wrong bar.
-    // `lateAlign` shifts an n-bar LFO so its phase-0 lands on the section's first bar; `seqAligned` rotates a bar
-    // sequence so element 0 lands on the first bar (element p on the section's bar p).
-    const lateAlign = off > 0 ? `.late(${off})` : ''
-    const seqAligned = (elems: string[]): string => {
-      const len = elems.length
-      const rot = new Array<string>(len)
-      for (let p = 0; p < len; p++) rot[(this.bar + p) % len] = elems[p]
-      return `<${rot.join(' ')}>`
-    }
+    // SECTION ALIGNMENT is gone: sections are arranged (each starts at cycle 0 via arrange()), so a `<a b c d>`
+    // already plays element 0 first and an n-bar `.slow(n)` LFO is already phase-aligned — no global-offset rotation
+    // is needed. `seqAligned` is now just the `<…>` wrapper, and `lateAlign` is an empty no-op (kept so the layer
+    // code that appends it reads unchanged).
+    const lateAlign = ''
+    const seqAligned = (elems: string[]): string => `<${elems.join(' ')}>`
     const nextRole = track.arc[pos + 1]
     const fillNext = nextRole === 'break' || nextRole === 'outro' || nextRole === undefined
     const muffled = role === 'intro' || role === 'introB'
@@ -424,9 +417,9 @@ export class RadioComposer {
         const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
         const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
         let acidenvExpr: string
-        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
-        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n})`
+        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n})`
+        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n})`
         else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
         const frag = this.bass.buildBass({
           rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
