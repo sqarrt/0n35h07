@@ -9,6 +9,8 @@ export interface RadioEngine {
   play(code: string): Promise<void>
   stop(): void
   setVolume(volume: number): void
+  pause?(): Promise<void>    // TRUE pause via AudioContext.suspend() (optional — stubs/older engines may omit)
+  resume?(): Promise<void>
 }
 
 export interface RadioControllerDeps {
@@ -144,6 +146,10 @@ export class RadioController {
   setVolume(volume: number): void {
     this.engine.setVolume(volume)
   }
+
+  /** TRUE pause / resume: freeze the audio clock and continue from the exact same position (not stop/restart). */
+  async pause(): Promise<void> { await this.engine.pause?.() }
+  async resume(): Promise<void> { await this.engine.resume?.() }
 
   start(): void {
     if (this.running) return
