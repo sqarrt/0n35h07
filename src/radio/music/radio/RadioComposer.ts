@@ -650,7 +650,7 @@ export class RadioComposer {
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
-          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti, moodId: track.mood,
         }, this.lead)
         this.lead = state
         // Render the picked archetype's synth+FX chain (LEAD_VOICES). `src` overrides the source (else the
@@ -669,7 +669,7 @@ export class RadioComposer {
       if (leadShadow === 'D') {
         const ghost = this.melody.buildLead(chord, {
           rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
-          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti, moodId: track.mood,
         }, initialLeadState())
         out.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
       }
@@ -701,7 +701,7 @@ export class RadioComposer {
       const brk = this.melody.buildBreakLead({
         rng: createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`),
         leadOctave: this.config.leadOctave + 1, density: mood.density,
-        scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key),
+        scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), moodId: track.mood,
       }, this.lead.motif?.voice)
       const brkSpec = LEAD_VOICES[brk.voice]
       const brkSrc = brkSpec.src ?? `.s("${style.leadSound}")`
