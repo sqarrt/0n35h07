@@ -113,6 +113,7 @@ export class RadioComposer {
     const sections: { code: string; bars: number }[] = []
     let guard = 0
     while (this.scheduler.currentIndex() === startIndex && guard++ < 64) {
+      this.bar = 0   // sections are arranged (cycle 0) now — no global-offset rotation (matches renderArrangedTrack)
       const { strudelCode, musicalState } = this.buildNextPattern()
       sections.push({ code: strudelCode, bars: musicalState.sectionBars })
     }
