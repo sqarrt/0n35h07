@@ -763,7 +763,10 @@ export default function App() {
   }
   const radioPrev = () => { ensureRadioOn(); if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
   const radioNext = () => { ensureRadioOn(); if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
-  const radioSeek = (frac: number) => { ensureRadioOn(); radioController?.seekToFraction(frac) }
+  // Optimistically reflect the new position immediately: seekToFraction updates the controller synchronously, so
+  // progress() returns the post-seek spot now — without this the bar snaps back to the stale polled value until the
+  // next ~200ms poll tick (a visible backward jump on release).
+  const radioSeek = (frac: number) => { ensureRadioOn(); radioController?.seekToFraction(frac); if (radioController) setRadioProgress(radioController.progress()) }
   // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
   // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
   const onRadioMode = (m: RadioPlayMode) => {
