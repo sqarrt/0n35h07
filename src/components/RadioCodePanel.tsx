@@ -1,16 +1,18 @@
 import { useState, type CSSProperties } from 'react'
 import { glassCard } from './glass'
 
-// Fixed-size liquid-glass panel in the top-left corner showing the full current Strudel program (scrolls if long).
+// Full-height liquid-glass panel down the left edge showing the full current Strudel program (scrolls when long).
 // DOM (not in-scene) so the whole code is guaranteed on-screen; a soft CSS glow keeps it in the takeover's style.
-// The panel itself is click-through (pointer-events:none) so it never blocks the player; only the copy button isn't.
+// The frame is click-through (pointer-events:none) so the margins never block the player; the SCROLLABLE code box
+// re-enables pointer events (auto) so the wheel/drag actually scroll it.
 const panel: CSSProperties = {
-  position: 'fixed', top: 18, left: 18, zIndex: 110, pointerEvents: 'none',
+  position: 'fixed', top: 18, left: 18, bottom: 18, zIndex: 110, pointerEvents: 'none',
   ...glassCard,
   width: '20vw', padding: 0, overflow: 'hidden',
+  display: 'flex', flexDirection: 'column',
 }
 const codeBox: CSSProperties = {
-  maxHeight: '70vh', overflow: 'auto', padding: '12px 16px',
+  flex: 1, minHeight: 0, overflow: 'auto', pointerEvents: 'auto', padding: '12px 16px',
   fontFamily: 'ui-monospace, "Share Tech Mono", monospace',
   fontSize: '0.72rem', lineHeight: 1.5, letterSpacing: '0.02em',
   color: '#bcd2ff', textShadow: '0 0 6px rgba(120,170,255,0.45)',
