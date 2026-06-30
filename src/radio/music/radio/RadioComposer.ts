@@ -382,34 +382,7 @@ export class RadioComposer {
 
     layers.push(...this.renderTransitionDevices(ctx))
 
-    // ── PERC — snares are the "fat" of the peak; light hats keep drive (louder in movement 2)
-    if (shape.layers.perc) {
-      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
-      // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
-      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
-      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
-      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
-      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
-      layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
-      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
-      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
-      const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
-      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
-      layers.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
-      if (drumKit?.ghost && role !== 'break') layers.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
-      if (drumKit?.rim && role !== 'break') layers.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
-      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
-      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
-      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
-        layers.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
-      }
-      // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
-      // the kick + simple hats + halved snare are enough to keep the rest alive.
-      const perc = this.percLayer(style.perc, g)
-      if (perc && role !== 'break') layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
-    }
+    layers.push(...this.renderPerc(ctx))
 
     // ── BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/
     //    electronic winner (tournament — docs/radio-part-archetypes.md). All follow the progression root per bar
@@ -662,6 +635,41 @@ export class RadioComposer {
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
       out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+    }
+    return out
+  }
+
+  /** PERC — snares are the "fat" of the peak; light hats keep drive. A BREAK strips the aggressive elements
+   *  (busy hats, snare rolls, aux-perc) back to a calm backbeat. */
+  private renderPerc(ctx: SectionContext): string[] {
+    const { shape, role, drumKit, style, g, mut, percEnter, peak, fxFor, mood, dropDuck, exitDuck } = ctx
+    const out: string[] = []
+    if (shape.layers.perc) {
+      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
+      // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
+      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
+      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
+      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
+      out.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
+      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
+      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
+      const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
+      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
+      out.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
+      if (drumKit?.ghost && role !== 'break') out.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
+      if (drumKit?.rim && role !== 'break') out.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
+      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
+      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
+      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
+        out.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
+      }
+      // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
+      // the kick + simple hats + halved snare are enough to keep the rest alive.
+      const perc = this.percLayer(style.perc, g)
+      if (perc && role !== 'break') out.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
     return out
   }
