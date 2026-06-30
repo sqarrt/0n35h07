@@ -95,6 +95,15 @@ describe('RadioController — seek + position', () => {
     nowSpy.mockRestore()
     c.stop()
   })
+  it('next() during playback advances exactly one track (look-ahead does NOT cause an off-by-one)', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    c.start()                                 // renders track 0 (audible 0); the composer runs one track ahead (1)
+    expect(c.currentTrack().index).toBe(0)
+    c.next(); expect(c.currentTrack().index).toBe(1)   // jumpTo(audible+1) short-circuits (composer already there)
+    c.next(); expect(c.currentTrack().index).toBe(2)
+    c.stop()
+  })
   it('next() while paused resumes the suspended context (un-pause on switch)', () => {
     const e = recEngine()
     const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
