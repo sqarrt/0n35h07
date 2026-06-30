@@ -11,9 +11,9 @@ const fetchStub = async (url: string) => {
 }
 const stubEngine = { play: async () => {}, stop: () => {}, setVolume: () => {} }
 
-// records the last evaluated code so seek tests can assert the .early(B) shift
+// records the last evaluated code (for the .early(B) shift) + resume calls (for the un-pause-on-switch check)
 const recEngine = () => {
-  const e = { last: '', play: async (c: string) => { e.last = c }, stop: () => {}, setVolume: () => {}, resume: async () => {} }
+  const e = { last: '', resumed: 0, play: async (c: string) => { e.last = c }, stop: () => {}, setVolume: () => {}, pause: async () => {}, resume: async () => { e.resumed++ } }
   return e
 }
 
@@ -79,6 +79,30 @@ describe('RadioController — seek + position', () => {
     nowSpy.mockReturnValue(t0 + c.totalMs() * 5)   // far past the end → clamped, not >1
     expect(c.progress()).toBe(1)
     nowSpy.mockRestore()
+    c.stop()
+  })
+  it('progress() freezes while paused (position is preserved)', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    const t0 = 1_000_000
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+    c.start()
+    nowSpy.mockReturnValue(t0 + c.totalMs() / 4)
+    const atPause = c.progress()
+    void c.pause()                                  // freezes the clock at this position
+    nowSpy.mockReturnValue(t0 + c.totalMs() * 0.9)  // wall clock keeps moving...
+    expect(c.progress()).toBeCloseTo(atPause, 5)    // ...but progress stays put
+    nowSpy.mockRestore()
+    c.stop()
+  })
+  it('next() while paused resumes the suspended context (un-pause on switch)', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    c.start()
+    void c.pause()
+    expect(e.resumed).toBe(0)
+    c.next()
+    expect(e.resumed).toBeGreaterThan(0)
     c.stop()
   })
 })
