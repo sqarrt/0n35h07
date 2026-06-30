@@ -1,8 +1,28 @@
-import { useRef, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { glassCard } from './glass'
 import { DT_TRACK } from './RadioExplorer'
 import './RadioExplorer.css' // the .rexp-cass cassette icon (reused as the drag image)
 import { useT } from '../i18n'
+
+const SEC_PER_MIN = 60
+const MS_PER_SEC = 1000
+const SCRUB_RAIL_HEIGHT = 4   // px — thin rail; the row height is reserved so nothing jumps
+const SCRUB_THUMB = 11        // px — the draggable knob diameter
+
+/** Pointer X → fraction 0..1 along a rail rect. Guards a zero-width rail. */
+export function fractionFromPointer(clientX: number, rect: { left: number; width: number }): number {
+  if (rect.width <= 0) return 0
+  return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+}
+
+/** Milliseconds → "m:ss" (negative/NaN → "0:00"). */
+export function fmtMs(ms: number): string {
+  if (!(ms > 0)) return '0:00'
+  const total = Math.floor(ms / MS_PER_SEC)
+  const m = Math.floor(total / SEC_PER_MIN)
+  const s = total % SEC_PER_MIN
+  return `${m}:${s < 10 ? '0' : ''}${s}`
+}
 
 // Build an off-screen cassette element, snapshot it as the drag image, then drop it (no persistent leak).
 function setCassetteDragImage(dt: DataTransfer) {
@@ -29,6 +49,9 @@ interface RadioPlayerProps {
   onPrev: () => void
   onNext: () => void
   onPlayPause: () => void
+  progress: number               // current play position 0..1 (polled)
+  totalMs: number                // current track duration in ms (for the time label)
+  onSeek: (frac: number) => void // jump the current track to a fraction
   onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
   onRegen: () => void
   trial?: { gensLeft: number; savesLeft: number } | null // free-trial remaining; null = unlimited/unresolved → no strip
@@ -62,6 +85,11 @@ const title = (clickable: boolean): CSSProperties => ({
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: clickable ? 'pointer' : 'default',
 })
 const subRow: CSSProperties = { textAlign: 'center', color: 'var(--accent-dim)', fontSize: '0.7rem', letterSpacing: '0.12em' }
+const scrubRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, height: 16, fontSize: '0.6rem', color: 'var(--accent-dim)', letterSpacing: '0.04em' }
+const scrubRail: CSSProperties = { position: 'relative', flex: 1, height: SCRUB_RAIL_HEIGHT, borderRadius: SCRUB_RAIL_HEIGHT, background: 'rgba(255,255,255,0.14)', cursor: 'pointer', touchAction: 'none' }
+const scrubFill = (frac: number): CSSProperties => ({ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${frac * 100}%`, borderRadius: SCRUB_RAIL_HEIGHT, background: 'var(--accent, #8cf)' })
+const scrubThumb = (frac: number): CSSProperties => ({ position: 'absolute', top: '50%', left: `${frac * 100}%`, width: SCRUB_THUMB, height: SCRUB_THUMB, marginLeft: -SCRUB_THUMB / 2, transform: 'translateY(-50%)', borderRadius: '50%', background: '#eef', pointerEvents: 'none' })
+const timeLabel: CSSProperties = { flex: '0 0 auto', minWidth: 30, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }
 const center: CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }
 // grid+placeItems reliably centers symbol glyphs (flex/baseline left them low).
 const iconBtn: CSSProperties = {
@@ -92,6 +120,10 @@ const backBtn: CSSProperties = {
 export function RadioPlayer(p: RadioPlayerProps) {
   const t = useT()
   const cardRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  const [dragFrac, setDragFrac] = useState<number | null>(null)
+  const shownFrac = dragFrac ?? p.progress
+  const seekFrom = (clientX: number) => { if (railRef.current) setDragFrac(fractionFromPointer(clientX, railRef.current.getBoundingClientRect())) }
   const dim: CSSProperties = p.ready ? {} : { opacity: 0.45, pointerEvents: 'none' }
   const radioWord = t.settingsVolRadio   // localized "Radio"
   // Transport buttons stretch to fill the full width of their row.
@@ -115,11 +147,11 @@ export function RadioPlayer(p: RadioPlayerProps) {
       <div ref={cardRef} style={p.expanded ? { ...card, cursor: 'grab' } : card} data-testid="radio-drag"
         draggable={p.expanded}
         onPointerDown={e => {
-          const onControl = !!(e.target as HTMLElement).closest('button, input, .slider')
+          const onControl = !!(e.target as HTMLElement).closest('button, input, .slider, .scrub')
           if (cardRef.current) cardRef.current.draggable = p.expanded && !onControl
         }}
         onDragStart={e => {
-          if ((e.target as HTMLElement).closest('button, input, .slider')) { e.preventDefault(); return } // let controls work
+          if ((e.target as HTMLElement).closest('button, input, .slider, .scrub')) { e.preventDefault(); return } // let controls work
           const j = p.onDragTrack()
           if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; setCassetteDragImage(e.dataTransfer) }
           else e.preventDefault()
@@ -131,6 +163,18 @@ export function RadioPlayer(p: RadioPlayerProps) {
           <>
             {/* subtitle — BPM / key */}
             <div style={{ ...subRow, ...dim }}>{p.subtitle || radioWord}</div>
+            {/* scrub bar — position + click/drag seek (expanded only) */}
+            <div style={{ ...scrubRow, ...dim }} data-testid="radio-scrub-row">
+              <span style={timeLabel}>{fmtMs(shownFrac * p.totalMs)}</span>
+              <div ref={railRef} className="scrub" style={scrubRail} data-testid="radio-scrub"
+                onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); seekFrom(e.clientX) }}
+                onPointerMove={e => { if (dragFrac !== null) seekFrom(e.clientX) }}
+                onPointerUp={e => { if (dragFrac !== null) { p.onSeek(dragFrac); setDragFrac(null) } e.currentTarget.releasePointerCapture(e.pointerId) }}>
+                <div style={scrubFill(shownFrac)} data-testid="radio-scrub-fill" />
+                <div style={scrubThumb(shownFrac)} />
+              </div>
+              <span style={timeLabel}>{fmtMs(p.totalMs)}</span>
+            </div>
             {/* transport */}
             {transport}
             {/* Air toggle (live generative stream) + new-seed die */}
