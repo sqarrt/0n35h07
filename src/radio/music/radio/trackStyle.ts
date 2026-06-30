@@ -6,6 +6,10 @@
 import type { Rng } from '../seededRandom'
 import { weightedPick, type Weighted } from './weighted'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
+import { pickAxis } from './engines/leadAxes'
+import { DRUM_RHYTHMS, type DrumRhythm } from './engines/drumRhythm'
+import { DRUM_KITS_SND, type DrumKit as DrumSndKit } from './engines/drumKit'
+import { DRUM_COLORS, type DrumColor } from './engines/drumColor'
 
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
@@ -71,7 +75,11 @@ export interface TrackStyle {
   bg: BgKind          // the always-on subliminal BED texture that fills the track
   bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
   bassArchetype: BassArchetype // which bass CHARACTER the track uses (co-designed tournament winners + the original)
-  drumArchetype: DrumArchetype // which drum GROOVE the track uses (amen/industrial/broken/minimal + the original)
+  drumArchetype: DrumArchetype // LEGACY — kept so chooseStyle's rng stream stays aligned; unused by the renderer
+  // note 8 stage 2 — the drum is now three independently-chosen axes (picked from a dedicated drumRng):
+  drumRhythm: DrumRhythm  // РИСУНОК — the groove
+  drumKit: DrumSndKit     // НАБОР — the sample bank for the whole kit
+  drumColor: DrumColor    // ЦВЕТ — per-track kick/drum processing (note 4)
 }
 
 // Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
@@ -173,7 +181,9 @@ function pick<T>(rng: Rng, arr: readonly T[], anti: AntiRepeatBuffer, cat: strin
   return arr[idx]
 }
 
-export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
+// `drumRng` is a DEDICATED stream for the three drum axes — the legacy drum picks below still consume `rng`/`anti`
+// (so the rest of the style is byte-identical: no cascade from the stage-2 refactor), but their results are unused.
+export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng): TrackStyle {
   const b = pick(rng, BASS, anti, 'st_bass')
   const l = pick(rng, LEAD, anti, 'st_lead')
   return {
@@ -197,5 +207,9 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
     bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed
     bgAccent: rng.next() < ACCENT_CHANCE ? pick(rng, BG_ACCENTS, anti, 'st_bgacc') : null, // a rare distinctive accent
+    // note 8 stage 2 — the drum triple, from the dedicated drumRng (mood-guarded anti-repeat):
+    drumRhythm: pickAxis(DRUM_RHYTHMS, moodId, drumRng, anti, 'drum_rhythm'),
+    drumKit: pickAxis(DRUM_KITS_SND, moodId, drumRng, anti, 'drum_kit'),
+    drumColor: pickAxis(DRUM_COLORS, moodId, drumRng, anti, 'drum_color'),
   }
 }

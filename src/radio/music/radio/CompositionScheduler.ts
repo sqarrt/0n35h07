@@ -105,11 +105,12 @@ export class CompositionScheduler {
     const bpm = Math.round(lo + rng.next() * (hi - lo))
     const arc = buildArc(rng, m.density < 0.5) // energy graph; deep moods get a gentler one
     const spt = arc.length                     // the arc defines the track's length
-    const style = chooseStyle(rng, this.anti)
+    const seed = `${this.sessionSeed}:t${index}`
+    const style = chooseStyle(rng, this.anti, mood, createRng(`${seed}:drums`))
     // ONE 4-chord progression for the whole track — its harmonic identity.
     const progression = this.harmony.buildSequence(m, tonality, 4, rng, this.anti, null)
     return {
-      index, seed: `${this.sessionSeed}:t${index}`, mood, tonality, bpm,
+      index, seed, mood, tonality, bpm,
       sectionsPerTrack: spt, arc, style, progression,
     }
   }
