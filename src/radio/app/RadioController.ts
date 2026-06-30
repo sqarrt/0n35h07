@@ -142,14 +142,16 @@ export class RadioController {
   /** TRUE pause / resume: freeze the audio clock (suspend) AND the auto-advance timer, and continue from the exact
    *  same position. On resume the absolute grid is shifted forward by the paused duration so the schedule stays aligned. */
   async pause(): Promise<void> {
+    if (!this.running) return   // nothing playing to freeze (already stopped) — a no-op keeps the engine state clean
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }   // also freeze the wall-clock advance, not just audio
     if (!this.pausedAt) this.pausedAt = Date.now()
     await this.engine.pause?.()
   }
   async resume(): Promise<void> {
+    if (!this.running) { this.start(); return }   // nothing was suspended (e.g. resuming after a hard stop) → start fresh
     await this.engine.resume?.()
     if (this.pausedAt) { this.startMs += Date.now() - this.pausedAt; this.pausedAt = 0 }
-    if (this.pendingCb && this.running && this.timer === null) this.arm(this.waitMs(), this.pendingCb)
+    if (this.pendingCb && this.timer === null) this.arm(this.waitMs(), this.pendingCb)
   }
 
   /** Schedule the next boundary callback, remembering it so pause()/resume() can re-arm it. */

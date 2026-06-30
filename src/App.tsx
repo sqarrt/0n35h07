@@ -336,27 +336,28 @@ export default function App() {
   useEffect(() => { radioController?.setVolume(profile.volumeMaster * profile.volumeRadio) }, [radioController, profile.volumeMaster, profile.volumeRadio])
 
 
-  // Start/stop the radio from radioEnabled. Like menu music, the first start needs a user gesture
-  // (autoplay policy) in the browser; on desktop (Tauri) autoplay is allowed. The toggle click is a gesture.
+  // Drive the radio from radioEnabled (the play/pause button) + screen. Like menu music, the first start needs a
+  // user gesture (autoplay policy) in the browser; on desktop (Tauri) autoplay is allowed. The toggle click is a gesture.
   const radioGestureRef = useRef(IS_DESKTOP)
   useEffect(() => {
     if (!radioController) return
-    // The TRAILER runs its own audio → the radio must stop for it (the in-MATCH radio is intentional, via
-    // radioActive, so it keeps playing in 'game'). start() is idempotent, so re-running on screen changes is safe.
-    if (!profile.radioEnabled || screen === 'trailer') { radioController.stop(); return }
-    // If THIS match decided to use its own stem music (radio wasn't ready when it started), don't let the radio
-    // play OVER it — stop it for the match's duration; it resumes back in the menu. (Single authority: gameNet.)
-    if (screen === 'game' && gameNet && !gameNet.radioForMatch) { radioController.stop(); return }
-    const startRadio = () => { radioController.setVolume(profile.volumeMaster * profile.volumeRadio); radioController.start() }
-    if (radioGestureRef.current) { startRadio(); return }
+    // HARD stop only when another source owns the audio: the TRAILER runs its own audio, and a match that chose its
+    // own stem music (radio wasn't ready at start) must not be played over. The in-MATCH radio is intentional (via
+    // radioForMatch), so it keeps playing in 'game'. After a hard stop, re-enabling starts a fresh track.
+    if (screen === 'trailer' || (screen === 'game' && gameNet && !gameNet.radioForMatch)) { radioController.stop(); return }
+    // Play/pause is a TRUE pause: toggling OFF freezes the audio clock in place (AudioContext.suspend), toggling ON
+    // resumes from the exact same spot — no restart-from-0. resume() starts a fresh track if nothing was suspended.
+    if (!profile.radioEnabled) { void radioController.pause(); return }
+    const playRadio = () => { radioController.setVolume(profile.volumeMaster * profile.volumeRadio); void radioController.resume() }
+    if (radioGestureRef.current) { playRadio(); return }
     const onGesture = () => {
       radioGestureRef.current = true
-      startRadio()
+      playRadio()
       window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture)
     }
     window.addEventListener('pointerdown', onGesture); window.addEventListener('keydown', onGesture)
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
-    // volume read fresh inside startRadio; kept out of deps to avoid restarting on slider drag.
+    // volume read fresh inside playRadio; kept out of deps to avoid restarting on slider drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radioController, profile.radioEnabled, screen, gameNet])
 
