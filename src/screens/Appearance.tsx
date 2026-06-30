@@ -136,7 +136,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
       <div style={label}>{t.appearPrimaryColor}</div>
       <div style={row}>
         {PLAYER_COLORS.map(c => (
-          <div key={c} role="button" aria-label={`${t.appearSlotPrimary} ${c}`} title={c}
+          <div key={c} role="button" aria-label={`${t.appearSlotPrimary} ${c}`}
             data-testid={`appearance-primary-${c}`}
             className={`swatch${c === primary ? ' swatch--sel' : ''}`}
             style={{ background: c, color: c }}
@@ -147,7 +147,7 @@ export function Appearance({ profile, onChange, onPreview, onShotPreview, onResp
       <div style={label}>{t.appearReserveColor}</div>
       <div style={row}>
         {PLAYER_COLORS.map(c => (
-          <div key={c} role="button" aria-label={`${t.appearSlotReserve} ${c}`} title={c}
+          <div key={c} role="button" aria-label={`${t.appearSlotReserve} ${c}`}
             data-testid={`appearance-reserve-${c}`}
             className={`swatch${c === reserve ? ' swatch--sel' : ''}${c === primary ? ' swatch--dis' : ''}`}
             style={{ background: c, color: c }}

@@ -38,8 +38,8 @@ export function RoomCodeField({ value, inputRef, onChange, onSubmit }: RoomCodeF
           onKeyDown={e => { if (e.key === 'Enter') onSubmit() }}
           style={INPUT}
         />
-        <button className="lobby-copy-btn" data-testid="lobby-room-random" title={t.lobbyRandomCode} onClick={roll}>⚄</button>
-        <button className="lobby-copy-btn" data-testid="lobby-code-copy" title={t.roomCopyTooltip} onClick={copy}>{copied ? '✓' : '⧉'}</button>
+        <button className="lobby-copy-btn" data-testid="lobby-room-random" onClick={roll}>⚄</button>
+        <button className="lobby-copy-btn" data-testid="lobby-code-copy" onClick={copy}>{copied ? '✓' : '⧉'}</button>
       </div>
     </div>
   )
