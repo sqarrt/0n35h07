@@ -119,6 +119,25 @@ export class RadioComposer {
     return sections
   }
 
+  /** Render the CURRENT track as ONE `arrange(...)` Strudel program — for copy-paste into strudel.cc and (Phase C)
+   *  the playback unit. Each section is rendered at bar 0, so its `<…>` sequences start at cycle 0 (`arrange` restarts
+   *  every segment there — the global-offset rotation is moot). Labelled with a header + per-segment comments.
+   *  Advances this composer, so callers use a throwaway instance. */
+  renderArranged(): string {
+    const d = this.scheduler.descriptor()
+    const startIndex = this.scheduler.currentIndex()
+    const parts: string[] = []
+    let guard = 0
+    while (this.scheduler.currentIndex() === startIndex && guard++ < 64) {
+      this.bar = 0   // arrange restarts each segment at cycle 0 → neutralise the global-offset rotation
+      const { strudelCode, musicalState } = this.buildNextPattern()
+      const stack = strudelCode.replace(/^setcpm\([^)]*\)\n/, '')   // one setcpm for the whole track, not per section
+      parts.push(`  // ${musicalState.section} (${musicalState.sectionBars} bars)\n  [${musicalState.sectionBars}, ${stack}],`)
+    }
+    const header = `// ${d.seed} · ${d.mood} · ${d.key} ${d.scaleName} · ${d.bpm}bpm`
+    return `setcpm(${d.bpm}/4)\n${header}\narrange(\n${parts.join('\n')}\n)`
+  }
+
   /** Jump to a track index within the current session seed (deterministic). Resets per-track state. */
   jumpTo(index: number): void { this.scheduler.jumpTo(index); this.resetTrackState() }
 
