@@ -26,10 +26,12 @@ describe('radioTrackName', () => {
     expect(names.size).toBeGreaterThan(1)
   })
 
-  it('exercises all four schemes across many seeds', () => {
-    const many = Array.from({ length: 80 }, (_, i) => radioTrackName({ ...BASE, trackSeed: `s${i}` }))
+  it('exercises the many schemes across many seeds', () => {
+    const many = Array.from({ length: 160 }, (_, i) => radioTrackName({ ...BASE, trackSeed: `s${i}` }))
     expect(many.some(n => /PROTOCOL:|proc\/|SYS\.|daemon:/.test(n))).toBe(true)   // protocol scheme
-    expect(many.some(n => /(\/\/|\[|·|\/\d)/.test(n))).toBe(true)                  // hybrid tag scheme
+    expect(many.some(n => /(\/\/|\[|·|\/\d)/.test(n))).toBe(true)                  // hybrid tag / compound scheme
     expect(many.some(n => /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(n))).toBe(true)         // plain two-word scheme
+    expect(many.some(n => /^The /.test(n))).toBe(true)                             // definite-article title scheme
+    expect(many.some(n => /No\.\d|no\.\d|·\d/.test(n))).toBe(true)                 // catalogue-index scheme
   })
 })
