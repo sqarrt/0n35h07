@@ -210,7 +210,10 @@ export class RadioComposer {
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
-  buildNextPattern(): { strudelCode: string; musicalState: MusicalState } {
+  /** Gather everything one section needs — harmony, arc role, mix policy, fx, ducks, transition devices — into the
+   *  SectionContext the layer renderers read. Mutates per-section composer state (this.bar gap accounting,
+   *  this.drift, the locked per-track kit) exactly as the inline code did; order is load-bearing. */
+  private computeSectionContext(): SectionContext {
     const track = this.scheduler.current()
     const mood = this.banks.moods[track.mood]
     const rng = this.scheduler.rng()
@@ -374,6 +377,12 @@ export class RadioComposer {
       bassEmph, leadEmph, bassEnter, percEnter, dropDuck, exitDuck, leadEntered, leadOn,
       preKind, postKind, lastN, lastBar, firstBar, fillNext, boundaryOut,
     }
+    return ctx
+  }
+
+  buildNextPattern(): { strudelCode: string; musicalState: MusicalState } {
+    const ctx = this.computeSectionContext()
+    const { track, pos, role, shape, bars, chord } = ctx
 
     // Each instrument renders its own fragment(s); concatenated in MIX order (kick → glue → perc → bass → bg →
     // lead → break → exit-fill). The order is part of the byte-identity contract — do not reshuffle.
