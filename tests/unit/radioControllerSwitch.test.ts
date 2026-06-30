@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { RadioController } from '../../src/radio/app/RadioController'
+import { RadioController, appendEarly } from '../../src/radio/app/RadioController'
 import { loadRadioBanks, DEFAULT_RADIO_CONFIG } from '../../src/radio'
 import type { RadioBanks } from '../../src/radio'
 
@@ -38,5 +38,15 @@ describe('RadioController — track switching', () => {
     // Determinism: a fresh controller jumped to the same track yields the same descriptor.
     const c2 = makeController(); c2.playTrack('OTHER', 3)
     expect(c2.currentTrack()).toEqual(d)
+  })
+})
+
+describe('appendEarly', () => {
+  it('shifts the arrange program left by B bars', () => {
+    expect(appendEarly('setcpm(34/4)\narrange(\n  [8, x]\n)', 8)).toBe('setcpm(34/4)\narrange(\n  [8, x]\n).early(8)')
+  })
+  it('is a no-op for bar 0 (and trims a trailing newline before chaining)', () => {
+    expect(appendEarly('arrange(\n  [8, x]\n)', 0)).toBe('arrange(\n  [8, x]\n)')
+    expect(appendEarly('arrange(\n  [8, x]\n)\n', 4)).toBe('arrange(\n  [8, x]\n).early(4)')
   })
 })

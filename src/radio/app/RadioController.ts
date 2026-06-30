@@ -33,6 +33,14 @@ export function sectionDurationMs(bpm: number, bars: number): number {
   return (bars * 240_000) / bpm
 }
 
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
+
+/** Seek by re-evaluating the SAME arrange program shifted left B bars: `.early(B)` makes bar B play at cycle 0
+ *  (after the controller re-anchors). B === 0 is identity (replay from the start). */
+export function appendEarly(program: string, bars: number): string {
+  return bars <= 0 ? program : `${program.trimEnd()}.early(${bars})`
+}
+
 /**
  * Drives the pure RadioComposer in a continuous loop: build a section, play it
  * (Strudel quantizes the swap to the next cycle), then schedule the next section
