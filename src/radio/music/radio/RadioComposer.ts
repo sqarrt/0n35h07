@@ -765,6 +765,12 @@ export class RadioComposer {
       case 'tapeWarble':  return `note("${root - 12}").s("sawtooth").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(${Math.round(700 * v.cut)}).crush(8).gain(${g(0.1)})${fxFor(0.4, 0.8)}.pan(${v.pan})`
       case 'insectoid':   return `s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(${g(0.13)}).pan(rand)`
       case 'deepBell':    return `note("${root - 12}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(2.5 * v.jitter)}).fmh(1.41).attack(0.001).decay(3).lpf(1400).distort("1.05:0.2").gain(${g(0.2)})${fxFor(0.9, 1.4)}.pan(${v.pan})`
+      // ── synthesized "foley" accents (note 5) — real-world-ish sounds modelled in pure Strudel: sparse, echoey ──
+      // drip = a high sine plip with a fast downward chirp; steps = a heel→toe scuff (two shaped noise hits over a
+      // low body thump); thud = a crate hitting the ground in the next room (low body + wooden knock + a bright crack).
+      case 'drip':  return `note("${root + 36} ~ ~ ~ ~ ~ ~ ~ ~ ~ ${root + 36} ~ ~ ~ ~ ~").s("sine").attack(0.001).decay(${r2(0.1 * v.jitter)}).add(note(saw.range(0,-6).fast(10))).lpf(${Math.round(3800 * v.cut)}).gain(${g(0.18)}).pan(${v.pan})${fxFor(1, 1.4)}`
+      case 'steps': return `stack(s("~ ~ ~ [white ~] ~ ~ ~").attack(0.004).decay(0.09).lpf(${Math.round(400 * v.cut)}).hpf(60).gain(1), s("~ ~ ~ [~ white] ~ ~ ~").attack(0.004).decay(0.06).lpf(${Math.round(290 * v.cut)}).hpf(60).gain(0.72), s("~ ~ ~ white ~ ~ ~ ~").decay(0.13).lpf(150).gain(0.9)).gain(${g(0.2)}).pan(${v.pan})${fxFor(1, 1.4)}`
+      case 'thud':  return `stack(note("${root}").s("sine").attack(0.001).decay(0.22).gain(1), s("white").decay(0.07).lpf(700).hpf(180).gain(1), s("white").decay(0.012).hpf(3500).gain(0.9)).struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~', v.rot)}").distort("1.05:0.18").gain(${g(0.2)}).pan(${v.pan})${fxFor(0.9, 1.5)}`
       default:          return `note("${root - 12}").s("sine").lpf(200).gain(${g(0.1)})`
     }
   }

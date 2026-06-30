@@ -20,19 +20,22 @@ export type BgKind =
   | 'wind' | 'crackle' | 'hiss' | 'geiger' | 'resonance'        // noise textures
   | 'sinearp' | 'granular' | 'choir' | 'siren'                  // tonal shimmers
   | 'tapeChoir' | 'droneCluster' | 'scanner' | 'tapeWarble' | 'insectoid' | 'deepBell' // co-designed dark/horror
+  | 'drip' | 'steps' | 'thud'                                   // synthesized "foley" accents (note 5)
 
 export const BG_KINDS: BgKind[] = [
-  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren',
-  'crackle', 'hiss', 'geiger', 'granular',
-  'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid', 'deepBell',
+  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell',
+  'drip', 'steps', 'thud',
+  'crackle', 'geiger', 'granular',
+  'tapeChoir', 'droneCluster', 'tapeWarble', 'insectoid',
 ]
 // Two tiers: BEDS are subliminal drones/noise with no rhythmic/tonal HOOK — safe to recur, they don't fingerprint
 // a track. ACCENTS are the memorable ones (a bell ping, a sonar blip, a morse rhythm…) — distinctive, so added only
 // OCCASIONALLY and never to two near tracks. Palette TRIAGED by ear (docs/radio-part-archetypes.md): the plain tonal
-// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED; the dark/horror co-designs
-// (tapeChoir/droneCluster/scanner/tapeWarble/insectoid beds + deepBell accent) added. Dead bgTexture cases remain.
-export const BG_BEDS: BgKind[] = ['hiss', 'crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid']
-export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell']
+// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED, then hiss + scanner; the
+// dark/horror co-designs (tapeChoir/droneCluster/tapeWarble/insectoid beds + deepBell accent) and the synthesized
+// foley accents (drip/steps/thud, note 5) added. Dead bgTexture cases remain.
+export const BG_BEDS: BgKind[] = ['crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'tapeWarble', 'insectoid']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell', 'drip', 'steps', 'thud']
 const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
