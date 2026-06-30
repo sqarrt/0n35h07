@@ -4,7 +4,7 @@ import { AntiRepeatBuffer } from '../../src/radio/music/radio/AntiRepeatBuffer'
 import { createRng } from '../../src/radio/music/seededRandom'
 
 const mk = (seed: string, mood = 'dark_techno') =>
-  chooseStyle(createRng(seed), new AntiRepeatBuffer(3), mood, createRng(seed + ':drums'))
+  chooseStyle(createRng(seed), new AntiRepeatBuffer(3), mood, createRng(seed + ':drums'), createRng(seed + ':bassaxes'))
 
 describe('chooseStyle drums', () => {
   it('picks a full drum triple', () => {
