@@ -42,6 +42,11 @@ const MIX = {
   fx: 0.4,      // transition devices / risers / riser texture
 } as const
 
+// Section-shaping curves (hand-tuned by ear; FLOOR = value at energy 0, SPAN = added by energy 1).
+const BRIGHT_FLOOR = 0.4, BRIGHT_SPAN = 0.6      // filter brightness vs section energy
+const ENERGY_FLOOR = 0.83, ENERGY_SPAN = 0.17    // uniform loudness envelope vs energy (raised floor so quiet sections aren't too quiet)
+const EASE_IN_FLOOR = 0.18, EASE_IN_SPAN = 0.82  // gain ramp for a layer re-entering after silence (rises to 1.0)
+
 export class RadioComposer {
   private readonly banks: RadioBanks
   private readonly config: RadioConfig
@@ -183,7 +188,7 @@ export class RadioComposer {
     // A FINE gain ramp (not the old chunky 2-step) for a part that just appeared. The lead does
     // NOT use this — it fades in via a filter open instead, which is smoother still.
     const rampN = Math.min(bars, 4)
-    const rampVals = Array.from({ length: rampN }, (_, i) => r2(0.18 + 0.82 * (i + 1) / rampN))
+    const rampVals = Array.from({ length: rampN }, (_, i) => r2(EASE_IN_FLOOR + EASE_IN_SPAN * (i + 1) / rampN))
     const easeIn = `.gain("<${rampVals.join(' ')}${bars > rampN ? ` 1!${bars - rampN}` : ''}>")`
     const bassEnter = entered('bass') ? easeIn : ''
     // NB: the bg gets NO ease-in ramp — a subliminal texture must hold a STEADY level (a rising/ramping bg
@@ -225,14 +230,14 @@ export class RadioComposer {
     }
     const drums = this.trackDrums
 
-    const bright = 0.4 + 0.6 * energy
+    const bright = BRIGHT_FLOOR + BRIGHT_SPAN * energy
     const lpf = Math.round(this.drift.lpf * bright)
     // GLOBAL balance: level = MASTER × role-level × a gentle, UNIFORM section-energy envelope.
     // No drift.gain, no mood.density — so the balance can't shift track-to-track. energyEnv
     // scales every role together (intros softer, peaks fuller) WITHOUT changing their ratios.
     // Raised floor (was 0.74 + 0.26·energy) so the low-energy sections (intro/break/outro) sit a bit LOUDER —
     // they read as quiet without being too quiet; peaks (energy≈0.94) barely move.
-    const energyEnv = 0.83 + 0.17 * energy
+    const energyEnv = ENERGY_FLOOR + ENERGY_SPAN * energy
     // LOUDNESS NORMALISATION — trim the parts in a FULL section so they don't pile up louder than the body
     // average (the KICK keeps its own energy curve as the steady reference). partSq = the combined non-kick
     // load; normScale brings an over-full section (a peak with perc stacked on) back toward a target. It only
