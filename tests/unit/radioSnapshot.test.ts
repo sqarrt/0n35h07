@@ -28,11 +28,11 @@ beforeAll(async () => {
   )
 })
 
-function render(seed: string, index: number): string[] {
+function render(seed: string, index: number): string {
   const c = new RadioComposer({ banks, config: DEFAULT_RADIO_CONFIG })
   c.reseed(seed)
   c.jumpTo(index)
-  return c.renderTrack().map((s) => s.code)
+  return c.renderArranged()   // the actual playback unit now: one arrange() program (sections at cycle 0)
 }
 
 describe('radio output snapshot (structural-refactor regression net)', () => {
