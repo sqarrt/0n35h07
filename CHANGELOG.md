@@ -13,8 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   explicit warning when your pick didn't overlap the opponent's), the phase ritual, in-match actions, periodic net
   health, Steam-transport diagnostics, and disconnects. Click the version number (bottom-right) to open the log folder
   for sharing.
+- **Radio: seek / scrubbing.** The expanded player now has a progress bar with elapsed/total time — click or drag it
+  to jump anywhere in the current track (live or a saved favorite). Seeks land on the beat.
 
 ### Changed
+- **Radio: play/pause is a TRUE pause.** Pressing pause now freezes the track exactly where it is and resume continues
+  from the same spot, instead of stopping and restarting from the beginning. Next/Prev/seek auto-resume.
+- **No more native hover tooltips in the UI.** It's a game — the browser `title` tooltips (radio track name, net/
+  version chips, lobby code buttons, map-picker actions, colour swatches) are gone; accessible labels stay.
 - **Hit detection is now shooter-authoritative — what you shoot is what you hit.** Each shooter decides its own hits:
   the client raycasts its beam locally and sends the host a hit claim, which the host applies after a loose sanity
   check (target alive, in range). This replaces host-side lag compensation for the client's shots and removes the
