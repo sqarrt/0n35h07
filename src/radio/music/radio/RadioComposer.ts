@@ -380,24 +380,7 @@ export class RadioComposer {
     // ── KICK ──
     layers.push(...this.renderKick(ctx))
 
-    // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
-    if (leadEntered) layers.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
-
-    // pre-device — the last bar of the outgoing section
-    if (preKind === 'snareRoll') layers.push(orbit(`s("${lastBar('[sd*4 sd*8]')}").gain(${g(0.52)}).hpf(400).lpf(7000)${fxFor(0, 0.4)}`, ORBIT.snare))
-    else if (preKind === 'tomRoll') layers.push(orbit(`s("${lastBar('[lt mt lt mt lt mt lt mt]')}").gain(${g(0.5)}).room(0.2)`, ORBIT.snare))
-    else if (preKind === 'riser') layers.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, ${g(0.4)})).hpf(300)`, ORBIT.fx))
-    else if (preKind === 'echoThrow') layers.push(orbit(`s("${lastBar('sd')}").gain(${g(0.5)}).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)`, ORBIT.fx))
-    else if (preKind === 'kickDrop') layers.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, ${g(0.32)})).hpf(400)`, ORBIT.fx))
-
-    // post-device — the downbeat of the incoming section
-    if (postKind === 'crash') layers.push(orbit(`s("${firstBar('white')}").dec(0.6).hpf(3500).gain(${g(0.42)}).room(0.5).roomsize(6)`, ORBIT.fx))
-    else if (postKind === 'subDrop') layers.push(orbit(`note("${firstBar('[48 42 36 30 24]')}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx))
-    else if (postKind === 'downlifter') layers.push(orbit(`s("${firstBar('white*16')}").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(${g(0.34)}, 0.03)).hpf(300)`, ORBIT.fx))
-
-    // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
-    // with a clear gesture whose tail rings out into the silent gap before the next.
-    if (role === 'outro') layers.push(orbit(`s("${lastBar('white')}").dec(1.2).hpf(2500).gain(${g(0.4)}).room(0.6).roomsize(8)`, ORBIT.fx))
+    layers.push(...this.renderTransitionDevices(ctx))
 
     // ── PERC — snares are the "fat" of the peak; light hats keep drive (louder in movement 2)
     if (shape.layers.perc) {
@@ -680,6 +663,29 @@ export class RadioComposer {
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
       out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
     }
+    return out
+  }
+
+  /** Transition GLUE around the kit: the drop-before-lead crash, the pre-device on the outgoing block's last bar,
+   *  the post-impact on the downbeat crossed into, and the outro's final ring-out crash. */
+  private renderTransitionDevices(ctx: SectionContext): string[] {
+    const { leadEntered, seqAligned, bars, g, preKind, lastBar, fxFor, postKind, firstBar, role } = ctx
+    const out: string[] = []
+    // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
+    if (leadEntered) out.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
+    // pre-device — the last bar of the outgoing section
+    if (preKind === 'snareRoll') out.push(orbit(`s("${lastBar('[sd*4 sd*8]')}").gain(${g(0.52)}).hpf(400).lpf(7000)${fxFor(0, 0.4)}`, ORBIT.snare))
+    else if (preKind === 'tomRoll') out.push(orbit(`s("${lastBar('[lt mt lt mt lt mt lt mt]')}").gain(${g(0.5)}).room(0.2)`, ORBIT.snare))
+    else if (preKind === 'riser') out.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, ${g(0.4)})).hpf(300)`, ORBIT.fx))
+    else if (preKind === 'echoThrow') out.push(orbit(`s("${lastBar('sd')}").gain(${g(0.5)}).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)`, ORBIT.fx))
+    else if (preKind === 'kickDrop') out.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, ${g(0.32)})).hpf(400)`, ORBIT.fx))
+    // post-device — the downbeat of the incoming section
+    if (postKind === 'crash') out.push(orbit(`s("${firstBar('white')}").dec(0.6).hpf(3500).gain(${g(0.42)}).room(0.5).roomsize(6)`, ORBIT.fx))
+    else if (postKind === 'subDrop') out.push(orbit(`note("${firstBar('[48 42 36 30 24]')}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx))
+    else if (postKind === 'downlifter') out.push(orbit(`s("${firstBar('white*16')}").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(${g(0.34)}, 0.03)).hpf(300)`, ORBIT.fx))
+    // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
+    // with a clear gesture whose tail rings out into the silent gap before the next.
+    if (role === 'outro') out.push(orbit(`s("${lastBar('white')}").dec(1.2).hpf(2500).gain(${g(0.4)}).room(0.6).roomsize(8)`, ORBIT.fx))
     return out
   }
 
