@@ -201,7 +201,7 @@ export class RadioController {
     this.audibleDesc = desc
     this.audibleIndex = desc.index
     if (desc.index !== this.lastGenIndex) { this.lastGenIndex = desc.index; this.onGenerated?.() }
-    this.onState?.(this.trackState(desc, bpm))
+    this.onState?.(this.trackState(desc, bpm, program))
     void this.engine.play(program)
     // Absolute, self-correcting schedule: play the WHOLE track out (totalBars), then the boundary handler.
     this.nextBoundaryMs += sectionDurationMs(bpm, totalBars)
@@ -226,14 +226,16 @@ export class RadioController {
     this.pendingCb = null
   }
 
-  /** Whole-track MusicalState for the HUD — identity from the descriptor (per-section detail isn't tracked under arrange). */
-  private trackState(desc: TrackDescriptor, bpm: number): MusicalState {
+  /** Whole-track MusicalState for the HUD — identity from the descriptor + the full arrange program for the code
+   *  panel (per-section detail isn't tracked under arrange). `name` is left UNSET so the UI derives it via
+   *  radioTrackName(); setting '' would defeat that `?? radioTrackName` fallback. */
+  private trackState(desc: TrackDescriptor, bpm: number, program: string): MusicalState {
     return {
       seed: desc.seed, trackIndex: desc.index, trackSeed: `${desc.seed}:t${desc.index}`,
-      strudelCode: '', mood: desc.mood, sectionsUntilMoodChange: 0,
+      strudelCode: program, mood: desc.mood, sectionsUntilMoodChange: 0,
       key: desc.key, scaleName: desc.scaleName, chord: '', section: '',
       sectionBars: 0, bpm, bar: 0,
-      layers: { kicks: true, bass: true, lead: true, bg: true, perc: true }, name: '',
+      layers: { kicks: true, bass: true, lead: true, bg: true, perc: true },
     }
   }
 
