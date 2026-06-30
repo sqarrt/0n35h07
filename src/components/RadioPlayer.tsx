@@ -85,8 +85,12 @@ const title = (clickable: boolean): CSSProperties => ({
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: clickable ? 'pointer' : 'default',
 })
 const subRow: CSSProperties = { textAlign: 'center', color: 'var(--accent-dim)', fontSize: '0.7rem', letterSpacing: '0.12em' }
-const scrubRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, height: 16, fontSize: '0.6rem', color: 'var(--accent-dim)', letterSpacing: '0.04em' }
-const scrubRail: CSSProperties = { position: 'relative', flex: 1, height: SCRUB_RAIL_HEIGHT, borderRadius: SCRUB_RAIL_HEIGHT, background: 'rgba(255,255,255,0.14)', cursor: 'pointer', touchAction: 'none' }
+const SCRUB_HIT_HEIGHT = 18   // px — the FULL-height grab area (the visual rail is thin); a 4px target is unhittable
+const scrubRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, height: SCRUB_HIT_HEIGHT, fontSize: '0.6rem', color: 'var(--accent-dim)', letterSpacing: '0.04em' }
+// The interactive `.scrub` element spans the WHOLE row height so the thin rail is easy to grab; the visual rail is a
+// thin child centered inside it (pointerEvents off → the hit area, not the rail, captures the pointer).
+const scrubHit: CSSProperties = { position: 'relative', flex: 1, height: SCRUB_HIT_HEIGHT, display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }
+const scrubRail: CSSProperties = { position: 'relative', width: '100%', height: SCRUB_RAIL_HEIGHT, borderRadius: SCRUB_RAIL_HEIGHT, background: 'rgba(255,255,255,0.14)', pointerEvents: 'none' }
 const scrubFill = (frac: number): CSSProperties => ({ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${frac * 100}%`, borderRadius: SCRUB_RAIL_HEIGHT, background: 'var(--accent, #8cf)' })
 const scrubThumb = (frac: number): CSSProperties => ({ position: 'absolute', top: '50%', left: `${frac * 100}%`, width: SCRUB_THUMB, height: SCRUB_THUMB, marginLeft: -SCRUB_THUMB / 2, transform: 'translateY(-50%)', borderRadius: '50%', background: '#eef', pointerEvents: 'none' })
 const timeLabel: CSSProperties = { flex: '0 0 auto', minWidth: 30, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }
@@ -166,12 +170,14 @@ export function RadioPlayer(p: RadioPlayerProps) {
             {/* scrub bar — position + click/drag seek (expanded only) */}
             <div style={{ ...scrubRow, ...dim }} data-testid="radio-scrub-row">
               <span style={timeLabel}>{fmtMs(shownFrac * p.totalMs)}</span>
-              <div ref={railRef} className="scrub" style={scrubRail} data-testid="radio-scrub"
+              <div ref={railRef} className="scrub" style={scrubHit} data-testid="radio-scrub"
                 onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); seekFrom(e.clientX) }}
                 onPointerMove={e => { if (dragFrac !== null) seekFrom(e.clientX) }}
                 onPointerUp={e => { if (dragFrac !== null) { p.onSeek(dragFrac); setDragFrac(null) } e.currentTarget.releasePointerCapture(e.pointerId) }}>
-                <div style={scrubFill(shownFrac)} data-testid="radio-scrub-fill" />
-                <div style={scrubThumb(shownFrac)} />
+                <div style={scrubRail}>
+                  <div style={scrubFill(shownFrac)} data-testid="radio-scrub-fill" />
+                  <div style={scrubThumb(shownFrac)} />
+                </div>
               </div>
               <span style={timeLabel}>{fmtMs(p.totalMs)}</span>
             </div>

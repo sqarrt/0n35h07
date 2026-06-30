@@ -364,14 +364,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radioController, profile.radioEnabled, screen, gameNet])
 
-  // Poll the play position for the scrub bar — only while the expanded radio player is on screen and active.
+  // Poll the play position for the scrub bar while the expanded radio player is on screen. NOT gated on radioActive:
+  // a PAUSED radio is still "running" (progress() is frozen, totalMs() valid), so the bar + duration must PERSIST on
+  // pause — gating on radioActive (which goes false on pause) zeroed them. progress()/totalMs() return 0 when idle.
   useEffect(() => {
-    if (!radioController || screen !== 'radio' || !radioActive) { setRadioProgress(0); setRadioTotalMs(0); return }
+    if (!radioController || screen !== 'radio') { setRadioProgress(0); setRadioTotalMs(0); return }
     const read = () => { setRadioProgress(radioController.progress()); setRadioTotalMs(radioController.totalMs()) }
     read()
     const id = window.setInterval(read, RADIO_PROGRESS_POLL_MS)
     return () => window.clearInterval(id)
-  }, [radioController, screen, radioActive])
+  }, [radioController, screen])
 
   // Ban accidental RELOAD in the desktop game window — Ctrl/Cmd+R and F5 reload the webview, which drops the
   // match / P2P connection (and the radio) dead. Captured so it fires before anything else. Desktop only: in a
@@ -725,6 +727,12 @@ export default function App() {
     radioGestureRef.current = true
     setProfile(p => { const next = { ...p, radioEnabled: !p.radioEnabled }; saveProfile(next); return next })
   }
+  // Un-pause idempotently (set radioEnabled true, never toggle) — transport actions (next/prev/seek/regen) imply
+  // playing. A plain toggle would double-flip when several callers fire in one render.
+  const ensureRadioOn = () => {
+    radioGestureRef.current = true
+    setProfile(p => { if (p.radioEnabled) return p; const next = { ...p, radioEnabled: true }; saveProfile(next); return next })
+  }
 
   // --- Radio player controls (desktop). Two sources: the live generative stream ('gen'/Эфир) and a library
   //     FOLDER QUEUE ('fav') of baked tracks, played in order and looping. ---
@@ -736,7 +744,7 @@ export default function App() {
     const idx = ((i % q.length) + q.length) % q.length
     radioQueueRef.current.i = idx
     playQueueTrack(q[idx])
-    if (!profile.radioEnabled) handleToggleRadio()
+    ensureRadioOn()
   }
   // The explorer plays a track (or a whole folder): the folder's baked tracks become the queue.
   const onPlayLibrary = (queue: TrackPayload[], startIndex: number) => {
@@ -753,9 +761,9 @@ export default function App() {
     bumpTrial('save')
     return true
   }
-  const radioPrev = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
-  const radioNext = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
-  const radioSeek = (frac: number) => radioController?.seekToFraction(frac)
+  const radioPrev = () => { ensureRadioOn(); if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
+  const radioNext = () => { ensureRadioOn(); if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
+  const radioSeek = (frac: number) => { ensureRadioOn(); radioController?.seekToFraction(frac) }
   // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
   // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
   const onRadioMode = (m: RadioPlayMode) => {
@@ -780,7 +788,7 @@ export default function App() {
   const radioRegen = () => {
     if (!entRef.current.canGenerate) return // daily free generations spent — the player shows the unlock prompt
     radioGestureRef.current = true
-    if (!profile.radioEnabled) handleToggleRadio()
+    ensureRadioOn()
     radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
     setRadioPlayMode('gen')
   }

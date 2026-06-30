@@ -168,7 +168,8 @@ export class RadioController {
     this.epoch++   // invalidate any tick()/tickBaked() that is mid-flight (e.g. the one whose onTrackEnd re-entered here)
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
     this.lastGenIndex = -1       // the freshly-selected (🎲/next/start) track counts as a NEW generation
-    this.pendingCb = null; this.pausedAt = 0
+    this.pendingCb = null
+    if (this.pausedAt) { void this.engine.resume?.(); this.pausedAt = 0 }   // a manual switch un-pauses (resumes the context)
     this.anchorCycle()
     this.startMs = Date.now()
     this.nextBoundaryMs = 0
