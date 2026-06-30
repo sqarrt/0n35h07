@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { RadioLibrary, type FsLike, type TrackPayload } from '../../src/radio/library/radioLibrary'
-import { migrateProfileToLibrary } from '../../src/radio/library/migrate'
-import type { FavoriteTrack } from '../../src/radio/trackDescriptor'
 
 // In-memory FsLike — mirrors the real plugin-fs behaviour the library relies on (library-relative paths).
 function memFs(): FsLike {
@@ -32,9 +30,9 @@ function memFs(): FsLike {
 }
 
 const mk = (name: string): TrackPayload => ({
-  v: 1, seed: 'seedA', index: 3, name, mood: 'dread', key: 'E', scaleName: 'minor', bpm: 131,
-  style: { kick: 'k', bass: 'tritone', lead: 'fogMelody', bg: 'tapeChoir', perc: 'broken' },
-  baked: { name, sections: [{ code: 'note("0")', bars: 4 }] },
+  v: 2, id: 'seedA:3', name, bpm: 131, bars: 8,
+  info: { mood: 'dread', key: 'E', scale: 'minor' },
+  program: 'setcpm(131/4)\narrange(\n  // peak (8 bars)\n  [8, stack(note("0"))],\n)',
 })
 
 describe('RadioLibrary', () => {
@@ -47,7 +45,8 @@ describe('RadioLibrary', () => {
     expect(entries).toEqual([{ kind: 'track', name: 'Ashen Drift', path: 'Ashen Drift.json' }])
     const read = await lib.readTrack(path)
     expect(read.name).toBe('Ashen Drift')
-    expect(read.style.bass).toBe('tritone')
+    expect(read.bpm).toBe(131)
+    expect(read.program).toContain('arrange(')
   })
 
   it('suffixes a colliding track name', async () => {
@@ -94,12 +93,10 @@ describe('RadioLibrary', () => {
     expect(await lib.listDir('')).toEqual([])
   })
 
-  it('migrates old favorites→files, once', async () => {
-    const lib = new RadioLibrary(memFs())
-    const style = { kick: '', bass: '', lead: '', bg: '', perc: '' }
-    const fav: FavoriteTrack = { seed: 'S', index: 1, mood: 'dread', key: 'E', scaleName: 'minor', bpm: 130, style, baked: { name: 'Saved One', sections: [{ code: 'note("0")', bars: 4 }] } }
-    expect(await migrateProfileToLibrary(lib, [fav], () => [{ code: 'b', bars: 2 }])).toBe(true)
-    expect((await lib.listDir('')).map((e) => e.name)).toEqual(['Saved One'])
-    expect(await migrateProfileToLibrary(lib, [fav], () => [])).toBe(false) // idempotent
+  it('rejects a malformed track file (no program)', async () => {
+    const fs = memFs()
+    const lib = new RadioLibrary(fs)
+    await fs.writeTextFile('Bad.json', JSON.stringify({ v: 2, id: 'x', name: 'Bad', bpm: 120 }))
+    await expect(lib.readTrack('Bad.json')).rejects.toThrow()
   })
 })

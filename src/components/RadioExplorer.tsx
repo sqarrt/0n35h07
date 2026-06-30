@@ -243,7 +243,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
           <button className="rexp-tb home" onClick={goHome} aria-label={t.radioHome}>⌂</button>
         </div>
         <div className="rexp-addr">
-          <div className={`field${copied ? ' copied' : ''}`} title={t.radioCtxCopy}
+          <div className={`field${copied ? ' copied' : ''}`}
             onClick={() => { void navigator.clipboard?.writeText(absPath); setCopied(true); window.setTimeout(() => setCopied(false), 1100) }}>{absPath}</div>
           {copied && <span className="rexp-copied">✓</span>}
         </div>
@@ -255,7 +255,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
         <div className="rexp-status">
           <span>{entries.length} {t.radioItems} · {folders.length} {t.radioFolders}{sel.size > 1 && ` · ${sel.size} ✓`}</span>
           <span style={{ flex: 1 }} />
-          <span className="rexp-viz" onClick={cycleViz} title={`visualizer: ${viz}`} data-testid="radio-viz-switch">{VIZ_ICON[viz]} {viz.toUpperCase()}</span>
+          <span className="rexp-viz" onClick={cycleViz} data-testid="radio-viz-switch">{VIZ_ICON[viz]} {viz.toUpperCase()}</span>
         </div>
         {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
       </div>

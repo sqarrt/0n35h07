@@ -1,5 +1,5 @@
 import { createRng, randomSeed, type Rng } from '../seededRandom'
-import type { RadioBanks } from './banks'
+import type { RadioBanks, MoodConfig } from './banks'
 import type { RadioConfig } from './radioConfig'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
@@ -8,10 +8,10 @@ import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
-import { CompositionScheduler } from './CompositionScheduler'
-import { shapeFor, type SectionRole } from './arrangement'
-import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyle'
-import { keyRootMidi, type Chord } from './theory'
+import { CompositionScheduler, type TrackPlan } from './CompositionScheduler'
+import { shapeFor, type SectionRole, type SectionShape } from './arrangement'
+import type { PercKind, BgKind, BassArchetype, DrumArchetype, TrackStyle } from './trackStyle'
+import { keyRootMidi, type Chord, type ChordSequence } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
 import { sidechainGain } from './fx'
@@ -41,6 +41,86 @@ const MIX = {
   perc: 0.3,
   fx: 0.4,      // transition devices / risers / riser texture
 } as const
+
+// Section-shaping curves (hand-tuned by ear; FLOOR = value at energy 0, SPAN = added by energy 1).
+const BRIGHT_FLOOR = 0.4, BRIGHT_SPAN = 0.6      // filter brightness vs section energy
+const ENERGY_FLOOR = 0.83, ENERGY_SPAN = 0.17    // uniform loudness envelope vs energy (raised floor so quiet sections aren't too quiet)
+const EASE_IN_FLOOR = 0.18, EASE_IN_SPAN = 0.82  // gain ramp for a layer re-entering after silence (rises to 1.0)
+const NORM_TARGET = 0.8   // loudness-normalisation target for a FULL section (only ever trims, never boosts)
+
+/** Loudness policy for one section: the per-part gain `g` (MASTER × level × energy-envelope × normalisation)
+ *  and the sidechain `pump`. NB: the KICK does NOT use `g` — it keeps its own energy curve (see the kick layer),
+ *  which is why normScale only trims the OTHER parts toward NORM_TARGET. */
+function makeLoudness(
+  shape: SectionShape, energy: number, peak: boolean, mood: MoodConfig,
+): { g: (level: number) => number; pump: string; energyEnv: number } {
+  const energyEnv = ENERGY_FLOOR + ENERGY_SPAN * energy
+  const partSq = (shape.layers.bass ? MIX.bass * MIX.bass + MIX.sub * MIX.sub : 0)
+    + (shape.layers.perc ? MIX.hat * MIX.hat + MIX.snare * MIX.snare + (peak ? MIX.clap * MIX.clap : 0) : 0)
+  const normScale = partSq > 0 ? Math.min(1, NORM_TARGET / Math.sqrt(partSq)) : 1
+  const g = (level: number) => r2(MASTER * level * energyEnv * normScale)
+  const pump = sidechainGain(mood.fx.sidechainDepth)
+  // energyEnv is exposed because the KICK uses it directly (its own gain, bypassing normScale/g).
+  return { g, pump, energyEnv }
+}
+
+// Transition device families (a "pre" device on the outgoing block's last bar, a "post" impact on the downbeat
+// crossed into). Mirror the `as const` arrays inside buildNextPattern.
+type PreKind = 'snareRoll' | 'tomRoll' | 'riser' | 'kickDrop' | 'echoThrow'
+type PostKind = 'crash' | 'subDrop' | 'downlifter'
+
+/** Everything one section's layer renderers read — computed once in buildNextPattern, then handed to each
+ *  render*() method. A Parameter Object purely for READABILITY: correctness stays guarded by the byte-identity
+ *  snapshot, not the type system (the renderers also read/mutate shared composer state — this.lead / this.anti /
+ *  this.melody — which is reached via `this`, NOT carried here). Only fields a layer actually reads live here. */
+interface SectionContext {
+  track: TrackPlan
+  mood: MoodConfig
+  rng: Rng
+  pos: number
+  role: SectionRole
+  shape: SectionShape
+  bars: number
+  n: number
+  style: TrackStyle
+  seq: ChordSequence
+  chord: Chord
+  peak: boolean
+  muffled: boolean
+  memory: boolean
+  isExit: boolean
+  blockProgress: number
+  bStart: number
+  lpf: number
+  drums: ReturnType<RhythmEngine['buildDrums']>
+  drumKit: DrumKit | null
+  mut: ReturnType<typeof rollMutations>
+  bassShadow: 'A' | 'B' | null
+  leadShadow: 'D' | null
+  bassRng: Rng
+  g: (level: number) => number
+  pump: string
+  energyEnv: number
+  fxFor: (dFactor: number, rFactor: number) => string
+  seqAligned: (elems: string[]) => string
+  lateAlign: string
+  entered: (k: keyof SectionShape['layers']) => boolean
+  bassEmph: string
+  leadEmph: string
+  bassEnter: string
+  percEnter: string
+  dropDuck: string
+  exitDuck: string
+  leadEntered: boolean
+  leadOn: boolean
+  preKind: PreKind | null
+  postKind: PostKind | null
+  lastN: number
+  lastBar: (x: string) => string
+  firstBar: (x: string) => string
+  fillNext: boolean
+  boundaryOut: boolean
+}
 
 export class RadioComposer {
   private readonly banks: RadioBanks
@@ -84,18 +164,30 @@ export class RadioComposer {
   descriptor(): TrackDescriptor { return this.scheduler.descriptor() }
   currentIndex(): number { return this.scheduler.currentIndex() }
 
-  /** Render the CURRENT track's WHOLE arc to a list of sections (code + bars), deterministically.
-   *  Advances this composer through the track, so callers use a throwaway instance (see bake). */
-  renderTrack(): { code: string; bars: number }[] {
+  /** Render the CURRENT track as ONE `arrange(...)` Strudel program — for copy-paste into strudel.cc and (Phase C)
+   *  the playback unit. Each section is rendered at bar 0, so its `<…>` sequences start at cycle 0 (`arrange` restarts
+   *  every segment there — the global-offset rotation is moot). Labelled with a header + per-segment comments.
+   *  Advances this composer, so callers use a throwaway instance. */
+  renderArrangedTrack(): { program: string; totalBars: number; bpm: number } {
+    const d = this.scheduler.descriptor()
     const startIndex = this.scheduler.currentIndex()
-    const sections: { code: string; bars: number }[] = []
+    const parts: string[] = []
+    let totalBars = 0
     let guard = 0
     while (this.scheduler.currentIndex() === startIndex && guard++ < 64) {
+      this.bar = 0   // arrange restarts each segment at cycle 0 → neutralise the global-offset rotation
       const { strudelCode, musicalState } = this.buildNextPattern()
-      sections.push({ code: strudelCode, bars: musicalState.sectionBars })
+      const stack = strudelCode.replace(/^setcpm\([^)]*\)\n/, '')   // one setcpm for the whole track, not per section
+      parts.push(`  // ${musicalState.section} (${musicalState.sectionBars} bars)\n  [${musicalState.sectionBars}, ${stack}],`)
+      totalBars += musicalState.sectionBars
     }
-    return sections
+    const header = `// ${d.seed} · ${d.mood} · ${d.key} ${d.scaleName} · ${d.bpm}bpm`
+    const program = `setcpm(${d.bpm}/4)\n${header}\narrange(\n${parts.join('\n')}\n)`
+    return { program, totalBars, bpm: d.bpm }
   }
+
+  /** The arrange program string only (for copy-paste into strudel.cc). Advances the composer — throwaway instance. */
+  renderArranged(): string { return this.renderArrangedTrack().program }
 
   /** Jump to a track index within the current session seed (deterministic). Resets per-track state. */
   jumpTo(index: number): void { this.scheduler.jumpTo(index); this.resetTrackState() }
@@ -118,7 +210,10 @@ export class RadioComposer {
     this.drift = initialDrift(this.banks.moods[this.scheduler.current().mood])
   }
 
-  buildNextPattern(): { strudelCode: string; musicalState: MusicalState } {
+  /** Gather everything one section needs — harmony, arc role, mix policy, fx, ducks, transition devices — into the
+   *  SectionContext the layer renderers read. Mutates per-section composer state (this.bar gap accounting,
+   *  this.drift, the locked per-track kit) exactly as the inline code did; order is load-bearing. */
+  private computeSectionContext(): SectionContext {
     const track = this.scheduler.current()
     const mood = this.banks.moods[track.mood]
     const rng = this.scheduler.rng()
@@ -131,19 +226,12 @@ export class RadioComposer {
     // Cross-track gap accounting (see skipNextGap): on a fresh track's first section, advance `bar` by the
     // silent gap the controller plays before it, so Strudel's cycle clock and our counter stay in step.
     if (pos === 0) { if (this.skipNextGap) this.skipNextGap = false; else this.bar += this.config.trackGapBars }
-    const off = this.bar % n // phase-align block sweeps to this section's start
-    // SECTION ALIGNMENT — Strudel patterns run on the GLOBAL cycle clock, so a `<a b c d>` sequence or a `.slow(n)`
-    // sweep plays element/phase `globalCycle % len`, NOT element 0 at the section start (sections have varied bar
-    // counts, so this.bar % len ≠ 0). That made layers "enter mid-loop" and risers/fills land on the wrong bar.
-    // `lateAlign` shifts an n-bar LFO so its phase-0 lands on the section's first bar; `seqAligned` rotates a bar
-    // sequence so element 0 lands on the first bar (element p on the section's bar p).
-    const lateAlign = off > 0 ? `.late(${off})` : ''
-    const seqAligned = (elems: string[]): string => {
-      const len = elems.length
-      const rot = new Array<string>(len)
-      for (let p = 0; p < len; p++) rot[(this.bar + p) % len] = elems[p]
-      return `<${rot.join(' ')}>`
-    }
+    // SECTION ALIGNMENT is gone: sections are arranged (each starts at cycle 0 via arrange()), so a `<a b c d>`
+    // already plays element 0 first and an n-bar `.slow(n)` LFO is already phase-aligned — no global-offset rotation
+    // is needed. `seqAligned` is now just the `<…>` wrapper, and `lateAlign` is an empty no-op (kept so the layer
+    // code that appends it reads unchanged).
+    const lateAlign = ''
+    const seqAligned = (elems: string[]): string => `<${elems.join(' ')}>`
     const nextRole = track.arc[pos + 1]
     const fillNext = nextRole === 'break' || nextRole === 'outro' || nextRole === undefined
     const muffled = role === 'intro' || role === 'introB'
@@ -183,7 +271,7 @@ export class RadioComposer {
     // A FINE gain ramp (not the old chunky 2-step) for a part that just appeared. The lead does
     // NOT use this — it fades in via a filter open instead, which is smoother still.
     const rampN = Math.min(bars, 4)
-    const rampVals = Array.from({ length: rampN }, (_, i) => r2(0.18 + 0.82 * (i + 1) / rampN))
+    const rampVals = Array.from({ length: rampN }, (_, i) => r2(EASE_IN_FLOOR + EASE_IN_SPAN * (i + 1) / rampN))
     const easeIn = `.gain("<${rampVals.join(' ')}${bars > rampN ? ` 1!${bars - rampN}` : ''}>")`
     const bassEnter = entered('bass') ? easeIn : ''
     // NB: the bg gets NO ease-in ramp — a subliminal texture must hold a STEADY level (a rising/ramping bg
@@ -225,24 +313,15 @@ export class RadioComposer {
     }
     const drums = this.trackDrums
 
-    const bright = 0.4 + 0.6 * energy
+    const bright = BRIGHT_FLOOR + BRIGHT_SPAN * energy
     const lpf = Math.round(this.drift.lpf * bright)
     // GLOBAL balance: level = MASTER × role-level × a gentle, UNIFORM section-energy envelope.
     // No drift.gain, no mood.density — so the balance can't shift track-to-track. energyEnv
     // scales every role together (intros softer, peaks fuller) WITHOUT changing their ratios.
     // Raised floor (was 0.74 + 0.26·energy) so the low-energy sections (intro/break/outro) sit a bit LOUDER —
     // they read as quiet without being too quiet; peaks (energy≈0.94) barely move.
-    const energyEnv = 0.83 + 0.17 * energy
-    // LOUDNESS NORMALISATION — trim the parts in a FULL section so they don't pile up louder than the body
-    // average (the KICK keeps its own energy curve as the steady reference). partSq = the combined non-kick
-    // load; normScale brings an over-full section (a peak with perc stacked on) back toward a target. It only
-    // TRIMS, never boosts → sparser sections (intro/build) are untouched, so the track stays ~even throughout.
-    const partSq = (shape.layers.bass ? MIX.bass * MIX.bass + MIX.sub * MIX.sub : 0)
-      + (shape.layers.perc ? MIX.hat * MIX.hat + MIX.snare * MIX.snare + (peak ? MIX.clap * MIX.clap : 0) : 0)
-    const NORM_TARGET = 0.8
-    const normScale = partSq > 0 ? Math.min(1, NORM_TARGET / Math.sqrt(partSq)) : 1
-    const g = (level: number) => r2(MASTER * level * energyEnv * normScale)
-    const pump = sidechainGain(mood.fx.sidechainDepth)
+    // Loudness policy: per-part gain `g` + sidechain `pump` (the kick keeps its own curve — see makeLoudness).
+    const { g, pump, energyEnv } = makeLoudness(shape, energy, peak, mood)
     // Every part draws echo/reverb from the track's ONE fx space (scaled by role), so
     // parts cohere — no dry bass under a wet lead. dFactor/rFactor = this part's share.
     const fx = style.fx
@@ -254,8 +333,6 @@ export class RadioComposer {
     }
     // Bass riff is LOCKED per movement; the 2nd movement (after break) gets a new riff.
     const bassRng = createRng(`${track.seed}:bass${this.afterBreak ? '2' : ''}`)
-
-    const layers: string[] = []
 
     // ── SECOND-VOICE LAYERS (Switch-Angel) — a track may grow a quiet shadow voice on its bass and/or its lead so
     //    the overlap births a melody neither part plays alone. Decided per-TRACK (stable across sections via the
@@ -293,7 +370,66 @@ export class RadioComposer {
     // reverts to a steady 4-floor kick regardless of kit, so it stays the calm anchor.
     const drumKit = style.drumArchetype !== 'existing' ? DRUM_KITS[style.drumArchetype] : null
 
-    // ── KICK ──
+    const ctx: SectionContext = {
+      track, mood, rng, pos, role, shape, bars, n, style, seq, chord,
+      peak, muffled, memory, isExit, blockProgress, bStart, lpf, drums, drumKit, mut,
+      bassShadow, leadShadow, bassRng, g, pump, energyEnv, fxFor, seqAligned, lateAlign, entered,
+      bassEmph, leadEmph, bassEnter, percEnter, dropDuck, exitDuck, leadEntered, leadOn,
+      preKind, postKind, lastN, lastBar, firstBar, fillNext, boundaryOut,
+    }
+    return ctx
+  }
+
+  buildNextPattern(): { strudelCode: string; musicalState: MusicalState } {
+    const ctx = this.computeSectionContext()
+    const { track, pos, role, shape, bars, chord } = ctx
+
+    // Each instrument renders its own fragment(s); concatenated in MIX order (kick → glue → perc → bass → bg →
+    // lead → break → exit-fill). The order is part of the byte-identity contract — do not reshuffle.
+    const layers: string[] = [
+      ...this.renderKick(ctx),
+      ...this.renderTransitionDevices(ctx),
+      ...this.renderPerc(ctx),
+      ...this.renderBass(ctx),
+      ...this.renderBg(ctx),
+      ...this.renderLead(ctx),
+      ...this.renderBreak(ctx),
+      ...this.renderExitFill(ctx),
+    ]
+
+    const body = layers.length > 0 ? `stack(\n  ${layers.join(',\n  ')}\n)` : 'silence'
+    const strudelCode = `setcpm(${track.bpm}/4)\n${body}`
+
+    const musicalState: MusicalState = {
+      seed: this.seed,
+      trackIndex: track.index,
+      trackSeed: track.seed,
+      strudelCode,
+      mood: track.mood,
+      sectionsUntilMoodChange: track.sectionsPerTrack - pos,
+      key: track.tonality.key,
+      scaleName: track.tonality.scaleName,
+      chord: chord?.label ?? '',
+      section: role,
+      sectionBars: bars,
+      bpm: track.bpm,
+      bar: this.bar,
+      layers: shape.layers,
+    }
+
+    this.bar += bars
+    // The break ends the first movement: fresh lead motif + new bass riff afterwards.
+    if (role === 'break') { this.afterBreak = true; this.lead = initialLeadState() }
+    this.scheduler.tick()
+    if (this.scheduler.isTrackStart()) { this.lead = initialLeadState(); this.afterBreak = false }
+    return { strudelCode, musicalState }
+  }
+
+  /** KICK — the loud global reference that drives the whole balance. Composition-independent; keeps its OWN energy
+   *  curve (bypasses normScale/g, by design) and takes the ducks but no pump/fx. */
+  private renderKick(ctx: SectionContext): string[] {
+    const { shape, role, drumKit, mood, style, preKind, boundaryOut, fillNext, lastN, seqAligned, peak, muffled, energyEnv, drums, dropDuck, exitDuck } = ctx
+    const out: string[] = []
     if (shape.layers.kicks) {
       const deep = role === 'break' // steady, darker kick that holds the rest together
       const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
@@ -311,60 +447,41 @@ export class RadioComposer {
       // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
-      layers.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
     }
+    return out
+  }
 
-    // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
-    if (leadEntered) layers.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
-
-    // pre-device — the last bar of the outgoing section
-    if (preKind === 'snareRoll') layers.push(orbit(`s("${lastBar('[sd*4 sd*8]')}").gain(${g(0.52)}).hpf(400).lpf(7000)${fxFor(0, 0.4)}`, ORBIT.snare))
-    else if (preKind === 'tomRoll') layers.push(orbit(`s("${lastBar('[lt mt lt mt lt mt lt mt]')}").gain(${g(0.5)}).room(0.2)`, ORBIT.snare))
-    else if (preKind === 'riser') layers.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, ${g(0.4)})).hpf(300)`, ORBIT.fx))
-    else if (preKind === 'echoThrow') layers.push(orbit(`s("${lastBar('sd')}").gain(${g(0.5)}).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)`, ORBIT.fx))
-    else if (preKind === 'kickDrop') layers.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, ${g(0.32)})).hpf(400)`, ORBIT.fx))
-
-    // post-device — the downbeat of the incoming section
-    if (postKind === 'crash') layers.push(orbit(`s("${firstBar('white')}").dec(0.6).hpf(3500).gain(${g(0.42)}).room(0.5).roomsize(6)`, ORBIT.fx))
-    else if (postKind === 'subDrop') layers.push(orbit(`note("${firstBar('[48 42 36 30 24]')}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx))
-    else if (postKind === 'downlifter') layers.push(orbit(`s("${firstBar('white*16')}").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(${g(0.34)}, 0.03)).hpf(300)`, ORBIT.fx))
-
-    // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
-    // with a clear gesture whose tail rings out into the silent gap before the next.
-    if (role === 'outro') layers.push(orbit(`s("${lastBar('white')}").dec(1.2).hpf(2500).gain(${g(0.4)}).room(0.6).roomsize(8)`, ORBIT.fx))
-
-    // ── PERC — snares are the "fat" of the peak; light hats keep drive (louder in movement 2)
-    if (shape.layers.perc) {
-      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
-      // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
-      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
-      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
-      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
-      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
-      layers.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
-      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
-      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
-      const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
-      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
-      layers.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
-      if (drumKit?.ghost && role !== 'break') layers.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
-      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
-      if (drumKit?.rim && role !== 'break') layers.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
-      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
-      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
-      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
-        layers.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
+  /** BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind / metallic / hum) that just fills
+   *  and dilutes the track. A subliminal BED always, plus an occasional distinctive ACCENT; each parameterised per
+   *  track so a repeated kind never sounds identical. Near-subliminal in every track (capped + scaled). */
+  private renderBg(ctx: SectionContext): string[] {
+    const { shape, chord, g, fxFor, style, exitDuck, track } = ctx
+    const out: string[] = []
+    if (shape.layers.bg) {
+      const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
+      // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
+      // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
+      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
+      // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
+      // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
+      // never identical — what made a bell or sonar "jump out" when it recurred.
+      const bedV = bgVary(createRng(`${track.seed}:bg`))
+      out.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + exitDuck, ORBIT.fx))
+      if (style.bgAccent) {
+        const accV = bgVary(createRng(`${track.seed}:bgacc`))
+        out.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
       }
-      // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
-      // the kick + simple hats + halved snare are enough to keep the rest alive.
-      const perc = this.percLayer(style.perc, g)
-      if (perc && role !== 'break') layers.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
+    return out
+  }
 
-    // ── BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/
-    //    electronic winner (tournament — docs/radio-part-archetypes.md). All follow the progression root per bar
-    //    (.add(note("<roots>"))), never go silent (no `~`), and share the entry filter sweep + gain/pump/ducks.
+  /** BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/electronic
+   *  winner. All follow the progression root per bar (.add(note("<roots>"))), never go silent, and share the entry
+   *  filter sweep + gain/pump/ducks. Plus the constant sub-sine and the optional ghost-bass shadow. */
+  private renderBass(ctx: SectionContext): string[] {
+    const { shape, seq, blockProgress, muffled, entered, n, lateAlign, bassShadow, style, track, mut, bassRng, role, g, fxFor, pump, bassEmph, bassEnter, dropDuck, exitDuck, pos, mood, seqAligned } = ctx
+    const out: string[] = []
     if (shape.layers.bass) {
       const roots = seq.map((c) => ((c.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 1))
       // filter breathes within the section (.slow) AND its ceiling opens over the block; on ENTRY it sweeps up
@@ -385,9 +502,9 @@ export class RadioComposer {
         const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
         const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
         let acidenvExpr: string
-        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
-        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n}).late(${off})`
-        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n}).late(${off})`
+        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n})`
+        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n})`
+        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n})`
         else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
         const frag = this.bass.buildBass({
           rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
@@ -413,45 +530,87 @@ export class RadioComposer {
       // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
       const BASS_EXPOSED_BOOST = 1.4
       const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
-      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      out.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
       // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      out.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
       // layer A — a quiet melodic ghost-bass (octave up, rest-pocked, different degrees) interlocking with the riff
       if (bassShadow === 'A') {
         const counter = this.bass.buildCounter({ rng: createRng(`${track.seed}:cbass${pos}`), roots, sound: style.bassSound })
-        layers.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+        out.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
       }
     }
+    return out
+  }
 
-    // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
-    //    metallic / hum) that just fills & dilutes the track. NOT a melodic pad — those
-    //    "atmosphere" pads were binned. Barely noticeable, sits on the tonic.
-    if (shape.layers.bg) {
-      const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
-      // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
-      // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
-      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
-      // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
-      // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
-      // never identical — what made a bell or sonar "jump out" when it recurred.
-      const bedV = bgVary(createRng(`${track.seed}:bg`))
-      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + exitDuck, ORBIT.fx))
-      if (style.bgAccent) {
-        const accV = bgVary(createRng(`${track.seed}:bgacc`))
-        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
+  /** PERC — snares are the "fat" of the peak; light hats keep drive. A BREAK strips the aggressive elements
+   *  (busy hats, snare rolls, aux-perc) back to a calm backbeat. */
+  private renderPerc(ctx: SectionContext): string[] {
+    const { shape, role, drumKit, style, g, mut, percEnter, peak, fxFor, mood, dropDuck, exitDuck } = ctx
+    const out: string[] = []
+    if (shape.layers.perc) {
+      // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
+      // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
+      const hatPat = role === 'break' ? '[hh ~]*2' : (drumKit ? drumKit.hat : style.hatPat)
+      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
+      const swing = Math.max(0, (drumKit ? drumKit.swing : style.swing) + mut.swing)
+      const hats = `s("${hatPat}").dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
+      out.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
+      // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
+      // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
+      const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
+      const snarePat = role === 'break' ? '~ sd ~ sd' : (drumKit ? drumKit.snare : '~ sd ~ sd')
+      out.push(orbit(`s("${snarePat}").sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${r2(Math.min(0.14, mood.fx.saturation * 0.16))}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the kit defines it, never in a break.
+      if (drumKit?.ghost && role !== 'break') out.push(orbit(`s("${drumKit.ghost}").gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
+      // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the kit defines it.
+      if (drumKit?.rim && role !== 'break') out.push(orbit(`s("${drumKit.rim}").gain(${g(MIX.snare * 0.6)})${percEnter}.hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(${style.fx.delayTime}).delayfeedback(0.5)${dropDuck}${exitDuck}`, ORBIT.perc))
+      // peak-only claps on the backbeat (one extra layer, eased in). SKIP when the kit's snare already plays the
+      // SAME clap pattern (broken/industrial: snare === clap) — else the two stack into a doubled, ear-piercing clap.
+      if (peak && !(drumKit && drumKit.snare === drumKit.clap)) {
+        out.push(orbit(`s("${drumKit ? drumKit.clap : style.clapPat}").gain(${g(MIX.clap)})${percEnter}${fxFor(0, 0.3)}.shape(0.08).lpf(7500)${dropDuck}`, ORBIT.snare))
       }
+      // The busy aux-perc (rim/shaker/tom…) is dropped in a BREAK — it's the main source of break "aggression";
+      // the kick + simple hats + halved snare are enough to keep the rest alive.
+      const perc = this.percLayer(style.perc, g)
+      if (perc && role !== 'break') out.push(orbit(`${perc}${percEnter}${dropDuck}${exitDuck}`, ORBIT.perc))
     }
+    return out
+  }
 
-    // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
-    //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
-    //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
-    //    (leadOn / leadEntered are computed up top so the kick/bass can drop before the lead's first entry.)
+  /** Transition GLUE around the kit: the drop-before-lead crash, the pre-device on the outgoing block's last bar,
+   *  the post-impact on the downbeat crossed into, and the outro's final ring-out crash. */
+  private renderTransitionDevices(ctx: SectionContext): string[] {
+    const { leadEntered, seqAligned, bars, g, preKind, lastBar, fxFor, postKind, firstBar, role } = ctx
+    const out: string[] = []
+    // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
+    if (leadEntered) out.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
+    // pre-device — the last bar of the outgoing section
+    if (preKind === 'snareRoll') out.push(orbit(`s("${lastBar('[sd*4 sd*8]')}").gain(${g(0.52)}).hpf(400).lpf(7000)${fxFor(0, 0.4)}`, ORBIT.snare))
+    else if (preKind === 'tomRoll') out.push(orbit(`s("${lastBar('[lt mt lt mt lt mt lt mt]')}").gain(${g(0.5)}).room(0.2)`, ORBIT.snare))
+    else if (preKind === 'riser') out.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, ${g(0.4)})).hpf(300)`, ORBIT.fx))
+    else if (preKind === 'echoThrow') out.push(orbit(`s("${lastBar('sd')}").gain(${g(0.5)}).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)`, ORBIT.fx))
+    else if (preKind === 'kickDrop') out.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, ${g(0.32)})).hpf(400)`, ORBIT.fx))
+    // post-device — the downbeat of the incoming section
+    if (postKind === 'crash') out.push(orbit(`s("${firstBar('white')}").dec(0.6).hpf(3500).gain(${g(0.42)}).room(0.5).roomsize(6)`, ORBIT.fx))
+    else if (postKind === 'subDrop') out.push(orbit(`note("${firstBar('[48 42 36 30 24]')}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx))
+    else if (postKind === 'downlifter') out.push(orbit(`s("${firstBar('white*16')}").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(${g(0.34)}, 0.03)).hpf(300)`, ORBIT.fx))
+    // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
+    // with a clear gesture whose tail rings out into the silent gap before the next.
+    if (role === 'outro') out.push(orbit(`s("${lastBar('white')}").dec(1.2).hpf(2500).gain(${g(0.4)}).room(0.6).roomsize(8)`, ORBIT.fx))
+    return out
+  }
+
+  /** LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes. leadPresence thins
+   *  it out ('none'/'sparse'/'full'); it RESTS every 8th peak loop to breathe; plus the optional independent shadow
+   *  phrase (layer D). The composer owns level/pan/emphasis; the picked archetype owns synth+FX. */
+  private renderLead(ctx: SectionContext): string[] {
+    const { peak, pos, bStart, leadOn, style, role, lpf, blockProgress, entered, n, lateAlign, seqAligned, chord, mut, fxFor, g, leadEmph, pump, leadShadow, memory, rng, mood, track } = ctx
+    const out: string[] = []
     // INTERMITTENT: the lead RESTS on every 8th peak loop (it does not play the whole time — Switch Angel) so it
     // breathes; the groove (bass call-and-response) carries that loop. Not on float (the lead IS the section).
-    // (Eased from every-4th — the leads are loved, let them play longer between breaths.)
     const leadRest = peak && (pos - bStart) % 8 === 7
     if (leadOn && !leadRest) {
       // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
@@ -487,7 +646,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        out.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -503,7 +662,7 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        out.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
       }
       // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
       // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
@@ -512,13 +671,17 @@ export class RadioComposer {
           rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
           scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
         }, initialLeadState())
-        layers.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
+        out.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
       }
     }
+    return out
+  }
 
-    // ── BREAK (reworked — NO risers). A breakdown with its OWN melodic identity: a soft echo-tail of the
-    //    outgoing lead, then a DIFFERENT soulful lead (the atmoDyad ballad) developing via a slow filter bloom
-    //    over the lightened groove, and a per-break FILL (silence / rhythmic / melodic) on the last bar.
+  /** BREAK — a breakdown with its OWN melodic identity: a soft echo-tail of the outgoing lead, then a DIFFERENT
+   *  restful lead developing via a slow filter bloom. No risers. */
+  private renderBreak(ctx: SectionContext): string[] {
+    const { role, style, firstBar, g, n, lateAlign, mood, track, exitDuck } = ctx
+    const out: string[] = []
     if (role === 'break') {
       // (0) ECHO THROW — the lead riff from the peak we just left (its motif is still in
       //     this.lead, reset only at the end of this call) plays ONCE on the break's first
@@ -528,7 +691,7 @@ export class RadioComposer {
       if (echoMotif) {
         // Replay the movement's lead pattern ONCE on the break's first bar, drowned in long-feedback delay +
         // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
-        layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
+        out.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
       }
       // (1) A DIFFERENT lead — one of the RESTFUL archetypes (the same 18-voice set as the main lead, filtered to
       //     the atmospheric ones), with its OWN timbre, picked to DIFFER from the track's main lead. Rendered LOW
@@ -543,51 +706,29 @@ export class RadioComposer {
       const brkSpec = LEAD_VOICES[brk.voice]
       const brkSrc = brkSpec.src ?? `.s("${style.leadSound}")`
       const brkFilt = brkSpec.filt ?? brkLpf
-      layers.push(orbit(`note("${brk.pattern}")${brkSrc}${brkSpec.fx}${brkFilt}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.18)})${exitDuck}`, ORBIT.lead))
+      out.push(orbit(`note("${brk.pattern}")${brkSrc}${brkSpec.fx}${brkFilt}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.18)})${exitDuck}`, ORBIT.lead))
     }
+    return out
+  }
 
-    // ── EXIT FILL — on the LAST bar of an atmospheric exit (break OR intro→build), one of three per exit
-    //    (seeded): silence / rhythmic (a drum fill) / melodic (a fat bass run). The whole body already ducks on
-    //    the last bar (exitDuck), so the fill stands ALONE there → distinct from both the section and the next.
+  /** EXIT FILL — on the LAST bar of an atmospheric exit (break OR intro→build), one of three per exit (seeded):
+   *  silence / rhythmic (a drum fill) / melodic (a fat bass run). The body already ducks there, so the fill stands
+   *  alone — distinct from both the section and the next. */
+  private renderExitFill(ctx: SectionContext): string[] {
+    const { isExit, style, lastBar, g, fxFor, chord, pump, track, pos } = ctx
+    const out: string[] = []
     if (isExit) {
       const fill = (['silence', 'rhythmic', 'melodic'] as const)[createRng(`${track.seed}:xfill${pos}`).int(3)]
       if (fill === 'rhythmic') {
         const kv = style.kickVoice
-        layers.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
+        out.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
       } else if (fill === 'melodic') {
         const rt = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
-        layers.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
+        out.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
       }
       // 'silence' → nothing added; the ducks leave a clean gap before the drop.
     }
-
-
-    const body = layers.length > 0 ? `stack(\n  ${layers.join(',\n  ')}\n)` : 'silence'
-    const strudelCode = `setcpm(${track.bpm}/4)\n${body}`
-
-    const musicalState: MusicalState = {
-      seed: this.seed,
-      trackIndex: track.index,
-      trackSeed: track.seed,
-      strudelCode,
-      mood: track.mood,
-      sectionsUntilMoodChange: track.sectionsPerTrack - pos,
-      key: track.tonality.key,
-      scaleName: track.tonality.scaleName,
-      chord: chord?.label ?? '',
-      section: role,
-      sectionBars: bars,
-      bpm: track.bpm,
-      bar: this.bar,
-      layers: shape.layers,
-    }
-
-    this.bar += bars
-    // The break ends the first movement: fresh lead motif + new bass riff afterwards.
-    if (role === 'break') { this.afterBreak = true; this.lead = initialLeadState() }
-    this.scheduler.tick()
-    if (this.scheduler.isTrackStart()) { this.lead = initialLeadState(); this.afterBreak = false }
-    return { strudelCode, musicalState }
+    return out
   }
 
   /** Subtle, in-key background texture to fill/dilute the track — PARAMETERISED per track by `v` (register via

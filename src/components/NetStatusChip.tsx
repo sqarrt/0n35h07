@@ -13,7 +13,7 @@ export function NetStatusChip() {
 
   if (phase === 'probing') {
     return (
-      <div className="net-chip" data-testid="net-chip" title={t.netChipProbingTitle}>
+      <div className="net-chip" data-testid="net-chip">
         <span className="dot dot--probing">◇</span>
         <span>{t.netChipProbing}</span>
       </div>
@@ -23,7 +23,7 @@ export function NetStatusChip() {
   // Degraded: the probe ran but no live relays were found → use the curated fallback.
   const fellBack = results.length > 0 && results.every(r => !r.alive)
   return (
-    <div className="net-chip" data-testid="net-chip" title={t.netChipTitle}>
+    <div className="net-chip" data-testid="net-chip">
       <span className={`dot ${fellBack ? 'dot--warn' : 'dot--ok'}`}>●</span>
       <span>{fellBack ? t.netChipFallback : t.netChipOk(selected.length)}</span>
     </div>

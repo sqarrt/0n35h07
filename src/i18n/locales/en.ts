@@ -34,10 +34,8 @@ export const en = {
   lobbyFriendsOnline: 'ONLINE',
   lobbyInvitedTag: 'WAITING',
   lobbyRoomCode: 'ROOM CODE',
-  lobbyRandomCode: 'random code',
   lobbyBotName: 'BOT NAME',
   lobbyBotNamePlaceholder: 'bot name',
-  lobbyBotNameRandom: 'random name',
   lobbyLeave: 'LEAVE',
   lobbyCopyHint: 'click to copy code',
   settingsSearchRoleLabel: 'DEFAULT NETWORK ROLE',
@@ -69,7 +67,6 @@ export const en = {
   roomRemoveBot: '× remove',
   roomSectionMap: '// MAP',
   roomSectionDuration: '// MATCH · DURATION',
-  roomCopyTooltip: 'Copy code',
   roomMapAlt: (id: string) => `Map ${id}`,
   roomDurationMin: (m: number) => `${m} MIN`,
   roomStart: 'START',
@@ -194,9 +191,7 @@ export const en = {
   editorLoading: 'Loading editor…',
   // Opponent bot name (UI renders this)
   // Network indicator (NetStatusChip)
-  netChipProbingTitle: 'Probing signaling relays',
   netChipProbing: 'CHECKING NET',
-  netChipTitle: 'Signaling relays',
   netChipFallback: 'NET · BACKUP',
   netChipOk: (n: number) => `NET · ${n}`,
   // Radio player
@@ -227,5 +222,4 @@ export const en = {
   radioCtxCopy: 'Copy',
   radioCtxPaste: 'Paste',
   radioCtxDelete: 'Delete',
-  revealLogs: 'Open log folder',
 }
