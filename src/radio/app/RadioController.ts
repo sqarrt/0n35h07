@@ -81,6 +81,10 @@ export class RadioController {
   private audibleBars = 0      // total bars of the live track being heard (for saving)
   private pausedAt = 0         // wall-clock at pause() (to shift the absolute grid forward on resume)
   private pendingCb: (() => void) | null = null   // the scheduled boundary callback (re-armed on resume)
+  private audibleProgram = ''      // the live track's current arrange program (replayed, shifted, on seek)
+  private trackStartMs = 0         // wall-clock when the current track's audio began (for the progress readout)
+  private playheadOffsetBars = 0   // bar the current playback started at (0 normally; B after a seek)
+  private playBpm = 0              // current track tempo, so progress()/totalMs() know barMs
   // BAKED playback: a saved favorite plays its frozen section list (not the live composer).
   private baked: BakedTrack | null = null   // a loaded favorite = one self-contained arrange() program
 
@@ -114,6 +118,44 @@ export class RadioController {
 
   /** Total bars of the track AUDIBLY playing now (for the drag-to-save payload). */
   currentBars(): number { return this.baked ? this.baked.bars : this.audibleBars }
+
+  /** Jump the CURRENT track (live or baked) to `frac` of its length. Re-evaluates the same arrange program shifted
+   *  with .early(B); the swap quantises to the next bar. Seeking while paused resumes playback. No-op when idle. */
+  seekToFraction(frac: number): void {
+    if (!this.running) return
+    const bars = this.currentBars()
+    const program = this.baked ? this.baked.program : this.audibleProgram
+    if (bars <= 0 || !program || this.playBpm <= 0) return
+    const bpm = this.playBpm
+    if (this.pausedAt) { void this.engine.resume?.(); this.pausedAt = 0 }   // a seek implies playing
+    const B = Math.max(0, Math.min(bars - 1, Math.round(clamp01(frac) * bars)))
+    this.epoch++
+    if (this.timer !== null) { clearTimeout(this.timer); this.timer = null }
+    this.pendingCb = null
+    this.anchorCycle()
+    void this.engine.play(appendEarly(program, B))
+    const now = Date.now()
+    this.startMs = now; this.trackStartMs = now
+    this.playheadOffsetBars = B
+    this.nextBoundaryMs = sectionDurationMs(bpm, bars - B)
+    const epoch = this.epoch
+    this.arm(this.waitMs(), () => (this.baked ? this.onBakedBoundary(epoch, bpm) : this.onTrackBoundary(epoch, bpm)))
+  }
+
+  /** Current play position as a fraction 0..1 (0 when idle). Frozen while paused (uses pausedAt as the clock). */
+  progress(): number {
+    const bars = this.currentBars()
+    if (!this.running || bars <= 0 || this.playBpm <= 0) return 0
+    const clockNow = this.pausedAt || Date.now()
+    const elapsedBars = (clockNow - this.trackStartMs) / sectionDurationMs(this.playBpm, 1)
+    return clamp01((this.playheadOffsetBars + elapsedBars) / bars)
+  }
+
+  /** The current track's total duration in ms (0 when idle) — for the player's time label. */
+  totalMs(): number {
+    const bars = this.currentBars()
+    return this.running && this.playBpm > 0 ? sectionDurationMs(this.playBpm, bars) : 0
+  }
 
   /** Play a BAKED favorite: its frozen arrange() program loops on the grid (immune to generation changes). */
   playBaked(track: BakedTrack): void {
@@ -158,7 +200,7 @@ export class RadioController {
   async resume(): Promise<void> {
     if (!this.running) { this.start(); return }   // nothing was suspended (e.g. resuming after a hard stop) → start fresh
     await this.engine.resume?.()
-    if (this.pausedAt) { this.startMs += Date.now() - this.pausedAt; this.pausedAt = 0 }
+    if (this.pausedAt) { const d = Date.now() - this.pausedAt; this.startMs += d; this.trackStartMs += d; this.pausedAt = 0 }
     if (this.pendingCb && this.timer === null) this.arm(this.waitMs(), this.pendingCb)
   }
 
@@ -200,6 +242,8 @@ export class RadioController {
     this.audibleDesc = desc
     this.audibleIndex = desc.index
     this.audibleBars = totalBars
+    this.audibleProgram = program
+    this.trackStartMs = Date.now(); this.playheadOffsetBars = 0; this.playBpm = bpm
     if (desc.index !== this.lastGenIndex) { this.lastGenIndex = desc.index; this.onGenerated?.() }
     this.onState?.(this.trackState(desc, bpm, program))
     void this.engine.play(program)
@@ -243,6 +287,7 @@ export class RadioController {
   private tickBaked(): void {
     if (!this.running || !this.baked) return
     const b = this.baked
+    this.trackStartMs = Date.now(); this.playheadOffsetBars = 0; this.playBpm = b.bpm
     this.onState?.(this.bakedState(b))
     void this.engine.play(b.program)
     this.nextBoundaryMs += sectionDurationMs(b.bpm, b.bars)

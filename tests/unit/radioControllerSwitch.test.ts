@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { RadioController, appendEarly } from '../../src/radio/app/RadioController'
 import { loadRadioBanks, DEFAULT_RADIO_CONFIG } from '../../src/radio'
@@ -10,6 +10,12 @@ const fetchStub = async (url: string) => {
   return { ok: true, json: async () => JSON.parse(text) as unknown }
 }
 const stubEngine = { play: async () => {}, stop: () => {}, setVolume: () => {} }
+
+// records the last evaluated code so seek tests can assert the .early(B) shift
+const recEngine = () => {
+  const e = { last: '', play: async (c: string) => { e.last = c }, stop: () => {}, setVolume: () => {}, resume: async () => {} }
+  return e
+}
 
 let banks: RadioBanks
 beforeAll(async () => { banks = await loadRadioBanks(fetchStub, '/radio/') })
@@ -38,6 +44,42 @@ describe('RadioController — track switching', () => {
     // Determinism: a fresh controller jumped to the same track yields the same descriptor.
     const c2 = makeController(); c2.playTrack('OTHER', 3)
     expect(c2.currentTrack()).toEqual(d)
+  })
+})
+
+describe('RadioController — seek + position', () => {
+  it('seekToFraction(0.5) replays the current program shifted by round(0.5 * totalBars) bars', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    c.start()                                   // renders + "plays" track 0 → audibleProgram set
+    const bars = c.currentBars()
+    expect(bars).toBeGreaterThan(0)
+    c.seekToFraction(0.5)
+    const B = Math.round(0.5 * bars)
+    expect(e.last.endsWith(`.early(${B})`)).toBe(true)
+    c.stop()                                    // clear the armed timer (no leak)
+  })
+  it('seekToFraction(0) replays from the start (no .early)', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    c.start()
+    c.seekToFraction(0)
+    expect(e.last.includes('.early(')).toBe(false)
+    c.stop()
+  })
+  it('progress() advances with the clock and totalMs() is the track duration', () => {
+    const e = recEngine()
+    const c = new RadioController({ engine: e, banks, config: { ...DEFAULT_RADIO_CONFIG, seed: 'TEST' } })
+    const t0 = 1_000_000
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(t0)
+    c.start()
+    expect(c.progress()).toBeCloseTo(0, 2)
+    nowSpy.mockReturnValue(t0 + c.totalMs() / 2)
+    expect(c.progress()).toBeCloseTo(0.5, 1)
+    nowSpy.mockReturnValue(t0 + c.totalMs() * 5)   // far past the end → clamped, not >1
+    expect(c.progress()).toBe(1)
+    nowSpy.mockRestore()
+    c.stop()
   })
 })
 
