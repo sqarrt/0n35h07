@@ -316,12 +316,19 @@
 .version-chip--btn:hover { filter: brightness(1.7); }
 
 /* Radio player buttons — hover/active feedback via filter/shadow (works over the inline glass styles). */
-.radio-player-root button, .radio-code-copy { transition: filter 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease; }
-.radio-player-root button:hover, .radio-code-copy:hover {
+.radio-player-root button { transition: filter 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease; }
+.radio-player-root button:hover {
   filter: brightness(1.75);
   box-shadow: 0 0 0 1px rgba(120,180,255,0.55), 0 0 14px rgba(120,180,255,0.4);
 }
-.radio-player-root button:active, .radio-code-copy:active { transform: scale(0.92); }
+.radio-player-root button:active { transform: scale(0.92); }
+
+/* Radio code panel — the whole code box is the copy button. Click feedback is an inset ring + faint tint
+   (box-shadow/background only, so it never reflows or shifts the code). */
+.radio-code-box { transition: box-shadow 0.14s ease, background-color 0.14s ease; }
+.radio-code-box:hover { box-shadow: inset 0 0 0 1px rgba(120,180,255,0.35); }
+.radio-code-box:active { box-shadow: inset 0 0 0 1px rgba(120,180,255,0.6); background-color: rgba(120,180,255,0.06); }
+.radio-code-box.is-copied { box-shadow: inset 0 0 0 1px var(--accent); background-color: rgba(120,180,255,0.12); }
 
 /* F11 hint in the main menu (web only) — a quiet line under the buttons. */
 .menu-hint {
