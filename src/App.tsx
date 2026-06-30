@@ -99,6 +99,7 @@ const APPEARANCE_PANEL_MARGIN_PX = 24   // panel offset from the right edge of t
 // We start Trystero warmup not immediately on canvas-ready but after a pause: let a couple more frames render,
 // then catch the synchronous init freeze (~860ms) — it happens BEHIND the warning, unnoticed by the player.
 const TRYSTERO_WARM_DELAY_MS = 250
+const RADIO_PROGRESS_POLL_MS = 200   // how often the scrub bar reads the controller's play position
 
 // Map editor — dev only (npm run dev), not included in the prod build (the lazy chunk isn't loaded).
 const EditorRoot = lazy(() => import('./editor/EditorRoot').then(m => ({ default: m.EditorRoot })))
@@ -257,6 +258,8 @@ export default function App() {
   const [radioEngine, setRadioEngine] = useState<IStrudelEngine | null>(null)
   const [radioInitState, setRadioInitState] = useState<RadioInitState>('idle')
   const [radioMusicalState, setRadioMusicalState] = useState<MusicalState | null>(null)
+  const [radioProgress, setRadioProgress] = useState(0)
+  const [radioTotalMs, setRadioTotalMs] = useState(0)
   const radioWarmedRef = useRef(false)
   const radioActive = profile.radioEnabled && radioInitState === 'ready'
   // ── Radio entitlement: free daily trial (10 gens + 5 saves) unless the Steam DLC is owned (or dev build). ──
@@ -360,6 +363,15 @@ export default function App() {
     // volume read fresh inside playRadio; kept out of deps to avoid restarting on slider drag.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radioController, profile.radioEnabled, screen, gameNet])
+
+  // Poll the play position for the scrub bar — only while the expanded radio player is on screen and active.
+  useEffect(() => {
+    if (!radioController || screen !== 'radio' || !radioActive) { setRadioProgress(0); setRadioTotalMs(0); return }
+    const read = () => { setRadioProgress(radioController.progress()); setRadioTotalMs(radioController.totalMs()) }
+    read()
+    const id = window.setInterval(read, RADIO_PROGRESS_POLL_MS)
+    return () => window.clearInterval(id)
+  }, [radioController, screen, radioActive])
 
   // Ban accidental RELOAD in the desktop game window — Ctrl/Cmd+R and F5 reload the webview, which drops the
   // match / P2P connection (and the radio) dead. Captured so it fires before anything else. Desktop only: in a
@@ -743,6 +755,7 @@ export default function App() {
   }
   const radioPrev = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i - 1); else radioController?.prev() }
   const radioNext = () => { if (radioPlayMode === 'fav') playQueueAt(radioQueueRef.current.i + 1); else radioController?.next() }
+  const radioSeek = (frac: number) => radioController?.seekToFraction(frac)
   // Switching the play mode must also DRIVE the controller, not just flip React state: leaving 'fav' for 'gen'
   // has to exit baked playback (else the baked favorite loops forever — onTrackEnd early-returns in 'gen').
   const onRadioMode = (m: RadioPlayMode) => {
@@ -1072,6 +1085,9 @@ export default function App() {
           onPrev={radioPrev}
           onNext={radioNext}
           onPlayPause={handleToggleRadio}
+          progress={radioProgress}
+          totalMs={radioTotalMs}
+          onSeek={radioSeek}
           onDragTrack={currentTrackJSON}
           onRegen={radioRegen}
           trial={ent.unlimited || !radioResolved ? null : { gensLeft: ent.gensLeft, savesLeft: ent.savesLeft }}
