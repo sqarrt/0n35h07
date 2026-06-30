@@ -10,6 +10,9 @@ import { pickAxis } from './engines/leadAxes'
 import { DRUM_RHYTHMS, type DrumRhythm } from './engines/drumRhythm'
 import { DRUM_KITS_SND, type DrumKit as DrumSndKit } from './engines/drumKit'
 import { DRUM_COLORS, type DrumColor } from './engines/drumColor'
+import { BASS_RHYTHMS, type BassRhythm } from './engines/bassRhythm'
+import { BASS_MELODIES, type BassMelody } from './engines/bassMelody'
+import { BASS_COLORS, type BassColor } from './engines/bassColor'
 
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
@@ -80,6 +83,11 @@ export interface TrackStyle {
   drumRhythm: DrumRhythm  // РИСУНОК — the groove
   drumKit: DrumSndKit     // НАБОР — the sample bank for the whole kit
   drumColor: DrumColor    // ЦВЕТ — per-track kick/drum processing (note 4)
+  // note 8 stage 3 — the bass is now three independently-chosen axes (from a dedicated bassRng). The legacy
+  // bassSound/bassFm/bassRest/bassGroove/bassArchetype above stay populated and feed the bespoke `acid` colour.
+  bassRhythm: BassRhythm  // РИСУНОК — the mask + accents
+  bassMelody: BassMelody  // МЕЛОДИЯ — the semitone-offset contour (+ drift/shove)
+  bassColor: BassColor    // ЦВЕТ — synth source + fx (acid:true = the 303 BassEngine path)
 }
 
 // Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
@@ -183,7 +191,7 @@ function pick<T>(rng: Rng, arr: readonly T[], anti: AntiRepeatBuffer, cat: strin
 
 // `drumRng` is a DEDICATED stream for the three drum axes — the legacy drum picks below still consume `rng`/`anti`
 // (so the rest of the style is byte-identical: no cascade from the stage-2 refactor), but their results are unused.
-export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng): TrackStyle {
+export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng, bassRng: Rng): TrackStyle {
   const b = pick(rng, BASS, anti, 'st_bass')
   const l = pick(rng, LEAD, anti, 'st_lead')
   return {
@@ -211,5 +219,9 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, dr
     drumRhythm: pickAxis(DRUM_RHYTHMS, moodId, drumRng, anti, 'drum_rhythm'),
     drumKit: pickAxis(DRUM_KITS_SND, moodId, drumRng, anti, 'drum_kit'),
     drumColor: pickAxis(DRUM_COLORS, moodId, drumRng, anti, 'drum_color'),
+    // note 8 stage 3 — the bass triple, from the dedicated bassRng (mood-guarded anti-repeat):
+    bassRhythm: pickAxis(BASS_RHYTHMS, moodId, bassRng, anti, 'bass_rhythm'),
+    bassMelody: pickAxis(BASS_MELODIES, moodId, bassRng, anti, 'bass_melody'),
+    bassColor: pickAxis(BASS_COLORS, moodId, bassRng, anti, 'bass_color'),
   }
 }
