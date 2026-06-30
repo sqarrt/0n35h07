@@ -1,5 +1,5 @@
 import { createRng, randomSeed, type Rng } from '../seededRandom'
-import type { RadioBanks } from './banks'
+import type { RadioBanks, MoodConfig } from './banks'
 import type { RadioConfig } from './radioConfig'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
@@ -9,7 +9,7 @@ import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler } from './CompositionScheduler'
-import { shapeFor, type SectionRole } from './arrangement'
+import { shapeFor, type SectionRole, type SectionShape } from './arrangement'
 import type { PercKind, BgKind, BassArchetype, DrumArchetype } from './trackStyle'
 import { keyRootMidi, type Chord } from './theory'
 import type { MusicalState } from './MusicalState'
@@ -46,6 +46,23 @@ const MIX = {
 const BRIGHT_FLOOR = 0.4, BRIGHT_SPAN = 0.6      // filter brightness vs section energy
 const ENERGY_FLOOR = 0.83, ENERGY_SPAN = 0.17    // uniform loudness envelope vs energy (raised floor so quiet sections aren't too quiet)
 const EASE_IN_FLOOR = 0.18, EASE_IN_SPAN = 0.82  // gain ramp for a layer re-entering after silence (rises to 1.0)
+const NORM_TARGET = 0.8   // loudness-normalisation target for a FULL section (only ever trims, never boosts)
+
+/** Loudness policy for one section: the per-part gain `g` (MASTER × level × energy-envelope × normalisation)
+ *  and the sidechain `pump`. NB: the KICK does NOT use `g` — it keeps its own energy curve (see the kick layer),
+ *  which is why normScale only trims the OTHER parts toward NORM_TARGET. */
+function makeLoudness(
+  shape: SectionShape, energy: number, peak: boolean, mood: MoodConfig,
+): { g: (level: number) => number; pump: string; energyEnv: number } {
+  const energyEnv = ENERGY_FLOOR + ENERGY_SPAN * energy
+  const partSq = (shape.layers.bass ? MIX.bass * MIX.bass + MIX.sub * MIX.sub : 0)
+    + (shape.layers.perc ? MIX.hat * MIX.hat + MIX.snare * MIX.snare + (peak ? MIX.clap * MIX.clap : 0) : 0)
+  const normScale = partSq > 0 ? Math.min(1, NORM_TARGET / Math.sqrt(partSq)) : 1
+  const g = (level: number) => r2(MASTER * level * energyEnv * normScale)
+  const pump = sidechainGain(mood.fx.sidechainDepth)
+  // energyEnv is exposed because the KICK uses it directly (its own gain, bypassing normScale/g).
+  return { g, pump, energyEnv }
+}
 
 export class RadioComposer {
   private readonly banks: RadioBanks
@@ -237,17 +254,8 @@ export class RadioComposer {
     // scales every role together (intros softer, peaks fuller) WITHOUT changing their ratios.
     // Raised floor (was 0.74 + 0.26·energy) so the low-energy sections (intro/break/outro) sit a bit LOUDER —
     // they read as quiet without being too quiet; peaks (energy≈0.94) barely move.
-    const energyEnv = ENERGY_FLOOR + ENERGY_SPAN * energy
-    // LOUDNESS NORMALISATION — trim the parts in a FULL section so they don't pile up louder than the body
-    // average (the KICK keeps its own energy curve as the steady reference). partSq = the combined non-kick
-    // load; normScale brings an over-full section (a peak with perc stacked on) back toward a target. It only
-    // TRIMS, never boosts → sparser sections (intro/build) are untouched, so the track stays ~even throughout.
-    const partSq = (shape.layers.bass ? MIX.bass * MIX.bass + MIX.sub * MIX.sub : 0)
-      + (shape.layers.perc ? MIX.hat * MIX.hat + MIX.snare * MIX.snare + (peak ? MIX.clap * MIX.clap : 0) : 0)
-    const NORM_TARGET = 0.8
-    const normScale = partSq > 0 ? Math.min(1, NORM_TARGET / Math.sqrt(partSq)) : 1
-    const g = (level: number) => r2(MASTER * level * energyEnv * normScale)
-    const pump = sidechainGain(mood.fx.sidechainDepth)
+    // Loudness policy: per-part gain `g` + sidechain `pump` (the kick keeps its own curve — see makeLoudness).
+    const { g, pump, energyEnv } = makeLoudness(shape, energy, peak, mood)
     // Every part draws echo/reverb from the track's ONE fx space (scaled by role), so
     // parts cohere — no dry bass under a wet lead. dFactor/rFactor = this part's share.
     const fx = style.fx
