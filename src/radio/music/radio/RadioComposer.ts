@@ -48,8 +48,8 @@ const MIX = {
 
 // Section-shaping curves (hand-tuned by ear; FLOOR = value at energy 0, SPAN = added by energy 1).
 const BRIGHT_FLOOR = 0.4, BRIGHT_SPAN = 0.6      // filter brightness vs section energy
-const ENERGY_FLOOR = 0.83, ENERGY_SPAN = 0.17    // uniform loudness envelope vs energy (raised floor so quiet sections aren't too quiet)
-const EASE_IN_FLOOR = 0.18, EASE_IN_SPAN = 0.82  // gain ramp for a layer re-entering after silence (rises to 1.0)
+const ENERGY_FLOOR = 0.87, ENERGY_SPAN = 0.10    // uniform loudness envelope vs energy — NARROW (floor up, ceiling down) so the section-to-section progression isn't severe
+const EASE_IN_FLOOR = 0.45, EASE_IN_SPAN = 0.55  // gain ramp for a layer re-entering after silence (rises to 1.0) — raised floor so entries don't start near-silent
 const NORM_TARGET = 0.8   // loudness-normalisation target for a FULL section (only ever trims, never boosts)
 
 /** Loudness policy for one section: the per-part gain `g` (MASTER × level × energy-envelope × normalisation)
@@ -562,7 +562,7 @@ export class RadioComposer {
       // breathing hats: decay wobbles via a fast triangle LFO (Switch-Angel detail). The BREAK gets a SIMPLER,
       // softer hat (a plain off-pulse instead of the track's busy pattern) so it doesn't feel aggressive there.
       const hatPat = role === 'break' ? '[hh ~]*2' : dr.hat
-      const hatGain = role === 'break' ? MIX.hat * 0.7 : MIX.hat
+      const hatGain = role === 'break' ? MIX.hat * 0.4 : MIX.hat   // break hats were ear-piercing — dropped
       const swing = Math.max(0, dr.swing + mut.swing)
       const hats = `s("${hatPat}")${bankOf('hat')}.dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
       out.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
@@ -571,7 +571,7 @@ export class RadioComposer {
       const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
       const snarePat = role === 'break' ? '~ sd ~ sd' : dr.snare
       const drumSat = r2(Math.min(0.16, mood.fx.saturation * 0.16 + (dc.drumShape ?? 0)))
-      out.push(orbit(`s("${snarePat}")${bankOf('snare')}.sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.5 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${drumSat}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      out.push(orbit(`s("${snarePat}")${bankOf('snare')}.sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.3 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${drumSat}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
       // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the groove defines it, never in a break.
       if (dr.ghost && role !== 'break') out.push(orbit(`s("${dr.ghost}")${bankOf('snare')}.gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
       // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the groove defines it.
@@ -772,7 +772,7 @@ export class RadioComposer {
       case 'choir':     return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").attack(1.2).release(5).lpf(${Math.round(600 * v.cut)}).gain(${g(0.06)})${fxFor(0.3, 1.4)}`
       case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(${Math.round(800 * v.cut)}).gain(${g(0.14)})${fxFor(0.4, 1)}.pan(${v.pan})`
       // ── co-designed dark/horror (docs/radio-part-archetypes.md) — beds + the deepBell accent ─────────────
-      case 'tapeChoir':   return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").vowel("<aa oo aa ee>").attack(1.5).release(4).add(note(perlin.range(-0.25, 0.25).slow(3))).crush(7).lpf(${Math.round(1700 * v.cut)}).hpf(220).gain(${g(0.14)})${fxFor(0.8, 1.4)}.pan(${v.pan})`
+      case 'tapeChoir':   return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").vowel("<aa oo aa ee>").attack(1.5).release(4).add(note(perlin.range(-0.25, 0.25).slow(3))).crush(7).lpf(${Math.round(1700 * v.cut)}).hpf(220).gain(${g(0.035)})${fxFor(0.8, 1.4)}.pan(${v.pan})`
       case 'droneCluster':return `note("[${root - 12},${root - 6},${root + 1}]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(${g(0.14)})${fxFor(0.5, 1)}.pan(${v.pan})`
       case 'scanner':     return `s("white*4").dec(2).attack(0.5).hpf(300).lpf(sine.range(400, 3000).slow(6)).lpq(14).gain(${g(0.07)}).pan(sine.slow(9))`
       case 'tapeWarble':  return `note("${root - 12}").s("sawtooth").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(${Math.round(700 * v.cut)}).crush(8).gain(${g(0.1)})${fxFor(0.4, 0.8)}.pan(${v.pan})`
