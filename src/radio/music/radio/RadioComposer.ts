@@ -5,6 +5,7 @@ import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
 import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
 import { descCadence, descSubRun } from './engines/leadMelody'
+import { kickColorChain } from './engines/drumColor'
 import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
@@ -429,11 +430,11 @@ export class RadioComposer {
   /** KICK — the loud global reference that drives the whole balance. Composition-independent; keeps its OWN energy
    *  curve (bypasses normScale/g, by design) and takes the ducks but no pump/fx. */
   private renderKick(ctx: SectionContext): string[] {
-    const { shape, role, drumKit, mood, style, preKind, boundaryOut, fillNext, lastN, seqAligned, peak, muffled, energyEnv, drums, dropDuck, exitDuck } = ctx
+    const { shape, role, style, preKind, boundaryOut, fillNext, lastN, seqAligned, peak, muffled, energyEnv, drums, dropDuck, exitDuck } = ctx
     const out: string[] = []
     if (shape.layers.kicks) {
       const deep = role === 'break' // steady, darker kick that holds the rest together
-      const base = deep ? 'bd*4' : drumKit ? drumKit.kick : (mood.density < 0.5 ? 'bd*4' : style.kickPat)
+      const base = deep ? 'bd*4' : style.drumRhythm.kick   // note 8: groove from the РИСУНОК axis
       let kickPat = base
       // The fill/drop must land on the section's LAST bar → seqAligned (and `[base]` keeps a multi-token
       // pattern like "bd ~ bd bd" as one bar so the !-repeat can't bind to its last token).
@@ -441,14 +442,16 @@ export class RadioComposer {
       else if (boundaryOut) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), fillNext ? '[bd*2 bd bd bd]' : '[bd bd bd bd]'])
       // break: cut the kick on the FINAL bar so the riser/roll peak alone fills the gap.
       else if (deep) kickPat = seqAligned([...Array(lastN).fill(`[${base}]`), '~'])
-      // Kick is the loud global reference (drives the whole balance). Composition-independent.
-      const kickShape = r2(Math.max(0, (mood.density - 0.45) * 0.45) + (peak ? 0.12 : 0) + (!deep && drumKit?.shape ? drumKit.shape : 0))
+      // note 8 ЦВЕТ axis: the per-track kick colour (shape/drive/decay/lpf/click) is the BASE; the section adds a
+      // peak saturation bump + a muffle/deep filter override AROUND it. Kick is the loud global mix reference.
+      const PEAK_SHAPE_BUMP = 0.12
+      const colour = kickColorChain(style.drumColor)
+      const kickShape = r2(style.drumColor.kickShape + (peak ? PEAK_SHAPE_BUMP : 0))
       const kickGain = r2(MASTER * MIX.kick * energyEnv * (muffled ? 0.85 : deep ? 0.92 : 1))
-      const kickLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : drumKit?.lpf ?? (mood.density < 0.5 ? '.lpf(2200)' : '')
-      // per-track kick voice: a drum-machine bank (909/808/…) or a dirt bd variant via .n()
-      const kv = style.kickVoice
-      const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
-      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+      const sectionLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : '' // section override on top of the colour
+      const kit = style.drumKit   // note 8 НАБОР axis: the kit bank
+      const kvoice = (kit.kickBank ? `.bank("${kit.kickBank}")` : '') + `.n(${kit.kickN})`
+      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}")${colour}.shape(${kickShape}).gain(${kickGain})${sectionLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
     }
     return out
   }
