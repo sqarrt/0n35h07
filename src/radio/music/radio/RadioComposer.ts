@@ -386,24 +386,7 @@ export class RadioComposer {
 
     layers.push(...this.renderBass(ctx))
 
-    // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
-    //    metallic / hum) that just fills & dilutes the track. NOT a melodic pad — those
-    //    "atmosphere" pads were binned. Barely noticeable, sits on the tonic.
-    if (shape.layers.bg) {
-      const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
-      // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
-      // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
-      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
-      // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
-      // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
-      // never identical — what made a bell or sonar "jump out" when it recurred.
-      const bedV = bgVary(createRng(`${track.seed}:bg`))
-      layers.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + exitDuck, ORBIT.fx))
-      if (style.bgAccent) {
-        const accV = bgVary(createRng(`${track.seed}:bgacc`))
-        layers.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
-      }
-    }
+    layers.push(...this.renderBg(ctx))
 
     // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
     //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
@@ -573,6 +556,30 @@ export class RadioComposer {
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
       out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+    }
+    return out
+  }
+
+  /** BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind / metallic / hum) that just fills
+   *  and dilutes the track. A subliminal BED always, plus an occasional distinctive ACCENT; each parameterised per
+   *  track so a repeated kind never sounds identical. Near-subliminal in every track (capped + scaled). */
+  private renderBg(ctx: SectionContext): string[] {
+    const { shape, chord, g, fxFor, style, exitDuck, track } = ctx
+    const out: string[] = []
+    if (shape.layers.bg) {
+      const rootPc = ((chord.notes[0] % 12) + 12) % 12 + 36 // tonic, low register
+      // bg textures carry their own (small) levels; CAP each (so the louder textures can't pierce)
+      // then scale them ALL by MIX.bgScale → background stays near-subliminal in every track.
+      const gBg = (x: number) => Math.min(MIX.bgGainCeil, g(MIX.bgScale * Math.min(x, MIX.bgCap)))
+      // Two-tier bg (de-fingerprinting): a subliminal BED always, plus an occasional distinctive ACCENT.
+      // Each is PARAMETERISED per-track (register / struct rotation / timbre / pan) so even a repeated kind is
+      // never identical — what made a bell or sonar "jump out" when it recurred.
+      const bedV = bgVary(createRng(`${track.seed}:bg`))
+      out.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + exitDuck, ORBIT.fx))
+      if (style.bgAccent) {
+        const accV = bgVary(createRng(`${track.seed}:bgacc`))
+        out.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
+      }
     }
     return out
   }
