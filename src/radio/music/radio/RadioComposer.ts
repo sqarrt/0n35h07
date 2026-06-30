@@ -4,6 +4,7 @@ import type { RadioConfig } from './radioConfig'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
 import { RhythmEngine } from './engines/RhythmEngine'
 import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from './engines/MelodyEngine'
+import { descCadence, descSubRun } from './engines/leadMelody'
 import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
@@ -583,7 +584,7 @@ export class RadioComposer {
   /** Transition GLUE around the kit: the drop-before-lead crash, the pre-device on the outgoing block's last bar,
    *  the post-impact on the downbeat crossed into, and the outro's final ring-out crash. */
   private renderTransitionDevices(ctx: SectionContext): string[] {
-    const { leadEntered, seqAligned, bars, g, preKind, lastBar, fxFor, postKind, firstBar, role } = ctx
+    const { leadEntered, seqAligned, bars, g, preKind, lastBar, fxFor, postKind, firstBar, role, track, pos } = ctx
     const out: string[] = []
     // drop-before-lead: a crash on bar 1 marks the groove SLAMMING back after the bar-0 silence.
     if (leadEntered) out.push(orbit(`s("${seqAligned(['~', 'white', ...Array(Math.max(0, bars - 2)).fill('~')])}").dec(0.8).hpf(2500).gain(${g(0.42)}).room(0.6).roomsize(8)`, ORBIT.fx))
@@ -595,7 +596,7 @@ export class RadioComposer {
     else if (preKind === 'kickDrop') out.push(orbit(`s("${lastBar('white*16')}").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, ${g(0.32)})).hpf(400)`, ORBIT.fx))
     // post-device — the downbeat of the incoming section
     if (postKind === 'crash') out.push(orbit(`s("${firstBar('white')}").dec(0.6).hpf(3500).gain(${g(0.42)}).room(0.5).roomsize(6)`, ORBIT.fx))
-    else if (postKind === 'subDrop') out.push(orbit(`note("${firstBar('[48 42 36 30 24]')}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx))
+    else if (postKind === 'subDrop') { const run = descSubRun(createRng(`${track.seed}:subdrop${pos}`)); out.push(orbit(`note("${firstBar(`[${run.join(' ')}]`)}").s("sine").dec(0.12).lpf(500).gain(${g(0.55)})`, ORBIT.fx)) }
     else if (postKind === 'downlifter') out.push(orbit(`s("${firstBar('white*16')}").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(${g(0.34)}, 0.03)).hpf(300)`, ORBIT.fx))
     // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
     // with a clear gesture whose tail rings out into the silent gap before the next.
@@ -723,8 +724,12 @@ export class RadioComposer {
         const kv = style.kickVoice
         out.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
       } else if (fill === 'melodic') {
-        const rt = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
-        out.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
+        // note 3: a SEEDED descending cadence over the track scale (was a fixed interval shape every track).
+        const sc = track.tonality.scale
+        const base = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
+        const deg = (d: number) => base + sc[((d % sc.length) + sc.length) % sc.length] + 12 * Math.floor(d / sc.length)
+        const run = descCadence(createRng(`${track.seed}:xfillmel${pos}`), 8).map(deg)
+        out.push(orbit(`note("${lastBar(`[${run.join(' ')}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
       }
       // 'silence' → nothing added; the ducks leave a clean gap before the drop.
     }
