@@ -7,13 +7,14 @@ import { MelodyEngine, initialLeadState, type LeadState, type LeadVoiceId } from
 import { descCadence, descSubRun } from './engines/leadMelody'
 import { kickColorChain } from './engines/drumColor'
 import { kitBankOf } from './engines/drumKit'
+import { combineBass } from './engines/combineBass'
 import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
 import { TimbreEngine, initialDrift, type DriftState } from './engines/TimbreEngine'
 import { CompositionScheduler, type TrackPlan } from './CompositionScheduler'
 import { shapeFor, type SectionRole, type SectionShape } from './arrangement'
-import type { PercKind, BgKind, BassArchetype, TrackStyle } from './trackStyle'
+import type { PercKind, BgKind, TrackStyle } from './trackStyle'
 import { keyRootMidi, type Chord, type ChordSequence } from './theory'
 import type { MusicalState } from './MusicalState'
 import type { TrackDescriptor } from '../../trackDescriptor'
@@ -493,7 +494,9 @@ export class RadioComposer {
       // layer B — a quiet fifth-up copy of the bass, 1/16 late, on a squarer timbre (a transposed shadow riff)
       const bassSuper = bassShadow === 'B' && !muffled ? '.superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32))' : ''
       let bassMain: string
-      if (style.bassArchetype === 'existing') {
+      if (style.bassColor.acid) {
+        // 303 acid — the bespoke colour: BassEngine's root-pulse + acidenv squelch, from the legacy fields (still
+        // populated). The рисунок/мелодия axes do NOT apply here (this colour brings its own).
         const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
         // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
         const aRng = createRng(`${track.seed}:aenv${pos}`)
@@ -516,14 +519,16 @@ export class RadioComposer {
         const wide = !muffled && style.bassSound === 'supersaw' ? `.unison(5).detune(${r2(0.5 * mut.width)})` : ''
         bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
       } else {
-        // co-designed dark/electronic archetype, transposed onto the progression roots.
-        const v = BASS_VOICES[style.bassArchetype]
-        const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
-        // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
-        // SKIP voices carrying a positional .gain("…") accent pattern — reordering the notes would mis-align the
-        // (un-reordered) per-step accents with the pitches.
-        const off = /\.gain\("/.test(v.fx) ? v.off : disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
-        bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
+        // note 8: рисунок × мелодия × цвет, transposed onto the progression roots.
+        const r = style.bassRhythm, m = style.bassMelody, c = style.bassColor
+        const combined = combineBass(r, m.offs)
+        // disguise (cell reorder) per track — but SKIP it when an accent pattern is present, else the fixed-position
+        // accents would mis-align with the reordered onsets (the original BASS_VOICES code had the same guard).
+        const off = r.accent ? combined : disguiseCells(combined, createRng(`${track.seed}:bassdis`))
+        const accent = r.accent ? `.gain("${r.accent}")` : ''
+        const drift = m.drift ? `.add(note(saw.range(0, -12).slow(${n})${lateAlign}))` : ''
+        const filt = c.filt ? c.filt(n, lateAlign) : `.lpf(${bassLpf})`
+        bassMain = `note("${off}")${m.shove ?? ''}.add(note("<${roots.join(' ')}>"))${drift}${c.src ?? ''}${c.fx ?? ''}${accent}.clip(0.95)${filt}${bassSuper}`
       }
       // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
       // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
@@ -812,23 +817,6 @@ export class RadioComposer {
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
 
 
-// Per-archetype bass CORE (the co-designed dark/electronic tournament winners — docs/radio-part-archetypes.md).
-// `off` = 16-step OFFSET pattern relative to the section root (0 = root, 6 = tritone…; no bare `~` — the BASS LAW
-// forbids silence, gaps are `_` sustains or ghost notes). `src` = source+synth, `fx` = character chain. Optional:
-// `shove` (per-bar transpose), `drift` (continuous downward pitch slide), `filt` (filter override, else the shared
-// entry sweep). The composer appends `.add(note("<roots>"))` so each rides the progression root per bar.
-interface BassVoice { off: string; src: string; fx: string; shove?: string; drift?: (n: number, la: string) => string; filt?: (n: number, la: string) => string }
-const BASS_VOICES: Record<Exclude<BassArchetype, 'existing'>, BassVoice> = {
-  rootPulse: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.4)', fx: '.acidenv(0.7).lpq(9).distort("1.2:0.3")' },
-  bitcrush: { off: '0 0 0 6 0 0 0 0 0 0 6 0 5 0 0 0', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.crush(4).distort("1.3:0.45").release(0.14).lpq(5).acidenv(0.4).gain("1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5")' },
-  wobble: { off: '0 0 0 0 0 0 6 0 0 0 0 0 0 0 5 0', src: '.s("supersaw").unison(5).detune(0.5)', fx: '.lpq(13).distort("1.4:0.45")', filt: (n, la) => `.lpf(sine.range(160, 1700).slow(${Math.max(2, n)})${la})` },
-  chromaDescent: { off: '0*16', src: '.s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51)', fx: '.lpq(6).distort("1.4:0.45").gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5")', drift: (n, la) => `.add(note(saw.range(0, -12).slow(${n})${la}))`, filt: (_n, la) => `.lpf(saw.range(200, 1100).slow(2)${la})` },
-  pulseHorror: { off: '0*16', shove: '.add(note("<0 0 6 0>"))', src: '.s("supersaw").unison(3).detune(0.4)', fx: '.ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.6 1 0.5 0.8 0.5 1 0.5 0.7 0.6")', filt: () => '.lpf(perlin.range(220, 1700).fast(2))' },
-  // — library lessons (sub+timbre stack / wavetable / heavy diode drive / cycling FM). Our sub-sine is the weight;
-  //   these supply the CHARACTER layer on top, like the reference substk_* basses. —
-  wtFlute: { off: '0 _ _ 6 _ 0 _ _ 5 _ _ 4 _ 0 _ _', src: '.s("wt_flute").unison(2)', fx: '.wt(0).wtenv(0.7).acidenv(0.45).distort("4:0.5").dec(0.13).lpq(2).fm("<1 ~ ~ 2>")' },
-  wtDigital: { off: '0 _ 6 _ _ 0 _ 5 _ _ 4 _ _ 0 _ _', src: '.s("wt_digital").unison(2)', fx: '.wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4)' },
-}
 
 // Per-archetype synth+FX chain (the co-designed lead set — docs/radio-lead-archetypes.md). `src` overrides the
 // source (omit → use the track's voice); `fx` is the character chain; `filt` overrides the entry-sweep filter;
