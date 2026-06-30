@@ -384,69 +384,7 @@ export class RadioComposer {
 
     layers.push(...this.renderPerc(ctx))
 
-    // ── BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/
-    //    electronic winner (tournament — docs/radio-part-archetypes.md). All follow the progression root per bar
-    //    (.add(note("<roots>"))), never go silent (no `~`), and share the entry filter sweep + gain/pump/ducks.
-    if (shape.layers.bass) {
-      const roots = seq.map((c) => ((c.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 1))
-      // filter breathes within the section (.slow) AND its ceiling opens over the block; on ENTRY it sweeps up
-      // from near-CLOSED (90Hz) so the bass eases in tonally. .late aligns the sweep to the section's first bar.
-      const ceil = Math.round(560 + (0.35 + 0.65 * blockProgress) * (muffled ? 400 : 1000))
-      const bassLpf = entered('bass')
-        ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
-        : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
-      // layer B — a quiet fifth-up copy of the bass, 1/16 late, on a squarer timbre (a transposed shadow riff)
-      const bassSuper = bassShadow === 'B' && !muffled ? '.superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32))' : ''
-      let bassMain: string
-      if (style.bassArchetype === 'existing') {
-        const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
-        // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
-        const aRng = createRng(`${track.seed}:aenv${pos}`)
-        const center = Math.min(0.6, Math.max(0.12, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25 + mut.acidenv))
-        const amp = muffled ? 0.08 : 0.16
-        const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
-        const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
-        let acidenvExpr: string
-        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n})`
-        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n})`
-        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n})`
-        else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
-        const frag = this.bass.buildBass({
-          rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
-          saturation: muffled ? 0.08 : r2((0.3 + mood.fx.saturation * 0.3) * mut.drive), acidenv: acidenvExpr,
-          dec: r2(0.16 * mut.env),
-        })
-        const fm = style.bassFm > 0 ? `.fm(${r2(style.bassFm * mut.fm)}).fmh(2)` : ''
-        const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
-        const wide = !muffled && style.bassSound === 'supersaw' ? `.unison(5).detune(${r2(0.5 * mut.width)})` : ''
-        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
-      } else {
-        // co-designed dark/electronic archetype, transposed onto the progression roots.
-        const v = BASS_VOICES[style.bassArchetype]
-        const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
-        // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
-        // SKIP voices carrying a positional .gain("…") accent pattern — reordering the notes would mis-align the
-        // (un-reordered) per-step accents with the pitches.
-        const off = /\.gain\("/.test(v.fx) ? v.off : disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
-        bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
-      }
-      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
-      // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
-      // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
-      const BASS_EXPOSED_BOOST = 1.4
-      const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
-      layers.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
-      // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
-      // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
-      // Reinforces the bass fundamental at its OWN octave (not another octave below): the
-      // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
-      layers.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
-      // layer A — a quiet melodic ghost-bass (octave up, rest-pocked, different degrees) interlocking with the riff
-      if (bassShadow === 'A') {
-        const counter = this.bass.buildCounter({ rng: createRng(`${track.seed}:cbass${pos}`), roots, sound: style.bassSound })
-        layers.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
-      }
-    }
+    layers.push(...this.renderBass(ctx))
 
     // ── BACKGROUND — a subtle, in-key texture (drone / sub-pulse / sonar ping / wind /
     //    metallic / hum) that just fills & dilutes the track. NOT a melodic pad — those
@@ -635,6 +573,75 @@ export class RadioComposer {
       const kv = style.kickVoice
       const kvoice = (kv.bank ? `.bank("${kv.bank}")` : '') + `.n(${kv.n})`
       out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}").shape(${kickShape}).gain(${kickGain})${kickLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+    }
+    return out
+  }
+
+  /** BASS — one of 7 CHARACTERS (style.bassArchetype): the original 303 acid riff, or a co-designed dark/electronic
+   *  winner. All follow the progression root per bar (.add(note("<roots>"))), never go silent, and share the entry
+   *  filter sweep + gain/pump/ducks. Plus the constant sub-sine and the optional ghost-bass shadow. */
+  private renderBass(ctx: SectionContext): string[] {
+    const { shape, seq, blockProgress, muffled, entered, n, lateAlign, bassShadow, style, track, mut, bassRng, role, g, fxFor, pump, bassEmph, bassEnter, dropDuck, exitDuck, pos, mood, seqAligned } = ctx
+    const out: string[] = []
+    if (shape.layers.bass) {
+      const roots = seq.map((c) => ((c.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 1))
+      // filter breathes within the section (.slow) AND its ceiling opens over the block; on ENTRY it sweeps up
+      // from near-CLOSED (90Hz) so the bass eases in tonally. .late aligns the sweep to the section's first bar.
+      const ceil = Math.round(560 + (0.35 + 0.65 * blockProgress) * (muffled ? 400 : 1000))
+      const bassLpf = entered('bass')
+        ? `saw.range(90, ${ceil}).slow(${n})${lateAlign}`
+        : `saw.range(${muffled ? 240 : 420}, ${ceil}).slow(${n})${lateAlign}`
+      // layer B — a quiet fifth-up copy of the bass, 1/16 late, on a squarer timbre (a transposed shadow riff)
+      const bassSuper = bassShadow === 'B' && !muffled ? '.superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32))' : ''
+      let bassMain: string
+      if (style.bassArchetype === 'existing') {
+        const groove = style.bassGroove.split(/\s+/).map((t) => t !== '~')
+        // acid env WANDERS within the section so the squelch doesn't go stale; capped 0.65, motion per-section.
+        const aRng = createRng(`${track.seed}:aenv${pos}`)
+        const center = Math.min(0.6, Math.max(0.12, 0.3 + 0.25 * blockProgress + (this.drift.acidenv - 0.4) * 0.25 + mut.acidenv))
+        const amp = muffled ? 0.08 : 0.16
+        const aHi = r2(Math.min(0.65, center + amp)); const aLo = r2(Math.max(0.12, center - amp))
+        const motion = (['rise', 'fall', 'sine', 'jump'] as const)[aRng.int(4)]
+        let acidenvExpr: string
+        if (motion === 'rise') acidenvExpr = `saw.range(${aLo}, ${aHi}).slow(${n})`
+        else if (motion === 'fall') acidenvExpr = `saw.range(${aHi}, ${aLo}).slow(${n})`
+        else if (motion === 'sine') acidenvExpr = `sine.range(${aLo}, ${aHi}).slow(${n})`
+        else acidenvExpr = `"<${Array.from({ length: n }, () => r2(aLo + aRng.next() * (aHi - aLo))).join(' ')}>"`
+        const frag = this.bass.buildBass({
+          rng: bassRng, roots, sound: style.bassSound, rest: style.bassRest, groove,
+          saturation: muffled ? 0.08 : r2((0.3 + mood.fx.saturation * 0.3) * mut.drive), acidenv: acidenvExpr,
+          dec: r2(0.16 * mut.env),
+        })
+        const fm = style.bassFm > 0 ? `.fm(${r2(style.bassFm * mut.fm)}).fmh(2)` : ''
+        const fat = muffled ? '' : '.superimpose(x => x.add(note(12)).s("square").distort("1.5:0.4").gain(0.34).lpf(1400))'
+        const wide = !muffled && style.bassSound === 'supersaw' ? `.unison(5).detune(${r2(0.5 * mut.width)})` : ''
+        bassMain = `${frag}${wide}.clip(0.95).lpf(${bassLpf})${fm}${fat}${bassSuper}`
+      } else {
+        // co-designed dark/electronic archetype, transposed onto the progression roots.
+        const v = BASS_VOICES[style.bassArchetype]
+        const filt = v.filt ? v.filt(n, lateAlign) : `.lpf(${bassLpf})`
+        // DISGUISE the fixed melodic riff per track (cell reorder) so the bassline isn't recognizable track-to-track.
+        // SKIP voices carrying a positional .gain("…") accent pattern — reordering the notes would mis-align the
+        // (un-reordered) per-step accents with the pitches.
+        const off = /\.gain\("/.test(v.fx) ? v.off : disguiseCells(v.off, createRng(`${track.seed}:bassdis`))
+        bassMain = `note("${off}")${v.shove ?? ''}.add(note("<${roots.join(' ')}>"))${v.drift ? v.drift(n, lateAlign) : ''}${v.src}${v.fx}.clip(0.95)${filt}${bassSuper}`
+      }
+      // main bass yields the spotlight per-bar in peaks (bassEmph) but never goes silent; trimmed so kick/snares read
+      // forward. BUT intro/build are sparse — the bass IS the event there yet reads quiet under the kick → lift it
+      // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
+      const BASS_EXPOSED_BOOST = 1.4
+      const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
+      out.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
+      // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
+      // Reinforces the bass fundamental at its OWN octave (not another octave below): the
+      // main bass already sits at C1–B1, so a sub beneath that would be subsonic mud.
+      out.push(orbit(`note("${seqAligned(roots.map(String))}").s("sine").gain(${g(MIX.sub * bassLift)})${bassEnter}${dropDuck}${exitDuck}.lpf(150)${pump}`, ORBIT.fx))
+      // layer A — a quiet melodic ghost-bass (octave up, rest-pocked, different degrees) interlocking with the riff
+      if (bassShadow === 'A') {
+        const counter = this.bass.buildCounter({ rng: createRng(`${track.seed}:cbass${pos}`), roots, sound: style.bassSound })
+        out.push(orbit(`${counter}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * 0.34)})${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      }
     }
     return out
   }
