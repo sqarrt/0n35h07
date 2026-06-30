@@ -331,8 +331,6 @@ export class RadioComposer {
     // Bass riff is LOCKED per movement; the 2nd movement (after break) gets a new riff.
     const bassRng = createRng(`${track.seed}:bass${this.afterBreak ? '2' : ''}`)
 
-    const layers: string[] = []
-
     // ── SECOND-VOICE LAYERS (Switch-Angel) — a track may grow a quiet shadow voice on its bass and/or its lead so
     //    the overlap births a melody neither part plays alone. Decided per-TRACK (stable across sections via the
     //    track seed): ~60% chance each, then a strategy — bass A=ghost counter-line / B=transposed superimpose;
@@ -377,20 +375,18 @@ export class RadioComposer {
       preKind, postKind, lastN, lastBar, firstBar, fillNext, boundaryOut,
     }
 
-    // ── KICK ──
-    layers.push(...this.renderKick(ctx))
-
-    layers.push(...this.renderTransitionDevices(ctx))
-
-    layers.push(...this.renderPerc(ctx))
-
-    layers.push(...this.renderBass(ctx))
-
-    layers.push(...this.renderBg(ctx))
-
-    layers.push(...this.renderLead(ctx))
-    layers.push(...this.renderBreak(ctx))
-    layers.push(...this.renderExitFill(ctx))
+    // Each instrument renders its own fragment(s); concatenated in MIX order (kick → glue → perc → bass → bg →
+    // lead → break → exit-fill). The order is part of the byte-identity contract — do not reshuffle.
+    const layers: string[] = [
+      ...this.renderKick(ctx),
+      ...this.renderTransitionDevices(ctx),
+      ...this.renderPerc(ctx),
+      ...this.renderBass(ctx),
+      ...this.renderBg(ctx),
+      ...this.renderLead(ctx),
+      ...this.renderBreak(ctx),
+      ...this.renderExitFill(ctx),
+    ]
 
     const body = layers.length > 0 ? `stack(\n  ${layers.join(',\n  ')}\n)` : 'silence'
     const strudelCode = `setcpm(${track.bpm}/4)\n${body}`
