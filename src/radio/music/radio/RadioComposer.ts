@@ -388,122 +388,9 @@ export class RadioComposer {
 
     layers.push(...this.renderBg(ctx))
 
-    // ── LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes.
-    //    leadPresence thins it out: 'none' = no lead (kept ONLY for float, which it carries),
-    //    'sparse' = peaks only, 'full' = build+peak. Many tracks sound better with little/no lead.
-    //    (leadOn / leadEntered are computed up top so the kick/bass can drop before the lead's first entry.)
-    // INTERMITTENT: the lead RESTS on every 8th peak loop (it does not play the whole time — Switch Angel) so it
-    // breathes; the groove (bass call-and-response) carries that loop. Not on float (the lead IS the section).
-    // (Eased from every-4th — the leads are loved, let them play longer between breaths.)
-    const leadRest = peak && (pos - bStart) % 8 === 7
-    if (leadOn && !leadRest) {
-      // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
-      // aggressive, loud and detached from the track). Just the track's own width, if any.
-      const leadVoice = style.leadUnison > 0
-        ? `.s("${style.leadSound}").unison(${style.leadUnison}).detune(0.18)`
-        : `.s("${style.leadSound}")`
-      // FLOAT carries the whole (drumless) passage on the lead ALONE → there it must be PROMINENT, not
-      // the under-the-groove whisper used in builds/peaks (that left float sections near-silent). So in
-      // float the lead is louder, brighter (higher ceiling) and its entry filter starts far less closed.
-      const floaty = role === 'float' || role === 'introB' // openings → brighter filter / less-closed entry
-      // Lead vs bass: when they play TOGETHER (bass present) the lead must be NOTICEABLY quieter than the bass.
-      // float has NO bass → prominent; introB has bass → present but under it; build/peak → well under it.
-      const leadLevel = role === 'float' ? MIX.lead * 2.7 : role === 'introB' ? MIX.lead * 1.3 : MIX.lead * 0.75
-      // filter opens with the block but stays DARK in builds/peaks (capped ~1300) so the lead sits
-      // inside the track; in float it opens much brighter so it actually sings.
-      const ceil = Math.round(750 + (lpf - 750) * Math.max(0.3, blockProgress))
-      const ceilCap = Math.min(floaty ? 2800 : 1300, Math.max(750, ceil))
-      // TRANSITION = a filter OPEN (not a stepped gain). When the lead enters (or the peak block starts)
-      // the cutoff sweeps up across the section start so it eases in. In float it starts far less closed
-      // (520Hz, audible) instead of 220Hz (near-silent) so the opening doesn't read as dead air.
-      const leadEntering = entered('lead') || (peak && pos === bStart)
-      const leadLpf = leadEntering
-        ? `saw.range(${floaty ? 520 : 220}, ${ceilCap}).slow(${n})${lateAlign}`
-        : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
-      // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
-      const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
-      // AFTER THE BREAK: develop the lead with an in-key TRANSPOSITION pattern (Switch-Angel
-      // style — .add(<changing offsets>)). The same riff shifts harmonically per bar (over a
-      // root pedal it reads as an implied progression) and is KEPT to the track's end.
-      // DESCENDING / returning only — an ASCENDING climb (e.g. 0 3 5 7) reads as a cheesy
-      // "tropical" uplift, which is banned. These fall back home or hold, like the reference.
-      const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
-      const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
-      if (style.dropLead === 'arp' && !memory) {
-        layers.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
-      } else {
-        const { fragment, voice, state } = this.melody.buildLead(chord, {
-          rng, leadOctave: this.config.leadOctave, density: mood.density,
-          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
-        }, this.lead)
-        this.lead = state
-        // Render the picked archetype's synth+FX chain (LEAD_VOICES). `src` overrides the source (else the
-        // track voice); a timbre voice may bring its own `filt`; otherwise the shared entry-sweep filter eases
-        // it in (its ceiling raised for bright timbres). The composer owns level (loudness norm), pan and emphasis.
-        const spec = LEAD_VOICES[voice]
-        const src = spec.src ?? leadVoice
-        const target = Math.max(spec.ceil ?? 0, ceilCap)
-        const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
-        const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
-        const fat = spec.fat ? fatLead : ''
-        layers.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
-      }
-      // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
-      // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
-      if (leadShadow === 'D') {
-        const ghost = this.melody.buildLead(chord, {
-          rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
-          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
-        }, initialLeadState())
-        layers.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
-      }
-    }
-
-    // ── BREAK (reworked — NO risers). A breakdown with its OWN melodic identity: a soft echo-tail of the
-    //    outgoing lead, then a DIFFERENT soulful lead (the atmoDyad ballad) developing via a slow filter bloom
-    //    over the lightened groove, and a per-break FILL (silence / rhythmic / melodic) on the last bar.
-    if (role === 'break') {
-      // (0) ECHO THROW — the lead riff from the peak we just left (its motif is still in
-      //     this.lead, reset only at the end of this call) plays ONCE on the break's first
-      //     bar, drowned in long-feedback delay + reverb so it rings out and dissolves into
-      //     the breakdown — a tail of the previous part bleeding through. Continuity glue.
-      const echoMotif = this.lead.motif
-      if (echoMotif) {
-        // Replay the movement's lead pattern ONCE on the break's first bar, drowned in long-feedback delay +
-        // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
-        layers.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
-      }
-      // (1) A DIFFERENT lead — one of the RESTFUL archetypes (the same 18-voice set as the main lead, filtered to
-      //     the atmospheric ones), with its OWN timbre, picked to DIFFER from the track's main lead. Rendered LOW
-      //     + echo-drowned (its own delay/room + a soft level + the last-bar exitDuck) so it rests the ears.
-      //     Non-timbre voices get the break's slow filter BLOOM. (No risers; no wailing sustained pad.)
-      const brkLpf = `.lpf(saw.range(500, 2000).slow(${n})${lateAlign})`
-      const brk = this.melody.buildBreakLead({
-        rng: createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`),
-        leadOctave: this.config.leadOctave + 1, density: mood.density,
-        scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key),
-      }, this.lead.motif?.voice)
-      const brkSpec = LEAD_VOICES[brk.voice]
-      const brkSrc = brkSpec.src ?? `.s("${style.leadSound}")`
-      const brkFilt = brkSpec.filt ?? brkLpf
-      layers.push(orbit(`note("${brk.pattern}")${brkSrc}${brkSpec.fx}${brkFilt}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.18)})${exitDuck}`, ORBIT.lead))
-    }
-
-    // ── EXIT FILL — on the LAST bar of an atmospheric exit (break OR intro→build), one of three per exit
-    //    (seeded): silence / rhythmic (a drum fill) / melodic (a fat bass run). The whole body already ducks on
-    //    the last bar (exitDuck), so the fill stands ALONE there → distinct from both the section and the next.
-    if (isExit) {
-      const fill = (['silence', 'rhythmic', 'melodic'] as const)[createRng(`${track.seed}:xfill${pos}`).int(3)]
-      if (fill === 'rhythmic') {
-        const kv = style.kickVoice
-        layers.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
-      } else if (fill === 'melodic') {
-        const rt = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
-        layers.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
-      }
-      // 'silence' → nothing added; the ducks leave a clean gap before the drop.
-    }
-
+    layers.push(...this.renderLead(ctx))
+    layers.push(...this.renderBreak(ctx))
+    layers.push(...this.renderExitFill(ctx))
 
     const body = layers.length > 0 ? `stack(\n  ${layers.join(',\n  ')}\n)` : 'silence'
     const strudelCode = `setcpm(${track.bpm}/4)\n${body}`
@@ -708,6 +595,134 @@ export class RadioComposer {
     // OUTRO ending: a long, reverberant crash on the final bar so the track concludes
     // with a clear gesture whose tail rings out into the silent gap before the next.
     if (role === 'outro') out.push(orbit(`s("${lastBar('white')}").dec(1.2).hpf(2500).gain(${g(0.4)}).room(0.6).roomsize(8)`, ORBIT.fx))
+    return out
+  }
+
+  /** LEAD — ONE locked motif per movement; variety comes from FX (filter/echo), not new notes. leadPresence thins
+   *  it out ('none'/'sparse'/'full'); it RESTS every 8th peak loop to breathe; plus the optional independent shadow
+   *  phrase (layer D). The composer owns level/pan/emphasis; the picked archetype owns synth+FX. */
+  private renderLead(ctx: SectionContext): string[] {
+    const { peak, pos, bStart, leadOn, style, role, lpf, blockProgress, entered, n, lateAlign, seqAligned, chord, mut, fxFor, g, leadEmph, pump, leadShadow, memory, rng, mood, track } = ctx
+    const out: string[] = []
+    // INTERMITTENT: the lead RESTS on every 8th peak loop (it does not play the whole time — Switch Angel) so it
+    // breathes; the groove (bass call-and-response) carries that loop. Not on float (the lead IS the section).
+    const leadRest = peak && (pos - bStart) % 8 === 7
+    if (leadOn && !leadRest) {
+      // Keep the track's natural voice — DON'T force a fat unison stack (that made the lead
+      // aggressive, loud and detached from the track). Just the track's own width, if any.
+      const leadVoice = style.leadUnison > 0
+        ? `.s("${style.leadSound}").unison(${style.leadUnison}).detune(0.18)`
+        : `.s("${style.leadSound}")`
+      // FLOAT carries the whole (drumless) passage on the lead ALONE → there it must be PROMINENT, not
+      // the under-the-groove whisper used in builds/peaks (that left float sections near-silent). So in
+      // float the lead is louder, brighter (higher ceiling) and its entry filter starts far less closed.
+      const floaty = role === 'float' || role === 'introB' // openings → brighter filter / less-closed entry
+      // Lead vs bass: when they play TOGETHER (bass present) the lead must be NOTICEABLY quieter than the bass.
+      // float has NO bass → prominent; introB has bass → present but under it; build/peak → well under it.
+      const leadLevel = role === 'float' ? MIX.lead * 2.7 : role === 'introB' ? MIX.lead * 1.3 : MIX.lead * 0.75
+      // filter opens with the block but stays DARK in builds/peaks (capped ~1300) so the lead sits
+      // inside the track; in float it opens much brighter so it actually sings.
+      const ceil = Math.round(750 + (lpf - 750) * Math.max(0.3, blockProgress))
+      const ceilCap = Math.min(floaty ? 2800 : 1300, Math.max(750, ceil))
+      // TRANSITION = a filter OPEN (not a stepped gain). When the lead enters (or the peak block starts)
+      // the cutoff sweeps up across the section start so it eases in. In float it starts far less closed
+      // (520Hz, audible) instead of 220Hz (near-silent) so the opening doesn't read as dead air.
+      const leadEntering = entered('lead') || (peak && pos === bStart)
+      const leadLpf = leadEntering
+        ? `saw.range(${floaty ? 520 : 220}, ${ceilCap}).slow(${n})${lateAlign}`
+        : `saw.range(560, ${ceilCap}).slow(${n})${lateAlign}`
+      // a single octave-DOWN shadow for dark weight — quiet so it doesn't add loudness
+      const fatLead = '.superimpose(x => x.add(note(-12)).gain(0.28).lpf(900))'
+      // AFTER THE BREAK: develop the lead with an in-key TRANSPOSITION pattern (Switch-Angel
+      // style — .add(<changing offsets>)). The same riff shifts harmonically per bar (over a
+      // root pedal it reads as an implied progression) and is KEPT to the track's end.
+      // DESCENDING / returning only — an ASCENDING climb (e.g. 0 3 5 7) reads as a cheesy
+      // "tropical" uplift, which is banned. These fall back home or hold, like the reference.
+      const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
+      const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
+      if (style.dropLead === 'arp' && !memory) {
+        out.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+      } else {
+        const { fragment, voice, state } = this.melody.buildLead(chord, {
+          rng, leadOctave: this.config.leadOctave, density: mood.density,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+        }, this.lead)
+        this.lead = state
+        // Render the picked archetype's synth+FX chain (LEAD_VOICES). `src` overrides the source (else the
+        // track voice); a timbre voice may bring its own `filt`; otherwise the shared entry-sweep filter eases
+        // it in (its ceiling raised for bright timbres). The composer owns level (loudness norm), pan and emphasis.
+        const spec = LEAD_VOICES[voice]
+        const src = spec.src ?? leadVoice
+        const target = Math.max(spec.ceil ?? 0, ceilCap)
+        const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
+        const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
+        const fat = spec.fat ? fatLead : ''
+        out.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+      }
+      // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
+      // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
+      if (leadShadow === 'D') {
+        const ghost = this.melody.buildLead(chord, {
+          rng: createRng(`${track.seed}:glead${pos}`), leadOctave: this.config.leadOctave, density: mood.density,
+          scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key), anti: this.anti,
+        }, initialLeadState())
+        out.push(orbit(`${ghost.fragment}.s("${style.leadSound}").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(${g(leadLevel * 0.4)})`, ORBIT.arp))
+      }
+    }
+    return out
+  }
+
+  /** BREAK — a breakdown with its OWN melodic identity: a soft echo-tail of the outgoing lead, then a DIFFERENT
+   *  restful lead developing via a slow filter bloom. No risers. */
+  private renderBreak(ctx: SectionContext): string[] {
+    const { role, style, firstBar, g, n, lateAlign, mood, track, exitDuck } = ctx
+    const out: string[] = []
+    if (role === 'break') {
+      // (0) ECHO THROW — the lead riff from the peak we just left (its motif is still in
+      //     this.lead, reset only at the end of this call) plays ONCE on the break's first
+      //     bar, drowned in long-feedback delay + reverb so it rings out and dissolves into
+      //     the breakdown — a tail of the previous part bleeding through. Continuity glue.
+      const echoMotif = this.lead.motif
+      if (echoMotif) {
+        // Replay the movement's lead pattern ONCE on the break's first bar, drowned in long-feedback delay +
+        // reverb so it rings out and dissolves — a ghostly tail of the previous part bleeding through.
+        out.push(orbit(`note("${firstBar(`[${echoMotif.pattern}]`)}").s("${style.leadSound}").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(${style.fx.delayTime}).delayfeedback(0.62).room(0.6).roomsize(7).gain(${g(0.26)}).lpf(1500)`, ORBIT.lead))
+      }
+      // (1) A DIFFERENT lead — one of the RESTFUL archetypes (the same 18-voice set as the main lead, filtered to
+      //     the atmospheric ones), with its OWN timbre, picked to DIFFER from the track's main lead. Rendered LOW
+      //     + echo-drowned (its own delay/room + a soft level + the last-bar exitDuck) so it rests the ears.
+      //     Non-timbre voices get the break's slow filter BLOOM. (No risers; no wailing sustained pad.)
+      const brkLpf = `.lpf(saw.range(500, 2000).slow(${n})${lateAlign})`
+      const brk = this.melody.buildBreakLead({
+        rng: createRng(`${track.seed}:brklead${this.afterBreak ? '2' : ''}`),
+        leadOctave: this.config.leadOctave + 1, density: mood.density,
+        scale: track.tonality.scale, keyRoot: keyRootMidi(track.tonality.key),
+      }, this.lead.motif?.voice)
+      const brkSpec = LEAD_VOICES[brk.voice]
+      const brkSrc = brkSpec.src ?? `.s("${style.leadSound}")`
+      const brkFilt = brkSpec.filt ?? brkLpf
+      out.push(orbit(`note("${brk.pattern}")${brkSrc}${brkSpec.fx}${brkFilt}.hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(${g(0.18)})${exitDuck}`, ORBIT.lead))
+    }
+    return out
+  }
+
+  /** EXIT FILL — on the LAST bar of an atmospheric exit (break OR intro→build), one of three per exit (seeded):
+   *  silence / rhythmic (a drum fill) / melodic (a fat bass run). The body already ducks there, so the fill stands
+   *  alone — distinct from both the section and the next. */
+  private renderExitFill(ctx: SectionContext): string[] {
+    const { isExit, style, lastBar, g, fxFor, chord, pump, track, pos } = ctx
+    const out: string[] = []
+    if (isExit) {
+      const fill = (['silence', 'rhythmic', 'melodic'] as const)[createRng(`${track.seed}:xfill${pos}`).int(3)]
+      if (fill === 'rhythmic') {
+        const kv = style.kickVoice
+        out.push(orbit(`s("${lastBar('[bd ~ sd ~ bd sd [sd sd] [sd*4]]')}")${kv.bank ? `.bank("${kv.bank}")` : ''}.gain(${g(0.8)}).hpf(150).shape(0.1).lpf(7000)${fxFor(0, 0.3)}`, ORBIT.snare))
+      } else if (fill === 'melodic') {
+        const rt = ((chord.notes[0] % 12) + 12) % 12 + 12 * (this.config.bassOctave + 2) // a fat bass run on the last bar
+        out.push(orbit(`note("${lastBar(`[${rt} ${rt} ${rt + 7} ${rt} ${rt + 10} ${rt + 7} ${rt + 3} ${rt}]`)}").s("supersaw").unison(3).detune(0.4).clip(0.95).lpf(1100).distort("1.5:0.4").gain(${g(0.5)})${pump}`, ORBIT.bass))
+      }
+      // 'silence' → nothing added; the ducks leave a clean gap before the drop.
+    }
     return out
   }
 
