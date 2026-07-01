@@ -18,11 +18,13 @@ export function sameTrack(a: TrackDescriptor, b: TrackDescriptor): boolean {
   return a.seed === b.seed && a.index === b.index
 }
 
-/** One rendered section of a baked track: its exact Strudel program + how many bars it plays. */
-export interface BakedSection { code: string; bars: number }
-/** A track "baked" at save time — the full arc's Strudel code + its frozen name — so a saved favorite
- *  plays back EXACTLY as it sounded, immune to later changes in the generation algorithm. */
-export interface BakedTrack { name: string; sections: BakedSection[] }
-/** A saved favorite = the track's identity (descriptor) PLUS the baked render. Older favorites have no
- *  `baked` and fall back to deterministic regeneration from seed+index. */
-export interface FavoriteTrack extends TrackDescriptor { baked?: BakedTrack }
+/** A track "baked" at save time as ONE self-contained arrange() program — so a saved favorite plays back
+ *  EXACTLY as it sounded (and is copy-pasteable into strudel.cc), immune to later generation changes.
+ *  `info` is display-only; `bars` is the total length (for scheduling the loop / queue auto-advance). */
+export interface BakedTrack {
+  name: string
+  bpm: number
+  bars: number
+  info: { mood: string; key: string; scale: string }
+  program: string
+}

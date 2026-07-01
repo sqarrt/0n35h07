@@ -5,7 +5,6 @@ import { LOCALES } from './i18n'
 import type { LocaleId } from './i18n'
 import { generateModelName } from './names'
 import { decodeBallArt } from './game/ballArt'
-import type { FavoriteTrack, BakedSection } from './radio/trackDescriptor'
 import type { RadioTrial } from './radio/entitlement'
 
 export type DefaultView = 'fp' | 'tp'
@@ -34,7 +33,6 @@ export interface PlayerProfile {
   volumeMenuMusic: number    // audio: menu music 0..1; local preference
   radioEnabled: boolean      // audio: generative "Radio" mode replaces stem music when on; local preference
   volumeRadio: number        // audio: radio level 0..1; local preference
-  favorites: FavoriteTrack[]     // radio: liked tracks (baked render replayed verbatim)
   radioDlcOwned?: boolean    // radio: cached last Steam DLC-ownership answer (used before the first Steam connect)
   radioTrial?: RadioTrial    // radio: free-trial daily counters (gens/saves), local-day reset
   connectTimeoutSec: number  // network: room connect timeout (seconds); local preference
@@ -53,55 +51,7 @@ function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length
 function randomProfile(): PlayerProfile {
   const primaryColor = pick(PLAYER_COLORS)
   const reserveColor = pick(PLAYER_COLORS.filter(c => c !== primaryColor))
-  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, radioEnabled: false, volumeRadio: VOL_DEFAULT.radio, favorites: [], connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
-}
-
-// Cap on the radio favorites list (Steam-Cloud synced in the profile — keep it bounded).
-const RADIO_LIST_CAP = 200
-
-/** Validate a baked render (the full arc's Strudel code), if present. Returns undefined if malformed. */
-function sanitizeBaked(v: unknown): { name: string; sections: BakedSection[] } | undefined {
-  if (typeof v !== 'object' || v === null) return undefined
-  const o = v as Record<string, unknown>
-  if (typeof o.name !== 'string' || !Array.isArray(o.sections) || o.sections.length === 0) return undefined
-  const sections: BakedSection[] = []
-  for (const s of o.sections) {
-    if (typeof s !== 'object' || s === null) return undefined
-    const so = s as Record<string, unknown>
-    if (typeof so.code !== 'string' || typeof so.bars !== 'number' || !Number.isFinite(so.bars)) return undefined
-    sections.push({ code: so.code, bars: so.bars })
-  }
-  return { name: o.name, sections }
-}
-
-/** Keep only well-formed favorites/descriptors, dedup by seed+index, preserve the baked render, cap the length. */
-function sanitizeTrackList(v: unknown): FavoriteTrack[] {
-  if (!Array.isArray(v)) return []
-  const out: FavoriteTrack[] = []
-  const seen = new Set<string>()
-  for (const item of v) {
-    if (typeof item !== 'object' || item === null) continue
-    const o = item as Record<string, unknown>
-    const s = o.style as Record<string, unknown> | undefined
-    const ok = typeof o.seed === 'string' && typeof o.index === 'number' && Number.isFinite(o.index)
-      && typeof o.mood === 'string' && typeof o.key === 'string' && typeof o.scaleName === 'string'
-      && typeof o.bpm === 'number' && Number.isFinite(o.bpm)
-      && !!s && typeof s.kick === 'string' && typeof s.bass === 'string' && typeof s.lead === 'string'
-      && typeof s.bg === 'string' && typeof s.perc === 'string'
-    if (!ok) continue
-    const key = `${o.seed as string}:${o.index as number}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    const baked = sanitizeBaked(o.baked)
-    out.push({
-      seed: o.seed as string, index: o.index as number, mood: o.mood as string, key: o.key as string,
-      scaleName: o.scaleName as string, bpm: o.bpm as number,
-      style: { kick: s!.kick as string, bass: s!.bass as string, lead: s!.lead as string, bg: s!.bg as string, perc: s!.perc as string },
-      ...(baked ? { baked } : {}),
-    })
-    if (out.length >= RADIO_LIST_CAP) break
-  }
-  return out
+  return { name: generateModelName(), primaryColor, reserveColor, defaultView: 'fp', searchRole: 'both', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome', postProcessing: true, showFps: false, showSpeed: false, menuGlow: true, audioViz: true, volumeMaster: VOL_DEFAULT.master, volumeMusic: VOL_DEFAULT.music, volumeSfx: VOL_DEFAULT.sfx, volumeMenuMusic: VOL_DEFAULT.menuMusic, radioEnabled: false, volumeRadio: VOL_DEFAULT.radio, connectTimeoutSec: CONNECT_TIMEOUT_DEFAULT }
 }
 
 // Default volume levels (0..1): effects at full, match and menu music quieter; radio louder (its own mix).
@@ -136,7 +86,6 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const volumeMenuMusic = clampVolume(p.volumeMenuMusic, VOL_DEFAULT.menuMusic)
   const radioEnabled = typeof p.radioEnabled === 'boolean' ? p.radioEnabled : false   // off by default
   const volumeRadio = clampVolume(p.volumeRadio, VOL_DEFAULT.radio)
-  const favorites = sanitizeTrackList(p.favorites)
   // radio DLC ownership cache + trial counters (cloud-synced via the profile)
   const radioDlcOwned = typeof p.radioDlcOwned === 'boolean' ? p.radioDlcOwned : undefined
   const rt = p.radioTrial as Partial<RadioTrial> | undefined
@@ -151,7 +100,7 @@ function sanitize(p: Partial<PlayerProfile>): PlayerProfile {
   const locale: LocaleId | undefined = localeIds.includes(p.locale as LocaleId) ? (p.locale as LocaleId) : undefined
   // ball artwork: valid base64 string → keep as is; otherwise drop the field (no artwork)
   const ballArt = decodeBallArt(p.ballArt) ? (p.ballArt as string) : undefined
-  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, favorites, radioDlcOwned, radioTrial, connectTimeoutSec, locale }
+  return { name, primaryColor, reserveColor, defaultView, searchRole, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt, postProcessing, showFps, showSpeed, menuGlow, audioViz, volumeMaster, volumeMusic, volumeSfx, volumeMenuMusic, radioEnabled, volumeRadio, radioDlcOwned, radioTrial, connectTimeoutSec, locale }
 }
 
 /** Load profile. First run (not in localStorage) → create a random one and save it right away. */

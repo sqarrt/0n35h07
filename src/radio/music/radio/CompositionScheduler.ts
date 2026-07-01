@@ -54,7 +54,9 @@ export class CompositionScheduler {
   descriptor(): TrackDescriptor {
     const p = this.plan
     const kv = p.style.kickVoice
-    // seed = the SESSION seed (not the per-track `${session}:t${index}`) so playTrack(seed, index) replays exactly.
+    // seed = the SESSION seed (not the per-track `${session}:t${index}`). Favorites are saved as BAKED programs, so
+    // this identity is for display/provenance — it no longer PROMISES exact re-derivation (only regen, at index 0,
+    // still rebuilds from a seed; backward nav is served by prev()'s replay below).
     return {
       seed: this.sessionSeed, index: p.index, mood: p.mood, key: p.tonality.key, scaleName: p.tonality.scaleName, bpm: p.bpm,
       style: { kick: `${kv.bank ?? ''}:${kv.n}`, bass: p.style.bassSound, lead: p.style.leadSound, bg: p.style.bg, perc: p.style.perc },
@@ -68,6 +70,10 @@ export class CompositionScheduler {
    *  stateless, so anti is the only cross-track state.) O(N) but N is tiny for favorites. */
   jumpTo(index: number): void {
     const target = Math.max(0, Math.floor(index))
+    // NO-OP SHORTCUT: jumping to the track we're already on (the live `next()` case — the composer runs one track
+    // ahead, so its index already equals audibleIndex+1) needs no replay. The current plan IS track[target], built
+    // with the correct forward anti, so rebuilding 0..target would be identical — skip it; just reset the section.
+    if (target === this.trackIndex) { this.sectionPos = 0; return }
     this.anti.clear()
     for (let i = 0; i <= target; i++) {
       this.trackRng = createRng(`${this.sessionSeed}:t${i}`)
@@ -99,11 +105,12 @@ export class CompositionScheduler {
     const bpm = Math.round(lo + rng.next() * (hi - lo))
     const arc = buildArc(rng, m.density < 0.5) // energy graph; deep moods get a gentler one
     const spt = arc.length                     // the arc defines the track's length
-    const style = chooseStyle(rng, this.anti)
+    const seed = `${this.sessionSeed}:t${index}`
+    const style = chooseStyle(rng, this.anti, mood, createRng(`${seed}:drums`), createRng(`${seed}:bassaxes`), createRng(`${seed}:mute`))
     // ONE 4-chord progression for the whole track — its harmonic identity.
     const progression = this.harmony.buildSequence(m, tonality, 4, rng, this.anti, null)
     return {
-      index, seed: `${this.sessionSeed}:t${index}`, mood, tonality, bpm,
+      index, seed, mood, tonality, bpm,
       sectionsPerTrack: spt, arc, style, progression,
     }
   }

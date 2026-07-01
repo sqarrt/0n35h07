@@ -10,7 +10,7 @@ import type { BodyState } from '../game/Body'
 export type Vec3 = [number, number, number]
 
 /** Transport channel tags (short — Trystero limits action names to ~12 bytes). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'hit'] as const
 export type NetTag = typeof NET_TAGS[number]
 
 /** Match phase: host → all (readiness/countdown before the fight). */
@@ -51,6 +51,16 @@ export interface InputFrame {
   fire:   boolean    // edge actions (fire/shield/dash) — one-shot per frame
   shield: boolean
   dash:   boolean
+}
+
+/** Shooter-authoritative hit: the CLIENT raycasts its own beam locally and claims the result. The host validates
+ *  loosely (victim alive / not shielding / plausible range+LOS) and applies the kill/block — so "what you shot is what
+ *  you hit", no lag-comp rewind. `hitId` is the entity the client's ray struck (the opponent's id, or null for a wall/miss). */
+export interface HitClaim {
+  tick:  number      // the client sim tick the beam fired on
+  hitId: number | null
+  point: Vec3 | null // impact point (null on a wall/miss)
+  end:   Vec3        // the beam's end point (for the host to render the opponent's beam toward the claim)
 }
 
 // --- world state: host → all (frequent) ---

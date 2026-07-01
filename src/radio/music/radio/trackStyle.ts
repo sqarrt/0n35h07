@@ -6,6 +6,14 @@
 import type { Rng } from '../seededRandom'
 import { weightedPick, type Weighted } from './weighted'
 import { AntiRepeatBuffer } from './AntiRepeatBuffer'
+import { pickAxis } from './engines/leadAxes'
+import { DRUM_RHYTHMS, type DrumRhythm } from './engines/drumRhythm'
+import { DRUM_KITS_SND, type DrumKit as DrumSndKit } from './engines/drumKit'
+import { DRUM_COLORS, type DrumColor } from './engines/drumColor'
+import { BASS_RHYTHMS, type BassRhythm } from './engines/bassRhythm'
+import { BASS_MELODIES, type BassMelody } from './engines/bassMelody'
+import { BASS_COLORS, type BassColor } from './engines/bassColor'
+import { rollMute, type MuteRoll } from './engines/muteStyle'
 
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
@@ -20,19 +28,22 @@ export type BgKind =
   | 'wind' | 'crackle' | 'hiss' | 'geiger' | 'resonance'        // noise textures
   | 'sinearp' | 'granular' | 'choir' | 'siren'                  // tonal shimmers
   | 'tapeChoir' | 'droneCluster' | 'scanner' | 'tapeWarble' | 'insectoid' | 'deepBell' // co-designed dark/horror
+  | 'drip' | 'steps' | 'thud'                                   // synthesized "foley" accents (note 5)
 
 export const BG_KINDS: BgKind[] = [
-  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren',
-  'crackle', 'hiss', 'geiger', 'granular',
-  'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid', 'deepBell',
+  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell',
+  'drip', 'steps', 'thud',
+  'crackle', 'geiger', 'granular',
+  'tapeChoir', 'droneCluster', 'tapeWarble', 'insectoid',
 ]
 // Two tiers: BEDS are subliminal drones/noise with no rhythmic/tonal HOOK — safe to recur, they don't fingerprint
 // a track. ACCENTS are the memorable ones (a bell ping, a sonar blip, a morse rhythm…) — distinctive, so added only
 // OCCASIONALLY and never to two near tracks. Palette TRIAGED by ear (docs/radio-part-archetypes.md): the plain tonal
-// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED; the dark/horror co-designs
-// (tapeChoir/droneCluster/scanner/tapeWarble/insectoid beds + deepBell accent) added. Dead bgTexture cases remain.
-export const BG_BEDS: BgKind[] = ['hiss', 'crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'scanner', 'tapeWarble', 'insectoid']
-export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell']
+// drones (drone/hum/tremdrone/sweepdrone/organ/choir/resonance) + wind + bell were CULLED, then hiss + scanner; the
+// dark/horror co-designs (tapeChoir/droneCluster/tapeWarble/insectoid beds + deepBell accent) and the synthesized
+// foley accents (drip/steps/thud, note 5) added. Dead bgTexture cases remain.
+export const BG_BEDS: BgKind[] = ['crackle', 'geiger', 'granular', 'tapeChoir', 'droneCluster', 'tapeWarble', 'insectoid']
+export const BG_ACCENTS: BgKind[] = ['subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell', 'drip', 'steps', 'thud']
 const ACCENT_CHANCE = 0.28 // ~1/4 of tracks get a distinctive accent on top of the bed
 
 /** The track's shared FX "space" — every part draws echo/reverb from THIS, scaled by
@@ -68,7 +79,17 @@ export interface TrackStyle {
   bg: BgKind          // the always-on subliminal BED texture that fills the track
   bgAccent: BgKind | null // an occasional distinctive ACCENT on top (null on most tracks)
   bassArchetype: BassArchetype // which bass CHARACTER the track uses (co-designed tournament winners + the original)
-  drumArchetype: DrumArchetype // which drum GROOVE the track uses (amen/industrial/broken/minimal + the original)
+  drumArchetype: DrumArchetype // LEGACY — kept so chooseStyle's rng stream stays aligned; unused by the renderer
+  // note 8 stage 2 — the drum is now three independently-chosen axes (picked from a dedicated drumRng):
+  drumRhythm: DrumRhythm  // РИСУНОК — the groove
+  drumKit: DrumSndKit     // НАБОР — the sample bank for the whole kit
+  drumColor: DrumColor    // ЦВЕТ — per-track kick/drum processing (note 4)
+  // note 8 stage 3 — the bass is now three independently-chosen axes (from a dedicated bassRng). The legacy
+  // bassSound/bassFm/bassRest/bassGroove/bassArchetype above stay populated and feed the bespoke `acid` colour.
+  bassRhythm: BassRhythm  // РИСУНОК — the mask + accents
+  bassMelody: BassMelody  // МЕЛОДИЯ — the semitone-offset contour (+ drift/shove)
+  bassColor: BassColor    // ЦВЕТ — synth source + fx (acid:true = the 303 BassEngine path)
+  mute: MuteRoll          // per-track palm-mute / gain-duck gesture (scope: lead/bass/drums) — adds dynamics
 }
 
 // Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
@@ -170,7 +191,9 @@ function pick<T>(rng: Rng, arr: readonly T[], anti: AntiRepeatBuffer, cat: strin
   return arr[idx]
 }
 
-export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
+// `drumRng` is a DEDICATED stream for the three drum axes — the legacy drum picks below still consume `rng`/`anti`
+// (so the rest of the style is byte-identical: no cascade from the stage-2 refactor), but their results are unused.
+export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng, bassRng: Rng, muteRng: Rng): TrackStyle {
   const b = pick(rng, BASS, anti, 'st_bass')
   const l = pick(rng, LEAD, anti, 'st_lead')
   return {
@@ -194,5 +217,14 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer): TrackStyle {
     riser: pick(rng, [true, false, false], anti, 'st_riser'), // ~1/3 of tracks
     bg: pick(rng, BG_BEDS, anti, 'st_bg'),                    // always a subliminal bed
     bgAccent: rng.next() < ACCENT_CHANCE ? pick(rng, BG_ACCENTS, anti, 'st_bgacc') : null, // a rare distinctive accent
+    // note 8 stage 2 — the drum triple, from the dedicated drumRng (mood-guarded anti-repeat):
+    drumRhythm: pickAxis(DRUM_RHYTHMS, moodId, drumRng, anti, 'drum_rhythm'),
+    drumKit: pickAxis(DRUM_KITS_SND, moodId, drumRng, anti, 'drum_kit'),
+    drumColor: pickAxis(DRUM_COLORS, moodId, drumRng, anti, 'drum_color'),
+    // note 8 stage 3 — the bass triple, from the dedicated bassRng (mood-guarded anti-repeat):
+    bassRhythm: pickAxis(BASS_RHYTHMS, moodId, bassRng, anti, 'bass_rhythm'),
+    bassMelody: pickAxis(BASS_MELODIES, moodId, bassRng, anti, 'bass_melody'),
+    bassColor: pickAxis(BASS_COLORS, moodId, bassRng, anti, 'bass_color'),
+    mute: rollMute(muteRng),  // per-track palm-mute / gain-duck gesture (note: the Vysotsky strum)
   }
 }

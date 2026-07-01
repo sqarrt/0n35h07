@@ -58,7 +58,7 @@ export function LobbySeats({ isHost, me, opponent, searching, botEdit, inviteSea
     return (
       <div
         className={`lobby-seat lobby-seat--bot${slot.ready ? ' lobby-seat--ready' : ''}`} style={pc(slot.color)}
-        data-testid="lobby-opponent" title={t.lobbyBotNameRandom} onClick={reroll}
+        data-testid="lobby-opponent" onClick={reroll}
       >
         <input
           className="lobby-nick lobby-nick--edit" data-testid="lobby-bot-name"

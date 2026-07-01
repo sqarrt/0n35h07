@@ -155,6 +155,7 @@ export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — s
 export const NET_INPUT_BUFFER_TARGET = 2          // ticks of slack the host keeps buffered (~33 ms of jitter absorption)
 export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fraction toward target (small = stable, slow)
 export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
+export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']

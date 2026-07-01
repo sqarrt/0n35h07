@@ -5,6 +5,42 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-06-30
+
+### Added
+- **Diagnostic session logs.** The Steam build now writes a per-session log to `$APPDATA/logs` (auto-pruned to the
+  last 15) capturing the full online lifecycle — connect, matchmaking, handshake, the agreed map/duration (with an
+  explicit warning when your pick didn't overlap the opponent's), the phase ritual, in-match actions, periodic net
+  health, Steam-transport diagnostics, and disconnects. Click the version number (bottom-right) to open the log folder
+  for sharing.
+- **Radio: seek / scrubbing.** The expanded player now has a progress bar with elapsed/total time — click or drag it
+  to jump anywhere in the current track (live or a saved favorite). Seeks land on the beat.
+- **Radio: a windowed code panel + a hide-ball toggle.** The desktop radio's Strudel-code panel (now titled PROGRAM)
+  is a proper floating window — drag, resize, maximize, or minimize it to a bar over the player next to LIBRARY (same
+  chrome; when both are minimized the last-collapsed sits on top). Clicking the code copies it (the title flashes
+  "COPIED"). A new toggle in the player smoothly pans the camera off the player ball if you'd rather just watch the
+  visuals. The redundant 🎲 re-roll button is gone — Next already advances the seed.
+
+### Changed
+- **Radio: play/pause is a TRUE pause.** Pressing pause now freezes the track exactly where it is and resume continues
+  from the same spot, instead of stopping and restarting from the beginning. Next/Prev/seek auto-resume.
+- **No more native hover tooltips in the UI.** It's a game — the browser `title` tooltips (radio track name, net/
+  version chips, lobby code buttons, map-picker actions, colour swatches) are gone; accessible labels stay.
+- **Hit detection is now shooter-authoritative — what you shoot is what you hit.** Each shooter decides its own hits:
+  the client raycasts its beam locally and sends the host a hit claim, which the host applies after a loose sanity
+  check (target alive, in range). This replaces host-side lag compensation for the client's shots and removes the
+  host's zero-latency advantage, so both players hit with the same fairness.
+- **Opponent deaths are predicted instantly on the client.** When your beam connects, the opponent drops on the spot
+  instead of after a round-trip — the kill is held briefly until the host confirms (and quietly self-corrects on the
+  rare rejection), so kills feel immediate.
+
+### Fixed
+- **"Sparks but no kill."** Hits that showed an impact on the client but weren't counted by the host are gone — the
+  client's own shot now authoritatively registers, fixing missed hits on moving targets under latency.
+- **A bot's shots now register hits on you.** The shooter-authoritative change had the host resolve only its own
+  (local-player) hits, silently dropping every bot's hit — you could stand still, get clearly beamed, and take no
+  damage. Bots are host-simulated (like the local player), so the host now resolves their hits too.
+
 ## [0.6.1] - 2026-06-29
 
 ### Added

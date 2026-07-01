@@ -178,6 +178,12 @@ export class StrudelWebEngine implements IStrudelEngine {
     if (this.#initialized) hush()
   }
 
+  /** TRUE pause: suspend the Web Audio clock. Strudel's scheduler is driven by `ctx.currentTime`, so suspending
+   *  freezes the musical clock at the exact position; `resume()` continues from there — real silence (not mute),
+   *  no restart, no jump. */
+  async pause(): Promise<void> { if (this.#initialized) await getAudioContext().suspend() }
+  async resume(): Promise<void> { if (this.#initialized) await getAudioContext().resume() }
+
   setVolume(volume: number): void {
     this.#volume = clamp01(volume)
     this.#applyVolume()

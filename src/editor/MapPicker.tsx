@@ -43,8 +43,8 @@ export function MapPicker() {
             {maps?.map(n => (
               <div key={n} className="editor-pick-row">
                 <Button variant="secondary" className="editor-pick-item" onClick={() => openMap(n)}>{n}</Button>
-                <button className="editor-pick-act" title="rename" onClick={() => rename(n)}>✎</button>
-                <button className="editor-pick-act editor-pick-act--del" title="delete" onClick={() => remove(n)}>✕</button>
+                <button className="editor-pick-act" aria-label="rename" onClick={() => rename(n)}>✎</button>
+                <button className="editor-pick-act editor-pick-act--del" aria-label="delete" onClick={() => remove(n)}>✕</button>
               </div>
             ))}
           </div>

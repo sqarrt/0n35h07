@@ -9,12 +9,13 @@ import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
-import type { Controller, FireOutcome } from './abstractions'
-import type { MeshUserData } from '../utils/raycast'
+import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
-import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg } from '../net/protocol'
+import { gameLog } from '../diag/gameLog'
+import { PHASE_WATCHDOG_MS, HEALTH_HEARTBEAT_MS } from '../diag/constants'
+import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
 import { PredictionLog } from '../net/clientReconcile'
 import { applyInputMovement } from '../net/input'
 import { LagCompHistory } from './LagCompHistory'
@@ -42,8 +43,8 @@ import {
   WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
-  BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST,
-  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE,
+  BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST, AIM_RANGE,
+  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE, NET_PREDICT_KILL_MS,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -116,6 +117,8 @@ export class Match {
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
   private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
   private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
+  private pendingHitClaim: HitClaim | null = null   // client: our own shot's raycast result, to send to the host (shooter-authoritative)
+  private predictedKill: { id: number; until: number } | null = null   // client: an opponent we predicted dead, holding the ghost until the host confirms ('kill') or the grace expires (rejected → revive from snapshots)
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
   private pendingEvents: MatchEvent[] = []   // host: match events to broadcast
@@ -144,6 +147,11 @@ export class Match {
   private readySet = new Set<number>()
   private countdownEndsAt = 0
   private prevCountTick = 0   // last played countdown second (count_tick dedup)
+  private loggedPhase = ''    // diag: last phase written to the log (transition + watchdog driver)
+  private phaseEnteredAt = 0  // diag: when the current phase began (watchdog)
+  private phaseWarned = false // diag: stuck-phase warning already emitted for this phase
+  private actorPrev = new Map<number, { shield: boolean; dash: boolean }>()   // diag: last shield/dash state per player (edge detection)
+  private lastHealthAt = 0    // diag: last net-health heartbeat timestamp
   private phaseDirtyFlag = false   // host: phase/readiness changed — resend to the client
   private prevPhaseSig = ''        // dedup of SET_MATCH_PHASE dispatch
   private leftIds = new Set<number>()   // disconnected players
@@ -307,6 +315,7 @@ export class Match {
     this.tick++   // advance the sim tick (client stamps its input/prediction with it; host echoes applied ticks)
     this.players.forEach(p => p.syncFromBody())
     this.tickPhase()   // readiness/countdown → freeze + HUD
+    if (this.phase === 'live') { this.logActorEdges(); this.healthHeartbeat() }   // diag: shield/dash edges + ~2s net-health
 
     if (this.role === 'client') {
       // Client: simulate only our own (prediction), remotes — from snapshots.
@@ -316,9 +325,16 @@ export class Match {
       this.players.forEach(p => {
         if (p.id === this.localId) {
           p.update(dt, this.world, this.excludeIds(p))
-          // Client-side hit prediction: the beam already renders locally; ALSO spawn the impact sparks from our OWN
-          // raycast right now, so a hit reads instantly instead of ~RTT later (the kill/score stays host-authoritative).
-          if (p.weaponJustFired && p.fireOutcome?.hitPoint) p.spawnImpact(p.fireOutcome.hitPoint)
+          // Shooter-authoritative: the client raycasts its OWN beam (already done in p.update). Spawn the impact from
+          // it instantly, and CLAIM the result to the host — the host validates loosely and applies the kill, so "what
+          // you shot is what you hit" (no lag-comp rewind, no host-advantage). The host's combat for our shot is gone.
+          if (p.weaponJustFired && p.fireOutcome) {
+            const o = p.fireOutcome
+            if (o.hitPoint) p.spawnImpact(o.hitPoint)
+            this.pendingHitClaim = { tick: this.tick, hitId: o.hitEntityId, point: o.hitPoint ? toVec3(o.hitPoint) : null, end: toVec3(o.end) }
+            gameLog.log('act', 'fire', { side: 'client', id: p.id, hit: o.hitEntityId, tick: this.tick })
+            if (o.hitEntityId !== null) { gameLog.log('act', 'claim_send', { hitId: o.hitEntityId, tick: this.tick }); this.predictOpponentDeath(o.hitEntityId) }
+          }
           p.clearJustFired()   // combat is computed by the host → we reset the flag ourselves (else the ball stays bloated)
         } else {
           p.updateRemote(dt, this.world)
@@ -369,21 +385,6 @@ export class Match {
     return h
   }
 
-  /** Move the victim's hitbox back to where the shooter saw it (viewTick), re-raycast the same ray, and replace the
-   *  outcome's hit with the rewound result; then restore. 1v1: the host's own player is the rewind target. */
-  private lagCompRaycast(shooterId: number, o: FireOutcome, viewTick: number) {
-    const victim = this.byId.get(this.localId)
-    if (!victim || !this.histFor(victim.id).at(viewTick, this._lagPos)) return
-    const grp = victim.bodyGroup
-    const sx = grp.position.x, sy = grp.position.y, sz = grp.position.z
-    grp.position.set(this._lagPos.x, this._lagPos.y, this._lagPos.z)
-    grp.updateMatrixWorld(true)
-    const hit = this.world.raycast(o.rcOrigin, o.rcDir, [shooterId])
-    o.hitEntityId = hit ? ((hit.object.userData as MeshUserData).entityId ?? null) : null
-    o.hitPoint = hit ? hit.point.clone() : null
-    grp.position.set(sx, sy, sz)
-    grp.updateMatrixWorld(true)
-  }
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
@@ -512,49 +513,14 @@ export class Match {
     for (const shooter of this.players) {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
-      // Lag compensation: a REMOTE shooter aimed at the opponent as it saw it (~interp+latency in the past). Re-validate
-      // the hit with the victim rewound to the shooter's viewTick, so what you saw is what you hit.
-      if (o && this.role === 'host' && shooter.id !== this.localId) {
-        const vt = this.remoteControllers.get(shooter.id)?.lastViewTick ?? 0
-        if (vt > 0) this.lagCompRaycast(shooter.id, o, vt)
-      }
-      if (o) this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId })
-      if (o && o.hitEntityId !== null) {
+      if (o) { gameLog.log('act', 'fire', { side: 'host', id: shooter.id, hit: o.hitEntityId }); this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId }) }
+      // Shooter-authoritative: the host resolves its OWN hits here — that means every HOST-SIMULATED shooter (the
+      // local player AND any bot), which is everyone EXCEPT a remote client (those are in remoteControllers). A remote
+      // client's hit arrives separately as a HitClaim (applyHitClaim) — what the client saw is what it hit, no lag-comp
+      // rewind, no host advantage. (The old `shooter.id === localId` check silently dropped every BOT hit.)
+      if (o && o.hitEntityId !== null && !this.remoteControllers.has(shooter.id)) {
         const victim = this.byId.get(o.hitEntityId)
-        if (victim && victim.alive) {   // don't finish off a dead/deflating victim
-          const res = victim.receiveHit()
-          if (res === 'blocked') {
-            const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
-            if (perfect) victim.resetCooldowns()
-            this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
-            if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
-            if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
-            else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
-          } else {
-            victim.deaths++
-            const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
-            victim.streak = 0
-            let streak = 0, firstBlood = false
-            let bounty = 0, resetCd = false
-            if (shooter !== victim) {
-              bounty = bountyFrags(broken)
-              resetCd = breakResetsCooldowns(broken)
-              shooter.kills += bounty               // scored (with bounty)
-              shooter.streak++                      // killstreak — per real kill (+1)
-              streak = shooter.streak
-              if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
-              if (resetCd) shooter.resetCooldowns()
-            }
-            this.scoresDirty = true
-            this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
-            this.announceStreak(shooter.id, victim.id, streak, firstBlood)
-            if (shooter === this.human && victim !== this.human) {
-              if (o.hitPoint) shooter.spawnImpact(o.hitPoint)
-              window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
-            }
-            if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
-          }
-        }
+        if (victim) this.resolveHit(shooter, victim, o.hitPoint)
       }
       if (shooter === this.human) {
         this.dispatch({ type: 'BEAM_FLASH' })
@@ -562,6 +528,78 @@ export class Match {
       }
       shooter.clearJustFired()
     }
+  }
+
+  /** Apply an authoritative hit — block or kill + scoring + events. Shared by the host's own shot (resolveCombat) and
+   *  a client's shooter-authoritative HitClaim (applyHitClaim). */
+  private resolveHit(shooter: Player, victim: Player, hitPoint: THREE.Vector3 | null): void {
+    if (!victim.alive) return   // don't finish off a dead/deflating victim
+    const res = victim.receiveHit()
+    if (res === 'blocked') {
+      const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
+      if (perfect) victim.resetCooldowns()
+      gameLog.log('act', 'block', { shooter: shooter.id, victim: victim.id, perfect })
+      this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
+      if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
+      if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
+      else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+    } else {
+      victim.deaths++
+      const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
+      victim.streak = 0
+      let streak = 0, firstBlood = false
+      let bounty = 0, resetCd = false
+      if (shooter !== victim) {
+        bounty = bountyFrags(broken)
+        resetCd = breakResetsCooldowns(broken)
+        shooter.kills += bounty               // scored (with bounty)
+        shooter.streak++                      // killstreak — per real kill (+1)
+        streak = shooter.streak
+        if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+        if (resetCd) shooter.resetCooldowns()
+      }
+      this.scoresDirty = true
+      gameLog.log('act', 'kill', { shooter: shooter.id, victim: victim.id, streak, bounty, firstBlood })
+      this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
+      this.announceStreak(shooter.id, victim.id, streak, firstBlood)
+      if (shooter === this.human && victim !== this.human) {
+        if (hitPoint) shooter.spawnImpact(hitPoint)
+        window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
+      }
+      if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
+    }
+  }
+
+  /** host: apply a client's shooter-authoritative hit. Loose validation (P2P 1v1 with friends): the victim must be a
+   *  real, living opponent within weapon range. The shield is handled naturally by receiveHit → 'blocked'. A rejected
+   *  claim is simply dropped — the client's predicted death (if any) self-corrects from the next snapshot. */
+  applyHitClaim(shooterId: number, claim: HitClaim): void {
+    if (this.role !== 'host' || claim.hitId === null) return
+    const shooter = this.byId.get(shooterId)
+    const victim = this.byId.get(claim.hitId)
+    if (!shooter || !victim || victim === shooter) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'bad_target' }); return }
+    if (!victim.alive) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'dead' }); return }
+    const point = claim.point ? fromVec3(claim.point) : victim.position
+    const dist = shooter.position.distanceTo(point)
+    if (dist > AIM_RANGE) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'range', dist }); return }
+    gameLog.log('act', 'claim_apply', { shooter: shooterId, victim: claim.hitId, dist })
+    this.resolveHit(shooter, victim, point)
+  }
+
+  /** client: the pending shooter-authoritative hit to send the host this frame (cleared on read). */
+  drainHitClaim(): HitClaim | null { const c = this.pendingHitClaim; this.pendingHitClaim = null; return c }
+
+  /** client: predict the opponent's death on a local hit (instant feedback — no RTT wait for the host's 'kill').
+   *  A false positive (the host rejects — out of range, or a shield raised within RTT) self-corrects from the next
+   *  snapshot: applyNetState restores alive/respawning. Skip a visibly shielding opponent — the host would block it,
+   *  so let it decide (predicting a death through a raised shield would be the wrong call). */
+  private predictOpponentDeath(victimId: number) {
+    const victim = this.byId.get(victimId)
+    if (!victim || !victim.alive) return
+    if (victim.netShielding) { gameLog.log('act', 'predict_skip', { victim: victimId, reason: 'shield' }); return }
+    victim.applyDeath()
+    this.predictedKill = { id: victimId, until: Date.now() + NET_PREDICT_KILL_MS }
+    gameLog.log('act', 'predict_death', { victim: victimId })
   }
 
   // Ghost phase: the player is invulnerable and moves on its own (via controllers+applyPhysics); when the timer
@@ -574,16 +612,52 @@ export class Match {
         const pos = p.position.clone()
         p.respawnAt(pos)
         this.remoteAuth.delete(p.id)   // body state reset → don't reconcile against the pre-respawn capture; live restore until the next real input
+        gameLog.log('act', 'respawn', { side: 'host', id: p.id })
         this.emit({ t: 'respawn', id: p.id, pos: toVec3(pos) })
       }
     }
   }
 
   // --- entry ritual (readiness + countdown) ---
+  /** Diag: ~2s net-health line during live — the input jitter-buffer depth (host: queued client inputs; client: the
+   *  host's echoed depth) + peer count. A trend, not an action: reveals snapshot starvation / building input lag. */
+  private healthHeartbeat() {
+    const now = Date.now()
+    if (now - this.lastHealthAt < HEALTH_HEARTBEAT_MS) return
+    this.lastHealthAt = now
+    const buffered = this.role === 'host'
+      ? Math.max(0, ...[...this.remoteControllers.values()].map(c => c.pending))
+      : this.hostBuffered
+    gameLog.log('health', 'tick', { role: this.role, buffered, peers: this.players.length })
+  }
+
+  /** Diag: log shield/dash on→off edges per player (local from the real sim; the client's opponent from snapshot flags). */
+  private logActorEdges() {
+    for (const p of this.players) {
+      const remote = this.role === 'client' && p.id !== this.localId
+      const shield = remote ? p.netShielding : p.shieldActive
+      const dash = remote ? p.remoteDashing : p.dashing
+      const prev = this.actorPrev.get(p.id) ?? { shield: false, dash: false }
+      if (shield !== prev.shield) gameLog.log('act', 'shield', { id: p.id, on: shield })
+      if (dash && !prev.dash) gameLog.log('act', 'dash', { id: p.id })
+      this.actorPrev.set(p.id, { shield, dash })
+    }
+  }
+
   private tickPhase() {
     if (this.phase === 'countdown' && Date.now() >= this.countdownEndsAt) {
       this.phase = 'live'
       this.phaseDirtyFlag = true
+    }
+    // Diag: log every phase transition once (host & client) and warn if a pre-live phase is stuck.
+    if (this.phase !== this.loggedPhase) {
+      this.loggedPhase = this.phase
+      this.phaseEnteredAt = Date.now()
+      this.phaseWarned = false
+      gameLog.log('phase', this.phase, { role: this.role, ready: [...this.readySet] })
+    } else if (this.phase !== 'live' && this.phase !== 'ended' && !this.phaseWarned && Date.now() - this.phaseEnteredAt > PHASE_WATCHDOG_MS) {
+      this.phaseWarned = true
+      gameLog.warn('phase', 'stuck', { phase: this.phase, ms: Date.now() - this.phaseEnteredAt, ready: [...this.readySet] })
     }
     const frozen = this.phase !== 'live'
     this.players.forEach(p => p.setFrozen(frozen))
@@ -635,7 +709,7 @@ export class Match {
       inp.windingUp = p.isWindingUp
     }
     const moves = this.sfx.frame(this._sfxInputsBuf)
-    for (const m of moves) this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) })
+    for (const m of moves) { gameLog.log('act', 'move', { side: 'host', id: m.id, kind: m.kind }); this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) }) }
   }
 
   /** client: roll call of our own player's moves (from local sim — without network delay). */
@@ -743,6 +817,8 @@ export class Match {
   private endMatch(reason: 'time' | 'disconnect') {
     if (this.ended) return
     this.ended = true
+    gameLog.log('phase', 'match_end', { reason, role: this.role })
+    void gameLog.flush()   // make sure the match's tail reaches disk
     this.phase = 'ended'
     this.phaseDirtyFlag = true
     this.syncPhaseHud()
@@ -923,7 +999,18 @@ export class Match {
         const d = this.predictionLog?.decide(snap.ackTick, ps.restore, NET_RECONCILE_SNAP_DIST)
         if (d?.kind === 'replay') this.replayFrom(d.from, d.inputs)
       } else {
-        p.applyNetState(ps, snap.tick)
+        // Kill prediction: while a predicted death is latched, ignore snapshots that still show the opponent alive
+        // (sent before the host processed our claim) so the ghost doesn't flicker. The host's 'kill' clears the latch
+        // (then snapshots drive the real death); if the grace expires with no kill, the host rejected → let it revive.
+        const pk = this.predictedKill
+        let state = ps
+        if (pk && pk.id === ps.id && ps.alive) {
+          if (Date.now() < pk.until) state = { ...ps, alive: false, respawning: true }
+          else { this.predictedKill = null; gameLog.warn('act', 'predict_revert', { victim: ps.id }) }   // grace expired, host rejected → revive
+        } else if (pk && pk.id === ps.id && !ps.alive) {
+          this.predictedKill = null   // host confirmed the death — snapshots own it now
+        }
+        p.applyNetState(state, snap.tick)
         // Opponent's shield/dash — from snapshot flags by their transitions (jump/land arrive via a move event).
         this.sfx?.frame([{
           id: ps.id, obj: p.bodyGroup, pos: p.position,
@@ -949,6 +1036,8 @@ export class Match {
         const victim = this.byId.get(e.victim)
         const shooter = this.byId.get(e.shooter)
         if (!victim) break
+        if (this.predictedKill?.id === e.victim) { this.predictedKill = null; gameLog.log('act', 'predict_confirm', { victim: e.victim }) }   // confirmed — release the prediction latch
+        gameLog.log('act', 'kill', { side: 'client', shooter: e.shooter, victim: e.victim, streak: e.streak })
         victim.applyDeath()
         victim.deaths++
         victim.streak = 0
@@ -963,6 +1052,7 @@ export class Match {
         break
       }
       case 'block': {
+        gameLog.log('act', 'block', { side: 'client', shooter: e.shooter, victim: e.victim, perfect: e.perfect })
         if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // mirror the cooldown reset from the host
         if (e.perfect && e.victim === this.localId) this.achievements.onPerfectBlock()
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
@@ -971,6 +1061,7 @@ export class Match {
         break
       }
       case 'respawn': {
+        gameLog.log('act', 'respawn', { side: 'client', id: e.id })
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
         if (e.id === this.localId) this.predictionLog?.reset()   // teleport invalidates predictions
         this.sfx?.combat(e, this.sfxPos)
@@ -978,6 +1069,7 @@ export class Match {
       }
       case 'move': {
         if (e.id === this.localId) break   // our own movement is already played by prediction
+        gameLog.log('act', 'move', { side: 'client', id: e.id, kind: e.kind })
         this.sfx?.move(e.kind, this.byId.get(e.id)?.position ?? fromVec3(e.pos))
         break
       }

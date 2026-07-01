@@ -2,8 +2,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { createLoopbackPair } from '../../src/net/LoopbackNet'
 import { NetSession } from '../../src/net/NetSession'
 import type { MatchNet } from '../../src/net/NetSession'
-import type { InputFrame, Snapshot, MatchEvent, PhaseMsg } from '../../src/net/protocol'
+import type { InputFrame, Snapshot, MatchEvent, PhaseMsg, HitClaim } from '../../src/net/protocol'
 import type { MatchRole } from '../../src/constants'
+
+const CLAIM: HitClaim = { tick: 9, hitId: 0, point: [1, 1.7, 0], end: [2, 1.7, 0] }
 
 function frame(tick: number): InputFrame {
   return { tick, keys: { f: true, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false }
@@ -15,6 +17,7 @@ const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1] }
 type Stub = MatchNet & {
   pushed: Array<[number, InputFrame]>; snaps: Snapshot[]; events: MatchEvent[]
   readyCalls: number[]; phases: PhaseMsg[]; leftCalls: number[]; setDirty(v: boolean): void
+  hitClaims: Array<[number, HitClaim]>; setHitClaim(c: HitClaim | null): void
 }
 
 function stub(role: MatchRole, localId: number): Stub {
@@ -24,16 +27,21 @@ function stub(role: MatchRole, localId: number): Stub {
   const readyCalls: number[] = []
   const phases: PhaseMsg[] = []
   const leftCalls: number[] = []
+  const hitClaims: Array<[number, HitClaim]> = []
   let dirty = false
+  let nextHit: HitClaim | null = null
   return {
-    role, localId, pushed, snaps, events, readyCalls, phases, leftCalls,
+    role, localId, pushed, snaps, events, readyCalls, phases, leftCalls, hitClaims,
     setDirty: v => { dirty = v },
+    setHitClaim: c => { nextHit = c },
     serializeSnapshot: () => SNAP,
     drainEvents: vi.fn(() => [EVENT]) as unknown as () => MatchEvent[],
     pushRemoteInput: (pid, f) => { pushed.push([pid, f]) },
     applySnapshot: s => { snaps.push(s) },
     applyEvent: e => { events.push(e) },
     localInputFrame: () => frame(7),
+    applyHitClaim: (sid, c) => { hitClaims.push([sid, c]) },
+    drainHitClaim: () => { const c = nextHit; nextHit = null; return c },
     markReady: id => { readyCalls.push(id) },
     applyPhase: p => { phases.push(p) },
     serializePhase: () => PHASE,
@@ -55,6 +63,24 @@ describe('NetSession (host ↔ client over LoopbackNet)', () => {
     expect(host.pushed).toHaveLength(1)
     expect(host.pushed[0][0]).toBe(1)              // client's playerId
     expect(host.pushed[0][1].tick).toBe(7)
+  })
+
+  it("client's shooter-authoritative HitClaim → host applyHitClaim via peer→player", () => {
+    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
+    const host = stub('host', 0)
+    new NetSession(hostNet, host, new Map([['client', 1]]))
+    const client = stub('client', 1)
+    const clientSession = new NetSession(clientNet, client, new Map([['host', 0]]))
+
+    client.setHitClaim(CLAIM)
+    clientSession.afterUpdate(0)
+    expect(host.hitClaims).toHaveLength(1)
+    expect(host.hitClaims[0][0]).toBe(1)           // client's playerId (the shooter)
+    expect(host.hitClaims[0][1].hitId).toBe(0)     // claimed the host as the victim
+
+    host.hitClaims.length = 0
+    clientSession.afterUpdate(0)                    // no pending claim → nothing sent
+    expect(host.hitClaims).toHaveLength(0)
   })
 
   it('host broadcasts events and a snapshot → client applies them', () => {

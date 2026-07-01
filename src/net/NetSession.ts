@@ -1,7 +1,8 @@
 import type { INet, PeerId } from './INet'
-import type { InputFrame, Snapshot, MatchEvent, PhaseMsg } from './protocol'
+import type { InputFrame, Snapshot, MatchEvent, PhaseMsg, HitClaim } from './protocol'
 import type { MatchRole } from '../constants'
 import { NET_SNAPSHOT_HZ } from '../constants'
+import { gameLog } from '../diag/gameLog'
 
 /** Narrow Match contract for networking — lets NetSession be tested without Rapier. */
 export interface MatchNet {
@@ -13,6 +14,8 @@ export interface MatchNet {
   applySnapshot(snap: Snapshot): void
   applyEvent(e: MatchEvent): void
   localInputFrame(): InputFrame
+  applyHitClaim(shooterId: number, claim: HitClaim): void   // host: a client's shooter-authoritative hit
+  drainHitClaim(): HitClaim | null                          // client: a pending hit to send this frame (cleared)
   markReady(id: number): void
   applyPhase(p: PhaseMsg): void
   serializePhase(): PhaseMsg
@@ -48,6 +51,10 @@ export class NetSession {
         const pid = this.peerToPlayer.get(from)
         if (pid !== undefined) this.match.markReady(pid)
       })
+      net.on('hit', (payload, from) => {
+        const pid = this.peerToPlayer.get(from)
+        if (pid !== undefined) this.match.applyHitClaim(pid, payload as HitClaim)
+      })
     } else if (match.role === 'client') {
       net.on('snapshot', payload => this.match.applySnapshot(payload as Snapshot))
       net.on('event', payload => this.match.applyEvent(payload as MatchEvent))
@@ -60,6 +67,7 @@ export class NetSession {
   /** Disconnect: host knows playerId by peer; for the client, the one who left is the host (id 0). */
   private onPeerLeave(peerId: PeerId) {
     const pid = this.peerToPlayer.get(peerId)
+    gameLog.warn('transport', 'peer_left', { peer: peerId, playerId: pid ?? null, role: this.match.role })
     if (pid !== undefined) this.match.handlePlayerLeft(pid)
     else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
   }
@@ -81,6 +89,8 @@ export class NetSession {
       }
     } else if (this.match.role === 'client') {
       this.net.broadcast('input', this.match.localInputFrame())
+      const hit = this.match.drainHitClaim()   // shooter-authoritative: our own raycast result, this tick
+      if (hit) this.net.broadcast('hit', hit)
     }
   }
 

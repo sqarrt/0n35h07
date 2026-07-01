@@ -1,7 +1,7 @@
 import type { TrackDescriptor } from './trackDescriptor'
 
 // Human-but-machine track names. Fully deterministic from the track seed — the same {seed,index} always yields the
-// same name. A small seeded RNG picks the word FAMILY (by mood → matches the track's character), the SCHEME (4
+// same name. A small seeded RNG picks the word FAMILY (by mood → matches the track's character), the SCHEME (9
 // distinct styles, so names are varied) and the words. Track names are intentionally NOT localized.
 
 interface NameInput { mood: string; bpm: number; key: string; trackSeed: string }
@@ -37,36 +37,50 @@ const ADJ: Record<Family, string[]> = {
     'Brutal', 'Charred', 'Frozen', 'Buried', 'Shattered', 'Molten', 'Tarnished', 'Obsidian', 'Fractured', 'Sunless',
     'Bleak', 'Vile', 'Forsaken', 'Wretched', 'Withered', 'Gaunt', 'Sullen', 'Bitter', 'Carrion', 'Dread', 'Ferric',
     'Slate', 'Granite', 'Murderous', 'Funeral', 'Sepulchral', 'Onyx', 'Sable', 'Dire', 'Stark', 'Scorched', 'Choked',
-    'Riven', 'Ravaged', 'Hardened', 'Profane', 'Unhallowed', 'Ironclad'],
+    'Riven', 'Ravaged', 'Hardened', 'Profane', 'Unhallowed', 'Ironclad',
+    'Cindered', 'Ironbound', 'Desolate', 'Wracked', 'Smouldering', 'Calcified', 'Mournful', 'Sundered', 'Blighted',
+    'Abyssal', 'Vengeful', 'Merciless', 'Ashfallen', 'Coldforged', 'Lightless', 'Necrotic', 'Tyrant', 'Godless'],
   dub: ['Sunken', 'Grey', 'Distant', 'Dim', 'Damp', 'Murky', 'Deep', 'Drowned', 'Faded', 'Quiet',
     'Hazy', 'Hushed', 'Brackish', 'Stagnant', 'Frigid', 'Glacial', 'Submerged', 'Bottomless', 'Vacant', 'Pallid',
     'Wan', 'Listless', 'Muted', 'Veiled', 'Shrouded', 'Nebulous', 'Drifting', 'Vacuous', 'Tenebrous', 'Liminal',
-    'Subaqueous', 'Fathomless', 'Becalmed', 'Forlorn', 'Sodden', 'Overcast'],
+    'Subaqueous', 'Fathomless', 'Becalmed', 'Forlorn', 'Sodden', 'Overcast',
+    'Tidal', 'Phantom', 'Echoing', 'Sleepless', 'Cavernous', 'Underlit', 'Saltworn', 'Driftless', 'Lowlit',
+    'Tempered', 'Moonless', 'Tideless', 'Sightless', 'Becalming', 'Slumbering', 'Wraithlike'],
   acid: ['Caustic', 'Toxic', 'Bright', 'Corrosive', 'Acrid', 'Volatile', 'Neon', 'Raw',
     'Acidic', 'Searing', 'Blistering', 'Septic', 'Virulent', 'Noxious', 'Fuming', 'Lurid', 'Garish', 'Electric',
     'Livid', 'Feral', 'Rabid', 'Seething', 'Writhing', 'Mutant', 'Radiant', 'Bilious', 'Putrid', 'Rancid',
-    'Twitching', 'Glowing', 'Effervescent', 'Unstable', 'Reactive', 'Corroded'],
+    'Twitching', 'Glowing', 'Effervescent', 'Unstable', 'Reactive', 'Corroded',
+    'Sizzling', 'Vitriolic', 'Scalding', 'Festering', 'Galvanic', 'Plasmic', 'Corroding', 'Bubbling', 'Irradiated',
+    'Mutagenic', 'Phosphoric', 'Hyperactive', 'Synthetic', 'Blinding', 'Venomous', 'Fissile'],
   default: ['Grey', 'Hollow', 'Distant', 'Cold', 'Static', 'Faint', 'Pale',
     'Blank', 'Vacant', 'Null', 'Drifting', 'Muted', 'Idle', 'Latent', 'Dormant', 'Spare', 'Flat', 'Dull', 'Stray',
-    'Lone', 'Vague', 'Inert', 'Neutral', 'Sparse'],
+    'Lone', 'Vague', 'Inert', 'Neutral', 'Sparse',
+    'Spent', 'Adrift', 'Minor', 'Lapsed', 'Tepid', 'Plain', 'Slack', 'Numb', 'Stale', 'Drab'],
 }
 const NOUN: Record<Family, string[]> = {
   dark: ['Verdict', 'Reactor', 'Anvil', 'Spire', 'Cathedral', 'Pyre', 'Sector', 'Engine', 'Vault', 'Wraith', 'Mass',
     'Saint', 'Forge', 'Cell', 'Furnace', 'Crucible', 'Monolith', 'Obelisk', 'Gallows', 'Sepulchre', 'Ossuary',
     'Reliquary', 'Bastion', 'Citadel', 'Bunker', 'Conduit', 'Turbine', 'Piston', 'Girder', 'Chassis', 'Husk', 'Relic',
     'Idol', 'Effigy', 'Shroud', 'Tomb', 'Crypt', 'Catacomb', 'Altar', 'Dirge', 'Knell', 'Requiem', 'Sermon', 'Doctrine',
-    'Decree', 'Tribunal', 'Gauntlet', 'Maw', 'Scourge', 'Edifice'],
+    'Decree', 'Tribunal', 'Gauntlet', 'Maw', 'Scourge', 'Edifice',
+    'Mandate', 'Sanctum', 'Ordeal', 'Reckoning', 'Cortege', 'Sarcophagus', 'Inquisition', 'Slaughterhouse', 'Hangman',
+    'Mausoleum', 'Charnel', 'Gibbet', 'Pulpit', 'Cenotaph', 'Reckoner', 'Warden', 'Dominion', 'Threshold'],
   dub: ['Hollow', 'Fathom', 'Chamber', 'Murk', 'Abyss', 'Cinder', 'Mist', 'Drift', 'Tide', 'Cavern',
     'Trench', 'Gulf', 'Void', 'Expanse', 'Depths', 'Shoal', 'Undertow', 'Maelstrom', 'Vortex', 'Eddy', 'Lull', 'Hush',
     'Penumbra', 'Gloom', 'Haze', 'Vapor', 'Sediment', 'Silt', 'Brine', 'Current', 'Wake', 'Threshold', 'Limbo',
-    'Strata', 'Hollows', 'Quagmire', 'Estuary'],
+    'Strata', 'Hollows', 'Quagmire', 'Estuary',
+    'Fjord', 'Basin', 'Lagoon', 'Sluice', 'Backwater', 'Drainage', 'Spillway', 'Cistern', 'Aquifer', 'Floe',
+    'Reservoir', 'Murmur', 'Subsidence', 'Hollowness', 'Seabed', 'Nightfall'],
   acid: ['Bloom', 'Coil', 'Serum', 'Worm', 'Vat', 'Loop', 'Spore', 'Reagent', 'Toxin',
     'Solvent', 'Enzyme', 'Culture', 'Strain', 'Mutation', 'Membrane', 'Synapse', 'Tendril', 'Larva', 'Hive', 'Swarm',
     'Catalyst', 'Compound', 'Residue', 'Effluent', 'Sludge', 'Ichor', 'Venom', 'Bile', 'Pustule', 'Filament', 'Reactor',
-    'Petri', 'Beaker', 'Isotope', 'Slime'],
+    'Petri', 'Beaker', 'Isotope', 'Slime',
+    'Reactant', 'Polymer', 'Plasmid', 'Pathogen', 'Toxoid', 'Distillate', 'Precipitate', 'Catalyzer', 'Genome',
+    'Spawnpool', 'Outbreak', 'Contagion', 'Vector', 'Petridish', 'Nutrient', 'Bioreactor'],
   default: ['Signal', 'Drift', 'Channel', 'Loop', 'Phase', 'Vector', 'Echo', 'Frame',
     'Pulse', 'Node', 'Array', 'Cipher', 'Relay', 'Circuit', 'Lattice', 'Matrix', 'Conduit', 'Beacon', 'Fragment',
-    'Sequence', 'Pattern', 'Cycle', 'Glitch', 'Vapor', 'Strobe', 'Filter'],
+    'Sequence', 'Pattern', 'Cycle', 'Glitch', 'Vapor', 'Strobe', 'Filter',
+    'Routine', 'Kernel', 'Buffer', 'Register', 'Token', 'Packet', 'Stream', 'Index', 'Schema', 'Daemon'],
 }
 const MODEL = ['9X', 'RT', 'S7', 'MK2', 'AX2', 'D3', 'XS', 'V2', 'HX', 'RS', 'TR', 'CV', 'FX', 'Z9', 'Q4', 'NX', 'EX', 'K7', 'P1', 'GX']
 // Letter/number suffixes — cheap entropy that multiplies the name space without needing more vocabulary.
@@ -82,7 +96,7 @@ export function radioTrackName(t: NameInput): string {
   const fam = familyOf(t.mood)
   const adj = pick(ADJ[fam], rng())
   const noun = pick(NOUN[fam], rng())
-  const scheme = Math.floor(rng() * 6)
+  const scheme = Math.floor(rng() * 9)
   switch (scheme) {
     case 0: {   // hybrid: word(s) + a short machine tag
       const tag = pick([`// ${t.key}`, `· ${t.bpm}`, `-${hex2(rng())}`, `[${t.key}]`, `/${t.bpm}`], rng())
@@ -101,8 +115,18 @@ export function radioTrackName(t: NameInput): string {
     }
     case 4:     // word(s) + a greek-letter designation
       return pick([`${adj} ${noun} ${pick(GREEK, rng())}`, `${noun} ${pick(GREEK, rng())}`, `${pick(GREEK, rng())} ${noun}`], rng())
-    default:    // word(s) + a roman numeral (a "movement"/"mark" feel)
+    case 5:     // word(s) + a roman numeral (a "movement"/"mark" feel)
       return pick([`${adj} ${noun} ${pick(ROMAN, rng())}`, `${noun} — ${pick(ROMAN, rng())}`, `${adj} ${noun} mk.${pick(ROMAN, rng())}`], rng())
+    case 6:     // definite-article title — a heavier, named feel ("The Iron Verdict")
+      return pick([`The ${adj} ${noun}`, `The ${noun}`, `The ${noun} of ${adj}`], rng())
+    case 7: {   // noun-noun compound (second noun, same family) — "Furnace Crypt", "Reactor//Husk"
+      const noun2 = pick(NOUN[fam], rng())
+      return pick([`${noun} ${noun2}`, `${noun}//${noun2}`, `${noun}-${noun2}`], rng())
+    }
+    default: {  // catalogue index — "Cold Vault No.7", "Vault RT·12"
+      const n = 1 + Math.floor(rng() * 99)
+      return pick([`${adj} ${noun} No.${n}`, `${noun} ${pick(MODEL, rng())}·${n}`, `${noun} no.${n}`], rng())
+    }
   }
 }
 

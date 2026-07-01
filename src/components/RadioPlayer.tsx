@@ -1,8 +1,12 @@
-import { useRef, type CSSProperties } from 'react'
+import { useRef, useState, type CSSProperties } from 'react'
 import { glassCard } from './glass'
 import { DT_TRACK } from './RadioExplorer'
 import './RadioExplorer.css' // the .rexp-cass cassette icon (reused as the drag image)
 import { useT } from '../i18n'
+import { fractionFromPointer, fmtMs } from './radioPlayerFmt'
+
+const SCRUB_RAIL_HEIGHT = 4   // px — thin rail; the row height is reserved so nothing jumps
+const SCRUB_THUMB = 11        // px — the draggable knob diameter
 
 // Build an off-screen cassette element, snapshot it as the drag image, then drop it (no persistent leak).
 function setCassetteDragImage(dt: DataTransfer) {
@@ -29,15 +33,21 @@ interface RadioPlayerProps {
   onPrev: () => void
   onNext: () => void
   onPlayPause: () => void
+  progress: number               // current play position 0..1 (polled)
+  totalMs: number                // current track duration in ms (for the time label)
+  onSeek: (frac: number) => void // jump the current track to a fraction
   onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
-  onRegen: () => void
+  onToggleBall: () => void           // hide/show the player ball in radio mode (the camera pans away)
+  ballHidden: boolean                // is the ball currently hidden?
   trial?: { gensLeft: number; savesLeft: number } | null // free-trial remaining; null = unlimited/unresolved → no strip
   genLimited?: boolean               // daily free generations spent → show the limit message
   saveLimited?: boolean              // a save was just blocked → transient inline prompt
-  canRegen?: boolean                 // 🎲 enabled? (false at the gen limit)
   onUnlock?: () => void              // open the Steam DLC store overlay
   libraryMin?: boolean               // the explorer is minimized → show a "LIBRARY" bar above the card (same as BACK)
   onRestoreLibrary?: () => void
+  codeMin?: boolean                  // the code panel is minimized → show a "PROGRAM" bar above the card
+  onRestoreCode?: () => void
+  lastMin?: 'lib' | 'code' | null    // which panel minimized LAST → it sits on TOP of the bar stack when both are down
   onVolume: (v: number) => void
   onOpen: () => void
   onBack: () => void
@@ -62,6 +72,15 @@ const title = (clickable: boolean): CSSProperties => ({
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: clickable ? 'pointer' : 'default',
 })
 const subRow: CSSProperties = { textAlign: 'center', color: 'var(--accent-dim)', fontSize: '0.7rem', letterSpacing: '0.12em' }
+const SCRUB_HIT_HEIGHT = 18   // px — the FULL-height grab area (the visual rail is thin); a 4px target is unhittable
+const scrubRow: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, height: SCRUB_HIT_HEIGHT, fontSize: '0.6rem', color: 'var(--accent-dim)', letterSpacing: '0.04em' }
+// The interactive `.scrub` element spans the WHOLE row height so the thin rail is easy to grab; the visual rail is a
+// thin child centered inside it (pointerEvents off → the hit area, not the rail, captures the pointer).
+const scrubHit: CSSProperties = { position: 'relative', flex: 1, height: SCRUB_HIT_HEIGHT, display: 'flex', alignItems: 'center', cursor: 'pointer', touchAction: 'none' }
+const scrubRail: CSSProperties = { position: 'relative', width: '100%', height: SCRUB_RAIL_HEIGHT, borderRadius: SCRUB_RAIL_HEIGHT, background: 'rgba(255,255,255,0.14)', pointerEvents: 'none' }
+const scrubFill = (frac: number): CSSProperties => ({ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${frac * 100}%`, borderRadius: SCRUB_RAIL_HEIGHT, background: 'var(--accent, #8cf)' })
+const scrubThumb = (frac: number): CSSProperties => ({ position: 'absolute', top: '50%', left: `${frac * 100}%`, width: SCRUB_THUMB, height: SCRUB_THUMB, marginLeft: -SCRUB_THUMB / 2, transform: 'translateY(-50%)', borderRadius: '50%', background: '#eef', pointerEvents: 'none' })
+const timeLabel: CSSProperties = { flex: '0 0 auto', minWidth: 30, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }
 const center: CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12 }
 // grid+placeItems reliably centers symbol glyphs (flex/baseline left them low).
 const iconBtn: CSSProperties = {
@@ -92,6 +111,10 @@ const backBtn: CSSProperties = {
 export function RadioPlayer(p: RadioPlayerProps) {
   const t = useT()
   const cardRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  const [dragFrac, setDragFrac] = useState<number | null>(null)
+  const shownFrac = dragFrac ?? p.progress
+  const seekFrom = (clientX: number) => { if (railRef.current) setDragFrac(fractionFromPointer(clientX, railRef.current.getBoundingClientRect())) }
   const dim: CSSProperties = p.ready ? {} : { opacity: 0.45, pointerEvents: 'none' }
   const radioWord = t.settingsVolRadio   // localized "Radio"
   // Transport buttons stretch to fill the full width of their row.
@@ -106,38 +129,54 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
   return (
     <div className="radio-player-root" style={wrap(p.expanded)} data-testid="radio-player">
-      {p.expanded && p.libraryMin && (
-        <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button>
-      )}
+      {p.expanded && (() => {
+        // The minimized-panel bars stack above the card; the one collapsed LAST sits on top (p.lastMin).
+        const lib = p.libraryMin ? <button key="lib" style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button> : null
+        const code = p.codeMin ? <button key="code" style={backBtn} className="rexp-anim-in" onClick={p.onRestoreCode} data-testid="radio-code-min">{t.radioProgram}</button> : null
+        return p.lastMin === 'code' ? [code, lib] : [lib, code]
+      })()}
       {/* Drag from ANY empty area of the player to save the current track. Controls (slider/buttons) must keep their
           native behaviour: toggle the card's draggable OFF synchronously on pointerdown over a control, else the
           browser starts an HTML5 drag of the card instead of letting the range thumb move. */}
       <div ref={cardRef} style={p.expanded ? { ...card, cursor: 'grab' } : card} data-testid="radio-drag"
         draggable={p.expanded}
         onPointerDown={e => {
-          const onControl = !!(e.target as HTMLElement).closest('button, input, .slider')
+          const onControl = !!(e.target as HTMLElement).closest('button, input, .slider, .scrub')
           if (cardRef.current) cardRef.current.draggable = p.expanded && !onControl
         }}
         onDragStart={e => {
-          if ((e.target as HTMLElement).closest('button, input, .slider')) { e.preventDefault(); return } // let controls work
+          if ((e.target as HTMLElement).closest('button, input, .slider, .scrub')) { e.preventDefault(); return } // let controls work
           const j = p.onDragTrack()
           if (j) { e.dataTransfer.setData(DT_TRACK, j); e.dataTransfer.effectAllowed = 'copy'; setCassetteDragImage(e.dataTransfer) }
           else e.preventDefault()
         }}>
         {/* Row 1 — track name (collapsed: click to open) */}
-        <div style={title(!p.expanded)} title={p.trackName} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>
+        <div style={title(!p.expanded)} data-testid="radio-track-name" onClick={!p.expanded ? p.onOpen : undefined}>{p.trackName || radioWord}</div>
 
         {p.expanded ? (
           <>
             {/* subtitle — BPM / key */}
             <div style={{ ...subRow, ...dim }}>{p.subtitle || radioWord}</div>
+            {/* scrub bar — position + click/drag seek (expanded only) */}
+            <div style={{ ...scrubRow, ...dim }} data-testid="radio-scrub-row">
+              <span style={timeLabel}>{fmtMs(shownFrac * p.totalMs)}</span>
+              <div ref={railRef} className="scrub" style={scrubHit} data-testid="radio-scrub"
+                onPointerDown={e => { e.currentTarget.setPointerCapture(e.pointerId); seekFrom(e.clientX) }}
+                onPointerMove={e => { if (dragFrac !== null) seekFrom(e.clientX) }}
+                onPointerUp={e => { if (dragFrac !== null) { p.onSeek(dragFrac); setDragFrac(null) } e.currentTarget.releasePointerCapture(e.pointerId) }}>
+                <div style={scrubRail}>
+                  <div style={scrubFill(shownFrac)} data-testid="radio-scrub-fill" />
+                  <div style={scrubThumb(shownFrac)} />
+                </div>
+              </div>
+              <span style={timeLabel}>{fmtMs(p.totalMs)}</span>
+            </div>
             {/* transport */}
             {transport}
-            {/* Air toggle (live generative stream) + new-seed die */}
+            {/* Air toggle (live generative stream) + hide-ball toggle (pans the camera off the player ball) */}
             <div style={{ ...center, ...dim, gap: 8 }}>
               <button style={airBtn(p.mode === 'gen')} onClick={() => p.onMode('gen')} data-testid="radio-air">◉ {t.radioAir}</button>
-              <button style={p.canRegen === false ? { ...smallBtn, opacity: 0.4, cursor: 'default' } : smallBtn}
-                onClick={p.onRegen} disabled={p.canRegen === false} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
+              <button style={{ ...smallBtn, height: 32 }} onClick={p.onToggleBall} aria-label={p.ballHidden ? 'show ball' : 'hide ball'} data-testid="radio-ball">{p.ballHidden ? '◯' : '⬤'}</button>
             </div>
             {/* Volume (megaphone pictogram, not the word "Radio") */}
             <div style={volRow}>
