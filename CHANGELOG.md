@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   for sharing.
 - **Radio: seek / scrubbing.** The expanded player now has a progress bar with elapsed/total time — click or drag it
   to jump anywhere in the current track (live or a saved favorite). Seeks land on the beat.
+- **Radio: a windowed code panel + a hide-ball toggle.** The desktop radio's Strudel-code panel (now titled PROGRAM)
+  is a proper floating window — drag, resize, maximize, or minimize it to a bar over the player next to LIBRARY (same
+  chrome; when both are minimized the last-collapsed sits on top). Clicking the code copies it (the title flashes
+  "COPIED"). A new toggle in the player smoothly pans the camera off the player ball if you'd rather just watch the
+  visuals. The redundant 🎲 re-roll button is gone — Next already advances the seed.
 
 ### Changed
 - **Radio: play/pause is a TRUE pause.** Pressing pause now freezes the track exactly where it is and resume continues
@@ -32,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - **"Sparks but no kill."** Hits that showed an impact on the client but weren't counted by the host are gone — the
   client's own shot now authoritatively registers, fixing missed hits on moving targets under latency.
+- **A bot's shots now register hits on you.** The shooter-authoritative change had the host resolve only its own
+  (local-player) hits, silently dropping every bot's hit — you could stand still, get clearly beamed, and take no
+  damage. Bots are host-simulated (like the local player), so the host now resolves their hits too.
 
 ## [0.6.1] - 2026-06-29
 
