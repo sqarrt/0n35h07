@@ -11,7 +11,7 @@ arrange(
   (s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
   (note("<[[52 52] ~ 52 [48 48] ~ 45 [43 47] ~] [48 [52 52] ~ 54 [51 52] ~ 55 ~] [[54 54] ~ 51 [48 52] ~ 52 [51 48] ~] [47 [48 45] ~ 45 ~ 48 ~ ~]>").sometimesBy(0.21, x => x.add(note("<12 -12 12>"))).sometimesBy(0.14, x => x.ply(2)).s("square").ply("<1 2 1 1 2 1 3 1>").degradeBy(0.25).sometimesBy(0.25, x => x.add(note(12))).distort("2.5:0.4").lpq(9).dec(0.07).delay(0.18).delaytime(0.125).delayfeedback(0.45).room(0.3).roomsize(5).lpf(perlin.range(500, 3000).fast(2)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.13)).orbit(6),
   (note("<[52 ~ 52 ~ 55 ~ ~ 59] [64 ~ ~ 59 ~ 55 ~ ~] [52 ~ 55 ~ 59 ~ ~ 64] [59 ~ ~ 55 ~ ~ ~ ~]>").s("square").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.05)).orbit(9),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("AkaiLinn").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] [sd*8]]>").bank("RolandTR808").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
 )],
   // float (8 bars)
   [8, stack(
@@ -22,7 +22,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR808").n(0).gain("0.94 0.94 0.93 0.86 0.88 1 0.95 0.88").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.46).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*16").bank("RolandTR909").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").bank("RolandTR808").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").bank("RolandTR808").gain(0.1).gain("<0.59 0.73 0.86 1>").shape(0.1).lpf(6000)).orbit(7),
@@ -49,7 +49,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd*2 bd bd bd]>").bank("RolandTR808").n(0).gain("0.94 0.94 0.93 0.86 0.88 1 0.95 0.88").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.46).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.18).roomsize(5)).orbit(7),
+  (s("<~ ~ ~ [sd*8 sd*16]>").bank("RolandTR808").gain(0.36).hpf(400).lpf(7000).room(0.18).roomsize(5)).orbit(7),
   (s("hh*16").bank("RolandTR909").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").bank("RolandTR808").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").bank("RolandTR808").gain(0.1).shape(0.1).lpf(6000)).orbit(7),
@@ -87,7 +87,7 @@ arrange(
   [8, stack(
   (s("bd*4").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.22).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white ~] ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 12 ~ 0 ~ 0 ~ 0 ~ 12 ~").add(note("<24 24 25 24>")).s("supersaw").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort("1.2:0.3").clip(0.95).lpf(saw.range(420, 910).slow(8)).delay(0.05).delaytime(0.375).delayfeedback(0.37).room(0.04).roomsize(4).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.41, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24 25 24>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -104,7 +104,7 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.22).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 12 ~ 0 ~ 0 ~ 0 ~ 12 ~").add(note("<24 24 25 24>")).s("supersaw").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort("1.2:0.3").clip(0.95).lpf(saw.range(420, 1560).slow(8)).delay(0.05).delaytime(0.375).delayfeedback(0.37).room(0.04).roomsize(4).gain(0.69).gain(saw.range(0.41, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24 25 24>").s("sine").gain(0.56).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -113,7 +113,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("AkaiLinn").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("AkaiLinn").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.1).roomsize(4).shape(0.15).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("AkaiLinn").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -126,7 +126,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ [white*8 white*16]>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("~ hh ~ hh").bank("AkaiLinn").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("AkaiLinn").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.15).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("AkaiLinn").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -149,7 +149,7 @@ arrange(
   [8, stack(
   (s("bd*4").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.22).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 12 ~ 0 ~ 0 ~ 0 ~ 12 ~").add(note("<24 24 25 24>")).s("supersaw").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort("1.2:0.3").clip(0.95).lpf(saw.range(90, 910).slow(8)).delay(0.05).delaytime(0.375).delayfeedback(0.37).room(0.04).roomsize(4).gain(0.69).gain("<0.59 0.73 0.86 1 1!4>").gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.41, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24 25 24>").s("sine").gain(0.56).gain("<0.59 0.73 0.86 1 1!4>").gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -158,7 +158,7 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.22).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 12 ~ 0 ~ 0 ~ 0 ~ 12 ~").add(note("<24 24 25 24>")).s("supersaw").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort("1.2:0.3").clip(0.95).lpf(saw.range(420, 1560).slow(8)).delay(0.05).delaytime(0.375).delayfeedback(0.37).room(0.04).roomsize(4).gain(0.69).gain(saw.range(0.41, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24 25 24>").s("sine").gain(0.56).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -167,7 +167,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("AkaiLinn").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("AkaiLinn").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.1).roomsize(4).shape(0.15).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("AkaiLinn").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -192,7 +192,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("AkaiLinn").n(0).gain("0.96 0.88 0.87 0.92 0.97 0.82 0.83 0.81").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ sd>").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ sd>").bank("AkaiLinn").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("AkaiLinn").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("AkaiLinn").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.15).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("AkaiLinn").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -229,7 +229,7 @@ arrange(
   [8, stack(
   (s("<[bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd bd bd bd]>").bank("RolandTR505").n(0).gain("0.97 0.93 0.98 0.96 0.92 0.93 0.83 1").shape(0.18).decay(0.1).attack(0.001).shape(0.18).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.43).room(0.2)).orbit(7),
+  (s("<~ ~ ~ ~ ~ ~ ~ [lt lt mt mt ht ht mt lt]>").bank("RolandTR505").gain(0.43).room(0.2)).orbit(7),
   (note("<[47 41 36 30 24 17] ~ ~ ~ ~ ~ ~ ~>").s("sine").dec(0.12).lpf(500).gain(0.47)).orbit(8),
   (note("-2 0 3 5 3 0 3 5 3 0 -2 0 3 5 3 0").add(note("<26 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(8)).delay(0.09).delaytime(0.5).delayfeedback(0.52).room(0.09).roomsize(6).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.51, 1).fast(4))).orbit(4),
   (note("<26 28>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.51, 1).fast(4))).orbit(8),
@@ -241,7 +241,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd ~ ~ bd ~ ~ bd ~").bank("RolandTR505").n(0).gain("0.97 0.93 0.98 0.96 0.92 0.93 0.83 1").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("[hh hh] hh hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.05, 4)).orbit(3),
   (s("~ ~ ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.19).roomsize(6).shape(0.06).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR505").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.5).delayfeedback(0.5)).orbit(3),
@@ -284,7 +284,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~] [bd*2 bd bd bd]>").bank("RolandTR505").n(0).gain("0.97 0.93 0.98 0.96 0.92 0.93 0.83 1").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*32>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("[hh hh] hh hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).swingBy(0.05, 4)).orbit(3),
   (s("~ ~ ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.19).roomsize(6).shape(0.06).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR505").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.5).delayfeedback(0.5)).orbit(3),
@@ -324,7 +324,7 @@ arrange(
   [8, stack(
   (s("bd*4").n(5).gain("0.97 0.91 0.94 0.81 0.94 0.81 0.93 0.83").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.34).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<white*16 ~ ~ ~ ~ ~ ~ ~>").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(0.29, 0.03)).hpf(300)).orbit(8),
+  (s("<[white*8 white*16] ~ ~ ~ ~ ~ ~ ~>").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(0.29, 0.03)).hpf(300)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 0 ~ ~ ~ 0 ~ 0 ~ 0 0").add(note("<0 0 6 0>")).add(note("<28 28 29 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
   (note("<28 28 29 28>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.37, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -355,7 +355,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").n(5).gain("0.97 0.91 0.94 0.81 0.94 0.81 0.93 0.83").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.46).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.18).roomsize(5)).orbit(7),
+  (s("<~ ~ ~ [sd ~ [sd*2] [sd*4]]>").gain(0.36).hpf(400).lpf(7000).room(0.18).roomsize(5)).orbit(7),
   (s("white*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).pan(sine.slow(4))).orbit(3),
   (s("~ cp ~ cp").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (note("0 ~ 0 ~ 0 ~ 0 ~ ~ ~ 0 ~ 0 ~ 0 0").add(note("<0 0 6 0>")).add(note("<28 28 29 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.4).gain("<0.85 0.85 0.85 1>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
@@ -376,7 +376,7 @@ arrange(
   [8, stack(
   (s("bd*4").n(5).gain("0.97 0.91 0.94 0.81 0.94 0.81 0.93 0.83").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.34).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("0 ~ 0 ~ 0 ~ 0 ~ ~ ~ 0 ~ 0 ~ 0 0").add(note("<0 0 6 0>")).add(note("<28 28 29 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.69).gain("<0.59 0.73 0.86 1 1!4>").gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
   (note("<28 28 29 28>").s("sine").gain(0.56).gain("<0.59 0.73 0.86 1 1!4>").gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.37, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(0.01).pan(rand)).orbit(8),
@@ -396,7 +396,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").n(5).gain("0.97 0.91 0.94 0.81 0.94 0.81 0.93 0.83").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.46).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white ~] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("white*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ cp ~ cp").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (note("0 ~ 0 ~ 0 ~ 0 ~ ~ ~ 0 ~ 0 ~ 0 0").add(note("<0 0 6 0>")).add(note("<28 28 29 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.4).gain("<1 1 1 0.84>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
@@ -407,7 +407,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").n(5).gain("0.97 0.91 0.94 0.81 0.94 0.81 0.93 0.83").shape(0.34).distort("1.4:0.4").attack(0.001).shape(0.46).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*8>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("white*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.18).pan(sine.slow(4))).orbit(3),
   (s("~ cp ~ cp").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (note("0 ~ 0 ~ 0 ~ 0 ~ ~ ~ 0 ~ 0 ~ 0 0").add(note("<0 0 6 0>")).add(note("<28 28 29 28>")).s("supersaw").unison(5).detune(0.5).lpq(13).distort("1.4:0.45").clip(0.95).lpf(sine.range(160, 1700).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.4).gain("<0.85 0.85 0.85 1>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
@@ -442,7 +442,7 @@ arrange(
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").bank("RolandTR505").n(0).gain("0.88 0.9 0.85 0.83 0.82 0.81 0.87 0.87").shape(0.18).decay(0.1).attack(0.001).shape(0.18).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ sd>").gain(0.43).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ sd>").bank("RolandTR505").gain(0.43).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
   (note("<[50 45 41 35] ~ ~ ~ ~ ~ ~ ~>").s("sine").dec(0.12).lpf(500).gain(0.47)).orbit(8),
   (note("0 ~ 0 0 0 ~ 0 0 0 ~ 0 0 0 ~ 0 0").add(note("<33 33 33 33>")).s("supersaw").unison(3).detune(0.4).ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).clip(0.95).lpf(perlin.range(220, 1700).fast(2)).delay(0.04).delaytime(0.375).delayfeedback(0.34).room(0.03).roomsize(4).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.41, 1).fast(4))).orbit(4),
   (note("<33 33 33 33>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
@@ -454,7 +454,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").bank("RolandTR505").n(0).gain("0.88 0.9 0.85 0.83 0.82 0.81 0.87 0.87").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh ~ hh ~ hh ~ hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.07).roomsize(4).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ [cp cp]").bank("RolandTR505").gain(0.28).gain("<0.59 0.73 0.86 1>").room(0.06).roomsize(4).shape(0.08).lpf(7500)).orbit(7),
@@ -494,7 +494,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR505").n(0).gain("0.88 0.9 0.85 0.83 0.82 0.81 0.87 0.87").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("hh ~ hh ~ hh ~ hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.07).roomsize(4).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ [cp cp]").bank("RolandTR505").gain(0.28).room(0.06).roomsize(4).shape(0.08).lpf(7500)).orbit(7),
@@ -519,7 +519,7 @@ arrange(
   [4, stack(
   (s("bd*4").bank("RolandTR505").n(0).gain("0.88 0.9 0.85 0.83 0.82 0.81 0.87 0.87").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8).gain("<0 1 1 1>")).orbit(2),
   (s("<~ white ~ ~>").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh ~ hh ~ hh ~ hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).gain("<0 1 1 1>")).orbit(3),
   (s("~ sd ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.07).roomsize(4).shape(0.13).lpf(7500).gain("<0 1 1 1>")).orbit(7),
   (s("~ cp ~ [cp cp]").bank("RolandTR505").gain(0.28).room(0.06).roomsize(4).shape(0.08).lpf(7500).gain("<0 1 1 1>")).orbit(7),
@@ -533,7 +533,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR505").n(0).gain("0.88 0.9 0.85 0.83 0.82 0.81 0.87 0.87").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.08).roomsize(4)).orbit(7),
+  (s("<~ ~ ~ [sd*4 sd*8]>").bank("RolandTR505").gain(0.36).hpf(400).lpf(7000).room(0.08).roomsize(4)).orbit(7),
   (s("hh ~ hh ~ hh ~ hh hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.07).roomsize(4).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ [cp cp]").bank("RolandTR505").gain(0.28).room(0.06).roomsize(4).shape(0.08).lpf(7500)).orbit(7),
@@ -566,14 +566,14 @@ arrange(
   (note("0 0 ~ 0 6 0 ~ 0 0 0 ~ 0 0 0 ~ 6").add(note("<24 24>")).s("wt_digital").unison(2).wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5").clip(0.95).lpf(saw.range(90, 700).slow(8)).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.67).gain("<0.59 0.73 0.86 1 1!4>").gain("<1 1 1 1 1 1 1 0>").gain(saw.range(0.44, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24>").s("sine").gain(0.54).gain("<0.59 0.73 0.86 1 1!4>").gain("<1 1 1 1 1 1 1 0>").lpf(150).gain(saw.range(0.44, 1).fast(4))).orbit(8),
   (s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR606").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.2).roomsize(8)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] [sd*8]]>").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.2).roomsize(8)).orbit(7)
 )],
   // build (8 bars)
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").n(0).gain("0.86 0.95 1 0.85 0.85 0.99 0.85 0.89").shape(0.22).attack(0.001).shape(0.22).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.43).room(0.2)).orbit(7),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ [lt ~ mt ~ ht ~ mt lt]>").gain(0.43).room(0.2)).orbit(7),
+  (s("<white white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("0 0 ~ 0 6 0 ~ 0 0 0 ~ 0 0 0 ~ 6").add(note("<24 24>")).s("wt_digital").unison(2).wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4).gain("1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5 1 0.5 0.7 0.5").clip(0.95).lpf(saw.range(420, 910).slow(8)).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.44, 1).fast(4)).gain("1 1 1 0.3 1 1 1 0.3 1 1 1 0.3 1 1 1 0.3")).orbit(4),
   (note("<24 24>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.44, 1).fast(4))).orbit(8),
   (s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(0.01).pan(rand)).orbit(8),
@@ -583,7 +583,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").n(0).gain("0.86 0.95 1 0.85 0.85 0.99 0.85 0.89").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white ~] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.24).roomsize(8).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5)).orbit(3),
@@ -623,7 +623,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").n(0).gain("0.86 0.95 1 0.85 0.85 0.99 0.85 0.89").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.24).roomsize(8).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5)).orbit(3),
@@ -642,7 +642,7 @@ arrange(
   (s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
   (note("<[<[53 ~ ~ ~ 51 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [51 ~ ~ 50 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>] ~ ~ ~ ~ ~ ~ ~>").s("sawtooth").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(0.25).delayfeedback(0.62).room(0.6).roomsize(7).gain(0.22).lpf(1500)).orbit(6),
   (note("<[60 ~ ~ ~ ~ ~ ~ ~] [~ ~ 63 ~ ~ ~ ~ ~] [~ ~ ~ ~ 67 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>").s("sawtooth").vowel("<a e o aa>").lpq(2).attack(0.05).release(0.45).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.72).roomsize(8).lpf(saw.range(500, 2000).slow(8)).hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(0.15).gain("<1 1 1 1 1 1 1 0>")).orbit(6),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR606").gain(0.67).hpf(150).shape(0.1).lpf(7000).room(0.2).roomsize(8)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [~ sd sd [sd*2] bd [sd*4] ~ [sd*8]]>").gain(0.67).hpf(150).shape(0.1).lpf(7000).room(0.2).roomsize(8)).orbit(7)
 )],
   // float (8 bars)
   [8, stack(
@@ -653,7 +653,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").n(0).gain("0.86 0.95 1 0.85 0.85 0.99 0.85 0.89").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white ~] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.24).roomsize(8).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5)).orbit(3),
@@ -667,7 +667,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").n(0).gain("0.86 0.95 1 0.85 0.85 0.99 0.85 0.89").shape(0.22).attack(0.001).shape(0.34).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.24).roomsize(8).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5)).orbit(3),
@@ -705,8 +705,8 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd bd bd bd]>").bank("AkaiLinn").n(0).gain("0.84 0.95 0.84 0.94 0.88 0.85 0.95 0.81").shape(0.22).attack(0.001).shape(0.22).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ sd>").gain(0.43).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
-  (s("<white*16 ~ ~ ~ ~ ~ ~ ~>").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(0.29, 0.03)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ sd>").bank("AkaiLinn").gain(0.43).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white*8 white*16] ~ ~ ~ ~ ~ ~ ~>").dec(0.08).lpf(saw.range(9000, 400)).gain(saw.range(0.29, 0.03)).hpf(300)).orbit(8),
   (note("3 0 -2 0 3 5 3 0 -2 0 3 5 3 0 3 5").add(note("<26 26 24 34>")).s("supersaw").unison(5).detune(0.45).fm(2).fmh(2.51).lpq(6).distort("1.4:0.45").clip(0.95).lpf(saw.range(200, 1100).slow(2)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.69).gain(saw.range(0.41, 1).fast(4))).orbit(4),
   (note("<26 26 24 34>").s("sine").gain(0.56).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(0.01).pan(rand)).orbit(8),
@@ -776,7 +776,7 @@ arrange(
   [8, stack(
   (s("bd*4").n(0).gain("0.81 0.99 0.96 0.91 0.99 0.98 0.83 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.12).gain(0.77).gain("<0 1 1 1 1 1 1 1>")).orbit(2),
   (s("<~ white ~ ~ ~ ~ ~ ~>").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("~ ~ 0 12 ~ ~ 0 0 ~ ~ 0 12 ~ ~ 0 0").add(note("<33 33>")).s("wt_digital").unison(2).wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4).clip(0.95).lpf(saw.range(420, 910).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.69).gain("<0 1 1 1 1 1 1 1>").gain(saw.range(0.41, 1).fast(4))).orbit(4),
   (note("<33 33>").s("sine").gain(0.56).gain("<0 1 1 1 1 1 1 1>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (note("[21,27,34]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(0.01).delay(0.09).delaytime(0.25).delayfeedback(0.3).room(0.68).roomsize(8).pan(0.51)).orbit(8),
@@ -786,7 +786,7 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").n(0).gain("0.81 0.99 0.96 0.91 0.99 0.98 0.83 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.12).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.43).room(0.2)).orbit(7),
+  (s("<~ ~ ~ ~ ~ ~ ~ [lt lt mt mt ht ht mt lt]>").gain(0.43).room(0.2)).orbit(7),
   (note("~ ~ 0 12 ~ ~ 0 0 ~ ~ 0 12 ~ ~ 0 0").add(note("<33 33>")).s("wt_digital").unison(2).wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4).clip(0.95).lpf(saw.range(420, 1560).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.69).gain(saw.range(0.41, 1).fast(4))).orbit(4),
   (note("<33 33>").s("sine").gain(0.56).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (note("[21,27,34]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(0.01).delay(0.09).delaytime(0.25).delayfeedback(0.3).room(0.68).roomsize(8).pan(0.51)).orbit(8),
@@ -796,7 +796,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").n(0).gain("0.81 0.99 0.96 0.91 0.99 0.98 0.83 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.24).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*8").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.24).roomsize(8).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ cp").gain(0.28).gain("<0.59 0.73 0.86 1>").room(0.2).roomsize(8).shape(0.08).lpf(7500)).orbit(7),
@@ -863,7 +863,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").n(0).gain("0.81 0.99 0.96 0.91 0.99 0.98 0.83 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.24).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*8").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.24).roomsize(8).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ cp").gain(0.28).gain("<0.59 0.73 0.86 1>").room(0.2).roomsize(8).shape(0.08).lpf(7500)).orbit(7),
@@ -876,7 +876,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").n(0).gain("0.81 0.99 0.96 0.91 0.99 0.98 0.83 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.24).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.35).room(0.2)).orbit(7),
+  (s("<~ ~ ~ [lt lt mt mt ht ht mt lt]>").gain(0.35).room(0.2)).orbit(7),
   (s("hh*8").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ sd ~ sd").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.24).roomsize(8).shape(0.13).lpf(7500)).orbit(7),
   (s("~ cp ~ cp").gain(0.28).room(0.2).roomsize(8).shape(0.08).lpf(7500)).orbit(7),
@@ -909,7 +909,7 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd(5,8)] [bd(5,8)] [bd(5,8)] [bd(5,8)] [bd(5,8)] [bd(5,8)] [bd(5,8)] [bd bd bd bd]>").bank("RolandTR707").n(0).gain("0.86 0.86 0.9 0.88 0.94 0.94 0.89 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.26).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.43).room(0.2)).orbit(7),
+  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt ht mt lt mt ht mt]>").bank("RolandTR707").gain(0.43).room(0.2)).orbit(7),
   (note("<[50 43 39 33 27 22] ~ ~ ~ ~ ~ ~ ~>").s("sine").dec(0.12).lpf(500).gain(0.47)).orbit(8),
   (note("~ 0 ~ 0 ~ 0 ~ 5 ~ 0 ~ 0 ~ 0 ~ 7").add(note("<28 28 24 35>")).s("sawtooth").lpq(3).clip(0.95).lpf(saw.range(90, 910).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).delay(0.09).delaytime(0.5).delayfeedback(0.52).room(0.11).roomsize(6).gain(0.69).gain("<0.59 0.73 0.86 1 1!4>").gain(saw.range(0.62, 1).fast(4)).gain("1 1 1 1 0.3 0.3 1 1 1 1 1 1 0.3 0.3 1 1")).orbit(4),
   (note("<28 28 24 35>").s("sine").gain(0.56).gain("<0.59 0.73 0.86 1 1!4>").lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),
@@ -919,7 +919,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd(5,8)").bank("RolandTR707").n(0).gain("0.86 0.86 0.9 0.88 0.94 0.94 0.89 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[white ~] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*12").bank("RolandTR707").dec(tri.fast(4).range(0.05, 0.12)).gain(0.17).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.05, 4)).orbit(3),
   (s("~ ~ sd ~").bank("RolandTR707").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.25).roomsize(6).shape(0.06).lpf(7500)).orbit(7),
   (s("~ cp").bank("RolandTR707").gain(0.28).gain("<0.59 0.73 0.86 1>").room(0.21).roomsize(6).shape(0.08).lpf(7500)).orbit(7),
@@ -953,7 +953,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd(5,8)] [bd(5,8)] [bd(5,8)] [bd*2 bd bd bd]>").bank("RolandTR707").n(0).gain("0.86 0.86 0.9 0.88 0.94 0.94 0.89 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ [white*8 white*16]>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("hh*12").bank("RolandTR707").dec(tri.fast(4).range(0.05, 0.12)).gain(0.17).pan(sine.slow(4)).swingBy(0.05, 4)).orbit(3),
   (s("~ ~ sd ~").bank("RolandTR707").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.25).roomsize(6).shape(0.06).lpf(7500)).orbit(7),
   (s("~ cp").bank("RolandTR707").gain(0.28).room(0.21).roomsize(6).shape(0.08).lpf(7500)).orbit(7),
@@ -975,7 +975,7 @@ arrange(
   [4, stack(
   (s("bd(5,8)").bank("RolandTR707").n(0).gain("0.86 0.86 0.9 0.88 0.94 0.94 0.89 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8).gain("<0 1 1 1>")).orbit(2),
   (s("<~ white ~ ~>").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*12").bank("RolandTR707").dec(tri.fast(4).range(0.05, 0.12)).gain(0.17).pan(sine.slow(4)).swingBy(0.05, 4).gain("<0 1 1 1>")).orbit(3),
   (s("~ ~ sd ~").bank("RolandTR707").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.25).roomsize(6).shape(0.06).lpf(7500).gain("<0 1 1 1>")).orbit(7),
   (s("~ cp").bank("RolandTR707").gain(0.28).room(0.21).roomsize(6).shape(0.08).lpf(7500).gain("<0 1 1 1>")).orbit(7),
@@ -998,7 +998,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd(5,8)] [bd(5,8)] [bd(5,8)] [bd*2 bd bd bd]>").bank("RolandTR707").n(0).gain("0.86 0.86 0.9 0.88 0.94 0.94 0.89 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.35).room(0.2)).orbit(7),
+  (s("<~ ~ ~ [lt mt lt mt lt mt lt mt]>").bank("RolandTR707").gain(0.35).room(0.2)).orbit(7),
   (s("hh*12").bank("RolandTR707").dec(tri.fast(4).range(0.05, 0.12)).gain(0.17).pan(sine.slow(4)).swingBy(0.05, 4)).orbit(3),
   (s("~ ~ sd ~").bank("RolandTR707").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.25).roomsize(6).shape(0.06).lpf(7500)).orbit(7),
   (s("~ cp").bank("RolandTR707").gain(0.28).room(0.21).roomsize(6).shape(0.08).lpf(7500)).orbit(7),
@@ -1031,7 +1031,7 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd bd bd bd]>").n(0).gain("0.98 0.94 0.99 0.91 0.92 0.95 0.98 0.92").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.26).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),
   (note("<[50 46 42 36 29] ~ ~ ~ ~ ~ ~ ~>").s("sine").dec(0.12).lpf(500).gain(0.47)).orbit(8),
   (note("0 0 0 0 0 0 ~ 0 0 0 ~ 0 0 0 ~ ~").add(note("<0 0 6 0>")).add(note("<28 28>")).s("supersaw").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort("1.2:0.3").clip(0.95).lpf(saw.range(90, 910).slow(8)).delay(0.09).delaytime(0.5).delayfeedback(0.52).room(0.09).roomsize(6).gain(0.69).gain("<0.59 0.73 0.86 1 1!4>").gain(saw.range(0.41, 1).fast(4))).orbit(4),
   (note("<28 28>").s("sine").gain(0.56).gain("<0.59 0.73 0.86 1 1!4>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
@@ -1094,7 +1094,7 @@ arrange(
   (note("8 3 12 ~ 12 10 7 12").add(note("<24 24>")).add(note(12)).s("triangle").attack(0.006).dec(0.18).lpf(950).delay(0.05).delaytime(0.375).delayfeedback(0.41).room(0.04).roomsize(4).gain(0.16).gain("<0.59 0.73 0.86 1 1!4>").gain("<1 1 1 1 1 1 1 0>").gain(saw.range(0.44, 1).fast(4))).orbit(4),
   (s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
   (note("84 ~ ~ ~ ~ ~ ~ ~ ~ ~ 84 ~ ~ ~ ~ ~").s("sine").attack(0.001).decay(0.09).add(note(saw.range(0,-6).fast(10))).lpf(3648).gain(0.01).pan(0.67).delay(0.27).delaytime(0.375).delayfeedback(0.41).room(0.39).roomsize(4).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR505").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.08).roomsize(4)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR909").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.08).roomsize(4)).orbit(7)
 )],
   // float (8 bars)
   [8, stack(
@@ -1105,7 +1105,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd*4").bank("RolandTR909").n(0).gain("0.94 0.91 0.95 0.91 0.8 0.87 0.84 0.87").shape(0.3).distort("1.2:0.3").lpf(1500).shape(0.42).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("RolandTR909").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR909").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.1).roomsize(4).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR909").gain(0.19).gain("<0.59 0.73 0.86 1>").hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -1142,7 +1142,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR909").n(0).gain("0.94 0.91 0.95 0.91 0.8 0.87 0.84 0.87").shape(0.3).distort("1.2:0.3").lpf(1500).shape(0.42).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ sd>").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ sd>").bank("RolandTR909").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("RolandTR909").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR909").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.16).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR909").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -1175,7 +1175,7 @@ arrange(
   (note("0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0").add(note("<0 0 6 0>")).add(note("<26 26 26 26>")).s("wt_digital").unison(2).wt(0).wtenv(0.5).acidenv(0.4).distort("3:0.4").dec(0.15).lpq(4).clip(0.95).lpf(saw.range(90, 700).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.07).roomsize(5).gain(0.67).gain("<0.59 0.73 0.86 1 1!4>").gain("<1 1 1 1 1 1 1 0>").gain(saw.range(0.41, 1).fast(4)).gain("1 0.08 1 0.08 1 0.08 1 0.08 1 0.08 1 0.08 1 0.08 1 0.08")).orbit(4),
   (note("<26 26 26 26>").s("sine").gain(0.54).gain("<0.59 0.73 0.86 1 1!4>").gain("<1 1 1 1 1 1 1 0>").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),
   (s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR909").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] [sd*8]]>").bank("RolandTR606").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
 )],
   // build (8 bars)
   [8, stack(
@@ -1192,7 +1192,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR606").n(0).gain("0.96 0.83 0.87 0.85 0.89 0.97 0.94 0.81").shape(0.38).distort("1.3:0.35").shape(0.5).gain(0.8)).orbit(2),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.29).gain("<0.59 0.73 0.86 1>").pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain("<0.59 0.73 0.86 1>").room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").gain(0.1).gain("<0.59 0.73 0.86 1>").shape(0.1).lpf(6000)).orbit(7),
@@ -1219,7 +1219,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd*2 bd bd bd]>").bank("RolandTR606").n(0).gain("0.96 0.83 0.87 0.85 0.89 0.97 0.94 0.81").shape(0.38).distort("1.3:0.35").shape(0.5).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ sd>").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ sd>").bank("RolandTR606").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
   (s("hh*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.29).pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").gain(0.1).shape(0.1).lpf(6000)).orbit(7),
@@ -1238,7 +1238,7 @@ arrange(
   (s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(0.01).pan(rand).gain("<1 1 1 1 1 1 1 0>")).orbit(8),
   (note("<[<[[40 41] [40 38] 38 [38 38] 38 [38 38] 38 40] [38 [38 38] 38 [40 43] [45 48] 46 [45 41] 38] [[40 38] 38 [57 58] 58 57 [55 53] 52 [50 48]] [50 [48 46] 48 46 [45 43] 40 ~ ~]>] ~ ~ ~ ~ ~ ~ ~>").s("square").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(0.375).delayfeedback(0.62).room(0.6).roomsize(7).gain(0.22).lpf(1500)).orbit(6),
   (note("<[62 ~ ~ ~ ~ ~ ~ ~] [~ ~ 69 ~ ~ ~ ~ ~] [~ ~ ~ ~ 74 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>").s("triangle").attack(0.02).release(0.7).add(note(sine.range(-0.12, 0.12).slow(3))).delay(0.5).delaytime(0.5).delayfeedback(0.55).room(0.78).roomsize(11).lpf(2200).hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(0.15).gain("<1 1 1 1 1 1 1 0>")).orbit(6),
-  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ sd ~ bd sd [sd sd] [sd*4]]>").bank("RolandTR909").gain(0.67).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
+  (s("<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] [sd*8]]>").bank("RolandTR606").gain(0.67).hpf(150).shape(0.1).lpf(7000).room(0.13).roomsize(5)).orbit(7)
 )],
   // peak (4 bars)
   [4, stack(
@@ -1271,7 +1271,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~] [bd*2 bd bd bd]>").bank("RolandTR606").n(0).gain("0.96 0.83 0.87 0.85 0.89 0.97 0.94 0.81").shape(0.38).distort("1.3:0.35").shape(0.5).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ sd>").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ sd>").bank("RolandTR606").gain(0.35).delay(0.82).delaytime(0.1875).delayfeedback(0.72).room(0.5).roomsize(6)).orbit(8),
   (s("hh*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.29).pan(sine.slow(4)).swingBy(0.06, 4)).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500)).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").gain(0.1).shape(0.1).lpf(6000)).orbit(7),
@@ -1296,7 +1296,7 @@ arrange(
   [4, stack(
   (s("bd ~ ~ bd ~ ~ ~ ~ ~ ~ bd ~ ~ ~ ~ ~").bank("RolandTR606").n(0).gain("0.96 0.83 0.87 0.85 0.89 0.97 0.94 0.81").shape(0.38).distort("1.3:0.35").shape(0.5).gain(0.8).gain("<0 1 1 1>")).orbit(2),
   (s("<~ white ~ ~>").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("hh*16").dec(tri.fast(4).range(0.05, 0.12)).gain(0.29).pan(sine.slow(4)).swingBy(0.06, 4).gain("<0 1 1 1>")).orbit(3),
   (s("~ ~ ~ ~ sd ~ ~ ~ ~ ~ ~ ~ sd ~ sd ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.15).roomsize(5).shape(0.16).lpf(7500).gain("<0 1 1 1>")).orbit(7),
   (s("~ ~ sd ~ ~ sd ~ ~ ~ sd ~ ~ ~ sd ~ ~").gain(0.1).shape(0.1).lpf(6000).gain("<0 1 1 1>")).orbit(7),
@@ -1383,7 +1383,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR606").n(0).gain("0.95 0.82 0.81 0.86 0.87 0.96 0.81 0.91").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.11).roomsize(4)).orbit(7),
+  (s("<~ ~ ~ [sd*4 sd*8]>").bank("RolandTR606").gain(0.36).hpf(400).lpf(7000).room(0.11).roomsize(4)).orbit(7),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.14).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -1406,7 +1406,7 @@ arrange(
   [4, stack(
   (s("bd*4").bank("RolandTR606").n(0).gain("0.95 0.82 0.81 0.86 0.87 0.96 0.81 0.91").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8).gain("<0 1 1 1>")).orbit(2),
   (s("<~ white ~ ~>").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<[~ white] ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).gain("<0 1 1 1>")).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.14).lpf(7500).gain("<0 1 1 1>")).orbit(7),
   (s("~ rim ~ rim").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5).gain("<0 1 1 1>")).orbit(3),
@@ -1433,7 +1433,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR606").n(0).gain("0.95 0.82 0.81 0.86 0.87 0.96 0.81 0.91").shape(0.18).decay(0.1).attack(0.001).shape(0.3).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ white*16>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
+  (s("<~ ~ ~ white*12>").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.28)).hpf(300)).orbit(8),
   (s("~ hh ~ hh").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.1).roomsize(4).shape(0.14).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.375).delayfeedback(0.5)).orbit(3),
@@ -1469,8 +1469,8 @@ arrange(
   // build (8 bars)
   [8, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>").bank("RolandTR505").n(0).gain("0.96 0.94 0.97 0.91 0.97 0.81 0.87 0.91").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.26).gain(0.77)).orbit(2),
-  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").gain(0.43).room(0.2)).orbit(7),
-  (s("<white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
+  (s("<~ ~ ~ ~ ~ ~ ~ [lt mt lt mt lt mt lt mt]>").bank("RolandTR505").gain(0.43).room(0.2)).orbit(7),
+  (s("<white white ~ ~ ~ ~ ~ ~ ~>").dec(0.6).hpf(3500).gain(0.36).room(0.5).roomsize(6)).orbit(8),
   (note("0 ~ ~ 0 0 ~ ~ 0 0 ~ ~ 0 0 ~ ~ 0").add(note("<29 31>")).add(note(saw.range(0, -12).slow(8))).s("supersaw").unison(3).detune(0.4).ply("<1 1 2 1 1 3 1 2>").crush("<8 5 8 4>").distort("1.5:0.5").lpq(7).clip(0.95).lpf(perlin.range(220, 1700).fast(2)).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.69).gain("<0.59 0.73 0.86 1 1!4>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
   (note("<29 31>").s("sine").gain(0.56).gain("<0.59 0.73 0.86 1 1!4>").lpf(150).gain(saw.range(0.37, 1).fast(4))).orbit(8),
   (note("~ 8 ~ 3 ~ 5 ~ 10").add(note("<29 31>")).add(note(12)).s("supersaw").attack(0.006).dec(0.18).lpf(950).delay(0.04).delaytime(0.25).delayfeedback(0.3).room(0.11).roomsize(8).gain(0.17).gain("<0.59 0.73 0.86 1 1!4>").gain(saw.range(0.37, 1).fast(4))).orbit(4),
@@ -1524,7 +1524,7 @@ arrange(
   [4, stack(
   (s("bd*4").bank("RolandTR505").n(0).gain("0.96 0.94 0.97 0.91 0.97 0.81 0.87 0.91").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8).gain("<0 1 1 1>")).orbit(2),
   (s("<~ white ~ ~>").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),
-  (s("<white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
+  (s("<white white ~ ~ ~>").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),
   (s("~ hh ~ hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.31).pan(sine.slow(4)).gain("<0 1 1 1>")).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.24).roomsize(8).shape(0.14).lpf(7500).gain("<0 1 1 1>")).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR505").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5).gain("<0 1 1 1>")).orbit(3),
@@ -1539,7 +1539,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>").bank("RolandTR505").n(0).gain("0.96 0.94 0.97 0.91 0.97 0.81 0.87 0.91").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.27).roomsize(8)).orbit(7),
+  (s("<~ ~ ~ [[sd*2 sd*4] [sd*8 sd*16]]>").bank("RolandTR505").gain(0.36).hpf(400).lpf(7000).room(0.27).roomsize(8)).orbit(7),
   (s("~ hh ~ hh").bank("RolandTR505").dec(tri.fast(4).range(0.05, 0.12)).gain(0.31).pan(sine.slow(4))).orbit(3),
   (s("~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ sd ~ ~ ~").bank("RolandTR505").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.24).roomsize(8).shape(0.14).lpf(7500)).orbit(7),
   (s("~ rim ~ rim").bank("RolandTR505").gain(0.19).hpf(800).room(0.35).roomsize(8).delay(0.3).delaytime(0.25).delayfeedback(0.5)).orbit(3),
@@ -1608,7 +1608,7 @@ arrange(
   // peak (4 bars)
   [4, stack(
   (s("<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd*2 bd bd bd]>").bank("RolandTR707").n(0).gain("0.81 0.93 0.95 0.84 0.97 0.89 0.98 0.92").shape(0.12).decay(0.26).lpf(700).shape(0.24).gain(0.8)).orbit(2),
-  (s("<~ ~ ~ [sd*4 sd*8]>").gain(0.36).hpf(400).lpf(7000).room(0.06).roomsize(3)).orbit(7),
+  (s("<~ ~ ~ [sd ~ [sd*2] [sd*4]]>").bank("RolandTR707").gain(0.36).hpf(400).lpf(7000).room(0.06).roomsize(3)).orbit(7),
   (s("hh*16").bank("RolandTR707").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).swingBy(0.13, 4)).orbit(3),
   (s("~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp").bank("RolandTR707").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.06).roomsize(3).shape(0.1).lpf(7500)).orbit(7),
   (note("~ 12 ~ 0 0 0 ~ ~ ~ 12 ~ 0 ~ 0 ~ 0").add(note("<26 26 34 33>")).s("wt_flute").unison(2).wt(0).wtenv(0.7).acidenv(0.45).distort("4:0.5").dec(0.13).lpq(2).fm("<1 ~ ~ 2>").clip(0.95).lpf(saw.range(420, 1560).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s("square").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain("<0.85 0.85 0.85 1>").gain(saw.range(0.51, 1).fast(4))).orbit(4),
