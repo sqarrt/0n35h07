@@ -13,6 +13,7 @@ import { DRUM_COLORS, type DrumColor } from './engines/drumColor'
 import { BASS_RHYTHMS, type BassRhythm } from './engines/bassRhythm'
 import { BASS_MELODIES, type BassMelody } from './engines/bassMelody'
 import { BASS_COLORS, type BassColor } from './engines/bassColor'
+import { rollMute, type MuteRoll } from './engines/muteStyle'
 
 export type PadMode = 'stab' | 'off' | 'drone' | 'arp'
 export type PercKind = 'none' | 'rim' | 'shaker' | 'noise' | 'ride' | 'tom'
@@ -88,6 +89,7 @@ export interface TrackStyle {
   bassRhythm: BassRhythm  // РИСУНОК — the mask + accents
   bassMelody: BassMelody  // МЕЛОДИЯ — the semitone-offset contour (+ drift/shove)
   bassColor: BassColor    // ЦВЕТ — synth source + fx (acid:true = the 303 BassEngine path)
+  mute: MuteRoll          // per-track palm-mute / gain-duck gesture (scope: lead/bass/drums) — adds dynamics
 }
 
 // Bass character: 'existing' = the original 303 acid riff (BassEngine); the rest are the co-designed dark/electronic
@@ -191,7 +193,7 @@ function pick<T>(rng: Rng, arr: readonly T[], anti: AntiRepeatBuffer, cat: strin
 
 // `drumRng` is a DEDICATED stream for the three drum axes — the legacy drum picks below still consume `rng`/`anti`
 // (so the rest of the style is byte-identical: no cascade from the stage-2 refactor), but their results are unused.
-export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng, bassRng: Rng): TrackStyle {
+export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, drumRng: Rng, bassRng: Rng, muteRng: Rng): TrackStyle {
   const b = pick(rng, BASS, anti, 'st_bass')
   const l = pick(rng, LEAD, anti, 'st_lead')
   return {
@@ -223,5 +225,6 @@ export function chooseStyle(rng: Rng, anti: AntiRepeatBuffer, moodId: string, dr
     bassRhythm: pickAxis(BASS_RHYTHMS, moodId, bassRng, anti, 'bass_rhythm'),
     bassMelody: pickAxis(BASS_MELODIES, moodId, bassRng, anti, 'bass_melody'),
     bassColor: pickAxis(BASS_COLORS, moodId, bassRng, anti, 'bass_color'),
+    mute: rollMute(muteRng),  // per-track palm-mute / gain-duck gesture (note: the Vysotsky strum)
   }
 }

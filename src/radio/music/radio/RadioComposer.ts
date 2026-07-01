@@ -448,7 +448,7 @@ export class RadioComposer {
       const sectionLpf = deep ? '.lpf(1500)' : muffled ? '.lpf(900)' : '' // section override on top of the colour
       const kit = style.drumKit   // note 8 НАБОР axis: the kit bank
       const kvoice = (kit.kickBank ? `.bank("${kit.kickBank}")` : '') + `.n(${kit.kickN})`
-      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}")${colour}.shape(${kickShape}).gain(${kickGain})${sectionLpf}${dropDuck}${exitDuck}`, ORBIT.kicks))
+      out.push(orbit(`s("${kickPat}")${kvoice}.gain("${drums.gain}")${colour}.shape(${kickShape}).gain(${kickGain})${sectionLpf}${dropDuck}${exitDuck}${muteOf(style, 'drums')}`, ORBIT.kicks))
     }
     return out
   }
@@ -535,7 +535,7 @@ export class RadioComposer {
       // (and its sub) in those exposed sections so it carries; peaks stay trimmed (lead/drums need the room).
       const BASS_EXPOSED_BOOST = 1.4
       const bassLift = (muffled || role === 'build') ? BASS_EXPOSED_BOOST : 1
-      out.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}`, ORBIT.bass))
+      out.push(orbit(`${bassMain}${fxFor(0.2, 0.16)}.gain(${g(MIX.bass * bassLift)})${bassEmph}${bassEnter}${dropDuck}${exitDuck}${pump}${muteOf(style, 'bass')}`, ORBIT.bass))
       // sub-sine for FAT low weight — held CONSTANT (no emphasis dip) so the low end is
       // unbroken even when the mid-bass steps back for the lead (ducked under the kick).
       // Reinforces the bass fundamental at its OWN octave (not another octave below): the
@@ -565,13 +565,13 @@ export class RadioComposer {
       const hatGain = role === 'break' ? MIX.hat * 0.4 : MIX.hat   // break hats were ear-piercing — dropped
       const swing = Math.max(0, dr.swing + mut.swing)
       const hats = `s("${hatPat}")${bankOf('hat')}.dec(tri.fast(4).range(0.05, 0.12)).gain(${g(hatGain * mut.hats)})${percEnter}.pan(sine.slow(4))` + (swing > 0 ? `.swingBy(${r2(swing)}, 4)` : '')
-      out.push(orbit(hats + dropDuck + exitDuck, ORBIT.perc))
+      out.push(orbit(hats + dropDuck + exitDuck + muteOf(style, 'drums'), ORBIT.perc))
       // No snare ROLLS in a break (the ply-doubling reads as aggressive); just the plain halved backbeat. The
       // kit's snare pattern carries the groove (amen rolls / broken claps), but a BREAK reverts to a calm backbeat.
       const snPly = role === 'break' ? 0 : peak ? 0.28 : 0.14
       const snarePat = role === 'break' ? '~ sd ~ sd' : dr.snare
       const drumSat = r2(Math.min(0.16, mood.fx.saturation * 0.16 + (dc.drumShape ?? 0)))
-      out.push(orbit(`s("${snarePat}")${bankOf('snare')}.sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.3 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${drumSat}).lpf(7500)${dropDuck}${exitDuck}`, ORBIT.snare))
+      out.push(orbit(`s("${snarePat}")${bankOf('snare')}.sometimesBy(${snPly}, x => x.ply(2)).gain(${g(MIX.snare * (role === 'break' ? 0.3 : 1))})${percEnter}${fxFor(0, 0.35)}.shape(${drumSat}).lpf(7500)${dropDuck}${exitDuck}${muteOf(style, 'drums')}`, ORBIT.snare))
       // a quiet GHOST-snare rattle (amen) — adds the breakbeat feel; only when the groove defines it, never in a break.
       if (dr.ghost && role !== 'break') out.push(orbit(`s("${dr.ghost}")${bankOf('snare')}.gain(${g(MIX.snare * 0.32)})${percEnter}.shape(0.1).lpf(6000)${dropDuck}${exitDuck}`, ORBIT.snare))
       // a dubby off-pulse RIM (minimal) — its hypnotic click with delay, when the groove defines it.
@@ -655,7 +655,7 @@ export class RadioComposer {
       const LEAD_DEV = ['0 0 0 0', '7 5 3 0', '5 0 0 0', '0 0 -5 0', '7 0 5 0', '0 -7 0 0', '3 0 0 0', '0 5 0 0']
       const leadDev = this.afterBreak ? `.add(note("${seqAligned(LEAD_DEV[createRng(`${track.seed}:ldev`).int(LEAD_DEV.length)].split(' '))}"))` : ''
       if (style.dropLead === 'arp' && !memory) {
-        out.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}`, ORBIT.arp))
+        out.push(orbit(`${this.arp(chord, style.stabSound)}${leadDev}${mut.leadFx}${fxFor(0.7, 1.2)}${fatLead}.pan(sine.slow(4)).gain(${g(leadLevel * 0.9)})${leadEmph}.lpf(${leadLpf})${pump}${muteOf(style, 'lead')}`, ORBIT.arp))
       } else {
         const { fragment, voice, state } = this.melody.buildLead(chord, {
           rng, leadOctave: this.config.leadOctave, density: mood.density,
@@ -671,7 +671,7 @@ export class RadioComposer {
         const sweep = leadEntering ? `saw.range(${floaty ? 520 : 220}, ${target})` : `saw.range(560, ${target})`
         const filt = spec.filt ?? `.lpf(${sweep}.slow(${n})${lateAlign})`
         const fat = spec.fat ? fatLead : ''
-        out.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}`, ORBIT.lead))
+        out.push(orbit(`${fragment}${leadDev}${mut.leadFx}${src}${spec.fx}${filt}${fat}.pan(sine.slow(6).range(0.3, 0.7)).gain(${g(leadLevel * (spec.lvl ?? 1))})${leadEmph}${muteOf(style, 'lead')}`, ORBIT.lead))
       }
       // layer D — an INDEPENDENT second lead phrase (forked seed → a different melody), quiet + panned away + wet,
       // so two distinct lines weave into a richer whole. Fresh lead state so it never disturbs the main motif.
@@ -815,6 +815,14 @@ export class RadioComposer {
 }
 
 function orbit(code: string, nn: number): string { return `(${code}).orbit(${nn})` }
+
+// The per-track mute gesture (palm-mute / gain-duck) as a multiplicative `.gain("<16 steps>")` for the given layer,
+// or '' when this track doesn't mute that layer. Multiplies in → never fights the layer's own filter/gain chain.
+function muteOf(style: TrackStyle, layer: 'lead' | 'bass' | 'drums'): string {
+  const m = style.mute
+  const on = layer === 'lead' ? m.lead : layer === 'bass' ? m.bass : m.drums
+  return on && m.gain ? `.gain("${m.gain}")` : ''
+}
 
 
 
