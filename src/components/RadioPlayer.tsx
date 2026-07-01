@@ -3,26 +3,10 @@ import { glassCard } from './glass'
 import { DT_TRACK } from './RadioExplorer'
 import './RadioExplorer.css' // the .rexp-cass cassette icon (reused as the drag image)
 import { useT } from '../i18n'
+import { fractionFromPointer, fmtMs } from './radioPlayerFmt'
 
-const SEC_PER_MIN = 60
-const MS_PER_SEC = 1000
 const SCRUB_RAIL_HEIGHT = 4   // px — thin rail; the row height is reserved so nothing jumps
 const SCRUB_THUMB = 11        // px — the draggable knob diameter
-
-/** Pointer X → fraction 0..1 along a rail rect. Guards a zero-width rail. */
-export function fractionFromPointer(clientX: number, rect: { left: number; width: number }): number {
-  if (rect.width <= 0) return 0
-  return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-}
-
-/** Milliseconds → "m:ss" (negative/NaN → "0:00"). */
-export function fmtMs(ms: number): string {
-  if (!(ms > 0)) return '0:00'
-  const total = Math.floor(ms / MS_PER_SEC)
-  const m = Math.floor(total / SEC_PER_MIN)
-  const s = total % SEC_PER_MIN
-  return `${m}:${s < 10 ? '0' : ''}${s}`
-}
 
 // Build an off-screen cassette element, snapshot it as the drag image, then drop it (no persistent leak).
 function setCassetteDragImage(dt: DataTransfer) {

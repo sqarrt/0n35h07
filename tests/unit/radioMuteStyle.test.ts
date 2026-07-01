@@ -17,7 +17,7 @@ describe('rollMute', () => {
   })
   it('some tracks have no mute, some do', () => {
     let none = 0, some = 0
-    for (let i = 0; i < 100; i++) (rollMute(createRng('k' + i)).gain ? some++ : none++)
+    for (let i = 0; i < 100; i++) { if (rollMute(createRng('k' + i)).gain) some++; else none++ }
     expect(none).toBeGreaterThan(0)
     expect(some).toBeGreaterThan(0)
   })

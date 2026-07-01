@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fractionFromPointer, fmtMs } from '../../src/components/RadioPlayer'
+import { fractionFromPointer, fmtMs } from '../../src/components/radioPlayerFmt'
 
 describe('fractionFromPointer', () => {
   const rect = { left: 100, width: 200 }
