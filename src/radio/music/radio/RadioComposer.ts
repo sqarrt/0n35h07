@@ -9,6 +9,8 @@ import { kickColorChain } from './engines/drumColor'
 import { kitBankOf } from './engines/drumKit'
 import { combineBass } from './engines/combineBass'
 import { FILL_SNARE_ROLLS, FILL_TOM_ROLLS, FILL_RISERS, FILL_CRASHES, FILL_RHYTHMIC_EXIT, pickFill } from './engines/fills'
+import { pickAxis } from './engines/leadAxes'
+import { BG_STRUCTS, BG_MELODIES, BG_TIMBRES, bgAccentBody } from './engines/bgAccent'
 import { BassEngine } from './engines/BassEngine'
 import { rollMutations } from './MutationEngine'
 import { disguiseCells } from './seqDisguise'
@@ -51,6 +53,7 @@ const MIX = {
 const BRIGHT_FLOOR = 0.4, BRIGHT_SPAN = 0.6      // filter brightness vs section energy
 const ENERGY_FLOOR = 0.87, ENERGY_SPAN = 0.10    // uniform loudness envelope vs energy — NARROW (floor up, ceiling down) so the section-to-section progression isn't severe
 const EASE_IN_FLOOR = 0.45, EASE_IN_SPAN = 0.55  // gain ramp for a layer re-entering after silence (rises to 1.0) — raised floor so entries don't start near-silent
+const BG_FOLEY = new Set<BgKind>(['drip', 'steps', 'thud'])  // note-5 foley accents keep their bespoke bgTexture path
 const NORM_TARGET = 0.8   // loudness-normalisation target for a FULL section (only ever trims, never boosts)
 
 /** Loudness policy for one section: the per-part gain `g` (MASTER × level × energy-envelope × normalisation)
@@ -472,7 +475,18 @@ export class RadioComposer {
       out.push(orbit(this.bgTexture(style.bg, rootPc + bedV.oct, gBg, fxFor, bedV) + exitDuck, ORBIT.fx))
       if (style.bgAccent) {
         const accV = bgVary(createRng(`${track.seed}:bgacc`))
-        out.push(orbit(this.bgTexture(style.bgAccent, rootPc + accV.oct, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
+        const root = rootPc + accV.oct
+        if (BG_FOLEY.has(style.bgAccent)) {
+          out.push(orbit(this.bgTexture(style.bgAccent, root, gBg, fxFor, accV) + exitDuck, ORBIT.fx))
+        } else {
+          // note 8 stage 5: a tonal accent = struct (РИСУНОК) × offsets (МЕЛОДИЯ) × timbre (ЦВЕТ), picked per-track
+          // (mood-guarded) and combined — instead of one fixed bgTexture case.
+          const aRng = createRng(`${track.seed}:bgaxes`)
+          const struct = rotStruct(BG_STRUCTS[aRng.int(BG_STRUCTS.length)], accV.rot)
+          const melody = pickAxis(BG_MELODIES, track.mood, aRng, undefined, 'bg_melody')
+          const timbre = pickAxis(BG_TIMBRES, track.mood, aRng, undefined, 'bg_timbre')
+          out.push(orbit(`${bgAccentBody(struct, melody, timbre, root)}.gain(${gBg(0.11)}).pan(${accV.pan})${fxFor(0.8, 1)}${exitDuck}`, ORBIT.fx))
+        }
       }
     }
     return out
