@@ -201,6 +201,8 @@ export const tr = {
   radioNext: 'Sonraki parça',
   radioLike: 'Beğen',
   radioLibrary: 'Kütüphane',
+  radioProgram: 'Program',
+  radioCopied: 'kopyalandı',
   radioFreeToday: 'Bugün ücretsiz',
   radioUnlock: 'Radyo’yu aç',
   inviteTitle: 'seni oyuna davet ediyor',

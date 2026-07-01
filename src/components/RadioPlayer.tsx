@@ -53,14 +53,17 @@ interface RadioPlayerProps {
   totalMs: number                // current track duration in ms (for the time label)
   onSeek: (frac: number) => void // jump the current track to a fraction
   onDragTrack: () => string | null   // bake the current track to a library payload (drag-to-save)
-  onRegen: () => void
+  onToggleBall: () => void           // hide/show the player ball in radio mode (the camera pans away)
+  ballHidden: boolean                // is the ball currently hidden?
   trial?: { gensLeft: number; savesLeft: number } | null // free-trial remaining; null = unlimited/unresolved → no strip
   genLimited?: boolean               // daily free generations spent → show the limit message
   saveLimited?: boolean              // a save was just blocked → transient inline prompt
-  canRegen?: boolean                 // 🎲 enabled? (false at the gen limit)
   onUnlock?: () => void              // open the Steam DLC store overlay
   libraryMin?: boolean               // the explorer is minimized → show a "LIBRARY" bar above the card (same as BACK)
   onRestoreLibrary?: () => void
+  codeMin?: boolean                  // the code panel is minimized → show a "PROGRAM" bar above the card
+  onRestoreCode?: () => void
+  lastMin?: 'lib' | 'code' | null    // which panel minimized LAST → it sits on TOP of the bar stack when both are down
   onVolume: (v: number) => void
   onOpen: () => void
   onBack: () => void
@@ -142,9 +145,12 @@ export function RadioPlayer(p: RadioPlayerProps) {
 
   return (
     <div className="radio-player-root" style={wrap(p.expanded)} data-testid="radio-player">
-      {p.expanded && p.libraryMin && (
-        <button style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button>
-      )}
+      {p.expanded && (() => {
+        // The minimized-panel bars stack above the card; the one collapsed LAST sits on top (p.lastMin).
+        const lib = p.libraryMin ? <button key="lib" style={backBtn} className="rexp-anim-in" onClick={p.onRestoreLibrary} data-testid="radio-explorer-min">{t.radioLibrary}</button> : null
+        const code = p.codeMin ? <button key="code" style={backBtn} className="rexp-anim-in" onClick={p.onRestoreCode} data-testid="radio-code-min">{t.radioProgram}</button> : null
+        return p.lastMin === 'code' ? [code, lib] : [lib, code]
+      })()}
       {/* Drag from ANY empty area of the player to save the current track. Controls (slider/buttons) must keep their
           native behaviour: toggle the card's draggable OFF synchronously on pointerdown over a control, else the
           browser starts an HTML5 drag of the card instead of letting the range thumb move. */}
@@ -183,11 +189,10 @@ export function RadioPlayer(p: RadioPlayerProps) {
             </div>
             {/* transport */}
             {transport}
-            {/* Air toggle (live generative stream) + new-seed die */}
+            {/* Air toggle (live generative stream) + hide-ball toggle (pans the camera off the player ball) */}
             <div style={{ ...center, ...dim, gap: 8 }}>
               <button style={airBtn(p.mode === 'gen')} onClick={() => p.onMode('gen')} data-testid="radio-air">◉ {t.radioAir}</button>
-              <button style={p.canRegen === false ? { ...smallBtn, opacity: 0.4, cursor: 'default' } : smallBtn}
-                onClick={p.onRegen} disabled={p.canRegen === false} aria-label="regenerate seed" data-testid="radio-regen">🎲</button>
+              <button style={{ ...smallBtn, height: 32 }} onClick={p.onToggleBall} aria-label={p.ballHidden ? 'show ball' : 'hide ball'} data-testid="radio-ball">{p.ballHidden ? '◯' : '⬤'}</button>
             </div>
             {/* Volume (megaphone pictogram, not the word "Radio") */}
             <div style={volRow}>

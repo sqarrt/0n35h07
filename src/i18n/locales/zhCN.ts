@@ -202,6 +202,8 @@ export const zhCN = {
   radioNext: '下一曲',
   radioLike: '喜欢',
   radioLibrary: '库',
+  radioProgram: '程序',
+  radioCopied: '已复制',
   radioFreeToday: '今日免费',
   radioUnlock: '解锁电台',
   inviteTitle: '邀请你加入游戏',

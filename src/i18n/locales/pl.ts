@@ -201,6 +201,8 @@ export const pl = {
   radioNext: 'Następny utwór',
   radioLike: 'Lubię to',
   radioLibrary: 'Biblioteka',
+  radioProgram: 'Program',
+  radioCopied: 'skopiowano',
   radioFreeToday: 'Dziś za darmo',
   radioUnlock: 'Odblokuj Radio',
   inviteTitle: 'zaprasza Cię do gry',

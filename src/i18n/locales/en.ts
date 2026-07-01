@@ -203,6 +203,8 @@ export const en = {
   radioNext: 'Next track',
   radioLike: 'Like',
   radioLibrary: 'Library',
+  radioProgram: 'Program',
+  radioCopied: 'copied',
   radioFreeToday: 'Free today',
   radioUnlock: 'Unlock Radio',
   inviteTitle: 'invites you to a game',

@@ -201,6 +201,8 @@ export const es = {
   radioNext: 'Pista siguiente',
   radioLike: 'Me gusta',
   radioLibrary: 'Biblioteca',
+  radioProgram: 'Programa',
+  radioCopied: 'copiado',
   radioFreeToday: 'Gratis hoy',
   radioUnlock: 'Desbloquear Radio',
   inviteTitle: 'te invita a jugar',

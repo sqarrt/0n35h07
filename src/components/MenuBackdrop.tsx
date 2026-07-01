@@ -73,6 +73,8 @@ const _beamEnd = new THREE.Vector3()
 const _meshCenter = new THREE.Vector3()
 const _camPosT = new THREE.Vector3()
 const _camLookT = new THREE.Vector3()
+const HIDE_BALL_LOOK_UP = 12   // radio "hide ball": raise the look target this far so the camera tilts up to the sky and the ball leaves frame
+const HIDE_BALL_DUR = 0.7      // seconds for the full hide/show pan — LINEAR (constant speed) so out and back move identically
 const _flyDir = new THREE.Vector3()
 const _tangent = new THREE.Vector3()
 
@@ -97,9 +99,12 @@ function OrbitingLight() {
 }
 
 /** Camera rig: a damped move between saved state poses. While fly (J) is active — silent. */
-function CameraRig({ state }: { state: MenuCameraState }) {
+function CameraRig({ state, hideBall }: { state: MenuCameraState; hideBall?: boolean }) {
   const camera = useThree(s => s.camera)
   const cur = useRef<{ pos: THREE.Vector3; look: THREE.Vector3 } | null>(null)
+  const hideRef = useRef(hideBall)
+  hideRef.current = hideBall // read live in the loop so toggling pans smoothly without re-subscribing
+  const hideAmt = useRef(0)  // eased 0..1 hide amount → the pan is gentle + symmetric (own slow tau, not the snappy rig)
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
     const pose: CameraPose = poses[state]
@@ -115,6 +120,11 @@ function CameraRig({ state }: { state: MenuCameraState }) {
     }
     _camPosT.fromArray(pose.position)
     _camLookT.fromArray(pose.target)
+    // radio hide-ball: move a 0..1 amount toward the toggle at CONSTANT speed (linear, not exponential), then tilt
+    // the look up by it — so the ball glides out of and back into frame at exactly the same speed.
+    const hideTarget = hideRef.current ? 1 : 0, hideStep = dt / HIDE_BALL_DUR
+    hideAmt.current = hideAmt.current < hideTarget ? Math.min(hideTarget, hideAmt.current + hideStep) : Math.max(hideTarget, hideAmt.current - hideStep)
+    _camLookT.y += HIDE_BALL_LOOK_UP * hideAmt.current
     const k = 1 - Math.exp(-dt / DAMP_TAU)
     c.pos.lerp(_camPosT, k)
     c.look.lerp(_camLookT, k)
@@ -572,14 +582,14 @@ function DebugGrid() {
 // radioMode (≠ undefined) turns the backdrop into the full-screen Radio "takeover": amplified frosted-glass
 // glow + music-reactive bloom, camera dolly/shake, emoji rain and in-scene Strudel code. Implemented in a
 // dedicated in-Canvas component; the prop carries the current track's code + mood for those visuals.
-interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; radioMode?: { mood: string; bpm: number }; onReady?: () => void; sfx?: ISfxEngine }
+interface MenuBackdropProps { mode: MenuMode; player: BallSpec; room?: RoomView | null; appearancePart?: AppearancePart; analysis?: AudioAnalysis; glow?: boolean; glowMuted?: boolean; radioMode?: { mood: string; bpm: number }; hideBall?: boolean; onReady?: () => void; sfx?: ISfxEngine }
 
 /**
  * Persistent transparent backdrop for menu screens: a real scene with the player (Body at full size,
  * standing on a spot; in a room — two). The frame is built ONLY by the camera (CameraRig, poses from menuCameraPoses.json);
  * the only "game" movement is the ghost run in the respawn preview. Dev: floor grid + fly via J.
  */
-export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, radioMode, onReady, sfx }: MenuBackdropProps) {
+export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glow = true, glowMuted = false, radioMode, hideBall, onReady, sfx }: MenuBackdropProps) {
   // The heavy glow composer (Bloom + edge-effect + depth-pass) SYNCHRONOUSLY compiles its shaders on the first
   // render — this blocks the main thread (whole-UI freeze) and "eats" the ball fade. So we mount it NOT on the
   // critical entry path but with a delay: by then the ball has already appeared, and the glow in silence is still 0
@@ -616,7 +626,7 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
         onCreated={({ camera }) => camera.lookAt(...poses.default.target)}>
         <ambientLight intensity={0.4} />
         <OrbitingLight />
-        <CameraRig state={camState} />
+        <CameraRig state={camState} hideBall={hideBall} />
         {import.meta.env.DEV && <FlyCam state={camState} />}
         {/* Debug floor — visible only while flying (J held); the menu stays clean when nobody moves the camera. Dev-only. */}
         {import.meta.env.DEV && <DebugGrid />}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent as ReactMouse } from 'react'
 import { useT } from '../i18n'
 import { RadioVisualizer } from './RadioVisualizer'
+import { useWindowChrome } from './useWindowChrome'
 import { VIZ_MODES, VIZ_ICON, type VizMode } from './radioViz'
 import type { IStrudelEngine } from '../radio/music/IStrudelEngine'
 import type { RadioLibrary, LibEntry, TrackPayload } from '../radio/library/radioLibrary'
@@ -39,9 +40,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
   const [dropFolder, setDropFolder] = useState<string | null>(null)
   const [clip, setClip] = useState<string[]>([])
   const [bump, setBump] = useState(0)
-  const [geo, setGeo] = useState(() => ({ x: Math.round(window.innerWidth / 2 - W0 / 2 + 170), y: Math.round(window.innerHeight * 0.44 - H0 / 2), w: W0, h: H0 }))
-  const [win, setWin] = useState<'normal' | 'max'>('normal')
-  const [live, setLive] = useState(false) // dragging/resizing → suspend the geometry transition (else the window lags the cursor)
+  const chrome = useWindowChrome({ x: Math.round(window.innerWidth / 2 - W0 / 2 + 170), y: Math.round(window.innerHeight * 0.44 - H0 / 2), w: W0, h: H0 }, { w: MIN_W, h: MIN_H })
   const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)
   const [copied, setCopied] = useState(false) // brief ✓ flash after clicking the address bar to copy the path
   const [viz, setViz] = useState<VizMode>(() => { const v = localStorage.getItem('radio.viz') as VizMode | null; return v && VIZ_MODES.includes(v) ? v : 'auto' })
@@ -168,18 +167,6 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
     return items
   }
 
-  function startGeo(e: ReactMouse, mode: 'move' | 'resize') {
-    e.preventDefault(); setLive(true)
-    const sx = e.clientX, sy = e.clientY, g0 = { ...geo }
-    const onMove = (ev: globalThis.MouseEvent) => {
-      const dx = ev.clientX - sx, dy = ev.clientY - sy
-      if (mode === 'move') setGeo({ ...g0, x: g0.x + dx, y: g0.y + dy })
-      else setGeo({ ...g0, w: Math.max(MIN_W, g0.w + dx), h: Math.max(MIN_H, g0.h + dy) })
-    }
-    const onUp = () => { setLive(false); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
-    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp)
-  }
-
   // Windows-style rubber-band: press on empty grid space and drag a box → selects every icon it touches.
   function startMarquee(e: ReactMouse) {
     if (e.button !== 0 || (e.target as HTMLElement).closest('.rexp-it')) return
@@ -223,19 +210,17 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
     </div>
   )
 
-  const maxed = win === 'max'
+  const maxed = chrome.maxed
   return (
     <>
-      <div className={`rexp${live ? '' : ' anim'}${hidden ? ' hidden' : ''}`} data-testid="radio-explorer"
-        style={maxed
-          ? { left: 8, top: 8, width: 'calc(100vw - 16px)', height: 'calc(100vh - 16px)' }
-          : { left: geo.x, top: geo.y, width: geo.w, height: geo.h }}
+      <div className={`rexp${chrome.live ? '' : ' anim'}${hidden ? ' hidden' : ''}`} data-testid="radio-explorer"
+        style={chrome.frameStyle}
         onContextMenu={(ev) => { ev.preventDefault(); clearSel(); setCtx({ x: ev.clientX, y: ev.clientY, entry: null }) }}>
         <RadioVisualizer engine={engine} active={active && !hidden} mode={viz} />
-        <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) startGeo(e, 'move') }}>
+        <div className="rexp-title" onMouseDown={(e) => { if (!maxed && !(e.target as HTMLElement).closest('.rexp-wbtn')) chrome.startGeo(e, 'move') }}>
           <b>{dirName}</b><span style={{ flex: 1 }} />
           <span className="rexp-wbtn" onClick={onMinimize}>_</span>
-          <span className="rexp-wbtn" onClick={() => setWin((w) => (w === 'max' ? 'normal' : 'max'))}>▢</span>
+          <span className="rexp-wbtn" onClick={chrome.toggleMax}>▢</span>
           <span className="rexp-wbtn x" onClick={onMinimize}>✕</span></div>
         <div className="rexp-tools">
           <button className="rexp-tb" onClick={goBack} disabled={!hist.length} aria-label="back">◀</button>
@@ -257,7 +242,7 @@ export function RadioExplorer({ lib, rootAbsPath, reloadKey, onPlay, onSaveTrack
           <span style={{ flex: 1 }} />
           <span className="rexp-viz" onClick={cycleViz} data-testid="radio-viz-switch">{VIZ_ICON[viz]} {viz.toUpperCase()}</span>
         </div>
-        {!maxed && <div className="rexp-resize" onMouseDown={(e) => startGeo(e, 'resize')} />}
+        {!maxed && <div className="rexp-resize" onMouseDown={(e) => chrome.startGeo(e, 'resize')} />}
       </div>
 
       {marquee && !hidden && (
