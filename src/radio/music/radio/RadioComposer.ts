@@ -768,33 +768,13 @@ export class RadioComposer {
    *  `root`, plus struct rotation / timbre jitter / filter / pan) so a repeated kind never sounds identical. */
   private bgTexture(kind: BgKind, root: number, g: (x: number) => number, fxFor: (d: number, r: number) => string, v: BgVary): string {
     switch (kind) {
-      // ── drones / hums (BEDS) — register shifts via `root`; a cutoff jitter varies the colour ──────────
-      case 'drone':     return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(420 * v.cut)}).gain(${g(0.11)})${fxFor(0.1, 0.5)}`
-      case 'hum':       return `note("${root - 12}").s("sawtooth").detune(0.06).unison(2).lpf(${Math.round(300 * v.cut)}).gain(${g(0.1)})`
-      case 'tremdrone': return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(${Math.round(400 * v.cut)}).gain(${g(0.12)}).gain(sine.slow(6).range(0.72, 1))`
-      case 'organ':     return `note("[${root - 12},${root - 5}]").s("sine").attack(0.5).release(5).gain(${g(0.1)})${fxFor(0.1, 0.5)}`
-      case 'sweepdrone':return `note("${root - 12}").s("sawtooth").attack(1).release(6).lpf(sine.range(250, 900).slow(24)).gain(${g(0.11)})`
-      // ── pulses / beepers (ACCENTS) — rotate the struct (moves the hit), jitter timbre, vary the pan ────
-      case 'subpulse':  return `note("${root - 12}").struct("${rotStruct('x ~ x ~', v.rot)}").s("sine").attack(0.04).release(0.5).lpf(180).gain(${g(0.16)})`
-      case 'sonar':     return `note("${root + 24}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").decay(${r2(0.4 * v.jitter)}).gain(${g(0.12)})${fxFor(1, 1)}.pan(${v.pan})`
-      case 'metallic':  return `note("${root + 19}").struct("${rotStruct('~ ~ ~ ~ x ~ ~ ~', v.rot)}").s("sine").fm(${r2(8 * v.jitter)}).fmh(3.3).decay(0.25).gain(${g(0.05)})${fxFor(0.9, 0.9)}.pan(${v.pan})`
-      case 'morse':     return `note("${root + 12}").struct("${rotStruct('x x ~ x ~ ~ x ~', v.rot)}").s("square").decay(0.05).lpf(${Math.round(2000 * v.cut)}).gain(${g(0.11)})${fxFor(0.6, 0.4)}.pan(${v.pan})`
-      case 'bell':      return `note("${root}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(3 * v.jitter)}).fmh(1.4).decay(${r2(2 * v.jitter)}).gain(${g(0.08)})${fxFor(0.8, 1.2)}.pan(${v.pan})`
-      // ── noise textures (BEDS) ─────────────────────────────────────────────────────────────────────────
-      case 'wind':      return `s("white*8").dec(0.5).lpf(sine.range(300, 1100).slow(16)).hpf(220).gain(${g(0.07)}).pan(sine.slow(11))`
-      case 'crackle':   return `s("white*16").dec(0.01).degradeBy(0.7).hpf(1500).lpf(${Math.round(5000 * v.cut)}).gain(${g(0.09)}).pan(sine.slow(9))`
-      case 'hiss':      return `s("white*4").dec(0.4).hpf(${Math.round(3000 * v.cut)}).gain(${g(0.1)}).pan(sine.slow(13))`
-      case 'geiger':    return `s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(${g(0.1)}).pan(rand)`
-      case 'resonance': return `note("${root + 12}").s("sawtooth").lpf(${Math.round(900 * v.cut)}).lpq(16).gain(${g(0.05)})${fxFor(0.4, 0.7)}`
-      // ── tonal shimmers (sinearp = ACCENT — rotate the arp order) ──────────────────────────────────────
-      case 'sinearp':   return `note("${rotStruct(`${root} ${root + 3} ${root + 7} ${root + 10}`, v.rot)}").slow(2).s("sine").decay(${r2(0.3 * v.jitter)}).gain(${g(0.15)})${fxFor(0.7, 0.8)}.pan(${v.pan})`
-      case 'granular':  return `s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(${g(0.1)}).pan(rand)`
-      case 'choir':     return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").attack(1.2).release(5).lpf(${Math.round(600 * v.cut)}).gain(${g(0.06)})${fxFor(0.3, 1.4)}`
-      case 'siren':     return `note("${root + 7}").add(note(sine.slow(12).range(-0.3, 0.3))).s("sine").lpf(${Math.round(800 * v.cut)}).gain(${g(0.14)})${fxFor(0.4, 1)}.pan(${v.pan})`
-      // ── co-designed dark/horror (docs/radio-part-archetypes.md) — beds + the deepBell accent ─────────────
+      // BEDS only — the always-on subliminal textures (BG_BEDS). Tonal accents now go through bgAccentBody, and
+      // the foley accents are below; every other historical kind was culled by ear, so those cases are gone.
+      case 'crackle':     return `s("white*16").dec(0.01).degradeBy(0.7).hpf(1500).lpf(${Math.round(5000 * v.cut)}).gain(${g(0.09)}).pan(sine.slow(9))`
+      case 'geiger':      return `s("white*16").dec(0.005).degradeBy(0.82).hpf(4000).gain(${g(0.1)}).pan(rand)`
+      case 'granular':    return `s("white*16").dec(0.02).speed("<1 2 0.5 1.5>").hpf(2000).gain(${g(0.1)}).pan(rand)`
       case 'tapeChoir':   return `note("[${root - 12},${root - 9},${root - 5}]").s("sawtooth").vowel("<aa oo aa ee>").attack(1.5).release(4).add(note(perlin.range(-0.25, 0.25).slow(3))).crush(7).lpf(${Math.round(1700 * v.cut)}).hpf(220).gain(${g(0.035)})${fxFor(0.8, 1.4)}.pan(${v.pan})`
       case 'droneCluster':return `note("[${root - 12},${root - 6},${root + 1}]").s("sawtooth").attack(2).release(6).lpf(sine.range(180, 800).slow(10)).lpq(7).fm(1.2).fmh(2.51).distort("1.1:0.25").gain(${g(0.14)})${fxFor(0.5, 1)}.pan(${v.pan})`
-      case 'scanner':     return `s("white*4").dec(2).attack(0.5).hpf(300).lpf(sine.range(400, 3000).slow(6)).lpq(14).gain(${g(0.07)}).pan(sine.slow(9))`
       case 'tapeWarble':  return `note("${root - 12}").s("sawtooth").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(${Math.round(700 * v.cut)}).crush(8).gain(${g(0.1)})${fxFor(0.4, 0.8)}.pan(${v.pan})`
       case 'insectoid':   return `s("white*32").dec(0.008).degradeBy(0.5).speed(perlin.range(0.8, 2.5).fast(4)).hpf(5000).lpf(perlin.range(6000, 12000).fast(2)).gain(${g(0.13)}).pan(rand)`
       case 'deepBell':    return `note("${root - 12}").struct("${rotStruct('x ~ ~ ~ ~ ~ ~ ~', v.rot)}").s("sine").fm(${r2(2.5 * v.jitter)}).fmh(1.41).attack(0.001).decay(3).lpf(1400).distort("1.05:0.2").gain(${g(0.2)})${fxFor(0.9, 1.4)}.pan(${v.pan})`
