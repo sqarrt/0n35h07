@@ -132,6 +132,19 @@ describe('Match', () => {
     expect(match.bots[0].shieldActive).toBe(true)
   })
 
+  it('a BOT kills the human: the bot\'s hit RESOLVES (regression — host resolves ALL host-simulated shooters, not just localId)', () => {
+    const { match, scene } = makeMatch('passive')       // passive bot → its controller is a no-op; we drive its weapon directly
+    match.bots[0].respawnAt(new THREE.Vector3(0, EYE_HEIGHT, 0))
+    match.human.respawnAt(new THREE.Vector3(0, EYE_HEIGHT, -5))
+    const target = new THREE.Vector3(0, EYE_HEIGHT, -5) // the human, straight ahead
+    match.bots[0].startFiring()
+    for (let i = 0; i < 45; i++) { match.bots[0].aim(target); scene.updateMatrixWorld(true); match.update(0.016) } // > windup 400ms
+    // Before the fix the host only resolved shooter.id === localId, so a bot's beam never registered — the human lived.
+    expect(match.human.isRespawning).toBe(true)   // bot's beam hit → human died (ghost phase)
+    expect(match.bots[0].kills).toBe(1)
+    expect(match.human.deaths).toBe(1)
+  })
+
   it("a player's death does not affect the opponent (ghost phase only for the deceased)", () => {
     const { match, scene } = makeMatch('passive')
     const botBefore = match.bots[0].position.clone()

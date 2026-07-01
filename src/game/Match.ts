@@ -514,10 +514,11 @@ export class Match {
       if (!shooter.weaponJustFired) continue
       const o = shooter.fireOutcome
       if (o) { gameLog.log('act', 'fire', { side: 'host', id: shooter.id, hit: o.hitEntityId }); this.emit({ t: 'fired', id: shooter.id, end: toVec3(o.end), hitPoint: o.hitPoint ? toVec3(o.hitPoint) : null, hit: o.hitEntityId }) }
-      // Shooter-authoritative: only the host's OWN shot resolves its hit here (the host IS its shooter). A remote
-      // (client) shot's hit arrives separately as a HitClaim (applyHitClaim) — what the client saw is what it hit, no
-      // lag-comp rewind, no host advantage. The remote shot still emits `fired` above for the beam visual.
-      if (o && o.hitEntityId !== null && shooter.id === this.localId) {
+      // Shooter-authoritative: the host resolves its OWN hits here — that means every HOST-SIMULATED shooter (the
+      // local player AND any bot), which is everyone EXCEPT a remote client (those are in remoteControllers). A remote
+      // client's hit arrives separately as a HitClaim (applyHitClaim) — what the client saw is what it hit, no lag-comp
+      // rewind, no host advantage. (The old `shooter.id === localId` check silently dropped every BOT hit.)
+      if (o && o.hitEntityId !== null && !this.remoteControllers.has(shooter.id)) {
         const victim = this.byId.get(o.hitEntityId)
         if (victim) this.resolveHit(shooter, victim, o.hitPoint)
       }
