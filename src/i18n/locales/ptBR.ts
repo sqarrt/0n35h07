@@ -201,6 +201,8 @@ export const ptBR = {
   radioNext: 'Próxima faixa',
   radioLike: 'Curtir',
   radioLibrary: 'Biblioteca',
+  radioProgram: 'Programa',
+  radioCopied: 'copiado',
   radioFreeToday: 'Grátis hoje',
   radioUnlock: 'Desbloquear Rádio',
   inviteTitle: 'convida você para jogar',

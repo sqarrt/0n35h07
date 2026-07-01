@@ -201,6 +201,8 @@ export const ru = {
   radioNext: 'Следующий трек',
   radioLike: 'Нравится',
   radioLibrary: 'Библиотека',
+  radioProgram: 'Программа',
+  radioCopied: 'скопировано',
   radioFreeToday: 'Сегодня бесплатно',
   radioUnlock: 'Разблокировать Радио',
   inviteTitle: 'приглашает в игру',

@@ -288,6 +288,8 @@ export default function App() {
   const [radioRoot, setRadioRoot] = useState('')
   const [radioReload] = useState(0) // external refresh nonce for the explorer (library edits self-refresh internally)
   const [radioExpOpen, setRadioExpOpen] = useState(true) // explorer window shown? minimized → a LIBRARY bar over the player
+  const [radioCodeOpen, setRadioCodeOpen] = useState(true) // code (PROGRAM) window shown? minimized → a PROGRAM bar over the player
+  const [lastMin, setLastMin] = useState<'lib' | 'code' | null>(null) // which of the two minimized LAST → it sits on top of the bar stack
   const radioQueueRef = useRef<{ q: TrackPayload[]; i: number }>({ q: [], i: 0 })
 
   // Warm up the radio engine once, lazily, while in the menu (the mini-player lives on every menu screen).
@@ -787,14 +789,10 @@ export default function App() {
     }
     return JSON.stringify(p)
   }
-  // Regenerate the seed: start a brand-new generative session from a fresh random seed.
-  const radioRegen = () => {
-    if (!entRef.current.canGenerate) return // daily free generations spent — the player shows the unlock prompt
-    radioGestureRef.current = true
-    ensureRadioOn()
-    radioController?.playTrack(`r${Math.floor(Math.random() * 1e9).toString(36)}`, 0)
-    setRadioPlayMode('gen')
-  }
+  // Hide the player ball in radio mode by panning the camera off it (a per-visit toggle: re-entering radio shows it
+  // again — see the reset effect below). No re-render of the 3D scene; the camera rig just tilts away.
+  const [hideBall, setHideBall] = useState(false)
+  useEffect(() => { if (screen === 'radio') setHideBall(false) }, [screen])
   // Live-unlock: re-check DLC ownership when the Steam overlay closes OR the window regains focus (the user just
   // returned from the steam:// store page, which opens in the Steam client — no overlay-close event there).
   useEffect(() => {
@@ -1043,7 +1041,7 @@ export default function App() {
       {/* The outline glow is silenced via muted WITHOUT unmounting the composer (instant both ways):
           on "Appearance" — always, in other menus — per the "Glow in menu" setting. */}
       {/* part only on the "Appearance" screen: otherwise retention (e.g. shot/paint) keeps the orb rotated in the menu. */}
-      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { mood: radioMusicalState?.mood ?? '', bpm: radioMusicalState?.bpm ?? 120 } : undefined} onReady={handleMenuReady} sfx={sfx} />}
+      {screen !== 'game' && screen !== 'trailer' && <MenuBackdrop mode={screen === 'about' || screen === 'radio' ? 'settings' : screen} player={menuPlayer} room={roomView} appearancePart={screen === 'appearance' ? appearancePreview.part : 'color'} analysis={(profile.menuGlow || screen === 'radio') ? audioAnalysis : undefined} glowMuted={screen === 'appearance' || (!profile.menuGlow && screen !== 'radio')} radioMode={screen === 'radio' ? { mood: radioMusicalState?.mood ?? '', bpm: radioMusicalState?.bpm ?? 120 } : undefined} hideBall={screen === 'radio' && hideBall} onReady={handleMenuReady} sfx={sfx} />}
       {screen !== 'game' && screen !== 'trailer' && !IS_DESKTOP && resolveNetKind() === 'trystero' && <NetStatusChip />}
       {screen !== 'game' && screen !== 'trailer' && <VersionChip />}
       {/* Steam invite received (game running, not in a match) — accept in-app since the overlay can't render. */}
@@ -1076,10 +1074,10 @@ export default function App() {
           (so it animates the dock↔expand). The backdrop IS the visual. */}
       {screen === 'radio' && IS_DESKTOP && radioLib && (
         <RadioExplorer lib={radioLib} rootAbsPath={radioRoot} reloadKey={radioReload}
-          onPlay={onPlayLibrary} onSaveTrack={onSaveTrack} onMinimize={() => setRadioExpOpen(false)}
+          onPlay={onPlayLibrary} onSaveTrack={onSaveTrack} onMinimize={() => { setRadioExpOpen(false); setLastMin('lib') }}
           hidden={!radioExpOpen} engine={radioEngine} active={radioActive} />
       )}
-      {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} />}
+      {screen === 'radio' && IS_DESKTOP && <RadioCodePanel code={radioMusicalState?.strudelCode ?? ''} minimized={!radioCodeOpen} onMinimize={() => { setRadioCodeOpen(false); setLastMin('code') }} />}
 
       {/* Unified radio player — desktop only, rendered LAST (above the menu panel → clickable in the corner).
           Docked (shrunk, interactive) in the bottom-right corner on menu screens; unfolds, centered, on Radio. */}
@@ -1100,14 +1098,17 @@ export default function App() {
           totalMs={radioTotalMs}
           onSeek={radioSeek}
           onDragTrack={currentTrackJSON}
-          onRegen={radioRegen}
+          onToggleBall={() => setHideBall(h => !h)}
+          ballHidden={hideBall}
           trial={ent.unlimited || !radioResolved ? null : { gensLeft: ent.gensLeft, savesLeft: ent.savesLeft }}
           genLimited={!ent.unlimited && screen === 'radio' && profile.radioEnabled && ent.gensLeft === 0}
           saveLimited={radioSavePrompt}
-          canRegen={ent.canGenerate}
           onUnlock={radioOwned || DEV_UNLIMITED ? undefined : () => void openRadioStore()}
           libraryMin={screen === 'radio' && !radioExpOpen && !!radioLib}
           onRestoreLibrary={() => setRadioExpOpen(true)}
+          codeMin={screen === 'radio' && IS_DESKTOP && !radioCodeOpen}
+          onRestoreCode={() => setRadioCodeOpen(true)}
+          lastMin={lastMin}
           onVolume={v => setProfile(p => { const next = { ...p, volumeRadio: v }; saveProfile(next); return next })}
           onOpen={handleRadio}
           onBack={() => setScreen('menu')}
