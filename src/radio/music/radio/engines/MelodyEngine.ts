@@ -15,11 +15,10 @@ import { LEAD_COLORS, RESTFUL_COLOR_IDS } from './leadColor'
 
 // `voice` selects the composer's synth+FX chain.
 export type LeadVoiceId =
-  | 'arpDyad' | 'atmoDyad' | 'chordStab' | 'lament' | 'callResponse' | 'octavePulse'
-  | 'bellMelody' | 'stutterStab' | 'leadingTone' | 'phrygianHalf' | 'doubleStop'
-  | 'glitchStorm' | 'tritone' | 'glassArp' | 'ghostVoice' | 'detunedDrift' | 'warpedBox' | 'crushBell'
+  | 'atmoDyad' | 'chordStab' | 'callResponse' | 'octavePulse'
+  | 'bellMelody' | 'stutterStab' | 'doubleStop'
+  | 'glitchStorm' | 'glassArp' | 'ghostVoice' | 'detunedDrift' | 'warpedBox' | 'crushBell'
   | 'fogMelody' | 'digitalChime' | 'rustString' | 'digitalRain' // co-designed CALM/atmospheric (Silent Hill + virtual)
-  | 'genWalk' | 'genWeave'  // PROCEDURAL — kept in the union for back-compat; no longer separately selected
 
 export interface LeadMotif { pattern: string; voice: LeadVoiceId }
 export interface LeadState { motif: LeadMotif | null; phrasesLeft: number }

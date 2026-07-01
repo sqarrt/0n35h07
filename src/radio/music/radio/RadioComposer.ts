@@ -831,18 +831,12 @@ function muteOf(style: TrackStyle, layer: 'lead' | 'bass' | 'drums'): string {
 // `ceil` raises the filter ceiling for bright timbres; `fat` adds the octave-down shadow; `lvl` scales the gain.
 interface LeadVoiceSpec { src?: string; fx: string; ceil?: number; fat?: boolean; filt?: string; lvl?: number }
 const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
-  // — existing —
-  arpDyad: { fx: '.acidenv(0.5).lpq(4).attack(0.012).dec(0.12).delay(0.13).delaytime(0.25).delayfeedback(0.3).room(0.5).roomsize(8).asym("1:0.9").hpf(200)', fat: true },
   atmoDyad: { fx: '.lpq(7).attack(0.02).dec(0.4).delay(0.6).delaytime(0.375).delayfeedback(0.7).room(0.6).roomsize(7).hpf(180)', fat: true },
   // — neutral (track voice) —
   chordStab: { fx: '.lpq(5).dec(0.16).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.4).roomsize(6)', ceil: 1700, lvl: 1.1 },
-  lament: { fx: '.lpq(6).attack(0.01).dec(0.22).delay(0.6).delaytime(0.375).delayfeedback(0.68).room(0.58).roomsize(7)', ceil: 1700, fat: true },
   callResponse: { fx: '.lpq(6).attack(0.01).dec(0.2).delay(0.55).delaytime(0.375).delayfeedback(0.66).room(0.5).roomsize(7)', ceil: 1800, fat: true },
   octavePulse: { fx: '.acidenv(0.55).lpq(9).dec(0.15).attack(0.005).delay(0.4).delaytime(0.1875).delayfeedback(0.52).room(0.4).roomsize(6)', ceil: 2000, fat: true },
   doubleStop: { fx: '.lpq(5).attack(0.01).dec(0.32).delay(0.5).delaytime(0.375).delayfeedback(0.66).room(0.6).roomsize(7)', ceil: 1700 },
-  leadingTone: { fx: '.lpq(6).attack(0.01).dec(0.2).delay(0.55).delaytime(0.375).delayfeedback(0.66).room(0.55).roomsize(7)', ceil: 2400, fat: true },
-  phrygianHalf: { src: '.s("square")', fx: '.lpq(7).attack(0.01).dec(0.18).delay(0.5).delaytime(0.375).delayfeedback(0.64).room(0.52).roomsize(7)', ceil: 1900, fat: true },
-  tritone: { fx: '.lpq(7).attack(0.01).dec(0.2).delay(0.5).delaytime(0.375).delayfeedback(0.64).room(0.55).roomsize(7)', ceil: 1900, fat: true },
   // — dictated timbres —
   bellMelody: { src: '.s("sine").fm(2.5).fmh("<2 1.5 3 2>").attack(0.004).decay(0.55)', fx: '.lpq(2).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.7).roomsize(8)', ceil: 2400 },
   glassArp: { src: '.s("sine").fm(1.6).fmh("<2 3 2 4>").attack(0.002).decay(0.16)', fx: '.lpq(2).delay(0.5).delaytime(0.375).delayfeedback(0.66).room(0.78).roomsize(9)', ceil: 3600, lvl: 0.85 },
@@ -857,9 +851,6 @@ const LEAD_VOICES: Record<LeadVoiceId, LeadVoiceSpec> = {
   digitalChime: { src: '.s("sine").fm(2).fmh(2.01).attack(0.005).decay(0.5)', fx: '.delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9)', filt: '.lpf(3200)', lvl: 1.15 },
   rustString: { src: '.s("sawtooth").attack(0.04).release(1.2).add(note(perlin.range(-0.15, 0.15).slow(2))).crush(10).distort("1.1:0.2")', fx: '.lpq(3).delay(0.45).delaytime(0.5).delayfeedback(0.5).room(0.7).roomsize(10)', filt: '.lpf(1400)', lvl: 1.3 },
   digitalRain: { src: '.s("triangle").fm(1.5).fmh(2.0).attack(0.002).decay(0.3)', fx: '.delay(0.5).delaytime(0.1875).delayfeedback(0.65).room(0.7).roomsize(10)', filt: '.lpf(3000)', lvl: 1.15 },
-  // — PROCEDURAL random-walk leads (library lessons: acid-line + wavetable). Contour is generated fresh per track. —
-  genWalk: { src: '.s("supersaw").unison(3).detune(0.3)', fx: '.acidenv(0.5).lpq(8).delay(0.3).delaytime(0.1875).delayfeedback(0.5).room(0.45).roomsize(7)', ceil: 2400, fat: true },
-  genWeave: { src: '.s("wt_digital").unison(2).detune(0.2).wt(0).wtenv(0.5)', fx: '.acidenv(0.55).lpq(6).delay(0.4).delaytime(0.375).delayfeedback(0.55).room(0.6).roomsize(8)', ceil: 2200, lvl: 1.05 },
 }
 function r2(nn: number): number { return Math.round(nn * 100) / 100 }
 
