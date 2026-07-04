@@ -602,6 +602,14 @@ export class Match {
     gameLog.log('act', 'predict_death', { victim: victimId })
   }
 
+  /** client: the host rejected our predicted kill (shield block / lost claim) — undo the false local death, hitbox
+   *  included, or the opponent stays unhittable to our raycasts for the rest of the match (no claims ever again). */
+  private revertPredictedKill(victimId: number, reason: 'block' | 'grace') {
+    this.predictedKill = null
+    this.byId.get(victimId)?.reviveFromFalsePrediction()
+    gameLog.warn('act', 'predict_revert', { victim: victimId, reason })
+  }
+
   // Ghost phase: the player is invulnerable and moves on its own (via controllers+applyPhysics); when the timer
   // expires it materializes IN PLACE where it stopped (not at a random point).
   private resolveRespawns(dt: number) {
@@ -1006,7 +1014,7 @@ export class Match {
         let state = ps
         if (pk && pk.id === ps.id && ps.alive) {
           if (Date.now() < pk.until) state = { ...ps, alive: false, respawning: true }
-          else { this.predictedKill = null; gameLog.warn('act', 'predict_revert', { victim: ps.id }) }   // grace expired, host rejected → revive
+          else this.revertPredictedKill(ps.id, 'grace')   // grace expired, host rejected → revive
         } else if (pk && pk.id === ps.id && !ps.alive) {
           this.predictedKill = null   // host confirmed the death — snapshots own it now
         }
@@ -1053,6 +1061,8 @@ export class Match {
       }
       case 'block': {
         gameLog.log('act', 'block', { side: 'client', shooter: e.shooter, victim: e.victim, perfect: e.perfect })
+        // Our claim was rejected by the victim's shield — the predicted death was false; revive NOW, not on grace expiry.
+        if (this.predictedKill?.id === e.victim) this.revertPredictedKill(e.victim, 'block')
         if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // mirror the cooldown reset from the host
         if (e.perfect && e.victim === this.localId) this.achievements.onPerfectBlock()
         if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
