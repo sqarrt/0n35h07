@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-07-04
+
+### Fixed
+- **Online: a shield-blocked (or lost) hit claim no longer makes the opponent permanently unhittable for the client.**
+  When the client's locally predicted kill was rejected by the host (the victim's shield came up within the RTT
+  window — a perfect block — or the claim never arrived), the false death prediction was reverted visually but the
+  opponent's raycast hitbox stayed disabled, so every later shot from that client passed straight through the opponent
+  for the rest of the match (point-blank shots included). A rejected prediction now fully revives the opponent,
+  hitbox included — immediately on the host's `block` verdict, or on the prediction-grace expiry for a lost claim.
+
 ## [1.0.0] - 2026-06-30
 
 ### Added
