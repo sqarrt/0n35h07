@@ -313,6 +313,17 @@ export class Player implements IControllable {
     if (this.bodyVisible) this.respawnFx.onDeath(this._deathPos.copy(this.body.position).add(this.bodyMeshOffset))
   }
 
+  /** Client: undo a falsely predicted death (the host rejected the claim — block or a lost claim). The opponent never
+   *  actually died, so no teleport/cooldown reset/rebirth poof — just leave the ghost phase and restore the hitbox
+   *  (startGhost set it noRaycast; respawnAt won't run — a real 'respawn' event only follows a real death). */
+  reviveFromFalsePrediction() {
+    if (this.alive) return
+    this.alive = true
+    this.respawning = false
+    this.respawnTimer = 0
+    this.body.setHittable(true)
+  }
+
   /** Client: tick the phase timer locally (for indication/speed); the finale comes via the respawn event. */
   tickRespawn(dt: number) {
     if (this.respawning) this.respawnTimer = Math.max(0, this.respawnTimer - dt * 1000)
