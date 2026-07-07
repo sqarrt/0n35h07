@@ -37,7 +37,6 @@ interface GameProps {
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
   peerToPlayer: Map<PeerId, number>
-  reserveColor: string   // local player's "second" color (their planet's ring)
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
@@ -55,7 +54,7 @@ interface GameProps {
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -125,7 +124,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
         startDemo: () => {
           if (match.role !== 'host') return   // host only: it emits events and owns the authoritative state
           void import('./game/demo/DemoRecorder').then(({ DemoRecorder }) => {
-            match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId, reserveColor })
+            match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId })
           })
         },
         stopDemo: () => { const f = match.recorder ? match.recorder.build() : null; match.recorder = null; return f },
