@@ -1,4 +1,5 @@
 import { IS_DESKTOP } from '../../platform'
+import type { BotDifficulty } from '../../constants'
 
 /** A single player in a lobby slot. */
 export interface LobbySlot { name: string; color: string; ready: boolean }
@@ -6,13 +7,15 @@ export interface LobbySlot { name: string; color: string; ready: boolean }
 export type OppSlot = LobbySlot & { isBot: boolean }
 /** A Steam invite the host has sent and is waiting on (rendered onto the first free seats). */
 export interface PendingInvite { id: string; name: string }
-/** A seat of the multi-slot lobby (2v2/FFA grid): index, occupant (null = free), whose it is, team group. */
+/** A seat of the unified Seats block: index, occupant (null = free), whose it is, team group. */
 export interface SeatView {
   slot: number
-  entry: { name: string; color: string; ready: boolean; isBot: boolean } | null
+  entry: { name: string; color: string; ready: boolean; isBot: boolean; difficulty?: BotDifficulty } | null
   mine: boolean
   team: number   // teamOfSlot(mode, slot); highlighted only in 2v2
 }
+/** Which click zone of a seat fired: add a bot (host) or move myself here (client). */
+export type SeatZone = 'addbot' | 'move'
 /** Subtab of the "Play" screen. */
 export type LobbyTab = 'matchmaking' | 'friend' | 'bot'
 

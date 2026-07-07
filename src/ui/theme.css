@@ -623,6 +623,31 @@
 .mode-arrow:disabled { color: var(--muted); cursor: default; }
 .mode-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .mode-tile { transition: none; } }
+
+/* --- Play screen: unified Seats. Per-layout wrappers; every occupant state keeps the same card
+   min-height within a layout → no jumps when a seat flips empty/bot/human/waiting. --- */
+.seats-1v1 { justify-content: center; }
+.seats-ffa { flex-direction: column; align-items: center; gap: 10px; }
+.seats-ffa .lobby-seat { flex: 0 0 auto; width: 62%; min-height: 84px; padding: 10px 12px; }
+.seats-2v2 { justify-content: center; }
+.seats-col { display: flex; flex-direction: column; gap: 8px; padding: 6px; border-radius: 8px; border: 1px solid transparent; flex: 0 0 44%; box-sizing: border-box; }
+.seats-col .lobby-seat { flex: 0 0 auto; width: 100%; min-height: 84px; padding: 10px 12px; box-sizing: border-box; }
+/* a free host seat is a stack of dashed action zones filling the card */
+.lobby-seat--free { gap: 6px; padding: 8px; justify-content: stretch; }
+.seat-zone {
+  flex: 1 1 0; width: 100%; min-height: 0; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: transparent; border: 1px dashed var(--line); color: #6f93b3;
+  font-family: var(--ui-font); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; padding: 6px; cursor: pointer;
+}
+.seat-zone:hover { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.06); }
+.seat-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seat-zone-plus { font-size: 15px; line-height: 1; color: var(--accent); font-weight: 300; }
+.seat-zone--code { border-style: solid; border-color: var(--accent); }
+.seat-code-text { font-size: 15px; letter-spacing: 0.22em; padding-left: 0.22em; color: var(--accent); text-shadow: 0 0 14px rgba(68,170,255,0.5); }
+.seat-code-glyph { font-size: 12px; color: var(--accent-dim); }
+.seat-diff { display: flex; gap: 4px; }
+.seat-diff .seg { font-size: 9px; padding: 3px 8px; }
 .lobby-tiles { display: flex; gap: 8px; width: 100%; }
 .lobby-tile { flex: 1; border: 1px solid var(--surface-line); border-radius: 4px; padding: 5px 5px 3px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; cursor: pointer; }
 .lobby-pv { width: 100%; height: 34px; border-radius: 2px; background: linear-gradient(135deg,#13283b,#0a131d); object-fit: cover; display: block; }
