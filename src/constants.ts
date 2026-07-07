@@ -162,6 +162,9 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.
 export const TEAM_COLORS: [string, string] = ['#37f', '#f53']
 export const NAMEPLATE_NEUTRAL_COLOR = '#ccc'   // FFA plates: everyone is an enemy, color codes nothing
+// Mode spawn rules (see src/game/spawns.ts): 2v2 cluster offsets and the FFA scatter distance.
+export const SPAWN_CLUSTER_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-0.9, 0], [0.9, 0]]  // XZ offsets inside a 2v2 team cluster (keep capsules apart)
+export const FFA_SPAWN_MIN_DIST = 6      // min pairwise distance between FFA start positions
 // ICE servers for WebRTC. Passed into Trystero rtcConfig and REPLACE its defaults — so we keep both
 // STUN and TURN here. STUN suffices for home networks; TURN is needed for symmetric NAT/CGNAT and networks that
 // cut UDP (where STUN times out — see the online diagnostics). turns:443?transport=tcp punches through UDP filtering.
