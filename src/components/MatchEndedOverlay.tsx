@@ -31,6 +31,11 @@ const exitRow: CSSProperties = {
   position: 'absolute', left: 0, right: 0, top: 'calc(50% + 84px)',
   display: 'flex', justifyContent: 'center',
 }
+const rankingBox: CSSProperties = {
+  position: 'absolute', left: 0, right: 0, top: 'calc(50% + 132px)',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+  fontSize: 13, letterSpacing: '0.12em', color: '#aeb8c4',
+}
 
 /** Match-end screen: outcome + reason + EXIT. The final score is shown by the HUD bar itself, grown to the center. */
 export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onExit: () => void }) {
@@ -52,6 +57,14 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
       <div style={exitRow}>
         <Button variant="primary" onClick={onExit} data-testid="match-exit">{t.matchExit}</Button>
       </div>
+      {result.scores.length > 2 && (
+        <div style={rankingBox} data-testid="match-ranking">
+          {result.ranking.map((r, i) => {
+            const names = r.memberIds.map(id => result.scores.find(s => s.id === id)?.name ?? '?').join(' + ')
+            return <div key={r.team} data-testid={`match-rank-${i}`}>{i + 1}. {names} — {r.kills}</div>
+          })}
+        </div>
+      )}
     </div>
   )
 }

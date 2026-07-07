@@ -1,6 +1,5 @@
 import type { RosterEntry } from '../net/protocol'
 import type { MatchRole } from '../constants'
-import { HOST_ID, OPPONENT_ID } from '../constants'
 import { ControlsLegend } from './ControlsLegend'
 import { useSfx } from '../sfx/SfxContext'
 import { useT } from '../i18n'
@@ -25,13 +24,13 @@ function corner(entry: RosterEntry | undefined, side: 'l' | 'r', isReady: boolea
   )
 }
 
-/** Lightweight ready overlay above the arena. Click anywhere = ready. */
+/** Lightweight ready overlay above the arena. Click anywhere = ready.
+ *  Two players — the classic corners; three+ — a centered participant list (functional layout). */
 export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayProps) {
   const sfx = useSfx()
   const t = useT()
-  const host = roster.find(r => r.id === HOST_ID)
-  const opponent = roster.find(r => r.id === OPPONENT_ID)
-  const iAmReady = ready.includes(localId)   // ready and waiting for the other → swap the hint
+  const sorted = [...roster].sort((a, b) => a.id - b.id)
+  const iAmReady = ready.includes(localId)   // ready and waiting for the others → swap the hint
   const handleReady = () => {
     if (!iAmReady) sfx.play2D('ready')   // sound only on the transition to "ready"
     onReady()
@@ -40,8 +39,23 @@ export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayPr
     <div className="ready-overlay" onClick={handleReady}>
       <div className="ready-tint-l" />
       <div className="ready-tint-r" />
-      {corner(host, 'l', !!host && ready.includes(host.id), host?.id === localId, t)}
-      {corner(opponent, 'r', !!opponent && ready.includes(opponent.id), opponent?.id === localId, t)}
+      {sorted.length <= 2 ? (
+        <>
+          {corner(sorted[0], 'l', !!sorted[0] && ready.includes(sorted[0].id), sorted[0]?.id === localId, t)}
+          {corner(sorted[1], 'r', !!sorted[1] && ready.includes(sorted[1].id), sorted[1]?.id === localId, t)}
+        </>
+      ) : (
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }} data-testid="ready-list">
+          {sorted.map(e => (
+            <div key={e.id} style={{ color: e.color, display: 'flex', gap: 10, alignItems: 'baseline' }} data-testid={`ready-row-${e.id}`}>
+              <span style={{ textDecoration: e.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>{e.name}</span>
+              <small style={{ color: ready.includes(e.id) ? 'var(--ok)' : 'var(--muted)' }}>
+                {ready.includes(e.id) ? t.readyStatusReady : t.readyStatusNotReady}
+              </small>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="ready-hint" data-testid="ready-button">
         {iAmReady ? t.readyWaiting : <><span className="hkey">{t.keyLmb}</span> {t.readyHintAction}</>}
       </div>

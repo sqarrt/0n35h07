@@ -176,7 +176,7 @@ describe('RoomSession — режимы и слоты', () => {
   it('setMode(2v2): 4 слота, canStart только при полных составах', () => {
     const { host } = handshake(GUEST)   // host + 1 human
     host.setMode('2v2')
-    let v = host.view()
+    const v = host.view()
     expect(v.mode).toBe('2v2')
     expect(v.slots).toHaveLength(4)
     expect(v.canStart).toBe(false)
