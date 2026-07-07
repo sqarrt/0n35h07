@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
-import { EYE_HEIGHT } from '../../src/constants'
 import type { RosterEntry } from '../../src/net/protocol'
 
 function lockPointer() {
