@@ -9,6 +9,8 @@ export const zhCN = {
   lobbyMode1v1: '1 VS 1',
   lobbyMode2v2: '2 VS 2',
   lobbyModeFfa: '大乱斗',
+  lobbyAddBot: '添加机器人',
+  lobbyJoinByCode: '通过代码加入',
   lobbyBot: '机器人',
   lobbyEnterCode: '输入主机代码',
   lobbyCodePlaceholder: '主机代码',

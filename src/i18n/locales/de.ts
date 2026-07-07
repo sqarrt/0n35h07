@@ -8,6 +8,8 @@ export const de = {
   lobbyMode1v1: '1 VS 1',
   lobbyMode2v2: '2 VS 2',
   lobbyModeFfa: 'JEDER GEGEN JEDEN',
+  lobbyAddBot: 'BOT HINZUFÜGEN',
+  lobbyJoinByCode: 'MIT CODE BEITRETEN',
   lobbyBot: 'BOT',
   lobbyEnterCode: 'HOST-CODE EINGEBEN',
   lobbyCodePlaceholder: 'Host-Code',

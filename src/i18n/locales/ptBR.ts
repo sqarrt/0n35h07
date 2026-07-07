@@ -8,6 +8,8 @@ export const ptBR = {
   lobbyMode1v1: '1 VS 1',
   lobbyMode2v2: '2 VS 2',
   lobbyModeFfa: 'TODOS CONTRA TODOS',
+  lobbyAddBot: 'ADICIONAR BOT',
+  lobbyJoinByCode: 'ENTRAR COM CÓDIGO',
   lobbyBot: 'BOT',
   lobbyEnterCode: 'INSERIR CÓDIGO',
   lobbyCodePlaceholder: 'código do anfitrião',

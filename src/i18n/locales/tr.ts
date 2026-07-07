@@ -8,6 +8,8 @@ export const tr = {
   lobbyMode1v1: '1 VS 1',
   lobbyMode2v2: '2 VS 2',
   lobbyModeFfa: 'HERKESE KARŞI',
+  lobbyAddBot: 'BOT EKLE',
+  lobbyJoinByCode: 'KODLA KATIL',
   lobbyBot: 'BOT',
   lobbyEnterCode: 'HOST KODU GİR',
   lobbyCodePlaceholder: 'host kodu',
