@@ -112,7 +112,7 @@ const MAP_FADE_MS = 700                  // map background fade in/out duration 
 interface GameNet {
   role: MatchRole
   net: INet
-  netConfig: { localId: number; roster: RosterEntry[] }
+  netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   durationMs: number
   mapId: MapId
   mode: GameMode          // lobby preset (teams/spawn rule) — rides into MatchOptions

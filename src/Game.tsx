@@ -37,7 +37,7 @@ interface GameProps {
   dispatch: (action: HUDAction) => void
   role: MatchRole
   net: INet
-  netConfig: { localId: number; roster: RosterEntry[] }
+  netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
@@ -77,6 +77,8 @@ function GameImpl({ dispatch, role, net, netConfig, defaultThirdPerson, apiRef, 
       dispatch,
       role,
       netConfig,
+      owners: netConfig.owners,
+      selfPeer: net.selfId,
       mode: gameMode,
       ffaSpawns,
       defaultThirdPerson,

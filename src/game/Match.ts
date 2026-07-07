@@ -1056,7 +1056,7 @@ export class Match {
       botPos[i] = () => ({ x: b.position.x, y: b.position.y, z: b.position.z })
     })
     w.__debugBotPos = botPos
-    w.__debugRole = () => this.role
+    w.__debugRole = () => (this.iAmCreator() ? 'host' : 'client')   // e2e legacy naming: creator/guest (the match role is always 'peer')
     w.__debugPlayerPos = (id: number) => {
       const p = this.byId.get(id)
       return p ? { x: p.position.x, y: p.position.y, z: p.position.z } : null
