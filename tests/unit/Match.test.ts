@@ -72,6 +72,32 @@ describe('Match ballArt', () => {
   })
 })
 
+describe('Match — color pair from the roster', () => {
+  beforeEach(lockPointer)
+  afterEach(unlockPointer)
+
+  it('the planet ring of a remote player is painted with its roster reserveColor', () => {
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'You', color: '#4af', kind: 'human' },
+      { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive', ballModel: 'planet', reserveColor: '#fd4' },
+    ]
+    const match = new Match({
+      scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as any,
+      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+    })
+    // Collect every uColor uniform in the bot's visuals: the ring's one must carry the roster reserveColor.
+    const uColors: string[] = []
+    match.bots[0].bodyGroup.traverse(o => {
+      const mat = (o as THREE.Mesh).material as THREE.ShaderMaterial | undefined
+      if (mat?.uniforms?.uColor) uColors.push(mat.uniforms.uColor.value.getHexString())
+    })
+    expect(uColors).toContain('ffdd44')   // '#fd4' → ring painted with the roster reserve color
+  })
+})
+
 describe('Match', () => {
   beforeEach(lockPointer)
   afterEach(() => {
