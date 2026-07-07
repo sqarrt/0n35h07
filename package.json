@@ -1,7 +1,7 @@
 {
   "name": "oneshot",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "OneShot — an arcade first-person shooter, strictly 1v1, peer-to-peer in the browser",
   "author": "Dmitry Shatalov",
   "license": "AGPL-3.0-or-later",
