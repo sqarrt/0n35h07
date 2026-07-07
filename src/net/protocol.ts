@@ -23,6 +23,7 @@ export interface RosterEntry {
   id:     number
   name:   string
   color:  string
+  reserveColor?: string        // second appearance color (planet ring today; future models may use it differently); absent → color
   kind:   PlayerKind
   difficulty?: BotDifficulty   // only for kind==='bot'
   ballModel?: BallModel        // sphere model (cosmetic); absent → 'smooth'

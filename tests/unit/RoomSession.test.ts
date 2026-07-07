@@ -58,17 +58,24 @@ describe('RoomSession map selection', () => {
   })
 })
 
-describe('RoomSession — color assignment by host', () => {
-  it('client with the same primary color as the host gets its reserve one', () => {
-    const { hostView } = handshake({ name: 'Guest', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
+describe('RoomSession — personal colors are never substituted', () => {
+  it('client with the same primary color as the host KEEPS it (collision is allowed)', () => {
+    const { hostView } = handshake({ ...GUEST, primaryColor: HOST.primaryColor })
     const clientEntry = hostView.roster.find(r => r.id === 1)!
-    expect(clientEntry.color).toBe('#4fa')   // primary #4af taken by host → reserve
+    expect(clientEntry.color).toBe(HOST.primaryColor)
     expect(clientEntry.name).toBe('Guest')
   })
 
-  it('client with a free primary color gets exactly it', () => {
-    const { hostView } = handshake({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
-    expect(hostView.roster.find(r => r.id === 1)!.color).toBe('#fd4')
+  it('the client color pair ships in the roster whole', () => {
+    const { hostView } = handshake(GUEST)
+    const clientEntry = hostView.roster.find(r => r.id === 1)!
+    expect(clientEntry.color).toBe(GUEST.primaryColor)
+    expect(clientEntry.reserveColor).toBe(GUEST.reserveColor)
+  })
+
+  it('the host entry carries its reserveColor', () => {
+    const { hostView } = handshake(GUEST)
+    expect(hostView.roster.find(r => r.id === 0)!.reserveColor).toBe(HOST.reserveColor)
   })
 
   it('client receives its id and the shared roster (ASSIGN arrived)', () => {
@@ -98,7 +105,7 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     expect(get().canStart).toBe(true)
   })
 
-  it('addBot assigns botAppearance(name) cosmetics and a color without collision with the host', () => {
+  it('addBot assigns botAppearance(name) cosmetics — the color pair exactly as the skin', () => {
     const { host, get } = hostWithView()
     host.addBot('normal')
     const bot = get().roster.find(r => r.id === OPPONENT_ID)!
@@ -109,7 +116,8 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     expect(bot.respawnStyle).toBe(want.respawnStyle)
     expect(bot.dashStyle).toBe(want.dashStyle)
     expect(bot.shieldStyle).toBe(want.shieldStyle)
-    expect(bot.color).not.toBe(HOST.primaryColor)   // no collision with the host's color
+    expect(bot.color).toBe(want.color)                 // exactly the skin color — no collision dodging
+    expect(bot.reserveColor).toBe(want.reserveColor)   // the pair ships whole
   })
 
   it('repeated addBot — no-op (single opponent)', () => {

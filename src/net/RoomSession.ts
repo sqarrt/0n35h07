@@ -1,7 +1,7 @@
 import type { INet, PeerId } from './INet'
 import type { Hello, Assign, Start, RosterEntry, ReadyMsg } from './protocol'
 import type { BotDifficulty, MapId, MapFilter, DurationFilter } from '../constants'
-import { PLAYER_COLORS, HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
+import { HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { PlayerProfile } from '../settings'
 import { generateModelName } from '../names'
 import { botAppearance } from '../game/botAppearance'
@@ -69,7 +69,7 @@ export class RoomSession {
       if (sel.map.length) this.mapId = sel.map[0]
       if (sel.durationMin.length) this.durationMin = sel.durationMin[0]
     }
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
+    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, reserveColor: profile.reserveColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
@@ -100,19 +100,11 @@ export class RoomSession {
       gameLog.warn('room', 'hello_reject_full', { from }); return   // room already has another human
     }
     const name = (hello.name || '').trim() || 'Opponent'
-    this.opponent = { id: OPPONENT_ID, name, color: this.assignColor(hello.primaryColor, hello.reserveColor), kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
+    this.opponent = { id: OPPONENT_ID, name, color: hello.primaryColor, reserveColor: hello.reserveColor, kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
     this.clientPeer = from
     this.readyIds.delete(OPPONENT_ID)   // the new human isn't ready yet (evicted the bot)
     this.resolveAgainst(hello.desiredMap ?? ALL_MAPS, hello.desiredDuration ?? ALL_DURS)
     this.broadcastRoster()
-  }
-
-  /** Opponent color without colliding with the host's: primary → reserve → first free in the palette. */
-  private assignColor(primary: string, reserve: string): string {
-    const host = this.hostEntry.color
-    if (primary !== host) return primary
-    if (reserve !== host) return reserve
-    return PLAYER_COLORS.find(c => c !== host) ?? primary
   }
 
   private onPeerLeave(peer: PeerId) {
@@ -123,12 +115,12 @@ export class RoomSession {
     this.broadcastRoster()
   }
 
-  /** Build a bot entry: the name drives both personality and appearance (same seed); color avoids host collision. */
+  /** Build a bot entry: the name drives both personality and appearance (same seed). */
   private makeBotEntry(name: string, difficulty: BotDifficulty): RosterEntry {
     const skin = botAppearance(name)
     return {
       id: OPPONENT_ID, name, kind: 'bot', difficulty,
-      color: this.assignColor(skin.color, skin.color),
+      color: skin.color, reserveColor: skin.reserveColor,
       ballModel: skin.ballModel, windupStyle: skin.windupStyle,
       respawnStyle: skin.respawnStyle, dashStyle: skin.dashStyle, shieldStyle: skin.shieldStyle,
     }
