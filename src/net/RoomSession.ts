@@ -159,7 +159,7 @@ export class RoomSession {
   private sendAssign(peer: PeerId) {
     netDiagMark('assignSent', { peer })
     gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin })
-    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds] } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: '1v1' } satisfies Assign)
   }
   private broadcastRoster() {
     if (this.clientPeer) this.sendAssign(this.clientPeer)

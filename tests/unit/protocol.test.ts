@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
-import { toVec3, fromVec3, applyVec3 } from '../../src/net/protocol'
-import type { Snapshot, RosterEntry } from '../../src/net/protocol'
+import { toVec3, fromVec3, applyVec3, NET_TAGS } from '../../src/net/protocol'
+import type { Snapshot, RosterEntry, Assign, Start, SetSlotMsg } from '../../src/net/protocol'
 
 describe('protocol Vec3', () => {
   it('toVec3/fromVec3 — roundtrip THREE.Vector3', () => {
@@ -26,6 +26,16 @@ describe('protocol Vec3', () => {
     }
     const round = JSON.parse(JSON.stringify(snap)) as Snapshot
     expect(round).toEqual(snap)
+  })
+
+  it('mode / setSlot / ffa-spawns shapes', () => {
+    const a: Assign = { yourId: 2, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: '2v2' }
+    const s: Start = { durationMs: 60000, mapId: 'os_arena', spawns: [[1, 1, 1]] }
+    const m: SetSlotMsg = { slot: 3 }
+    expect(a.mode).toBe('2v2')
+    expect(s.spawns![0][1]).toBe(1)
+    expect(m.slot).toBe(3)
+    expect(NET_TAGS).toContain('setSlot')
   })
 
   it('ballArt survives a JSON round-trip in RosterEntry', () => {
