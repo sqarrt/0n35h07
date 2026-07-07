@@ -40,7 +40,7 @@ const BEAM_SFX: Record<WindupStyle, SfxEvent> = {
 }
 
 export interface DemoHud {
-  scores: { name: string; kills: number; deaths: number }[]
+  scores: { id: number; name: string; kills: number; deaths: number; team: number }[]
   matchTimeSec: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
@@ -323,7 +323,7 @@ function hudOf(f: DemoFrame, demo: DemoFile): DemoHud {
   for (const p of f.players) { streaks[p.id] = p.streakCount > 0 ? streakTier(p.streakCount) : null; streakCounts[p.id] = p.streakCount }
   const pov = f.players.find(p => p.id === demo.localId)
   return {
-    scores: f.players.map(p => ({ name: nameOf(p.id), kills: p.kills, deaths: p.deaths })),
+    scores: f.players.map(p => ({ id: p.id, name: nameOf(p.id), kills: p.kills, deaths: p.deaths, team: p.id })),   // demos are 1v1 → team === id
     matchTimeSec: Math.ceil(f.remainingMs / 1000),
     streaks,
     streakCounts,

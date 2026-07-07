@@ -4,11 +4,13 @@ import { usePayloadFlash } from './usePayloadFlash'
 import type { MatchPhase } from '../constants'
 import type { StreakTier, AnnounceKind } from '../game/streak'
 
-export interface PlayerScore { name: string; kills: number; deaths: number }
+export interface PlayerScore { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 
 export type MatchOutcome = 'win' | 'lose' | 'draw'
 export type MatchEndReason = 'time' | 'disconnect'
-export interface MatchResult { outcome: MatchOutcome; reason: MatchEndReason; scores: PlayerScore[] }
+/** A team's row in the final ranking (in 1v1/FFA a "team" is a single player). */
+export interface TeamRank { team: number; kills: number; memberIds: number[] }
+export interface MatchResult { outcome: MatchOutcome; reason: MatchEndReason; scores: PlayerScore[]; ranking: TeamRank[] }
 
 /** Snapshot for the transient streak/CATALYST banner. */
 export interface AnnounceItem { name: string; color: string; kind: AnnounceKind }

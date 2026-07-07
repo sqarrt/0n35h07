@@ -33,6 +33,8 @@ export class Player implements IControllable {
   respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
   respawnTimer = 0     // remaining ghost phase (ms)
   name = ''            // display name (You / Bot N) — set by Match
+  team = 0             // team from the mode preset (teamOfSlot) — set by Match; same team → no harm
+  private nameplate: THREE.Sprite | null = null   // billboard name over remotes (2v2/FFA); hides with the body
   kills = 0            // session score (not reset on respawn)
   deaths = 0
   streak = 0           // consecutive kills without dying (for streak announces); reset on death
@@ -300,8 +302,16 @@ export class Player implements IControllable {
     if (!this.alive) return 'blocked'        // already dead/ghost — don't finish off (no double kill)
     if (this.shield.isActive) return 'blocked'
     this.alive = false
+    if (this.nameplate) this.nameplate.visible = false   // the plate dies with the body
     this.startGhost()
     return 'killed'
+  }
+
+  /** Attach/replace the name plate (2v2/FFA remotes). null removes it. Visibility follows alive/respawn. */
+  setNameplate(sprite: THREE.Sprite | null) {
+    if (this.nameplate) this.bodyGroup.remove(this.nameplate)
+    this.nameplate = sprite
+    if (sprite) this.bodyGroup.add(sprite)
   }
 
   /** Start of the ghost phase: invulnerability, particle burst, timer until materialization. */
@@ -342,6 +352,7 @@ export class Player implements IControllable {
     this.respawnTimer = 0
     this.body.setHittable(true)
     this.body.material.color.copy(this.baseColor)
+    if (this.nameplate) this.nameplate.visible = true   // reborn → the plate is back
   }
 
   setBodyVisible(v: boolean) {

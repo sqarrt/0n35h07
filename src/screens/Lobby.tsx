@@ -4,9 +4,12 @@ import { IS_DESKTOP } from '../platform'
 import { onSteamInviteDeclined } from '../steam/steam'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
-import type { LobbySlot, OppSlot, LobbyTab } from '../components/lobby/types'
+import type { LobbySlot, OppSlot, LobbyTab, SeatView } from '../components/lobby/types'
+import type { GameMode } from '../game/modes'
 import { LobbyTabs } from '../components/lobby/LobbyTabs'
 import { LobbySeats } from '../components/lobby/LobbySeats'
+import { LobbySeatsGrid } from '../components/lobby/LobbySeatsGrid'
+import { ModePicker } from '../components/lobby/ModePicker'
 import { MapPicker } from '../components/lobby/MapPicker'
 import { TimePicker } from '../components/lobby/TimePicker'
 import { LobbyAction } from '../components/lobby/LobbyAction'
@@ -21,6 +24,11 @@ interface LobbyProps {
   tab: LobbyTab
   me: LobbySlot
   opponent: OppSlot | null
+  mode: GameMode
+  seats: SeatView[]            // full seat array (used by the 2v2/FFA grid; 1v1 keeps me/opponent)
+  onSetMode: (m: GameMode) => void
+  onSeatClick: (slot: number) => void   // host: empty → bot, bot → reroll; client: empty → move
+  onBotRemove: (slot: number) => void
   mapSel: MapFilter
   durationSel: DurationFilter
   searching: boolean
@@ -43,7 +51,7 @@ interface LobbyProps {
 
 /** Lobby screen with Matchmaking/With a friend/With a bot sub-tabs. Map/time/slots are shared; the mode block + action change. */
 export function Lobby(props: LobbyProps) {
-  const { isHost, tab, me, opponent, mapSel, durationSel, searching } = props
+  const { isHost, tab, me, opponent, mode, mapSel, durationSel, searching } = props
   const t = useT()
   const [roomCode, setRoomCode] = useState('')
   const codeInputRef = useRef<HTMLInputElement>(null)
@@ -94,11 +102,21 @@ export function Lobby(props: LobbyProps) {
             <TimePicker durationSel={durationSel} onSetDuration={props.onSetDuration} />
           </div>
 
+          {/* The mode preset is pinned to 1v1 on quick-match (pairwise matchmaking); elsewhere the host picks. */}
+          {tab !== 'matchmaking' && (
+            <ModePicker mode={mode} enabled={isHost && !searching} onSetMode={props.onSetMode} />
+          )}
+
           <div className="lobby-ogrp">
             <span className="lobby-ol">// {t.lobbyPlayers}</span>
-            <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching}
-              botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined}
-              inviteSeat={steamFriend && !opponent ? { invitedName: invited?.name ?? null, onInvite: () => setPickerOpen(true), onCancel: () => setInvited(null) } : undefined} />
+            {mode === '1v1' ? (
+              <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching}
+                botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined}
+                inviteSeat={steamFriend && !opponent ? { invitedName: invited?.name ?? null, onInvite: () => setPickerOpen(true), onCancel: () => setInvited(null) } : undefined} />
+            ) : (
+              <LobbySeatsGrid mode={mode} isHost={isHost} seats={props.seats}
+                onSeatClick={props.onSeatClick} onBotRemove={props.onBotRemove} />
+            )}
           </div>
 
           {tab === 'friend' && !steamFriend && (

@@ -135,8 +135,10 @@ export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remain
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
-// Strictly 1v1: two fixed player ids — the host and its single opponent (bot XOR client).
+// Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
+// Legacy of the strict-1v1 era: seat 1. Production code must not reference it (seats are dynamic);
+// kept only for the 1v1 unit tests' readability.
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
@@ -157,8 +159,17 @@ export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fracti
 export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
-// Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
+// Ball color palette (personal appearance; never substituted — see colors-rework).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
+// Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.
+export const TEAM_COLORS: [string, string] = ['#37f', '#f53']
+export const NAMEPLATE_NEUTRAL_COLOR = '#ccc'   // FFA plates: everyone is an enemy, color codes nothing
+// Nameplates over remote players (2v2: team color; FFA: neutral; 1v1: none).
+export const NAMEPLATE_HEIGHT = 1.35                       // above the ball center (world units)
+export const NAMEPLATE_SCALE: [number, number] = [1.6, 0.4]  // sprite world size (w, h)
+// Mode spawn rules (see src/game/spawns.ts): 2v2 cluster offsets and the FFA scatter distance.
+export const SPAWN_CLUSTER_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-0.9, 0], [0.9, 0]]  // XZ offsets inside a 2v2 team cluster (keep capsules apart)
+export const FFA_SPAWN_MIN_DIST = 6      // min pairwise distance between FFA start positions
 // ICE servers for WebRTC. Passed into Trystero rtcConfig and REPLACE its defaults — so we keep both
 // STUN and TURN here. STUN suffices for home networks; TURN is needed for symmetric NAT/CGNAT and networks that
 // cut UDP (where STUN times out — see the online diagnostics). turns:443?transport=tcp punches through UDP filtering.

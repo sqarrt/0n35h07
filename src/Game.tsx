@@ -6,6 +6,8 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import type { GameMode } from './game/modes'
+import type { Vec3 } from './net/protocol'
 import { TickDriver } from './game/TickDriver'
 import { createAchievements, NoopAchievements } from './steam/achievements'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
@@ -41,6 +43,8 @@ interface GameProps {
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
+  gameMode?: GameMode      // lobby preset (teams/spawn rule); absent → '1v1'
+  ffaSpawns?: Vec3[]       // FFA start positions from the Start message
   seedCode: string
   sfxEngine: ISfxEngine
   // Music volume via a STABLE ref (not a value prop): live changes (the in-match volume slider) are pushed
@@ -54,7 +58,7 @@ interface GameProps {
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, gameMode, ffaSpawns, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -74,6 +78,8 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPe
       dispatch,
       role,
       netConfig,
+      mode: gameMode,
+      ffaSpawns,
       defaultThirdPerson,
       durationMs,
       mapId,

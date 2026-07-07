@@ -1,11 +1,14 @@
 import type { INet, PeerId } from './INet'
-import type { Hello, Assign, Start, RosterEntry, ReadyMsg } from './protocol'
+import type { Hello, Assign, Start, RosterEntry, ReadyMsg, SetSlotMsg, Vec3 } from './protocol'
 import type { BotDifficulty, MapId, MapFilter, DurationFilter } from '../constants'
-import { HOST_ID, OPPONENT_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
+import { HOST_ID, DEFAULT_MATCH_DURATION_MIN, DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from '../constants'
 import type { PlayerProfile } from '../settings'
 import { generateModelName } from '../names'
 import { botAppearance } from '../game/botAppearance'
-import { MAP_IDS } from '../game/maps'
+import type { GameMode } from '../game/modes'
+import { MODE_SLOT_COUNT, canStartFor } from '../game/modes'
+import { genFfaSpawns } from '../game/spawns'
+import { MAP_IDS, MAPS } from '../game/maps'
 import { resolveMatchParams } from './matchmaking'
 import { netDiagMark, netDiagLogVerdict } from './netDiag'
 import { gameLog } from '../diag/gameLog'
@@ -19,11 +22,13 @@ const pickRandom = <T>(opts: T[]): T => opts[Math.floor(Math.random() * opts.len
 
 export interface RoomView {
   roster: RosterEntry[]
+  slots: (RosterEntry | null)[]   // seat array of the current mode (entry.id === seat index)
+  mode: GameMode
   localPlayerId: number   // -1 on client until host assigns
   isHost: boolean
   connected: boolean      // client: got ASSIGN
   foundHost: boolean      // client: transport found a peer (onPeerJoin) — handshake in progress; host: always true
-  canStart: boolean       // host: opponent slot filled → can start
+  canStart: boolean       // host: the mode's start gate is satisfied
   durationMin: number
   mapId: MapId            // resolved match map
   mapSel: MapFilter       // this side's selection (for lobby tiles; may be 'any')
@@ -32,17 +37,19 @@ export interface RoomView {
 }
 
 /**
- * Room handshake (strictly 1v1). Host owns the code: holds itself (id 0) and ONE opponent slot (id 1) —
- * a bot XOR a connected human. An arriving human evicts the bot. The client announces itself via HELLO and
- * gets its id + roster. On START both sides build a Match with the same roster `[host, opponent]`.
+ * Room handshake on SLOTS. The mode (1v1/2v2/ffa) is a lobby preset: it fixes the seat count; the seat
+ * index IS the player id (the lobby creator always sits in seat 0). Humans take the first free seat via
+ * HELLO → ASSIGN; there is NO bot eviction — the host manages seats explicitly (addBot/removeBot), a client
+ * may move to a free seat via setSlot (2v2 team change). On START every peer builds a Match with the same
+ * roster; in FFA the creator also generates and ships the start positions.
  */
 export class RoomSession {
   readonly net: INet
   readonly role: RoomRole
   readonly code: string
-  private hostEntry: RosterEntry
-  private opponent: RosterEntry | null = null   // opponent slot: bot | human | empty
-  private clientPeer: PeerId | null = null      // host: peer of the human occupying the slot
+  private mode: GameMode = '1v1'
+  private slots: (RosterEntry | null)[] = [null, null]
+  private peerBySlot = new Map<number, PeerId>()   // host: which transport peer occupies a human seat
   private localPlayerId: number
   private profile: PlayerProfile
   private durationMin: number = DEFAULT_MATCH_DURATION_MIN
@@ -50,10 +57,10 @@ export class RoomSession {
   private selMap: MapFilter = [DEFAULT_MAP_ID]          // set of selected maps — UI/Hello/resolve
   private selDuration: DurationFilter = [DEFAULT_MATCH_DURATION_MIN]
   private changeCb: (v: RoomView) => void = () => {}
-  private startCb: (durationMs: number, mapId: MapId) => void = () => {}
+  private startCb: (durationMs: number, mapId: MapId, mode: GameMode, spawns?: Vec3[]) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
   private peerSeen = false   // client: transport found a peer at least once (for "room found" indication)
-  private readyIds = new Set<number>()   // ids of ready players (bot is auto-ready; lobby start gate)
+  private readyIds = new Set<number>()   // ids of ready players (bots are auto-ready; lobby start gate)
   private started = false                // guard: start() exactly once
   private disposed = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null   // client: handshake watchdog
@@ -69,17 +76,19 @@ export class RoomSession {
       if (sel.map.length) this.mapId = sel.map[0]
       if (sel.durationMin.length) this.durationMin = sel.durationMin[0]
     }
-    this.hostEntry = { id: HOST_ID, name: profile.name, color: profile.primaryColor, reserveColor: profile.reserveColor, kind: 'human', ballModel: profile.ballModel, windupStyle: profile.windupStyle, respawnStyle: profile.respawnStyle, dashStyle: profile.dashStyle, shieldStyle: profile.shieldStyle, ballArt: profile.ballArt }
+    // Seat 0 pre-fill: the host really sits there; on a client it's a placeholder shown until ASSIGN arrives.
+    this.slots[0] = this.profileEntry(HOST_ID)
 
     if (role === 'host') {
       this.localPlayerId = HOST_ID
       net.on('hello', (payload, from) => this.onHello(payload as Hello, from))
       net.on('ready', (payload, from) => this.onReady(payload as ReadyMsg, from))
+      net.on('setSlot', (payload, from) => this.onSetSlot(payload as SetSlotMsg, from))
       net.onPeerLeave(peer => this.onPeerLeave(peer))
     } else {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
-      net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId) })
+      net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId, this.mode, s.spawns) })
       net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // found the host — introduce ourselves
       net.onPeerLeave(() => this.onHostGone())   // host left to lobby → client rolls back to search
       if (net.peers().length) this.peerSeen = true   // "with a friend" rendezvous: peer already visible before session is built
@@ -92,93 +101,171 @@ export class RoomSession {
     }
   }
 
-  // --- host ---
+  private profileEntry(id: number): RosterEntry {
+    const p = this.profile
+    return { id, name: p.name, color: p.primaryColor, reserveColor: p.reserveColor, kind: 'human', ballModel: p.ballModel, windupStyle: p.windupStyle, respawnStyle: p.respawnStyle, dashStyle: p.dashStyle, shieldStyle: p.shieldStyle, ballArt: p.ballArt }
+  }
+
+  private occupied(): RosterEntry[] { return this.slots.filter((s): s is RosterEntry => s !== null) }
+  private firstFreeSlot(): number { return this.slots.findIndex(s => s === null) }
+
+  // --- host: mode & seats ---
+
+  /** Host: switch the lobby preset. Occupied seats are compacted onto the lowest indices (creator stays 0
+   *  as the lowest); blocked while more seats are occupied than the new mode offers — nobody is evicted silently. */
+  setMode(m: GameMode) {
+    if (this.role !== 'host' || this.started || m === this.mode) return
+    const entries = this.occupied()
+    if (entries.length > MODE_SLOT_COUNT[m]) { gameLog.warn('room', 'mode_blocked', { mode: m, occupied: entries.length }); return }
+    const next: (RosterEntry | null)[] = Array.from({ length: MODE_SLOT_COUNT[m] }, () => null)
+    const ready = new Set<number>()
+    const peers = new Map<number, PeerId>()
+    entries.forEach((e, i) => {
+      next[i] = { ...e, id: i }
+      if (this.readyIds.has(e.id)) ready.add(i)
+      const peer = this.peerBySlot.get(e.id)
+      if (peer !== undefined) peers.set(i, peer)
+    })
+    this.mode = m
+    this.slots = next
+    this.readyIds = ready
+    this.peerBySlot = peers
+    gameLog.log('room', 'mode_set', { mode: m })
+    this.broadcastRoster()
+  }
+
   private onHello(hello: Hello, from: PeerId) {
     netDiagMark('helloRecv', { from })
-    // Human takes the opponent slot, evicting the bot. Slot held by ANOTHER human → 1v1 room is full.
-    if (this.opponent?.kind === 'human' && this.clientPeer !== from) {
-      gameLog.warn('room', 'hello_reject_full', { from }); return   // room already has another human
-    }
+    // A HELLO retry from an already-seated peer → just re-send its ASSIGN (the first one may have been lost).
+    const seated = [...this.peerBySlot.entries()].find(([, p]) => p === from)
+    if (seated) { this.sendAssign(from); return }
+    const slot = this.firstFreeSlot()
+    if (slot < 0) { gameLog.warn('room', 'hello_reject_full', { from }); return }   // no free seat — no bot eviction
     const name = (hello.name || '').trim() || 'Opponent'
-    this.opponent = { id: OPPONENT_ID, name, color: hello.primaryColor, reserveColor: hello.reserveColor, kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
-    this.clientPeer = from
-    this.readyIds.delete(OPPONENT_ID)   // the new human isn't ready yet (evicted the bot)
+    this.slots[slot] = { id: slot, name, color: hello.primaryColor, reserveColor: hello.reserveColor, kind: 'human', ballModel: hello.ballModel ?? 'smooth', windupStyle: hello.windupStyle ?? 'classic', respawnStyle: hello.respawnStyle ?? 'echo', dashStyle: hello.dashStyle ?? 'streak', shieldStyle: hello.shieldStyle ?? 'dome', ballArt: hello.ballArt }
+    this.peerBySlot.set(slot, from)
+    this.readyIds.delete(slot)   // a fresh human is not ready
     this.resolveAgainst(hello.desiredMap ?? ALL_MAPS, hello.desiredDuration ?? ALL_DURS)
     this.broadcastRoster()
   }
 
-  private onPeerLeave(peer: PeerId) {
-    if (peer !== this.clientPeer) return
-    this.opponent = null
-    this.clientPeer = null
-    this.readyIds.delete(OPPONENT_ID)
+  /** Host: a client asks to move to a FREE seat (2v2 team change; harmless elsewhere). */
+  private onSetSlot(msg: SetSlotMsg, from: PeerId) {
+    const fromSlot = [...this.peerBySlot.entries()].find(([, p]) => p === from)?.[0]
+    if (fromSlot === undefined) return
+    this.moveSlot(fromSlot, msg.slot)
+  }
+
+  private moveSlot(fromSlot: number, toSlot: number) {
+    if (toSlot < 0 || toSlot >= this.slots.length || this.slots[toSlot] !== null || this.slots[fromSlot] === null) return
+    this.slots[toSlot] = { ...this.slots[fromSlot]!, id: toSlot }
+    this.slots[fromSlot] = null
+    if (this.readyIds.delete(fromSlot)) this.readyIds.add(toSlot)
+    const peer = this.peerBySlot.get(fromSlot)
+    if (peer !== undefined) { this.peerBySlot.delete(fromSlot); this.peerBySlot.set(toSlot, peer) }
+    gameLog.log('room', 'slot_move', { from: fromSlot, to: toSlot })
     this.broadcastRoster()
   }
 
+  /** Client: ask the host to move me to a free seat. (The creator keeps seat 0 — the star topology and the
+   *  menu backdrop assume id 0 is the creator; host-side team choice is done by seating bots/guests instead.) */
+  requestSlot(slot: number) {
+    if (this.role !== 'client' || this.started) return
+    this.net.broadcast('setSlot', { slot } satisfies SetSlotMsg)
+  }
+
+  private onPeerLeave(peer: PeerId) {
+    const seat = [...this.peerBySlot.entries()].find(([, p]) => p === peer)?.[0]
+    if (seat === undefined) return
+    this.slots[seat] = null
+    this.peerBySlot.delete(seat)
+    this.readyIds.delete(seat)
+    this.broadcastRoster()
+  }
+
+  // --- host: bots ---
+
   /** Build a bot entry: the name drives both personality and appearance (same seed). */
-  private makeBotEntry(name: string, difficulty: BotDifficulty): RosterEntry {
+  private makeBotEntry(name: string, difficulty: BotDifficulty, id: number): RosterEntry {
     const skin = botAppearance(name)
     return {
-      id: OPPONENT_ID, name, kind: 'bot', difficulty,
+      id, name, kind: 'bot', difficulty,
       color: skin.color, reserveColor: skin.reserveColor,
       ballModel: skin.ballModel, windupStyle: skin.windupStyle,
       respawnStyle: skin.respawnStyle, dashStyle: skin.dashStyle, shieldStyle: skin.shieldStyle,
     }
   }
 
-  addBot(difficulty: BotDifficulty = 'normal', name?: string) {
-    if (this.role !== 'host' || this.opponent) return   // slot already filled (bot or human) — no-op
+  addBot(difficulty: BotDifficulty = 'normal', name?: string, slot?: number) {
+    if (this.role !== 'host' || this.started) return
+    const target = slot ?? this.firstFreeSlot()
+    if (target < 0 || target >= this.slots.length || this.slots[target] !== null) return   // no free/valid seat — no-op
     // Name from the lobby field if set; otherwise generate a "model" (RA9, T-2000, …).
     const botName = (name ?? '').trim() || generateModelName()
-    this.opponent = this.makeBotEntry(botName, difficulty)
-    this.readyIds.add(OPPONENT_ID)   // bot is auto-ready
+    this.slots[target] = this.makeBotEntry(botName, difficulty, target)
+    this.readyIds.add(target)   // bot is auto-ready
     this.resolveAgainst(ALL_MAPS, ALL_DURS)   // bot accepts anything → random from the host's set
     this.broadcastRoster()
   }
 
-  removeBot() {
-    if (this.role !== 'host' || this.opponent?.kind !== 'bot') return
-    this.opponent = null
-    this.readyIds.delete(OPPONENT_ID)
+  /** Remove the bot at `slot`; without an argument — the first bot seat (1v1 compat). */
+  removeBot(slot?: number) {
+    if (this.role !== 'host') return
+    const target = slot ?? this.slots.findIndex(s => s?.kind === 'bot')
+    if (target < 0 || this.slots[target]?.kind !== 'bot') return
+    this.slots[target] = null
+    this.readyIds.delete(target)
     this.broadcastRoster()
   }
 
+  /** Difficulty applies to ALL bots (single lobby picker — v1 UX). */
   setBotDifficulty(d: BotDifficulty) {
-    if (this.opponent?.kind === 'bot') { this.opponent.difficulty = d; this.broadcastRoster() }
+    let changed = false
+    for (const s of this.slots) if (s?.kind === 'bot') { s.difficulty = d; changed = true }
+    if (changed) this.broadcastRoster()
   }
 
-  /** Rename the bot live: the name re-derives personality+appearance. No-op if the slot isn't a bot or the name is empty. */
-  setBotName(name: string) {
-    if (this.opponent?.kind !== 'bot') return
+  /** Rename a bot live: the name re-derives personality+appearance. Without `slot` — the first bot (1v1 compat).
+   *  No-op if the seat isn't a bot or the name is empty. */
+  setBotName(name: string, slot?: number) {
+    const target = slot ?? this.slots.findIndex(s => s?.kind === 'bot')
+    if (target < 0 || this.slots[target]?.kind !== 'bot') return
     const botName = name.trim()
     if (!botName) return   // empty field — keep the current (random) bot
-    this.opponent = this.makeBotEntry(botName, this.opponent.difficulty ?? 'normal')
+    this.slots[target] = this.makeBotEntry(botName, this.slots[target]!.difficulty ?? 'normal', target)
     this.broadcastRoster()
   }
 
+  // --- host: assign/start ---
+
   private sendAssign(peer: PeerId) {
+    const yourId = [...this.peerBySlot.entries()].find(([, p]) => p === peer)?.[0]
+    if (yourId === undefined) return
     netDiagMark('assignSent', { peer })
-    gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin })
-    this.net.send(peer, 'assign', { yourId: OPPONENT_ID, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds] } satisfies Assign)
+    gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin, yourId })
+    this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode } satisfies Assign)
   }
   private broadcastRoster() {
-    if (this.clientPeer) this.sendAssign(this.clientPeer)
+    for (const peer of this.peerBySlot.values()) this.sendAssign(peer)
     this.emitChange()
   }
 
   start() {
-    if (this.role !== 'host' || !this.opponent || this.started) return
+    if (this.role !== 'host' || this.started) return
+    if (!canStartFor(this.mode, this.occupied().length)) return
     this.started = true
     const durationMs = this.durationMin * 60_000
-    gameLog.log('room', 'start_send', { mapId: this.mapId, durationMs })
-    this.net.broadcast('start', { durationMs, mapId: this.mapId } satisfies Start)
-    this.startCb(durationMs, this.mapId)
+    // FFA: the creator generates the start positions and ships them — identical on every peer, no shared RNG.
+    const spawns = this.mode === 'ffa' ? genFfaSpawns(this.occupied().length, MAPS[this.mapId].spawns[0][1]) : undefined
+    gameLog.log('room', 'start_send', { mapId: this.mapId, durationMs, mode: this.mode })
+    this.net.broadcast('start', { durationMs, mapId: this.mapId, spawns } satisfies Start)
+    this.startCb(durationMs, this.mapId, this.mode, spawns)
   }
 
   /** Local player readiness. Host sets its own and checks for start; client sends it to the host. */
   setLocalReady(ready: boolean) {
     if (this.role === 'host') {
-      if (ready) this.readyIds.add(HOST_ID); else this.readyIds.delete(HOST_ID)
+      if (ready) this.readyIds.add(this.localPlayerId); else this.readyIds.delete(this.localPlayerId)
       this.broadcastRoster()
       this.maybeStart()
     } else {
@@ -186,18 +273,21 @@ export class RoomSession {
     }
   }
 
-  /** host: human opponent's readiness (the bot is auto-ready and never reaches here). */
+  /** host: a human guest's readiness (bots are auto-ready and never reach here). */
   private onReady(msg: ReadyMsg, from: PeerId) {
-    if (from !== this.clientPeer || this.opponent?.kind !== 'human') return
-    if (msg.ready) this.readyIds.add(OPPONENT_ID); else this.readyIds.delete(OPPONENT_ID)
+    const seat = [...this.peerBySlot.entries()].find(([, p]) => p === from)?.[0]
+    if (seat === undefined) return
+    if (msg.ready) this.readyIds.add(seat); else this.readyIds.delete(seat)
     this.broadcastRoster()
     this.maybeStart()
   }
 
-  /** host: both ready and slot filled → start the match. */
+  /** host: the mode's start gate is satisfied and every occupied seat is ready → start the match. */
   private maybeStart() {
-    if (this.role !== 'host' || !this.opponent) return
-    if (this.readyIds.has(HOST_ID) && this.readyIds.has(OPPONENT_ID)) this.start()
+    if (this.role !== 'host') return
+    const occ = this.occupied()
+    if (!canStartFor(this.mode, occ.length)) return
+    if (occ.every(e => this.readyIds.has(e.id))) this.start()
   }
 
   /** host: resolve the final match params from its own selection and the opponent's wishes. */
@@ -214,7 +304,7 @@ export class RoomSession {
     this.selDuration = mins
     if (mins.length) this.durationMin = mins[0]
     gameLog.log('nego', 'set_duration', { role: this.role, sel: this.selDuration, durationMin: this.durationMin })
-    if (this.role === 'host') this.broadcastRoster()   // client will see the choice in Assign
+    if (this.role === 'host') this.broadcastRoster()   // clients will see the choice in Assign
     else this.emitChange()                             // client: local UI; the wish ships out in Hello
   }
 
@@ -238,14 +328,14 @@ export class RoomSession {
     netDiagMark('assignRecv')
     this.clearTimers()   // connected — stop calling HELLO and watching the handshake
     this.localPlayerId = a.yourId
-    this.hostEntry = a.roster.find(r => r.id === HOST_ID) ?? this.hostEntry
-    this.opponent = a.roster.find(r => r.id === OPPONENT_ID) ?? null
+    this.mode = a.mode
+    this.slots = Array.from({ length: MODE_SLOT_COUNT[a.mode] }, (_, i) => a.roster.find(r => r.id === i) ?? null)
     this.durationMin = a.durationMin
     this.mapId = a.mapId
     this.selMap = [a.mapId]
     this.selDuration = [a.durationMin]
     this.readyIds = new Set(a.ready)
-    gameLog.log('room', 'assign_recv', { mapId: a.mapId, durationMin: a.durationMin })
+    gameLog.log('room', 'assign_recv', { mapId: a.mapId, durationMin: a.durationMin, yourId: a.yourId, mode: a.mode })
     this.emitChange()
   }
 
@@ -281,24 +371,24 @@ export class RoomSession {
 
   // --- shared API ---
   onChange(cb: (v: RoomView) => void) { this.changeCb = cb; cb(this.view()) }
-  onStart(cb: (durationMs: number, mapId: MapId) => void) { this.startCb = cb }
+  onStart(cb: (durationMs: number, mapId: MapId, mode: GameMode, spawns?: Vec3[]) => void) { this.startCb = cb }
   /** Client: session closed before the match (host left / handshake timeout). Never fires on the host. */
   onClosed(cb: () => void) { this.closedCb = cb }
   private emitChange() { this.changeCb(this.view()) }
 
-  /** Match roster: exactly `[host, opponent]` (or just host while the slot is empty). */
-  private roster(): RosterEntry[] {
-    return this.opponent ? [this.hostEntry, this.opponent] : [this.hostEntry]
-  }
+  /** Match roster: every occupied seat (entry.id === seat index). */
+  private roster(): RosterEntry[] { return this.occupied() }
 
   view(): RoomView {
     return {
       roster: this.roster(),
+      slots: [...this.slots],
+      mode: this.mode,
       localPlayerId: this.localPlayerId,
       isHost: this.role === 'host',
       connected: this.role === 'host' || this.localPlayerId >= 0,
       foundHost: this.role === 'host' || this.peerSeen,
-      canStart: this.role === 'host' && this.opponent !== null,
+      canStart: this.role === 'host' && canStartFor(this.mode, this.occupied().length),
       durationMin: this.durationMin,
       mapId: this.mapId,
       mapSel: this.selMap,
@@ -307,8 +397,8 @@ export class RoomSession {
     }
   }
 
-  netConfig() { return { localId: this.localPlayerId, roster: this.roster() } }
+  netConfig() { return { localId: this.localPlayerId, roster: this.roster(), mode: this.mode } }
   hostPeerToPlayer(): Map<PeerId, number> {
-    return this.clientPeer ? new Map([[this.clientPeer, OPPONENT_ID]]) : new Map()
+    return new Map([...this.peerBySlot.entries()].map(([slot, peer]) => [peer, slot]))
   }
 }

@@ -10,7 +10,12 @@ import { BotController } from './controllers/BotController'
 import { botPersonality } from './controllers/botPersonality'
 import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
-import type { HUDAction, MatchResult } from '../hooks/useGameHUD'
+import type { HUDAction, MatchResult, TeamRank } from '../hooks/useGameHUD'
+import type { GameMode } from './modes'
+import { teamOfSlot } from './modes'
+import { spawnPositionsFor } from './spawns'
+import { createNameplate } from './fx/nameplate'
+import type { Vec3 } from '../net/protocol'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import { gameLog } from '../diag/gameLog'
@@ -40,11 +45,12 @@ import { createShieldFx } from './fx/shield/createShieldFx'
 import { decodeBallArt } from './ballArt'
 import type { DemoRecorder } from './demo/DemoRecorder'
 import {
-  WINDUP_MOVE_FACTOR, OPPONENT_ID, READY_COUNTDOWN_MS,
+  WINDUP_MOVE_FACTOR, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
   BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST, AIM_RANGE,
   NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE, NET_PREDICT_KILL_MS,
+  TEAM_COLORS, NAMEPLATE_NEUTRAL_COLOR,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -88,7 +94,9 @@ interface MatchOptions {
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
-  netConfig: NetConfig     // roster from the room: exactly [host, opponent]
+  netConfig: NetConfig     // roster from the room (entry.id === seat index)
+  mode?: GameMode          // lobby preset (teams/spawn rule); absent → '1v1' (older callers/tests)
+  ffaSpawns?: Vec3[]       // FFA start positions from the Start message (creator-generated)
   defaultThirdPerson?: boolean   // local player's starting view (local preference)
   durationMs?: number      // match duration in ms (0 = no timer, for backward compatibility)
   mapId?: MapId            // match map (geometry + spawns); defaults to DEFAULT_MAP_ID
@@ -111,6 +119,7 @@ export class Match {
   recorder: DemoRecorder | null = null // dev: demo recording (hook in emit + frame capture from the Game loop)
 
   private world: World
+  private mode: GameMode              // lobby preset: fixes teams (teamOfSlot) and the spawn rule
   private singularityActive = false   // SINGULARITY mode: pierce for both + transparent blocks (tracked to toggle)
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
@@ -179,40 +188,41 @@ export class Match {
     this.world = new World(o.scene)
     this.role = o.role
     this.localId = o.netConfig.localId
+    this.mode = o.mode ?? '1v1'
     this.predictionLog = o.role === 'client' ? new PredictionLog() : null
     this.durationMs = o.durationMs ?? 0
     this.achievements = o.achievements ?? new NoopAchievements()
 
-    const { human, humanController, controllers, opponentIsBot } = this.buildPlayers(o, o.netConfig)
+    const { human, humanController, controllers, botIds } = this.buildPlayers(o, o.netConfig)
     this.human = human
     this.humanController = humanController
     this.players = [...this.byId.values()]
-    this.bots = opponentIsBot ? this.players.filter(p => p.id === OPPONENT_ID) : []   // for debug hooks
+    this.bots = this.players.filter(p => botIds.includes(p.id))   // for debug hooks + streak/target logic
     this.controllers = controllers
 
     this.players.forEach(p => this.registerPlayer(p))
-    // The readiness ritual runs for ALL 1v1 matches (the room guarantees two players). A bot opponent is auto-ready.
+    // The readiness ritual runs for EVERY match (the room guarantees the start gate). Bots are auto-ready.
     this.phase = 'ready'
-    if (opponentIsBot) this.readySet.add(OPPONENT_ID)
+    for (const id of botIds) this.readySet.add(id)
 
     // Match music: only if a seed and engine are provided (absent in unit tests → silence).
     if (o.seedCode && o.musicEngine) this.music = new MatchMusic(o.seedCode, o.musicEngine, () => this.musicRemainingMs())
     if (o.sfxEngine) this.sfx = new MatchSfx(o.sfxEngine)
   }
 
-  // --- building players (exactly two: local + opponent) ---
+  // --- building players (every occupied seat of the roster) ---
   private buildPlayers(o: MatchOptions, net: NetConfig) {
     // Stable order on both peers → identical spawn points.
     const roster = [...net.roster].sort((a, b) => a.id - b.id)
-    const spawns = MAPS[o.mapId ?? DEFAULT_MAP_ID].spawns   // [HOST_ID, OPPONENT_ID]
+    const spawnMap = spawnPositionsFor(this.mode, roster.map(r => r.id), MAPS[o.mapId ?? DEFAULT_MAP_ID].spawns, o.ffaSpawns)
     let human!: Player
     let humanController!: HumanController
     const controllers: Controller[] = []
-    let opponentIsBot = false
+    const botIds: number[] = []
 
     for (const e of roster) {
       const isBot = e.kind === 'bot'
-      if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
+      if (isBot) botIds.push(e.id)
       // Planet ring: the "second" appearance color ships in the roster for EVERY player; absent (older peer/demo) → own color.
       const ringColor = e.reserveColor ?? e.color
       // Cosmetic styles from the roster; missing field → safe defaults for older clients.
@@ -235,10 +245,16 @@ export class Match {
             createRespawnFx(respawnStyle, e.color), respawnStyle,
             createDashFx(dashStyle, e.color), dashStyle)
       p.name = e.name
+      p.team = teamOfSlot(this.mode, e.id)
       this.colorOf.set(e.id, e.color)
+      // Name plates: only when friend/foe reading matters (not 1v1) and never over one's own model.
+      if (this.mode !== '1v1' && e.id !== net.localId) {
+        const bg = this.mode === '2v2' ? TEAM_COLORS[p.team] : NAMEPLATE_NEUTRAL_COLOR
+        p.setNameplate(createNameplate(e.name, bg))
+      }
 
-      // Spawn by map slot: HOST_ID → spawns[0], OPPONENT_ID → spawns[1] (opponent across, any kind).
-      p.respawnAt(new THREE.Vector3().fromArray(spawns[e.id === OPPONENT_ID ? 1 : 0]))
+      // Start position from the mode's spawn rule (1v1 — the two map points, exactly the pre-modes game).
+      p.respawnAt(new THREE.Vector3().fromArray(spawnMap.get(e.id)!))
       this.byId.set(e.id, p)
 
       if (e.id === net.localId) {
@@ -249,7 +265,7 @@ export class Match {
         if (isBot) {
           controllers.push(new BotController(
             p,
-            () => this.human,
+            () => this.nearestEnemy(p),
             this.world,
             e.difficulty === 'passive',
             botPersonality(e.name),
@@ -260,9 +276,21 @@ export class Match {
           controllers.push(rc)
         }
       }
-      // client: opponent — no controller, driven from snapshots
+      // client: remotes — no controller, driven from snapshots
     }
-    return { human, humanController, controllers, opponentIsBot }
+    return { human, humanController, controllers, botIds }
+  }
+
+  /** Nearest ALIVE enemy of `p` (teammates, the dead and the departed are skipped); null when nobody hostile is up. */
+  private nearestEnemy(p: Player): Player | null {
+    let best: Player | null = null
+    let bestD = Infinity
+    for (const o of this.players) {
+      if (o === p || o.team === p.team || !o.alive || this.leftIds.has(o.id)) continue
+      const d = o.position.distanceTo(p.position)
+      if (d < bestD) { bestD = d; best = o }
+    }
+    return best
   }
 
   private registerPlayer(p: Player) {
@@ -270,7 +298,7 @@ export class Match {
     this.byId.set(p.id, p)
   }
 
-  // 1v1: the only "other" is the opponent, so raycast excludes just the shooter itself.
+  // Raycast excludes only the shooter itself: teammates DO block the beam (tactics); harm is gated in resolveHit.
   private excludeIds(p: Player): number[] { return [p.id] }
 
   // --- Rapier wiring (called from RapierBridge) ---
@@ -532,6 +560,7 @@ export class Match {
   /** Apply an authoritative hit — block or kill + scoring + events. Shared by the host's own shot (resolveCombat) and
    *  a client's shooter-authoritative HitClaim (applyHitClaim). */
   private resolveHit(shooter: Player, victim: Player, hitPoint: THREE.Vector3 | null): void {
+    if (shooter !== victim && shooter.team === victim.team) return   // teammate bodies block the beam but take no harm
     if (!victim.alive) return   // don't finish off a dead/deflating victim
     const res = victim.receiveHit()
     if (res === 'blocked') {
@@ -577,6 +606,7 @@ export class Match {
     const shooter = this.byId.get(shooterId)
     const victim = this.byId.get(claim.hitId)
     if (!shooter || !victim || victim === shooter) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'bad_target' }); return }
+    if (shooter.team === victim.team) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'teammate' }); return }
     if (!victim.alive) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'dead' }); return }
     const point = claim.point ? fromVec3(claim.point) : victim.position
     const dist = shooter.position.distanceTo(point)
@@ -791,10 +821,12 @@ export class Match {
   phaseDirty() { return this.phaseDirtyFlag }
   clearPhaseDirty() { this.phaseDirtyFlag = false }
 
-  /** A player disconnected: hide their avatar, end the match, notify the remaining one. */
+  /** A player disconnected: hide their avatar; the match ends only when fewer than two teams remain.
+   *  Star topology: for a CLIENT the departed peer is always the host — no host, no match (mesh removes this). */
   handlePlayerLeft(id: number) {
     if (this.leftIds.has(id)) return
     this.leftIds.add(id)
+    this.scoresDirty = true   // the table shows the "left" mark
     const p = this.byId.get(id)
     if (p) {
       p.bodyGroup.visible = false
@@ -803,7 +835,9 @@ export class Match {
       p.windupFxObject.visible = false
       p.respawnFxObject.visible = false
     }
-    this.endMatch('disconnect')
+    if (this.role === 'client' && id === 0) { this.endMatch('disconnect'); return }
+    const teamsAlive = new Set(this.players.filter(q => !this.leftIds.has(q.id)).map(q => q.team))
+    if (teamsAlive.size < 2) this.endMatch('disconnect')
   }
 
   private tickMatchClock(now: number) {
@@ -843,23 +877,39 @@ export class Match {
   }
 
   private computeResult(reason: 'time' | 'disconnect'): MatchResult {
-    const me = this.byId.get(this.localId)
-    const opp = this.players.find(p => p.id !== this.localId)
-    const myKills = me?.kills ?? 0
-    const oppKills = opp?.kills ?? 0
-    const outcome: 'win' | 'lose' | 'draw' =
-      reason === 'disconnect' ? 'win'
-      : myKills > oppKills ? 'win'
-      : myKills < oppKills ? 'lose'
-      : 'draw'
-    const scores = this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths }))
-    return { outcome, reason, scores }
+    const scores = this.serializeScores()
+    // Rank teams by summed kills (in 1v1/FFA a "team" is a single player — the table degenerates to personal).
+    const byTeam = new Map<number, { kills: number; memberIds: number[] }>()
+    for (const p of this.players) {
+      const t = byTeam.get(p.team) ?? { kills: 0, memberIds: [] }
+      t.kills += p.kills
+      t.memberIds.push(p.id)
+      byTeam.set(p.team, t)
+    }
+    const ranking: TeamRank[] = [...byTeam.entries()].map(([team, v]) => ({ team, ...v })).sort((a, b) => b.kills - a.kills)
+    const myTeam = this.byId.get(this.localId)?.team ?? 0
+    let outcome: 'win' | 'lose' | 'draw'
+    if (reason === 'disconnect') {
+      // The match collapsed to (at most) one present team: whoever remains wins, the departed lose.
+      const remains = this.players.some(p => p.team === myTeam && !this.leftIds.has(p.id))
+      outcome = remains ? 'win' : 'lose'
+    } else {
+      const top = ranking[0]?.kills ?? 0
+      const topTeams = ranking.filter(r => r.kills === top)
+      outcome = topTeams.some(r => r.team === myTeam) ? (topTeams.length > 1 ? 'draw' : 'win') : 'lose'
+    }
+    return { outcome, reason, scores, ranking }
+  }
+
+  /** Score rows for the HUD/result: keyed by id, with the team and a "left the match" mark. */
+  private serializeScores() {
+    return this.players.map(p => ({ id: p.id, name: p.name, kills: p.kills, deaths: p.deaths, team: p.team, left: this.leftIds.has(p.id) || undefined }))
   }
 
   private syncHud() {
     if (this.scoresDirty) {
       this.scoresDirty = false
-      const scores = this.players.map(p => ({ name: p.name, kills: p.kills, deaths: p.deaths }))
+      const scores = this.serializeScores()
       this.dispatch({ type: 'SET_SCORES', scores })
       this.emit({ t: 'scores', scores })
     }
@@ -981,8 +1031,10 @@ export class Match {
     // beam has a windup, so it raycasts several ticks AFTER the press; the host rewinds the victim to the viewTick of
     // the frame applied at FIRE-time (the latest), which tracks the opponent's render through the windup. Stamping
     // only at press would rewind to where the target was when you clicked, missing it after it moved during windup.
-    const opp = this.players.find(p => p.id !== this.localId)
-    if (opp) frame.viewTick = opp.renderHostTick()
+    // With N remotes they all interpolate at the same delay — stamp the freshest rendered host-tick.
+    let viewTick = 0
+    for (const p of this.players) if (p.id !== this.localId) viewTick = Math.max(viewTick, p.renderHostTick())
+    if (viewTick > 0) frame.viewTick = viewTick
     return frame
   }
 

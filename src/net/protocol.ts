@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
+import type { GameMode } from '../game/modes'
 import type { BodyState } from '../game/Body'
 
 /**
@@ -10,7 +11,7 @@ import type { BodyState } from '../game/Body'
 export type Vec3 = [number, number, number]
 
 /** Transport channel tags (short — Trystero limits action names to ~12 bytes). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'hit'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
 export type NetTag = typeof NET_TAGS[number]
 
 /** Match phase: host → all (readiness/countdown before the fight). */
@@ -34,10 +35,16 @@ export interface RosterEntry {
   ballArt?: string             // art on the ball (base64, front/back 32×32); absent → empty
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[] }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode }
 /** Client → host: readiness change in the lobby. */
 export interface ReadyMsg { ready: boolean }
-export interface Start { durationMs: number; mapId: MapId }
+/** Client → host: move me to this FREE slot (2v2 team change; harmless seat swap elsewhere). */
+export interface SetSlotMsg { slot: number }
+export interface Start {
+  durationMs: number
+  mapId: MapId
+  spawns?: Vec3[]   // FFA start positions by occupied-slot order (creator-generated → identical on every peer)
+}
 
 // --- client input → host (frequent) ---
 export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
@@ -84,7 +91,7 @@ export interface Snapshot {
 }
 
 // --- match events: host → all (reliable, ordered) ---
-export interface ScoreLine { name: string; kills: number; deaths: number }
+export interface ScoreLine { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
   | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }

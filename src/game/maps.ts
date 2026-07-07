@@ -14,7 +14,8 @@ import type { CompiledMap } from './mapGeometryCache'
  * true) — whether the beam raycast hits it: cover/columns block the line of fire (true), perimeter
  * walls are decor+collider and the beam passes through (false), as in the original arena. The floor is drawn by Arena separately.
  *
- * Spawns are given per slot: [HOST_ID, OPPONENT_ID] — eye-level points, facing each other along ±Z.
+ * Spawns are two eye-level anchor points facing each other along ±Z; the mode's spawn rule
+ * (src/game/spawns.ts) maps seats onto them (1v1 — one each; 2v2 — team clusters; FFA — generated).
  * Jump height ≈ JUMP_FORCE²/(2·|GRAVITY|) ≈ 1.45 — platforms aren't taller, so they're reachable by jump.
  */
 
@@ -39,7 +40,7 @@ export interface GameMap {
   half: [number, number]   // arena floor half-extents [X, Z] — a map can be rectangular (longer along Z)
   floorColor: string
   blocks: MapBlock[]
-  spawns: [Vec3, Vec3]   // [HOST_ID, OPPONENT_ID]
+  spawns: [Vec3, Vec3]   // the two anchor points (see the header comment)
   showBlockGrid?: boolean   // draw the cube grid in-game (default/absent — don't draw)
 }
 

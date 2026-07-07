@@ -42,7 +42,10 @@ import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
 import type { LobbySlot } from './screens/Lobby'
 import { DEFAULT_LOBBY_TAB } from './components/lobby/types'
-import type { LobbyTab } from './components/lobby/types'
+import type { LobbyTab, SeatView } from './components/lobby/types'
+import { teamOfSlot } from './game/modes'
+import type { GameMode } from './game/modes'
+import type { Vec3 } from './net/protocol'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
 import { About } from './screens/About'
@@ -84,7 +87,7 @@ import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet, PeerId } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { MatchRole, MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
-import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from './constants'
+import { DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from './constants'
 import { createMatchmakingPool } from './net/createMatchmakingPool'
 import type { MatchmakingPool } from './net/matchmaking'
 import { DualMatchmaker } from './net/DualMatchmaker'
@@ -113,6 +116,8 @@ interface GameNet {
   peerToPlayer: Map<PeerId, number>
   durationMs: number
   mapId: MapId
+  mode: GameMode          // lobby preset (teams/spawn rule) — rides into MatchOptions
+  ffaSpawns?: Vec3[]      // FFA start positions from the Start message
   code: string
   achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
   radioForMatch: boolean         // was the radio the soundtrack at match START? single authority for music gating
@@ -165,6 +170,8 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPer
         apiRef={apiRef}
         durationMs={gameNet.durationMs}
         mapId={gameNet.mapId}
+        gameMode={gameNet.mode}
+        ffaSpawns={gameNet.ffaSpawns}
         seedCode={gameNet.code}
         sfxEngine={sfxEngine}
         musicVolumeRef={musicVolumeRef}
@@ -483,10 +490,10 @@ export default function App() {
   const bindSession = (net: INet, role: RoomRole, code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
-    session.onStart((durationMs, mapId) => {
+    session.onStart((durationMs, mapId, mode, ffaSpawns) => {
       const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
       gameLog.set({ role: matchRole, localId: session.netConfig().localId, code })
-      gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000 })
+      gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000, mode })
       // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
       // Reset the previous match's result/time/score — otherwise the old result screen flashes over the new match.
@@ -496,7 +503,7 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled, radioForMatch: radioActive })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, mode, ffaSpawns, code, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.
@@ -868,6 +875,20 @@ export default function App() {
   const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
   const onLobbySetBotName = (name: string) => { setBotName(name); sessionRef.current?.setBotName(name) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
+  const onLobbySetMode = (m: GameMode) => sessionRef.current?.setMode(m)
+  /** Seat click in the 2v2/FFA grid. Host: empty → add a bot, a bot → reroll its name. Client: empty → move there. */
+  const onLobbySeatClick = (slot: number) => {
+    const s = sessionRef.current
+    if (!s) return
+    if (s.role === 'host') {
+      const seat = s.view().slots[slot]
+      if (seat === null) s.addBot(botDifficulty, undefined, slot)
+      else if (seat.kind === 'bot') s.setBotName(generateModelName(), slot)
+    } else {
+      s.requestSlot(slot)
+    }
+  }
+  const onLobbyBotRemove = (slot: number) => sessionRef.current?.removeBot(slot)
 
   // "vs Friend": symmetric rendezvous — both enter the same code and press SEARCH; selfId decides the role.
   const onLobbyFriendSearch = (code: string) => {
@@ -987,17 +1008,25 @@ export default function App() {
       : idleIsHost(lobbyTab)
     let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
     let opponent: (LobbySlot & { isBot: boolean }) | null = null
+    const mode: GameMode = v?.mode ?? '1v1'
+    let seats: SeatView[] = []
     if (v) {
-      const myId = isHost ? HOST_ID : OPPONENT_ID
-      const oppId = isHost ? OPPONENT_ID : HOST_ID
+      const myId = v.localPlayerId   // host: seat 0; client: assigned seat (-1 until ASSIGN)
       const meE = v.roster.find(r => r.id === myId)
       if (meE) me = { name: meE.name, color: meE.color, ready: v.ready.includes(myId) }
-      // the client sees the host ONLY after connecting (ASSIGN), otherwise its own host stub looks like a "match with yourself"
-      const oppE = (isHost || v.connected) ? v.roster.find(r => r.id === oppId) : undefined
-      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId), isBot: oppE.kind === 'bot' } : null
+      // the client sees the others ONLY after connecting (ASSIGN), otherwise its own host stub looks like a "match with yourself"
+      const oppE = (isHost || v.connected) ? v.roster.find(r => r.id !== myId) : undefined
+      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppE.id), isBot: oppE.kind === 'bot' } : null
+      seats = v.slots.map((e, slot) => ({
+        slot,
+        entry: (isHost || v.connected) && e ? { name: e.name, color: e.color, ready: v.ready.includes(e.id), isBot: e.kind === 'bot' } : null,
+        mine: myId >= 0 && e?.id === myId,
+        team: teamOfSlot(mode, slot),
+      }))
     }
     return {
-      isHost, me, opponent,
+      isHost, me, opponent, mode, seats,
+      onSetMode: onLobbySetMode, onSeatClick: onLobbySeatClick, onBotRemove: onLobbyBotRemove,
       mapSel: v?.mapSel ?? draftSel.map,
       durationSel: v?.durationSel ?? draftSel.durationMin,
       searching,

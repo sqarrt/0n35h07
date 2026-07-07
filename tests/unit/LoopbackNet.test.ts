@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createLoopbackPair } from '../../src/net/LoopbackNet'
+import { createLoopbackPair, createLoopbackHub } from '../../src/net/LoopbackNet'
 
 describe('LoopbackNet', () => {
   it('broadcast reaches the other endpoint with from=sender', () => {
@@ -37,5 +37,36 @@ describe('LoopbackNet', () => {
     host.onPeerJoin(join)
     expect(join).toHaveBeenCalledWith('client')
     expect(host.peers()).toEqual(['client'])
+  })
+})
+
+describe('createLoopbackHub — N peers, everyone hears everyone', () => {
+  it('broadcast reaches ALL other endpoints', () => {
+    const [a, b, c] = createLoopbackHub(['A', 'B', 'C'])
+    const gotB = vi.fn(); const gotC = vi.fn()
+    b.on('event', gotB); c.on('event', gotC)
+    a.broadcast('event', { t: 'kill' })
+    expect(gotB).toHaveBeenCalledWith({ t: 'kill' }, 'A')
+    expect(gotC).toHaveBeenCalledWith({ t: 'kill' }, 'A')
+  })
+
+  it('send targets exactly one peer; peers() lists the others', () => {
+    const [a, b, c] = createLoopbackHub(['A', 'B', 'C'])
+    const gotB = vi.fn(); const gotC = vi.fn()
+    b.on('event', gotB); c.on('event', gotC)
+    a.send('C', 'event', { t: 'kill' })
+    expect(gotC).toHaveBeenCalledOnce()
+    expect(gotB).not.toHaveBeenCalled()
+    expect(a.peers().sort()).toEqual(['B', 'C'])
+  })
+
+  it('triggerLeave(peerId) fires the leave callback for that peer only', () => {
+    const [a, , c] = createLoopbackHub(['A', 'B', 'C'])
+    const left = vi.fn()
+    a.onPeerLeave(left)
+    a.triggerLeave('C')
+    expect(left).toHaveBeenCalledWith('C')
+    expect(left).toHaveBeenCalledOnce()
+    void c
   })
 })

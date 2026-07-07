@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.1.0] - 2026-07-07
 
+### Added
+- **Game modes: 2v2 and Free-for-All (up to 4 players).** The lobby got a mode picker (1v1 / 2v2 / FFA) on the
+  friend/bot tabs. 2v2/FFA rooms show a 4-seat grid: the host seats or removes bots with a click, a guest moves to
+  any free seat (in 2v2 that switches their team). Teams spawn clustered at the two map points; FFA scatters players
+  randomly with a minimum distance. Teammate bodies block your beam but never take harm. Name plates over remote
+  players tell friend from foe (team-colored in 2v2, neutral in FFA, none in 1v1 — the classic duel looks untouched).
+  A player leaving no longer kills the match while at least two teams remain; the final screen ranks teams by summed
+  kills. Quick match stays 1v1.
+
 ### Changed
 - **Player colors are a fixed identity now.** The primary+reserve color pair is part of a player's appearance and is
   never substituted: joining a room no longer swaps your color when it collides with the host's (two players may share
