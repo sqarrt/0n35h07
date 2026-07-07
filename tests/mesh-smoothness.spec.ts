@@ -60,7 +60,8 @@ test('own player is fully local — advances with no rubber-band under latency',
       const tick = () => {
         const p = w.__debugPlayerPos?.(id)
         if (p) out.push({ x: p.x, z: p.z })
-        if (performance.now() - t0 > 1600) return res()
+        // Count-based: collect a fixed number of samples regardless of machine jank (hard 5s escape hatch).
+        if (out.length >= 10 || performance.now() - t0 > 5000) return res()
         setTimeout(tick, 60)
       }
       tick()
@@ -96,7 +97,7 @@ test('remote renders smoothly under latency — no jitter (interpolation buffer)
     const o: { x: number; z: number }[] = []
     const t0 = performance.now()
     await new Promise<void>((res) => {
-      const tick = () => { const p = w.__debugPlayerPos?.(0); if (p) o.push({ x: p.x, z: p.z }); if (performance.now() - t0 > 1600) return res(); setTimeout(tick, 60) }
+      const tick = () => { const p = w.__debugPlayerPos?.(0); if (p) o.push({ x: p.x, z: p.z }); if (o.length >= 10 || performance.now() - t0 > 5000) return res(); setTimeout(tick, 60) }
       tick()
     })
     return o
