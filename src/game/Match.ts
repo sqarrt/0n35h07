@@ -97,6 +97,8 @@ interface MatchOptions {
   netConfig: NetConfig     // roster from the room (entry.id === seat index)
   mode?: GameMode          // lobby preset (teams/spawn rule); absent → '1v1' (older callers/tests)
   ffaSpawns?: Vec3[]       // FFA start positions from the Start message (creator-generated)
+  owners?: Record<number, string>   // player id → owner PeerId; absent → everything is owned locally (bot matches/tests)
+  selfPeer?: string        // this peer's transport id (net.selfId); pairs with `owners`
   defaultThirdPerson?: boolean   // local player's starting view (local preference)
   durationMs?: number      // match duration in ms (0 = no timer, for backward compatibility)
   mapId?: MapId            // match map (geometry + spawns); defaults to DEFAULT_MAP_ID
@@ -120,6 +122,9 @@ export class Match {
 
   private world: World
   private mode: GameMode              // lobby preset: fixes teams (teamOfSlot) and the spawn rule
+  readonly selfPeer: string           // this peer's transport id ('local' when offline/tests)
+  readonly ownedIds: Set<number>      // players THIS peer simulates and judges (self + own bots)
+  private owners: Map<number, string> // player id → owner PeerId (missing → selfPeer)
   private singularityActive = false   // SINGULARITY mode: pierce for both + transparent blocks (tracked to toggle)
   private controllers: Controller[]
   private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
@@ -189,6 +194,10 @@ export class Match {
     this.role = o.role
     this.localId = o.netConfig.localId
     this.mode = o.mode ?? '1v1'
+    // Ownership: "every fact has exactly one owner". Absent owners → the local peer owns everyone (bot matches/tests).
+    this.selfPeer = o.selfPeer ?? 'local'
+    this.owners = new Map(Object.entries(o.owners ?? {}).map(([k, v]) => [Number(k), v]))
+    this.ownedIds = new Set(o.netConfig.roster.map(r => r.id).filter(id => (this.owners.get(id) ?? this.selfPeer) === this.selfPeer))
     this.predictionLog = o.role === 'client' ? new PredictionLog() : null
     this.durationMs = o.durationMs ?? 0
     this.achievements = o.achievements ?? new NoopAchievements()
@@ -261,25 +270,28 @@ export class Match {
         human = p
         humanController = new HumanController(p, o.camera, o.keys, o.controls, this.world, o.defaultThirdPerson ?? false)
         controllers.push(humanController)
-      } else if (this.role === 'host') {
-        if (isBot) {
-          controllers.push(new BotController(
-            p,
-            () => this.nearestEnemy(p),
-            this.world,
-            e.difficulty === 'passive',
-            botPersonality(e.name),
-          ))
-        } else {
-          const rc = new RemoteInputController(p, this.world)
-          this.remoteControllers.set(e.id, rc)
-          controllers.push(rc)
-        }
+      } else if (isBot && this.ownedIds.has(e.id)) {
+        // A bot is simulated ONLY by its owner; other peers render it from the owner's snapshots.
+        controllers.push(new BotController(
+          p,
+          () => this.nearestEnemy(p),
+          this.world,
+          e.difficulty === 'passive',
+          botPersonality(e.name),
+        ))
+      } else if (!isBot && this.role === 'host') {
+        // Star era (until the mesh cutover): the host buffers a remote human's inputs.
+        const rc = new RemoteInputController(p, this.world)
+        this.remoteControllers.set(e.id, rc)
+        controllers.push(rc)
       }
-      // client: remotes — no controller, driven from snapshots
+      // remotes without a controller are driven from their owner's snapshots
     }
     return { human, humanController, controllers, botIds }
   }
+
+  /** Owner PeerId of a player ('local'/selfPeer when this peer owns it). */
+  ownerOf(id: number): string { return this.owners.get(id) ?? this.selfPeer }
 
   /** Nearest ALIVE enemy of `p` (teammates, the dead and the departed are skipped); null when nobody hostile is up. */
   private nearestEnemy(p: Player): Player | null {
