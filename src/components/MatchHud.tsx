@@ -59,8 +59,13 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
       right = others.slice(others.length - rightCount)
     }
     const teamKills = (rs: RosterEntry[]) => rs.reduce((n, r) => n + kills(r.id), 0)
-    const paneTint = (rs: RosterEntry[]) =>
-      isBattle ? { background: `${TEAM_COLORS[scoreOf(rs[0]?.id)?.team ?? 0] ?? 'transparent'}26` } : undefined
+    const teamColor = (rs: RosterEntry[]) => TEAM_COLORS[scoreOf(rs[0]?.id)?.team ?? 0] ?? 'transparent'
+    const paneTint = (rs: RosterEntry[]) => (isBattle ? { background: `${teamColor(rs)}26` } : undefined)
+    // Team total lives ON the tinted pane (timer-adjacent edge), painted in the team color — it must
+    // never sink into the arena behind the HUD.
+    const total = (rs: RosterEntry[], testid: string) => (
+      <span className="frag mhud-total" data-testid={testid} style={{ color: teamColor(rs) }}>{teamKills(rs)}</span>
+    )
     const row = (entry: RosterEntry, mirror: boolean) => {
       const s = scoreOf(entry.id)
       const cells = [
@@ -80,11 +85,15 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
     }
     return (
       <div className="match-hud" data-testid="match-hud">
-        <div className="mhud-team" style={paneTint(left)}>{left.map(e => row(e, true))}</div>
-        {isBattle && <span className="frag" data-testid="hud-team-you">{teamKills(left)}</span>}
+        <div className="mhud-team" style={paneTint(left)}>
+          {left.map(e => row(e, true))}
+          {isBattle && total(left, 'hud-team-you')}
+        </div>
         <div className="timer">{fmt(matchTime)}</div>
-        {isBattle && <span className="frag" data-testid="hud-team-opp">{teamKills(right)}</span>}
-        <div className="mhud-team" style={paneTint(right)}>{right.map(e => row(e, false))}</div>
+        <div className="mhud-team" style={paneTint(right)}>
+          {isBattle && total(right, 'hud-team-opp')}
+          {right.map(e => row(e, false))}
+        </div>
       </div>
     )
   }

@@ -271,6 +271,7 @@
 .match-hud .mhud-team { display: flex; align-items: center; gap: 18px; padding: 6px 14px; border-radius: 6px; box-sizing: border-box; }
 .match-hud .mhud-row { display: flex; align-items: center; gap: 7px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
 .match-hud .mhud-row .frag { font-size: 15px; }
+.match-hud .mhud-total { font-size: 22px; text-shadow: 0 0 12px currentColor; }
 
 /* JoinRoom: code input with a running outline (connecting) and a red border (error) */
 .code-wrap { position: relative; width: 240px; height: 64px; }

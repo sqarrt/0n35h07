@@ -112,6 +112,7 @@ interface GameNet {
   mode: GameMode          // lobby preset (teams/spawn rule) — rides into MatchOptions
   ffaSpawns?: Vec3[]      // FFA start positions from the Start message
   code: string
+  seed: string            // match-music seed from the room creator (independent of the transport code)
   achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
   radioForMatch: boolean         // was the radio the soundtrack at match START? single authority for music gating
 }
@@ -164,7 +165,7 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPer
         mapId={gameNet.mapId}
         gameMode={gameNet.mode}
         ffaSpawns={gameNet.ffaSpawns}
-        seedCode={gameNet.code}
+        seedCode={gameNet.seed}
         sfxEngine={sfxEngine}
         musicVolumeRef={musicVolumeRef}
         audioAnalysis={audioAnalysis}
@@ -484,7 +485,7 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, achievementsEnabled, radioForMatch: radioActive })
+      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to hosting an idle room of our own.
