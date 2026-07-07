@@ -4,6 +4,8 @@ import { IS_DESKTOP } from '../../platform'
 export interface LobbySlot { name: string; color: string; ready: boolean }
 /** Opponent slot: a bot or a remote human. */
 export type OppSlot = LobbySlot & { isBot: boolean }
+/** A Steam invite the host has sent and is waiting on (rendered onto the first free seats). */
+export interface PendingInvite { id: string; name: string }
 /** A seat of the multi-slot lobby (2v2/FFA grid): index, occupant (null = free), whose it is, team group. */
 export interface SeatView {
   slot: number

@@ -4,7 +4,7 @@ import { IS_DESKTOP } from '../platform'
 import { onSteamInviteDeclined } from '../steam/steam'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
-import type { LobbySlot, OppSlot, LobbyTab, SeatView } from '../components/lobby/types'
+import type { LobbySlot, OppSlot, LobbyTab, SeatView, PendingInvite } from '../components/lobby/types'
 import type { GameMode } from '../game/modes'
 import { LobbyTabs } from '../components/lobby/LobbyTabs'
 import { LobbySeats } from '../components/lobby/LobbySeats'
@@ -26,6 +26,7 @@ interface LobbyProps {
   opponent: OppSlot | null
   mode: GameMode
   seats: SeatView[]            // full seat array (used by the 2v2/FFA grid; 1v1 keeps me/opponent)
+  seatedPeerIds: string[]      // transport peer ids currently seated (prunes accepted Steam invites)
   onSetMode: (m: GameMode) => void
   onSeatClick: (slot: number) => void   // host: empty → bot, bot → reroll; client: empty → move
   onBotRemove: (slot: number) => void
@@ -55,23 +56,27 @@ export function Lobby(props: LobbyProps) {
   const t = useT()
   const [roomCode, setRoomCode] = useState('')
   const codeInputRef = useRef<HTMLInputElement>(null)
-  // Steam "With friend": the friend picker modal + which friend we invited (the seat's "waiting" state).
+  // Steam "With friend": the friend picker modal + the invites we are waiting on (a LIST — the host may
+  // invite several friends into the 2v2/FFA grid; 1v1 uses just the first entry).
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [invited, setInvited] = useState<{ id: string; name: string } | null>(null)
-  // Once the friend actually joins (opponent fills) the pending state is irrelevant — clear it so a later
-  // leave returns the seat to the CTA, not a stale "waiting".
-  useEffect(() => { if (opponent) setInvited(null) }, [opponent])
-  // Leaving the "With friend" tab cancels any pending invite and closes the modal.
-  useEffect(() => { if (tab !== 'friend') { setInvited(null); setPickerOpen(false) } }, [tab])
-  // The invited friend declined → revert the seat from "waiting for {name}" to the invite CTA.
-  const invitedRef = useRef(invited); invitedRef.current = invited
+  const [invites, setInvites] = useState<PendingInvite[]>([])
+  // Once an invited friend actually SITS (their peer id appears among the seated), its pending entry is done —
+  // clear it so a later leave returns the seat to the CTA, not a stale "waiting".
+  useEffect(() => {
+    if (!props.seatedPeerIds.length) return
+    setInvites(prev => prev.filter(i => !props.seatedPeerIds.includes(i.id)))
+  }, [props.seatedPeerIds])
+  // Leaving the "With friend" tab cancels pending invites and closes the modal.
+  useEffect(() => { if (tab !== 'friend') { setInvites([]); setPickerOpen(false) } }, [tab])
+  // An invited friend declined → drop exactly that pending entry.
   useEffect(() => {
     if (!IS_DESKTOP) return
     let alive = true; let un = () => {}
-    void onSteamInviteDeclined(declinerId => { if (invitedRef.current?.id === declinerId) setInvited(null) })
+    void onSteamInviteDeclined(declinerId => setInvites(prev => prev.filter(i => i.id !== declinerId)))
       .then(u => { if (alive) un = u; else u() })
     return () => { alive = false; un() }
   }, [])
+  const invited = invites[0] ?? null   // the 1v1 seat shows a single pending invite
 
   const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
 
@@ -112,10 +117,15 @@ export function Lobby(props: LobbyProps) {
             {mode === '1v1' ? (
               <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching}
                 botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined}
-                inviteSeat={steamFriend && !opponent ? { invitedName: invited?.name ?? null, onInvite: () => setPickerOpen(true), onCancel: () => setInvited(null) } : undefined} />
+                inviteSeat={steamFriend && !opponent ? { invitedName: invited?.name ?? null, onInvite: () => setPickerOpen(true), onCancel: () => setInvites(prev => prev.slice(1)) } : undefined} />
             ) : (
               <LobbySeatsGrid mode={mode} isHost={isHost} seats={props.seats}
-                onSeatClick={props.onSeatClick} onBotRemove={props.onBotRemove} />
+                onSeatClick={props.onSeatClick} onBotRemove={props.onBotRemove}
+                invite={steamFriend && isHost ? {
+                  pending: invites,
+                  onInvite: () => setPickerOpen(true),
+                  onCancel: id => setInvites(prev => prev.filter(i => i.id !== id)),
+                } : undefined} />
             )}
           </div>
 
@@ -131,7 +141,7 @@ export function Lobby(props: LobbyProps) {
           <SteamFriendPicker
             open={pickerOpen} forming={!!props.steamFriendForming}
             onClose={() => setPickerOpen(false)}
-            onPick={(id, name) => { props.onSteamInviteFriend?.(id); setInvited({ id, name }); setPickerOpen(false) }} />
+            onPick={(id, name) => { props.onSteamInviteFriend?.(id); setInvites(prev => (prev.some(i => i.id === id) ? prev : [...prev, { id, name }])); setPickerOpen(false) }} />
         )}
 
         <LobbyAction
