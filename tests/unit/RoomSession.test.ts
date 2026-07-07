@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createLoopbackPair } from '../../src/net/LoopbackNet'
+import { createLoopbackPair, createLoopbackHub } from '../../src/net/LoopbackNet'
 import { RoomSession } from '../../src/net/RoomSession'
 import type { RoomView } from '../../src/net/RoomSession'
 import type { PlayerProfile } from '../../src/settings'
@@ -162,6 +162,24 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     hn2.triggerLeave()                                     // client left
     expect(view2.roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
     expect(view2.canStart).toBe(false)
+  })
+})
+
+describe('RoomSession — много-гостевое лобби', () => {
+  it('уход ДРУГОГО гостя не закрывает комнату у клиента; уход хоста — закрывает', () => {
+    const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])
+    const host = new RoomSession(h, 'host', 'AB12', HOST)
+    host.setMode('ffa')
+    const gb = new RoomSession(b, 'client', 'AB12', GUEST)
+    const gc = new RoomSession(c, 'client', 'AB12', { ...GUEST, name: 'Guest2' })
+    let closedB = 0
+    gb.onClosed(() => { closedB++ })
+    expect(gb.view().connected).toBe(true)
+    expect(gc.view().connected).toBe(true)
+    b.triggerLeave('C')          // у гостя B исчез гость C
+    expect(closedB).toBe(0)      // комната жива
+    b.triggerLeave('H')          // ушёл хост
+    expect(closedB).toBe(1)
   })
 })
 
