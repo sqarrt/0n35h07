@@ -17,6 +17,14 @@ describe('botAppearance', () => {
     expect(SHIELD_STYLES).toContain(a.shieldStyle)
   })
 
+  it('reserveColor: from the palette, differs from primary, deterministic per name', () => {
+    const a = botAppearance('RA9')
+    const b = botAppearance('RA9')
+    expect(PLAYER_COLORS).toContain(a.reserveColor)
+    expect(a.reserveColor).not.toBe(a.color)
+    expect(b.reserveColor).toBe(a.reserveColor)
+  })
+
   it('distinctness: different nicks do not yield the same skin', () => {
     const names = ['RA9', 'T-2000', 'RTX4080', 'AX12S', 'QZ7', 'MK3', 'NOVA', 'ZX9']
     const colors = new Set(names.map(n => botAppearance(n).color))

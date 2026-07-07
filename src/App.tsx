@@ -135,7 +135,6 @@ const GAME_CAMERA = { fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] as [nu
 interface GameCanvasProps {
   dispatch: (action: HUDAction) => void
   gameNet: GameNet
-  reserveColor: string
   defaultThirdPerson: boolean
   apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
@@ -151,7 +150,7 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
@@ -162,7 +161,6 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, d
         net={gameNet.net}
         netConfig={gameNet.netConfig}
         peerToPlayer={gameNet.peerToPlayer}
-        reserveColor={reserveColor}
         defaultThirdPerson={defaultThirdPerson}
         apiRef={apiRef}
         durationMs={gameNet.durationMs}
@@ -1124,7 +1122,6 @@ export default function App() {
           <GameCanvas
             dispatch={dispatch}
             gameNet={gameNet}
-            reserveColor={profile.reserveColor}
             defaultThirdPerson={profile.defaultView === 'tp'}
             apiRef={gameApiRef}
             sfxEngine={sfx}

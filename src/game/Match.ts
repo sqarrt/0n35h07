@@ -89,7 +89,6 @@ interface MatchOptions {
   dispatch: (a: HUDAction) => void
   role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // roster from the room: exactly [host, opponent]
-  localReserveColor?: string   // local player's "second" color (their planet ring); the opponent has no second one
   defaultThirdPerson?: boolean   // local player's starting view (local preference)
   durationMs?: number      // match duration in ms (0 = no timer, for backward compatibility)
   mapId?: MapId            // match map (geometry + spawns); defaults to DEFAULT_MAP_ID
@@ -214,8 +213,8 @@ export class Match {
     for (const e of roster) {
       const isBot = e.kind === 'bot'
       if (e.id === OPPONENT_ID && isBot) opponentIsBot = true
-      // Planet ring: the local player gets their "second" color (as in the menu); the opponent has no second → its own color.
-      const ringColor = e.id === net.localId ? (o.localReserveColor ?? e.color) : e.color
+      // Planet ring: the "second" appearance color ships in the roster for EVERY player; absent (older peer/demo) → own color.
+      const ringColor = e.reserveColor ?? e.color
       // Cosmetic styles from the roster; missing field → safe defaults for older clients.
       const windupStyle = e.windupStyle ?? 'classic'
       const respawnStyle = e.respawnStyle ?? 'echo'
