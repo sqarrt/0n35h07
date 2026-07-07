@@ -358,7 +358,7 @@ export class Match {
           if (p.weaponJustFired && p.fireOutcome) {
             const o = p.fireOutcome
             if (o.hitPoint) p.spawnImpact(o.hitPoint)
-            this.pendingHitClaim = { tick: this.tick, hitId: o.hitEntityId, point: o.hitPoint ? toVec3(o.hitPoint) : null, end: toVec3(o.end) }
+            this.pendingHitClaim = { tick: this.tick, shooter: p.id, hitId: o.hitEntityId, point: o.hitPoint ? toVec3(o.hitPoint) : null, end: toVec3(o.end) }
             gameLog.log('act', 'fire', { side: 'client', id: p.id, hit: o.hitEntityId, tick: this.tick })
             if (o.hitEntityId !== null) { gameLog.log('act', 'claim_send', { hitId: o.hitEntityId, tick: this.tick }); this.predictOpponentDeath(o.hitEntityId) }
           }

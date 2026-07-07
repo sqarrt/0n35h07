@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as THREE from 'three'
 import { toVec3, fromVec3, applyVec3, NET_TAGS } from '../../src/net/protocol'
-import type { Snapshot, RosterEntry, Assign, Start, SetSlotMsg } from '../../src/net/protocol'
+import type { Snapshot, RosterEntry, Assign, Start, SetSlotMsg, HitClaim, MatchEvent } from '../../src/net/protocol'
 
 describe('protocol Vec3', () => {
   it('toVec3/fromVec3 — roundtrip THREE.Vector3', () => {
@@ -29,13 +29,24 @@ describe('protocol Vec3', () => {
   })
 
   it('mode / setSlot / ffa-spawns shapes', () => {
-    const a: Assign = { yourId: 2, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: '2v2' }
-    const s: Start = { durationMs: 60000, mapId: 'os_arena', spawns: [[1, 1, 1]] }
+    const a: Assign = { yourId: 2, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: '2v2', owners: { 0: 'H' } }
+    const s: Start = { durationMs: 60000, mapId: 'os_arena', spawns: [[1, 1, 1]], owners: { 0: 'H' } }
     const m: SetSlotMsg = { slot: 3 }
     expect(a.mode).toBe('2v2')
     expect(s.spawns![0][1]).toBe(1)
     expect(m.slot).toBe(3)
     expect(NET_TAGS).toContain('setSlot')
+  })
+
+  it('mesh shapes: owners maps, shooter in HitClaim, ready event', () => {
+    const a: Assign = { yourId: 1, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: 'ffa', owners: { 0: 'H', 1: 'C' } }
+    const s: Start = { durationMs: 60000, mapId: 'os_arena', owners: { 0: 'H', 1: 'C', 2: 'H' } }
+    const c: HitClaim = { shooter: 2, hitId: 1, point: [0, 1, 0], end: [0, 1, -5] }
+    const r: MatchEvent = { t: 'ready', id: 3 }
+    expect(a.owners[1]).toBe('C')
+    expect(s.owners[2]).toBe('H')   // the creator owns the bots
+    expect(c.shooter).toBe(2)
+    expect(r.t).toBe('ready')
   })
 
   it('ballArt survives a JSON round-trip in RosterEntry', () => {

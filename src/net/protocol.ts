@@ -35,7 +35,7 @@ export interface RosterEntry {
   ballArt?: string             // art on the ball (base64, front/back 32×32); absent → empty
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode; owners: Record<number, string> }
 /** Client → host: readiness change in the lobby. */
 export interface ReadyMsg { ready: boolean }
 /** Client → host: move me to this FREE slot (2v2 team change; harmless seat swap elsewhere). */
@@ -44,6 +44,7 @@ export interface Start {
   durationMs: number
   mapId: MapId
   spawns?: Vec3[]   // FFA start positions by occupied-slot order (creator-generated → identical on every peer)
+  owners: Record<number, string>   // player id → transport PeerId of its OWNER (humans — their peer; bots — the creator's)
 }
 
 // --- client input → host (frequent) ---
@@ -61,14 +62,15 @@ export interface InputFrame {
   dash:   boolean
 }
 
-/** Shooter-authoritative hit: the CLIENT raycasts its own beam locally and claims the result. The host validates
- *  loosely (victim alive / not shielding / plausible range+LOS) and applies the kill/block — so "what you shot is what
- *  you hit", no lag-comp rewind. `hitId` is the entity the client's ray struck (the opponent's id, or null for a wall/miss). */
+/** Shooter-authoritative hit: the shooter's peer raycasts its own beam locally and claims the result; the claim is
+ *  addressed to the VICTIM'S OWNER, who judges it against its real local state (alive / ghost / shield — "the shield
+ *  wins") and broadcasts the verdict as a kill/block event — so "what you shot is what you hit", no lag-comp rewind. */
 export interface HitClaim {
-  tick:  number      // the client sim tick the beam fired on
+  tick?: number      // legacy (star era); unused in the mesh — removed with the star cleanup
+  shooter: number    // the shooter's player id (may be a bot simulated by the sending peer)
   hitId: number | null
   point: Vec3 | null // impact point (null on a wall/miss)
-  end:   Vec3        // the beam's end point (for the host to render the opponent's beam toward the claim)
+  end:   Vec3        // the beam's end point (to render the shooter's beam toward the claim)
 }
 
 // --- world state: host → all (frequent) ---
@@ -98,6 +100,7 @@ export type MatchEvent =
   | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)
+  | { t: 'ready';   id: number }   // mesh: a peer declares one of ITS players ready (the creator stamps the countdown)
   | { t: 'scores';  scores: ScoreLine[] }
   | { t: 'time';     remainingMs: number }
   | { t: 'matchEnd'; reason: 'time' | 'disconnect' }
