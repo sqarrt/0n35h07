@@ -165,6 +165,21 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
   })
 })
 
+describe('RoomSession — пер-слотовая сложность бота', () => {
+  it('setBotDifficulty(d, slot) меняет ровно одного бота; на не-боте — no-op', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('ffa')
+    solo.addBot('normal', 'ONE', 1)
+    solo.addBot('normal', 'TWO', 2)
+    solo.setBotDifficulty('passive', 2)
+    expect(solo.view().slots[1]?.difficulty).toBe('normal')
+    expect(solo.view().slots[2]?.difficulty).toBe('passive')
+    solo.setBotDifficulty('passive', 0)   // слот хоста — не бот
+    expect(solo.view().slots[0]?.difficulty).toBeUndefined()
+  })
+})
+
 describe('RoomSession — много-гостевое лобби', () => {
   it('уход ДРУГОГО гостя не закрывает комнату у клиента; уход хоста — закрывает', () => {
     const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])

@@ -222,11 +222,12 @@ export class RoomSession {
     this.broadcastRoster()
   }
 
-  /** Difficulty applies to ALL bots (single lobby picker — v1 UX). */
-  setBotDifficulty(d: BotDifficulty) {
-    let changed = false
-    for (const s of this.slots) if (s?.kind === 'bot') { s.difficulty = d; changed = true }
-    if (changed) this.broadcastRoster()
+  /** Set one bot's difficulty (per-seat picker). No-op if the seat isn't a bot. */
+  setBotDifficulty(d: BotDifficulty, slot: number) {
+    const s = this.slots[slot]
+    if (s?.kind !== 'bot' || s.difficulty === d) return
+    s.difficulty = d
+    this.broadcastRoster()
   }
 
   /** Rename a bot live: the name re-derives personality+appearance. Without `slot` — the first bot (1v1 compat).

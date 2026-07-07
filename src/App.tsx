@@ -884,7 +884,12 @@ export default function App() {
   // --- lobby callbacks ---
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
-  const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
+  // Tab-level picker (1v1 bot tab): remember as the default for NEW bots + retune the seated ones per seat.
+  const onLobbySetBotDifficulty = (d: BotDifficulty) => {
+    setBotDifficulty(d)
+    const s = sessionRef.current
+    if (s) for (const r of s.netConfig().roster) if (r.kind === 'bot') s.setBotDifficulty(d, r.id)
+  }
   const onLobbySetBotName = (name: string) => { setBotName(name); sessionRef.current?.setBotName(name) }
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
   const onLobbySetMode = (m: GameMode) => sessionRef.current?.setMode(m)
