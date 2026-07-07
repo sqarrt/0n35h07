@@ -266,6 +266,23 @@ describe('RoomSession — режимы и слоты', () => {
     expect(got).toHaveLength(3)
   })
 
+  it('owners: боты принадлежат создателю, люди — своим пирам; клиент видит то же из Assign', () => {
+    const { host, client } = handshake(GUEST)
+    host.setMode('ffa')
+    host.addBot('normal')                          // slot 2 — owned by the creator
+    expect(host.netConfig().owners).toEqual({ 0: 'H', 1: 'C', 2: 'H' })
+    expect(client.netConfig().owners).toEqual({ 0: 'H', 1: 'C', 2: 'H' })
+  })
+
+  it('owners едут в onStart', () => {
+    const { host, client } = handshake(GUEST)
+    let got: Record<number, string> | undefined
+    client.onStart((_ms, _map, _mode, _spawns, owners) => { got = owners })
+    client.setLocalReady(true)
+    host.setLocalReady(true)
+    expect(got).toEqual({ 0: 'H', 1: 'C' })
+  })
+
   it('в 1v1 start НЕ кладёт spawns (карта решает)', () => {
     const { host, client } = handshake(GUEST)
     let got: Vec3[] | undefined = [[9, 9, 9]]

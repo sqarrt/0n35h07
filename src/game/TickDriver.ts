@@ -9,9 +9,8 @@ export class TickDriver {
   private acc = 0
   private _alpha = 0
 
-  advance(realDt: number, driftSec: number = 0): { ticks: number; alpha: number } {
-    this.acc += Math.min(realDt, MAX_FRAME_DT) + driftSec   // clamp a spike; driftSec = the client's clock-sync nudge
-    if (this.acc < 0) this.acc = 0                           // a slow-down nudge must never push the accumulator negative
+  advance(realDt: number): { ticks: number; alpha: number } {
+    this.acc += Math.min(realDt, MAX_FRAME_DT)   // clamp a spike (tab resume / WASM load)
     let ticks = 0
     while (this.acc >= FIXED_DT && ticks < MAX_CATCHUP_STEPS) { this.acc -= FIXED_DT; ticks++ }
     if (this.acc >= FIXED_DT) this.acc = this.acc % FIXED_DT   // hit the cap → shed the backlog (no spiral-of-death)

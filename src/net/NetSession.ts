@@ -1,96 +1,70 @@
 import type { INet, PeerId } from './INet'
-import type { InputFrame, Snapshot, MatchEvent, PhaseMsg, HitClaim } from './protocol'
-import type { MatchRole } from '../constants'
+import type { Snapshot, MatchEvent, PhaseMsg, HitClaim } from './protocol'
 import { NET_SNAPSHOT_HZ } from '../constants'
 import { gameLog } from '../diag/gameLog'
 
 /** Narrow Match contract for networking — lets NetSession be tested without Rapier. */
 export interface MatchNet {
-  readonly role: MatchRole
   readonly localId: number
   serializeSnapshot(): Snapshot
   drainEvents(): MatchEvent[]
-  pushRemoteInput(playerId: number, frame: InputFrame): void
-  applySnapshot(snap: Snapshot): void
-  applyEvent(e: MatchEvent): void
-  localInputFrame(): InputFrame
-  applyHitClaim(shooterId: number, claim: HitClaim): void   // host: a client's shooter-authoritative hit
-  drainHitClaim(): HitClaim | null                          // client: a pending hit to send this frame (cleared)
-  markReady(id: number): void
+  drainClaims(): Array<{ to: string; claim: HitClaim }>
+  applyPeerSnapshot(from: string, snap: Snapshot): void
+  applyPeerEvent(from: string, e: MatchEvent): void
+  judgeIncomingClaim(from: string, claim: HitClaim): void
   applyPhase(p: PhaseMsg): void
   serializePhase(): PhaseMsg
   phaseDirty(): boolean
   clearPhaseDirty(): void
-  handlePlayerLeft(id: number): void
+  iAmCreator(): boolean
+  creatorPeer(): string
+  handlePeerLeft(peer: string): void
 }
 
 /**
- * Network orchestrator over the transport (INet). Incoming messages are applied in handlers
- * (event-driven), outgoing ones are sent by `afterUpdate` after the simulation step:
- *  - host: match events (reliable, every frame) + snapshot (throttled to NET_SNAPSHOT_HZ);
- *  - client: own player's input frame (every frame).
+ * Symmetric mesh orchestrator over the transport (INet) — every peer runs the SAME session:
+ *  - broadcasts its OWN facts: events every frame, snapshots of its owned players throttled to NET_SNAPSHOT_HZ;
+ *  - ships hit claims ADDRESSED to the victim's owner (the judge);
+ *  - applies the other peers' snapshots/events with ownership attribution inside Match;
+ *  - only the lobby creator broadcasts phase stamps (ready→countdown).
  */
 export class NetSession {
   private net: INet
   private match: MatchNet
-  private peerToPlayer: Map<PeerId, number>
   private lastSnapshotAt = 0
   private readonly snapshotInterval = 1000 / NET_SNAPSHOT_HZ
 
-  constructor(net: INet, match: MatchNet, peerToPlayer: Map<PeerId, number>) {
+  constructor(net: INet, match: MatchNet) {
     this.net = net
     this.match = match
-    this.peerToPlayer = peerToPlayer
 
-    if (match.role === 'host') {
-      net.on('input', (payload, from) => {
-        const pid = this.peerToPlayer.get(from)
-        if (pid !== undefined) this.match.pushRemoteInput(pid, payload as InputFrame)
-      })
-      net.on('ready', (_payload, from) => {
-        const pid = this.peerToPlayer.get(from)
-        if (pid !== undefined) this.match.markReady(pid)
-      })
-      net.on('hit', (payload, from) => {
-        const pid = this.peerToPlayer.get(from)
-        if (pid !== undefined) this.match.applyHitClaim(pid, payload as HitClaim)
-      })
-    } else if (match.role === 'client') {
-      net.on('snapshot', payload => this.match.applySnapshot(payload as Snapshot))
-      net.on('event', payload => this.match.applyEvent(payload as MatchEvent))
-      net.on('phase', payload => this.match.applyPhase(payload as PhaseMsg))
-    }
-
+    net.on('snapshot', (payload, from) => this.match.applyPeerSnapshot(from, payload as Snapshot))
+    net.on('event', (payload, from) => this.match.applyPeerEvent(from, payload as MatchEvent))
+    net.on('hit', (payload, from) => this.match.judgeIncomingClaim(from, payload as HitClaim))
+    net.on('phase', (payload, from) => {
+      if (from !== this.match.creatorPeer()) { gameLog.warn('phase', 'phase_drop', { from }); return }
+      this.match.applyPhase(payload as PhaseMsg)
+    })
     net.onPeerLeave(peerId => this.onPeerLeave(peerId))
   }
 
-  /** Disconnect: host knows playerId by peer; for the client, the one who left is the host (id 0). */
+  /** Disconnect: every player owned by the vanished peer leaves (bots go down with their owner). */
   private onPeerLeave(peerId: PeerId) {
-    const pid = this.peerToPlayer.get(peerId)
-    gameLog.warn('transport', 'peer_left', { peer: peerId, playerId: pid ?? null, role: this.match.role })
-    if (pid !== undefined) this.match.handlePlayerLeft(pid)
-    else if (this.match.role === 'client') this.match.handlePlayerLeft(0)
+    gameLog.warn('transport', 'peer_left', { peer: peerId })
+    this.match.handlePeerLeft(peerId)
   }
-
-  /** Client announces readiness to the host. */
-  sendReady() { this.net.broadcast('ready', {}) }
 
   /** Send outgoing data after the simulation step. */
   afterUpdate(now: number = Date.now()) {
-    if (this.match.role === 'host') {
-      if (this.match.phaseDirty()) {
-        this.net.broadcast('phase', this.match.serializePhase())
-        this.match.clearPhaseDirty()
-      }
-      for (const e of this.match.drainEvents()) this.net.broadcast('event', e)
-      if (now - this.lastSnapshotAt >= this.snapshotInterval) {
-        this.lastSnapshotAt = now
-        this.net.broadcast('snapshot', this.match.serializeSnapshot())
-      }
-    } else if (this.match.role === 'client') {
-      this.net.broadcast('input', this.match.localInputFrame())
-      const hit = this.match.drainHitClaim()   // shooter-authoritative: our own raycast result, this tick
-      if (hit) this.net.broadcast('hit', hit)
+    if (this.match.phaseDirty()) {
+      if (this.match.iAmCreator()) this.net.broadcast('phase', this.match.serializePhase())
+      this.match.clearPhaseDirty()   // non-creators keep the flag local (their phase comes from the creator)
+    }
+    for (const e of this.match.drainEvents()) this.net.broadcast('event', e)
+    for (const { to, claim } of this.match.drainClaims()) this.net.send(to, 'hit', claim)
+    if (now - this.lastSnapshotAt >= this.snapshotInterval) {
+      this.lastSnapshotAt = now
+      this.net.broadcast('snapshot', this.match.serializeSnapshot())
     }
   }
 

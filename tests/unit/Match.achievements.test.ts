@@ -38,11 +38,11 @@ describe('Match → achievements routing (local player only)', () => {
   it('client: own kill drives onKill, opponent kill does not', () => {
     const ach = new FakeAchievements()
     const match = makeMatch('client', ach)
-    // Our kill (shooter = localId 0)
-    match.applyEvent({ t: 'kill', shooter: 0, victim: 1, streak: 2, firstBlood: false, bounty: 1, resetCd: false })
+    // Our kill (shooter = localId 0). Mesh: streak/firstBlood are DERIVED locally — first kill → streak 1, firstBlood.
+    match.applyEvent({ t: 'kill', shooter: 0, victim: 1 })
     // Opponent's kill (shooter = 1) — must NOT credit us
-    match.applyEvent({ t: 'kill', shooter: 1, victim: 0, streak: 1, firstBlood: false, bounty: 1, resetCd: false })
-    expect(ach.kills).toEqual([[2, false]])
+    match.applyEvent({ t: 'kill', shooter: 1, victim: 0 })
+    expect(ach.kills).toEqual([[1, true]])
   })
 
   it('client: own perfect block drives onPerfectBlock; a non-perfect block does not', () => {

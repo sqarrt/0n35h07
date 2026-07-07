@@ -1,5 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// E2E_PORT lets the suite run side-by-side with a developer's live dev server on 5173
+// (WSL: a Windows-side listener blocks the default port for the test-owned Vite).
+const PORT = Number(process.env.E2E_PORT ?? 5173)
+const BASE_URL = `http://localhost:${PORT}`
+
 // Disable Chromium background tab throttling: multiplayer tests keep 2 pages (most of them hidden),
 // and timer/render throttling slows HELLO retries in LobbySession → handshake flakiness under load.
 const NO_BG_THROTTLE = [
@@ -22,8 +27,8 @@ export default defineConfig({
   timeout: process.env.CI ? 120_000 : 30_000,
   expect: { timeout: process.env.CI ? 20_000 : 5_000 },
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
+    command: `npm run dev -- --port ${PORT} --strictPort`,
+    url: BASE_URL,
     reuseExistingServer: true,
     timeout: 180_000,   // cold Vite dev-server start + first-load module transform on a CI runner
   },
@@ -32,7 +37,7 @@ export default defineConfig({
       name: 'headless',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:5173',
+        baseURL: BASE_URL,
         headless: true,
         launchOptions: { args: NO_BG_THROTTLE },
       },
@@ -41,7 +46,7 @@ export default defineConfig({
       name: 'headed',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://localhost:5173',
+        baseURL: BASE_URL,
         headless: false,
         launchOptions: { args: NO_BG_THROTTLE },
       },
@@ -52,7 +57,7 @@ export default defineConfig({
       // Or set CDP_PORT env var to match.
       name: 'connected',
       use: {
-        baseURL: 'http://localhost:5173',
+        baseURL: BASE_URL,
       },
     },
   ],

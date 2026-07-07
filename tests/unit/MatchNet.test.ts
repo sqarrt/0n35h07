@@ -40,8 +40,15 @@ describe('Match — network mode', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })
   })
 
-  it('client applySnapshot: the remote gets an interpolation target; the local player does NOT (it is reconciled by prediction error, not a per-frame pull)', () => {
-    const { match } = makeMatch('client', 1)
+  it('applyPeerSnapshot: только игроки отправителя получают интерп-таргет; свои игнорируются даже если пришли', () => {
+    const dispatch = vi.fn()
+    const match = new Match({
+      scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+      controls: { current: null } as React.RefObject<any>,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
+      dispatch, role: 'peer', netConfig: { localId: 1, roster: ROSTER },
+      owners: { 0: 'X', 1: 'ME' }, selfPeer: 'ME',
+    })
     const snap: Snapshot = {
       ackSeq: 0,
       players: [
@@ -49,9 +56,9 @@ describe('Match — network mode', () => {
         { id: 1, pos: [9, 9, 9], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false },
       ],
     }
-    match.applySnapshot(snap)
-    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)    // remote: interpolated from snapshots
-    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)   // local: predicted + error-gated correction
+    match.applyPeerSnapshot('X', snap)
+    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)    // X's player: interpolated
+    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)   // OUR player: never accepted from the wire
   })
 
   it('host with a bot opponent: the bot in the roster ends up in the snapshot', () => {
@@ -136,19 +143,21 @@ describe('Match — network mode', () => {
     expect(match.human.weaponJustFired).toBe(false)   // flag cleared (resolveCombat does not run on the client)
   })
 
-  it('host: client input is applied to its avatar after combat starts (pushRemoteInput → update)', () => {
-    const t0 = 2_000_000
-    const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
-    const { match } = makeMatch('host', 0)
-    match.markReady(0)
-    match.markReady(1)
-    spy.mockReturnValue(t0 + READY_COUNTDOWN_MS + 1)
-    match.update(0.016)   // countdown elapsed → live (unfreeze)
-    spy.mockRestore()
-    expect(match.phase).toBe('live')
-
-    match.pushRemoteInput(1, { seq: 1, keys: { f: false, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: true, shield: false, dash: false })
-    match.update(0.016)
-    expect(match.players.find(p => p.id === 1)!.isWindingUp).toBe(true)   // fire was applied to the client's avatar
+  it('mesh: чужой аватар двигается снапшотами владельца, а не инпутами (interp target после applyPeerSnapshot)', () => {
+    const dispatch = vi.fn()
+    const match = new Match({
+      scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+      controls: { current: null } as React.RefObject<any>,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
+      dispatch, role: 'peer', netConfig: { localId: 0, roster: ROSTER },
+      owners: { 0: 'ME', 1: 'X' }, selfPeer: 'ME',
+    })
+    match.applyPeerSnapshot('X', {
+      tick: 1,
+      players: [{ id: 1, pos: [4, 1.7, -2], aimDir: [0, 0, -1], alive: true, shieldActive: true, dashing: false, windupProgress: 0, respawning: false }],
+    })
+    const remote = match.players.find(p => p.id === 1)!
+    expect(remote.hasNetTarget()).toBe(true)
+    expect(remote.netShielding).toBe(true)   // визуальные флаги владельца применились
   })
 })

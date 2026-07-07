@@ -57,11 +57,12 @@ export class RoomSession {
   private selMap: MapFilter = [DEFAULT_MAP_ID]          // set of selected maps — UI/Hello/resolve
   private selDuration: DurationFilter = [DEFAULT_MATCH_DURATION_MIN]
   private changeCb: (v: RoomView) => void = () => {}
-  private startCb: (durationMs: number, mapId: MapId, mode: GameMode, spawns?: Vec3[]) => void = () => {}
+  private startCb: (durationMs: number, mapId: MapId, mode: GameMode, spawns: Vec3[] | undefined, owners: Record<number, string>) => void = () => {}
   private helloTimer: ReturnType<typeof setInterval> | null = null
   private peerSeen = false   // client: transport found a peer at least once (for "room found" indication)
   private readyIds = new Set<number>()   // ids of ready players (bots are auto-ready; lobby start gate)
   private started = false                // guard: start() exactly once
+  private clientOwners: Record<number, string> = {}   // client: owner map from the last Assign
   private disposed = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null   // client: handshake watchdog
   private closedCb: () => void = () => {}   // client: host left / handshake timeout → revert to pre-search state
@@ -88,7 +89,7 @@ export class RoomSession {
     } else {
       this.localPlayerId = -1
       net.on('assign', payload => this.onAssign(payload as Assign))
-      net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId, this.mode, s.spawns) })
+      net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId, this.mode, s.spawns, s.owners) })
       net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // found the host — introduce ourselves
       net.onPeerLeave(() => this.onHostGone())   // host left to lobby → client rolls back to search
       if (net.peers().length) this.peerSeen = true   // "with a friend" rendezvous: peer already visible before session is built
@@ -238,12 +239,19 @@ export class RoomSession {
 
   // --- host: assign/start ---
 
+  /** Owner map: humans — the peer occupying the seat; the creator's own seat and every bot — the creator's peer. */
+  private ownersMap(): Record<number, string> {
+    const owners: Record<number, string> = {}
+    for (const e of this.occupied()) owners[e.id] = this.peerBySlot.get(e.id) ?? this.net.selfId
+    return owners
+  }
+
   private sendAssign(peer: PeerId) {
     const yourId = [...this.peerBySlot.entries()].find(([, p]) => p === peer)?.[0]
     if (yourId === undefined) return
     netDiagMark('assignSent', { peer })
     gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin, yourId })
-    this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode, owners: this.ownersMap() } satisfies Assign)
   }
   private broadcastRoster() {
     for (const peer of this.peerBySlot.values()) this.sendAssign(peer)
@@ -258,8 +266,8 @@ export class RoomSession {
     // FFA: the creator generates the start positions and ships them — identical on every peer, no shared RNG.
     const spawns = this.mode === 'ffa' ? genFfaSpawns(this.occupied().length, MAPS[this.mapId].spawns[0][1]) : undefined
     gameLog.log('room', 'start_send', { mapId: this.mapId, durationMs, mode: this.mode })
-    this.net.broadcast('start', { durationMs, mapId: this.mapId, spawns } satisfies Start)
-    this.startCb(durationMs, this.mapId, this.mode, spawns)
+    this.net.broadcast('start', { durationMs, mapId: this.mapId, spawns, owners: this.ownersMap() } satisfies Start)
+    this.startCb(durationMs, this.mapId, this.mode, spawns, this.ownersMap())
   }
 
   /** Local player readiness. Host sets its own and checks for start; client sends it to the host. */
@@ -329,6 +337,7 @@ export class RoomSession {
     this.clearTimers()   // connected — stop calling HELLO and watching the handshake
     this.localPlayerId = a.yourId
     this.mode = a.mode
+    this.clientOwners = a.owners
     this.slots = Array.from({ length: MODE_SLOT_COUNT[a.mode] }, (_, i) => a.roster.find(r => r.id === i) ?? null)
     this.durationMin = a.durationMin
     this.mapId = a.mapId
@@ -371,7 +380,7 @@ export class RoomSession {
 
   // --- shared API ---
   onChange(cb: (v: RoomView) => void) { this.changeCb = cb; cb(this.view()) }
-  onStart(cb: (durationMs: number, mapId: MapId, mode: GameMode, spawns?: Vec3[]) => void) { this.startCb = cb }
+  onStart(cb: (durationMs: number, mapId: MapId, mode: GameMode, spawns: Vec3[] | undefined, owners: Record<number, string>) => void) { this.startCb = cb }
   /** Client: session closed before the match (host left / handshake timeout). Never fires on the host. */
   onClosed(cb: () => void) { this.closedCb = cb }
   private emitChange() { this.changeCb(this.view()) }
@@ -397,7 +406,7 @@ export class RoomSession {
     }
   }
 
-  netConfig() { return { localId: this.localPlayerId, roster: this.roster(), mode: this.mode } }
+  netConfig() { return { localId: this.localPlayerId, roster: this.roster(), mode: this.mode, owners: this.role === 'host' ? this.ownersMap() : this.clientOwners } }
   hostPeerToPlayer(): Map<PeerId, number> {
     return new Map([...this.peerBySlot.entries()].map(([slot, peer]) => [peer, slot]))
   }

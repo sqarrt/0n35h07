@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 import type { GameMode } from '../game/modes'
-import type { BodyState } from '../game/Body'
 
 /**
  * OneShot network protocol (host-authoritative). All payloads are
@@ -11,7 +10,7 @@ import type { BodyState } from '../game/Body'
 export type Vec3 = [number, number, number]
 
 /** Transport channel tags (short — Trystero limits action names to ~12 bytes). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
 export type NetTag = typeof NET_TAGS[number]
 
 /** Match phase: host → all (readiness/countdown before the fight). */
@@ -35,7 +34,7 @@ export interface RosterEntry {
   ballArt?: string             // art on the ball (base64, front/back 32×32); absent → empty
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode; owners: Record<number, string> }
 /** Client → host: readiness change in the lobby. */
 export interface ReadyMsg { ready: boolean }
 /** Client → host: move me to this FREE slot (2v2 team change; harmless seat swap elsewhere). */
@@ -44,31 +43,17 @@ export interface Start {
   durationMs: number
   mapId: MapId
   spawns?: Vec3[]   // FFA start positions by occupied-slot order (creator-generated → identical on every peer)
+  owners: Record<number, string>   // player id → transport PeerId of its OWNER (humans — their peer; bots — the creator's)
 }
 
-// --- client input → host (frequent) ---
-export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
-export interface InputFrame {
-  tick:   number     // the client SIM TICK this input was produced on (fixed 60 Hz) — the host applies it tick-aligned
-                     // and echoes the last-applied tick as Snapshot.ackTick for the client's prediction reconciliation
-  viewTick?: number  // on a FIRE: the host-tick the client was rendering the opponent at → the host rewinds to it (lag-comp)
-  keys:   InputKeys
-  aimDir: Vec3       // look direction (for the movement basis and aim)
-  aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
-  jump:   boolean    // held jump state (auto-bhop/double jump is computed by Body on the host)
-  fire:   boolean    // edge actions (fire/shield/dash) — one-shot per frame
-  shield: boolean
-  dash:   boolean
-}
-
-/** Shooter-authoritative hit: the CLIENT raycasts its own beam locally and claims the result. The host validates
- *  loosely (victim alive / not shielding / plausible range+LOS) and applies the kill/block — so "what you shot is what
- *  you hit", no lag-comp rewind. `hitId` is the entity the client's ray struck (the opponent's id, or null for a wall/miss). */
+/** Shooter-authoritative hit: the shooter's peer raycasts its own beam locally and claims the result; the claim is
+ *  addressed to the VICTIM'S OWNER, who judges it against its real local state (alive / ghost / shield — "the shield
+ *  wins") and broadcasts the verdict as a kill/block event — so "what you shot is what you hit", no lag-comp rewind. */
 export interface HitClaim {
-  tick:  number      // the client sim tick the beam fired on
+  shooter: number    // the shooter's player id (may be a bot simulated by the sending peer)
   hitId: number | null
   point: Vec3 | null // impact point (null on a wall/miss)
-  end:   Vec3        // the beam's end point (for the host to render the opponent's beam toward the claim)
+  end:   Vec3        // the beam's end point (to render the shooter's beam toward the claim)
 }
 
 // --- world state: host → all (frequent) ---
@@ -81,26 +66,23 @@ export interface PlayerSnapshot {
   dashing:        boolean
   windupProgress: number
   respawning:     boolean   // ghost phase (semi-transparent, invulnerable)
-  restore:        BodyState // authoritative movement state — the LOCAL player uses it to restore before replay (opponent ignores it)
 }
 export interface Snapshot {
-  ackTick: number              // last client SIM TICK the host applied (for prediction reconciliation)
-  tick:    number              // the host's own SIM TICK at serialize (lets the client tag what host-tick it renders → lag-comp)
-  buffered: number             // client inputs still queued on the host (its jitter-buffer depth) — the client nudges its tick rate to hold this near target so the host never starves (gap) or overflows (drop)
-  players: PlayerSnapshot[]
+  tick:    number              // sender's sim tick at serialize (interpolation ordering)
+  players: PlayerSnapshot[]    // ONLY the sender's owned players
 }
 
 // --- match events: host → all (reliable, ordered) ---
-export interface ScoreLine { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
-  | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }
+  // Slim on purpose: score/streak/bounty/firstBlood are DERIVED by every peer from the (shooter, victim) stream.
+  // The optional legacy fields keep old RECORDED demos (trailer sources) parseable — live code never reads them.
+  | { t: 'kill';    shooter: number; victim: number; streak?: number; firstBlood?: boolean; bounty?: number; resetCd?: boolean }
   | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)
-  | { t: 'scores';  scores: ScoreLine[] }
-  | { t: 'time';     remainingMs: number }
-  | { t: 'matchEnd'; reason: 'time' | 'disconnect' }
+  | { t: 'ready';   id: number }   // mesh: a peer declares one of ITS players ready (the creator stamps the countdown)
+
 
 // --- Vec3 ↔ THREE.Vector3 helpers ---
 export function toVec3(v: THREE.Vector3): Vec3 { return [v.x, v.y, v.z] }

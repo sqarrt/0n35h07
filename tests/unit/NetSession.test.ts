@@ -1,146 +1,120 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createLoopbackPair } from '../../src/net/LoopbackNet'
+import { createLoopbackHub } from '../../src/net/LoopbackNet'
 import { NetSession } from '../../src/net/NetSession'
 import type { MatchNet } from '../../src/net/NetSession'
-import type { InputFrame, Snapshot, MatchEvent, PhaseMsg, HitClaim } from '../../src/net/protocol'
-import type { MatchRole } from '../../src/constants'
+import type { MatchEvent, Snapshot, HitClaim, PhaseMsg } from '../../src/net/protocol'
+import { NET_SNAPSHOT_HZ } from '../../src/constants'
 
-const CLAIM: HitClaim = { tick: 9, hitId: 0, point: [1, 1.7, 0], end: [2, 1.7, 0] }
+const SNAP: Snapshot = { ackTick: 0, tick: 1, buffered: 0, players: [] }
+const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1, 2] }
 
-function frame(tick: number): InputFrame {
-  return { tick, keys: { f: true, b: false, l: false, r: false }, aimDir: [0, 0, -1], jump: false, fire: false, shield: false, dash: false }
-}
-const SNAP: Snapshot = { ackSeq: 3, players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }] }
-const EVENT: MatchEvent = { t: 'kill', shooter: 0, victim: 1 }
-const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1] }
-
-type Stub = MatchNet & {
-  pushed: Array<[number, InputFrame]>; snaps: Snapshot[]; events: MatchEvent[]
-  readyCalls: number[]; phases: PhaseMsg[]; leftCalls: number[]; setDirty(v: boolean): void
-  hitClaims: Array<[number, HitClaim]>; setHitClaim(c: HitClaim | null): void
-}
-
-function stub(role: MatchRole, localId: number): Stub {
-  const pushed: Array<[number, InputFrame]> = []
-  const snaps: Snapshot[] = []
-  const events: MatchEvent[] = []
-  const readyCalls: number[] = []
-  const phases: PhaseMsg[] = []
-  const leftCalls: number[] = []
-  const hitClaims: Array<[number, HitClaim]> = []
-  let dirty = false
-  let nextHit: HitClaim | null = null
-  return {
-    role, localId, pushed, snaps, events, readyCalls, phases, leftCalls, hitClaims,
-    setDirty: v => { dirty = v },
-    setHitClaim: c => { nextHit = c },
+/** Минимальный симметричный MatchNet: записывает входящее, отдаёт заготовленное исходящее. */
+function fakeMatch(over: Partial<{ creator: 'self' | string; events: MatchEvent[]; claims: Array<{ to: string; claim: HitClaim }>; dirty: boolean }> = {}) {
+  const calls = {
+    snapshots: [] as Array<[string, Snapshot]>,
+    events: [] as Array<[string, MatchEvent]>,
+    claims: [] as Array<[string, HitClaim]>,
+    phases: [] as PhaseMsg[],
+    left: [] as string[],
+  }
+  let dirty = over.dirty ?? false
+  let events = over.events ?? []
+  let claims = over.claims ?? []
+  const m: MatchNet = {
+    localId: 0,
     serializeSnapshot: () => SNAP,
-    drainEvents: vi.fn(() => [EVENT]) as unknown as () => MatchEvent[],
-    pushRemoteInput: (pid, f) => { pushed.push([pid, f]) },
-    applySnapshot: s => { snaps.push(s) },
-    applyEvent: e => { events.push(e) },
-    localInputFrame: () => frame(7),
-    applyHitClaim: (sid, c) => { hitClaims.push([sid, c]) },
-    drainHitClaim: () => { const c = nextHit; nextHit = null; return c },
-    markReady: id => { readyCalls.push(id) },
-    applyPhase: p => { phases.push(p) },
+    drainEvents: () => { const e = events; events = []; return e },
+    drainClaims: () => { const c = claims; claims = []; return c },
+    applyPeerSnapshot: (from, s) => calls.snapshots.push([from, s]),
+    applyPeerEvent: (from, e) => calls.events.push([from, e]),
+    judgeIncomingClaim: (from, c) => calls.claims.push([from, c]),
+    applyPhase: p => calls.phases.push(p),
     serializePhase: () => PHASE,
     phaseDirty: () => dirty,
     clearPhaseDirty: () => { dirty = false },
-    handlePlayerLeft: id => { leftCalls.push(id) },
+    iAmCreator: () => over.creator === 'self',
+    creatorPeer: () => (over.creator === 'self' ? 'SELF' : over.creator ?? 'A'),
+    handlePeerLeft: peer => calls.left.push(peer),
   }
+  return { m, calls }
 }
 
-describe('NetSession (host ↔ client over LoopbackNet)', () => {
-  it('client sends input → host routes it to pushRemoteInput via peer→player', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const host = stub('host', 0)
-    stub('client', 1)
-    new NetSession(hostNet, host, new Map([['client', 1]]))
-    const clientSession = new NetSession(clientNet, stub('client', 1), new Map([['host', 0]]))
-
-    clientSession.afterUpdate(0)
-    expect(host.pushed).toHaveLength(1)
-    expect(host.pushed[0][0]).toBe(1)              // client's playerId
-    expect(host.pushed[0][1].tick).toBe(7)
+describe('NetSession — симметричный меш (LoopbackHub, 3 пира)', () => {
+  it('событие пира разлетается обоим соседям с атрибуцией from', () => {
+    const [a, b, c] = createLoopbackHub(['A', 'B', 'C'])
+    const fa = fakeMatch({ events: [{ t: 'ready', id: 0 }] })
+    const fb = fakeMatch()
+    const fc = fakeMatch()
+    const sa = new NetSession(a, fa.m); new NetSession(b, fb.m); new NetSession(c, fc.m)
+    sa.afterUpdate(0)
+    expect(fb.calls.events).toEqual([['A', { t: 'ready', id: 0 }]])
+    expect(fc.calls.events).toEqual([['A', { t: 'ready', id: 0 }]])
   })
 
-  it("client's shooter-authoritative HitClaim → host applyHitClaim via peer→player", () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const host = stub('host', 0)
-    new NetSession(hostNet, host, new Map([['client', 1]]))
-    const client = stub('client', 1)
-    const clientSession = new NetSession(clientNet, client, new Map([['host', 0]]))
-
-    client.setHitClaim(CLAIM)
-    clientSession.afterUpdate(0)
-    expect(host.hitClaims).toHaveLength(1)
-    expect(host.hitClaims[0][0]).toBe(1)           // client's playerId (the shooter)
-    expect(host.hitClaims[0][1].hitId).toBe(0)     // claimed the host as the victim
-
-    host.hitClaims.length = 0
-    clientSession.afterUpdate(0)                    // no pending claim → nothing sent
-    expect(host.hitClaims).toHaveLength(0)
+  it('claim уходит АДРЕСНО владельцу жертвы — третий пир его не видит', () => {
+    const [a, b, c] = createLoopbackHub(['A', 'B', 'C'])
+    const claim: HitClaim = { shooter: 0, hitId: 1, point: null, end: [0, 0, 0] }
+    const fa = fakeMatch({ claims: [{ to: 'B', claim }] })
+    const fb = fakeMatch()
+    const fc = fakeMatch()
+    const sa = new NetSession(a, fa.m); new NetSession(b, fb.m); new NetSession(c, fc.m)
+    sa.afterUpdate(0)
+    expect(fb.calls.claims).toEqual([['A', claim]])
+    expect(fc.calls.claims).toEqual([])
   })
 
-  it('host broadcasts events and a snapshot → client applies them', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const client = stub('client', 1)
-    const hostSession = new NetSession(hostNet, stub('host', 0), new Map([['client', 1]]))
-    new NetSession(clientNet, client, new Map([['host', 0]]))
-
-    hostSession.afterUpdate(1000)
-    expect(client.events).toEqual([EVENT])
-    expect(client.snaps).toEqual([SNAP])
+  it('снапшоты троттлятся до NET_SNAPSHOT_HZ и применяются с from', () => {
+    const [a, b] = createLoopbackHub(['A', 'B'])
+    const fa = fakeMatch()
+    const fb = fakeMatch()
+    const sa = new NetSession(a, fa.m); new NetSession(b, fb.m)
+    const interval = 1000 / NET_SNAPSHOT_HZ
+    sa.afterUpdate(interval)          // первый — уходит
+    sa.afterUpdate(interval + 5)      // слишком рано — нет
+    sa.afterUpdate(interval * 2 + 1)  // прошёл интервал — уходит
+    expect(fb.calls.snapshots.map(([from]) => from)).toEqual(['A', 'A'])
   })
 
-  it('snapshots are throttled by NET_SNAPSHOT_HZ', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const client = stub('client', 1)
-    const hostSession = new NetSession(hostNet, stub('host', 0), new Map([['client', 1]]))
-    new NetSession(clientNet, client, new Map([['host', 0]]))
-
-    hostSession.afterUpdate(1000)
-    hostSession.afterUpdate(1000)   // same moment — the snapshot is not repeated
-    expect(client.snaps).toHaveLength(1)
+  it('фазу рассылает ТОЛЬКО создатель; не-создатель лишь чистит свой флаг', () => {
+    const [a, b, c] = createLoopbackHub(['A', 'B', 'C'])
+    const fa = fakeMatch({ creator: 'self', dirty: true })   // A — создатель
+    const fb = fakeMatch({ creator: 'A', dirty: true })      // B тоже dirty, но не создатель
+    const fc = fakeMatch({ creator: 'A' })
+    const sa = new NetSession(a, fa.m)
+    const sb = new NetSession(b, fb.m)
+    new NetSession(c, fc.m)
+    sb.afterUpdate(0)                                        // не-создатель: рассылки нет
+    expect(fa.calls.phases).toEqual([])
+    expect(fc.calls.phases).toEqual([])
+    sa.afterUpdate(0)                                        // создатель рассылает всем
+    expect(fb.calls.phases).toEqual([PHASE])
+    expect(fc.calls.phases).toEqual([PHASE])
   })
 
-  it("client sendReady() → host markReady(client's playerId)", () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const host = stub('host', 0)
-    new NetSession(hostNet, host, new Map([['client', 1]]))
-    const clientSession = new NetSession(clientNet, stub('client', 1), new Map([['host', 0]]))
-    clientSession.sendReady()
-    expect(host.readyCalls).toEqual([1])
+  it('фаза от НЕ-создателя отбрасывается получателем', () => {
+    const [a, b] = createLoopbackHub(['A', 'B'])
+    const fa = fakeMatch({ creator: 'X' })                   // A считает создателем пира X
+    new NetSession(a, fa.m)
+    const fb = fakeMatch({ creator: 'self', dirty: true })   // B мнит себя создателем и шлёт фазу
+    const sb = new NetSession(b, fb.m)
+    sb.afterUpdate(0)
+    expect(fa.calls.phases).toEqual([])                      // 'B' ≠ creatorPeer 'X' → дроп
   })
 
-  it('host broadcasts the phase on phaseDirty → client applyPhase', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const client = stub('client', 1)
-    const host = stub('host', 0)
-    host.setDirty(true)
-    const hostSession = new NetSession(hostNet, host, new Map([['client', 1]]))
-    new NetSession(clientNet, client, new Map([['host', 0]]))
-    hostSession.afterUpdate(1000)
-    expect(client.phases).toEqual([PHASE])
-    expect(host.phaseDirty()).toBe(false)   // cleared after broadcast
+  it('уход пира → handlePeerLeft с его transport-id', () => {
+    const [a] = createLoopbackHub(['A', 'B'])
+    const fa = fakeMatch()
+    new NetSession(a, fa.m)
+    a.triggerLeave('B')
+    expect(fa.calls.left).toEqual(['B'])
   })
 
-  it('disconnect: host routes a peer leaving into handlePlayerLeft(its playerId)', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const host = stub('host', 0)
-    new NetSession(hostNet, host, new Map([['client', 1]]))
-    new NetSession(clientNet, stub('client', 1), new Map([['host', 0]]))
-    hostNet.triggerLeave()                  // client left
-    expect(host.leftCalls).toEqual([1])
-  })
-
-  it('disconnect: client treats a leave (peerToPlayer empty) as the host leaving (id 0)', () => {
-    const [hostNet, clientNet] = createLoopbackPair('host', 'client')
-    const client = stub('client', 1)
-    new NetSession(hostNet, stub('host', 0), new Map([['client', 1]]))
-    new NetSession(clientNet, client, new Map())   // client's peerToPlayer is empty
-    clientNet.triggerLeave()
-    expect(client.leftCalls).toEqual([0])
+  it('dispose покидает транспорт', () => {
+    const [a] = createLoopbackHub(['A', 'B'])
+    const fa = fakeMatch()
+    const s = new NetSession(a, fa.m)
+    const spy = vi.spyOn(a, 'leave')
+    s.dispose()
+    expect(spy).toHaveBeenCalled()
   })
 })

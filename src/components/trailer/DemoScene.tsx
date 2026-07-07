@@ -8,7 +8,7 @@ import { useMemo, useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Player } from '../../game/Player'
-import { Body, emptyBodyState } from '../../game/Body'
+import { Body } from '../../game/Body'
 import { BeamWeapon } from '../../game/BeamWeapon'
 import { Shield } from '../../game/Shield'
 import { World } from '../../game/World'
@@ -88,7 +88,7 @@ function buildPlayer(e: RosterEntry, ringColor: string): Player {
 }
 
 function toSnap(ps: DemoPlayerState): PlayerSnapshot {
-  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning, restore: emptyBodyState() }
+  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning }
 }
 
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion()
@@ -296,7 +296,7 @@ function applyFrameEvents(
       case 'kill': {
         byId.get(e.victim)?.applyDeath()
         onSfx('death')
-        const kind = announceKind(e.streak, e.firstBlood)   // streak (CATALYST/DOUBLE/…)
+        const kind = announceKind(e.streak ?? 0, e.firstBlood ?? false)   // legacy demo fields (live events are slim)
         if (kind) {
           onSfx(announceSfx(kind))
           const r = roster.find(x => x.id === e.shooter)

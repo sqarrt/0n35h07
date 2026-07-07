@@ -133,7 +133,8 @@ export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
 // Multiplayer (host-authoritative P2P)
-export const MATCH_ROLES = ['host', 'client'] as const
+// 'peer' is the production role (symmetric mesh); 'host'/'client' remain for star-era unit harnesses.
+export const MATCH_ROLES = ['host', 'client', 'peer'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
 // Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
@@ -144,19 +145,13 @@ export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
 export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
 export const NET_INTERP_DELAY_MS = 100   // render remotes this far in the PAST (≈2–3 snapshots at 30 Hz) — absorbs packet jitter (entity interpolation)
-export const NET_RECONCILE_SNAP_DIST = 0.5 // client prediction error (units) above which we snap the local player to the host authority; below it the prediction is trusted (no latency injected)
-export const NET_PREDICTION_BUFFER = 64    // how many recent (seq → predicted position) samples the client keeps for reconciliation (≥ RTT worth of frames)
 export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
 // Fixed-tick simulation (netcode foundation). The sim advances only in whole FIXED_DT steps, independent of refresh.
 export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
 export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating
 export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — spiral-of-death guard (shed the rest)
 // Input clock sync (client→host): keep the host's input jitter-buffer near TARGET so it never starves (a gap → the
-// remote holds) nor overflows (a drop). The client nudges its own tick accumulator by a small fraction toward target,
 // using the buffer depth the host echoes in each snapshot. Gentle gain + a tight per-frame clamp keep it stable.
-export const NET_INPUT_BUFFER_TARGET = 2          // ticks of slack the host keeps buffered (~33 ms of jitter absorption)
-export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fraction toward target (small = stable, slow)
-export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (personal appearance; never substituted — see colors-rework).

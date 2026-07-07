@@ -1,9 +1,12 @@
 import { test, expect } from './fixtures'
 import type { Page, BrowserContext } from '@playwright/test'
 
-// Phase-2 verification under INJECTED latency (?net=bc-lag) — the ~0-RTT BroadcastChannel transport is exactly
-// what hid the prediction bugs before. With client-side prediction + replay, the client's OWN player must move
-// smoothly forward while holding W: no rubber-band (no large backward jump between frames) despite the lag.
+// Mesh smoothness under INJECTED latency (?net=bc-lag). In the mesh every peer OWNS its player outright —
+// there is no reconciliation at all, so the own player must move perfectly smoothly regardless of lag; remotes
+// interpolate from their owner's snapshots (receive-time buffer).
+
+// Двухстраничные матчи под инжектированным лагом — тяжёлые; тройной таймаут против перегрузки машины.
+test.slow()
 
 const LAG_URL = '/?net=bc-lag&lagMs=60&jitterMs=15'
 const CLIENT_ID = 1   // joiner = OPPONENT_ID (host = HOST_ID 0)
@@ -42,7 +45,7 @@ async function startLaggyMatch(context: BrowserContext) {
   return { host, client }
 }
 
-test('client predicts smoothly under latency — own player advances with no rubber-band', async ({ context }) => {
+test('own player is fully local — advances with no rubber-band under latency', async ({ context }) => {
   const { client } = await startLaggyMatch(context)
   await fakeLock(client)
 
@@ -57,8 +60,8 @@ test('client predicts smoothly under latency — own player advances with no rub
       const tick = () => {
         const p = w.__debugPlayerPos?.(id)
         if (p) out.push({ x: p.x, z: p.z })
-        if (performance.now() - t0 > 1200) return res()
-        setTimeout(tick, 80)
+        if (performance.now() - t0 > 1600) return res()
+        setTimeout(tick, 60)
       }
       tick()
     })
@@ -79,7 +82,7 @@ test('client predicts smoothly under latency — own player advances with no rub
   }
 })
 
-test('opponent renders smoothly under latency — no jitter in the remote position (interpolation buffer)', async ({ context }) => {
+test('remote renders smoothly under latency — no jitter (interpolation buffer)', async ({ context }) => {
   const { host, client } = await startLaggyMatch(context)
   // Host moves; on the CLIENT, the host (opponent, id 0) must advance with no backward jitter (interpolation buffer).
   await host.evaluate(() => {
@@ -93,7 +96,7 @@ test('opponent renders smoothly under latency — no jitter in the remote positi
     const o: { x: number; z: number }[] = []
     const t0 = performance.now()
     await new Promise<void>((res) => {
-      const tick = () => { const p = w.__debugPlayerPos?.(0); if (p) o.push({ x: p.x, z: p.z }); if (performance.now() - t0 > 1200) return res(); setTimeout(tick, 80) }
+      const tick = () => { const p = w.__debugPlayerPos?.(0); if (p) o.push({ x: p.x, z: p.z }); if (performance.now() - t0 > 1600) return res(); setTimeout(tick, 60) }
       tick()
     })
     return o
@@ -109,11 +112,11 @@ test('opponent renders smoothly under latency — no jitter in the remote positi
   for (let i = 1; i < dists.length; i++) expect(dists[i]).toBeGreaterThanOrEqual(dists[i - 1] - BACK_EPS)   // no jitter/backward
 })
 
-// Lag-comp INTEGRATION smoke: under latency the client aims at the host as IT SEES it (interpolated ~100ms back) and
-// fires; the host rewinds itself to the client's viewTick and validates the hit there. This exercises the whole
-// viewTick → history → rewind-raycast path end-to-end under latency. (The rewind MATH for a MOVING target is unit-
-// tested in LagCompHistory/InterpBuffer; a moving-target e2e is too timing-flaky for CI — confirm by playtest.)
-test('lag compensation: client hits the opponent it sees under latency', async ({ context }) => {
+// Claim→judge INTEGRATION smoke: under latency the guest aims at the creator as IT SEES it (interpolated ~100ms
+// back) and fires; the addressed claim reaches the victim's OWNER, which judges it against its real local state and
+// broadcasts the kill. This exercises the full mesh death protocol end-to-end under latency (the protocol races are
+// unit-tested in mesh.deathProtocol; a moving-target e2e is too timing-flaky for CI — confirm by playtest).
+test('mesh death protocol: guest kills what it sees under latency (claim → owner judge → kill)', async ({ context }) => {
   const { host, client } = await startLaggyMatch(context)
   await fakeLock(client)
   await client.waitForTimeout(150)
