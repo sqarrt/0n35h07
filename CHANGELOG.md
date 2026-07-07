@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   kills. Quick match stays 1v1.
 
 ### Changed
+- **Networking rebuilt as a full mesh — no host authority.** Every peer now simulates the players it owns (itself
+  and its bots) and is the sole judge of their deaths: the shooter raycasts what it sees, the claim goes straight to
+  the victim's owner, and a raised shield on the VICTIM'S screen always wins. Scores, streaks and the match timer are
+  derived locally by every peer from the same slim event stream — nothing to desync. A player (or even the lobby
+  creator) leaving mid-match no longer ends it while two teams remain; their bots leave with them. Lag compensation,
+  prediction-replay reconciliation and input buffering are gone entirely — your own movement is always fully local.
 - **Player colors are a fixed identity now.** The primary+reserve color pair is part of a player's appearance and is
   never substituted: joining a room no longer swaps your color when it collides with the host's (two players may share
   a color — the upcoming multi-player rooms will disambiguate with team nameplates). The reserve color travels in the
