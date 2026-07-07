@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-07
+
+### Changed
+- **Player colors are a fixed identity now.** The primary+reserve color pair is part of a player's appearance and is
+  never substituted: joining a room no longer swaps your color when it collides with the host's (two players may share
+  a color — the upcoming multi-player rooms will disambiguate with team nameplates). The reserve color travels in the
+  roster, so a remote player's planet ring is painted with THEIR actual reserve color instead of a copy of their
+  primary; bots got a deterministic reserve color of their own.
+
 ## [1.0.1] - 2026-07-04
 
 ### Fixed
