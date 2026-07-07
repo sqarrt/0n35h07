@@ -131,6 +131,7 @@ export class Match {
   private remoteAuth = new Map<number, BodyState>()   // host: remote player id → authoritative post-step state AT its ackTick (consistent `restore`)
   private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
   private pendingHitClaim: HitClaim | null = null   // client: our own shot's raycast result, to send to the host (shooter-authoritative)
+  private pendingClaims: Array<{ to: string; claim: HitClaim }> = []   // mesh: addressed claims for victims other peers own
   private predictedKill: { id: number; until: number } | null = null   // client: an opponent we predicted dead, holding the ghost until the host confirms ('kill') or the grace expires (rejected → revive from snapshots)
   private byId = new Map<number, Player>()
   private dispatch: MatchOptions['dispatch']
@@ -624,6 +625,38 @@ export class Match {
     if (perfect && victimId === this.localId) this.achievements.onPerfectBlock()
     if (victimId === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
     else if (shooterId === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+  }
+
+  /** Mesh: judge an incoming claim against a player THIS peer owns. The victim's REAL local state decides —
+   *  alive / not a ghost / not a teammate / "the shield wins". The verdict broadcasts slim via resolveHit;
+   *  a dropped claim needs no reply — the shooter's predicted death self-corrects from our snapshots (grace). */
+  judgeClaim(claim: HitClaim): void {
+    if (claim.hitId === null || !this.ownedIds.has(claim.hitId)) return   // not ours to judge
+    const shooter = this.byId.get(claim.shooter)
+    const victim = this.byId.get(claim.hitId)
+    if (!shooter || !victim || victim === shooter) { gameLog.warn('act', 'claim_drop', { shooter: claim.shooter, victim: claim.hitId, reason: 'bad_target' }); return }
+    if (shooter.team === victim.team) { gameLog.warn('act', 'claim_drop', { shooter: claim.shooter, victim: claim.hitId, reason: 'teammate' }); return }
+    if (!victim.alive) { gameLog.log('act', 'claim_drop', { shooter: claim.shooter, victim: claim.hitId, reason: 'dead' }); return }
+    const point = claim.point ? fromVec3(claim.point) : victim.position
+    const dist = shooter.position.distanceTo(point)
+    if (dist > AIM_RANGE) { gameLog.warn('act', 'claim_drop', { shooter: claim.shooter, victim: claim.hitId, reason: 'range', dist }); return }
+    gameLog.log('act', 'claim_judge', { shooter: claim.shooter, victim: claim.hitId, dist })
+    this.resolveHit(shooter, victim, point)
+  }
+
+  /** Mesh: route a local shot's claim — judge immediately when we own the victim (no network), else queue
+   *  it addressed to the victim's owner. (Wired into the peer fire path by the cutover.) */
+  queueOrJudge(claim: HitClaim): void {
+    if (claim.hitId === null) return
+    if (this.ownedIds.has(claim.hitId)) { this.judgeClaim(claim); return }
+    this.pendingClaims.push({ to: this.ownerOf(claim.hitId), claim })
+  }
+
+  /** Addressed claims to ship this frame (cleared on read). */
+  drainClaims(): Array<{ to: string; claim: HitClaim }> {
+    const c = this.pendingClaims
+    this.pendingClaims = []
+    return c
   }
 
   /** host: apply a client's shooter-authoritative hit. Loose validation (P2P 1v1 with friends): the victim must be a
