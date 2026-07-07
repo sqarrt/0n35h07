@@ -12,32 +12,27 @@ const OUTCOME_COLOR: Record<MatchResult['outcome'], string> = {
 
 const FADE = '@keyframes matchEndFade { from { opacity: 0 } to { opacity: 1 } }'
 
-// Dim layer under the bar (z 30 — below the grown .match-hud.ended, z 31).
+// One centered column (outcome → ranked players → reason → EXIT): nothing is absolutely
+// positioned against anything else, so the blocks can never overlap.
 const wrap: CSSProperties = {
   position: 'fixed', inset: 0, zIndex: 30, background: 'rgba(7,10,14,0.9)',
   fontFamily: 'var(--ui-font)', color: 'var(--text)',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 26,
   animation: 'matchEndFade 0.1s ease-out',   // brief fade-in after the match-end freeze frame
 }
-// Outcome/reason/button frame the center with fixed offsets — the grown HUD bar sits between them (no jumps).
 const outcome: CSSProperties = {
-  position: 'absolute', left: 0, right: 0, bottom: 'calc(50% + 54px)', textAlign: 'center',
-  fontSize: 52, letterSpacing: '0.22em', margin: 0, paddingLeft: '0.22em',
-}
-const reason: CSSProperties = {
-  position: 'absolute', left: 0, right: 0, top: 'calc(50% + 46px)', textAlign: 'center',
-  fontSize: 12, letterSpacing: '0.2em', color: '#7a8694',
-}
-const exitRow: CSSProperties = {
-  position: 'absolute', left: 0, right: 0, top: 'calc(50% + 84px)',
-  display: 'flex', justifyContent: 'center',
+  margin: 0, fontSize: 52, letterSpacing: '0.22em', paddingLeft: '0.22em', textAlign: 'center',
 }
 const rankingBox: CSSProperties = {
-  position: 'absolute', left: 0, right: 0, top: 'calc(50% + 132px)',
-  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-  fontSize: 13, letterSpacing: '0.12em', color: '#aeb8c4',
+  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+  fontSize: 17, letterSpacing: '0.12em',
 }
+const rankRow: CSSProperties = { display: 'flex', alignItems: 'baseline', gap: 14 }
+const rankIdx: CSSProperties = { fontSize: 12, color: '#5a6572', width: 18, textAlign: 'right' }
+const rankKills: CSSProperties = { fontSize: 20 }
+const reason: CSSProperties = { fontSize: 12, letterSpacing: '0.2em', color: '#7a8694' }
 
-/** Match-end screen: outcome + reason + EXIT. The final score is shown by the HUD bar itself, grown to the center. */
+/** Match-end screen: outcome + every player ranked by kills (all modes) + reason + EXIT. */
 export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onExit: () => void }) {
   const t = useT()
   const color = OUTCOME_COLOR[result.outcome]
@@ -47,24 +42,24 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
   const reasonLabel: Record<MatchResult['reason'], string> = {
     time: t.matchReasonTime, disconnect: t.matchReasonDisconnect,
   }
+  const players = [...result.scores].sort((a, b) => b.kills - a.kills || a.id - b.id)
   return (
     <div style={wrap}>
       <style>{FADE}</style>
       <h1 data-testid="match-outcome" style={{ ...outcome, color, textShadow: `0 0 26px ${color}` }}>
         {outcomeLabel[result.outcome]}
       </h1>
-      <div data-testid="match-reason" style={reason}>{reasonLabel[result.reason]}</div>
-      <div style={exitRow}>
-        <Button variant="primary" onClick={onExit} data-testid="match-exit">{t.matchExit}</Button>
+      <div style={rankingBox} data-testid="match-ranking">
+        {players.map((p, i) => (
+          <div key={p.id} style={{ ...rankRow, opacity: p.left ? 0.45 : 1 }} data-testid={`match-rank-${i}`}>
+            <span style={rankIdx} aria-hidden="true">{i + 1}.</span>
+            <span>{p.name}{p.left ? ' ✕' : ''}</span>
+            <span style={rankKills}>{p.kills}</span>
+          </div>
+        ))}
       </div>
-      {result.scores.length > 2 && (
-        <div style={rankingBox} data-testid="match-ranking">
-          {result.ranking.map((r, i) => {
-            const names = r.memberIds.map(id => result.scores.find(s => s.id === id)?.name ?? '?').join(' + ')
-            return <div key={r.team} data-testid={`match-rank-${i}`}>{i + 1}. {names} — {r.kills}</div>
-          })}
-        </div>
-      )}
+      <div data-testid="match-reason" style={reason}>{reasonLabel[result.reason]}</div>
+      <Button variant="primary" onClick={onExit} data-testid="match-exit">{t.matchExit}</Button>
     </div>
   )
 }

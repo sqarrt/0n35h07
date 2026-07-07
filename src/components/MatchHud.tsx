@@ -13,7 +13,6 @@ interface MatchHudProps {
   localId: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
-  ended?: boolean   // match end: the bar grows and moves to the center (final score)
 }
 
 function fmt(sec: number | null): string {
@@ -26,7 +25,7 @@ function fmt(sec: number | null): string {
 
 /** Persistent HUD. Two players: your frags · timer · opponent frags (the pre-modes look, untouched).
  *  Three+: the timer over a compact score column (functional layout — visual design comes later). */
-export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts, ended = false }: MatchHudProps) {
+export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts }: MatchHudProps) {
   const t = useT()
   const kills = (id?: number) => (id !== undefined ? scores.find(s => s.id === id)?.kills ?? 0 : 0)
   // Streak dots (0 → none, capped at 10); color is inherited from the row (the player color).
@@ -46,7 +45,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
     const rows = [...roster].sort((a, b) => kills(b.id) - kills(a.id) || a.id - b.id)
     const showTeamChips = new Set(scores.map(s => s.team)).size < roster.length   // 2v2 → grouped teams exist
     return (
-      <div className={ended ? 'match-hud ended' : 'match-hud'} data-testid="match-hud" style={{ flexDirection: 'column', gap: 4 }}>
+      <div className="match-hud" data-testid="match-hud" style={{ flexDirection: 'column', gap: 4 }}>
         <div className="timer">{fmt(matchTime)}</div>
         {rows.map(entry => {
           const s = scoreOf(entry.id)
@@ -70,7 +69,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
   const me = roster.find(r => r.id === localId)
   const opp = roster.find(r => r.id !== localId)
   return (
-    <div className={ended ? 'match-hud ended' : 'match-hud'} data-testid="match-hud">
+    <div className="match-hud" data-testid="match-hud">
       <div className="side you" style={{ color: me?.color }}>
         {dots(me?.id, 'streak-dots-you')}<span>{nick(me, t.hudYou, 'hud-name-you')}</span>
         <span className="frag">{kills(me?.id)}</span>

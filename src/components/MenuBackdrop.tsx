@@ -31,10 +31,9 @@ const DAMP_TAU = MENU_ANIM_TAU // camera move — shared TAU with the menu backd
 const FADE_TAU = 0.13          // model appearance (opacity) — soft fade (~0.4s)
 const COLOR_TAU = 0.067        // smooth model color change (~0.2s to 95%)
 const EXIT_MS = 400            // how long we keep the leaving ball mounted while it fades out
-// Unified appear/leave animation: a scale pop with a slight overshoot + a ring flash on arrival;
-// leaving shrinks quickly (the opacity fade above runs in parallel).
-const SPAWN_MS = 600           // scale 0 → overshoot → 1
-const SPAWN_BACK_C1 = 1.70158  // easeOutBack constant (~10% overshoot)
+// Unified appear/leave animation, mirrored: a fast un-shrink on arrival (+ a ring flash),
+// an equally fast shrink on leave (the opacity fade above runs in parallel).
+const SPAWN_MS = 250           // arrive: scale 0 → 1
 const EXIT_SHRINK_MS = 250     // leave: scale → 0
 const FLASH_MS = 450           // arrival ring lifetime
 const FLASH_MAX_SCALE = 3      // the ring grows to this multiple of its base radius
@@ -370,11 +369,10 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     body.lerpRingColor(targetRingColor, kc)
     body.tickShader(dt)
 
-    // Appear/leave scale: easeOutBack pop on arrival, a fast shrink while exiting.
+    // Appear/leave scale, mirrored: fast un-shrink on arrival, fast shrink while exiting.
     if (spawnAge.current === null) { spawnAge.current = 0; flash.visible = true }
     else spawnAge.current += dt * 1000
-    const tIn = Math.min(spawnAge.current / SPAWN_MS, 1) - 1
-    const spawnScale = 1 + (SPAWN_BACK_C1 + 1) * tIn * tIn * tIn + SPAWN_BACK_C1 * tIn * tIn
+    const spawnScale = Math.min(spawnAge.current / SPAWN_MS, 1)
     exitAmt.current = exiting ? Math.min(1, exitAmt.current + dt * 1000 / EXIT_SHRINK_MS) : 0
     body.object3d.scale.setScalar(Math.max(0.0001, spawnScale * (1 - exitAmt.current)))
     if (flash.visible) {

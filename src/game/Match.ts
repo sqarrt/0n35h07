@@ -695,6 +695,11 @@ export class Match {
     for (const m of moves) { gameLog.log('act', 'move', { id: m.id, kind: m.kind }); this.emit({ t: 'move', id: m.id, kind: m.kind, pos: toVec3(m.pos) }) }
   }
 
+  /** e2e/debug: was match music constructed (seed+engine provided) and did the live frame start it. */
+  musicState(): { created: boolean; started: boolean } {
+    return { created: this.music !== null, started: this.musicStarted }
+  }
+
   /** Match remainder in ms for music (Infinity until the clock starts) — MusicDirector decides the outro by it. */
   private musicRemainingMs(): number {
     if (!Number.isFinite(this.lastRemainingMs)) return Infinity

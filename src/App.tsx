@@ -1091,9 +1091,10 @@ export default function App() {
               <EffectDefs />
             </>
           )}
-          {/* HUD bar: at the top in live (when the pointer is captured), at match end it transforms to center (final score). */}
-          {((locked && hud.matchPhase === 'live') || hud.matchPhase === 'ended') && (
-            <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} ended={!!hud.matchResult} />
+          {/* HUD bar: at the top in live (when the pointer is captured). At match end the overlay owns the
+              screen (ranked player list) — the bar hides so nothing overlaps it. */}
+          {locked && hud.matchPhase === 'live' && !hud.matchResult && (
+            <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} />
           )}
           {hud.matchResult && (
             <MatchEndedOverlay result={hud.matchResult} onExit={handleBack} />
