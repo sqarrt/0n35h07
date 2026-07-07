@@ -4,6 +4,13 @@ import { IS_DESKTOP } from '../../platform'
 export interface LobbySlot { name: string; color: string; ready: boolean }
 /** Opponent slot: a bot or a remote human. */
 export type OppSlot = LobbySlot & { isBot: boolean }
+/** A seat of the multi-slot lobby (2v2/FFA grid): index, occupant (null = free), whose it is, team group. */
+export interface SeatView {
+  slot: number
+  entry: { name: string; color: string; ready: boolean; isBot: boolean } | null
+  mine: boolean
+  team: number   // teamOfSlot(mode, slot); highlighted only in 2v2
+}
 /** Subtab of the "Play" screen. */
 export type LobbyTab = 'matchmaking' | 'friend' | 'bot'
 

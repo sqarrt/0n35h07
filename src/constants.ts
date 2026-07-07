@@ -135,8 +135,10 @@ export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remain
 // Multiplayer (host-authoritative P2P)
 export const MATCH_ROLES = ['host', 'client'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
-// Strictly 1v1: two fixed player ids — the host and its single opponent (bot XOR client).
+// Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
+// Legacy of the strict-1v1 era: seat 1. Production code must not reference it (seats are dynamic);
+// kept only for the 1v1 unit tests' readability.
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]

@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
+import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 import type { RoomView } from '../net/RoomSession'
 import { PLAYER_SPOT, OPPONENT_SPOT, cameraStateFor } from './menuStage'
@@ -490,21 +490,21 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
 
 const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec => ({ color, model: model ?? 'smooth', ringColor })
 
-/** Who stands on the scene: your own player — always on its spot; in a room with an opponent — the second on the neighboring one. */
+/** Who stands on the scene: your own player — always on its spot; in a room — the FIRST other occupant on the
+ *  neighboring one. The stage has exactly two spots, so a 3-4 player room still shows two balls (a full
+ *  N-ball stage is a future frontend-design pass). */
 function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): ActiveBall[] {
   if (mode === 'lobby' && room) {
-    const host = room.roster.find(r => r.id === HOST_ID)
-    const opp = room.roster.find(r => r.id === OPPONENT_ID)
-    if (host && opp) {
-      const selfIsHost = room.localPlayerId === HOST_ID
-      const self = selfIsHost ? host : opp
-      const other = selfIsHost ? opp : host
+    const self = room.roster.find(r => r.id === room.localPlayerId)
+      ?? room.roster.find(r => r.id === HOST_ID)   // client pre-ASSIGN: its own placeholder sits at seat 0
+    const other = self ? room.roster.find(r => r.id !== self.id) : undefined
+    if (self && other) {
       return [
         { key: 'player', spec: specOf(self.color, self.ballModel, player.ringColor), spot: PLAYER_SPOT },
         { key: 'other', spec: specOf(other.color, other.ballModel), spot: OPPONENT_SPOT },
       ]
     }
-    if (host) return [{ key: 'player', spec: specOf(host.color, host.ballModel, player.ringColor), spot: PLAYER_SPOT }]
+    if (self) return [{ key: 'player', spec: specOf(self.color, self.ballModel, player.ringColor), spot: PLAYER_SPOT }]
   }
   return [{ key: 'player', spec: player, spot: PLAYER_SPOT }]
 }
@@ -616,7 +616,7 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
       .catch(() => { /* no endpoint (preview build) — we stay on the imported poses */ })
   }, [])
 
-  const hasOpponent = !!room?.roster.find(r => r.id === OPPONENT_ID)
+  const hasOpponent = (room?.roster.length ?? 0) > 1   // anyone besides the local player occupies a seat
   const isClient = room != null && room.localPlayerId !== HOST_ID   // joined someone else's room
   const camState = cameraStateFor(mode, hasOpponent, isClient, appearancePart ?? 'color')
 
