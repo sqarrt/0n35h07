@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page, BrowserContext } from '@playwright/test'
+import { revealRoomCode, joinByCode } from './helpers'
 
 // Mesh smoothness under INJECTED latency (?net=bc-lag). In the mesh every peer OWNS its player outright —
 // there is no reconciliation at all, so the own player must move perfectly smoothly regardless of lag; remotes
@@ -20,25 +21,20 @@ async function fakeLock(page: Page) {
 }
 
 async function startLaggyMatch(context: BrowserContext) {
-  const a = await context.newPage()
-  const b = await context.newPage()
-  const room = 'LAGG'
-  for (const p of [a, b]) {
-    await p.goto(LAG_URL)
-    await p.getByTestId('menu-play').click()
-    await p.getByTestId('lobby-tab-friend').click()
-    await p.getByTestId('lobby-room-code').fill(room)
-  }
-  await a.getByTestId('lobby-search').click()
-  await b.getByTestId('lobby-search').click()
-  await expect(a.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(b.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await a.getByTestId('lobby-ready').click()
-  await b.getByTestId('lobby-ready').click()
-  await a.waitForFunction(() => !!(window as { __debugCamera?: unknown }).__debugCamera, { timeout: 20000 })
-  await b.waitForFunction(() => !!(window as { __debugCamera?: unknown }).__debugCamera, { timeout: 20000 })
-  const roleA = await a.evaluate(() => (window as { __debugRole?: () => string }).__debugRole?.())
-  const { host, client } = roleA === 'host' ? { host: a, client: b } : { host: b, client: a }
+  const host = await context.newPage()
+  const client = await context.newPage()
+  await host.goto(LAG_URL)
+  await host.getByTestId('menu-play').click()
+  const code = await revealRoomCode(host)
+  await client.goto(LAG_URL)
+  await client.getByTestId('menu-play').click()
+  await joinByCode(client, code)
+  await expect(host.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
+  await expect(client.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
+  await host.getByTestId('lobby-ready').click()
+  await client.getByTestId('lobby-ready').click()
+  await host.waitForFunction(() => !!(window as { __debugCamera?: unknown }).__debugCamera, { timeout: 20000 })
+  await client.waitForFunction(() => !!(window as { __debugCamera?: unknown }).__debugCamera, { timeout: 20000 })
   await host.evaluate(() => (window as { __debugForceLive?: () => void }).__debugForceLive?.())
   await client.evaluate(() => (window as { __debugForceLive?: () => void }).__debugForceLive?.())
   await expect.poll(() => client.evaluate(() => (window as { __debugPhase?: () => string }).__debugPhase?.()), { timeout: 8000 }).toBe('live')

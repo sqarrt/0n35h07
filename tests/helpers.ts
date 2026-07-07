@@ -15,6 +15,19 @@ async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   await page.getByTestId('lobby-ready').click()              // host ready → both ready → start
 }
 
+// Host path on the "Play" screen (web): the seat's invite zone reveals our room code.
+export async function revealRoomCode(page: Page, slot = 1): Promise<string> {
+  await page.getByTestId(`seat-invite-${slot}`).click()
+  const text = await page.getByTestId(`seat-code-${slot}`).locator('.seat-code-text').innerText()
+  return text.trim()
+}
+
+// Guest path (web): join someone's room by its code via the field below the seats.
+export async function joinByCode(page: Page, code: string) {
+  await page.getByTestId('join-code-field').fill(code)
+  await page.getByTestId('join-code-go').click()
+}
+
 // Wait until R3F initializes and mounts Game, then skip the ready ritual
 // (split-READY + 3s countdown) — gameplay tests need combat right away.
 export async function waitForGame(page: Page, opts: NavigateOpts = {}) {

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page, BrowserContext } from '@playwright/test'
+import { revealRoomCode, joinByCode } from './helpers'
 
 // Меш на трёх вкладках (?net=bc — шина): FFA-комната, старт, снапшоты ходят между всеми парами,
 // уход одной вкладки не рушит матч у остальных. Боевых ассертов нет намеренно (флак) —
@@ -18,27 +19,23 @@ async function fakeLock(page: Page) {
   })
 }
 
-async function threePeerFfa(context: BrowserContext, room: string) {
+async function threePeerFfa(context: BrowserContext) {
   const pages = [await context.newPage(), await context.newPage(), await context.newPage()]
   for (const p of pages) {
     await p.goto('/')
     await p.getByTestId('menu-play').click()
-    await p.getByTestId('lobby-tab-friend').click()
-    await p.getByTestId('lobby-room-code').fill(room)
   }
-  // Первый ищет → станет создателем-ожидателем; остальные подключаются к тому же коду.
-  await pages[0].getByTestId('lobby-search').click()
-  await pages[1].getByTestId('lobby-search').click()
-  await expect(pages[0].getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(pages[1].getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  // Создатель (роль решается selfId-жеребьёвкой) включает FFA — освобождаются слоты 2-3, третий заходит.
-  const zeroIsCreator = await pages[0].getByTestId('lobby-mode-ffa').isEnabled()
-  const creator = zeroIsCreator ? pages[0] : pages[1]
-  await creator.getByTestId('lobby-mode-ffa').click()
-  await pages[2].getByTestId('lobby-search').click()
-  for (const p of pages) await expect(p.getByTestId('lobby-seats-grid')).toBeVisible({ timeout: 20000 })
-  for (const p of pages) await expect(p.getByTestId('lobby-seat-2')).not.toHaveText('—', { timeout: 20000 })
+  // Первый — создатель (детерминированно): переключает карусель на War и раскрывает свой код.
+  const creator = pages[0]
+  await creator.getByTestId('mode-tile-ffa').click()
+  const code = await revealRoomCode(creator)
+  // Гости заходят по коду и садятся на первые свободные слоты (1 и 2).
+  await joinByCode(pages[1], code)
+  await joinByCode(pages[2], code)
+  await expect(creator.getByTestId('lobby-seat-2').locator('.lobby-nick')).toBeVisible({ timeout: 20000 })
+  for (const p of [pages[1], pages[2]]) await expect(p.getByTestId('lobby-seat-2')).not.toHaveText('—', { timeout: 20000 })
   // READY у всех → матч.
+  for (const p of pages) await expect(p.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
   for (const p of pages) await p.getByTestId('lobby-ready').click()
   for (const p of pages) await p.waitForFunction(() => !!(window as any).__debugCamera, undefined, { timeout: 20000 })
   for (const p of pages) await p.evaluate(() => (window as any).__debugForceLive?.())
@@ -50,7 +47,7 @@ const posOf = (page: Page, id: number) =>
   page.evaluate(pid => (window as any).__debugPlayerPos?.(pid) ?? null, id)
 
 test('меш 3 вкладки: FFA стартует, движение каждого видно всем остальным', async ({ context }) => {
-  const { pages, creator, others } = await threePeerFfa(context, 'MES1')
+  const { pages, creator, others } = await threePeerFfa(context)
 
   // Двигаем СОЗДАТЕЛЯ (он всегда слот 0) — его игрок должен сдвинуться на экранах остальных.
   await fakeLock(creator)
@@ -74,7 +71,7 @@ test('меш 3 вкладки: FFA стартует, движение каждо
 })
 
 test('меш 3 вкладки: уход одного пира не рушит матч у остальных', async ({ context }) => {
-  const { pages } = await threePeerFfa(context, 'MES2')
+  const { pages } = await threePeerFfa(context)
   await pages[2].close()   // третий пир исчезает (transport leave)
   // Матч у оставшихся жив (осталось 2 команды в ffa), фаза не ended ещё долго.
   await pages[0].waitForTimeout(2500)
