@@ -35,6 +35,7 @@ export const ru = {
   lobbyNoFriends: 'НЕТ ДРУЗЕЙ В СЕТИ',
   lobbyPreparingLobby: 'СОЗДАНИЕ ЛОББИ…',
   lobbyWaitingFriend: 'ОЖИДАНИЕ ДРУГА…',
+  lobbyWaitOthers: 'ЖДЁМ ОСТАЛЬНЫХ…',
   lobbyPickFriend: 'ВЫБРАТЬ ДРУГА',
   lobbyPickerSearch: 'Поиск…',
   lobbyFriendsOnline: 'ОНЛАЙН',

@@ -4,14 +4,14 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Walks through the main menu if it's open: PLAY → "With a bot" tab (bot is immediately in the slot) →
-// (optional difficulty) → READY. 1v1: an opponent is required — a bot plays that role.
+// Walks through the main menu if it's open: PLAY (Duel preset, we host a room) → "add a bot" zone of the
+// free seat → (optional per-seat difficulty) → READY. 1v1: an opponent is required — a bot plays that role.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-tab-bot').click()            // "With a bot" tab: bot auto-added to the slot
-  if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
+  await page.getByTestId('seat-addbot-1').click()            // the empty seat's "add a bot" zone
+  if (opts.difficulty === 'passive') await page.getByTestId('seat-diff-1-passive').click()
   await page.getByTestId('lobby-ready').click()              // host ready → both ready → start
 }
 

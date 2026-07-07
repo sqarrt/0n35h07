@@ -35,6 +35,7 @@ export const pl = {
   lobbyNoFriends: 'BRAK ZNAJOMYCH ONLINE',
   lobbyPreparingLobby: 'TWORZENIE LOBBY…',
   lobbyWaitingFriend: 'OCZEKIWANIE NA ZNAJOMEGO…',
+  lobbyWaitOthers: 'CZEKAMY NA POZOSTAŁYCH…',
   lobbyPickFriend: 'WYBIERZ ZNAJOMEGO',
   lobbyPickerSearch: 'Szukaj…',
   lobbyFriendsOnline: 'ONLINE',

@@ -35,6 +35,7 @@ export const tr = {
   lobbyNoFriends: 'ÇEVRİMİÇİ ARKADAŞ YOK',
   lobbyPreparingLobby: 'LOBİ HAZIRLANIYOR…',
   lobbyWaitingFriend: 'BİR ARKADAŞ BEKLENİYOR…',
+  lobbyWaitOthers: 'DİĞERLERİ BEKLENİYOR…',
   lobbyPickFriend: 'ARKADAŞ SEÇ',
   lobbyPickerSearch: 'Ara…',
   lobbyFriendsOnline: 'ÇEVRİMİÇİ',

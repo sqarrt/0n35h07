@@ -36,6 +36,7 @@ export const zhCN = {
   lobbyNoFriends: '没有在线好友',
   lobbyPreparingLobby: '正在创建房间…',
   lobbyWaitingFriend: '等待好友加入…',
+  lobbyWaitOthers: '等待其他玩家…',
   lobbyPickFriend: '选择好友',
   lobbyPickerSearch: '搜索…',
   lobbyFriendsOnline: '在线',

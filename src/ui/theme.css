@@ -648,6 +648,10 @@
 .seat-code-glyph { font-size: 12px; color: var(--accent-dim); }
 .seat-diff { display: flex; gap: 4px; }
 .seat-diff .seg { font-size: 9px; padding: 3px 8px; }
+/* web: compact "join by code" row below the seats */
+.join-code { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; margin-bottom: 14px; }
+.join-code-row { display: flex; gap: 8px; }
+.join-code-input { width: 7rem; text-align: center; text-transform: uppercase; letter-spacing: 0.22em; }
 .lobby-tiles { display: flex; gap: 8px; width: 100%; }
 .lobby-tile { flex: 1; border: 1px solid var(--surface-line); border-radius: 4px; padding: 5px 5px 3px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; cursor: pointer; }
 .lobby-pv { width: 100%; height: 34px; border-radius: 2px; background: linear-gradient(135deg,#13283b,#0a131d); object-fit: cover; display: block; }

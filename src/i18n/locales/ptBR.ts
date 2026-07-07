@@ -35,6 +35,7 @@ export const ptBR = {
   lobbyNoFriends: 'NENHUM AMIGO ONLINE',
   lobbyPreparingLobby: 'PREPARANDO SALA…',
   lobbyWaitingFriend: 'AGUARDANDO UM AMIGO…',
+  lobbyWaitOthers: 'AGUARDANDO OS OUTROS…',
   lobbyPickFriend: 'ESCOLHER AMIGO',
   lobbyPickerSearch: 'Buscar…',
   lobbyFriendsOnline: 'ONLINE',

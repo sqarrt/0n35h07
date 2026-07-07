@@ -35,6 +35,7 @@ export const it = {
   lobbyNoFriends: 'NESSUN AMICO ONLINE',
   lobbyPreparingLobby: 'CREAZIONE LOBBY…',
   lobbyWaitingFriend: 'IN ATTESA DI UN AMICO…',
+  lobbyWaitOthers: 'IN ATTESA DEGLI ALTRI…',
   lobbyPickFriend: 'SCEGLI UN AMICO',
   lobbyPickerSearch: 'Cerca…',
   lobbyFriendsOnline: 'ONLINE',
