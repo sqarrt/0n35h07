@@ -590,33 +590,25 @@
 .lobby-ol-row { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; }
 .lobby-ol-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 8px; }
 
-/* --- Play screen: mode carousel. Fixed-height strip with absolutely-positioned tiles:
-   switching modes animates transform/opacity only, so the block never changes size. --- */
-.mode-carousel { position: relative; width: 100%; height: 96px; display: flex; align-items: center; justify-content: space-between; }
+/* --- Play screen: mode carousel. Fixed-height strip with absolutely-positioned tiles that split
+   the full row width in three: switching modes animates transform/opacity only, no size jumps. --- */
+.mode-carousel { position: relative; width: 100%; height: 88px; }
 .mode-carousel--locked { opacity: 0.55; }
 .mode-tile {
-  position: absolute; left: 50%; top: 50%; width: 210px; height: 72px; margin: -36px 0 0 -105px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  position: absolute; left: 50%; top: 50%; width: 33.34%; height: 68px; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
   background: var(--bg); border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); padding: 0; cursor: pointer;
   transition: transform 0.25s ease, opacity 0.25s ease, border-color 0.25s ease, background 0.25s ease;
 }
 .mode-tile--center { border-color: var(--accent); background: rgba(68,170,255,0.08); z-index: 1; cursor: default; }
-.mode-tile--left  { transform: translateX(-172px) scale(0.72); opacity: 0.45; }
-.mode-tile--right { transform: translateX(172px) scale(0.72); opacity: 0.45; }
+.mode-tile--left  { transform: translate(calc(-50% - 100%), -50%) scale(0.86); opacity: 0.45; }
+.mode-tile--right { transform: translate(calc(-50% + 100%), -50%) scale(0.86); opacity: 0.45; }
 .mode-tile--left:hover:not(:disabled), .mode-tile--right:hover:not(:disabled) { opacity: 0.85; border-color: var(--accent-dim); }
 .mode-tile:disabled { cursor: default; }
 .mode-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* tracked caps need a left pad equal to the tracking to sit optically centered */
 .mode-tile-name { font-size: 24px; letter-spacing: 0.24em; padding-left: 0.24em; text-transform: uppercase; color: var(--text); }
 .mode-tile--center .mode-tile-name { color: var(--accent); text-shadow: 0 0 20px rgba(68,170,255,0.55); }
-.mode-tile-sub { font-size: 10px; letter-spacing: 0.18em; padding-left: 0.18em; color: var(--muted); }
-.mode-arrow {
-  background: transparent; border: none; color: var(--accent-dim); font-family: var(--ui-font);
-  font-size: 26px; line-height: 1; padding: 4px 10px; cursor: pointer; z-index: 2;
-}
-.mode-arrow:hover:not(:disabled) { color: var(--accent-bright); }
-.mode-arrow:disabled { color: var(--muted); cursor: default; }
-.mode-arrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .mode-tile { transition: none; } }
 
 /* --- Play screen: unified Seats. Per-layout wrappers; every occupant state keeps the same card

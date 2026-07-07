@@ -26,12 +26,13 @@ describe('ModeCarousel — карусель режимов Duel/Battle/War', () 
     expect(screen.getByTestId('mode-tile-ffa').getAttribute('data-role')).toBe('left')
   })
 
-  it('центральная плитка показывает имя режима и подзаголовок', () => {
+  it('плитка показывает только имя режима — без подзаголовка и стрелок', () => {
     renderCarousel('ffa')
     const tile = screen.getByTestId('mode-tile-ffa')
-    expect(tile.textContent).toContain('War')
-    expect(tile.textContent).toContain('FREE FOR ALL')
+    expect(tile.textContent).toBe('War')
     expect(tile.getAttribute('data-role')).toBe('center')
+    expect(screen.queryByTestId('mode-prev')).toBeNull()
+    expect(screen.queryByTestId('mode-next')).toBeNull()
   })
 
   it('клик по соседней плитке выбирает её; клик по центру — no-op', () => {
@@ -42,19 +43,18 @@ describe('ModeCarousel — карусель режимов Duel/Battle/War', () 
     expect(onSetMode).toHaveBeenCalledTimes(1)
   })
 
-  it('стрелки листают по циклу: prev от 1v1 → ffa, next → 2v2', () => {
+  it('обе соседние плитки кликабельны: левая и правая выбирают свой режим', () => {
     const { onSetMode } = renderCarousel('1v1')
-    fireEvent.click(screen.getByTestId('mode-prev'))
+    fireEvent.click(screen.getByTestId('mode-tile-ffa'))
     expect(onSetMode).toHaveBeenLastCalledWith('ffa')
-    fireEvent.click(screen.getByTestId('mode-next'))
+    fireEvent.click(screen.getByTestId('mode-tile-2v2'))
     expect(onSetMode).toHaveBeenLastCalledWith('2v2')
   })
 
   it('заблокированная карусель (гость/поиск) не зовёт onSetMode', () => {
     const { onSetMode } = renderCarousel('1v1', false)
     fireEvent.click(screen.getByTestId('mode-tile-2v2'))
-    fireEvent.click(screen.getByTestId('mode-prev'))
-    fireEvent.click(screen.getByTestId('mode-next'))
+    fireEvent.click(screen.getByTestId('mode-tile-ffa'))
     expect(onSetMode).not.toHaveBeenCalled()
   })
 })

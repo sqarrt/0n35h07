@@ -31,13 +31,10 @@ const DAMP_TAU = MENU_ANIM_TAU // camera move — shared TAU with the menu backd
 const FADE_TAU = 0.13          // model appearance (opacity) — soft fade (~0.4s)
 const COLOR_TAU = 0.067        // smooth model color change (~0.2s to 95%)
 const EXIT_MS = 400            // how long we keep the leaving ball mounted while it fades out
-// Unified appear/leave animation, mirrored: a fast un-shrink on arrival (+ a ring flash),
+// Unified appear/leave animation, mirrored: a fast un-shrink on arrival,
 // an equally fast shrink on leave (the opacity fade above runs in parallel).
-const SPAWN_MS = 250           // arrive: scale 0 → 1
+const SPAWN_MS = 125           // arrive: scale 0 → 1 (twice as fast as the leave — reads snappier)
 const EXIT_SHRINK_MS = 250     // leave: scale → 0
-const FLASH_MS = 450           // arrival ring lifetime
-const FLASH_MAX_SCALE = 3      // the ring grows to this multiple of its base radius
-const FLASH_OPACITY = 0.85
 const WARMUP_FRAMES = 4        // warmup frames (shader compilation behind an invisible ball) before the fade starts
 const GLOW_MOUNT_DELAY_MS = 600 // deferred glow-composer mount (see comment in MenuBackdrop)
 
@@ -223,16 +220,6 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (ringMesh) (ringMesh.material as { depthWrite: boolean }).depthWrite = true
   }, [body])
 
-  // Arrival flash: an additive ring at the ball's center that grows and fades as the ball pops in.
-  const flash = useMemo(() => {
-    const geo = new THREE.RingGeometry(BALL_RADIUS * 0.85, BALL_RADIUS * 1.05, 48)
-    const mat = new THREE.MeshBasicMaterial({ color: spec.color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false })
-    const m = new THREE.Mesh(geo, mat)
-    m.visible = false
-    return m
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  useEffect(() => () => { flash.geometry.dispose(); (flash.material as THREE.Material).dispose() }, [flash])
   const spawnAge = useRef<number | null>(null)   // ms since the warmup released the ball; null while held
   const exitAmt = useRef(0)                      // 0..1 leave-shrink progress
 
@@ -370,22 +357,11 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     body.tickShader(dt)
 
     // Appear/leave scale, mirrored: fast un-shrink on arrival, fast shrink while exiting.
-    if (spawnAge.current === null) { spawnAge.current = 0; flash.visible = true }
+    if (spawnAge.current === null) spawnAge.current = 0
     else spawnAge.current += dt * 1000
     const spawnScale = Math.min(spawnAge.current / SPAWN_MS, 1)
     exitAmt.current = exiting ? Math.min(1, exitAmt.current + dt * 1000 / EXIT_SHRINK_MS) : 0
     body.object3d.scale.setScalar(Math.max(0.0001, spawnScale * (1 - exitAmt.current)))
-    if (flash.visible) {
-      const tf = spawnAge.current / FLASH_MS
-      if (tf >= 1) flash.visible = false
-      else {
-        flash.position.copy(spot)
-        flash.position.y += BODY_MESH_Y
-        flash.scale.setScalar(1 + (FLASH_MAX_SCALE - 1) * tf)
-        ;(flash.material as THREE.MeshBasicMaterial).opacity = FLASH_OPACITY * (1 - tf)
-        flash.quaternion.copy(camera.quaternion)   // billboard toward the viewer
-      }
-    }
 
     // Position: the model stands on the spot; in the preview ghost — a run around a circle ("playing as the bot").
     // SANCTIONED manual action: when the run ends the ball is PLACED on the default spot
@@ -516,7 +492,6 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   return (
     <group ref={rootRef}>
       <primitive object={body.object3d} />
-      <primitive object={flash} />
       {fx && <primitive object={fx.object3d} />}
       {beam && <primitive object={beam.object3d} />}
       {rfx && <primitive object={rfx.object3d} />}

@@ -10,15 +10,15 @@ async function openLobby(page: Page) {
   await page.getByTestId('menu-play').click()
 }
 
-test('карусель: War — 4 сиденья, стрелки листают по циклу, Battle — две командные колонки', async ({ page }) => {
+test('карусель: War — 4 сиденья, соседние плитки кликабельны, Battle — две командные колонки', async ({ page }) => {
   await openLobby(page)
   await expect(page.getByTestId('mode-tile-1v1')).toHaveAttribute('data-role', 'center')   // Duel по умолчанию
   await page.getByTestId('mode-tile-ffa').click()                    // клик по соседней плитке
   await expect(page.getByTestId('lobby-seats')).toHaveAttribute('data-mode', 'ffa')
   await expect(page.getByTestId('lobby-seat-3')).toBeVisible()       // колонка из 4
-  await page.getByTestId('mode-next').click()                        // ffa → 1v1
+  await page.getByTestId('mode-tile-1v1').click()                    // ffa → 1v1
   await expect(page.getByTestId('lobby-seats')).toHaveAttribute('data-mode', '1v1')
-  await page.getByTestId('mode-next').click()                        // 1v1 → 2v2
+  await page.getByTestId('mode-tile-2v2').click()                    // 1v1 → 2v2
   await expect(page.getByTestId('lobby-seats')).toHaveAttribute('data-mode', '2v2')
   expect(await page.locator('.seats-col').count()).toBe(2)
 })
