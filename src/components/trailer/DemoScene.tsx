@@ -296,7 +296,7 @@ function applyFrameEvents(
       case 'kill': {
         byId.get(e.victim)?.applyDeath()
         onSfx('death')
-        const kind = announceKind(e.streak, e.firstBlood)   // streak (CATALYST/DOUBLE/…)
+        const kind = announceKind(e.streak ?? 0, e.firstBlood ?? false)   // legacy demo fields (live events are slim)
         if (kind) {
           onSfx(announceSfx(kind))
           const r = roster.find(x => x.id === e.shooter)

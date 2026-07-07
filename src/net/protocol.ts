@@ -96,7 +96,9 @@ export interface Snapshot {
 export interface ScoreLine { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
-  | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }
+  // Slim on purpose: score/streak/bounty/firstBlood are DERIVED by every peer from the (shooter, victim) stream.
+  // The optional legacy fields keep old RECORDED demos (trailer sources) parseable — live code never reads them.
+  | { t: 'kill';    shooter: number; victim: number; streak?: number; firstBlood?: boolean; bounty?: number; resetCd?: boolean }
   | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)

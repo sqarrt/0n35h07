@@ -569,45 +569,61 @@ export class Match {
     }
   }
 
-  /** Apply an authoritative hit — block or kill + scoring + events. Shared by the host's own shot (resolveCombat) and
-   *  a client's shooter-authoritative HitClaim (applyHitClaim). */
+  /** Judge an authoritative hit — block or kill. Run by the peer that OWNS the victim (locally simulated shot
+   *  or an incoming claim): the verdict is broadcast slim, the numbers are derived by everyone in applyKill/applyBlock. */
   private resolveHit(shooter: Player, victim: Player, hitPoint: THREE.Vector3 | null): void {
     if (shooter !== victim && shooter.team === victim.team) return   // teammate bodies block the beam but take no harm
     if (!victim.alive) return   // don't finish off a dead/deflating victim
     const res = victim.receiveHit()
     if (res === 'blocked') {
-      const perfect = victim.perfectBlock      // perfect block → reset cooldowns for the victim
-      if (perfect) victim.resetCooldowns()
+      const perfect = victim.perfectBlock
       gameLog.log('act', 'block', { shooter: shooter.id, victim: victim.id, perfect })
       this.emit({ t: 'block', shooter: shooter.id, victim: victim.id, perfect })
-      if (perfect && victim.id === this.localId) this.achievements.onPerfectBlock()
-      if (victim === this.human) this.dispatch({ type: 'SHIELD_BLOCK' })
-      else if (shooter === this.human) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+      this.applyBlock(shooter.id, victim.id, perfect)
     } else {
-      victim.deaths++
-      const broken = victim.streak           // victim's tier BEFORE reset (for bounty/reset)
-      victim.streak = 0
-      let streak = 0, firstBlood = false
-      let bounty = 0, resetCd = false
-      if (shooter !== victim) {
-        bounty = bountyFrags(broken)
-        resetCd = breakResetsCooldowns(broken)
-        shooter.kills += bounty               // scored (with bounty)
-        shooter.streak++                      // killstreak — per real kill (+1)
-        streak = shooter.streak
-        if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
-        if (resetCd) shooter.resetCooldowns()
-      }
-      this.scoresDirty = true
-      gameLog.log('act', 'kill', { shooter: shooter.id, victim: victim.id, streak, bounty, firstBlood })
-      this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id, streak, firstBlood, bounty, resetCd })
-      this.announceStreak(shooter.id, victim.id, streak, firstBlood)
-      if (shooter === this.human && victim !== this.human) {
-        if (hitPoint) shooter.spawnImpact(hitPoint)
-        window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
-      }
-      if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
+      gameLog.log('act', 'kill', { shooter: shooter.id, victim: victim.id })
+      this.emit({ t: 'kill', shooter: shooter.id, victim: victim.id })
+      this.applyKill(shooter.id, victim.id, hitPoint)
     }
+  }
+
+  /** Canonical kill application — IDENTICAL on every peer. Score, streak, bounty, firstBlood, SINGULARITY input —
+   *  all DERIVED locally from the slim (shooter, victim) stream, so peers converge without shipping numbers. */
+  private applyKill(shooterId: number, victimId: number, hitPoint: THREE.Vector3 | null = null): void {
+    const victim = this.byId.get(victimId)
+    const shooter = this.byId.get(shooterId)
+    if (!victim) return
+    if (this.predictedKill?.id === victimId) { this.predictedKill = null; gameLog.log('act', 'predict_confirm', { victim: victimId }) }
+    if (victim.alive) victim.applyDeath()   // the victim's owner already died via receiveHit; every other peer applies here
+    victim.deaths++
+    const broken = victim.streak            // victim's tier BEFORE reset (for bounty/reset)
+    victim.streak = 0
+    let streak = 0, firstBlood = false
+    if (shooter && shooter !== victim) {
+      const bounty = bountyFrags(broken)
+      const resetCd = breakResetsCooldowns(broken)
+      shooter.kills += bounty               // scored (with bounty)
+      shooter.streak++                      // killstreak — per real kill (+1)
+      streak = shooter.streak
+      if (!this.firstKillDone) { firstBlood = true; this.firstKillDone = true }
+      if (resetCd) shooter.resetCooldowns()
+    }
+    this.scoresDirty = true
+    this.announceStreak(shooterId, victimId, streak, firstBlood)
+    if (shooter === this.human && victim !== this.human) {
+      if (hitPoint) shooter.spawnImpact(hitPoint)
+      window.__debugTargetHitCount = (window.__debugTargetHitCount ?? 0) + 1
+    }
+    if (victim === this.human) this.dispatch({ type: 'PLAYER_HIT' })
+  }
+
+  /** Canonical block application — IDENTICAL on every peer (perfect-block reset mirrors everywhere). */
+  private applyBlock(shooterId: number, victimId: number, perfect: boolean): void {
+    if (this.predictedKill?.id === victimId) this.revertPredictedKill(victimId, 'block')
+    if (perfect) this.byId.get(victimId)?.resetCooldowns()
+    if (perfect && victimId === this.localId) this.achievements.onPerfectBlock()
+    if (victimId === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
+    else if (shooterId === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
   }
 
   /** host: apply a client's shooter-authoritative hit. Loose validation (P2P 1v1 with friends): the victim must be a
@@ -1104,32 +1120,14 @@ export class Match {
         break
       }
       case 'kill': {
-        const victim = this.byId.get(e.victim)
-        const shooter = this.byId.get(e.shooter)
-        if (!victim) break
-        if (this.predictedKill?.id === e.victim) { this.predictedKill = null; gameLog.log('act', 'predict_confirm', { victim: e.victim }) }   // confirmed — release the prediction latch
-        gameLog.log('act', 'kill', { side: 'client', shooter: e.shooter, victim: e.victim, streak: e.streak })
-        victim.applyDeath()
-        victim.deaths++
-        victim.streak = 0
-        if (shooter && shooter !== victim) {
-          shooter.kills += e.bounty
-          shooter.streak = e.streak
-          if (e.resetCd) shooter.resetCooldowns()
-        }
-        if (victim.id === this.localId) this.dispatch({ type: 'PLAYER_HIT' })
+        gameLog.log('act', 'kill', { side: 'remote', shooter: e.shooter, victim: e.victim })
+        this.applyKill(e.shooter, e.victim)   // numbers are derived locally — the event ships only (shooter, victim)
         this.sfx?.combat(e, this.sfxPos)
-        this.announceStreak(e.shooter, e.victim, e.streak, e.firstBlood)
         break
       }
       case 'block': {
-        gameLog.log('act', 'block', { side: 'client', shooter: e.shooter, victim: e.victim, perfect: e.perfect })
-        // Our claim was rejected by the victim's shield — the predicted death was false; revive NOW, not on grace expiry.
-        if (this.predictedKill?.id === e.victim) this.revertPredictedKill(e.victim, 'block')
-        if (e.perfect) this.byId.get(e.victim)?.resetCooldowns()   // mirror the cooldown reset from the host
-        if (e.perfect && e.victim === this.localId) this.achievements.onPerfectBlock()
-        if (e.victim === this.localId) this.dispatch({ type: 'SHIELD_BLOCK' })
-        else if (e.shooter === this.localId) this.dispatch({ type: 'BOT_SHIELD_HIT' })
+        gameLog.log('act', 'block', { side: 'remote', shooter: e.shooter, victim: e.victim, perfect: e.perfect })
+        this.applyBlock(e.shooter, e.victim, e.perfect)
         this.sfx?.combat(e, this.sfxPos)
         break
       }
