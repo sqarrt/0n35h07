@@ -91,7 +91,7 @@ export interface Snapshot {
 }
 
 // --- match events: host → all (reliable, ordered) ---
-export interface ScoreLine { name: string; kills: number; deaths: number }
+export interface ScoreLine { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
   | { t: 'kill';    shooter: number; victim: number; streak: number; firstBlood: boolean; bounty: number; resetCd: boolean }

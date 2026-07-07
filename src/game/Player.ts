@@ -33,6 +33,7 @@ export class Player implements IControllable {
   respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
   respawnTimer = 0     // remaining ghost phase (ms)
   name = ''            // display name (You / Bot N) — set by Match
+  team = 0             // team from the mode preset (teamOfSlot) — set by Match; same team → no harm
   kills = 0            // session score (not reset on respawn)
   deaths = 0
   streak = 0           // consecutive kills without dying (for streak announces); reset on death
