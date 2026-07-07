@@ -531,17 +531,31 @@ export default function App() {
     netDiagSetPeers(() => net.peers())
     negotiateNetRef.current = net
     let resolved = false
-    const tryResolve = () => {
+    let settleTimer: ReturnType<typeof setTimeout> | null = null
+    // Presence builds up ping by ping (1s cadence): the FIRST visible peer of a FORMED room looks exactly like
+    // a lone pair partner. So: 2+ peers visible → we are a LATE joiner, always a guest (a second self-elected
+    // host would split the room); exactly 1 peer → wait one presence round before the pair's selfId lottery.
+    // (The Steam lobby has an explicit owner and none of this lottery — web-only path.)
+    const RENDEZVOUS_SETTLE_MS = 1300
+    const decide = () => {
       if (resolved || sessionRef.current) return
       const others = net.peers()
       if (!others.length) return
       resolved = true
+      if (settleTimer) { clearTimeout(settleTimer); settleTimer = null }
       negotiateNetRef.current = null   // the transport passes into the session's ownership
       const peerMin = others.reduce((a, b) => (a < b ? a : b))
-      const role: RoomRole = net.selfId < peerMin ? 'host' : 'client'
+      const role: RoomRole = others.length >= 2 ? 'client' : (net.selfId < peerMin ? 'host' : 'client')
       if (role === 'host') setHostLive(code)
       netDiagSetContext({ role, code, selfId: net.selfId })
       bindSession(net, role, code, sel)
+    }
+    const tryResolve = () => {
+      if (resolved || sessionRef.current) return
+      const others = net.peers()
+      if (!others.length) return
+      if (others.length >= 2) { decide(); return }
+      if (settleTimer === null) settleTimer = setTimeout(decide, RENDEZVOUS_SETTLE_MS)
     }
     net.onPeerJoin(() => tryResolve())
     tryResolve()   // in case the opponent is already visible

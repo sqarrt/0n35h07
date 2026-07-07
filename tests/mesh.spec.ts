@@ -13,9 +13,8 @@ async function fakeLock(page: Page) {
   })
 }
 
-async function threePeerFfa(context: BrowserContext) {
+async function threePeerFfa(context: BrowserContext, room: string) {
   const pages = [await context.newPage(), await context.newPage(), await context.newPage()]
-  const room = 'MESH'
   for (const p of pages) {
     await p.goto('/')
     await p.getByTestId('menu-play').click()
@@ -46,7 +45,7 @@ const posOf = (page: Page, id: number) =>
   page.evaluate(pid => (window as any).__debugPlayerPos?.(pid) ?? null, id)
 
 test('меш 3 вкладки: FFA стартует, движение каждого видно всем остальным', async ({ context }) => {
-  const { pages, creator, others } = await threePeerFfa(context)
+  const { pages, creator, others } = await threePeerFfa(context, 'MES1')
 
   // Двигаем СОЗДАТЕЛЯ (он всегда слот 0) — его игрок должен сдвинуться на экранах остальных.
   await fakeLock(creator)
@@ -70,7 +69,7 @@ test('меш 3 вкладки: FFA стартует, движение каждо
 })
 
 test('меш 3 вкладки: уход одного пира не рушит матч у остальных', async ({ context }) => {
-  const { pages } = await threePeerFfa(context)
+  const { pages } = await threePeerFfa(context, 'MES2')
   await pages[2].close()   // третий пир исчезает (transport leave)
   // Матч у оставшихся жив (осталось 2 команды в ffa), фаза не ended ещё долго.
   await pages[0].waitForTimeout(2500)
