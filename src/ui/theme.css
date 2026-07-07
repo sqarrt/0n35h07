@@ -267,6 +267,10 @@
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
 .match-hud .streak-dots { font-size: 10px; letter-spacing: 1px; line-height: 1; color: currentColor; }
+/* Battle/War HUD: player panes framing the totals+timer; the pane keeps a fixed footprint per mode. */
+.match-hud .mhud-team { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 12px; border-radius: 6px; min-width: 150px; box-sizing: border-box; }
+.match-hud .mhud-row { display: flex; align-items: center; gap: 7px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
+.match-hud .mhud-row .frag { font-size: 15px; }
 
 /* JoinRoom: code input with a running outline (connecting) and a red border (error) */
 .code-wrap { position: relative; width: 240px; height: 64px; }

@@ -24,7 +24,8 @@ function fmt(sec: number | null): string {
 }
 
 /** Persistent HUD. Two players: your frags · timer · opponent frags (the pre-modes look, untouched).
- *  Three+: the timer over a compact score column (functional layout — visual design comes later). */
+ *  Three+: the same centered bar, framed by player panes — two players per side, each with its
+ *  personal frags; Battle adds team totals beside the timer and a team-color backing per pane. */
 export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts }: MatchHudProps) {
   const t = useT()
   const kills = (id?: number) => (id !== undefined ? scores.find(s => s.id === id)?.kills ?? 0 : 0)
@@ -42,26 +43,48 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
 
   if (roster.length > 2) {
     const scoreOf = (id: number) => scores.find(s => s.id === id)
-    const rows = [...roster].sort((a, b) => kills(b.id) - kills(a.id) || a.id - b.id)
-    const showTeamChips = new Set(scores.map(s => s.team)).size < roster.length   // 2v2 → grouped teams exist
+    const isBattle = new Set(scores.map(s => s.team)).size < roster.length   // grouped teams exist (2v2)
+    // Sides are STABLE (no reordering by kills — rows must not jump mid-match):
+    // Battle — my team left, enemies right; War — me first on the left, the rest split by id.
+    let left: RosterEntry[]
+    let right: RosterEntry[]
+    if (isBattle) {
+      const myTeam = scoreOf(localId)?.team ?? 0
+      left = roster.filter(r => scoreOf(r.id)?.team === myTeam)
+      right = roster.filter(r => scoreOf(r.id)?.team !== myTeam)
+    } else {
+      const others = roster.filter(r => r.id !== localId).sort((a, b) => a.id - b.id)
+      const rightCount = Math.floor((others.length + 1) / 2)
+      left = [roster.find(r => r.id === localId)!, ...others.slice(0, others.length - rightCount)].filter(Boolean)
+      right = others.slice(others.length - rightCount)
+    }
+    const teamKills = (rs: RosterEntry[]) => rs.reduce((n, r) => n + kills(r.id), 0)
+    const paneTint = (rs: RosterEntry[]) =>
+      isBattle ? { background: `${TEAM_COLORS[scoreOf(rs[0]?.id)?.team ?? 0] ?? 'transparent'}26` } : undefined
+    const row = (entry: RosterEntry, mirror: boolean) => {
+      const s = scoreOf(entry.id)
+      const cells = [
+        dots(entry.id, `streak-dots-${entry.id}`),
+        <span key="nm" style={{ textDecoration: entry.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>
+          {nick(entry, '', `hud-name-${entry.id}`)}
+        </span>,
+        <span key="fr" className="frag">{kills(entry.id)}</span>,
+      ]
+      return (
+        <div key={entry.id} className="mhud-row" data-testid={`hud-row-${entry.id}`}
+          style={{ color: entry.color, justifyContent: mirror ? 'flex-end' : 'flex-start', opacity: s?.left ? 0.45 : 1 }}>
+          {s?.left && <span aria-hidden="true">✕</span>}
+          {mirror ? cells : [...cells].reverse()}
+        </div>
+      )
+    }
     return (
-      <div className="match-hud" data-testid="match-hud" style={{ flexDirection: 'column', gap: 4 }}>
+      <div className="match-hud" data-testid="match-hud">
+        <div className="mhud-team" style={paneTint(left)}>{left.map(e => row(e, true))}</div>
+        {isBattle && <span className="frag" data-testid="hud-team-you">{teamKills(left)}</span>}
         <div className="timer">{fmt(matchTime)}</div>
-        {rows.map(entry => {
-          const s = scoreOf(entry.id)
-          return (
-            <div key={entry.id} data-testid={`hud-row-${entry.id}`}
-              style={{ display: 'flex', gap: 8, alignItems: 'center', color: entry.color, opacity: s?.left ? 0.45 : 1 }}>
-              {showTeamChips && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: TEAM_COLORS[s?.team ?? 0] ?? 'transparent' }} />}
-              <span style={{ textDecoration: entry.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>
-                {nick(entry, '', `hud-name-${entry.id}`)}
-              </span>
-              {dots(entry.id, `streak-dots-${entry.id}`)}
-              <span className="frag">{kills(entry.id)}</span>
-              {s?.left && <span aria-hidden="true">✕</span>}
-            </div>
-          )
-        })}
+        {isBattle && <span className="frag" data-testid="hud-team-opp">{teamKills(right)}</span>}
+        <div className="mhud-team" style={paneTint(right)}>{right.map(e => row(e, false))}</div>
       </div>
     )
   }
