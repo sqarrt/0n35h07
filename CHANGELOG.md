@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
+- **Steam lobby fits four.** The Steam "With friend" lobby now holds up to 4 players: empty 2v2/FFA seats offer
+  "＋ invite a friend" (several invites at once — each pending friend shows as a waiting seat with a cancel), with a
+  corner bot button as the alternative. A guest leaving the lobby no longer kicks the other guests. Quick match
+  stays 1v1.
 - **Game modes: 2v2 and Free-for-All (up to 4 players).** The lobby got a mode picker (1v1 / 2v2 / FFA) on the
   friend/bot tabs. 2v2/FFA rooms show a 4-seat grid: the host seats or removes bots with a click, a guest moves to
   any free seat (in 2v2 that switches their team). Teams spawn clustered at the two map points; FFA scatters players

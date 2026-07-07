@@ -1,8 +1,9 @@
 // Steam matchmaking + P2P networking (sub-project #4, Option A).
 //
-// A match = a Private Steam lobby (max 2). The host creates it and invites via the overlay /
-// Rich Presence "Join game"; the client joins by LobbyId (no room code). Gameplay messages go
-// over NetworkingMessages (SDR, reliable) between the two SteamIDs — no TURN.
+// A match = a Private Steam lobby (up to LOBBY_MAX_MEMBERS; the game is a full mesh of up to 4
+// players — 2v2 / FFA). The creator invites via the overlay / Rich Presence "Join game"; guests
+// join by LobbyId (no room code). Gameplay messages go over NetworkingMessages (SDR, reliable)
+// point-to-point between SteamIDs — no TURN, no relay of ours.
 //
 // All commands soft-fail (false / None / no-op) without Steam. Events stream to JS over the
 // single Tauri event "steam-net" (see NetEvent). The receive pump + Steam callbacks run on the
@@ -21,7 +22,7 @@ use crate::steam::SteamState;
 
 const NET_CHANNEL: u32 = 0; // NetworkingMessages channel for gameplay traffic
 const NET_PUMP_MS: u64 = 8; // ~120 Hz: run callbacks + drain incoming messages
-const LOBBY_MAX_MEMBERS: u32 = 2; // strict 1v1
+const LOBBY_MAX_MEMBERS: u32 = 4; // mesh: up to 4 players (2v2 / FFA); quick-match still pairs
 const STEAM_NET_EVENT: &str = "steam-net";
 const RP_CONNECT_KEY: &str = "connect"; // Rich Presence key that makes a friend "Joinable"
 
@@ -175,7 +176,7 @@ pub fn start_pump(app: AppHandle, client: Client, single: SingleClient) -> Steam
       // Drop immediately CloseSessionWithUser()s the just-accepted session — the peer sees
       // ClosedByPeer (app end code 1001) and no messages flow. Accept via the sys API and
       // mem::forget the request to skip the poisonous Drop. (Forgetting leaks one Arc per accepted
-      // session — negligible for 1v1.)
+      // session — up to 3 accepted sessions per peer in a 4-player lobby, still negligible.)
       if let Some(sid) = req.remote().steam_id() {
         unsafe {
           let mut ident: steamworks_sys::SteamNetworkingIdentity = std::mem::zeroed();
@@ -246,7 +247,7 @@ pub fn steam_net_self(state: State<'_, SteamState>) -> Option<String> {
   Some(client.user().steam_id().raw().to_string())
 }
 
-// Create a 1v1 lobby of the given visibility; on success store it, make it joinable, advertise via
+// Create a lobby (up to LOBBY_MAX_MEMBERS) of the given visibility; on success store it, make it joinable, advertise via
 // Rich Presence and emit `lobbyEntered`. Private = friend invites; Public = matchmaking (listed).
 fn spawn_create_lobby(app: AppHandle, state: &SteamState, net: &SteamNetState, ty: LobbyType) {
   let guard = state.0.lock().unwrap();
@@ -267,13 +268,13 @@ fn spawn_create_lobby(app: AppHandle, state: &SteamState, net: &SteamNetState, t
   });
 }
 
-// Create a Private 1v1 lobby (friend invites).
+// Create a Private lobby (friend invites; up to LOBBY_MAX_MEMBERS).
 #[tauri::command]
 pub fn steam_net_create_lobby(app: AppHandle, state: State<'_, SteamState>, net: State<'_, SteamNetState>) {
   spawn_create_lobby(app, &state, &net, LobbyType::Private);
 }
 
-// Create a Public 1v1 lobby (matchmaking — shows up in request_lobby_list for other searchers).
+// Create a Public lobby (quick-match — shows up in request_lobby_list; the pairing itself stays 1v1 in JS).
 #[tauri::command]
 pub fn steam_mm_host(app: AppHandle, state: State<'_, SteamState>, net: State<'_, SteamNetState>) {
   spawn_create_lobby(app, &state, &net, LobbyType::Public);

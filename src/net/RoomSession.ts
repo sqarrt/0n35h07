@@ -63,6 +63,7 @@ export class RoomSession {
   private readyIds = new Set<number>()   // ids of ready players (bots are auto-ready; lobby start gate)
   private started = false                // guard: start() exactly once
   private clientOwners: Record<number, string> = {}   // client: owner map from the last Assign
+  private hostPeer: PeerId | null = null               // client: the creator's transport peer (from the Assign sender)
   private disposed = false
   private connectTimer: ReturnType<typeof setTimeout> | null = null   // client: handshake watchdog
   private closedCb: () => void = () => {}   // client: host left / handshake timeout → revert to pre-search state
@@ -88,10 +89,12 @@ export class RoomSession {
       net.onPeerLeave(peer => this.onPeerLeave(peer))
     } else {
       this.localPlayerId = -1
-      net.on('assign', payload => this.onAssign(payload as Assign))
+      net.on('assign', (payload, from) => this.onAssign(payload as Assign, from))
       net.on('start', payload => { const s = payload as Start; gameLog.log('room', 'start_recv', { mapId: s.mapId, durationMs: s.durationMs }); this.started = true; this.clearTimers(); this.startCb(s.durationMs, s.mapId, this.mode, s.spawns, s.owners) })
       net.onPeerJoin(() => { this.peerSeen = true; netDiagMark('peerSeen'); this.emitChange(); this.sayHello() })   // found the host — introduce ourselves
-      net.onPeerLeave(() => this.onHostGone())   // host left to lobby → client rolls back to search
+      // Multi-guest lobby: only the CREATOR's departure closes the room. Before the Assign lands we don't
+      // know the creator yet — any leave counts (pair rendezvous semantics preserved).
+      net.onPeerLeave(peer => { if (this.hostPeer === null || peer === this.hostPeer) this.onHostGone() })
       if (net.peers().length) this.peerSeen = true   // "with a friend" rendezvous: peer already visible before session is built
       this.sayHello()
       // Resend HELLO until we get ASSIGN (the message may be lost / arrive before the host is ready).
@@ -332,7 +335,8 @@ export class RoomSession {
       this.net.broadcast('hello', { name, primaryColor, reserveColor, desiredMap: this.selMap, desiredDuration: this.selDuration, ballModel, windupStyle, respawnStyle, dashStyle, shieldStyle, ballArt } satisfies Hello)
     }
   }
-  private onAssign(a: Assign) {
+  private onAssign(a: Assign, from: PeerId) {
+    this.hostPeer = from
     netDiagMark('assignRecv')
     this.clearTimers()   // connected — stop calling HELLO and watching the handshake
     this.localPlayerId = a.yourId

@@ -1036,8 +1036,10 @@ export default function App() {
         team: teamOfSlot(mode, slot),
       }))
     }
+    // Transport peer ids currently seated — prunes accepted Steam invites (the friend's SteamId64 IS its peer id).
+    const seatedPeerIds = sessionRef.current ? Object.values(sessionRef.current.netConfig().owners) : []
     return {
-      isHost, me, opponent, mode, seats,
+      isHost, me, opponent, mode, seats, seatedPeerIds,
       onSetMode: onLobbySetMode, onSeatClick: onLobbySeatClick, onBotRemove: onLobbyBotRemove,
       mapSel: v?.mapSel ?? draftSel.map,
       durationSel: v?.durationSel ?? draftSel.durationMin,

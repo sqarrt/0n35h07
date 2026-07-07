@@ -16,7 +16,7 @@ interface Envelope { tag: NetTag; data: unknown }
  * INet over Steam: peers are the other lobby members; messages go via NetworkingMessages (SDR,
  * reliable). Lobby lifecycle (create/join/invite) is driven by the lobby controller; this class
  * is purely the transport — it tracks peers from the event stream and routes messages by tag.
- * 1v1 → broadcast == send to the single peer.
+ * Mesh: broadcast fans out point-to-point to every lobby member (Steam messages have no true broadcast).
  */
 export class SteamNet implements INet {
   readonly selfId: PeerId
