@@ -16,7 +16,7 @@ import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
 import type { DemoFile } from './game/demo/demoTypes'
-import type { INet, PeerId } from './net/INet'
+import type { INet } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { ISfxEngine } from './game/audio/sfx/types'
 import type { AudioAnalysis } from './game/audio/AudioAnalysis'
@@ -38,7 +38,6 @@ interface GameProps {
   role: MatchRole
   net: INet
   netConfig: { localId: number; roster: RosterEntry[] }
-  peerToPlayer: Map<PeerId, number>
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
@@ -58,7 +57,7 @@ interface GameProps {
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPerson, apiRef, durationMs, mapId, gameMode, ffaSpawns, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
+function GameImpl({ dispatch, role, net, netConfig, defaultThirdPerson, apiRef, durationMs, mapId, gameMode, ffaSpawns, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -113,13 +112,13 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPe
   }, [audioAnalysis, musicEngine])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession is built once on top of match
-  const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
+  const session = useMemo(() => new NetSession(net, match), [])
   const driver = useMemo(() => new TickDriver(), [])   // fixed-60Hz accumulator (drives match.update + manual Rapier step)
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
-    const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
+    const requestReady = () => match.markReady(match.localId)   // symmetric: readiness rides as our own event
     // Demo recording is dev-ONLY (the trailer source). The branch under import.meta.env.DEV is stripped from the
     // prod build (DCE), and DemoRecorder is loaded dynamically — it doesn't end up in the game's prod bundle.
     let demoApi: Pick<GameApi, 'startDemo' | 'stopDemo' | 'isRecordingDemo'> = {
@@ -128,7 +127,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, defaultThirdPe
     if (import.meta.env.DEV) {
       demoApi = {
         startDemo: () => {
-          if (match.role !== 'host') return   // host only: it emits events and owns the authoritative state
+          // mesh: every peer records its own point of view
           void import('./game/demo/DemoRecorder').then(({ DemoRecorder }) => {
             match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId })
           })

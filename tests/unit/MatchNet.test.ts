@@ -40,8 +40,15 @@ describe('Match — network mode', () => {
     expect(dispatch).toHaveBeenCalledWith({ type: 'PLAYER_HIT' })
   })
 
-  it('client applySnapshot: the remote gets an interpolation target; the local player does NOT (it is reconciled by prediction error, not a per-frame pull)', () => {
-    const { match } = makeMatch('client', 1)
+  it('applyPeerSnapshot: только игроки отправителя получают интерп-таргет; свои игнорируются даже если пришли', () => {
+    const dispatch = vi.fn()
+    const match = new Match({
+      scene: new THREE.Scene(), camera: new THREE.PerspectiveCamera(),
+      controls: { current: null } as React.RefObject<any>,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
+      dispatch, role: 'peer', netConfig: { localId: 1, roster: ROSTER },
+      owners: { 0: 'X', 1: 'ME' }, selfPeer: 'ME',
+    })
     const snap: Snapshot = {
       ackSeq: 0,
       players: [
@@ -49,9 +56,9 @@ describe('Match — network mode', () => {
         { id: 1, pos: [9, 9, 9], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false },
       ],
     }
-    match.applySnapshot(snap)
-    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)    // remote: interpolated from snapshots
-    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)   // local: predicted + error-gated correction
+    match.applyPeerSnapshot('X', snap)
+    expect(match.players.find(p => p.id === 0)!.hasNetTarget()).toBe(true)    // X's player: interpolated
+    expect(match.players.find(p => p.id === 1)!.hasNetTarget()).toBe(false)   // OUR player: never accepted from the wire
   })
 
   it('host with a bot opponent: the bot in the roster ends up in the snapshot', () => {

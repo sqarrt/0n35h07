@@ -133,7 +133,8 @@ export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
 // Multiplayer (host-authoritative P2P)
-export const MATCH_ROLES = ['host', 'client'] as const
+// 'peer' is the production role (symmetric mesh); 'host'/'client' remain for star-era unit harnesses.
+export const MATCH_ROLES = ['host', 'client', 'peer'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
 // Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
