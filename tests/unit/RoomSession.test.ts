@@ -165,6 +165,22 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
   })
 })
 
+describe('RoomSession — музыкальный сид создателя', () => {
+  it('код пуст (Steam-лобби) → хост генерит сид; гость получает его из Assign', () => {
+    const [a, b] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', '', HOST)
+    expect(host.seed).toMatch(/^[A-Z0-9]{4}$/)   // сгенерён, не пустой
+    const guest = new RoomSession(b, 'client', '', GUEST)
+    expect(guest.seed).toBe(host.seed)           // приехал в Assign — музыка общая
+  })
+
+  it('веб-комната: сид равен коду (музыка та же, что раньше)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    expect(host.seed).toBe('AB12')
+  })
+})
+
 describe('RoomSession — пер-слотовая сложность бота', () => {
   it('setBotDifficulty(d, slot) меняет ровно одного бота; на не-боте — no-op', () => {
     const [a] = createLoopbackPair('H', 'C')
