@@ -2,22 +2,23 @@ import type { INet, PeerId, NetHandler, PeerHandler } from './INet'
 import type { NetTag } from './protocol'
 
 /**
- * In-process transport for unit tests: two linked endpoints in one process,
- * synchronous delivery. A peer is considered present from the moment the pair is created.
+ * In-process transport for unit tests: linked endpoints in one process, synchronous delivery.
+ * Supports a pair (createLoopbackPair) and an N-peer hub where everyone hears everyone
+ * (createLoopbackHub). A peer is considered present from the moment the link is created.
  */
 export class LoopbackNet implements INet {
   readonly selfId: PeerId
-  private peer: LoopbackNet | null = null
+  private links: LoopbackNet[] = []
   private handlers = new Map<NetTag, NetHandler[]>()
   private leaveCbs: PeerHandler[] = []
 
   constructor(id: PeerId) { this.selfId = id }
 
-  link(peer: LoopbackNet) { this.peer = peer }
+  link(peer: LoopbackNet) { if (!this.links.includes(peer)) this.links.push(peer) }
 
-  broadcast(tag: NetTag, payload: unknown) { this.peer?.deliver(tag, payload, this.selfId) }
+  broadcast(tag: NetTag, payload: unknown) { for (const p of this.links) p.deliver(tag, payload, this.selfId) }
   send(peerId: PeerId, tag: NetTag, payload: unknown) {
-    if (this.peer && this.peer.selfId === peerId) this.peer.deliver(tag, payload, this.selfId)
+    this.links.find(p => p.selfId === peerId)?.deliver(tag, payload, this.selfId)
   }
 
   private deliver(tag: NetTag, payload: unknown, from: PeerId) {
@@ -30,15 +31,18 @@ export class LoopbackNet implements INet {
     this.handlers.set(tag, list)
   }
 
-  // Peer is present immediately — call cb right away if the link is already established.
-  onPeerJoin(cb: PeerHandler) { if (this.peer) cb(this.peer.selfId) }
+  // Peers are present immediately — call cb right away for every established link.
+  onPeerJoin(cb: PeerHandler) { for (const p of this.links) cb(p.selfId) }
   onPeerLeave(cb: PeerHandler) { this.leaveCbs.push(cb) }
 
-  /** Test helper: simulate a peer leaving. */
-  triggerLeave() { if (this.peer) this.leaveCbs.forEach(cb => cb(this.peer!.selfId)) }
+  /** Test helper: simulate a peer leaving. No argument → every current link (pair compat). */
+  triggerLeave(peerId?: PeerId) {
+    const ids = peerId !== undefined ? [peerId] : this.links.map(p => p.selfId)
+    for (const id of ids) this.leaveCbs.forEach(cb => cb(id))
+  }
 
-  peers(): PeerId[] { return this.peer ? [this.peer.selfId] : [] }
-  leave() { this.peer = null; this.handlers.clear() }
+  peers(): PeerId[] { return this.links.map(p => p.selfId) }
+  leave() { this.links = []; this.handlers.clear() }
 }
 
 /** Creates a pair of linked loopback endpoints (host + client). */
@@ -48,4 +52,11 @@ export function createLoopbackPair(idA = 'host', idB = 'client'): [LoopbackNet, 
   a.link(b)
   b.link(a)
   return [a, b]
+}
+
+/** Creates an N-peer hub: every endpoint is linked to every other (synchronous mesh). */
+export function createLoopbackHub(ids: PeerId[]): LoopbackNet[] {
+  const nets = ids.map(id => new LoopbackNet(id))
+  for (const a of nets) for (const b of nets) if (a !== b) a.link(b)
+  return nets
 }
