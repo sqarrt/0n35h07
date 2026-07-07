@@ -157,8 +157,11 @@ export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fracti
 export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
 export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
-// Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
+// Ball color palette (personal appearance; never substituted — see colors-rework).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
+// Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.
+export const TEAM_COLORS: [string, string] = ['#37f', '#f53']
+export const NAMEPLATE_NEUTRAL_COLOR = '#ccc'   // FFA plates: everyone is an enemy, color codes nothing
 // ICE servers for WebRTC. Passed into Trystero rtcConfig and REPLACE its defaults — so we keep both
 // STUN and TURN here. STUN suffices for home networks; TURN is needed for symmetric NAT/CGNAT and networks that
 // cut UDP (where STUN times out — see the online diagnostics). turns:443?transport=tcp punches through UDP filtering.
