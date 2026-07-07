@@ -16,19 +16,6 @@ export class InterpBuffer {
     if (this.buf.length > this.capacity) this.buf.shift()
   }
 
-  /** The host sim-tick interpolated at `renderTime` (what the opponent's position corresponds to — for lag-comp).
-   *  Clamps to the ends; 0 if empty. */
-  sampleTick(renderTime: number): number {
-    if (this.buf.length === 0) return 0
-    if (renderTime <= this.buf[0].t) return this.buf[0].tick
-    const last = this.buf[this.buf.length - 1]
-    if (renderTime >= last.t) return last.tick
-    for (let i = 1; i < this.buf.length; i++) {
-      const b = this.buf[i]
-      if (renderTime <= b.t) { const a = this.buf[i - 1]; return a.tick + (b.tick - a.tick) * ((renderTime - a.t) / (b.t - a.t)) }
-    }
-    return last.tick
-  }
 
   get latest(): { x: number; y: number; z: number } | null {
     const s = this.buf[this.buf.length - 1]

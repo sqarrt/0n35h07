@@ -337,8 +337,6 @@ export class Body {
     if (this.interp.sample(Date.now() - NET_INTERP_DELAY_MS, this._remoteOut)) return this._remoteOut
     return this.position
   }
-  /** The host-tick this remote is currently being RENDERED at — the client stamps it on a fire (lag-comp viewTick). */
-  renderHostTick(): number { return this.interp.sampleTick(Date.now() - NET_INTERP_DELAY_MS) }
 
   /** Cache the position from the physics body (result of the previous step). */
   syncFromBody() {

@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFilter, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
 import type { GameMode } from '../game/modes'
-import type { BodyState } from '../game/Body'
 
 /**
  * OneShot network protocol (host-authoritative). All payloads are
@@ -11,7 +10,7 @@ import type { BodyState } from '../game/Body'
 export type Vec3 = [number, number, number]
 
 /** Transport channel tags (short — Trystero limits action names to ~12 bytes). */
-export const NET_TAGS = ['hello', 'assign', 'start', 'input', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
+export const NET_TAGS = ['hello', 'assign', 'start', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
 export type NetTag = typeof NET_TAGS[number]
 
 /** Match phase: host → all (readiness/countdown before the fight). */
@@ -47,26 +46,10 @@ export interface Start {
   owners: Record<number, string>   // player id → transport PeerId of its OWNER (humans — their peer; bots — the creator's)
 }
 
-// --- client input → host (frequent) ---
-export interface InputKeys { f: boolean; b: boolean; l: boolean; r: boolean }
-export interface InputFrame {
-  tick:   number     // the client SIM TICK this input was produced on (fixed 60 Hz) — the host applies it tick-aligned
-                     // and echoes the last-applied tick as Snapshot.ackTick for the client's prediction reconciliation
-  viewTick?: number  // on a FIRE: the host-tick the client was rendering the opponent at → the host rewinds to it (lag-comp)
-  keys:   InputKeys
-  aimDir: Vec3       // look direction (for the movement basis and aim)
-  aimOrigin?: Vec3   // client's camera position — origin of the aim ray (in third person offset behind the back; the host replays it exactly). Absent → host fires from the eyes
-  jump:   boolean    // held jump state (auto-bhop/double jump is computed by Body on the host)
-  fire:   boolean    // edge actions (fire/shield/dash) — one-shot per frame
-  shield: boolean
-  dash:   boolean
-}
-
 /** Shooter-authoritative hit: the shooter's peer raycasts its own beam locally and claims the result; the claim is
  *  addressed to the VICTIM'S OWNER, who judges it against its real local state (alive / ghost / shield — "the shield
  *  wins") and broadcasts the verdict as a kill/block event — so "what you shot is what you hit", no lag-comp rewind. */
 export interface HitClaim {
-  tick?: number      // legacy (star era); unused in the mesh — removed with the star cleanup
   shooter: number    // the shooter's player id (may be a bot simulated by the sending peer)
   hitId: number | null
   point: Vec3 | null // impact point (null on a wall/miss)
@@ -83,17 +66,13 @@ export interface PlayerSnapshot {
   dashing:        boolean
   windupProgress: number
   respawning:     boolean   // ghost phase (semi-transparent, invulnerable)
-  restore:        BodyState // authoritative movement state — the LOCAL player uses it to restore before replay (opponent ignores it)
 }
 export interface Snapshot {
-  ackTick: number              // last client SIM TICK the host applied (for prediction reconciliation)
-  tick:    number              // the host's own SIM TICK at serialize (lets the client tag what host-tick it renders → lag-comp)
-  buffered: number             // client inputs still queued on the host (its jitter-buffer depth) — the client nudges its tick rate to hold this near target so the host never starves (gap) or overflows (drop)
-  players: PlayerSnapshot[]
+  tick:    number              // sender's sim tick at serialize (interpolation ordering)
+  players: PlayerSnapshot[]    // ONLY the sender's owned players
 }
 
 // --- match events: host → all (reliable, ordered) ---
-export interface ScoreLine { id: number; name: string; kills: number; deaths: number; team: number; left?: boolean }
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
   // Slim on purpose: score/streak/bounty/firstBlood are DERIVED by every peer from the (shooter, victim) stream.
@@ -103,9 +82,7 @@ export type MatchEvent =
   | { t: 'respawn'; id: number; pos: Vec3 }
   | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)
   | { t: 'ready';   id: number }   // mesh: a peer declares one of ITS players ready (the creator stamps the countdown)
-  | { t: 'scores';  scores: ScoreLine[] }
-  | { t: 'time';     remainingMs: number }
-  | { t: 'matchEnd'; reason: 'time' | 'disconnect' }
+
 
 // --- Vec3 ↔ THREE.Vector3 helpers ---
 export function toVec3(v: THREE.Vector3): Vec3 { return [v.x, v.y, v.z] }

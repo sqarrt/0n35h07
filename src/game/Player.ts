@@ -173,7 +173,6 @@ export class Player implements IControllable {
   restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
 
   /** The host-tick this (remote) player is being rendered at — stamped on a fire for lag compensation. */
-  renderHostTick() { return this.body.renderHostTick() }
 
   /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
   decayRenderError() { this.body.decayRenderError() }
@@ -396,7 +395,6 @@ export class Player implements IControllable {
       dashing: this.dashing,
       windupProgress: this.windupProgress,
       respawning: this.respawning,
-      restore: this.body.saveState(),
     }
   }
 
@@ -408,7 +406,6 @@ export class Player implements IControllable {
     out.alive = this.alive; out.shieldActive = this.shieldActive
     out.dashing = this.dashing; out.windupProgress = this.windupProgress
     out.respawning = this.respawning
-    out.restore = this.body.saveState()   // authoritative movement state — the client's local player restores from it before replay
   }
 
   /** Apply a snapshot to a remote player (client): position target + visual flags. */

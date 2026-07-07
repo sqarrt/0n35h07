@@ -4,8 +4,6 @@ import type { Player } from '../Player'
 import type { World } from '../World'
 import { horizontalBasis, moveVelocity, dashDirection } from './movement'
 import type { MoveKeys } from './movement'
-import { toVec3 } from '../../net/protocol'
-import type { InputFrame } from '../../net/protocol'
 import {
   WINDUP_LOOK_FACTOR, TP_DIST, TP_HEIGHT, TP_SHOULDER_X, DASH_FOV, AIM_RANGE,
 } from '../../constants'
@@ -34,7 +32,7 @@ export class HumanController implements Controller {
   private keys: React.MutableRefObject<Keys>
   private controls: React.RefObject<PointerControls | null>
   private world: World
-  // Edge actions per frame — for the network InputFrame (client sends to host). Jump is held (see keys.jump).
+  // Edge actions per frame (fire/shield/dash latches consumed by the local sim). Jump is held (see keys.jump).
   private pending = { fire: false, shield: false, dash: false }
 
   constructor(
@@ -74,23 +72,6 @@ export class HumanController implements Controller {
   /** Camera-relative horizontal axes (for movement and dash direction). */
   private basis() {
     return horizontalBasis(this.camera.getWorldDirection(this.tmp), this._basis)
-  }
-
-  /** Build the input frame to send to the host (client). Clears the edge latches. */
-  currentInputFrame(tick: number): InputFrame {
-    const k = this.keys.current
-    const look = this.camera.getWorldDirection(this.tmp)
-    const frame: InputFrame = {
-      tick,
-      keys: { f: k.forward, b: k.back, l: k.left, r: k.right },
-      aimDir: toVec3(look),
-      aimOrigin: toVec3(this.camera.position),   // aim origin = camera (in TP offset behind) — so the host replays the same ray
-      jump: k.jump,   // held state (not an edge) — auto-bhop/double jump is computed by Body on the host
-      fire: this.pending.fire,
-      shield: this.pending.shield, dash: this.pending.dash,
-    }
-    this.pending = { fire: false, shield: false, dash: false }
-    return frame
   }
 
   // --- intents (before physics) ---

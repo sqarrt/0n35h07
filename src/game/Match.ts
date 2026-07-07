@@ -8,7 +8,6 @@ import { HumanController } from './controllers/HumanController'
 import type { PointerControls } from './controllers/HumanController'
 import { BotController } from './controllers/BotController'
 import { botPersonality } from './controllers/botPersonality'
-import { RemoteInputController } from './controllers/RemoteInputController'
 import type { Controller } from './abstractions'
 import type { HUDAction, MatchResult, TeamRank } from '../hooks/useGameHUD'
 import type { GameMode } from './modes'
@@ -20,11 +19,8 @@ import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import { gameLog } from '../diag/gameLog'
 import { PHASE_WATCHDOG_MS, HEALTH_HEARTBEAT_MS } from '../diag/constants'
-import type { InputFrame, Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
-import { PredictionLog } from '../net/clientReconcile'
-import { LagCompHistory } from './LagCompHistory'
+import type { Snapshot, MatchEvent, RosterEntry, PhaseMsg, HitClaim } from '../net/protocol'
 import type { RapierRigidBody } from '@react-three/rapier'
-import { emptyBodyState } from './Body'
 import { MAPS } from './maps'
 import type { IMusicEngine } from './audio/types'
 import { MatchMusic } from './audio/MatchMusic'
@@ -46,8 +42,8 @@ import {
   WINDUP_MOVE_FACTOR, READY_COUNTDOWN_MS,
   MATCH_TIME_BROADCAST_MS, DEFAULT_MAP_ID,
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
-  BALL_RADIUS, FIXED_DT, AIM_RANGE,
-  NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE, NET_PREDICT_KILL_MS,
+  BALL_RADIUS, AIM_RANGE,
+  NET_PREDICT_KILL_MS,
   TEAM_COLORS, NAMEPLATE_NEUTRAL_COLOR,
 } from '../constants'
 
@@ -125,9 +121,6 @@ export class Match {
   private owners: Map<number, string> // player id → owner PeerId (missing → selfPeer)
   private singularityActive = false   // SINGULARITY mode: pierce for both + transparent blocks (tracked to toggle)
   private controllers: Controller[]
-  private remoteControllers = new Map<number, RemoteInputController>()   // host: player id → its controller
-  private hostBuffered = NET_INPUT_BUFFER_TARGET   // client: how many of our inputs the host has buffered (from snapshots) — drives the clock-sync nudge
-  private pendingHitClaim: HitClaim | null = null   // client: our own shot's raycast result, to send to the host (shooter-authoritative)
   private pendingClaims: Array<{ to: string; claim: HitClaim }> = []   // mesh: addressed claims for victims other peers own
   private predictedKill: { id: number; until: number } | null = null   // client: an opponent we predicted dead, holding the ghost until the host confirms ('kill') or the grace expires (rejected → revive from snapshots)
   private byId = new Map<number, Player>()
@@ -169,11 +162,7 @@ export class Match {
   private pendingResult: MatchResult | null = null   // deferred outcome screen (after END_FREEZE_MS)
   private resultDueAt = 0
 
-  // Client prediction (null on host): records (tick → input, BodyState); reconciles by REPLAY against the host authority.
-  private predictionLog: PredictionLog | null = null
-  private tick = 0   // monotonic sim tick; the client stamps each input + prediction with it (host echoes it as ackTick)
-  private history = new Map<number, LagCompHistory>()   // host: per-player hitbox positions by tick (lag compensation)
-  private _lagPos = { x: 0, y: 0, z: 0 }                 // scratch for the rewound position
+  private tick = 0   // monotonic sim tick (stamped on outgoing snapshots for interpolation ordering)
 
   // Match music (optional: without a seed/engine — silence, e.g. in unit tests)
   private achievements: IAchievements   // Steam achievements sink for the local player (DIP)
@@ -195,7 +184,6 @@ export class Match {
     this.selfPeer = o.selfPeer ?? 'local'
     this.owners = new Map(Object.entries(o.owners ?? {}).map(([k, v]) => [Number(k), v]))
     this.ownedIds = new Set(o.netConfig.roster.map(r => r.id).filter(id => (this.owners.get(id) ?? this.selfPeer) === this.selfPeer))
-    this.predictionLog = o.role === 'client' ? new PredictionLog() : null
     this.durationMs = o.durationMs ?? 0
     this.achievements = o.achievements ?? new NoopAchievements()
 
@@ -276,13 +264,8 @@ export class Match {
           e.difficulty === 'passive',
           botPersonality(e.name),
         ))
-      } else if (!isBot && this.role === 'host') {
-        // Star era (until the mesh cutover): the host buffers a remote human's inputs.
-        const rc = new RemoteInputController(p, this.world)
-        this.remoteControllers.set(e.id, rc)
-        controllers.push(rc)
       }
-      // remotes without a controller are driven from their owner's snapshots
+      // remotes have no controller — they are driven from their owner's snapshots
     }
     return { human, humanController, controllers, botIds }
   }
@@ -376,14 +359,6 @@ export class Match {
     this.players.forEach(p => p.captureTick())
   }
 
-  private histFor(id: number): LagCompHistory {
-    let h = this.history.get(id)
-    // ~1s window: must cover interp delay + RTT + the beam's windup (the fire's viewTick is captured at press,
-    // but the raycast lands ~windup later) — else the rewind clamps to the oldest sample and misses.
-    if (!h) { h = new LagCompHistory(64); this.history.set(id, h) }
-    return h
-  }
-
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
@@ -403,8 +378,7 @@ export class Match {
   }
 
   /** One player's KCC movement step (gravity/jump/horizontal/dash/knockback → sweep vs static → commit). The
-   *  input intents must already be applied (live: by the controller; replay: by applyInputMovement). DRY: used by
-   *  both `applyPhysics` and prediction `replayFrom`. */
+   *  input intents must already be applied by the controller. */
   private stepPlayerMovement(p: Player, rb: RapierRigidBody, dt: number, ignorePlayers: (c: { handle: number }) => boolean) {
     const groundNormal = this.groundNormalUnder(p)                  // normal under the player (for slopes)
     p.stepJump()                                                    // jump/double/auto-bhop (held input)
@@ -451,14 +425,11 @@ export class Match {
    *  Starts once and plays out its window (like a dash); while in flight — not restarted. */
   private maybeKnockback(p: Player) {
     if (!p.alive || p.knocking) return
-    // Lag-comp the overlap for a REMOTE avatar (host's view of a client): measure against the opponent WHERE THE CLIENT
-    // SAW IT (rewound to the client's viewTick) — that's the geometry the client predicted its knockback against, so
-    // host & client agree and a player collision produces NO reconciliation snap. Live position otherwise.
-    const vt = this.role === 'host' ? (this.remoteControllers.get(p.id)?.lastViewTick ?? 0) : 0
+    // Mesh: each owner knocks back its OWN players against everyone's LIVE (interpolated) positions —
+    // both sides see roughly the same overlap; no rewinds, no shared authority.
     for (const o of this.players) {
       if (o === p || !o.alive) continue
-      let ox = o.position.x, oy = o.position.y, oz = o.position.z
-      if (vt > 0 && this.histFor(o.id).at(vt, this._lagPos)) { ox = this._lagPos.x; oy = this._lagPos.y; oz = this._lagPos.z }
+      const ox = o.position.x, oy = o.position.y, oz = o.position.z
       const dx = p.position.x - ox
       const dy = p.position.y - oy
       const dz = p.position.z - oz
@@ -594,26 +565,6 @@ export class Match {
     return c
   }
 
-  /** host: apply a client's shooter-authoritative hit. Loose validation (P2P 1v1 with friends): the victim must be a
-   *  real, living opponent within weapon range. The shield is handled naturally by receiveHit → 'blocked'. A rejected
-   *  claim is simply dropped — the client's predicted death (if any) self-corrects from the next snapshot. */
-  applyHitClaim(shooterId: number, claim: HitClaim): void {
-    if (this.role !== 'host' || claim.hitId === null) return
-    const shooter = this.byId.get(shooterId)
-    const victim = this.byId.get(claim.hitId)
-    if (!shooter || !victim || victim === shooter) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'bad_target' }); return }
-    if (shooter.team === victim.team) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'teammate' }); return }
-    if (!victim.alive) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'dead' }); return }
-    const point = claim.point ? fromVec3(claim.point) : victim.position
-    const dist = shooter.position.distanceTo(point)
-    if (dist > AIM_RANGE) { gameLog.warn('act', 'claim_drop', { shooter: shooterId, victim: claim.hitId, reason: 'range', dist }); return }
-    gameLog.log('act', 'claim_apply', { shooter: shooterId, victim: claim.hitId, dist })
-    this.resolveHit(shooter, victim, point)
-  }
-
-  /** client: the pending shooter-authoritative hit to send the host this frame (cleared on read). */
-  drainHitClaim(): HitClaim | null { const c = this.pendingHitClaim; this.pendingHitClaim = null; return c }
-
   /** client: predict the opponent's death on a local hit (instant feedback — no RTT wait for the host's 'kill').
    *  A false positive (the host rejects — out of range, or a shield raised within RTT) self-corrects from the next
    *  snapshot: applyNetState restores alive/respawning. Skip a visibly shielding opponent — the host would block it,
@@ -658,10 +609,7 @@ export class Match {
     const now = Date.now()
     if (now - this.lastHealthAt < HEALTH_HEARTBEAT_MS) return
     this.lastHealthAt = now
-    const buffered = this.role === 'host'
-      ? Math.max(0, ...[...this.remoteControllers.values()].map(c => c.pending))
-      : this.hostBuffered
-    gameLog.log('health', 'tick', { role: this.role, buffered, peers: this.players.length })
+    gameLog.log('health', 'tick', { role: this.role, peers: this.players.length })
   }
 
   /** Diag: log shield/dash on→off edges per player (local from the real sim; the client's opponent from snapshot flags). */
@@ -978,15 +926,12 @@ export class Match {
     const owned = this.players.filter(p => this.ownedIds.has(p.id))
     if (!this._snapBuf) {
       this._snapBuf = {
-        ackTick: 0,     // vestigial star-era fields; dropped with the protocol cleanup
         tick: 0,
-        buffered: 0,
         players: owned.map(p => ({
           id: p.id,
           pos: [0, 0, 0] as [number, number, number],
           aimDir: [0, 0, 0] as [number, number, number],
           alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false,
-          restore: emptyBodyState(),   // overwritten by fillState
         })),
       }
     }
@@ -995,39 +940,7 @@ export class Match {
     return this._snapBuf
   }
 
-  /** host: apply the received input frame to player playerId's avatar. */
-  pushRemoteInput(playerId: number, frame: InputFrame) {
-    this.remoteControllers.get(playerId)?.enqueue(frame)
-  }
-
-  /** client: input frame for our own player to send to the host (stamped with the current sim tick). The
-   *  post-step BodyState this tick is recorded under that tick, so a later snapshot (ackTick) can be replayed
-   *  against our own prediction. */
-  localInputFrame(): InputFrame {
-    const frame = this.humanController.currentInputFrame(this.tick)
-    const me = this.byId.get(this.localId)
-    if (me) this.predictionLog?.record(this.tick, frame, me.saveBodyState())
-    // Lag-comp: stamp the host-tick we're CURRENTLY rendering the opponent at — EVERY frame, not just on fire. The
-    // beam has a windup, so it raycasts several ticks AFTER the press; the host rewinds the victim to the viewTick of
-    // the frame applied at FIRE-time (the latest), which tracks the opponent's render through the windup. Stamping
-    // only at press would rewind to where the target was when you clicked, missing it after it moved during windup.
-    // With N remotes they all interpolate at the same delay — stamp the freshest rendered host-tick.
-    let viewTick = 0
-    for (const p of this.players) if (p.id !== this.localId) viewTick = Math.max(viewTick, p.renderHostTick())
-    if (viewTick > 0) frame.viewTick = viewTick
-    return frame
-  }
-
-  /** client: per-frame tick-rate nudge (seconds) added to the sim accumulator, holding the host's input buffer near
-   *  target. Buffer below target → host starving (gaps) → run a touch faster; above → too much input lag → slower.
-   *  Gentle gain + a tight clamp keep the clock stable; 0 on the host (it predicts nobody). */
-  clockNudge(): number {
-    if (this.role !== 'client') return 0
-    const n = (NET_INPUT_BUFFER_TARGET - this.hostBuffered) * FIXED_DT * NET_CLOCK_SYNC_GAIN
-    return Math.max(-NET_CLOCK_SYNC_MAX_NUDGE, Math.min(NET_CLOCK_SYNC_MAX_NUDGE, n))
-  }
-
-  /** client: snapshot → remotes interpolate to the target; our own player reconciles by prediction REPLAY (ackTick). */
+  /** Snapshots from a peer drive ONLY the players that peer owns (attribution below). */
   /** Apply a snapshot from peer `from`: ONLY to the players that peer owns (attribution), never to our own. */
   applyPeerSnapshot(from: string, snap: Snapshot) {
     for (const ps of snap.players) {
@@ -1118,9 +1031,8 @@ export class Match {
         break
       }
       case 'respawn': {
-        gameLog.log('act', 'respawn', { side: 'client', id: e.id })
+        gameLog.log('act', 'respawn', { side: 'remote', id: e.id })
         this.byId.get(e.id)?.respawnAt(fromVec3(e.pos))
-        if (e.id === this.localId) this.predictionLog?.reset()   // teleport invalidates predictions
         this.sfx?.combat(e, this.sfxPos)
         break
       }
@@ -1128,20 +1040,6 @@ export class Match {
         if (e.id === this.localId) break   // our own movement is already played by prediction
         gameLog.log('act', 'move', { side: 'client', id: e.id, kind: e.kind })
         this.sfx?.move(e.kind, this.byId.get(e.id)?.position ?? fromVec3(e.pos))
-        break
-      }
-      case 'scores': {
-        this.dispatch({ type: 'SET_SCORES', scores: e.scores })
-        break
-      }
-      case 'time': {
-        this.lastRemainingMs = e.remainingMs   // for the music finale section (client)
-        this.lastRemainingAt = Date.now()
-        this.dispatch({ type: 'SET_MATCH_TIME', seconds: Math.ceil(e.remainingMs / 1000) })
-        break
-      }
-      case 'matchEnd': {
-        this.endMatch(e.reason)
         break
       }
     }
