@@ -14,6 +14,7 @@ import type { HUDAction, MatchResult, TeamRank } from '../hooks/useGameHUD'
 import type { GameMode } from './modes'
 import { teamOfSlot } from './modes'
 import { spawnPositionsFor } from './spawns'
+import { createNameplate } from './fx/nameplate'
 import type { Vec3 } from '../net/protocol'
 import type { MatchRole, MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
@@ -49,6 +50,7 @@ import {
   AUTOSTEP_MAX_HEIGHT, AUTOSTEP_MIN_WIDTH, KCC_SLOPE_DEG, KCC_OFFSET, AUTOSTEP_LIFT_EPS,
   BALL_RADIUS, FIXED_DT, NET_RECONCILE_SNAP_DIST, AIM_RANGE,
   NET_INPUT_BUFFER_TARGET, NET_CLOCK_SYNC_GAIN, NET_CLOCK_SYNC_MAX_NUDGE, NET_PREDICT_KILL_MS,
+  TEAM_COLORS, NAMEPLATE_NEUTRAL_COLOR,
 } from '../constants'
 
 const _DOWN    = new THREE.Vector3(0, -1, 0)   // scratch: ray down for the surface normal under the player
@@ -245,6 +247,11 @@ export class Match {
       p.name = e.name
       p.team = teamOfSlot(this.mode, e.id)
       this.colorOf.set(e.id, e.color)
+      // Name plates: only when friend/foe reading matters (not 1v1) and never over one's own model.
+      if (this.mode !== '1v1' && e.id !== net.localId) {
+        const bg = this.mode === '2v2' ? TEAM_COLORS[p.team] : NAMEPLATE_NEUTRAL_COLOR
+        p.setNameplate(createNameplate(e.name, bg))
+      }
 
       // Start position from the mode's spawn rule (1v1 — the two map points, exactly the pre-modes game).
       p.respawnAt(new THREE.Vector3().fromArray(spawnMap.get(e.id)!))

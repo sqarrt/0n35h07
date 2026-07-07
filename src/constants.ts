@@ -162,6 +162,9 @@ export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#
 // Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.
 export const TEAM_COLORS: [string, string] = ['#37f', '#f53']
 export const NAMEPLATE_NEUTRAL_COLOR = '#ccc'   // FFA plates: everyone is an enemy, color codes nothing
+// Nameplates over remote players (2v2: team color; FFA: neutral; 1v1: none).
+export const NAMEPLATE_HEIGHT = 1.35                       // above the ball center (world units)
+export const NAMEPLATE_SCALE: [number, number] = [1.6, 0.4]  // sprite world size (w, h)
 // Mode spawn rules (see src/game/spawns.ts): 2v2 cluster offsets and the FFA scatter distance.
 export const SPAWN_CLUSTER_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-0.9, 0], [0.9, 0]]  // XZ offsets inside a 2v2 team cluster (keep capsules apart)
 export const FFA_SPAWN_MIN_DIST = 6      // min pairwise distance between FFA start positions

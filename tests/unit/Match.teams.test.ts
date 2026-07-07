@@ -113,6 +113,36 @@ describe('Match — teams from the mode preset', () => {
     expect(match.phase).toBe('ended')                // осталась одна команда → немедленный конец
   })
 
+  it('плашки: в 2v2/ffa у ремоутов есть Sprite (noRaycast), у своего нет; прячется со смертью', () => {
+    const { match } = makeTeamsMatch('2v2')
+    const plateOf = (p: { bodyGroup: THREE.Group }) => p.bodyGroup.children.find(c => (c as THREE.Sprite).isSprite) as THREE.Sprite | undefined
+    expect(plateOf(match.human)).toBeUndefined()
+    for (const b of match.bots) {
+      const plate = plateOf(b)!
+      expect(plate).toBeTruthy()
+      expect(plate.userData.noRaycast).toBe(true)
+    }
+    const victim = match.bots[0]
+    victim.receiveHit()                              // died → the plate hides with the body
+    expect(plateOf(victim)!.visible).toBe(false)
+  })
+
+  it('плашки: в 1v1 их нет ни у кого', () => {
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 200)
+    const roster: RosterEntry[] = [
+      { id: 0, name: 'You', color: '#4af', kind: 'human' },
+      { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
+    ]
+    const match = new Match({
+      scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
+      keys: { current: { forward: false, back: false, left: false, right: false } } as any,
+      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+    })
+    for (const p of match.players)
+      expect(p.bodyGroup.children.some(c => (c as THREE.Sprite).isSprite)).toBe(false)
+  })
+
   it('nearestEnemy: ближайший живой не-тиммейт', () => {
     const { match } = makeTeamsMatch('2v2')
     const [mate, foe1, foe2] = match.bots
