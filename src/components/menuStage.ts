@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
+import type { GameMode } from '../game/modes'
 
 /** Screens served by the menu background. */
 export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
@@ -28,11 +29,9 @@ export const STAGE_SPOTS = [
 export const PLAYER_SPOT = STAGE_SPOTS[0]
 export const OPPONENT_SPOT = STAGE_SPOTS[1]
 
-const LOBBY4_MIN_OCCUPIED = 3   // 3+ balls on stage → the wide "square" pose
-
-/** Camera state by screen and context: lobby with company (pair — host/client angles; 3+ — the square),
- *  "Appearance" blocks, otherwise default. */
-export function cameraStateFor(mode: MenuMode, occupied: number, isClient: boolean, part: AppearancePart): MenuCameraState {
+/** Camera state by screen and context. In the lobby the pose follows the MODE preset, not the
+ *  actual occupancy: Duel — the classic pair angle (own side for a guest), Battle/War — the square. */
+export function cameraStateFor(mode: MenuMode, gameMode: GameMode, isClient: boolean, part: AppearancePart): MenuCameraState {
   if (mode === 'appearance') {
     if (part === 'shot') return 'appearanceShot'
     if (part === 'respawn') return 'appearanceRespawn'
@@ -42,7 +41,6 @@ export function cameraStateFor(mode: MenuMode, occupied: number, isClient: boole
     if (part === 'paintBack') return 'appearancePaintBack'
     return 'appearance'
   }
-  if (mode === 'lobby' && occupied >= LOBBY4_MIN_OCCUPIED) return 'lobby4'
-  if (mode === 'lobby' && occupied > 1) return isClient ? 'roomClient' : 'room'
+  if (mode === 'lobby') return gameMode === '1v1' ? (isClient ? 'roomClient' : 'room') : 'lobby4'
   return 'default'
 }

@@ -609,9 +609,9 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
       .catch(() => { /* no endpoint (preview build) — we stay on the imported poses */ })
   }, [])
 
-  const occupied = room?.roster.length ?? 0   // seated participants (drives the pair vs square poses)
+  const gameMode = room?.mode ?? '1v1'   // the MODE preset picks the lobby pose (pair vs square)
   const isClient = room != null && room.localPlayerId !== HOST_ID   // joined someone else's room
-  const camState = cameraStateFor(mode, occupied, isClient, appearancePart ?? 'color')
+  const camState = cameraStateFor(mode, gameMode, isClient, appearancePart ?? 'color')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
