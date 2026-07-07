@@ -5,6 +5,9 @@ import type { Page, BrowserContext } from '@playwright/test'
 // there is no reconciliation at all, so the own player must move perfectly smoothly regardless of lag; remotes
 // interpolate from their owner's snapshots (receive-time buffer).
 
+// Двухстраничные матчи под инжектированным лагом — тяжёлые; тройной таймаут против перегрузки машины.
+test.slow()
+
 const LAG_URL = '/?net=bc-lag&lagMs=60&jitterMs=15'
 const CLIENT_ID = 1   // joiner = OPPONENT_ID (host = HOST_ID 0)
 

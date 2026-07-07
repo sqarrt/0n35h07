@@ -5,6 +5,11 @@ import type { Page, BrowserContext } from '@playwright/test'
 // уход одной вкладки не рушит матч у остальных. Боевых ассертов нет намеренно (флак) —
 // протокол смерти закреплён юнитами (mesh.deathProtocol) и smoothness-спеком.
 
+// Три страницы Rapier на тест — самый тяжёлый сьют в репо: под полной параллелью первый прогруз и
+// рукопожатия не влезают в стандартный лимит. Тройной таймаут + последовательный режим внутри файла.
+test.describe.configure({ mode: 'serial' })
+test.slow()
+
 async function fakeLock(page: Page) {
   await page.evaluate(() => {
     const canvas = document.querySelector('canvas')!
