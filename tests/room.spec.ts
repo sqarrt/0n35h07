@@ -21,7 +21,7 @@ test('main menu — navigation buttons are visible', async ({ page }) => {
 test('Play screen (web) — Duel centered, both seat zones, no SEARCH, READY disabled', async ({ page }) => {
   await lobby(page)
   await expect(page.getByTestId('mode-tile-1v1')).toHaveAttribute('data-role', 'center')
-  await expect(page.getByTestId('seat-invite-1')).toBeVisible()      // invite zone
+  await expect(page.getByTestId('seat-code-1')).toBeVisible()       // "send to a friend: <code>" zone
   await expect(page.getByTestId('seat-addbot-1')).toBeVisible()      // add-a-bot zone
   await expect(page.getByTestId('join-code-field')).toBeVisible()    // web guest path
   await expect(page.getByTestId('lobby-search')).toHaveCount(0)      // search is Steam-only

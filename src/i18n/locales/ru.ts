@@ -5,6 +5,8 @@ export const ru = {
   lobbyBecomeHost: 'СТАТЬ ХОСТОМ',
   lobbyBecomeClient: 'СТАТЬ КЛИЕНТОМ',
   lobbyAddBot: 'ДОБАВИТЬ БОТА',
+  lobbySendCode: 'ОТПРАВЬ ДРУГУ:',
+  lobbyTakeSeat: 'ЗАНЯТЬ МЕСТО',
   lobbyJoinByCode: 'ПРИСОЕДИНИТЬСЯ ПО КОДУ',
   lobbyEnterCode: 'ВВЕСТИ КОД ХОСТА',
   lobbyCodePlaceholder: 'код хоста',

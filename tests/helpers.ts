@@ -15,9 +15,8 @@ async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   await page.getByTestId('lobby-ready').click()              // host ready → both ready → start
 }
 
-// Host path on the "Play" screen (web): the seat's invite zone reveals our room code.
+// Host path on the "Play" screen (web): every free seat shows "send to a friend: <code>" — read it.
 export async function revealRoomCode(page: Page, slot = 1): Promise<string> {
-  await page.getByTestId(`seat-invite-${slot}`).click()
   const text = await page.getByTestId(`seat-code-${slot}`).locator('.seat-code-text').innerText()
   return text.trim()
 }

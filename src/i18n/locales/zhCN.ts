@@ -6,6 +6,8 @@ export const zhCN = {
   lobbyBecomeHost: '成为主机',
   lobbyBecomeClient: '成为客户端',
   lobbyAddBot: '添加机器人',
+  lobbySendCode: '发给好友：',
+  lobbyTakeSeat: '入座',
   lobbyJoinByCode: '通过代码加入',
   lobbyEnterCode: '输入主机代码',
   lobbyCodePlaceholder: '主机代码',
