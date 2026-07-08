@@ -22,13 +22,25 @@ export async function loadMap(id: string): Promise<MapData | null> {
   } catch { return null }
 }
 
-export async function saveMap(id: string, map: MapData): Promise<boolean> {
-  return put(`${enc(id)}/raw.json`, serializeMap(map), 'application/json')
+export async function saveMap(id: string, map: MapData, opts?: { keepalive?: boolean }): Promise<boolean> {
+  return put(`${enc(id)}/raw.json`, serializeMap(map), 'application/json', opts?.keepalive)
 }
 
 /** Compiled geometry (geo.json). */
-export async function saveCompiled(id: string, geoJson: string): Promise<boolean> {
-  return put(`${enc(id)}/geo.json`, geoJson, 'application/json')
+export async function saveCompiled(id: string, geoJson: string, opts?: { keepalive?: boolean }): Promise<boolean> {
+  return put(`${enc(id)}/geo.json`, geoJson, 'application/json', opts?.keepalive)
+}
+
+/** Бэкап состояния на начало сессии редактора (backup.json). */
+export async function loadBackup(id: string): Promise<MapData | null> {
+  try {
+    const r = await fetch(`${BASE}/${enc(id)}/backup.json`)
+    return r.ok ? parseMap(await r.text()) : null
+  } catch { return null }
+}
+
+export async function saveBackup(id: string, map: MapData): Promise<boolean> {
+  return put(`${enc(id)}/backup.json`, serializeMap(map), 'application/json')
 }
 
 /** Preview image: dataURL (data:image/png;base64,...) → base64 body. */
@@ -52,9 +64,9 @@ export async function renameMap(oldId: string, newId: string): Promise<boolean> 
   return deleteMap(oldId)
 }
 
-async function put(pathPart: string, body: string, contentType: string): Promise<boolean> {
+async function put(pathPart: string, body: string, contentType: string, keepalive = false): Promise<boolean> {
   try {
-    const r = await fetch(`${BASE}/${pathPart}`, { method: 'PUT', headers: { 'content-type': contentType }, body })
+    const r = await fetch(`${BASE}/${pathPart}`, { method: 'PUT', headers: { 'content-type': contentType }, body, keepalive })
     return r.ok
   } catch { return false }
 }

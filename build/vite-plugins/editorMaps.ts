@@ -10,12 +10,12 @@ import { sendJson, readBody } from './shared'
  *   GET    /__maps/<id>/<part>     → file contents (preview.png — binary)
  *   PUT    /__maps/<id>/<part>     → write file (preview.png — base64 body)
  *   DELETE /__maps/<id>            → delete the map folder
- * part ∈ { raw.json, geo.json, preview.png }.
+ * part ∈ { raw.json, geo.json, preview.png, backup.json }.
  */
 const MAPS_DIR = path.resolve(process.cwd(), 'src/maps')
 const ID_RE = /^[a-zA-Z0-9_-]+$/
-const PARTS = new Set(['raw.json', 'geo.json', 'preview.png'])
-const CT: Record<string, string> = { 'raw.json': 'application/json', 'geo.json': 'application/json', 'preview.png': 'image/png' }
+const PARTS = new Set(['raw.json', 'geo.json', 'preview.png', 'backup.json'])
+const CT: Record<string, string> = { 'raw.json': 'application/json', 'geo.json': 'application/json', 'preview.png': 'image/png', 'backup.json': 'application/json' }
 
 export function editorMaps(): Plugin {
   return {
