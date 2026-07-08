@@ -137,9 +137,10 @@ export function MapEditor({ name }: { name: string }) {
       // и не в режиме вставки; повторный V в режиме вставки — no-op
       if (document.pointerLockElement && !paste && selection?.b) {
         const [a, b] = [selection.a, selection.b]
-        if (e.code === 'KeyC') { setClipboard(extractRegion(voxels, a, b)); return }
-        if (e.code === 'KeyX') { setClipboard(extractRegion(voxels, a, b)); setVoxels(eraseRegion(voxels, a, b)); return }
-        if (e.code === 'Delete') { setVoxels(eraseRegion(voxels, a, b)); return }
+        // операция завершает выделение — бокс не должен оставаться «следом»
+        if (e.code === 'KeyC') { setClipboard(extractRegion(voxels, a, b)); setSelection(null); return }
+        if (e.code === 'KeyX') { setClipboard(extractRegion(voxels, a, b)); setVoxels(eraseRegion(voxels, a, b)); setSelection(null); return }
+        if (e.code === 'Delete') { setVoxels(eraseRegion(voxels, a, b)); setSelection(null); return }
       }
       if (e.code === 'KeyV' && document.pointerLockElement && !paste && clipboard) { setPaste(clipboard); return }
       const idx = TOOL_KEYS.indexOf(e.code)
