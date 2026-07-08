@@ -1,5 +1,5 @@
 import { cellKey, parseCellKey } from './editorStore'
-import type { Cell } from './editorStore'
+import type { Cell, Dir } from './editorStore'
 
 /**
  * Selection/clipboard logic for the map editor (no React/THREE): an axis-aligned box of cells
@@ -32,4 +32,17 @@ export function extractRegion(voxels: Map<string, Cell>, a: Vec3i, b: Vec3i): Fr
     if (inRegion(x, y, z, min, max)) cells.set(cellKey(x - min[0], y - min[1], z - min[2]), cell)
   }
   return { size: [max[0] - min[0] + 1, max[1] - min[1] + 1, max[2] - min[2] + 1], cells }
+}
+
+/** 90° rotation about the vertical axis: relative (x,z) → (nz−1−z, x) — the same −90° world turn that
+ *  one `d` step encodes (wedgeRotationY = −d·90°), so wedges stay consistent with their cells: d' = (d+1)&3. */
+export function rotateFragment(frag: Fragment): Fragment {
+  const [nx, ny, nz] = frag.size
+  const cells = new Map<string, Cell>()
+  for (const [k, cell] of frag.cells) {
+    const [x, y, z] = parseCellKey(k)
+    const next: Cell = cell.t === 'wedge' ? { ...cell, d: ((cell.d + 1) & 3) as Dir } : cell
+    cells.set(cellKey(nz - 1 - z, y, x), next)
+  }
+  return { size: [nz, ny, nx], cells }
 }
