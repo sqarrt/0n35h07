@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { EYE_HEIGHT } from '../constants'
-import type { Vec3, GameMap } from '../game/maps'
-import { compileBlocks, serializeGeo } from '../game/mapGeometryCache'
-import { ThumbnailRenderer } from '../components/MapPreview'
+import type { Vec3 } from '../game/maps'
 import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
 import { extractRegion, eraseRegion, rotateFragment, canStamp, stampFragment } from './editorSelection'
 import type { Fragment } from './editorSelection'
-import { loadMap, saveMap, saveCompiled, saveThumbnail } from './mapsApi'
+import { loadMap, loadBackup, saveBackup } from './mapsApi'
+import { useMapSaver } from './useMapSaver'
 import './editor.css'
 
 type CellCoord = [number, number, number]
@@ -27,6 +26,7 @@ const TOOLS: { tool: EditorTool; label: string }[] = [
   { tool: 'select', label: 'SELECT' },
 ]
 const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5']
+const AUTOSAVE_DEBOUNCE_MS = 3000   // пауза после последней правки до автосейва
 
 /** Row of palette color-pick swatches. */
 function Palette({ value, onPick }: { value: string; onPick: (c: string) => void }) {
@@ -62,10 +62,13 @@ export function MapEditor({ name }: { name: string }) {
   const [brushPassable, setBrushPassable] = useState(false)
   const [locked, setLocked] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [status, setStatus] = useState('')
-  const [thumbMap, setThumbMap] = useState<GameMap | null>(null)   // map for the offscreen preview render on save
+  const { save, flush, status, thumbEl } = useMapSaver(name)
+  const [hasBackup, setHasBackup] = useState(false)
+  const fromDisk = useRef(true)    // данные пришли с диска (загрузка/REVERT) — не триггерят автосейв
+  const dirty = useRef(false)      // есть несохранённые правки (для pagehide-flush)
 
   const loadInto = useCallback((data: MapData) => {
+    fromDisk.current = true
     setHalf(data.half)
     setFloorColor(data.floorColor)
     setWallColor(wallColorOf(data))
@@ -79,7 +82,11 @@ export function MapEditor({ name }: { name: string }) {
     let alive = true
     void loadMap(name).then(data => {
       if (!alive) return
-      if (data) loadInto(data)
+      if (data) {
+        loadInto(data)
+        // бэкап «на начало сессии» — страховка от случайных разрушений при автосейве
+        void saveBackup(name, data).then(ok => { if (alive && ok) setHasBackup(true) })
+      }
       setLoaded(true)
     })
     return () => { alive = false }
@@ -156,20 +163,29 @@ export function MapEditor({ name }: { name: string }) {
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
 
-  // Saving writes 3 artifacts: raw.json (source) + geo.json (compiled geometry) + preview.png (offscreen render).
-  const doSave = async () => {
-    setStatus('saving…')
-    const data = buildMap()
-    const rawOk = await saveMap(name, data)
-    const geoOk = await saveCompiled(name, serializeGeo(compileBlocks(data.blocks)))
-    setStatus(rawOk && geoOk ? 'rendering preview…' : 'save error')
-    setThumbMap(data as unknown as GameMap)   // mounts ThumbnailRenderer → onThumb
-  }
+  // Автосейв: дебаунс после последней правки. Загрузка с диска (fromDisk) один раз пропускается.
+  useEffect(() => {
+    if (!loaded) return
+    if (fromDisk.current) { fromDisk.current = false; return }
+    dirty.current = true
+    const t = setTimeout(() => { dirty.current = false; save(buildMap()) }, AUTOSAVE_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [voxels, half, floorColor, wallColor, spawns, showGridInGame, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onThumb = async (dataUrl: string | null) => {
-    const pngOk = dataUrl ? await saveThumbnail(name, dataUrl) : false
-    setThumbMap(null)
-    setStatus(pngOk ? `saved: ${name}` : 'saved (no preview)')
+  // Закрытие вкладки посреди дебаунса: keepalive-запись raw+geo (превью догонит следующий сейв).
+  useEffect(() => {
+    const onHide = () => { if (dirty.current) flush(buildMap()) }
+    window.addEventListener('pagehide', onHide)
+    return () => window.removeEventListener('pagehide', onHide)
+  }) // без deps: дешёвая переподписка, зато buildMap всегда свежий
+
+  // Откат к состоянию на начало сессии: загрузить бэкап и сразу сохранить его как текущее.
+  const doRevert = async () => {
+    if (!window.confirm(`Revert "${name}" to the session-start backup?`)) return
+    const data = await loadBackup(name)
+    if (!data) return
+    loadInto(data)
+    save({ ...data, id: name })   // явный сейв: данные «чистые», автосейв их не подхватит
   }
 
   const count = voxels.size
@@ -246,7 +262,8 @@ export function MapEditor({ name }: { name: string }) {
         </div>
 
         <div className="editor-row">
-          <button className="btn" onClick={doSave}>SAVE</button>
+          <button className="btn" onClick={() => save(buildMap())}>SAVE</button>
+          {hasBackup && <button className="btn" onClick={doRevert}>REVERT</button>}
           {status && <span className="editor-dim">{status}</span>}
         </div>
 
@@ -254,7 +271,7 @@ export function MapEditor({ name }: { name: string }) {
       </div>
 
       {/* Offscreen preview render on save (preview.png) */}
-      {thumbMap && <ThumbnailRenderer map={thumbMap} onCapture={onThumb} />}
+      {thumbEl}
     </div>
   )
 }
