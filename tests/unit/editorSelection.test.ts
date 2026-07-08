@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { cellKey } from '../../src/editor/editorStore'
 import type { Cell } from '../../src/editor/editorStore'
-import { regionBounds, extractRegion, rotateFragment } from '../../src/editor/editorSelection'
+import { regionBounds, extractRegion, rotateFragment, canStamp, stampFragment, eraseRegion } from '../../src/editor/editorSelection'
 import type { Vec3i } from '../../src/editor/editorSelection'
 
 const cube = (over: Partial<Cell> = {}): Cell =>
@@ -65,5 +65,61 @@ describe('editorSelection — rotate', () => {
     for (let i = 0; i < 4; i++) r = rotateFragment(r)
     expect(r.size).toEqual(frag.size)
     expect([...r.cells.entries()].sort()).toEqual([...frag.cells.entries()].sort())
+  })
+})
+
+describe('editorSelection — stamp & erase', () => {
+  const HALF: [number, number] = [4, 4]   // ячейки x,z ∈ [−8, 7] при VOXEL=0.5
+  const frag2 = () => ({
+    size: [2, 1, 1] as Vec3i,
+    cells: new Map([[cellKey(0, 0, 0), cube()], [cellKey(1, 0, 0), cube({ c: '#f66' })]]),
+  })
+
+  it('canStamp: свободное место в границах — true', () => {
+    expect(canStamp(new Map(), frag2(), [0, 0, 0], HALF)).toBe(true)
+    expect(canStamp(new Map(), frag2(), [-8, 0, -8], HALF)).toBe(true)   // впритык к углу
+    expect(canStamp(new Map(), frag2(), [6, 0, 7], HALF)).toBe(true)     // x: 6..7 — влезает
+  })
+
+  it('canStamp: пересечение хотя бы одной ячейки — false', () => {
+    const v = new Map<string, Cell>([[cellKey(1, 0, 0), cube()]])
+    expect(canStamp(v, frag2(), [0, 0, 0], HALF)).toBe(false)
+    expect(canStamp(v, frag2(), [2, 0, 0], HALF)).toBe(true)   // рядом — свободно
+  })
+
+  it('canStamp: выход за границы — false', () => {
+    expect(canStamp(new Map(), frag2(), [7, 0, 0], HALF)).toBe(false)    // x: 7..8 — за стену
+    expect(canStamp(new Map(), frag2(), [-9, 0, 0], HALF)).toBe(false)
+    expect(canStamp(new Map(), frag2(), [0, -1, 0], HALF)).toBe(false)   // под пол
+    expect(canStamp(new Map(), frag2(), [0, 0, 8], HALF)).toBe(false)
+  })
+
+  it('stampFragment ставит по якорю, исходная Map не мутируется', () => {
+    const v = new Map<string, Cell>()
+    const out = stampFragment(v, frag2(), [3, 2, -1])
+    expect(v.size).toBe(0)
+    expect(out.get(cellKey(3, 2, -1))).toEqual(cube())
+    expect(out.get(cellKey(4, 2, -1))).toEqual(cube({ c: '#f66' }))
+  })
+
+  it('eraseRegion чистит только регион', () => {
+    const v = new Map<string, Cell>([
+      [cellKey(0, 0, 0), cube()],
+      [cellKey(1, 0, 0), cube()],
+      [cellKey(5, 0, 0), cube()],
+    ])
+    const out = eraseRegion(v, [0, 0, 0], [1, 0, 0])
+    expect(out.size).toBe(1)
+    expect(out.has(cellKey(5, 0, 0))).toBe(true)
+    expect(v.size).toBe(3)
+  })
+
+  it('cut-сценарий: extract + erase, stamp в другом месте — содержимое совпадает', () => {
+    const v = new Map<string, Cell>([[cellKey(2, 0, 2), cube()], [cellKey(3, 1, 2), wedge(2)]])
+    const frag = extractRegion(v, [2, 0, 2], [3, 1, 2])
+    const cutv = eraseRegion(v, [2, 0, 2], [3, 1, 2])
+    const out = stampFragment(cutv, frag, [-5, 0, -5])
+    expect([...extractRegion(out, [-5, 0, -5], [-4, 1, -5]).cells.entries()].sort())
+      .toEqual([...frag.cells.entries()].sort())
   })
 })

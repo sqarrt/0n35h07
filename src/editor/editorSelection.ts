@@ -1,4 +1,4 @@
-import { cellKey, parseCellKey } from './editorStore'
+import { cellKey, parseCellKey, VOXEL } from './editorStore'
 import type { Cell, Dir } from './editorStore'
 
 /**
@@ -45,4 +45,42 @@ export function rotateFragment(frag: Fragment): Fragment {
     cells.set(cellKey(nz - 1 - z, y, x), next)
   }
   return { size: [nz, ny, nx], cells }
+}
+
+const BOUNDS_EPS = 1e-6
+
+/** Cell (x,·,z) lies inside the arena floor [−hx,hx]×[−hz,hz]. */
+const cellInArena = (x: number, z: number, half: [number, number]) =>
+  x * VOXEL >= -half[0] - BOUNDS_EPS && (x + 1) * VOXEL <= half[0] + BOUNDS_EPS &&
+  z * VOXEL >= -half[1] - BOUNDS_EPS && (z + 1) * VOXEL <= half[1] + BOUNDS_EPS
+
+/** Paste validity: every fragment cell must land on a free cell inside the arena (and not below the floor). */
+export function canStamp(voxels: Map<string, Cell>, frag: Fragment, anchor: Vec3i, half: [number, number]): boolean {
+  for (const k of frag.cells.keys()) {
+    const [x, y, z] = parseCellKey(k)
+    const wx = anchor[0] + x, wy = anchor[1] + y, wz = anchor[2] + z
+    if (wy < 0 || !cellInArena(wx, wz, half) || voxels.has(cellKey(wx, wy, wz))) return false
+  }
+  return true
+}
+
+/** Stamp the fragment with its min corner at `anchor`. Returns a new Map. */
+export function stampFragment(voxels: Map<string, Cell>, frag: Fragment, anchor: Vec3i): Map<string, Cell> {
+  const next = new Map(voxels)
+  for (const [k, cell] of frag.cells) {
+    const [x, y, z] = parseCellKey(k)
+    next.set(cellKey(anchor[0] + x, anchor[1] + y, anchor[2] + z), cell)
+  }
+  return next
+}
+
+/** Remove every cell inside the region. Returns a new Map. */
+export function eraseRegion(voxels: Map<string, Cell>, a: Vec3i, b: Vec3i): Map<string, Cell> {
+  const { min, max } = regionBounds(a, b)
+  const next = new Map(voxels)
+  for (const k of voxels.keys()) {
+    const [x, y, z] = parseCellKey(k)
+    if (inRegion(x, y, z, min, max)) next.delete(k)
+  }
+  return next
 }
