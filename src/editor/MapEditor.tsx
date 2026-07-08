@@ -22,8 +22,9 @@ const TOOLS: { tool: EditorTool; label: string }[] = [
   { tool: 'wedge', label: 'WEDGE' },
   { tool: 'spawn0', label: 'HOST SPAWN' },
   { tool: 'spawn1', label: 'GUEST SPAWN' },
+  { tool: 'select', label: 'SELECT' },
 ]
-const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4']
+const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5']
 
 /** Row of palette color-pick swatches. */
 function Palette({ value, onPick }: { value: string; onPick: (c: string) => void }) {
@@ -45,6 +46,7 @@ export function MapEditor({ name }: { name: string }) {
   const [wallColor, setWallColor] = useState('#5a6678')
   const [spawns, setSpawns] = useState<[Vec3, Vec3]>([[0, EYE_HEIGHT, 16], [0, EYE_HEIGHT, -16]])
   const [tool, setTool] = useState<EditorTool>('cube')
+  const [selection, setSelection] = useState<{ a: CellCoord; b?: CellCoord } | null>(null)
   const [fly, setFly] = useState(false)   // Tab: fly with no gravity/collision; walking by default
   const [wedgeRot, setWedgeRot] = useState(0)   // R: manual wedge spin on top of auto-orientation
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: wedge upside down (bevel underneath)
@@ -96,6 +98,12 @@ export function MapEditor({ name }: { name: string }) {
       return m
     })
   }, [])
+
+  // Угол выделения: первый клик — угол 1, второй — угол 2; следующий клик начинает новое выделение.
+  const onCorner = useCallback((cell: CellCoord) => {
+    setSelection(prev => (!prev || prev.b) ? { a: cell } : { a: prev.a, b: cell })
+  }, [])
+  const onSelectionClear = useCallback(() => setSelection(null), [])
 
   // Spawn — a half-grid-snapped point (X/Z from the scene), at eye level.
   const onSpawn = useCallback((idx: 0 | 1, x: number, z: number, surfaceY: number) => {
@@ -157,7 +165,9 @@ export function MapEditor({ name }: { name: string }) {
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
           tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
+          selection={selection}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
+          onCorner={onCorner} onSelectionClear={onSelectionClear}
         />
       </Canvas>
 
