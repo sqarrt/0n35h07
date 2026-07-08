@@ -26,10 +26,10 @@ const wrap: CSSProperties = {
 const outcome: CSSProperties = {
   margin: 0, fontSize: 52, letterSpacing: '0.22em', paddingLeft: '0.22em', textAlign: 'center',
 }
-// Two columns anchored to the screen's CENTER line: names end AT the line, scores start after it.
+// Content-hugging two-column table centered as a block: every name ends at the shared column
+// edge, the scores line up in their own narrow column right after it.
 const rankingBox: CSSProperties = {
-  alignSelf: 'stretch',
-  display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10,
+  display: 'grid', gridTemplateColumns: 'auto auto', justifyContent: 'center', columnGap: 28, rowGap: 12,
   alignItems: 'baseline', fontSize: 18, letterSpacing: '0.12em',
 }
 const reason: CSSProperties = { fontSize: 12, letterSpacing: '0.2em', color: '#7a8694' }
