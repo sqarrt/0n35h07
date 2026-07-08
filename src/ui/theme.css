@@ -44,12 +44,14 @@
   z-index: 100;
 }
 
-/* Themed scrollbar across the whole app (styled instead of the system one — consistent look on all screens). */
-* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }   /* Firefox */
-*::-webkit-scrollbar { width: 8px; height: 8px; }
+/* Themed scrollbar across the whole app: a thin dim strip, no arrow buttons, brightens on hover —
+   it must read as a hint, not a UI element competing with the content. */
+* { scrollbar-width: thin; scrollbar-color: rgba(47,111,158,0.35) transparent; }   /* Firefox */
+*::-webkit-scrollbar { width: 5px; height: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: rgba(47,111,158,0.35); border-radius: 3px; }
 *::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
 /* Thin accent line under the heading. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
