@@ -525,6 +525,10 @@
 /* === Lobby (matchmaking) — layout per lobby-v9 === */
 .lobby { display: flex; flex-direction: column; align-items: flex-start; width: 100%; flex: 1; min-height: 0; }
 .lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; }
+/* Sections keep their size: when the content is taller than the panel the body SCROLLS —
+   flex must never compress a section into its neighbours (the carousel tiles are absolutely
+   positioned and would get overlapped). */
+.lobby-body > * { flex-shrink: 0; }
 .lobby-code { margin-bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; }
 .lobby-role { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
 .lobby-bot { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
@@ -597,7 +601,7 @@
 
 /* --- Play screen: mode carousel. Fixed-height strip with absolutely-positioned tiles that split
    the full row width in three: switching modes animates transform/opacity only, no size jumps. --- */
-.mode-carousel { position: relative; width: 100%; height: 88px; margin-bottom: 14px; }
+.mode-carousel { position: relative; width: 100%; height: 88px; }
 .mode-carousel--locked { opacity: 0.55; }
 .mode-tile {
   position: absolute; left: 50%; top: 50%; width: 33.34%; height: 68px; transform: translate(-50%, -50%);
