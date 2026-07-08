@@ -4,7 +4,8 @@ import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { VOXEL, cellKey, parseCellKey, shapeBlock } from './editorStore'
 import type { Cell, BlockType, Dir } from './editorStore'
-import { regionBounds } from './editorSelection'
+import { regionBounds, canStamp } from './editorSelection'
+import type { Fragment } from './editorSelection'
 import type { Vec3 } from '../game/maps'
 import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
 import { unitWedgeGeometry, wedgeRotationY } from '../game/wedge'
@@ -27,6 +28,8 @@ const SPAWN_SNAP = VOXEL / 2
 const snapHalf = (v: number) => Math.round(v / SPAWN_SNAP) * SPAWN_SNAP
 const SPAWN_COLORS = ['#4af', '#fa4'] as const
 const GHOST_COLOR = '#4af'            // ghost установки/выделения
+const GHOST_INVALID_COLOR = '#f66'    // ghost вставки при пересечении/выходе за арену
+const GHOST_OPACITY = 0.35            // прозрачность ghost-мешей установки/вставки
 const SELECT_BOX_OPACITY = 0.18       // полупрозрачный бокс выделения
 
 type CellCoord = [number, number, number]
@@ -77,11 +80,14 @@ interface Props {
   brushTransparent: boolean     // brush: translucent
   brushPassable: boolean        // brush: passable (no collider)
   selection: { a: CellCoord; b?: CellCoord } | null   // выделение: угол 1 (+ угол 2, когда зафиксирован)
+  paste: Fragment | null        // не-null = режим вставки (фрагмент уже повёрнут)
   onPlace: (cell: CellCoord, data: Cell) => void
   onRemove: (cell: CellCoord) => void
   onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
   onCorner: (cell: CellCoord) => void
   onSelectionClear: () => void
+  onStamp: (anchor: CellCoord) => void
+  onPasteCancel: () => void
 }
 
 /** Vertical gradient for the spawn cylinder's alphaMap: opaque bottom → transparent top. */
@@ -164,7 +170,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
 
 /** Editor scene + controls (walking with gravity + placing/removing blocks at the crosshair). */
 export function EditorScene(props: Props) {
-  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, onPlace, onRemove, onSpawn, onCorner, onSelectionClear } = props
+  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel } = props
   const { camera, scene, raycaster } = useThree()
   const [hx, hz] = half
 
@@ -188,6 +194,39 @@ export function EditorScene(props: Props) {
   const ghostWedgeRef = useRef<THREE.Mesh>(null)
   const ghostSpawnRef = useRef<THREE.Mesh>(null)
   const selBoxRef = useRef<THREE.Mesh>(null)
+
+  // Ghost вставки: один материал на группу — цвет валидности переключается разом.
+  const pasteMat = useMemo(() => new THREE.MeshBasicMaterial({ color: GHOST_COLOR, transparent: true, opacity: GHOST_OPACITY, depthWrite: false }), [])
+  useEffect(() => () => pasteMat.dispose(), [pasteMat])
+  const pasteGroup = useMemo(() => {
+    if (!paste) return null
+    const grp = new THREE.Group()
+    grp.visible = false   // позиционируется в useFrame; без этого мигнёт в начале координат
+    const cubes = [...paste.cells].filter(([, cell]) => cell.t === 'cube')
+    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL), pasteMat, Math.max(cubes.length, 1))
+    inst.count = cubes.length
+    const m = new THREE.Matrix4()
+    cubes.forEach(([k], i) => {
+      const [x, y, z] = parseCellKey(k)
+      m.setPosition(...cellCenter(x, y, z))
+      inst.setMatrixAt(i, m)
+    })
+    inst.instanceMatrix.needsUpdate = true
+    grp.add(inst)
+    for (const [k, cell] of paste.cells) {
+      if (cell.t === 'cube') continue
+      const [x, y, z] = parseCellKey(k)
+      const b = shapeBlock(x, y, z, cell)
+      const wm = new THREE.Mesh(cell.f ? wedgeGeoFlip : wedgeGeo, pasteMat)
+      wm.position.set(...b.pos)
+      wm.rotation.set(0, wedgeRotationY(cell.d), 0)
+      wm.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
+      grp.add(wm)
+    }
+    return grp
+  }, [paste, pasteMat, wedgeGeo, wedgeGeoFlip])
+  // Первый ребёнок группы — InstancedMesh кубов с собственной BoxGeometry; wedge-геометрии общие, их не трогать.
+  useEffect(() => () => { (pasteGroup?.children[0] as THREE.InstancedMesh | undefined)?.geometry.dispose() }, [pasteGroup])
   const keys = useRef({ f: false, b: false, l: false, r: false, jump: false })
   const vy = useRef(0)
   const grounded = useRef(false)
@@ -235,8 +274,8 @@ export function EditorScene(props: Props) {
         case 'KeyA': k.l = down; break
         case 'KeyD': k.r = down; break
         case 'Space': k.jump = down; break
-        case 'KeyB': {   // угол выделения хоткеем — из любого инструмента (без авто-повтора зажатия)
-          if (down && !e.repeat && document.pointerLockElement) {
+        case 'KeyB': {   // угол выделения хоткеем — из любого инструмента (без авто-повтора зажатия); в режиме вставки — игнор
+          if (down && !e.repeat && !paste && document.pointerLockElement) {
             const c = pick()
             if (c) onCorner(cornerOf(c))
           }
@@ -250,6 +289,11 @@ export function EditorScene(props: Props) {
       if (!document.pointerLockElement) return
       const c = pick()
       if (!c) return
+      if (paste) {
+        if (button === 0) { if (canStamp(voxels, paste, c.place, half)) onStamp(c.place) }
+        else if (button === 2) onPasteCancel()
+        return
+      }
       if (tool === 'select') {
         if (button === 0) onCorner(cornerOf(c))
         else if (button === 2) onSelectionClear()
@@ -272,7 +316,7 @@ export function EditorScene(props: Props) {
       if (e.button !== 0 && e.button !== 2) return
       if (!document.pointerLockElement) return   // first click only engages pointer lock
       act(e.button)
-      if (held[e.button] == null && tool !== 'select') held[e.button] = setInterval(() => act(e.button), AUTOCLICK_MS)
+      if (held[e.button] == null && tool !== 'select' && !paste) held[e.button] = setInterval(() => act(e.button), AUTOCLICK_MS)
     }
     const onMouseUp = (e: MouseEvent) => stop(e.button)
     const onLockChange = () => { if (!document.pointerLockElement) stopAll() }
@@ -294,7 +338,7 @@ export function EditorScene(props: Props) {
       document.removeEventListener('pointerlockchange', onLockChange)
       window.removeEventListener('contextmenu', onCtx)
     }
-  }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, voxels, onPlace, onRemove, onSpawn, onCorner, onSelectionClear]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cell-top height at point (px,pz): wedge (not flipped) — heightfield slope; cube/flipped — flat top.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
@@ -392,7 +436,14 @@ export function EditorScene(props: Props) {
     const c = pick()
     if (c && g && gw && gs) {
       const [x, y, z] = c.place
-      if (tool === 'select') {
+      if (paste) {
+        g.visible = false; gw.visible = false; gs.visible = false
+        if (pasteGroup) {
+          pasteGroup.visible = true
+          pasteGroup.position.set(x * VOXEL, y * VOXEL, z * VOXEL)
+          pasteMat.color.set(canStamp(voxels, paste, c.place, half) ? GHOST_COLOR : GHOST_INVALID_COLOR)
+        }
+      } else if (tool === 'select') {
         g.visible = false; gw.visible = false; gs.visible = false
       } else if (isSpawnTool(tool)) {
         // spawn — a cylinder at the half-grid-snapped point (bottom on the floor)
@@ -418,6 +469,7 @@ export function EditorScene(props: Props) {
       if (gw) gw.visible = false
       if (gs) gs.visible = false
     }
+    if (pasteGroup && (!c || !paste)) pasteGroup.visible = false
 
     // бокс выделения: от угла 1 до второго угла или ячейки под прицелом (живая растяжка)
     const sb = selBoxRef.current
@@ -472,15 +524,18 @@ export function EditorScene(props: Props) {
       {/* Placement ghosts: box (cube), wedge and spawn cylinder */}
       <mesh ref={ghostBoxRef} visible={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={0.35} depthWrite={false} />
+        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={GHOST_OPACITY} depthWrite={false} />
       </mesh>
       <mesh ref={ghostWedgeRef} visible={false} geometry={wedgeGeo}>
-        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={0.35} depthWrite={false} />
+        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={GHOST_OPACITY} depthWrite={false} />
       </mesh>
       <mesh ref={ghostSpawnRef} visible={false}>
         <cylinderGeometry args={[SPAWN_CYL_R, SPAWN_CYL_R, SPAWN_CYL_H, 24, 1, true]} />
         <meshBasicMaterial color={GHOST_COLOR} alphaMap={spawnAlpha} transparent opacity={0.5} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
+
+      {/* Ghost вставки: полупрозрачная копия фрагмента под прицелом */}
+      {pasteGroup && <primitive object={pasteGroup} />}
 
       {/* Бокс выделения (SELECT): полупрозрачный, виден и изнутри */}
       <mesh ref={selBoxRef} visible={false}>

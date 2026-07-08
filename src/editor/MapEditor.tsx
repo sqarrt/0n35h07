@@ -8,7 +8,7 @@ import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
-import { extractRegion, eraseRegion } from './editorSelection'
+import { extractRegion, eraseRegion, rotateFragment, canStamp, stampFragment } from './editorSelection'
 import type { Fragment } from './editorSelection'
 import { loadMap, saveMap, saveCompiled, saveThumbnail } from './mapsApi'
 import './editor.css'
@@ -49,7 +49,8 @@ export function MapEditor({ name }: { name: string }) {
   const [spawns, setSpawns] = useState<[Vec3, Vec3]>([[0, EYE_HEIGHT, 16], [0, EYE_HEIGHT, -16]])
   const [tool, setTool] = useState<EditorTool>('cube')
   const [selection, setSelection] = useState<{ a: CellCoord; b?: CellCoord } | null>(null)
-  const [, setClipboard] = useState<Fragment | null>(null)   // чтение появится вместе с V (режим вставки)
+  const [clipboard, setClipboard] = useState<Fragment | null>(null)
+  const [paste, setPaste] = useState<Fragment | null>(null)   // не-null = режим вставки (фрагмент уже с поворотом)
   const [fly, setFly] = useState(false)   // Tab: fly with no gravity/collision; walking by default
   const [wedgeRot, setWedgeRot] = useState(0)   // R: manual wedge spin on top of auto-orientation
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: wedge upside down (bevel underneath)
@@ -108,6 +109,13 @@ export function MapEditor({ name }: { name: string }) {
   }, [])
   const onSelectionClear = useCallback(() => setSelection(null), [])
 
+  // Штамп фрагмента (валидация повторяется на состоянии на момент клика — ghost мог отстать на кадр).
+  const onStamp = useCallback((anchor: CellCoord) => {
+    if (!paste) return
+    setVoxels(prev => canStamp(prev, paste, anchor, half) ? stampFragment(prev, paste, anchor) : prev)
+  }, [paste, half])
+  const onPasteCancel = useCallback(() => setPaste(null), [])
+
   // Spawn — a half-grid-snapped point (X/Z from the scene), at eye level.
   const onSpawn = useCallback((idx: 0 | 1, x: number, z: number, surfaceY: number) => {
     setSpawns(prev => {
@@ -122,25 +130,27 @@ export function MapEditor({ name }: { name: string }) {
     document.addEventListener('pointerlockchange', onLock)
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Tab') { e.preventDefault(); setFly(v => !v); return }
-      if (e.code === 'KeyR') { setWedgeRot(v => (v + 1) % 4); return }
+      if (e.code === 'KeyR') { if (paste) setPaste(rotateFragment(paste)); else setWedgeRot(v => (v + 1) % 4); return }
       if (e.code === 'KeyT') { setWedgeFlip(v => !v); return }
       if (e.code === 'KeyL') { setShowCubeGrid(v => !v); return }
       // операции над зафиксированным выделением — только при захваченной мыши (не при вводе в поля панели)
-      if (document.pointerLockElement && selection?.b) {
+      // и не в режиме вставки; повторный V в режиме вставки — no-op
+      if (document.pointerLockElement && !paste && selection?.b) {
         const [a, b] = [selection.a, selection.b]
         if (e.code === 'KeyC') { setClipboard(extractRegion(voxels, a, b)); return }
         if (e.code === 'KeyX') { setClipboard(extractRegion(voxels, a, b)); setVoxels(eraseRegion(voxels, a, b)); return }
         if (e.code === 'Delete') { setVoxels(eraseRegion(voxels, a, b)); return }
       }
+      if (e.code === 'KeyV' && document.pointerLockElement && !paste && clipboard) { setPaste(clipboard); return }
       const idx = TOOL_KEYS.indexOf(e.code)
-      if (idx >= 0) setTool(TOOLS[idx].tool)
+      if (idx >= 0) { setTool(TOOLS[idx].tool); setPaste(null) }
     }
     window.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('pointerlockchange', onLock)
       window.removeEventListener('keydown', onKey)
     }
-  }, [voxels, selection])
+  }, [voxels, selection, clipboard, paste])
 
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
@@ -175,21 +185,22 @@ export function MapEditor({ name }: { name: string }) {
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
           tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
-          selection={selection}
+          selection={selection} paste={paste}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
           onCorner={onCorner} onSelectionClear={onSelectionClear}
+          onStamp={onStamp} onPasteCancel={onPasteCancel}
         />
       </Canvas>
 
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip wedge' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · ESC — menu</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip wedge' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">
         {TOOLS.map(({ tool: t, label }, i) => (
-          <button key={t} className={`seg${tool === t ? ' seg--on' : ''}`} onClick={() => setTool(t)}>
+          <button key={t} className={`seg${tool === t ? ' seg--on' : ''}`} onClick={() => { setTool(t); setPaste(null) }}>
             {i + 1}·{label}
           </button>
         ))}
