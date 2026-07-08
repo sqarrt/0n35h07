@@ -4,15 +4,28 @@ export interface NavigateOpts {
   difficulty?: 'normal' | 'passive'
 }
 
-// Walks through the main menu if it's open: PLAY → "With a bot" tab (bot is immediately in the slot) →
-// (optional difficulty) → READY. 1v1: an opponent is required — a bot plays that role.
+// Walks through the main menu if it's open: PLAY (Duel preset, we host a room) → "add a bot" zone of the
+// free seat → (optional per-seat difficulty) → READY. 1v1: an opponent is required — a bot plays that role.
 async function navigateThroughMenu(page: Page, opts: NavigateOpts = {}) {
   const menuVisible = await page.getByTestId('menu-play').isVisible().catch(() => false)
   if (!menuVisible) return
   await page.getByTestId('menu-play').click()
-  await page.getByTestId('lobby-tab-bot').click()            // "With a bot" tab: bot auto-added to the slot
-  if (opts.difficulty === 'passive') await page.getByTestId('lobby-bot-diff-passive').click()
+  await page.getByTestId('seat-addbot-1').click()            // the empty seat's "add a bot" zone
+  if (opts.difficulty === 'passive') await page.getByTestId('seat-diff-1-passive').click()
   await page.getByTestId('lobby-ready').click()              // host ready → both ready → start
+}
+
+// Host path on the "Play" screen (web): the seat's invite zone reveals our room code.
+export async function revealRoomCode(page: Page, slot = 1): Promise<string> {
+  await page.getByTestId(`seat-invite-${slot}`).click()
+  const text = await page.getByTestId(`seat-code-${slot}`).locator('.seat-code-text').innerText()
+  return text.trim()
+}
+
+// Guest path (web): join someone's room by its code via the field below the seats.
+export async function joinByCode(page: Page, code: string) {
+  await page.getByTestId('join-code-field').fill(code)
+  await page.getByTestId('join-code-go').click()
 }
 
 // Wait until R3F initializes and mounts Game, then skip the ready ritual

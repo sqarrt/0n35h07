@@ -165,6 +165,37 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
   })
 })
 
+describe('RoomSession — музыкальный сид создателя', () => {
+  it('код пуст (Steam-лобби) → хост генерит сид; гость получает его из Assign', () => {
+    const [a, b] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', '', HOST)
+    expect(host.seed).toMatch(/^[A-Z0-9]{4}$/)   // сгенерён, не пустой
+    const guest = new RoomSession(b, 'client', '', GUEST)
+    expect(guest.seed).toBe(host.seed)           // приехал в Assign — музыка общая
+  })
+
+  it('веб-комната: сид равен коду (музыка та же, что раньше)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    expect(host.seed).toBe('AB12')
+  })
+})
+
+describe('RoomSession — пер-слотовая сложность бота', () => {
+  it('setBotDifficulty(d, slot) меняет ровно одного бота; на не-боте — no-op', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('ffa')
+    solo.addBot('normal', 'ONE', 1)
+    solo.addBot('normal', 'TWO', 2)
+    solo.setBotDifficulty('passive', 2)
+    expect(solo.view().slots[1]?.difficulty).toBe('normal')
+    expect(solo.view().slots[2]?.difficulty).toBe('passive')
+    solo.setBotDifficulty('passive', 0)   // слот хоста — не бот
+    expect(solo.view().slots[0]?.difficulty).toBeUndefined()
+  })
+})
+
 describe('RoomSession — много-гостевое лобби', () => {
   it('уход ДРУГОГО гостя не закрывает комнату у клиента; уход хоста — закрывает', () => {
     const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])

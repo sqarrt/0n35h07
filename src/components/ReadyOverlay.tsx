@@ -45,11 +45,12 @@ export function ReadyOverlay({ roster, localId, ready, onReady }: ReadyOverlayPr
           {corner(sorted[1], 'r', !!sorted[1] && ready.includes(sorted[1].id), sorted[1]?.id === localId, t)}
         </>
       ) : (
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 64, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }} data-testid="ready-list">
+        // Two columns anchored to the screen's center line: names end AT the line, statuses start after it.
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 64, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 12, rowGap: 6, alignItems: 'baseline' }} data-testid="ready-list">
           {sorted.map(e => (
-            <div key={e.id} style={{ color: e.color, display: 'flex', gap: 10, alignItems: 'baseline' }} data-testid={`ready-row-${e.id}`}>
-              <span style={{ textDecoration: e.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>{e.name}</span>
-              <small style={{ color: ready.includes(e.id) ? 'var(--ok)' : 'var(--muted)' }}>
+            <div key={e.id} style={{ display: 'contents' }} data-testid={`ready-row-${e.id}`}>
+              <span style={{ color: e.color, justifySelf: 'end', textDecoration: e.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>{e.name}</span>
+              <small style={{ justifySelf: 'start', color: ready.includes(e.id) ? 'var(--ok)' : 'var(--muted)' }}>
                 {ready.includes(e.id) ? t.readyStatusReady : t.readyStatusNotReady}
               </small>
             </div>

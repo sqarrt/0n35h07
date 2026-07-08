@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page, BrowserContext } from '@playwright/test'
+import { revealRoomCode, joinByCode } from './helpers'
 
 // Two host/client pages via BroadcastChannel (?net=bc). Combat is computed by the host, the kill event (with streak/
 // firstBlood) goes to both sides → both announce. We check a stable scenario: the match's first frag = CATALYST.
@@ -8,30 +9,23 @@ import type { Page, BrowserContext } from '@playwright/test'
 // through two background-throttled Chromium tabs are timing-unstable (especially several in a row).
 // The numeric streak logic (streakTier/announceKind/words/sounds) is fully covered by unit tests (tests/unit/streak.test.ts).
 
-// The role (host=id0, client=id1) in a "With a friend" rendezvous is chosen by selfId → after start we map the pages.
+// The page that opened Play first hosts its own room (id 0); the second joins by its code.
 async function startMatch(context: BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
-  const room = 'WOLF'
-  // Run the symmetric host/client steps IN PARALLEL: under CPU contention (workers:4, 2 pages with
+  await host.goto('/')
+  await host.getByTestId('menu-play').click()
+  const code = await revealRoomCode(host)
+  await client.goto('/')
+  await client.getByTestId('menu-play').click()
+  await joinByCode(client, code)
+
+  // Run the symmetric waits IN PARALLEL: under CPU contention (workers:4, 2 pages with
   // Rapier WASM) sequential waits (20s+20s+…) add up by wall-clock and blow the test budget.
-  const enterLobby = async (p: Page) => {
-    await p.goto('/')
-    await p.getByTestId('menu-play').click()
-    await p.getByTestId('lobby-tab-friend').click()   // "With a friend" tab: shared room code
-    await p.getByTestId('lobby-room-code').fill(room)
-  }
-  await Promise.all([enterLobby(host), enterLobby(client)])
-
   await Promise.all([
-    host.getByTestId('lobby-search').click(),
-    client.getByTestId('lobby-search').click(),
-  ])
-
-  await Promise.all([
-    expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 }),
-    expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 }),
+    expect(host.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 }),
+    expect(client.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 }),
   ])
   await Promise.all([
     host.getByTestId('lobby-ready').click(),
@@ -49,9 +43,7 @@ async function startMatch(context: BrowserContext) {
     expect.poll(() => host.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live'),
     expect.poll(() => client.evaluate(() => (window as any).__debugPhase()), { timeout: 8000 }).toBe('live'),
   ])
-  // Role is decided by selfId → map variables to actual roles (host = id 0, authoritative).
-  const roleA = await host.evaluate(() => (window as any).__debugRole())
-  return roleA === 'host' ? { host, client } : { host: client, client: host }
+  return { host, client }   // roles are deterministic: the creator page is the host (id 0)
 }
 
 async function fakeLock(page: Page) {

@@ -13,7 +13,6 @@ interface MatchHudProps {
   localId: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
-  ended?: boolean   // match end: the bar grows and moves to the center (final score)
 }
 
 function fmt(sec: number | null): string {
@@ -25,8 +24,9 @@ function fmt(sec: number | null): string {
 }
 
 /** Persistent HUD. Two players: your frags · timer · opponent frags (the pre-modes look, untouched).
- *  Three+: the timer over a compact score column (functional layout — visual design comes later). */
-export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts, ended = false }: MatchHudProps) {
+ *  Three+: the same centered bar, framed by player panes — two players per side, each with its
+ *  personal frags; Battle adds team totals beside the timer and a team-color backing per pane. */
+export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCounts }: MatchHudProps) {
   const t = useT()
   const kills = (id?: number) => (id !== undefined ? scores.find(s => s.id === id)?.kills ?? 0 : 0)
   // Streak dots (0 → none, capped at 10); color is inherited from the row (the player color).
@@ -43,26 +43,57 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
 
   if (roster.length > 2) {
     const scoreOf = (id: number) => scores.find(s => s.id === id)
-    const rows = [...roster].sort((a, b) => kills(b.id) - kills(a.id) || a.id - b.id)
-    const showTeamChips = new Set(scores.map(s => s.team)).size < roster.length   // 2v2 → grouped teams exist
+    const isBattle = new Set(scores.map(s => s.team)).size < roster.length   // grouped teams exist (2v2)
+    // Sides are STABLE (no reordering by kills — rows must not jump mid-match):
+    // Battle — my team left, enemies right; War — me first on the left, the rest split by id.
+    let left: RosterEntry[]
+    let right: RosterEntry[]
+    if (isBattle) {
+      const myTeam = scoreOf(localId)?.team ?? 0
+      left = roster.filter(r => scoreOf(r.id)?.team === myTeam)
+      right = roster.filter(r => scoreOf(r.id)?.team !== myTeam)
+    } else {
+      const others = roster.filter(r => r.id !== localId).sort((a, b) => a.id - b.id)
+      const rightCount = Math.floor((others.length + 1) / 2)
+      left = [roster.find(r => r.id === localId)!, ...others.slice(0, others.length - rightCount)].filter(Boolean)
+      right = others.slice(others.length - rightCount)
+    }
+    const teamKills = (rs: RosterEntry[]) => rs.reduce((n, r) => n + kills(r.id), 0)
+    const teamColor = (rs: RosterEntry[]) => TEAM_COLORS[scoreOf(rs[0]?.id)?.team ?? 0] ?? 'transparent'
+    const paneTint = (rs: RosterEntry[]) => (isBattle ? { background: `${teamColor(rs)}26` } : undefined)
+    // Team total lives ON the tinted pane (timer-adjacent edge), painted in the team color — it must
+    // never sink into the arena behind the HUD.
+    const total = (rs: RosterEntry[], testid: string) => (
+      <span className="frag mhud-total" data-testid={testid} style={{ color: teamColor(rs) }}>{teamKills(rs)}</span>
+    )
+    const row = (entry: RosterEntry, mirror: boolean) => {
+      const s = scoreOf(entry.id)
+      const cells = [
+        dots(entry.id, `streak-dots-${entry.id}`),
+        <span key="nm" style={{ textDecoration: entry.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>
+          {nick(entry, '', `hud-name-${entry.id}`)}
+        </span>,
+        <span key="fr" className="frag">{kills(entry.id)}</span>,
+      ]
+      return (
+        <div key={entry.id} className="mhud-row" data-testid={`hud-row-${entry.id}`}
+          style={{ color: entry.color, justifyContent: mirror ? 'flex-end' : 'flex-start', opacity: s?.left ? 0.45 : 1 }}>
+          {s?.left && <span aria-hidden="true">✕</span>}
+          {mirror ? cells : [...cells].reverse()}
+        </div>
+      )
+    }
     return (
-      <div className={ended ? 'match-hud ended' : 'match-hud'} data-testid="match-hud" style={{ flexDirection: 'column', gap: 4 }}>
+      <div className="match-hud" data-testid="match-hud">
+        <div className="mhud-team" style={paneTint(left)}>
+          {left.map(e => row(e, true))}
+          {isBattle && total(left, 'hud-team-you')}
+        </div>
         <div className="timer">{fmt(matchTime)}</div>
-        {rows.map(entry => {
-          const s = scoreOf(entry.id)
-          return (
-            <div key={entry.id} data-testid={`hud-row-${entry.id}`}
-              style={{ display: 'flex', gap: 8, alignItems: 'center', color: entry.color, opacity: s?.left ? 0.45 : 1 }}>
-              {showTeamChips && <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 2, background: TEAM_COLORS[s?.team ?? 0] ?? 'transparent' }} />}
-              <span style={{ textDecoration: entry.id === localId ? 'underline' : undefined, textUnderlineOffset: 3 }}>
-                {nick(entry, '', `hud-name-${entry.id}`)}
-              </span>
-              {dots(entry.id, `streak-dots-${entry.id}`)}
-              <span className="frag">{kills(entry.id)}</span>
-              {s?.left && <span aria-hidden="true">✕</span>}
-            </div>
-          )
-        })}
+        <div className="mhud-team" style={paneTint(right)}>
+          {isBattle && total(right, 'hud-team-opp')}
+          {right.map(e => row(e, false))}
+        </div>
       </div>
     )
   }
@@ -70,7 +101,7 @@ export function MatchHud({ scores, matchTime, roster, localId, streaks, streakCo
   const me = roster.find(r => r.id === localId)
   const opp = roster.find(r => r.id !== localId)
   return (
-    <div className={ended ? 'match-hud ended' : 'match-hud'} data-testid="match-hud">
+    <div className="match-hud" data-testid="match-hud">
       <div className="side you" style={{ color: me?.color }}>
         {dots(me?.id, 'streak-dots-you')}<span>{nick(me, t.hudYou, 'hud-name-you')}</span>
         <span className="frag">{kills(me?.id)}</span>

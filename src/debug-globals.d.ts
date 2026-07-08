@@ -24,6 +24,7 @@ declare global {
     __debugForceLive?: () => void
     __debugLeave?: () => void
     __debugMusic?: () => { loopIndex: number; active: string[] }
+    __debugMusicBoot?: () => { seedCode: string; radioActive: boolean; created: boolean; started: boolean; level: number }
     __netReport?: () => unknown   // dev diagnostics for the P2P connection (src/net/netDiag.ts)
   }
 }

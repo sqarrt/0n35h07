@@ -144,6 +144,7 @@ function GameImpl({ dispatch, role, net, netConfig, defaultThirdPerson, apiRef, 
     w.__debugReady = requestReady
     w.__debugForceLive = () => match.forceLiveForTest()
     w.__debugLeave = () => net.leave()
+    w.__debugMusicBoot = () => ({ seedCode, radioActive: !!radioActive, ...match.musicState(), level: musicEngine.readLevel() })
     return () => {
       match.dispose()
       if (apiRef) apiRef.current = null
@@ -151,6 +152,7 @@ function GameImpl({ dispatch, role, net, netConfig, defaultThirdPerson, apiRef, 
       delete w.__debugReady
       delete w.__debugForceLive
       delete w.__debugLeave
+      delete w.__debugMusicBoot
     }
     // Installing debug hooks/ready is tied to match (stable) and camera; the rest is intentionally outside deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps

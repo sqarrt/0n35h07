@@ -256,9 +256,8 @@
 .ready-legend { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(10,10,15,0.72); border: 1px solid var(--surface-line); border-radius: 6px; padding: 9px 14px; pointer-events: none; }
 
 /* HUD: persistent score + timer at the top center (Center Bar) */
-.match-hud { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; z-index: 11; pointer-events: none; font-family: var(--ui-font); transition: top 0.6s cubic-bezier(.22,1,.36,1), transform 0.6s cubic-bezier(.22,1,.36,1); }
+.match-hud { position: fixed; top: 30px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 18px; z-index: 11; pointer-events: none; font-family: var(--ui-font); }
 /* Match end: the same bar grows and moves to the screen center — it is the final score (over the dimming). */
-.match-hud.ended { top: 50%; transform: translate(-50%, -50%) scale(1.8); z-index: 31; }
 .match-hud .side { display: flex; align-items: center; gap: 7px; width: 150px; }
 .match-hud .side.you { justify-content: flex-end; }
 .match-hud .side.opp { justify-content: flex-start; }
@@ -268,6 +267,11 @@
 .match-hud .timer { font-size: 26px; color: #dfe9f5; letter-spacing: 0.08em; padding: 0 14px; border-left: 1px solid #25303f; border-right: 1px solid #25303f; }
 .match-hud .dot { font-size: 10px; }
 .match-hud .streak-dots { font-size: 10px; letter-spacing: 1px; line-height: 1; color: currentColor; }
+/* Battle/War HUD: player panes framing the totals+timer; the pane keeps a fixed footprint per mode. */
+.match-hud .mhud-team { display: flex; align-items: center; gap: 18px; padding: 6px 14px; border-radius: 6px; box-sizing: border-box; }
+.match-hud .mhud-row { display: flex; align-items: center; gap: 7px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
+.match-hud .mhud-row .frag { font-size: 15px; }
+.match-hud .mhud-total { font-size: 22px; text-shadow: 0 0 12px currentColor; }
 
 /* JoinRoom: code input with a running outline (connecting) and a red border (error) */
 .code-wrap { position: relative; width: 240px; height: 64px; }
@@ -521,10 +525,6 @@
 /* === Lobby (matchmaking) — layout per lobby-v9 === */
 .lobby { display: flex; flex-direction: column; align-items: flex-start; width: 100%; flex: 1; min-height: 0; }
 .lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; }
-.lobby-tabs { display: flex; gap: 8px; width: 100%; margin-bottom: 14px; }
-.lobby-tab { flex: 1 1 0; min-width: 0; padding: 9px 6px; font-size: 11px; letter-spacing: 0.12em; text-align: center; color: var(--muted); background: transparent; border: 1px solid var(--surface-line); border-radius: 3px; cursor: pointer; font-family: var(--ui-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lobby-tab:hover { color: var(--text); border-color: var(--ghost-line-hover); }
-.lobby-tab--on { color: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .lobby-code { margin-bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; }
 .lobby-role { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
 .lobby-bot { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
@@ -594,6 +594,56 @@
 .lobby-ol-chevron { font-size: 9px; }
 .lobby-ol-row { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 12px; width: 100%; }
 .lobby-ol-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; gap: 8px; }
+
+/* --- Play screen: mode carousel. Fixed-height strip with absolutely-positioned tiles that split
+   the full row width in three: switching modes animates transform/opacity only, no size jumps. --- */
+.mode-carousel { position: relative; width: 100%; height: 88px; }
+.mode-carousel--locked { opacity: 0.55; }
+.mode-tile {
+  position: absolute; left: 50%; top: 50%; width: 33.34%; height: 68px; transform: translate(-50%, -50%);
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  background: var(--bg); border: 1px solid #334; color: var(--muted); font-family: var(--ui-font); padding: 0; cursor: pointer;
+  transition: transform 0.25s ease, opacity 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+.mode-tile--center { border-color: var(--accent); background: rgba(68,170,255,0.08); z-index: 1; cursor: default; }
+.mode-tile--left  { transform: translate(calc(-50% - 100%), -50%) scale(0.86); opacity: 0.45; }
+.mode-tile--right { transform: translate(calc(-50% + 100%), -50%) scale(0.86); opacity: 0.45; }
+.mode-tile--left:hover:not(:disabled), .mode-tile--right:hover:not(:disabled) { opacity: 0.85; border-color: var(--accent-dim); }
+.mode-tile:disabled { cursor: default; }
+.mode-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* tracked caps need a left pad equal to the tracking to sit optically centered */
+.mode-tile-name { font-size: 24px; letter-spacing: 0.24em; padding-left: 0.24em; text-transform: uppercase; color: var(--text); }
+.mode-tile--center .mode-tile-name { color: var(--accent); text-shadow: 0 0 20px rgba(68,170,255,0.55); }
+@media (prefers-reduced-motion: reduce) { .mode-tile { transition: none; } }
+
+/* --- Play screen: unified Seats. Per-layout wrappers; every occupant state keeps the same card
+   min-height within a layout → no jumps when a seat flips empty/bot/human/waiting. --- */
+.seats-1v1 { justify-content: center; }
+.seats-ffa { flex-direction: column; align-items: center; gap: 10px; }
+.seats-ffa .lobby-seat { flex: 0 0 auto; width: 62%; min-height: 84px; padding: 10px 12px; }
+.seats-2v2 { justify-content: center; }
+.seats-col { display: flex; flex-direction: column; gap: 8px; padding: 6px; border-radius: 8px; border: 1px solid transparent; flex: 0 0 44%; box-sizing: border-box; }
+.seats-col .lobby-seat { flex: 0 0 auto; width: 100%; min-height: 84px; padding: 10px 12px; box-sizing: border-box; }
+/* a free host seat is a stack of dashed action zones filling the card */
+.lobby-seat--free { gap: 6px; padding: 8px; justify-content: stretch; }
+.seat-zone {
+  flex: 1 1 0; width: 100%; min-height: 0; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: transparent; border: 1px dashed var(--line); color: #6f93b3;
+  font-family: var(--ui-font); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; padding: 6px; cursor: pointer;
+}
+.seat-zone:hover { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.06); }
+.seat-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seat-zone-plus { font-size: 15px; line-height: 1; color: var(--accent); font-weight: 300; }
+.seat-zone--code { border-style: solid; border-color: var(--accent); }
+.seat-code-text { font-size: 15px; letter-spacing: 0.22em; padding-left: 0.22em; color: var(--accent); text-shadow: 0 0 14px rgba(68,170,255,0.5); }
+.seat-code-glyph { font-size: 12px; color: var(--accent-dim); }
+.seat-diff { display: flex; gap: 4px; }
+.seat-diff .seg { font-size: 9px; padding: 3px 8px; }
+/* web: compact "join by code" row below the seats */
+.join-code { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; margin-bottom: 14px; }
+.join-code-row { display: flex; gap: 8px; }
+.join-code-input { width: 7rem; text-align: center; text-transform: uppercase; letter-spacing: 0.22em; }
 .lobby-tiles { display: flex; gap: 8px; width: 100%; }
 .lobby-tile { flex: 1; border: 1px solid var(--surface-line); border-radius: 4px; padding: 5px 5px 3px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; cursor: pointer; }
 .lobby-pv { width: 100%; height: 34px; border-radius: 2px; background: linear-gradient(135deg,#13283b,#0a131d); object-fit: cover; display: block; }

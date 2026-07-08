@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { EYE_HEIGHT } from '../constants'
+import type { GameMode } from '../game/modes'
 
 /** Screens served by the menu background. */
 export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
@@ -9,19 +10,28 @@ export type MenuMode = 'menu' | 'lobby' | 'settings' | 'appearance'
 export type AppearancePart = 'color' | 'model' | 'shot' | 'respawn' | 'dash' | 'shield' | 'paintFront' | 'paintBack'
 
 /** Camera states for the menu background. Poses are stored in menuCameraPoses.json (edited with the J key in dev).
- *  room — you are the host (both present); roomClient — you joined as a client (both present, your own angle). */
-export type MenuCameraState = 'default' | 'room' | 'roomClient' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield' | 'appearancePaintFront' | 'appearancePaintBack'
+ *  room — you are the host (both present); roomClient — you joined as a client (both present, your own angle);
+ *  lobby4 — more than two seats are occupied (Battle/War), the whole square is in frame. */
+export type MenuCameraState = 'default' | 'room' | 'roomClient' | 'lobby4' | 'appearance' | 'appearanceShot' | 'appearanceRespawn' | 'appearanceDash' | 'appearanceShield' | 'appearancePaintFront' | 'appearancePaintBack'
 
 export interface CameraPose { position: [number, number, number]; target: [number, number, number] }
 export type CameraPoses = Record<MenuCameraState, CameraPose>
 
-/** Stage spots for players (EYE position, like a match spawn). Models stay put — the camera moves. */
-export const PLAYER_SPOT = new THREE.Vector3(0, EYE_HEIGHT, 0)
-export const OPPONENT_SPOT = new THREE.Vector3(1.8, EYE_HEIGHT, 0)
+/** Stage spots for players (EYE position, like a match spawn), indexed by lobby slot id.
+ *  Slots 0/1 are the classic Duel pair (the picture doesn't move); 2/3 complete the square behind them —
+ *  in Battle the teams face each other row vs row. Models stay put — the camera moves. */
+export const STAGE_SPOTS = [
+  new THREE.Vector3(0, EYE_HEIGHT, 0),        // slot 0 (creator)
+  new THREE.Vector3(1.8, EYE_HEIGHT, 0),      // slot 1 (the classic opponent spot)
+  new THREE.Vector3(1.8, EYE_HEIGHT, -1.8),   // slot 2
+  new THREE.Vector3(0, EYE_HEIGHT, -1.8),     // slot 3
+]
+export const PLAYER_SPOT = STAGE_SPOTS[0]
+export const OPPONENT_SPOT = STAGE_SPOTS[1]
 
-/** Camera state by screen and context: room with both present (host/client — different angles),
- *  "Appearance" blocks, otherwise default. */
-export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: boolean, part: AppearancePart): MenuCameraState {
+/** Camera state by screen and context. In the lobby the pose follows the MODE preset, not the
+ *  actual occupancy: Duel — the classic pair angle (own side for a guest), Battle/War — the square. */
+export function cameraStateFor(mode: MenuMode, gameMode: GameMode, isClient: boolean, part: AppearancePart): MenuCameraState {
   if (mode === 'appearance') {
     if (part === 'shot') return 'appearanceShot'
     if (part === 'respawn') return 'appearanceRespawn'
@@ -31,6 +41,6 @@ export function cameraStateFor(mode: MenuMode, hasOpponent: boolean, isClient: b
     if (part === 'paintBack') return 'appearancePaintBack'
     return 'appearance'
   }
-  if (mode === 'lobby' && hasOpponent) return isClient ? 'roomClient' : 'room'
+  if (mode === 'lobby') return gameMode === '1v1' ? (isClient ? 'roomClient' : 'room') : 'lobby4'
   return 'default'
 }

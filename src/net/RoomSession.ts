@@ -10,6 +10,7 @@ import { MODE_SLOT_COUNT, canStartFor } from '../game/modes'
 import { genFfaSpawns } from '../game/spawns'
 import { MAP_IDS, MAPS } from '../game/maps'
 import { resolveMatchParams } from './matchmaking'
+import { randomRoomCode } from './roomCode'
 import { netDiagMark, netDiagLogVerdict } from './netDiag'
 import { gameLog } from '../diag/gameLog'
 
@@ -47,6 +48,9 @@ export class RoomSession {
   readonly net: INet
   readonly role: RoomRole
   readonly code: string
+  /** Match-music seed, shared by every peer: the creator generates it (room code when there is one,
+   *  a random code for code-less Steam lobbies) and ships it in Assign. */
+  seed = ''
   private mode: GameMode = '1v1'
   private slots: (RosterEntry | null)[] = [null, null]
   private peerBySlot = new Map<number, PeerId>()   // host: which transport peer occupies a human seat
@@ -73,6 +77,7 @@ export class RoomSession {
     this.role = role
     this.code = code
     this.profile = profile
+    if (role === 'host') this.seed = code.trim() || randomRoomCode()
     if (sel) {
       this.selMap = sel.map; this.selDuration = sel.durationMin
       if (sel.map.length) this.mapId = sel.map[0]
@@ -222,11 +227,12 @@ export class RoomSession {
     this.broadcastRoster()
   }
 
-  /** Difficulty applies to ALL bots (single lobby picker — v1 UX). */
-  setBotDifficulty(d: BotDifficulty) {
-    let changed = false
-    for (const s of this.slots) if (s?.kind === 'bot') { s.difficulty = d; changed = true }
-    if (changed) this.broadcastRoster()
+  /** Set one bot's difficulty (per-seat picker). No-op if the seat isn't a bot. */
+  setBotDifficulty(d: BotDifficulty, slot: number) {
+    const s = this.slots[slot]
+    if (s?.kind !== 'bot' || s.difficulty === d) return
+    s.difficulty = d
+    this.broadcastRoster()
   }
 
   /** Rename a bot live: the name re-derives personality+appearance. Without `slot` — the first bot (1v1 compat).
@@ -254,7 +260,7 @@ export class RoomSession {
     if (yourId === undefined) return
     netDiagMark('assignSent', { peer })
     gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin, yourId })
-    this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode, owners: this.ownersMap() } satisfies Assign)
+    this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode, owners: this.ownersMap(), seed: this.seed } satisfies Assign)
   }
   private broadcastRoster() {
     for (const peer of this.peerBySlot.values()) this.sendAssign(peer)
@@ -341,6 +347,7 @@ export class RoomSession {
     this.clearTimers()   // connected — stop calling HELLO and watching the handshake
     this.localPlayerId = a.yourId
     this.mode = a.mode
+    this.seed = a.seed
     this.clientOwners = a.owners
     this.slots = Array.from({ length: MODE_SLOT_COUNT[a.mode] }, (_, i) => a.roster.find(r => r.id === i) ?? null)
     this.durationMin = a.durationMin

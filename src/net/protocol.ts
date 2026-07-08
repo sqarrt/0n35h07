@@ -34,7 +34,7 @@ export interface RosterEntry {
   ballArt?: string             // art on the ball (base64, front/back 32×32); absent → empty
 }
 export interface Hello { name: string; primaryColor: string; reserveColor: string; desiredMap?: MapFilter; desiredDuration?: DurationFilter; ballModel?: BallModel; windupStyle?: WindupStyle; respawnStyle?: RespawnStyle; dashStyle?: DashStyle; shieldStyle?: ShieldStyle; ballArt?: string }
-export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode; owners: Record<number, string> }
+export interface Assign { yourId: number; roster: RosterEntry[]; durationMin: number; mapId: MapId; ready: number[]; mode: GameMode; owners: Record<number, string>; seed: string }
 /** Client → host: readiness change in the lobby. */
 export interface ReadyMsg { ready: boolean }
 /** Client → host: move me to this FREE slot (2v2 team change; harmless seat swap elsewhere). */
