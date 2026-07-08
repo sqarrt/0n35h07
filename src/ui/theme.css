@@ -131,9 +131,13 @@
 /* Inner screen layer: fills the backing, each screen sets its own alignment (center / stretch).
    overflow-y:auto — scroll on all screens if content is taller than the panel (themed scrollbar — see above). */
 .panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
-/* Lobby: bleed into the panel's right padding so the body's scrollbar hugs the panel edge; the body
-   gives the same 28px back as padding — content width is unchanged and nothing overflows sideways. */
-.panel-fill--bleed { width: auto; align-self: stretch; margin-right: -28px; overflow-y: visible; }
+/* Lobby: bleed into the panel's right padding so the body's scrollbar hugs the panel edge. The body
+   gives --bleed back as padding and the non-scrolling rows (action/back) narrow by the same amount —
+   content width is unchanged and nothing overflows sideways. */
+.panel-fill--bleed { --bleed: 28px; width: auto; align-self: stretch; margin-right: calc(-1 * var(--bleed)); overflow-y: visible; }
+.panel-fill--bleed .lobby-body { padding-right: var(--bleed); }
+/* the rows below the scroll area set width:100% inline — !important pulls them back to the content column */
+.panel-fill--bleed .lobby > :not(.lobby-body) { width: calc(100% - var(--bleed)) !important; }
 
 /* Blurred 3D preview of the selected map — atmospheric background behind the orbs (sharp MenuBackdrop on top).
    Smooth fade in/out via opacity (entering/leaving the room). Duration synced with MAP_FADE_MS in App. */
@@ -529,7 +533,7 @@
 
 /* === Lobby (matchmaking) — layout per lobby-v9 === */
 .lobby { display: flex; flex-direction: column; align-items: flex-start; width: 100%; flex: 1; min-height: 0; }
-.lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; padding-right: 28px; box-sizing: border-box; }
+.lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; box-sizing: border-box; }
 /* Sections keep their size: when the content is taller than the panel the body SCROLLS —
    flex must never compress a section into its neighbours (the carousel tiles are absolutely
    positioned and would get overlapped). */
