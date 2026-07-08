@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
+- **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
+  the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
+  action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
+  zones — "invite a friend" (Steam picker on desktop; on web it reveals the room code with copy) and "add a bot".
+  A seated bot is edited right in its seat: name input, click-to-reroll, a per-seat normal/passive difficulty
+  toggle and a remove cross. Web guests join through a compact "join by code" field under the seats — the old
+  code-rendezvous flow (and web matchmaking) is gone, so who hosts a room is never a lottery. Entering the screen
+  immediately hosts an open room (a private Steam lobby on desktop), Duel by default.
+- **The menu stage seats four.** The lobby backdrop arranges up to four player balls in a square (the classic duel
+  pair keeps its spots), with a dedicated wide camera pose for Battle/War — the pose follows the selected mode.
+  Players pop in with a quick un-shrink and leave with a mirrored shrink; remote balls finally show their painted
+  art and reserve-color ring in the lobby (an old bug).
+- **Mode-aware match HUD and end screen.** Battle frames the timer with team totals and two players per side on a
+  team-colored backing; War shows neutral panes with personal scores by the names. The end screen is one centered
+  column — outcome, every player ranked by kills (HUD colors and streak effects preserved), reason, EXIT — nothing
+  overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
+
+### Fixed
+- **Match music in Steam lobbies.** The soundtrack seed used to come from the room code, and code-less Steam
+  lobbies got silence; now the room creator generates the seed and ships it to everyone — the whole lobby hears
+  the same track.
+- **Radio no longer stalls behind blocked sample CDNs.** The engine gives remote sample maps a short budget and
+  boots on; the track library and DLC check resolve in parallel — the explorer window appears instantly instead of
+  ~30s after opening the radio on networks where github raw is unreachable.
+
 - **Steam lobby fits four.** The Steam "With friend" lobby now holds up to 4 players: empty 2v2/FFA seats offer
   "＋ invite a friend" (several invites at once — each pending friend shows as a waiting seat with a cancel), with a
   corner bot button as the alternative. A guest leaving the lobby no longer kicks the other guests. Quick match
