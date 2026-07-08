@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
   the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
   action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
-  zones — "invite a friend" (Steam picker on desktop; on web it reveals the room code with copy) and "add a bot".
+  zones — inviting (the Steam friend picker on desktop; on web the seat shows "send to a friend: <code>" with
+  click-to-copy) and "add a bot"; for a guest a free seat is a "take this seat" zone.
   A seated bot is edited right in its seat: name input, click-to-reroll, a per-seat normal/passive difficulty
   toggle and a remove cross. Web guests join through a compact "join by code" field under the seats — the old
   code-rendezvous flow (and web matchmaking) is gone, so who hosts a room is never a lottery. Entering the screen
