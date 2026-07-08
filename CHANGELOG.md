@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   follows the crosshair, R spins it by 90° (wedges included), and it turns red where it would overlap blocks or
   poke out of the arena. Left click stamps the fragment and stays in paste mode for series; right click or a tool
   switch exits.
+- **Map editor: autosave.** The editor now saves on its own — a 3-second pause after the last edit writes all
+  three artifacts (source, compiled geometry, preview). Opening an existing map snapshots it to a session backup;
+  a REVERT button restores that snapshot. Closing the tab mid-pause still flushes the map source. The SAVE button
+  remains as an immediate manual save.
 - **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
   the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
   action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
