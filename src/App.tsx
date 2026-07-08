@@ -1101,7 +1101,7 @@ export default function App() {
             <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} />
           )}
           {hud.matchResult && (
-            <MatchEndedOverlay result={hud.matchResult} onExit={handleBack} />
+            <MatchEndedOverlay result={hud.matchResult} roster={gameNet.netConfig.roster} streaks={hud.streaks} onExit={handleBack} />
           )}
         </>
       )}

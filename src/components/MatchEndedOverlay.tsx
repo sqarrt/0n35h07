@@ -1,5 +1,8 @@
 import type { CSSProperties } from 'react'
 import type { MatchResult } from '../hooks/useGameHUD'
+import type { RosterEntry } from '../net/protocol'
+import type { StreakTier } from '../game/streak'
+import { EffectText } from './EffectText'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
 
@@ -23,17 +26,23 @@ const wrap: CSSProperties = {
 const outcome: CSSProperties = {
   margin: 0, fontSize: 52, letterSpacing: '0.22em', paddingLeft: '0.22em', textAlign: 'center',
 }
+// Two columns anchored to the screen's CENTER line: names end AT the line, scores start after it.
 const rankingBox: CSSProperties = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-  fontSize: 17, letterSpacing: '0.12em',
+  alignSelf: 'stretch',
+  display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 16, rowGap: 10,
+  alignItems: 'baseline', fontSize: 18, letterSpacing: '0.12em',
 }
-const rankRow: CSSProperties = { display: 'flex', alignItems: 'baseline', gap: 14 }
-const rankIdx: CSSProperties = { fontSize: 12, color: '#5a6572', width: 18, textAlign: 'right' }
-const rankKills: CSSProperties = { fontSize: 20 }
 const reason: CSSProperties = { fontSize: 12, letterSpacing: '0.2em', color: '#7a8694' }
 
-/** Match-end screen: outcome + every player ranked by kills (all modes) + reason + EXIT. */
-export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onExit: () => void }) {
+interface MatchEndedOverlayProps {
+  result: MatchResult
+  roster: RosterEntry[]                       // player colors for the ranking rows
+  streaks: Record<number, StreakTier | null>  // keep the HUD's streak text effect on the names
+  onExit: () => void
+}
+
+/** Match-end screen: outcome + every player ranked by kills (all modes, HUD colors/effects) + reason + EXIT. */
+export function MatchEndedOverlay({ result, roster, streaks, onExit }: MatchEndedOverlayProps) {
   const t = useT()
   const color = OUTCOME_COLOR[result.outcome]
   const outcomeLabel: Record<MatchResult['outcome'], string> = {
@@ -43,6 +52,7 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
     time: t.matchReasonTime, disconnect: t.matchReasonDisconnect,
   }
   const players = [...result.scores].sort((a, b) => b.kills - a.kills || a.id - b.id)
+  const colorOf = (id: number) => roster.find(r => r.id === id)?.color ?? 'var(--text)'
   return (
     <div style={wrap}>
       <style>{FADE}</style>
@@ -51,10 +61,12 @@ export function MatchEndedOverlay({ result, onExit }: { result: MatchResult; onE
       </h1>
       <div style={rankingBox} data-testid="match-ranking">
         {players.map((p, i) => (
-          <div key={p.id} style={{ ...rankRow, opacity: p.left ? 0.45 : 1 }} data-testid={`match-rank-${i}`}>
-            <span style={rankIdx} aria-hidden="true">{i + 1}.</span>
-            <span>{p.name}{p.left ? ' ✕' : ''}</span>
-            <span style={rankKills}>{p.kills}</span>
+          <div key={p.id} style={{ display: 'contents' }} data-testid={`match-rank-${i}`}>
+            <span style={{ justifySelf: 'end', color: colorOf(p.id), opacity: p.left ? 0.45 : 1 }}>
+              <EffectText text={p.name} kind={streaks[p.id] ?? null} color={colorOf(p.id)} testid={`match-rank-name-${i}`} />
+              {p.left ? ' ✕' : ''}
+            </span>
+            <span style={{ justifySelf: 'start', fontSize: 22, color: colorOf(p.id), opacity: p.left ? 0.45 : 1 }}>{p.kills}</span>
           </div>
         ))}
       </div>
