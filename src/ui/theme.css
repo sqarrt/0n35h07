@@ -526,7 +526,9 @@
 
 /* === Lobby (matchmaking) — layout per lobby-v9 === */
 .lobby { display: flex; flex-direction: column; align-items: flex-start; width: 100%; flex: 1; min-height: 0; }
-.lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; }
+/* Pull the scrollbar toward the panel edge: eat most of the panel's 40px side padding with a negative
+   margin and give it back as padding — the content stays put, only the scrollbar shifts right. */
+.lobby-body { width: auto; align-self: stretch; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; margin-right: -28px; padding-right: 28px; }
 /* Sections keep their size: when the content is taller than the panel the body SCROLLS —
    flex must never compress a section into its neighbours (the carousel tiles are absolutely
    positioned and would get overlapped). */
