@@ -22,6 +22,12 @@ const DIRT_SAMPLES = 'github:tidalcycles/dirt-samples'
 const DOUGH = 'https://raw.githubusercontent.com/felixroos/dough-samples/main/'
 const WAVEFORMS = 'github:Bubobubobubobubo/Dough-Waveforms'
 const UZU_WAVETABLES = 'https://strudel.b-cdn.net/uzu-wavetables.json'
+// The sample-map CDNs (raw.githubusercontent.com) can be slow or DPI-blocked outright — every fetch
+// then stalls until the TLS timeout (~20-30s) and the WHOLE radio waits on init. Give the maps a short
+// budget and move on: the fetches keep running in background and register whenever they land, while
+// the synth-based sounds (the bulk of the radio) need no samples at all.
+const PREBAKE_BUDGET_MS = 3000
+const withinBudget = (p: Promise<unknown>) => Promise.race([p, new Promise(res => setTimeout(res, PREBAKE_BUDGET_MS))])
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
 
@@ -137,22 +143,20 @@ export class StrudelWebEngine implements IStrudelEngine {
           // set (banks, piano, EmuSP12 hits incl. oh/rim, vcsl, mridangam,
           // wavetables). dirt-samples loads last so its familiar bd/sd/hh/... stay
           // the default, while EmuSP12 still supplies the hits dirt lacks (oh, rim).
-          // Built-in oscillators/noise need no samples. Never block init.
-          try {
-            await Promise.all([
-              samples(`${DOUGH}tidal-drum-machines.json`),
-              samples(`${DOUGH}piano.json`),
-              samples(`${DOUGH}Dirt-Samples.json`),
-              samples(`${DOUGH}EmuSP12.json`),
-              samples(`${DOUGH}vcsl.json`),
-              samples(`${DOUGH}mridangam.json`),
-              samples(WAVEFORMS),
-              samples(UZU_WAVETABLES),
-            ])
-            await samples(DIRT_SAMPLES)
-          } catch (e) {
-            console.warn('[StrudelWebEngine] sample load failed:', e)
-          }
+          // Built-in oscillators/noise need no samples. Never block init: each stage
+          // gets PREBAKE_BUDGET_MS, failures only warn (see withinBudget above).
+          const maps = Promise.all([
+            samples(`${DOUGH}tidal-drum-machines.json`),
+            samples(`${DOUGH}piano.json`),
+            samples(`${DOUGH}Dirt-Samples.json`),
+            samples(`${DOUGH}EmuSP12.json`),
+            samples(`${DOUGH}vcsl.json`),
+            samples(`${DOUGH}mridangam.json`),
+            samples(WAVEFORMS),
+            samples(UZU_WAVETABLES),
+          ]).catch(e => console.warn('[StrudelWebEngine] sample maps failed:', e))
+          await withinBudget(maps)
+          await withinBudget(samples(DIRT_SAMPLES).catch(e => console.warn('[StrudelWebEngine] dirt-samples failed:', e)))
         },
       })
       // initStrudel only schedules worklet loading on the first document mousedown

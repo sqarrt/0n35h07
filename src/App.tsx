@@ -296,6 +296,24 @@ export default function App() {
     // Desktop/Steam only: the browser build never loads @strudel/web or runs the radio.
     if (!IS_DESKTOP || radioWarmedRef.current || editorMode || screen === 'game' || screen === 'trailer') return
     radioWarmedRef.current = true
+    // The library and DLC ownership need no audio engine — resolve them IN PARALLEL with the engine
+    // warmup, so the explorer window appears immediately even when the sample CDNs stall init (they
+    // can be DPI-blocked; see the prebake budget in StrudelWebEngine).
+    void radioDlcOwned().then((owned) => {
+      // Resolve + cache DLC ownership (cache avoids a trial-strip flash for owners; Steam answer corrects it).
+      setRadioOwned(owned); setRadioResolved(true)
+      setProfile((p) => (p.radioDlcOwned === owned ? p : { ...p, radioDlcOwned: owned }))
+    })
+    void (async () => {
+      // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
+      const fsmod = await import('./radio/library/tauriFs')
+      const lib = fsmod.createRadioLibrary()
+      if (lib) {
+        // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
+        // must not leave the whole library UI absent for the session).
+        try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
+      }
+    })()
     void (async () => {
       const radio = await import('./radio')
       const ctrl = await warmupRadio({
@@ -311,22 +329,7 @@ export default function App() {
           onGenerated: () => bumpTrial('gen'),           // count each new live track
         }),
       }, setRadioInitState)
-      if (ctrl) {
-        setRadioController(ctrl)
-        // Resolve + cache DLC ownership (cache avoids a trial-strip flash for owners; Steam answer corrects it).
-        void radioDlcOwned().then((owned) => {
-          setRadioOwned(owned); setRadioResolved(true)
-          setProfile((p) => (p.radioDlcOwned === owned ? p : { ...p, radioDlcOwned: owned }))
-        })
-        // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
-        const fsmod = await import('./radio/library/tauriFs')
-        const lib = fsmod.createRadioLibrary()
-        if (lib) {
-          // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
-          // must not leave the whole library UI absent for the session).
-          try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
-        }
-      }
+      if (ctrl) setRadioController(ctrl)
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
       // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
       else radioWarmedRef.current = false
