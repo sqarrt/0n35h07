@@ -50,19 +50,19 @@ describe('Seats v2 — единые сиденья всех режимов', () 
     expect(onInvite).toHaveBeenCalledWith(2)
   })
 
-  it('веб: invite-зона раскрывает код комнаты на этом сиденье', () => {
+  it('веб: зона сразу показывает «отправь другу: <код>» на каждом пустом сиденье', () => {
     renderSeats({ joinCode: 'AB12' })
-    fireEvent.click(screen.getByTestId('seat-invite-1'))
     expect(screen.getByTestId('seat-code-1').textContent).toContain('AB12')
-    // соседняя зона осталась CTA
-    expect(screen.getByTestId('seat-invite-2').textContent).not.toContain('AB12')
+    expect(screen.getByTestId('seat-code-1').textContent).toContain('SEND TO A FRIEND')
+    expect(screen.getByTestId('seat-code-2').textContent).toContain('AB12')
+    expect(screen.queryByTestId('seat-invite-1')).toBeNull()   // CTA-инвайт — только Steam
   })
 
-  it('гость: зон нет, клик по пустому сиденью = пересесть', () => {
+  it('гость: хостовых зон нет, пустое сиденье — зона «занять место»', () => {
     const { onSeatClick } = renderSeats({ isHost: false })
     expect(screen.queryByTestId('seat-invite-1')).toBeNull()
     expect(screen.queryByTestId('seat-addbot-1')).toBeNull()
-    fireEvent.click(screen.getByTestId('lobby-seat-1'))
+    fireEvent.click(screen.getByTestId('seat-take-1'))
     expect(onSeatClick).toHaveBeenCalledWith(1, 'move')
   })
 

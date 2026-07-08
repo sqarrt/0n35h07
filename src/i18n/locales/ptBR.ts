@@ -5,6 +5,8 @@ export const ptBR = {
   lobbyBecomeHost: 'SER ANFITRIÃO',
   lobbyBecomeClient: 'SER CLIENTE',
   lobbyAddBot: 'ADICIONAR BOT',
+  lobbySendCode: 'ENVIE A UM AMIGO:',
+  lobbyTakeSeat: 'OCUPAR LUGAR',
   lobbyJoinByCode: 'ENTRAR COM CÓDIGO',
   lobbyEnterCode: 'INSERIR CÓDIGO',
   lobbyCodePlaceholder: 'código do anfitrião',

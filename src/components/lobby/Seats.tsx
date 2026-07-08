@@ -55,7 +55,6 @@ function BotNameInput({ slot, name, onBotName }: { slot: number; name: string; o
 export function Seats({ mode, isHost, seats, searching, onSeatClick, onBotRemove, onBotName, onBotDifficulty, invite, joinCode }: SeatsProps) {
   const t = useT()
   const sfx = useSfx()
-  const [codeSlot, setCodeSlot] = useState<number | null>(null)   // web: which seat shows the revealed room code
   const [copied, setCopied] = useState(false)
 
   // Spinning random names in the free seats while matchmaking fills them.
@@ -101,22 +100,29 @@ export function Seats({ mode, isHost, seats, searching, onSeatClick, onBotRemove
     }
     if (s.entry === null) {
       if (searching) return <span className="lobby-nick lobby-nick--searching" data-testid={`lobby-spin-${s.slot}`}>{spin[s.slot] ?? ''}</span>
-      if (!isHost) return <span className="lobby-nick lobby-nick--searching">—</span>
-      const canInvite = invite !== undefined || !!joinCode
+      // Guest: a free seat is a "take this seat" zone — hover + label, the move must LOOK clickable.
+      if (!isHost) {
+        return (
+          <button className="seat-zone" data-testid={`seat-take-${s.slot}`}
+            onClick={() => { sfx.play2D('ui_toggle'); onSeatClick(s.slot, 'move') }}>{t.lobbyTakeSeat}</button>
+        )
+      }
       return (
         <>
-          {canInvite && (codeSlot === s.slot && joinCode
-            ? (
-              <button className="seat-zone seat-zone--code" data-testid={`seat-code-${s.slot}`} onClick={copyCode} title={t.lobbyCopyHint}>
-                <span className="seat-code-text">{joinCode}</span><span className="seat-code-glyph">{copied ? '✓' : '⧉'}</span>
-              </button>
-            )
-            : (
-              <button className="seat-zone" data-testid={`seat-invite-${s.slot}`}
-                onClick={() => { sfx.play2D('ui_toggle'); if (invite) invite.onInvite(s.slot); else setCodeSlot(s.slot) }}>
-                <span className="seat-zone-plus">＋</span>{t.lobbyInviteSection}
-              </button>
-            ))}
+          {/* Desktop: the invite zone opens the Steam friend picker. Web: the zone IS the room
+              code — "send to a friend: <code>", click copies. */}
+          {invite !== undefined && (
+            <button className="seat-zone" data-testid={`seat-invite-${s.slot}`}
+              onClick={() => { sfx.play2D('ui_toggle'); invite.onInvite(s.slot) }}>
+              <span className="seat-zone-plus">＋</span>{t.lobbyInviteSection}
+            </button>
+          )}
+          {invite === undefined && !!joinCode && (
+            <button className="seat-zone" data-testid={`seat-code-${s.slot}`} onClick={copyCode} title={t.lobbyCopyHint}>
+              <span className="seat-code-label">{t.lobbySendCode}</span>
+              <span className="seat-code-text">{joinCode}</span><span className="seat-code-glyph">{copied ? '✓' : '⧉'}</span>
+            </button>
+          )}
           <button className="seat-zone" data-testid={`seat-addbot-${s.slot}`}
             onClick={() => { sfx.play2D('ui_toggle'); onSeatClick(s.slot, 'addbot') }}>{t.lobbyAddBot}</button>
         </>
@@ -145,18 +151,16 @@ export function Seats({ mode, isHost, seats, searching, onSeatClick, onBotRemove
 
   const seat = (s: SeatView) => {
     const waiting = s.entry === null ? inviteBySlot.get(s.slot) : undefined
-    // Seat-level clicks: a client moves to a free seat; the host rerolls a bot's name.
-    const guestMove = !isHost && s.entry === null && !searching && !waiting
+    // Seat-level click: the host rerolls a bot's name (free seats act through their zones).
     const botReroll = isHost && s.entry?.isBot === true
     const click = () => {
-      if (guestMove) { sfx.play2D('ui_toggle'); onSeatClick(s.slot, 'move') }
-      else if (botReroll) { sfx.play2D('ui_toggle'); onBotName(s.slot, generateModelName()) }
+      if (botReroll) { sfx.play2D('ui_toggle'); onBotName(s.slot, generateModelName()) }
     }
-    const free = s.entry === null && !waiting && !searching && isHost
+    const free = s.entry === null && !waiting && !searching
     return (
       <div key={s.slot}
         className={`lobby-seat${s.entry?.ready ? ' lobby-seat--ready' : ''}${s.entry?.isBot ? ' lobby-seat--bot' : ''}${waiting ? ' lobby-seat--waiting' : ''}${free ? ' lobby-seat--free' : ''}`}
-        style={{ ...(s.entry ? pc(s.entry.color) : {}), position: 'relative', cursor: guestMove || botReroll ? 'pointer' : undefined }}
+        style={{ ...(s.entry ? pc(s.entry.color) : {}), position: 'relative', cursor: botReroll ? 'pointer' : undefined }}
         data-testid={`lobby-seat-${s.slot}`} data-mine={s.mine || undefined}
         onClick={click}
       >

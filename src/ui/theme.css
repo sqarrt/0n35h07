@@ -44,12 +44,14 @@
   z-index: 100;
 }
 
-/* Themed scrollbar across the whole app (styled instead of the system one — consistent look on all screens). */
-* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }   /* Firefox */
-*::-webkit-scrollbar { width: 8px; height: 8px; }
+/* Themed scrollbar across the whole app: a thin dim strip, no arrow buttons, brightens on hover —
+   it must read as a hint, not a UI element competing with the content. */
+* { scrollbar-width: thin; scrollbar-color: rgba(47,111,158,0.35) transparent; }   /* Firefox */
+*::-webkit-scrollbar { width: 5px; height: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+*::-webkit-scrollbar-thumb { background: rgba(47,111,158,0.35); border-radius: 3px; }
 *::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
 /* Thin accent line under the heading. */
 .accent-rule { width: 120px; height: 1px; background: var(--line); }
@@ -129,6 +131,13 @@
 /* Inner screen layer: fills the backing, each screen sets its own alignment (center / stretch).
    overflow-y:auto — scroll on all screens if content is taller than the panel (themed scrollbar — see above). */
 .panel-fill { flex: 1 1 auto; width: 100%; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
+/* Lobby: bleed into the panel's right padding so the body's scrollbar hugs the panel edge. The body
+   gives --bleed back as padding and the non-scrolling rows (action/back) narrow by the same amount —
+   content width is unchanged and nothing overflows sideways. */
+.panel-fill--bleed { --bleed: 28px; width: auto; align-self: stretch; margin-right: calc(-1 * var(--bleed)); overflow-y: visible; }
+.panel-fill--bleed .lobby-body { padding-right: var(--bleed); }
+/* the rows below the scroll area set width:100% inline — !important pulls them back to the content column */
+.panel-fill--bleed .lobby > :not(.lobby-body) { width: calc(100% - var(--bleed)) !important; }
 
 /* Blurred 3D preview of the selected map — atmospheric background behind the orbs (sharp MenuBackdrop on top).
    Smooth fade in/out via opacity (entering/leaving the room). Duration synced with MAP_FADE_MS in App. */
@@ -524,7 +533,11 @@
 
 /* === Lobby (matchmaking) — layout per lobby-v9 === */
 .lobby { display: flex; flex-direction: column; align-items: flex-start; width: 100%; flex: 1; min-height: 0; }
-.lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; }
+.lobby-body { width: 100%; flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; padding-top: 2vh; box-sizing: border-box; }
+/* Sections keep their size: when the content is taller than the panel the body SCROLLS —
+   flex must never compress a section into its neighbours (the carousel tiles are absolutely
+   positioned and would get overlapped). */
+.lobby-body > * { flex-shrink: 0; }
 .lobby-code { margin-bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; }
 .lobby-role { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
 .lobby-bot { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 14px; }
@@ -635,15 +648,16 @@
 .seat-zone:hover { border-color: var(--accent); color: var(--accent); background: rgba(68,170,255,0.06); }
 .seat-zone:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .seat-zone-plus { font-size: 15px; line-height: 1; color: var(--accent); font-weight: 300; }
-.seat-zone--code { border-style: solid; border-color: var(--accent); }
+.seat-code-label { color: #6f93b3; }
 .seat-code-text { font-size: 15px; letter-spacing: 0.22em; padding-left: 0.22em; color: var(--accent); text-shadow: 0 0 14px rgba(68,170,255,0.5); }
 .seat-code-glyph { font-size: 12px; color: var(--accent-dim); }
 .seat-diff { display: flex; gap: 4px; }
 .seat-diff .seg { font-size: 9px; padding: 3px 8px; }
-/* web: compact "join by code" row below the seats */
+/* web: compact "join by code" row below the seats — one shared height, a narrow go-button */
 .join-code { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 4px; margin-bottom: 14px; }
-.join-code-row { display: flex; gap: 8px; }
-.join-code-input { width: 7rem; text-align: center; text-transform: uppercase; letter-spacing: 0.22em; }
+.join-code-row { display: flex; gap: 8px; align-items: stretch; }
+.join-code-input { width: 7rem; box-sizing: border-box; text-align: center; text-transform: uppercase; letter-spacing: 0.22em; }
+.join-code-row .btn.join-code-go { min-width: 0; margin: 0; padding: 0 22px; }
 .lobby-tiles { display: flex; gap: 8px; width: 100%; }
 .lobby-tile { flex: 1; border: 1px solid var(--surface-line); border-radius: 4px; padding: 5px 5px 3px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: transparent; cursor: pointer; }
 .lobby-pv { width: 100%; height: 34px; border-radius: 2px; background: linear-gradient(135deg,#13283b,#0a131d); object-fit: cover; display: block; }

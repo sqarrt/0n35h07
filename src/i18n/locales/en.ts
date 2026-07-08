@@ -5,6 +5,8 @@ export const en = {
   lobbyBecomeHost: 'BECOME HOST',
   lobbyBecomeClient: 'BECOME CLIENT',
   lobbyAddBot: 'ADD A BOT',
+  lobbySendCode: 'SEND TO A FRIEND:',
+  lobbyTakeSeat: 'TAKE THIS SEAT',
   lobbyJoinByCode: 'JOIN BY CODE',
   lobbyEnterCode: 'ENTER HOST CODE',
   lobbyCodePlaceholder: 'host code',

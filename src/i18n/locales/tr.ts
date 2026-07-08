@@ -5,6 +5,8 @@ export const tr = {
   lobbyBecomeHost: 'HOST OL',
   lobbyBecomeClient: 'İSTEMCİ OL',
   lobbyAddBot: 'BOT EKLE',
+  lobbySendCode: 'ARKADAŞINA GÖNDER:',
+  lobbyTakeSeat: 'YERE OTUR',
   lobbyJoinByCode: 'KODLA KATIL',
   lobbyEnterCode: 'HOST KODU GİR',
   lobbyCodePlaceholder: 'host kodu',
