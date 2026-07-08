@@ -8,6 +8,8 @@ import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
+import { extractRegion, eraseRegion } from './editorSelection'
+import type { Fragment } from './editorSelection'
 import { loadMap, saveMap, saveCompiled, saveThumbnail } from './mapsApi'
 import './editor.css'
 
@@ -47,6 +49,7 @@ export function MapEditor({ name }: { name: string }) {
   const [spawns, setSpawns] = useState<[Vec3, Vec3]>([[0, EYE_HEIGHT, 16], [0, EYE_HEIGHT, -16]])
   const [tool, setTool] = useState<EditorTool>('cube')
   const [selection, setSelection] = useState<{ a: CellCoord; b?: CellCoord } | null>(null)
+  const [, setClipboard] = useState<Fragment | null>(null)   // чтение появится вместе с V (режим вставки)
   const [fly, setFly] = useState(false)   // Tab: fly with no gravity/collision; walking by default
   const [wedgeRot, setWedgeRot] = useState(0)   // R: manual wedge spin on top of auto-orientation
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: wedge upside down (bevel underneath)
@@ -122,6 +125,13 @@ export function MapEditor({ name }: { name: string }) {
       if (e.code === 'KeyR') { setWedgeRot(v => (v + 1) % 4); return }
       if (e.code === 'KeyT') { setWedgeFlip(v => !v); return }
       if (e.code === 'KeyL') { setShowCubeGrid(v => !v); return }
+      // операции над зафиксированным выделением — только при захваченной мыши (не при вводе в поля панели)
+      if (document.pointerLockElement && selection?.b) {
+        const [a, b] = [selection.a, selection.b]
+        if (e.code === 'KeyC') { setClipboard(extractRegion(voxels, a, b)); return }
+        if (e.code === 'KeyX') { setClipboard(extractRegion(voxels, a, b)); setVoxels(eraseRegion(voxels, a, b)); return }
+        if (e.code === 'Delete') { setVoxels(eraseRegion(voxels, a, b)); return }
+      }
       const idx = TOOL_KEYS.indexOf(e.code)
       if (idx >= 0) setTool(TOOLS[idx].tool)
     }
@@ -130,7 +140,7 @@ export function MapEditor({ name }: { name: string }) {
       document.removeEventListener('pointerlockchange', onLock)
       window.removeEventListener('keydown', onKey)
     }
-  }, [])
+  }, [voxels, selection])
 
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
