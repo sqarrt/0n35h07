@@ -91,7 +91,7 @@ export function Lobby(props: LobbyProps) {
               disabled={isHost ? !props.canStart : !props.connected} onClick={props.onReady}>{t.lobbyReady}</Button>
 
   return (
-    <div className="panel-fill" style={{ justifyContent: 'flex-start' }}>
+    <div className="panel-fill panel-fill--bleed" style={{ justifyContent: 'flex-start' }}>
       <div className="lobby">
         <div className="lobby-body">
           <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.menuPlay}</h2>
