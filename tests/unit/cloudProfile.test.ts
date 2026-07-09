@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { parseCloudBlob, decideProfileSync, pushProfileToCloud, mergeSameDayTrial, type CloudBlob, type CloudStore } from '../../src/steam/cloudProfile'
+import { parseCloudBlob, decideProfileSync, decideProfileSyncForUser, pushProfileToCloud, mergeSameDayTrial, type CloudBlob, type CloudStore } from '../../src/steam/cloudProfile'
 import { loadProfile, type PlayerProfile } from '../../src/settings'
 
 const PROFILE: PlayerProfile = loadProfile()   // a valid, sanitized profile to embed
@@ -35,6 +35,30 @@ describe('decideProfileSync (last-write-wins)', () => {
   })
   it('equal → noop', () => {
     expect(decideProfileSync(blob(5), 5)).toEqual({ kind: 'noop' })
+  })
+})
+
+describe('decideProfileSyncForUser (identity-aware)', () => {
+  const base = { cloud: null, localTs: 0, localOwner: null, currentUser: null, hasLocalProfile: false }
+  it('Steam недоступен → LWW (как раньше)', () => {
+    expect(decideProfileSyncForUser({ ...base, cloud: blob(10), localTs: 5, currentUser: null }).kind).toBe('adopt')
+    expect(decideProfileSyncForUser({ ...base, cloud: blob(3), localTs: 5, currentUser: null })).toEqual({ kind: 'push' })
+  })
+  it('тег отсутствует + есть профиль (обновление) → LWW, данные не сбрасываются', () => {
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', hasLocalProfile: true, cloud: blob(3), localTs: 5 })).toEqual({ kind: 'push' })
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', hasLocalProfile: true, cloud: blob(9), localTs: 5 }).kind).toBe('adopt')
+  })
+  it('тег отсутствует + нет профиля (чистая установка) → fresh без облака / adopt с облаком', () => {
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', hasLocalProfile: false, cloud: null })).toEqual({ kind: 'fresh' })
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', hasLocalProfile: false, cloud: blob(7) }).kind).toBe('adopt')
+  })
+  it('наш аккаунт → LWW', () => {
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', localOwner: 'A', hasLocalProfile: true, cloud: blob(3), localTs: 5 })).toEqual({ kind: 'push' })
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'A', localOwner: 'A', hasLocalProfile: true, cloud: blob(5), localTs: 5 })).toEqual({ kind: 'noop' })
+  })
+  it('другой аккаунт → игнор локали: adopt при облаке, fresh без', () => {
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'B', localOwner: 'A', hasLocalProfile: true, cloud: blob(1), localTs: 999 }).kind).toBe('adopt')
+    expect(decideProfileSyncForUser({ ...base, currentUser: 'B', localOwner: 'A', hasLocalProfile: true, cloud: null, localTs: 999 })).toEqual({ kind: 'fresh' })
   })
 })
 
