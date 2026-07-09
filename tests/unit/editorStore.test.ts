@@ -79,6 +79,7 @@ describe('editorStore — voxels ↔ boxes', () => {
       [cellKey(6, 0, 6), { t: 'wedge', c: '#444', d: 3, f: false, ...DEF }],
       [cellKey(8, 0, 0), { t: 'wedge', c: '#555', d: 0, f: true, ...DEF }],
       [cellKey(8, 0, 2), { t: 'wedge', c: '#555', d: 2, f: true, ...DEF }],
+      [cellKey(10, 0, 0), { t: 'wedge', c: '#666', d: 1, s: true, f: false, ...DEF }],
     ])
     const map = toMapData(v, { half: [20, 20], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] })
     expect(voxelize(map.blocks)).toEqual(v)

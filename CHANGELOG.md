@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
+- **Map editor: box selection with copy/paste.** A new SELECT tool (key 5, or the B hotkey from any tool) marks
+  two corner cells and highlights the box between them, stretching live to the crosshair before the second corner.
+  C copies the selected blocks, X cuts, Delete clears; V enters paste mode — a translucent ghost of the fragment
+  follows the crosshair, R spins it by 90° (wedges included), and it turns red where it would overlap blocks or
+  poke out of the arena. Left click stamps the fragment and stays in paste mode for series; right click or a tool
+  switch exits.
+- **Map editor: autosave.** The editor now saves on its own — a 3-second pause after the last edit writes all
+  three artifacts (source, compiled geometry, preview). Opening an existing map snapshots it to a session backup;
+  a REVERT button restores that snapshot. Closing the tab mid-pause still flushes the map source. The SAVE button
+  remains as an immediate manual save.
+- **Map editor: edit properties of a selection.** With a box selected, the hotbar brush controls act on the
+  selected blocks: pick a color to recolor them, toggle Opaque / Beam-blocking / Passable to change that property
+  across the whole region. The selection stays put so several properties can be tweaked in a row; block type and
+  wedge orientation are untouched.
+- **Map editor: wedges on their side.** A wedge can now be laid on its side (key **G**) as a vertical diagonal
+  wall — a full-height 45° corner for angled rooms and diagonal passages. R still picks which of the four corners;
+  the wall renders, collides and blocks/passes beams by the usual flags in-game.
 - **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
   the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
   action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two

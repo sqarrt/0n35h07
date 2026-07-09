@@ -30,6 +30,7 @@ export interface MapBlock {
   shape?: 'box' | 'wedge'   // default box; wedge — a wedge ramp (triangular prism)
   dir?: number         // wedge side 0=+Z,1=+X,2=−Z,3=−X (rotation around Y)
   flip?: boolean       // wedge flipped along Y (slope underneath — an overhang)
+  side?: boolean       // wedge laid on its side — vertical diagonal wall; ignores flip
   transparent?: boolean   // default false → opaque; true → semi-transparent
   passable?: boolean      // default false → has a collider; true → no collider (passable through)
   perimeter?: boolean     // editor-round-trip marker for a perimeter wall; the game ignores it

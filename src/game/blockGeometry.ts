@@ -1,6 +1,6 @@
 import { BoxGeometry, BufferGeometry, Color, Float32BufferAttribute } from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
-import { wedgeRotationY } from './wedge'
+import { wedgeQuaternion } from './wedge'
 import type { MapBlock } from './maps'
 
 /**
@@ -15,9 +15,10 @@ import type { MapBlock } from './maps'
 function blockGeometry(b: MapBlock, wedgeGeo: BufferGeometry, wedgeGeoFlip: BufferGeometry): BufferGeometry {
   let g: BufferGeometry
   if (b.shape === 'wedge') {
-    g = (b.flip ? wedgeGeoFlip : wedgeGeo).clone()
+    const useFlip = b.side ? false : b.flip     // on-side игнорирует флип (призма симметрична по Y)
+    g = (useFlip ? wedgeGeoFlip : wedgeGeo).clone()
     g.scale(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
-    g.rotateY(wedgeRotationY(b.dir ?? 0))
+    g.applyQuaternion(wedgeQuaternion(b.dir ?? 0, b.side === true))
   } else {
     g = new BoxGeometry(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2).toNonIndexed()
     if (b.rot) { g.rotateX(b.rot[0]); g.rotateY(b.rot[1]); g.rotateZ(b.rot[2]) }

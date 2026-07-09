@@ -12,8 +12,9 @@ export { VOXEL }                                 // base cube edge — single so
 // Block types and wedge orientation. dir: 0=+Z,1=+X,2=−Z,3=−X.
 export type BlockType = 'cube' | 'wedge'
 export type Dir = 0 | 1 | 2 | 3
-// f — wedge flipped along Y; bb=blocksBeam (def. true=beam-blocking), tr=transparent (def. false), ps=passable (def. false)
-export interface Cell { t: BlockType; c: string; d: Dir; f: boolean; bb: boolean; tr: boolean; ps: boolean }
+// f — wedge flipped along Y; s — on-side (диагональная стена, для клина; при on-side флип игнорируется);
+// bb=blocksBeam (def. true=beam-blocking), tr=transparent (def. false), ps=passable (def. false)
+export interface Cell { t: BlockType; c: string; d: Dir; f: boolean; s?: boolean; bb: boolean; tr: boolean; ps: boolean }
 
 /** Map data = GameMap shape (minus the strict id). Wall color is not a separate field — the perimeter is
  * already in blocks (perimeter:true), and we restore its color from there on import. So the JSON pastes
@@ -95,7 +96,8 @@ export function shapeBlock(x: number, y: number, z: number, cell: Cell): MapBloc
   const S = VOXEL
   const cx = (x + 0.5) * S, cy = (y + 0.5) * S, cz = (z + 0.5) * S
   const b: MapBlock = { pos: [cx, cy, cz], size: [HALF, HALF, HALF], color: cell.c, blocksBeam: cell.bb, shape: 'wedge', dir: cell.d }
-  if (cell.f) b.flip = true
+  if (cell.f && !cell.s) b.flip = true     // on-side игнорирует флип
+  if (cell.s) b.side = true
   if (cell.tr) b.transparent = true
   if (cell.ps) b.passable = true
   return b
@@ -170,7 +172,9 @@ export function voxelize(blocks: MapBlock[]): Map<string, Cell> {
         Math.floor((b.pos[1] - b.size[1] + 1e-3) / S),
         Math.floor((b.pos[2] - b.size[2] + 1e-3) / S),
       ]
-      v.set(cellKey(x, y, z), { t: 'wedge', c: b.color, d: (b.dir ?? 0) as Dir, f: !!b.flip, bb, tr, ps })
+      const wcell: Cell = { t: 'wedge', c: b.color, d: (b.dir ?? 0) as Dir, f: !!b.flip, bb, tr, ps }
+      if (b.side === true) wcell.s = true
+      v.set(cellKey(x, y, z), wcell)
       continue
     }
     // cube / merged cube-box → fill the cells
