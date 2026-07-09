@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   selected blocks: pick a color to recolor them, toggle Opaque / Beam-blocking / Passable to change that property
   across the whole region. The selection stays put so several properties can be tweaked in a row; block type and
   wedge orientation are untouched.
+- **Map editor: wedges on their side.** A wedge can now be laid on its side (key **G**) as a vertical diagonal
+  wall — a full-height 45° corner for angled rooms and diagonal passages. R still picks which of the four corners;
+  the wall renders, collides and blocks/passes beams by the usual flags in-game.
 - **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
   the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
   action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
