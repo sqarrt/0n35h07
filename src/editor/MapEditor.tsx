@@ -6,8 +6,8 @@ import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
-import { extractRegion, eraseRegion, rotateFragment, canStamp, stampFragment } from './editorSelection'
-import type { Fragment } from './editorSelection'
+import { extractRegion, eraseRegion, rotateFragment, canStamp, stampFragment, patchRegion } from './editorSelection'
+import type { Fragment, RegionPatch } from './editorSelection'
 import { loadMap, loadBackup, saveBackup } from './mapsApi'
 import { useMapSaver } from './useMapSaver'
 import './editor.css'
@@ -116,6 +116,14 @@ export function MapEditor({ name }: { name: string }) {
   }, [])
   const onSelectionClear = useCallback(() => setSelection(null), [])
 
+  // Живая панель: при зафиксированном выделении контрол кисти применяет своё свойство к региону.
+  const patchSelection = useCallback((patch: RegionPatch) => {
+    setSelection(sel => {
+      if (sel?.b) setVoxels(prev => patchRegion(prev, sel.a, sel.b!, patch))
+      return sel
+    })
+  }, [])
+
   // Штамп фрагмента (валидация повторяется на состоянии на момент клика — ghost мог отстать на кадр).
   const onStamp = useCallback((anchor: CellCoord) => {
     if (!paste) return
@@ -223,17 +231,17 @@ export function MapEditor({ name }: { name: string }) {
         ))}
         <span className="editor-sep" />
         {EDITOR_COLORS.map(c => (
-          <span key={c} className={`swatch${c === color ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => setColor(c)} />
+          <span key={c} className={`swatch${c === color ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => { setColor(c); patchSelection({ c }) }} />
         ))}
         <span className="editor-sep" />
-        {/* Brush properties: apply to the next placed blocks */}
-        <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => setBrushTransparent(v => !v)}>
+        {/* Brush properties: apply to the next placed blocks, and to a fixed selection right away */}
+        <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => { const v = !brushTransparent; setBrushTransparent(v); patchSelection({ tr: v }) }}>
           {brushTransparent ? 'Semi-transparent' : 'Opaque'}
         </button>
-        <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => setBrushBeam(v => !v)}>
+        <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => { const v = !brushBeam; setBrushBeam(v); patchSelection({ bb: v }) }}>
           {brushBeam ? 'Beam-blocking' : 'Shoot-through'}
         </button>
-        <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => setBrushPassable(v => !v)}>
+        <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => { const v = !brushPassable; setBrushPassable(v); patchSelection({ ps: v }) }}>
           {brushPassable ? 'Passable' : 'Solid'}
         </button>
       </div>
