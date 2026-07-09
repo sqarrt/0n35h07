@@ -54,6 +54,7 @@ export function MapEditor({ name }: { name: string }) {
   const [fly, setFly] = useState(false)   // Tab: fly with no gravity/collision; walking by default
   const [wedgeRot, setWedgeRot] = useState(0)   // R: manual wedge spin on top of auto-orientation
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: wedge upside down (bevel underneath)
+  const [wedgeSide, setWedgeSide] = useState(false)   // G: клин на боку (диагональная стена)
   const [showCubeGrid, setShowCubeGrid] = useState(true)   // L: highlight all cell borders (build mode)
   const [showGridInGame, setShowGridInGame] = useState(false)   // persisted map setting: draw the cube grid in-game
   const [color, setColor] = useState(EDITOR_COLORS[2])
@@ -150,6 +151,7 @@ export function MapEditor({ name }: { name: string }) {
       if (e.code === 'Tab') { e.preventDefault(); setFly(v => !v); return }
       if (e.code === 'KeyR') { if (paste) setPaste(rotateFragment(paste)); else setWedgeRot(v => (v + 1) % 4); return }
       if (e.code === 'KeyT') { setWedgeFlip(v => !v); return }
+      if (e.code === 'KeyG') { setWedgeSide(v => !v); return }
       if (e.code === 'KeyL') { setShowCubeGrid(v => !v); return }
       // операции над зафиксированным выделением — только при захваченной мыши (не при вводе в поля панели)
       // и не в режиме вставки; повторный V в режиме вставки — no-op
@@ -211,7 +213,7 @@ export function MapEditor({ name }: { name: string }) {
         <EditorScene
           voxels={voxels}
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
-          tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
+          tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} wedgeSide={wedgeSide} showCubeGrid={showCubeGrid} color={color}
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
           selection={selection} paste={paste}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
@@ -223,7 +225,7 @@ export function MapEditor({ name }: { name: string }) {
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip wedge' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">

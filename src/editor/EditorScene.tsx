@@ -8,7 +8,7 @@ import { regionBounds, canStamp } from './editorSelection'
 import type { Fragment } from './editorSelection'
 import type { Vec3 } from '../game/maps'
 import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
-import { unitWedgeGeometry, wedgeRotationY } from '../game/wedge'
+import { unitWedgeGeometry, wedgeQuaternion, wedgeEuler } from '../game/wedge'
 import { gridGeometry } from '../game/grid'
 import { cellCenter, cellsGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from '../game/blockGrid'
 import { MapLights } from '../components/MapVisualBits'
@@ -74,6 +74,7 @@ interface Props {
   fly: boolean                  // fly mode (no gravity/collision); false by default
   wedgeRot: number              // manual wedge turn (R) on top of auto-orientation, 90° step
   wedgeFlip: boolean            // wedge flipped on Y (T) — slope underneath
+  wedgeSide: boolean            // клин на боку (диагональная стена) — G
   showCubeGrid: boolean         // highlight all cell borders (L) — build mode
   color: string
   brushBeam: boolean            // brush: blocksBeam (true = beam-blocking)
@@ -158,7 +159,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
   return (
     <>
       {shapes.map(({ key, b }) => (
-        <mesh key={key} position={b.pos} rotation={[0, wedgeRotationY(b.dir ?? 0), 0]} geometry={b.flip ? wedgeGeoFlip : wedgeGeo}
+        <mesh key={key} position={b.pos} rotation={wedgeEuler(b.dir ?? 0, b.side === true)} geometry={(b.side ? false : b.flip) ? wedgeGeoFlip : wedgeGeo}
           scale={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} castShadow receiveShadow
           userData={{ editorTarget: true, cellKey: key }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
           <meshStandardMaterial color={b.color} transparent={b.transparent === true} opacity={b.transparent ? BLOCK_TRANSPARENT_OPACITY : 1} depthWrite={b.transparent !== true} />
@@ -170,7 +171,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
 
 /** Editor scene + controls (walking with gravity + placing/removing blocks at the crosshair). */
 export function EditorScene(props: Props) {
-  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel } = props
+  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, wedgeSide, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel } = props
   const { camera, scene, raycaster } = useThree()
   const [hx, hz] = half
 
@@ -217,9 +218,9 @@ export function EditorScene(props: Props) {
       if (cell.t === 'cube') continue
       const [x, y, z] = parseCellKey(k)
       const b = shapeBlock(x, y, z, cell)
-      const wm = new THREE.Mesh(cell.f ? wedgeGeoFlip : wedgeGeo, pasteMat)
+      const wm = new THREE.Mesh((!cell.s && cell.f) ? wedgeGeoFlip : wedgeGeo, pasteMat)
       wm.position.set(...b.pos)
-      wm.rotation.set(0, wedgeRotationY(cell.d), 0)
+      wm.quaternion.copy(wedgeQuaternion(cell.d, cell.s === true))
       wm.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
       grp.add(wm)
     }
@@ -304,7 +305,7 @@ export function EditorScene(props: Props) {
         else {
           const f = camera.getWorldDirection(new THREE.Vector3())
           const isWedge = tool === 'wedge'
-          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
+          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, s: isWedge && wedgeSide, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
         }
       } else if (button === 2) onRemove(c.remove)
     }
@@ -338,11 +339,11 @@ export function EditorScene(props: Props) {
       document.removeEventListener('pointerlockchange', onLockChange)
       window.removeEventListener('contextmenu', onCtx)
     }
-  }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, color, wedgeRot, wedgeFlip, wedgeSide, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cell-top height at point (px,pz): wedge (not flipped) — heightfield slope; cube/flipped — flat top.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
-    if (cell.t === 'wedge' && !cell.f) {
+    if (cell.t === 'wedge' && !cell.f && !cell.s) {
       const [dx, dz] = HIGH_DIR[cell.d]
       const fx = px / VOXEL - x, fz = pz / VOXEL - z
       let param = dz !== 0 ? (dz > 0 ? fz : 1 - fz) : (dx > 0 ? fx : 1 - fx)
@@ -453,10 +454,10 @@ export function EditorScene(props: Props) {
       } else if (tool === 'wedge') {
         g.visible = false; gw.visible = true; gs.visible = false
         const d = wedgeDir(f.x, f.z, wedgeRot)
-        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
-        gw.geometry = wedgeFlip ? wedgeGeoFlip : wedgeGeo
+        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip, s: wedgeSide, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
+        gw.geometry = (!wedgeSide && wedgeFlip) ? wedgeGeoFlip : wedgeGeo
         gw.position.set(...b.pos)
-        gw.rotation.set(0, wedgeRotationY(d), 0)
+        gw.quaternion.copy(wedgeQuaternion(d, wedgeSide))
         gw.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
       } else {
         // cube — a cubic ghost on the cell
