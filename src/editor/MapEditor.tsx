@@ -116,6 +116,9 @@ export function MapEditor({ name }: { name: string }) {
   }, [])
   const onSelectionClear = useCallback(() => setSelection(null), [])
 
+  // Выделение живёт только в инструменте SELECT — при уходе на другой инструмент сбрасываем.
+  useEffect(() => { if (tool !== 'select') setSelection(null) }, [tool])
+
   // Живая панель: при зафиксированном выделении контрол кисти применяет своё свойство к региону.
   const patchSelection = useCallback((patch: RegionPatch) => {
     setSelection(sel => {
