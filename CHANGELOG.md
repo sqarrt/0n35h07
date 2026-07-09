@@ -44,6 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **Player profile is tied to the Steam account.** The first time an account plays, the in-game name is seeded
+  from Steam; afterwards every setting syncs from that account's Steam Cloud (so a second PC picks them up).
+  Switching Steam accounts on a PC no longer shows or uploads the previous player's name, skin and artwork.
+  Existing installs keep their profile untouched on upgrade.
 - **Match music in Steam lobbies.** The soundtrack seed used to come from the room code, and code-less Steam
   lobbies got silence; now the room creator generates the seed and ships it to everyone — the whole lobby hears
   the same track.
