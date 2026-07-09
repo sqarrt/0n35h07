@@ -84,3 +84,17 @@ export function eraseRegion(voxels: Map<string, Cell>, a: Vec3i, b: Vec3i): Map<
   }
   return next
 }
+
+/** Патч свойств блока (без типа/ориентации) — то, что задаёт кисть хотбара. */
+export type RegionPatch = Partial<Pick<Cell, 'c' | 'bb' | 'tr' | 'ps'>>
+
+/** Применить патч ко всем ячейкам региона (t/d/f сохранены). Новая Map. */
+export function patchRegion(voxels: Map<string, Cell>, a: Vec3i, b: Vec3i, patch: RegionPatch): Map<string, Cell> {
+  const { min, max } = regionBounds(a, b)
+  const next = new Map(voxels)
+  for (const [k, cell] of voxels) {
+    const [x, y, z] = parseCellKey(k)
+    if (inRegion(x, y, z, min, max)) next.set(k, { ...cell, ...patch })
+  }
+  return next
+}

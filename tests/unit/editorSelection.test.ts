@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { cellKey } from '../../src/editor/editorStore'
 import type { Cell } from '../../src/editor/editorStore'
-import { regionBounds, extractRegion, rotateFragment, canStamp, stampFragment, eraseRegion } from '../../src/editor/editorSelection'
+import { regionBounds, extractRegion, rotateFragment, canStamp, stampFragment, eraseRegion, patchRegion } from '../../src/editor/editorSelection'
 import type { Vec3i } from '../../src/editor/editorSelection'
 
 const cube = (over: Partial<Cell> = {}): Cell =>
@@ -121,5 +121,29 @@ describe('editorSelection — stamp & erase', () => {
     const out = stampFragment(cutv, frag, [-5, 0, -5])
     expect([...extractRegion(out, [-5, 0, -5], [-4, 1, -5]).cells.entries()].sort())
       .toEqual([...frag.cells.entries()].sort())
+  })
+})
+
+describe('editorSelection — patchRegion', () => {
+  it('применяет патч только к региону, t/d/f и соседи целы, Map не мутируется', () => {
+    const v = new Map<string, Cell>([
+      [cellKey(0, 0, 0), cube({ c: '#111' })],
+      [cellKey(1, 0, 0), wedge(2)],
+      [cellKey(5, 0, 0), cube({ c: '#999' })],   // вне региона
+    ])
+    const out = patchRegion(v, [0, 0, 0], [1, 0, 0], { c: '#4af', ps: true })
+    expect(out.get(cellKey(0, 0, 0))).toEqual(cube({ c: '#4af', ps: true }))
+    // wedge: цвет+ps применены, тип и dir целы
+    expect(out.get(cellKey(1, 0, 0))).toEqual({ t: 'wedge', c: '#4af', d: 2, f: false, bb: true, tr: false, ps: true })
+    expect(out.get(cellKey(5, 0, 0))).toEqual(cube({ c: '#999' }))   // сосед не тронут
+    expect(v.get(cellKey(0, 0, 0))).toEqual(cube({ c: '#111' }))     // исходная Map цела
+  })
+
+  it('частичный патч меняет только заданные поля', () => {
+    const v = new Map<string, Cell>([[cellKey(0, 0, 0), cube({ c: '#111', bb: true, tr: false, ps: false })]])
+    expect(patchRegion(v, [0, 0, 0], [0, 0, 0], { tr: true }).get(cellKey(0, 0, 0)))
+      .toEqual(cube({ c: '#111', bb: true, tr: true, ps: false }))
+    expect(patchRegion(v, [0, 0, 0], [0, 0, 0], { bb: false }).get(cellKey(0, 0, 0)))
+      .toEqual(cube({ c: '#111', bb: false, tr: false, ps: false }))
   })
 })
