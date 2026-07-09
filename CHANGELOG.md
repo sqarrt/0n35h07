@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   three artifacts (source, compiled geometry, preview). Opening an existing map snapshots it to a session backup;
   a REVERT button restores that snapshot. Closing the tab mid-pause still flushes the map source. The SAVE button
   remains as an immediate manual save.
+- **Map editor: edit properties of a selection.** With a box selected, the hotbar brush controls act on the
+  selected blocks: pick a color to recolor them, toggle Opaque / Beam-blocking / Passable to change that property
+  across the whole region. The selection stays put so several properties can be tweaked in a row; block type and
+  wedge orientation are untouched.
 - **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
   the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
   action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
