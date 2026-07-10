@@ -166,10 +166,19 @@ export function MapEditor({ name }: { name: string }) {
       const idx = TOOL_KEYS.indexOf(e.code)
       if (idx >= 0) { setTool(TOOLS[idx].tool); setPaste(null) }
     }
+    // Нажатие средней кнопки мыши (колёсико) при захваченной мыши включает инструмент SELECT.
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 1 || !document.pointerLockElement) return
+      e.preventDefault()
+      setTool('select')
+      setPaste(null)
+    }
     window.addEventListener('keydown', onKey)
+    window.addEventListener('mousedown', onMouseDown)
     return () => {
       document.removeEventListener('pointerlockchange', onLock)
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', onMouseDown)
     }
   }, [voxels, selection, clipboard, paste])
 
@@ -225,7 +234,7 @@ export function MapEditor({ name }: { name: string }) {
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B/MMB — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">
