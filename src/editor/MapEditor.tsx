@@ -166,21 +166,15 @@ export function MapEditor({ name }: { name: string }) {
       const idx = TOOL_KEYS.indexOf(e.code)
       if (idx >= 0) { setTool(TOOLS[idx].tool); setPaste(null) }
     }
-    // Нажатие средней кнопки мыши (колёсико) при захваченной мыши включает инструмент SELECT.
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 1 || !document.pointerLockElement) return
-      e.preventDefault()
-      setTool('select')
-      setPaste(null)
-    }
     window.addEventListener('keydown', onKey)
-    window.addEventListener('mousedown', onMouseDown)
     return () => {
       document.removeEventListener('pointerlockchange', onLock)
       window.removeEventListener('keydown', onKey)
-      window.removeEventListener('mousedown', onMouseDown)
     }
   }, [voxels, selection, clipboard, paste])
+
+  // Переключение в SELECT (средней кнопкой): включить инструмент и выйти из режима вставки.
+  const onSelectTool = useCallback(() => { setTool('select'); setPaste(null) }, [])
 
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
@@ -226,7 +220,7 @@ export function MapEditor({ name }: { name: string }) {
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
           selection={selection} paste={paste}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
-          onCorner={onCorner} onSelectionClear={onSelectionClear}
+          onCorner={onCorner} onSelectionClear={onSelectionClear} onSelectTool={onSelectTool}
           onStamp={onStamp} onPasteCancel={onPasteCancel}
         />
       </Canvas>

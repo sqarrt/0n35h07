@@ -87,6 +87,7 @@ interface Props {
   onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
   onCorner: (cell: CellCoord) => void
   onSelectionClear: () => void
+  onSelectTool: () => void
   onStamp: (anchor: CellCoord) => void
   onPasteCancel: () => void
 }
@@ -171,7 +172,7 @@ function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, C
 
 /** Editor scene + controls (walking with gravity + placing/removing blocks at the crosshair). */
 export function EditorScene(props: Props) {
-  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, wedgeSide, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel } = props
+  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, wedgeSide, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onSelectTool, onStamp, onPasteCancel } = props
   const { camera, scene, raycaster } = useThree()
   const [hx, hz] = half
 
@@ -314,6 +315,15 @@ export function EditorScene(props: Props) {
     const stop = (button: number) => { const t = held[button]; if (t != null) { clearInterval(t); delete held[button] } }
     const stopAll = () => { stop(0); stop(2) }
     const onMouseDown = (e: MouseEvent) => {
+      // Средняя кнопка (колёсико): включить SELECT и поставить угол выделения (тем же действием, что ЛКМ в SELECT).
+      if (e.button === 1) {
+        if (!document.pointerLockElement) return
+        e.preventDefault()
+        const c = pick()
+        onSelectTool()
+        if (c) onCorner(cornerOf(c))
+        return
+      }
       if (e.button !== 0 && e.button !== 2) return
       if (!document.pointerLockElement) return   // first click only engages pointer lock
       act(e.button)
@@ -339,7 +349,7 @@ export function EditorScene(props: Props) {
       document.removeEventListener('pointerlockchange', onLockChange)
       window.removeEventListener('contextmenu', onCtx)
     }
-  }, [tool, color, wedgeRot, wedgeFlip, wedgeSide, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, color, wedgeRot, wedgeFlip, wedgeSide, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onSelectTool, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cell-top height at point (px,pz): wedge (not flipped) — heightfield slope; cube/flipped — flat top.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
