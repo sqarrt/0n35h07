@@ -22,6 +22,34 @@ export function editorMaps(): Plugin {
     name: 'editor-maps',
     apply: 'serve',
     configureServer(server: ViteDevServer) {
+      // Dev-only: recompile every map's geo.json from its raw.json via the real compile pipeline
+      // (ssrLoadModule). Regenerates all maps into the current geo format ahead of time (GET /__recompile).
+      server.middlewares.use('/__recompile', async (_req, res) => {
+        try {
+          const mod = await server.ssrLoadModule('/src/game/mapGeometryCache.ts') as {
+            compileBlocks: (blocks: unknown[]) => unknown
+            serializeGeo: (c: unknown) => string
+          }
+          await fs.mkdir(MAPS_DIR, { recursive: true })
+          const entries = await fs.readdir(MAPS_DIR, { withFileTypes: true })
+          const done: string[] = []
+          const failed: string[] = []
+          for (const e of entries) {
+            if (!e.isDirectory()) continue
+            try {
+              const raw = await fs.readFile(path.join(MAPS_DIR, e.name, 'raw.json'), 'utf8').catch(() => null)
+              if (raw == null) continue
+              const map = JSON.parse(raw) as { blocks: unknown[] }
+              await fs.writeFile(path.join(MAPS_DIR, e.name, 'geo.json'), mod.serializeGeo(mod.compileBlocks(map.blocks)), 'utf8')
+              done.push(e.name)
+            } catch { failed.push(e.name) }   // one bad map (e.g. mid-write) must not abort the rest
+          }
+          return sendJson(res, 200, { recompiled: done, failed })
+        } catch (err) {
+          return sendJson(res, 500, { error: String(err) })
+        }
+      })
+
       server.middlewares.use('/__maps', async (req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
         const segs = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)  // [] | [id] | [id, part]
