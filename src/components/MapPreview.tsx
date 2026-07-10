@@ -16,8 +16,9 @@ const PREVIEW_H = 100
 export function MapScene({ map }: { map: GameMap }) {
   const [hx, hz] = map.half
   const compiled = useMemo(() => compileBlocks(map.blocks), [map.blocks])
-  // Top-down preview — transparency/collision don't matter: draw all 4 visual groups opaquely.
-  const geos = useMemo(() => [compiled.opaqueRaycast, compiled.opaqueNoRaycast, compiled.transparentRaycast, compiled.transparentNoRaycast]
+  // Top-down preview — transparency/collision don't matter: draw all chunk groups opaquely.
+  const geos = useMemo(() => compiled.chunks
+    .flatMap(ch => [ch.opaqueRaycast, ch.opaqueNoRaycast, ch.transparentRaycast, ch.transparentNoRaycast])
     .map(a => (a ? buildGeometry(a) : null)), [compiled])
   useEffect(() => () => geos.forEach(g => g?.dispose()), [geos])
   const postFx = useMemo(() => loadProfile().postProcessing, [])

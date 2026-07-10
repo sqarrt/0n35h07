@@ -106,11 +106,11 @@ function DemoArena({ mapId }: { mapId: MapId }) {
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map])
-  // Block visual (no collision — trailer). 4 groups; transparent ones are drawn with a translucent material.
-  const blockGeos = useMemo(() => [
-    { g: compiled.opaqueRaycast, transp: false }, { g: compiled.opaqueNoRaycast, transp: false },
-    { g: compiled.transparentRaycast, transp: true }, { g: compiled.transparentNoRaycast, transp: true },
-  ].map(x => ({ geo: x.g ? buildGeometry(x.g) : null, transp: x.transp })), [compiled])
+  // Block visual (no collision — trailer). Chunk groups; transparent ones are drawn with a translucent material.
+  const blockGeos = useMemo(() => compiled.chunks.flatMap(ch => [
+    { g: ch.opaqueRaycast, transp: false }, { g: ch.opaqueNoRaycast, transp: false },
+    { g: ch.transparentRaycast, transp: true }, { g: ch.transparentNoRaycast, transp: true },
+  ]).map(x => ({ geo: x.g ? buildGeometry(x.g) : null, transp: x.transp })), [compiled])
   useEffect(() => () => blockGeos.forEach(x => x.geo?.dispose()), [blockGeos])
   return (
     <>
