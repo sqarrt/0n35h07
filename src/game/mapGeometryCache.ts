@@ -9,11 +9,14 @@ import type { MapBlock } from './maps'
  * on save (geo.json), the runtime builds a lightweight BufferGeometry. Fallback — compile from blocks (cached by id).
  */
 export interface GeoArrays { position: Float32Array; normal: Float32Array; color: Float32Array }
-export interface CompiledMap {
+export interface ChunkGeo {
   opaqueRaycast: GeoArrays | null
   opaqueNoRaycast: GeoArrays | null
   transparentRaycast: GeoArrays | null
   transparentNoRaycast: GeoArrays | null
+}
+export interface CompiledMap {
+  chunks: ChunkGeo[]
   collider: GeoArrays | null
 }
 
@@ -27,27 +30,27 @@ function toArrays(g: BufferGeometry | null): GeoArrays | null {
   }
 }
 
-/** Merge blocks and extract arrays (CPU, no GL). */
+/** Merge blocks per chunk and extract arrays (CPU, no GL). */
 export function compileBlocks(blocks: MapBlock[]): CompiledMap {
   const wedgeGeo = unitWedgeGeometry()
   const wedgeGeoFlip = unitWedgeGeometry(true)
   const b = bucketedBlockGeometries(blocks, wedgeGeo, wedgeGeoFlip)
-  const out: CompiledMap = {
-    opaqueRaycast: toArrays(b.opaqueRaycast),
-    opaqueNoRaycast: toArrays(b.opaqueNoRaycast),
-    transparentRaycast: toArrays(b.transparentRaycast),
-    transparentNoRaycast: toArrays(b.transparentNoRaycast),
-    collider: toArrays(b.collider),
-  }
-  b.opaqueRaycast?.dispose(); b.opaqueNoRaycast?.dispose()
-  b.transparentRaycast?.dispose(); b.transparentNoRaycast?.dispose(); b.collider?.dispose()
+  const chunks: ChunkGeo[] = b.chunks.map(ch => ({
+    opaqueRaycast: toArrays(ch.opaqueRaycast),
+    opaqueNoRaycast: toArrays(ch.opaqueNoRaycast),
+    transparentRaycast: toArrays(ch.transparentRaycast),
+    transparentNoRaycast: toArrays(ch.transparentNoRaycast),
+  }))
+  const collider = toArrays(b.collider)
+  for (const ch of b.chunks) { ch.opaqueRaycast?.dispose(); ch.opaqueNoRaycast?.dispose(); ch.transparentRaycast?.dispose(); ch.transparentNoRaycast?.dispose() }
+  b.collider?.dispose()
   wedgeGeo.dispose(); wedgeGeoFlip.dispose()
-  return out
+  return { chunks, collider }
 }
 
-/** All groups empty (no geometry) — e.g. a map with no blocks OR an outdated geo.json format (old keys). */
+/** No geometry — a map with no blocks OR an outdated/unknown geo.json format (→ consumer falls back to compile). */
 export function isEmptyCompiled(c: CompiledMap): boolean {
-  return !c.opaqueRaycast && !c.opaqueNoRaycast && !c.transparentRaycast && !c.transparentNoRaycast && !c.collider
+  return c.chunks.length === 0 && !c.collider
 }
 
 /** BufferGeometry from ready arrays (cheap, per-context). */
@@ -75,30 +78,22 @@ function unb64(s: string): Float32Array {
 }
 
 type SerGeo = { position: string; normal: string; color: string } | null
-interface SerCompiled {
-  opaqueRaycast: SerGeo; opaqueNoRaycast: SerGeo
-  transparentRaycast: SerGeo; transparentNoRaycast: SerGeo
-  collider: SerGeo
-}
+interface SerChunk { opaqueRaycast: SerGeo; opaqueNoRaycast: SerGeo; transparentRaycast: SerGeo; transparentNoRaycast: SerGeo }
+interface SerCompiled { chunks: SerChunk[]; collider: SerGeo }
 
 const serGroup = (a: GeoArrays | null): SerGeo => a && { position: b64(a.position), normal: b64(a.normal), color: b64(a.color) }
 const parseGroup = (s: SerGeo): GeoArrays | null => s && { position: unb64(s.position), normal: unb64(s.normal), color: unb64(s.color) }
+const serChunk = (c: ChunkGeo): SerChunk => ({ opaqueRaycast: serGroup(c.opaqueRaycast), opaqueNoRaycast: serGroup(c.opaqueNoRaycast), transparentRaycast: serGroup(c.transparentRaycast), transparentNoRaycast: serGroup(c.transparentNoRaycast) })
+const parseChunk = (s: SerChunk): ChunkGeo => ({ opaqueRaycast: parseGroup(s.opaqueRaycast), opaqueNoRaycast: parseGroup(s.opaqueNoRaycast), transparentRaycast: parseGroup(s.transparentRaycast), transparentNoRaycast: parseGroup(s.transparentNoRaycast) })
 
 export function serializeGeo(c: CompiledMap): string {
-  return JSON.stringify({
-    opaqueRaycast: serGroup(c.opaqueRaycast), opaqueNoRaycast: serGroup(c.opaqueNoRaycast),
-    transparentRaycast: serGroup(c.transparentRaycast), transparentNoRaycast: serGroup(c.transparentNoRaycast),
-    collider: serGroup(c.collider),
-  } satisfies SerCompiled)
+  return JSON.stringify({ chunks: c.chunks.map(serChunk), collider: serGroup(c.collider) } satisfies SerCompiled)
 }
-/** Parse a loaded geo.json (object or string) into arrays. */
+/** Parse a loaded geo.json (object or string). Old/unknown format (no `chunks`) → empty (consumer falls back to compile). */
 export function parseGeo(data: SerCompiled | string): CompiledMap {
-  const s = (typeof data === 'string' ? JSON.parse(data) : data) as SerCompiled
-  return {
-    opaqueRaycast: parseGroup(s.opaqueRaycast), opaqueNoRaycast: parseGroup(s.opaqueNoRaycast),
-    transparentRaycast: parseGroup(s.transparentRaycast), transparentNoRaycast: parseGroup(s.transparentNoRaycast),
-    collider: parseGroup(s.collider),
-  }
+  const s = (typeof data === 'string' ? JSON.parse(data) : data) as Partial<SerCompiled>
+  if (!Array.isArray(s.chunks)) return { chunks: [], collider: null }
+  return { chunks: s.chunks.map(parseChunk), collider: parseGroup(s.collider ?? null) }
 }
 
 // --- runtime cache of fallback compilation by id (to avoid re-merging when the artifact is missing) ---
