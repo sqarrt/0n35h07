@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **Large maps render fast.** Map geometry is split into spatial chunks so the GPU skips off-screen parts in
+  every pass (color, shadows, outline) — heavy maps no longer tank the frame rate.
 - **Player profile is tied to the Steam account.** The first time an account plays, the in-game name is seeded
   from Steam; afterwards every setting syncs from that account's Steam Cloud (so a second PC picks them up).
   Switching Steam accounts on a PC no longer shows or uploads the previous player's name, skin and artwork.
