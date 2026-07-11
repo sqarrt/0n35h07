@@ -49,14 +49,17 @@ export interface GameMap {
 const WALL_H = 1.5       // perimeter wall half-height
 const WALL_T = 0.25      // wall half-thickness
 
-/** Four perimeter walls sized to the floor [hx, hz] (decor+collider, beam passes through). */
+/** Four perimeter walls sized to the floor [hx, hz] (decor+collider, beam passes through). Walls sit ENTIRELY
+ *  OUTSIDE the floor: centered at ±(half + WALL_T), so the inner face lands exactly on the arena edge (±half,
+ *  a grid node). Then the last row of voxel cells abuts the wall with no overlap — the grid fits tile-perfect
+ *  and border blocks aren't misread as buried "perimeter trim". */
 export function perimeter(color: string, hx: number, hz: number): MapBlock[] {
   const bb = false
   return [
-    { pos: [0, WALL_H, -hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
-    { pos: [0, WALL_H, hz], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
-    { pos: [-hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
-    { pos: [hx, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
+    { pos: [0, WALL_H, -(hz + WALL_T)], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [0, WALL_H, hz + WALL_T], size: [hx, WALL_H, WALL_T], color, blocksBeam: bb, perimeter: true },
+    { pos: [-(hx + WALL_T), WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
+    { pos: [hx + WALL_T, WALL_H, 0], size: [WALL_T, WALL_H, hz], color, blocksBeam: bb, perimeter: true },
   ]
 }
 
