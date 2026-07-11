@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **Map editor stays responsive on large maps.** Wedges are drawn with instancing instead of thousands of
+  separate meshes, and the cell-edge grid is built only when shown — editing a big map no longer stutters.
 - **Large maps render fast.** Map geometry is split into spatial chunks so the GPU skips off-screen parts in
   every pass (color, shadows, outline) — heavy maps no longer tank the frame rate.
 - **Player profile is tied to the Steam account.** The first time an account plays, the in-game name is seeded
