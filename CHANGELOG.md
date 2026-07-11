@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **Map borders align with the grid; border blocks no longer vanish.** Perimeter walls now sit entirely
+  outside the floor with their inner face exactly on the arena edge, so the last row of blocks fits flush
+  without poking into the wall — and long thin blocks along the border are no longer misread as stale wall
+  trim and deleted on reopen.
 - **Map editor stays responsive on large maps.** Wedges are drawn with instancing instead of thousands of
   separate meshes, and the cell-edge grid is built only when shown — editing a big map no longer stutters.
 - **Large maps render fast.** Map geometry is split into spatial chunks so the GPU skips off-screen parts in

@@ -22,13 +22,17 @@ export function editorMaps(): Plugin {
     name: 'editor-maps',
     apply: 'serve',
     configureServer(server: ViteDevServer) {
-      // Dev-only: recompile every map's geo.json from its raw.json via the real compile pipeline
-      // (ssrLoadModule). Regenerates all maps into the current geo format ahead of time (GET /__recompile).
+      // Dev-only: bring every map up to date via the real pipeline (ssrLoadModule) — surgically swap the
+      // perimeter:true blocks for freshly-generated ones (current perimeter() geometry), keeping all cover
+      // blocks verbatim (NO voxelize → no risk of losing blocks), then recompile geo.json. GET /__recompile.
       server.middlewares.use('/__recompile', async (_req, res) => {
         try {
-          const mod = await server.ssrLoadModule('/src/game/mapGeometryCache.ts') as {
+          const mgc = await server.ssrLoadModule('/src/game/mapGeometryCache.ts') as {
             compileBlocks: (blocks: unknown[]) => unknown
             serializeGeo: (c: unknown) => string
+          }
+          const gm = await server.ssrLoadModule('/src/game/maps.ts') as {
+            perimeter: (color: string, hx: number, hz: number) => Array<{ color: string }>
           }
           await fs.mkdir(MAPS_DIR, { recursive: true })
           const entries = await fs.readdir(MAPS_DIR, { withFileTypes: true })
@@ -37,10 +41,15 @@ export function editorMaps(): Plugin {
           for (const e of entries) {
             if (!e.isDirectory()) continue
             try {
-              const raw = await fs.readFile(path.join(MAPS_DIR, e.name, 'raw.json'), 'utf8').catch(() => null)
-              if (raw == null) continue
-              const map = JSON.parse(raw) as { blocks: unknown[] }
-              await fs.writeFile(path.join(MAPS_DIR, e.name, 'geo.json'), mod.serializeGeo(mod.compileBlocks(map.blocks)), 'utf8')
+              const rawStr = await fs.readFile(path.join(MAPS_DIR, e.name, 'raw.json'), 'utf8').catch(() => null)
+              if (rawStr == null) continue
+              const map = JSON.parse(rawStr) as { half: [number, number]; blocks: Array<{ perimeter?: boolean; color: string }> }
+              const cover = map.blocks.filter(b => b.perimeter !== true)
+              const wallColor = map.blocks.find(b => b.perimeter === true)?.color ?? '#5a6678'
+              const blocks = [...gm.perimeter(wallColor, map.half[0], map.half[1]), ...cover]
+              const newRaw = { ...map, blocks }
+              await fs.writeFile(path.join(MAPS_DIR, e.name, 'raw.json'), JSON.stringify(newRaw, null, 2), 'utf8')
+              await fs.writeFile(path.join(MAPS_DIR, e.name, 'geo.json'), mgc.serializeGeo(mgc.compileBlocks(blocks)), 'utf8')
               done.push(e.name)
             } catch { failed.push(e.name) }   // one bad map (e.g. mid-write) must not abort the rest
           }

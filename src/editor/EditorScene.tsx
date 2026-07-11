@@ -546,8 +546,8 @@ export function EditorScene(props: Props) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Perimeter walls (as in-game): sized to the arena */}
-      {([[0, hz], [0, -hz], [-hx, 0], [hx, 0]] as const).map(([x, z], i) => (
+      {/* Perimeter walls (as in-game): outside the floor, inner face on the arena edge (grid node) */}
+      {([[0, hz + WALL_HALF], [0, -(hz + WALL_HALF)], [-(hx + WALL_HALF), 0], [hx + WALL_HALF, 0]] as const).map(([x, z], i) => (
         <mesh key={i} position={[x, 1.5, z]} userData={{ editorTarget: true }} castShadow receiveShadow>
           <boxGeometry args={x === 0 ? [hx * 2, 3, 0.5] : [0.5, 3, hz * 2]} />
           <meshStandardMaterial color={wallColor} />
