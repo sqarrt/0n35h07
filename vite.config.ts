@@ -78,10 +78,14 @@ export default defineConfig(({ mode }) => {
       watch: {
         // Camera poses are written by a dev endpoint (vite-plugin-camera-poses) when J is released; the client
         // already holds them in memory — HMR on this write isn't needed and broke repeated J holds (remount).
+        // src/maps/** — the map editor persists raw.json/geo.json/preview.png there on every (auto)save; those
+        // files are in the module graph (game/maps.ts), so watching them triggers a full reload that remounts the
+        // editor and drops in-memory blocks placed since the last save. The editor holds the map in memory, so
+        // no reload is needed — same reasoning as the camera poses above.
         // src-tauri/** — never watch the Rust crate: under `cargo tauri dev` the watcher would try to follow
         // freshly-built proc-macro DLLs in target/ that cargo is still writing → on Windows that's a hard
         // EBUSY (syscall 'watch'); Linux/inotify tolerates it. `cargo tauri dev` watches the Rust side itself.
-        ignored: ['**/menuCameraPoses.json', '**/src-tauri/**'],
+        ignored: ['**/menuCameraPoses.json', '**/src/maps/**', '**/src-tauri/**'],
       },
     },
   }

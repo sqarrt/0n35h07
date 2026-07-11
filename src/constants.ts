@@ -122,7 +122,7 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 
 // Match map (host's choice in the room). The type lives here (not in game/maps.ts) so the net layer doesn't depend on game.
 // id is also used as a label in the UI.
-export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
+export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day' | 'os_test'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export type MapFilter = MapId[]        // selected set of maps (≥1)
 export type DurationFilter = number[]  // selected set of durations (≥1)

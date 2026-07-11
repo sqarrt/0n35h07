@@ -173,6 +173,9 @@ export function MapEditor({ name }: { name: string }) {
     }
   }, [voxels, selection, clipboard, paste])
 
+  // Переключение в SELECT (средней кнопкой): включить инструмент и выйти из режима вставки.
+  const onSelectTool = useCallback(() => { setTool('select'); setPaste(null) }, [])
+
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
 
@@ -217,7 +220,7 @@ export function MapEditor({ name }: { name: string }) {
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
           selection={selection} paste={paste}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
-          onCorner={onCorner} onSelectionClear={onSelectionClear}
+          onCorner={onCorner} onSelectionClear={onSelectionClear} onSelectTool={onSelectTool}
           onStamp={onStamp} onPasteCancel={onPasteCancel}
         />
       </Canvas>
@@ -225,7 +228,7 @@ export function MapEditor({ name }: { name: string }) {
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B/MMB — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">

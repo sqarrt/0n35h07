@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
+- **New map: os_test.** Added to the map picker alongside the existing arenas.
 - **Map editor: box selection with copy/paste.** A new SELECT tool (key 5, or the B hotkey from any tool) marks
   two corner cells and highlights the box between them, stretching live to the crosshair before the second corner.
   C copies the selected blocks, X cuts, Delete clears; V enters paste mode — a translucent ghost of the fragment
@@ -44,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **Map editor stays responsive on large maps.** Wedges are drawn with instancing instead of thousands of
+  separate meshes, and the cell-edge grid is built only when shown — editing a big map no longer stutters.
+- **Large maps render fast.** Map geometry is split into spatial chunks so the GPU skips off-screen parts in
+  every pass (color, shadows, outline) — heavy maps no longer tank the frame rate.
 - **Player profile is tied to the Steam account.** The first time an account plays, the in-game name is seeded
   from Steam; afterwards every setting syncs from that account's Steam Cloud (so a second PC picks them up).
   Switching Steam accounts on a PC no longer shows or uploads the previous player's name, skin and artwork.
