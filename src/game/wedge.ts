@@ -42,15 +42,6 @@ export function unitWedgeGeometry(flip = false): THREE.BufferGeometry {
   return g
 }
 
-/** Prism vertices scaled to the block's full size (for ConvexHullCollider; dir — via rotation). */
-export function wedgeColliderPoints(size: [number, number, number], flip = false): number[] {
-  const [hx, hy, hz] = size
-  const pts = [A0, B0, C0, A1, B1, C1]
-  const out: number[] = []
-  for (const p of pts) out.push(p[0] * 2 * hx, (flip ? -p[1] : p[1]) * 2 * hy, p[2] * 2 * hz)
-  return out
-}
-
 /** Wedge rotation around Y by the dir side (0=+Z,1=+X,2=−Z,3=−X). */
 export function wedgeRotationY(dir: number): number {
   return -dir * (Math.PI / 2)
@@ -60,8 +51,6 @@ const _yAxis = new THREE.Vector3(0, 1, 0)
 const _zAxis = new THREE.Vector3(0, 0, 1)
 const _yaw = new THREE.Quaternion()
 const _roll = new THREE.Quaternion()
-const _q = new THREE.Quaternion()
-const _e = new THREE.Euler()
 
 /** Ориентация клина. side=false — чистый yaw по dir (как раньше). side=true (диагональная стена) —
  *  roll 90° вокруг Z (ось выдавливания X→вертикаль), затем yaw по dir. */
@@ -70,10 +59,4 @@ export function wedgeQuaternion(dir: number, side: boolean, out = new THREE.Quat
   if (!side) return out.copy(_yaw)
   _roll.setFromAxisAngle(_zAxis, Math.PI / 2)
   return out.copy(_yaw).multiply(_roll)   // сначала roll, затем yaw
-}
-
-/** Та же ориентация как Euler [x,y,z] — для декларативного `rotation` у мешей. */
-export function wedgeEuler(dir: number, side: boolean): [number, number, number] {
-  _e.setFromQuaternion(wedgeQuaternion(dir, side, _q))
-  return [_e.x, _e.y, _e.z]
 }

@@ -1,4 +1,3 @@
-import type { TrackDescriptor } from './trackDescriptor'
 
 // Human-but-machine track names. Fully deterministic from the track seed — the same {seed,index} always yields the
 // same name. A small seeded RNG picks the word FAMILY (by mood → matches the track's character), the SCHEME (9
@@ -128,9 +127,4 @@ export function radioTrackName(t: NameInput): string {
       return pick([`${adj} ${noun} No.${n}`, `${noun} ${pick(MODEL, rng())}·${n}`, `${noun} no.${n}`], rng())
     }
   }
-}
-
-/** A descriptor's per-track seed (the deterministic RNG seed): `${seed}:t${index}`. */
-export function trackSeedOf(d: TrackDescriptor): string {
-  return `${d.seed}:t${d.index}`
 }

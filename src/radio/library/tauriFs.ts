@@ -1,7 +1,6 @@
 // The REAL FsLike — wraps @tauri-apps/plugin-fs, scoped to the app-data `radio/` folder (matches the capability).
 // Kept separate from radioLibrary.ts so the testable core pulls in no Tauri imports. Desktop-only.
 import { mkdir, readDir, readTextFile, writeTextFile, remove, exists, rename, BaseDirectory } from '@tauri-apps/plugin-fs'
-import { revealItemInDir } from '@tauri-apps/plugin-opener'
 import { appDataDir, join as pathJoin } from '@tauri-apps/api/path'
 import { RadioLibrary, type FsLike } from './radioLibrary'
 import { IS_DESKTOP } from '../../platform'
@@ -25,13 +24,6 @@ function tauriFs(): FsLike {
 /** The radio library backed by the real filesystem — null off-desktop (radio is desktop-only anyway). */
 export function createRadioLibrary(): RadioLibrary | null {
   return IS_DESKTOP ? new RadioLibrary(tauriFs()) : null
-}
-
-/** Reveal the radio root (or a sub-path) in the OS file manager. */
-export async function revealInExplorer(libPath = ''): Promise<void> {
-  if (!IS_DESKTOP) return
-  const abs = await pathJoin(await appDataDir(), ROOT, libPath)
-  await revealItemInDir(abs)
 }
 
 /** Absolute OS path of the radio root (for the explorer's address bar). '' off-desktop. */
