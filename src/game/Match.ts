@@ -567,7 +567,7 @@ export class Match {
 
   /** client: predict the opponent's death on a local hit (instant feedback — no RTT wait for the host's 'kill').
    *  A false positive (the host rejects — out of range, or a shield raised within RTT) self-corrects from the next
-   *  snapshot: applyNetState restores alive/respawning. Skip a visibly shielding opponent — the host would block it,
+   *  snapshot: applyNetState restores alive/respawning. Skip a visibly shielding opponent — their owner would judge it a block,
    *  so let it decide (predicting a death through a raised shield would be the wrong call). */
   private predictOpponentDeath(victimId: number) {
     const victim = this.byId.get(victimId)
@@ -925,7 +925,6 @@ export class Match {
     return e
   }
 
-  /** host: snapshot of all players + the last processed client input. */
   /** Snapshot of the players THIS peer owns (self + own bots) — the only facts we may broadcast. */
   serializeSnapshot(): Snapshot {
     const owned = this.players.filter(p => this.ownedIds.has(p.id))
@@ -945,7 +944,6 @@ export class Match {
     return this._snapBuf
   }
 
-  /** Snapshots from a peer drive ONLY the players that peer owns (attribution below). */
   /** Apply a snapshot from peer `from`: ONLY to the players that peer owns (attribution), never to our own. */
   applyPeerSnapshot(from: string, snap: Snapshot) {
     for (const ps of snap.players) {

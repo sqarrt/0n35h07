@@ -134,7 +134,7 @@ export type DurationFilter = number[]  // selected set of durations (≥1)
 export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
-// Multiplayer (host-authoritative P2P)
+// Multiplayer (symmetric-mesh P2P)
 // 'peer' is the production role (symmetric mesh); 'host'/'client' remain for star-era unit harnesses.
 export const MATCH_ROLES = ['host', 'client', 'peer'] as const
 export type MatchRole = typeof MATCH_ROLES[number]
@@ -145,9 +145,9 @@ export const HOST_ID = 0
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
-export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
+export const READY_COUNTDOWN_MS = 3000   // countdown before the fight, ms
 export const NET_INTERP_DELAY_MS = 100   // render remotes this far in the PAST (≈2–3 snapshots at 30 Hz) — absorbs packet jitter (entity interpolation)
-export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
+export const NET_SNAPSHOT_HZ = 30     // per-peer snapshot broadcast rate (each peer sends the players it owns)
 // Fixed-tick simulation (netcode foundation). The sim advances only in whole FIXED_DT steps, independent of refresh.
 export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
 export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating

@@ -3,7 +3,7 @@ import type { BotDifficulty, MatchPhase, BallModel, MapId, MapFilter, DurationFi
 import type { GameMode } from '../game/modes'
 
 /**
- * OneShot network protocol (host-authoritative). All payloads are
+ * OneShot network protocol (symmetric mesh: every peer broadcasts only the facts it owns). All payloads are
  * JSON-serializable (no THREE objects): positions/directions as Vec3 tuples.
  */
 
@@ -13,7 +13,7 @@ export type Vec3 = [number, number, number]
 export const NET_TAGS = ['hello', 'assign', 'start', 'snapshot', 'event', 'ready', 'phase', 'hit', 'setSlot'] as const
 export type NetTag = typeof NET_TAGS[number]
 
-/** Match phase: host → all (readiness/countdown before the fight). */
+/** Match phase: the lobby creator → all (readiness/countdown before the fight); other senders are dropped. */
 export interface PhaseMsg { phase: MatchPhase; ready: number[] }
 
 // --- handshake (room) ---
@@ -56,7 +56,7 @@ export interface HitClaim {
   end:   Vec3        // the beam's end point (to render the shooter's beam toward the claim)
 }
 
-// --- world state: host → all (frequent) ---
+// --- world state: each peer → all, its owned players only (frequent) ---
 export interface PlayerSnapshot {
   id:             number
   pos:            Vec3
@@ -72,7 +72,7 @@ export interface Snapshot {
   players: PlayerSnapshot[]    // ONLY the sender's owned players
 }
 
-// --- match events: host → all (reliable, ordered) ---
+// --- match events: broadcast by the owning peer to all (reliable, ordered) ---
 export type MatchEvent =
   | { t: 'fired';   id: number; end: Vec3; hitPoint: Vec3 | null; hit: number | null }   // hit — id of the one hit (to suppress sparks on own FP camera)
   // Slim on purpose: score/streak/bounty/firstBlood are DERIVED by every peer from the (shooter, victim) stream.
@@ -80,7 +80,7 @@ export type MatchEvent =
   | { t: 'kill';    shooter: number; victim: number; streak?: number; firstBlood?: boolean; bounty?: number; resetCd?: boolean }
   | { t: 'block';   shooter: number; victim: number; perfect: boolean }
   | { t: 'respawn'; id: number; pos: Vec3 }
-  | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete opponent movement (host → client)
+  | { t: 'move';    id: number; kind: 'jump' | 'land'; pos: Vec3 }   // discrete movement of an owned player
   | { t: 'ready';   id: number }   // mesh: a peer declares one of ITS players ready (the creator stamps the countdown)
 
 

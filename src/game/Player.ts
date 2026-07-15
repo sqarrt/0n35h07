@@ -172,8 +172,6 @@ export class Player implements IControllable {
   saveBodyState() { return this.body.saveState() }
   restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
 
-  /** The host-tick this (remote) player is being rendered at — stamped on a fire for lag compensation. */
-
   /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
   decayRenderError() { this.body.decayRenderError() }
   commitCorrection(predX: number, predY: number, predZ: number) { this.body.commitCorrection(predX, predY, predZ) }
@@ -381,7 +379,7 @@ export class Player implements IControllable {
   get fireOutcome()         { return this.weapon.outcome }
   clearJustFired()          { this.weapon.clearJustFired() }
 
-  // --- networking (host-authoritative) ---
+  // --- networking (mesh: snapshots of owned players; remotes pulled toward a net target) ---
   get color() { return this.baseColor }
 
   /** State snapshot for broadcast (host). */
@@ -424,8 +422,8 @@ export class Player implements IControllable {
 
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
-  // NOTE: the local player on a client is reconciled by Match.ClientReconciler (prediction error vs ackSeq),
-  // not by a per-frame pull — so there is no setAuthoritative/reconcileLocal here anymore.
+  // NOTE: only players we do NOT own are pulled toward a net target. Our own movement is always fully local
+  // (mesh: nobody corrects us), so there is no setAuthoritative/reconcileLocal here.
   get bodyScale() { return this.body.mesh.scale.x }   // debug: current sphere scale
   get bodyIsVisible() { return this.bodyVisible }     // FP=false (body hidden) / TP/opponent=true
   get isRespawning() { return this.respawning }
