@@ -210,7 +210,6 @@ export const en = {
   inviteTitle: 'invites you to a game',
   inviteAccept: 'Accept',
   inviteDecline: 'Decline',
-  radioUnlocked: 'Radio unlocked — thanks!',
   radioGenLimit: 'Daily free generations used up',
   radioSaveLimit: 'Daily free saves used up',
   radioAir: 'On Air',

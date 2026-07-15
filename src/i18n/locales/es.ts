@@ -208,7 +208,6 @@ export const es = {
   inviteTitle: 'te invita a jugar',
   inviteAccept: 'Aceptar',
   inviteDecline: 'Rechazar',
-  radioUnlocked: 'Radio desbloqueada — ¡gracias!',
   radioGenLimit: 'Generaciones gratis de hoy agotadas',
   radioSaveLimit: 'Guardados gratis de hoy agotados',
   radioAir: 'En vivo',

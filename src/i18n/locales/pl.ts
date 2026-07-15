@@ -208,7 +208,6 @@ export const pl = {
   inviteTitle: 'zaprasza Cię do gry',
   inviteAccept: 'Przyjmij',
   inviteDecline: 'Odrzuć',
-  radioUnlocked: 'Radio odblokowane — dzięki!',
   radioGenLimit: 'Darmowe generacje na dziś wyczerpane',
   radioSaveLimit: 'Darmowe zapisy na dziś wyczerpane',
   radioAir: 'Na żywo',

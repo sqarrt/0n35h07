@@ -208,7 +208,6 @@ export const tr = {
   inviteTitle: 'seni oyuna davet ediyor',
   inviteAccept: 'Kabul et',
   inviteDecline: 'Reddet',
-  radioUnlocked: 'Radyo açıldı — teşekkürler!',
   radioGenLimit: 'Günlük ücretsiz üretim hakkı doldu',
   radioSaveLimit: 'Günlük ücretsiz kayıt hakkı doldu',
   radioAir: 'Yayında',

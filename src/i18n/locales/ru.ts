@@ -208,7 +208,6 @@ export const ru = {
   inviteTitle: 'приглашает в игру',
   inviteAccept: 'Принять',
   inviteDecline: 'Отклонить',
-  radioUnlocked: 'Радио разблокировано — спасибо!',
   radioGenLimit: 'Бесплатные генерации на сегодня исчерпаны',
   radioSaveLimit: 'Бесплатные сохранения на сегодня исчерпаны',
   radioAir: 'Эфир',

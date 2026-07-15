@@ -209,7 +209,6 @@ export const zhCN = {
   inviteTitle: '邀请你加入游戏',
   inviteAccept: '接受',
   inviteDecline: '拒绝',
-  radioUnlocked: '电台已解锁 — 谢谢！',
   radioGenLimit: '今日免费生成次数已用完',
   radioSaveLimit: '今日免费保存次数已用完',
   radioAir: '直播',

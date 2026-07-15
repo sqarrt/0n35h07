@@ -208,7 +208,6 @@ export const ptBR = {
   inviteTitle: 'convida você para jogar',
   inviteAccept: 'Aceitar',
   inviteDecline: 'Recusar',
-  radioUnlocked: 'Rádio desbloqueado — obrigado!',
   radioGenLimit: 'Gerações grátis de hoje esgotadas',
   radioSaveLimit: 'Salvamentos grátis de hoje esgotados',
   radioAir: 'No ar',
