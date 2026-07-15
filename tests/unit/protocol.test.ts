@@ -21,7 +21,7 @@ describe('protocol Vec3', () => {
 
   it('Snapshot is JSON-serializable (no THREE objects)', () => {
     const snap: Snapshot = {
-      ackSeq: 7,
+      tick: 7,
       players: [{ id: 0, pos: [0, 1.7, 5], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false }],
     }
     const round = JSON.parse(JSON.stringify(snap)) as Snapshot
@@ -29,7 +29,7 @@ describe('protocol Vec3', () => {
   })
 
   it('mode / setSlot / ffa-spawns shapes', () => {
-    const a: Assign = { yourId: 2, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: '2v2', owners: { 0: 'H' } }
+    const a: Assign = { yourId: 2, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: '2v2', owners: { 0: 'H' }, seed: 'ROOM42' }
     const s: Start = { durationMs: 60000, mapId: 'os_arena', spawns: [[1, 1, 1]], owners: { 0: 'H' } }
     const m: SetSlotMsg = { slot: 3 }
     expect(a.mode).toBe('2v2')
@@ -39,11 +39,12 @@ describe('protocol Vec3', () => {
   })
 
   it('mesh shapes: owners maps, shooter in HitClaim, ready event', () => {
-    const a: Assign = { yourId: 1, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: 'ffa', owners: { 0: 'H', 1: 'C' } }
+    const a: Assign = { yourId: 1, roster: [], durationMin: 5, mapId: 'os_arena', ready: [], mode: 'ffa', owners: { 0: 'H', 1: 'C' }, seed: 'ROOM42' }
     const s: Start = { durationMs: 60000, mapId: 'os_arena', owners: { 0: 'H', 1: 'C', 2: 'H' } }
     const c: HitClaim = { shooter: 2, hitId: 1, point: [0, 1, 0], end: [0, 1, -5] }
     const r: MatchEvent = { t: 'ready', id: 3 }
     expect(a.owners[1]).toBe('C')
+    expect(a.seed).toBe('ROOM42')   // the creator's shared seed reaches every peer via assign
     expect(s.owners[2]).toBe('H')   // the creator owns the bots
     expect(c.shooter).toBe(2)
     expect(r.t).toBe('ready')

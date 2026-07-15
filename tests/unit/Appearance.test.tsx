@@ -6,14 +6,11 @@ import { FakeSfxEngine } from '../../src/game/audio/sfx/FakeSfxEngine'
 import { I18nProvider } from '../../src/i18n'
 import { en } from '../../src/i18n/locales/en'
 import type { PlayerProfile } from '../../src/settings'
+import { testProfile } from './helpers/profile'
 
-const profile: PlayerProfile = {
-  name: 'Test', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp',
-  ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome',
-  postProcessing: true, showFps: false, showSpeed: false,
-  menuGlow: true, audioViz: true, volumeMaster: 1, volumeMusic: 0.3, volumeSfx: 1, volumeMenuMusic: 0.3,
-  connectTimeoutSec: 10,
-}
+// The default styles (classic/echo/streak/dome, no ballArt) come from the prod default and are what
+// the assertions below read back out of onPreview — see testProfile().
+const profile: PlayerProfile = testProfile({ name: 'Test' })
 
 function renderAppearance(onShotPreview = vi.fn(), onPreview = vi.fn(), onRespawnPreview = vi.fn(), onDashPreview = vi.fn(), onShieldPreview = vi.fn()) {
   render(

@@ -16,6 +16,10 @@ class FakeEngine implements IMusicEngine {
   setMasterGain() {}
   dispose() {}
   activeStemIds() { return [] }
+  /** Silence: no stems are actually playing in the fake. */
+  readLevel() { return 0 }
+  /** Silent spectrum — zero the caller's buffer (it may be reused across frames). */
+  readBands(out: Float32Array) { out.fill(0) }
 }
 
 afterEach(() => { delete window.__debugMusic })

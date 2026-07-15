@@ -22,12 +22,22 @@ class StubWeapon implements IWeapon {
   justFired = false
   outcome: FireOutcome | null = null
   lastAim?: THREE.Vector3
+  lastBeam: { start: THREE.Vector3; end: THREE.Vector3 } | null = null
+  cooldownScale = 1
+  resetCooldownCalls = 0
   beginWindup() {}
   update(_dt: number, ctx: WeaponContext) { this.lastAim = ctx.aim.clone() }
   reset() {}
   interrupt() {}
-  spawnImpact() {}
+  spawnImpact(_point: THREE.Vector3) {}
+  /** Remote/network path (Player.applyRemoteFire): remember the segment instead of drawing it. */
+  playBeam(start: THREE.Vector3, end: THREE.Vector3, _hitPoint?: THREE.Vector3 | null) {
+    this.lastBeam = { start: start.clone(), end: end.clone() }
+  }
   cooldownProgress() { return 1 }
+  /** OVERHEAT multiplier: recorded, but the stub is always ready (cooldownProgress() === 1). */
+  setCooldownScale(scale: number) { this.cooldownScale = scale }
+  resetCooldown() { this.resetCooldownCalls++ }
   clearJustFired() {}
   dispose() {}
 }

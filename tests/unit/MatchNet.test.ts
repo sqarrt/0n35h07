@@ -50,7 +50,7 @@ describe('Match — network mode', () => {
       owners: { 0: 'X', 1: 'ME' }, selfPeer: 'ME',
     })
     const snap: Snapshot = {
-      ackSeq: 0,
+      tick: 1,
       players: [
         { id: 0, pos: [3, 1.7, 0], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false },
         { id: 1, pos: [9, 9, 9], aimDir: [0, 0, -1], alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false },

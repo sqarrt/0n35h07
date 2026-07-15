@@ -1,4 +1,5 @@
-import { test as base, expect, Page, Browser, BrowserContext, chromium } from '@playwright/test'
+import { test as base, expect, chromium } from '@playwright/test'
+import type { Page, Browser, BrowserContext } from '@playwright/test'
 
 const CDP_PORT = process.env.CDP_PORT ?? '9222'
 

@@ -29,12 +29,13 @@ describe('computeBalls — шары на сцене меню', () => {
   })
 
   it('чужой шар несёт ПОЛНЫЙ спек: ballArt и reserve-кольцо из ростера (фикс лобби-бага)', () => {
-    const roster = [entry(0), entry(1, { ballArt: 'art1', reserveColor: '#111', ballModel: 'gas' })]
+    // 'planet' ≠ PLAYER.model ('smooth') on purpose: proves the model comes from the ROSTER, not from our own spec.
+    const roster = [entry(0), entry(1, { ballArt: 'art1', reserveColor: '#111', ballModel: 'planet' })]
     const balls = computeBalls('lobby', PLAYER, { roster, localPlayerId: 0 })
     const other = balls.find(b => b.key === 'slot-1')!
     expect(other.spec.ballArt).toBe('art1')
     expect(other.spec.ringColor).toBe('#111')
-    expect(other.spec.model).toBe('gas')
+    expect(other.spec.model).toBe('planet')
   })
 
   it('свой шар: кольцо из живого профиля, ключ player, спот по слоту (гость слота 1)', () => {

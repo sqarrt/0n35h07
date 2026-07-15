@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { LoopbackDiscovery } from '../../src/net/discovery/LoopbackDiscovery'
 import type { PoolListing } from '../../src/net/matchmaking'
 
-const L = (code: string): PoolListing => ({ code, name: 'RX', color: '#4af', map: 'os_arena', durationMin: 5 })
+const L = (code: string): PoolListing => ({ code, name: 'RX', color: '#4af', map: ['os_arena'], durationMin: [5], dual: false })
 
 describe('LoopbackDiscovery', () => {
   it('subscribe receives already-published listings (snapshot)', () => {
