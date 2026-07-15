@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
-- **New map: os_test.** Added to the map picker alongside the existing arenas.
 - **Map editor: box selection with copy/paste.** A new SELECT tool (key 5, or the B hotkey from any tool) marks
   two corner cells and highlights the box between them, stretching live to the crosshair before the second corner.
   C copies the selected blocks, X cuts, Delete clears; V enters paste mode — a translucent ghost of the fragment
