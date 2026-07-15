@@ -26,7 +26,7 @@ function makeTeamsMatch(mode: GameMode, ffaSpawns?: Vec3[], rosterOverride?: Ros
   const match = new Match({
     scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster }, mode, ffaSpawns,
+    dispatch: vi.fn(), netConfig: { localId: 0, roster }, mode, ffaSpawns,
   })
   scene.add(match.root)
   match.installDebug(camera)
@@ -137,7 +137,7 @@ describe('Match — teams from the mode preset', () => {
     const match = new Match({
       scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
       keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+      dispatch: vi.fn(), netConfig: { localId: 0, roster },
     })
     for (const p of match.players)
       expect(p.bodyGroup.children.some(c => (c as THREE.Sprite).isSprite)).toBe(false)

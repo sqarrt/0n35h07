@@ -23,7 +23,7 @@ function makeMatch(owners?: Record<number, string>, selfPeer?: string) {
   const match = new Match({
     scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster: ROSTER }, mode: 'ffa',
+    dispatch: vi.fn(), netConfig: { localId: 0, roster: ROSTER }, mode: 'ffa',
     owners, selfPeer,
   })
   scene.add(match.root)

@@ -24,7 +24,7 @@ function makePeer(localId: number) {
   const match = new Match({
     scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch, role: 'host', netConfig: { localId, roster: ROSTER }, mode: 'ffa',
+    dispatch, netConfig: { localId, roster: ROSTER }, mode: 'ffa',
   })
   return { match, dispatch }
 }

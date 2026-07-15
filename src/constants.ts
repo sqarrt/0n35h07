@@ -135,9 +135,6 @@ export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
 // Multiplayer (symmetric-mesh P2P)
-// 'peer' is the production role (symmetric mesh); 'host'/'client' remain for star-era unit harnesses.
-export const MATCH_ROLES = ['host', 'client', 'peer'] as const
-export type MatchRole = typeof MATCH_ROLES[number]
 // Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
 // Legacy of the strict-1v1 era: seat 1. Production code must not reference it (seats are dynamic);
@@ -155,7 +152,6 @@ export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — s
 // Input clock sync (client→host): keep the host's input jitter-buffer near TARGET so it never starves (a gap → the
 // using the buffer depth the host echoes in each snapshot. Gentle gain + a tight per-frame clamp keep it stable.
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
-export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (personal appearance; never substituted — see colors-rework).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
 // Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.

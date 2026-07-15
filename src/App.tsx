@@ -83,7 +83,7 @@ import { RoomSession } from './net/RoomSession'
 import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole, MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
+import type { MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
 import { DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from './constants'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
@@ -104,7 +104,6 @@ const isEditorHash = () => window.location.hash.startsWith('#editor')
 const MAP_FADE_MS = 700                  // map background fade in/out duration (in sync with the .map-bg transition)
 
 interface GameNet {
-  role: MatchRole
   net: INet
   netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   durationMs: number
@@ -156,7 +155,6 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPer
     <Canvas shadows="percentage" camera={GAME_CAMERA}>
       <Game
         dispatch={dispatch}
-        role={gameNet.role}
         net={gameNet.net}
         netConfig={gameNet.netConfig}
         defaultThirdPerson={defaultThirdPerson}
@@ -475,8 +473,7 @@ export default function App() {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId, mode, ffaSpawns) => {
-      const matchRole: MatchRole = 'peer'   // symmetric mesh: the lobby host/client split ends at match start
-      gameLog.set({ role: matchRole, localId: session.netConfig().localId, code })
+      gameLog.set({ role, localId: session.netConfig().localId, code })   // role = LOBBY role (creator/joiner); the match itself is a symmetric mesh
       gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000, mode })
       // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
@@ -487,7 +484,7 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
+      setGameNet({ net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to hosting an idle room of our own.
@@ -1046,7 +1043,6 @@ export default function App() {
             <ReadyOverlay
               roster={gameNet.netConfig.roster}
               localId={gameNet.netConfig.localId}
-              role={gameNet.role}
               ready={hud.ready}
               onReady={handleReady}
             />

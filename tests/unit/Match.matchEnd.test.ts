@@ -3,7 +3,6 @@ import type { Mock } from 'vitest'
 import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { RosterEntry } from '../../src/net/protocol'
-import type { MatchRole } from '../../src/constants'
 import type { HUDAction } from '../../src/hooks/useGameHUD'
 
 /** Match's dispatch, mocked with its real signature (no cast). */
@@ -18,7 +17,7 @@ const ROSTER: RosterEntry[] = [
   { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
 ]
 
-function makeMatch(role: MatchRole, opts: { durationMs?: number; dispatch?: DispatchMock } = {}) {
+function makeMatch(opts: { durationMs?: number; dispatch?: DispatchMock } = {}) {
   const dispatch = opts.dispatch ?? makeDispatch()
   const match = new Match({
     scene: new THREE.Scene(),
@@ -26,7 +25,6 @@ function makeMatch(role: MatchRole, opts: { durationMs?: number; dispatch?: Disp
     controls: { current: null } as React.RefObject<any>,
     keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
     dispatch,
-    role,
     netConfig: { localId: 0, roster: ROSTER },
     durationMs: opts.durationMs,
   })
@@ -38,7 +36,7 @@ describe('Match: end by time', () => {
     const t0 = 2_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const dispatch = makeDispatch()
-    const { match } = makeMatch('host', { durationMs: 5000, dispatch })
+    const { match } = makeMatch({ durationMs: 5000, dispatch })
     match.forceLiveForTest()
     // First frame: matchEndsAt = t0 + 5000; remaining = 5000 (not the end)
     match.update(0.016)
@@ -63,7 +61,7 @@ describe('Match: opponent disconnect', () => {
     const t0 = 3_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
     const dispatch = makeDispatch()
-    const { match } = makeMatch('host', { durationMs: 600000, dispatch })
+    const { match } = makeMatch({ durationMs: 600000, dispatch })
     match.forceLiveForTest()
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')

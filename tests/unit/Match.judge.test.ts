@@ -25,7 +25,7 @@ function makeVictimPeer() {
   const match = new Match({
     scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster: ROSTER }, mode: '2v2',
+    dispatch: vi.fn(), netConfig: { localId: 0, roster: ROSTER }, mode: '2v2',
     owners: { 0: 'ME', 1: 'ME', 2: 'X', 3: 'X' }, selfPeer: 'ME',
   })
   scene.add(match.root)

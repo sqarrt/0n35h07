@@ -15,7 +15,7 @@ function makeMatch(sfx?: FakeSfxEngine) {
   ]
   return new Match({
     scene, camera, controls: controls as never, keys: keys as never, dispatch: vi.fn(),
-    role: 'host', netConfig: { localId: 0, roster }, sfxEngine: sfx,
+    netConfig: { localId: 0, roster }, sfxEngine: sfx,
   })
 }
 

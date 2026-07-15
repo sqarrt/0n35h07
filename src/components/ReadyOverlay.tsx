@@ -1,5 +1,4 @@
 import type { RosterEntry } from '../net/protocol'
-import type { MatchRole } from '../constants'
 import { ControlsLegend } from './ControlsLegend'
 import { useSfx } from '../sfx/SfxContext'
 import { useT } from '../i18n'
@@ -8,7 +7,6 @@ import type { Dict } from '../i18n/dict'
 interface ReadyOverlayProps {
   roster: RosterEntry[]
   localId: number
-  role: MatchRole
   ready: number[]
   onReady: () => void
 }

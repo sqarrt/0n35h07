@@ -30,7 +30,7 @@ function makePeerMatch() {
     scene, camera,
     controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch: vi.fn(), role: 'peer', netConfig: { localId: 1, roster: ROSTER },
+    dispatch: vi.fn(), netConfig: { localId: 1, roster: ROSTER },
     owners: { 0: 'X', 1: 'ME' }, selfPeer: 'ME',
   })
   scene.add(match.root)

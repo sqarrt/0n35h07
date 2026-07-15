@@ -27,7 +27,7 @@ function makeMatch(difficulty: BotDifficulty = 'passive', mapId?: MapId) {
   ]
   const match = new Match({
     scene, camera, controls: controls as any, keys: keys as any, dispatch,
-    role: 'host', netConfig: { localId: 0, roster }, mapId,
+    netConfig: { localId: 0, roster }, mapId,
   })
   scene.add(match.root)   // player bodies + beams (for raycast combat)
   match.installDebug(camera)
@@ -65,7 +65,7 @@ describe('Match ballArt', () => {
     const match = new Match({
       scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
       keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+      dispatch: vi.fn(), netConfig: { localId: 0, roster },
     })
     expect(match.human).toBeTruthy()
     expect(match.bots[0]).toBeTruthy()
@@ -86,7 +86,7 @@ describe('Match — color pair from the roster', () => {
     const match = new Match({
       scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
       keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+      dispatch: vi.fn(), netConfig: { localId: 0, roster },
     })
     // Collect every uColor uniform in the bot's visuals: the ring's one must carry the roster reserveColor.
     const uColors: string[] = []
@@ -194,7 +194,7 @@ describe('Match', () => {
       scene, camera,
       controls: { current: { pointerSpeed: 1 } } as any,
       keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'host', netConfig: { localId: 0, roster },
+      dispatch: vi.fn(), netConfig: { localId: 0, roster },
     })
     expect(match.human.windupStyle).toBe('rage')
     expect(match.bots[0].windupStyle).toBe('classic')           // bot has no style → classic
