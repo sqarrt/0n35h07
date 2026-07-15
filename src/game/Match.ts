@@ -15,7 +15,7 @@ import { teamOfSlot } from './modes'
 import { spawnPositionsFor } from './spawns'
 import { createNameplate } from './fx/nameplate'
 import type { Vec3 } from '../net/protocol'
-import type { MatchRole, MatchPhase, MapId } from '../constants'
+import type { MatchPhase, MapId } from '../constants'
 import { toVec3, fromVec3 } from '../net/protocol'
 import { gameLog } from '../diag/gameLog'
 import { PHASE_WATCHDOG_MS, HEALTH_HEARTBEAT_MS } from '../diag/constants'
@@ -87,7 +87,6 @@ interface MatchOptions {
   controls: React.RefObject<PointerControls | null>
   keys:     React.MutableRefObject<{ forward: boolean; back: boolean; left: boolean; right: boolean; jump: boolean }>
   dispatch: (a: HUDAction) => void
-  role:      MatchRole     // 'host' | 'client'
   netConfig: NetConfig     // roster from the room (entry.id === seat index)
   mode?: GameMode          // lobby preset (teams/spawn rule); absent → '1v1' (older callers/tests)
   ffaSpawns?: Vec3[]       // FFA start positions from the Start message (creator-generated)
@@ -109,7 +108,6 @@ export class Match {
   readonly players: Player[]
   readonly humanController: HumanController
   readonly root = new THREE.Group()    // world-space visual: player bodies + beams (outside RigidBody)
-  readonly role: MatchRole
   readonly localId: number
   phase: MatchPhase = 'live'           // entry ritual (1v1): ready → countdown → live
   recorder: DemoRecorder | null = null // dev: demo recording (hook in emit + frame capture from the Game loop)
@@ -177,7 +175,6 @@ export class Match {
   constructor(o: MatchOptions) {
     this.dispatch = o.dispatch
     this.world = new World(o.scene)
-    this.role = o.role
     this.localId = o.netConfig.localId
     this.mode = o.mode ?? '1v1'
     // Ownership: "every fact has exactly one owner". Absent owners → the local peer owns everyone (bot matches/tests).
@@ -362,7 +359,7 @@ export class Match {
 
   /** Once per RENDER frame (driver): place all visuals + the local camera by interpolation alpha ∈ [0,1). */
   renderInterpolate(alpha: number) {
-    this.players.forEach(p => { p.decayRenderError(); p.renderInterpolate(alpha) })   // ease out any post-correction offset
+    this.players.forEach(p => p.renderInterpolate(alpha))
     this.humanController.renderCamera?.(alpha)   // local human only (host + client both have one)
   }
 
@@ -609,7 +606,7 @@ export class Match {
     const now = Date.now()
     if (now - this.lastHealthAt < HEALTH_HEARTBEAT_MS) return
     this.lastHealthAt = now
-    gameLog.log('health', 'tick', { role: this.role, peers: this.players.length })
+    gameLog.log('health', 'tick', { peers: this.players.length })
   }
 
   /** Diag: log shield/dash on→off edges per player (local from the real sim; the client's opponent from snapshot flags). */
@@ -635,7 +632,7 @@ export class Match {
       this.loggedPhase = this.phase
       this.phaseEnteredAt = Date.now()
       this.phaseWarned = false
-      gameLog.log('phase', this.phase, { role: this.role, ready: [...this.readySet] })
+      gameLog.log('phase', this.phase, { creator: this.iAmCreator(), ready: [...this.readySet] })
     } else if (this.phase !== 'live' && this.phase !== 'ended' && !this.phaseWarned && Date.now() - this.phaseEnteredAt > PHASE_WATCHDOG_MS) {
       this.phaseWarned = true
       gameLog.warn('phase', 'stuck', { phase: this.phase, ms: Date.now() - this.phaseEnteredAt, ready: [...this.readySet] })
@@ -800,7 +797,7 @@ export class Match {
   private endMatch(reason: 'time' | 'disconnect') {
     if (this.ended) return
     this.ended = true
-    gameLog.log('phase', 'match_end', { reason, role: this.role })
+    gameLog.log('phase', 'match_end', { reason })
     void gameLog.flush()   // make sure the match's tail reaches disk
     this.phase = 'ended'
     this.phaseDirtyFlag = true
@@ -914,8 +911,7 @@ export class Match {
     const color = this.colorOf.get(shooterId) ?? '#4af'
     this.dispatch({ type: 'ANNOUNCE', name, color, kind })
     this.sfx?.play2D(announceSfx(kind))
-    window.__debugLastAnnounce = kind                 // for e2e
-    ;(window.__debugAnnounces ??= []).push(kind)      // full announce history (first = catalyst)
+    ;(window.__debugAnnounces ??= []).push(kind)      // for e2e: full announce history (first = catalyst)
   }
 
   /** host: match events over the past frames (to broadcast) + clear. */

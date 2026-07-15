@@ -11,8 +11,8 @@ export class InterpBuffer {
   private capacity: number
   constructor(capacity: number = 16) { this.capacity = capacity }
 
-  push(t: number, x: number, y: number, z: number, hostTick: number = 0): void {
-    this.buf.push({ t, x, y, z, tick: hostTick })
+  push(t: number, x: number, y: number, z: number, senderTick: number = 0): void {
+    this.buf.push({ t, x, y, z, tick: senderTick })
     if (this.buf.length > this.capacity) this.buf.shift()
   }
 

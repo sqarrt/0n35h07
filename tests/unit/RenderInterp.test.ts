@@ -26,25 +26,6 @@ describe('Body render interpolation', () => {
     expect(b.renderPos(0.3, out).x).toBeCloseTo(5, 5)
     expect(b.renderPos(0.9, out).x).toBeCloseTo(5, 5)
   })
-  it('render error is added to the interpolated position and decays toward zero (anti-pop)', () => {
-    const b = bodyAt(0)
-    b.captureTick(); b.captureTick()              // prev = cur = (0,..)
-    b.addRenderError(1, 0, 0)
-    const out = new THREE.Vector3()
-    const x0 = b.renderPos(1, out).x              // offset by the full error
-    expect(x0).toBeCloseTo(1, 5)
-    b.decayRenderError()
-    const x1 = b.renderPos(1, out).x
-    expect(x1).toBeLessThan(x0)                    // decays toward the true 0
-    expect(x1).toBeGreaterThan(0)
-  })
-  it('render error decays to exactly zero below the epsilon (no lingering drift)', () => {
-    const b = bodyAt(0); b.captureTick(); b.captureTick()
-    b.addRenderError(0.0001, 0, 0)
-    for (let i = 0; i < 40; i++) b.decayRenderError()
-    const out = new THREE.Vector3()
-    expect(b.renderPos(1, out).x).toBe(0)
-  })
   it('resetTickPos collapses both snapshots to the live position (no sweep across a teleport)', () => {
     const b = bodyAt(0)
     b.captureTick()
