@@ -129,42 +129,12 @@ export function toMapData(
   }
 }
 
-// A stale "perimeter trim" duplicate: an old editor version emitted the perimeter as a wall PLUS an
-// overlapping contrasting strip; that strip has no perimeter flag, so it used to round-trip back as
-// fake voxels and re-appear as a doubled wall (z-fighting + double shadow). We drop such strips on
-// import so they can't come back. Signature: an axis-aligned box at least half-buried in a perimeter
-// wall AND running a long way along it (small decor flush to a wall stays — it's short, not a strip).
-const STRIP_MIN_HALF = 2       // ≥ 4 voxels long along the wall (decor cubes are far shorter)
-const STRIP_MAX_THIN_HALF = 0.3 // wall-thin (perimeter wall half-thickness is 0.25) — not a chunky structure
-const STRIP_OVERLAP_FRAC = 0.25 // ≥ 25% of the strip's volume buried in a wall (decor flush to a wall barely overlaps)
-const boxVol = (b: MapBlock) => 8 * b.size[0] * b.size[1] * b.size[2]
-function overlapVol(a: MapBlock, c: MapBlock): number {
-  const seg = (ap: number, ah: number, bp: number, bh: number) =>
-    Math.max(0, Math.min(ap + ah, bp + bh) - Math.max(ap - ah, bp - bh))
-  return seg(a.pos[0], a.size[0], c.pos[0], c.size[0])
-    * seg(a.pos[1], a.size[1], c.pos[1], c.size[1])
-    * seg(a.pos[2], a.size[2], c.pos[2], c.size[2])
-}
-/** True if `b` is a stale perimeter-wall trim duplicate (to be discarded on import): a long, wall-thin
- *  strip substantially buried in a perimeter wall. Short or chunky blocks, and decor merely flush to a
- *  wall (≈0% volume overlap), are kept. */
-export function isPerimeterTrim(b: MapBlock, perimeterWalls: MapBlock[]): boolean {
-  if (b.perimeter === true || b.shape === 'wedge' || b.rot) return false
-  const longHalf = Math.max(b.size[0], b.size[2])
-  const thinHalf = Math.min(b.size[0], b.size[2])
-  if (longHalf < STRIP_MIN_HALF || thinHalf > STRIP_MAX_THIN_HALF) return false
-  const vol = boxVol(b)
-  return perimeterWalls.some(p => overlapVol(b, p) >= STRIP_OVERLAP_FRAC * vol)
-}
-
-/** Parse map blocks back into typed voxels (skip perimeter walls and their stale trim duplicates). */
+/** Parse map blocks back into typed voxels (perimeter walls are not voxels — they're drawn separately). */
 export function voxelize(blocks: MapBlock[]): Map<string, Cell> {
   const S = VOXEL
   const v = new Map<string, Cell>()
-  const perimeterWalls = blocks.filter(b => b.perimeter === true)
   for (const b of blocks) {
     if (b.perimeter === true) continue              // perimeter — not a voxel (drawn separately)
-    if (isPerimeterTrim(b, perimeterWalls)) continue  // stale doubled-wall trim — drop so it can't return
     const bb = b.blocksBeam !== false, tr = b.transparent === true, ps = b.passable === true
     if (b.shape === 'wedge') {                      // wedge (sub-cell prism)
       const [x, y, z] = [
