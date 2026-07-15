@@ -5,7 +5,7 @@ import type { World } from './World'
 import { Body } from './Body'
 import { overheatMods } from './overheat'
 import { AfterimageTrail } from './fx/AfterimageTrail'
-import { toVec3, fromVec3 } from '../net/protocol'
+import { fromVec3 } from '../net/protocol'
 import type { PlayerSnapshot } from '../net/protocol'
 import {
   MUZZLE_Y, BODY_MESH_Y, BALL_RADIUS, EYE_HEIGHT, WINDUP_SHRINK_MS,
@@ -33,6 +33,8 @@ export class Player implements IControllable {
   respawning = false   // ghost phase: invulnerable, moves ×3, doesn't attack
   respawnTimer = 0     // remaining ghost phase (ms)
   name = ''            // display name (You / Bot N) — set by Match
+  team = 0             // team from the mode preset (teamOfSlot) — set by Match; same team → no harm
+  private nameplate: THREE.Sprite | null = null   // billboard name over remotes (2v2/FFA); hides with the body
   kills = 0            // session score (not reset on respawn)
   deaths = 0
   streak = 0           // consecutive kills without dying (for streak announces); reset on death
@@ -166,17 +168,6 @@ export class Player implements IControllable {
   /** Interpolated render position lerp(prevTick, curTick, alpha) — used by the camera (local player). */
   renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return this.body.renderPos(alpha, out) }
 
-  /** Movement-state snapshot/restore for client prediction replay (host fills the snapshot; client restores). */
-  saveBodyState() { return this.body.saveState() }
-  restoreBodyState(s: import('./Body').BodyState) { this.body.restoreState(s) }
-
-  /** The host-tick this (remote) player is being rendered at — stamped on a fire for lag compensation. */
-  renderHostTick() { return this.body.renderHostTick() }
-
-  /** Render error-decay (anti-pop after a correction): decay each frame; commit eases the visual from predicted→corrected. */
-  decayRenderError() { this.body.decayRenderError() }
-  commitCorrection(predX: number, predY: number, predZ: number) { this.body.commitCorrection(predX, predY, predZ) }
-
   /** Render-frame visual placement: bodyGroup = lerp(prevTick, curTick, alpha). Runs AFTER the tick loop, so it's
    *  the last write before R3F draws; the next tick's syncFromBody resets bodyGroup to the sim position for combat. */
   renderInterpolate(alpha: number) { this.bodyGroup.position.copy(this.body.renderPos(alpha, _renderScratch)) }
@@ -300,8 +291,16 @@ export class Player implements IControllable {
     if (!this.alive) return 'blocked'        // already dead/ghost — don't finish off (no double kill)
     if (this.shield.isActive) return 'blocked'
     this.alive = false
+    if (this.nameplate) this.nameplate.visible = false   // the plate dies with the body
     this.startGhost()
     return 'killed'
+  }
+
+  /** Attach/replace the name plate (2v2/FFA remotes). null removes it. Visibility follows alive/respawn. */
+  setNameplate(sprite: THREE.Sprite | null) {
+    if (this.nameplate) this.bodyGroup.remove(this.nameplate)
+    this.nameplate = sprite
+    if (sprite) this.bodyGroup.add(sprite)
   }
 
   /** Start of the ghost phase: invulnerability, particle burst, timer until materialization. */
@@ -324,11 +323,6 @@ export class Player implements IControllable {
     this.body.setHittable(true)
   }
 
-  /** Client: tick the phase timer locally (for indication/speed); the finale comes via the respawn event. */
-  tickRespawn(dt: number) {
-    if (this.respawning) this.respawnTimer = Math.max(0, this.respawnTimer - dt * 1000)
-  }
-
   /** Materialize where movement stopped (end of the ghost phase). pos — authoritative position.
    *  ALL cooldowns reset: beam (weapon.reset), shield (shield.reset), dash (body.setPosition zeroes the cooldown). */
   respawnAt(pos: THREE.Vector3) {
@@ -342,6 +336,7 @@ export class Player implements IControllable {
     this.respawnTimer = 0
     this.body.setHittable(true)
     this.body.material.color.copy(this.baseColor)
+    if (this.nameplate) this.nameplate.visible = true   // reborn → the plate is back
   }
 
   setBodyVisible(v: boolean) {
@@ -371,23 +366,8 @@ export class Player implements IControllable {
   get fireOutcome()         { return this.weapon.outcome }
   clearJustFired()          { this.weapon.clearJustFired() }
 
-  // --- networking (host-authoritative) ---
+  // --- networking (mesh: snapshots of owned players; remotes pulled toward a net target) ---
   get color() { return this.baseColor }
-
-  /** State snapshot for broadcast (host). */
-  serializeState(): PlayerSnapshot {
-    return {
-      id: this.id,
-      pos: toVec3(this.body.position),
-      aimDir: toVec3(this.lookDir),   // look direction (opponent's model orientation); steadier than the aim point
-      alive: this.alive,
-      shieldActive: this.shieldActive,
-      dashing: this.dashing,
-      windupProgress: this.windupProgress,
-      respawning: this.respawning,
-      restore: this.body.saveState(),
-    }
-  }
 
   /** Fills a pre-alloc snapshot in-place (no Vec3/object allocations). */
   fillState(out: PlayerSnapshot): void {
@@ -397,12 +377,11 @@ export class Player implements IControllable {
     out.alive = this.alive; out.shieldActive = this.shieldActive
     out.dashing = this.dashing; out.windupProgress = this.windupProgress
     out.respawning = this.respawning
-    out.restore = this.body.saveState()   // authoritative movement state — the client's local player restores from it before replay
   }
 
-  /** Apply a snapshot to a remote player (client): position target + visual flags. */
-  applyNetState(snap: PlayerSnapshot, hostTick: number = 0) {
-    this.body.applyNetTarget(fromVec3(snap.pos), hostTick)
+  /** Apply a snapshot to a player owned by another peer: position target + visual flags. */
+  applyNetState(snap: PlayerSnapshot, senderTick: number = 0) {
+    this.body.applyNetTarget(fromVec3(snap.pos), senderTick)
     this.alive = snap.alive
     this.respawning = snap.respawning
     this.netAimDir.copy(fromVec3(snap.aimDir))
@@ -416,8 +395,8 @@ export class Player implements IControllable {
 
   hasNetTarget() { return this.body.hasNetTarget() }
   nextRemoteTranslation() { return this.body.nextRemoteTranslation() }
-  // NOTE: the local player on a client is reconciled by Match.ClientReconciler (prediction error vs ackSeq),
-  // not by a per-frame pull — so there is no setAuthoritative/reconcileLocal here anymore.
+  // NOTE: only players we do NOT own are pulled toward a net target. Our own movement is always fully local
+  // (mesh: nobody corrects us), so there is no setAuthoritative/reconcileLocal here.
   get bodyScale() { return this.body.mesh.scale.x }   // debug: current sphere scale
   get bodyIsVisible() { return this.bodyVisible }     // FP=false (body hidden) / TP/opponent=true
   get isRespawning() { return this.respawning }

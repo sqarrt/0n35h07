@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
 import { en } from '../src/i18n/locales/en'
+import { revealRoomCode, joinByCode } from './helpers'
 
 // Two pages in ONE context → BroadcastChannel links them (?net=bc by default).
 // This way we test real P2P exchange without external trackers.
@@ -17,44 +18,29 @@ async function playerZ(page: Page, id: number): Promise<number> {
   return page.evaluate(pid => (window as any).__debugPlayerPos(pid)?.z ?? NaN, id)
 }
 
-/** Host raises the lobby, client joins by code, both hit READY → both pages in game (phase 'ready'). */
+/** Host reveals its room code, client joins by it, both hit READY → both pages in game (phase 'ready').
+ *  Roles are deterministic now: the page that opened Play first IS the host (creator of its own room). */
 async function enterGame(context: import('@playwright/test').BrowserContext) {
   const host = await context.newPage()
   const client = await context.newPage()
 
-  // Both: PLAY → "With a friend" tab → same room code → SEARCH (role decided by selfId).
-  const room = 'WOLF'
   await host.goto('/')
   await host.getByTestId('menu-play').click()
-  await host.getByTestId('lobby-tab-friend').click()
-  await host.getByTestId('lobby-room-code').fill(room)
+  const code = await revealRoomCode(host)
 
   await client.goto('/')
   await client.getByTestId('menu-play').click()
-  await client.getByTestId('lobby-tab-friend').click()
-  await client.getByTestId('lobby-room-code').fill(room)
+  await joinByCode(client, code)
 
-  await host.getByTestId('lobby-search').click()
-  await client.getByTestId('lobby-search').click()
-
-  // Both see the opponent in the slot → READY appears for both (human-vs-human: both confirm).
-  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
+  // Full pair on both sides → READY unlocks (host: canStart; client: connected).
+  await expect(host.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
+  await expect(client.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
   await host.getByTestId('lobby-ready').click()
   await client.getByTestId('lobby-ready').click()
 
   await host.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
   await client.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 20000 })
-  // Role (host/client) is chosen by transport selfId — unknown in advance which page became which.
-  // We map variables to actual roles (id 0 = host), otherwise geometry/authority are "swapped".
-  return resolveRoles(host, client)
-}
-
-/** Map pages by actual roles (`__debugRole`): { host, client }. */
-async function resolveRoles(a: Page, b: Page) {
-  await expect.poll(() => a.evaluate(() => (window as any).__debugRole?.() ?? null), { timeout: 8000 }).not.toBeNull()
-  const roleA = await a.evaluate(() => (window as any).__debugRole())
-  return roleA === 'host' ? { host: a, client: b } : { host: b, client: a }
+  return { host, client }
 }
 
 /** enterGame + force-live (skipping the countdown) → both pages in phase 'live'. */
@@ -71,24 +57,19 @@ async function startMatch(context: import('@playwright/test').BrowserContext) {
 // matchmaking is Steam-only now (no cross-play). The old "both in BOTH mode find each other" e2e tested that
 // removed web path and was dropped. The "With a friend" (room-code) flow below still covers web rendezvous.
 
-test('1v1 (With a friend): host can change settings, client cannot', async ({ context }) => {
+test('1v1 (по коду): хост меняет настройки, гость видит их залоченными', async ({ context }) => {
   const host = await context.newPage()
   const client = await context.newPage()
-  const room = 'WOLF'
-  for (const p of [host, client]) {
-    await p.goto('/')
-    await p.getByTestId('menu-play').click()
-    await p.getByTestId('lobby-tab-friend').click()
-    await p.getByTestId('lobby-room-code').fill(room)
-  }
-  await host.getByTestId('lobby-search').click()
-  await client.getByTestId('lobby-search').click()
-  await expect(host.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  await expect(client.getByTestId('lobby-ready')).toBeVisible({ timeout: 20000 })
-  // Role (host/client) is chosen by selfId — unknown in advance which page became which.
-  // On the "With a friend" tab EXACTLY the client is locked: one of the two peers has .lobby-opts--locked, the other doesn't.
-  const lockedCount = await host.locator('.lobby-opts--locked').count() + await client.locator('.lobby-opts--locked').count()
-  expect(lockedCount).toBe(1)
+  await host.goto('/')
+  await host.getByTestId('menu-play').click()
+  const code = await revealRoomCode(host)
+  await client.goto('/')
+  await client.getByTestId('menu-play').click()
+  await joinByCode(client, code)
+  await expect(client.getByTestId('lobby-ready')).toBeEnabled({ timeout: 20000 })
+  // Map/time are the host's: exactly the guest sees .lobby-opts--locked.
+  await expect(client.locator('.lobby-opts--locked')).toBeVisible()
+  await expect(host.locator('.lobby-opts--locked')).toHaveCount(0)
 })
 
 test('1v1: host movement is visible on the client', async ({ context }) => {

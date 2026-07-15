@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { EYE_HEIGHT } from '../constants'
-import type { Vec3, GameMap } from '../game/maps'
-import { compileBlocks, serializeGeo } from '../game/mapGeometryCache'
-import { ThumbnailRenderer } from '../components/MapPreview'
+import type { Vec3 } from '../game/maps'
 import { EditorScene } from './EditorScene'
 import type { EditorTool } from './EditorScene'
 import { cellKey, voxelize, toMapData, wallColorOf } from './editorStore'
 import type { Cell, MapData } from './editorStore'
-import { loadMap, saveMap, saveCompiled, saveThumbnail } from './mapsApi'
+import { extractRegion, eraseRegion, rotateFragment, canStamp, stampFragment, patchRegion } from './editorSelection'
+import type { Fragment, RegionPatch } from './editorSelection'
+import { loadMap, loadBackup, saveBackup } from './mapsApi'
+import { useMapSaver } from './useMapSaver'
 import './editor.css'
 
 type CellCoord = [number, number, number]
@@ -22,8 +23,10 @@ const TOOLS: { tool: EditorTool; label: string }[] = [
   { tool: 'wedge', label: 'WEDGE' },
   { tool: 'spawn0', label: 'HOST SPAWN' },
   { tool: 'spawn1', label: 'GUEST SPAWN' },
+  { tool: 'select', label: 'SELECT' },
 ]
-const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4']
+const TOOL_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5']
+const AUTOSAVE_DEBOUNCE_MS = 3000   // пауза после последней правки до автосейва
 
 /** Row of palette color-pick swatches. */
 function Palette({ value, onPick }: { value: string; onPick: (c: string) => void }) {
@@ -45,9 +48,13 @@ export function MapEditor({ name }: { name: string }) {
   const [wallColor, setWallColor] = useState('#5a6678')
   const [spawns, setSpawns] = useState<[Vec3, Vec3]>([[0, EYE_HEIGHT, 16], [0, EYE_HEIGHT, -16]])
   const [tool, setTool] = useState<EditorTool>('cube')
+  const [selection, setSelection] = useState<{ a: CellCoord; b?: CellCoord } | null>(null)
+  const [clipboard, setClipboard] = useState<Fragment | null>(null)
+  const [paste, setPaste] = useState<Fragment | null>(null)   // не-null = режим вставки (фрагмент уже с поворотом)
   const [fly, setFly] = useState(false)   // Tab: fly with no gravity/collision; walking by default
   const [wedgeRot, setWedgeRot] = useState(0)   // R: manual wedge spin on top of auto-orientation
   const [wedgeFlip, setWedgeFlip] = useState(false)   // T: wedge upside down (bevel underneath)
+  const [wedgeSide, setWedgeSide] = useState(false)   // G: клин на боку (диагональная стена)
   const [showCubeGrid, setShowCubeGrid] = useState(true)   // L: highlight all cell borders (build mode)
   const [showGridInGame, setShowGridInGame] = useState(false)   // persisted map setting: draw the cube grid in-game
   const [color, setColor] = useState(EDITOR_COLORS[2])
@@ -56,10 +63,13 @@ export function MapEditor({ name }: { name: string }) {
   const [brushPassable, setBrushPassable] = useState(false)
   const [locked, setLocked] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [status, setStatus] = useState('')
-  const [thumbMap, setThumbMap] = useState<GameMap | null>(null)   // map for the offscreen preview render on save
+  const { save, flush, status, thumbEl } = useMapSaver(name)
+  const [hasBackup, setHasBackup] = useState(false)
+  const fromDisk = useRef(true)    // данные пришли с диска (загрузка/REVERT) — не триггерят автосейв
+  const dirty = useRef(false)      // есть несохранённые правки (для pagehide-flush)
 
   const loadInto = useCallback((data: MapData) => {
+    fromDisk.current = true
     setHalf(data.half)
     setFloorColor(data.floorColor)
     setWallColor(wallColorOf(data))
@@ -73,7 +83,11 @@ export function MapEditor({ name }: { name: string }) {
     let alive = true
     void loadMap(name).then(data => {
       if (!alive) return
-      if (data) loadInto(data)
+      if (data) {
+        loadInto(data)
+        // бэкап «на начало сессии» — страховка от случайных разрушений при автосейве
+        void saveBackup(name, data).then(ok => { if (alive && ok) setHasBackup(true) })
+      }
       setLoaded(true)
     })
     return () => { alive = false }
@@ -97,6 +111,30 @@ export function MapEditor({ name }: { name: string }) {
     })
   }, [])
 
+  // Угол выделения: первый клик — угол 1, второй — угол 2; следующий клик начинает новое выделение.
+  const onCorner = useCallback((cell: CellCoord) => {
+    setSelection(prev => (!prev || prev.b) ? { a: cell } : { a: prev.a, b: cell })
+  }, [])
+  const onSelectionClear = useCallback(() => setSelection(null), [])
+
+  // Выделение живёт только в инструменте SELECT — при уходе на другой инструмент сбрасываем.
+  useEffect(() => { if (tool !== 'select') setSelection(null) }, [tool])
+
+  // Живая панель: при зафиксированном выделении контрол кисти применяет своё свойство к региону.
+  const patchSelection = useCallback((patch: RegionPatch) => {
+    setSelection(sel => {
+      if (sel?.b) setVoxels(prev => patchRegion(prev, sel.a, sel.b!, patch))
+      return sel
+    })
+  }, [])
+
+  // Штамп фрагмента (валидация повторяется на состоянии на момент клика — ghost мог отстать на кадр).
+  const onStamp = useCallback((anchor: CellCoord) => {
+    if (!paste) return
+    setVoxels(prev => canStamp(prev, paste, anchor, half) ? stampFragment(prev, paste, anchor) : prev)
+  }, [paste, half])
+  const onPasteCancel = useCallback(() => setPaste(null), [])
+
   // Spawn — a half-grid-snapped point (X/Z from the scene), at eye level.
   const onSpawn = useCallback((idx: 0 | 1, x: number, z: number, surfaceY: number) => {
     setSpawns(prev => {
@@ -111,36 +149,59 @@ export function MapEditor({ name }: { name: string }) {
     document.addEventListener('pointerlockchange', onLock)
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Tab') { e.preventDefault(); setFly(v => !v); return }
-      if (e.code === 'KeyR') { setWedgeRot(v => (v + 1) % 4); return }
+      if (e.code === 'KeyR') { if (paste) setPaste(rotateFragment(paste)); else setWedgeRot(v => (v + 1) % 4); return }
       if (e.code === 'KeyT') { setWedgeFlip(v => !v); return }
+      if (e.code === 'KeyG') { setWedgeSide(v => !v); return }
       if (e.code === 'KeyL') { setShowCubeGrid(v => !v); return }
+      // операции над зафиксированным выделением — только при захваченной мыши (не при вводе в поля панели)
+      // и не в режиме вставки; повторный V в режиме вставки — no-op
+      if (document.pointerLockElement && !paste && selection?.b) {
+        const [a, b] = [selection.a, selection.b]
+        // операция завершает выделение — бокс не должен оставаться «следом»
+        if (e.code === 'KeyC') { setClipboard(extractRegion(voxels, a, b)); setSelection(null); return }
+        if (e.code === 'KeyX') { setClipboard(extractRegion(voxels, a, b)); setVoxels(eraseRegion(voxels, a, b)); setSelection(null); return }
+        if (e.code === 'Delete') { setVoxels(eraseRegion(voxels, a, b)); setSelection(null); return }
+      }
+      if (e.code === 'KeyV' && document.pointerLockElement && !paste && clipboard) { setPaste(clipboard); return }
       const idx = TOOL_KEYS.indexOf(e.code)
-      if (idx >= 0) setTool(TOOLS[idx].tool)
+      if (idx >= 0) { setTool(TOOLS[idx].tool); setPaste(null) }
     }
     window.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('pointerlockchange', onLock)
       window.removeEventListener('keydown', onKey)
     }
-  }, [])
+  }, [voxels, selection, clipboard, paste])
+
+  // Переключение в SELECT (средней кнопкой): включить инструмент и выйти из режима вставки.
+  const onSelectTool = useCallback(() => { setTool('select'); setPaste(null) }, [])
 
   const buildMap = (): MapData =>
     toMapData(voxels, { half, floorColor, wallColor, spawns, id: name, showBlockGrid: showGridInGame })
 
-  // Saving writes 3 artifacts: raw.json (source) + geo.json (compiled geometry) + preview.png (offscreen render).
-  const doSave = async () => {
-    setStatus('saving…')
-    const data = buildMap()
-    const rawOk = await saveMap(name, data)
-    const geoOk = await saveCompiled(name, serializeGeo(compileBlocks(data.blocks)))
-    setStatus(rawOk && geoOk ? 'rendering preview…' : 'save error')
-    setThumbMap(data as unknown as GameMap)   // mounts ThumbnailRenderer → onThumb
-  }
+  // Автосейв: дебаунс после последней правки. Загрузка с диска (fromDisk) один раз пропускается.
+  useEffect(() => {
+    if (!loaded) return
+    if (fromDisk.current) { fromDisk.current = false; return }
+    dirty.current = true
+    const t = setTimeout(() => { dirty.current = false; save(buildMap()) }, AUTOSAVE_DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [voxels, half, floorColor, wallColor, spawns, showGridInGame, loaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onThumb = async (dataUrl: string | null) => {
-    const pngOk = dataUrl ? await saveThumbnail(name, dataUrl) : false
-    setThumbMap(null)
-    setStatus(pngOk ? `saved: ${name}` : 'saved (no preview)')
+  // Закрытие вкладки посреди дебаунса: keepalive-запись raw+geo (превью догонит следующий сейв).
+  useEffect(() => {
+    const onHide = () => { if (dirty.current) flush(buildMap()) }
+    window.addEventListener('pagehide', onHide)
+    return () => window.removeEventListener('pagehide', onHide)
+  }) // без deps: дешёвая переподписка, зато buildMap всегда свежий
+
+  // Откат к состоянию на начало сессии: загрузить бэкап и сразу сохранить его как текущее.
+  const doRevert = async () => {
+    if (!window.confirm(`Revert "${name}" to the session-start backup?`)) return
+    const data = await loadBackup(name)
+    if (!data) return
+    loadInto(data)
+    save({ ...data, id: name })   // явный сейв: данные «чистые», автосейв их не подхватит
   }
 
   const count = voxels.size
@@ -155,37 +216,40 @@ export function MapEditor({ name }: { name: string }) {
         <EditorScene
           voxels={voxels}
           half={half} floorColor={floorColor} wallColor={wallColor} spawns={spawns}
-          tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} showCubeGrid={showCubeGrid} color={color}
+          tool={tool} fly={fly} wedgeRot={wedgeRot} wedgeFlip={wedgeFlip} wedgeSide={wedgeSide} showCubeGrid={showCubeGrid} color={color}
           brushBeam={brushBeam} brushTransparent={brushTransparent} brushPassable={brushPassable}
+          selection={selection} paste={paste}
           onPlace={onPlace} onRemove={onRemove} onSpawn={onSpawn}
+          onCorner={onCorner} onSelectionClear={onSelectionClear} onSelectTool={onSelectTool}
+          onStamp={onStamp} onPasteCancel={onPasteCancel}
         />
       </Canvas>
 
       {/* Crosshair */}
       <div className="editor-crosshair" />
 
-      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip wedge' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · ESC — menu</div>}
+      {!locked && <div className="editor-hint">CLICK — capture mouse · LMB place · RMB remove{tool === 'wedge' ? ' · R — rotate, T — flip, G — on-side' : ''} · WASD — move, Space — {fly ? 'up' : 'jump'} · TAB — {fly ? 'fly' : 'walk'} · L — cube edges: {showCubeGrid ? 'on' : 'off'} · 5/B/MMB — select · C/X/DEL — copy/cut/delete · V — paste (R rotate) · ESC — menu</div>}
 
       {/* Hotbar: tools (cube/wedge/spawns) + block color palette */}
       <div className="editor-hotbar">
         {TOOLS.map(({ tool: t, label }, i) => (
-          <button key={t} className={`seg${tool === t ? ' seg--on' : ''}`} onClick={() => setTool(t)}>
+          <button key={t} className={`seg${tool === t ? ' seg--on' : ''}`} onClick={() => { setTool(t); setPaste(null) }}>
             {i + 1}·{label}
           </button>
         ))}
         <span className="editor-sep" />
         {EDITOR_COLORS.map(c => (
-          <span key={c} className={`swatch${c === color ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => setColor(c)} />
+          <span key={c} className={`swatch${c === color ? ' swatch--sel' : ''}`} style={{ background: c, color: c }} onClick={() => { setColor(c); patchSelection({ c }) }} />
         ))}
         <span className="editor-sep" />
-        {/* Brush properties: apply to the next placed blocks */}
-        <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => setBrushTransparent(v => !v)}>
+        {/* Brush properties: apply to the next placed blocks, and to a fixed selection right away */}
+        <button className={`seg${!brushTransparent ? ' seg--on' : ''}`} data-testid="ed-opaque" onClick={() => { const v = !brushTransparent; setBrushTransparent(v); patchSelection({ tr: v }) }}>
           {brushTransparent ? 'Semi-transparent' : 'Opaque'}
         </button>
-        <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => setBrushBeam(v => !v)}>
+        <button className={`seg${brushBeam ? ' seg--on' : ''}`} data-testid="ed-beam" onClick={() => { const v = !brushBeam; setBrushBeam(v); patchSelection({ bb: v }) }}>
           {brushBeam ? 'Beam-blocking' : 'Shoot-through'}
         </button>
-        <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => setBrushPassable(v => !v)}>
+        <button className={`seg${!brushPassable ? ' seg--on' : ''}`} data-testid="ed-passable" onClick={() => { const v = !brushPassable; setBrushPassable(v); patchSelection({ ps: v }) }}>
           {brushPassable ? 'Passable' : 'Solid'}
         </button>
       </div>
@@ -214,7 +278,8 @@ export function MapEditor({ name }: { name: string }) {
         </div>
 
         <div className="editor-row">
-          <button className="btn" onClick={doSave}>SAVE</button>
+          <button className="btn" onClick={() => save(buildMap())}>SAVE</button>
+          {hasBackup && <button className="btn" onClick={doRevert}>REVERT</button>}
           {status && <span className="editor-dim">{status}</span>}
         </div>
 
@@ -222,7 +287,7 @@ export function MapEditor({ name }: { name: string }) {
       </div>
 
       {/* Offscreen preview render on save (preview.png) */}
-      {thumbMap && <ThumbnailRenderer map={thumbMap} onCapture={onThumb} />}
+      {thumbEl}
     </div>
   )
 }

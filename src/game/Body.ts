@@ -29,28 +29,10 @@ const _knock = new THREE.Vector3()   // scratch: normalized 3D knockback directi
  * the visual, the hitbox is the combat raycast target with entityId. Shared by player and bots.
  */
 
-const RENDER_ERROR_DECAY = 0.85    // per render frame — a prediction correction's visual offset eases out in ~150 ms
-const RENDER_ERROR_EPS = 0.0005    // below this (units) snap the offset to 0 (no lingering sub-pixel drift)
-
-/** Movement-relevant Body state captured per tick for client prediction replay (and sent by the host as the
- *  authoritative restore point). Value copy — no THREE objects, so it's safe to keep in the prediction log. */
-export interface BodyState {
-  pos: [number, number, number]; vy: number; grounded: boolean
-  airJumps: number; jumpHeld: boolean; prevJumpHeld: boolean
-  dashTimer: number; dashCooldown: number; knockTimer: number
-  velH: [number, number, number]
-}
-
-/** A zeroed BodyState — used to pre-allocate the snapshot buffer (overwritten by fillState). */
-export function emptyBodyState(): BodyState {
-  return { pos: [0, 0, 0], vy: 0, grounded: true, airJumps: 0, jumpHeld: false, prevJumpHeld: false, dashTimer: 0, dashCooldown: 0, knockTimer: 0, velH: [0, 0, 0] }
-}
-
 export class Body {
   readonly position = new THREE.Vector3(0, EYE_HEIGHT, 0)   // cache of rb.translation()
   private prevTickPos = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the previous tick (render interpolation)
   private curTickPos  = new THREE.Vector3(0, EYE_HEIGHT, 0)  // sim position at the current tick
-  private renderError = new THREE.Vector3()                  // visual offset after a prediction correction; decays to 0 (anti-pop)
   readonly object3d = new THREE.Group()                     // local (origin) — RigidBody supplies the transform
   readonly mesh:     THREE.Mesh
   readonly material: THREE.MeshStandardMaterial
@@ -118,45 +100,11 @@ export class Body {
   /** Snapshot this tick's sim position for render interpolation (call once per fixed tick, after the step). */
   captureTick() { this.prevTickPos.copy(this.curTickPos); this.curTickPos.copy(this.position) }
 
-  /** Visual position for rendering: lerp(prevTick, curTick, alpha) + the decaying post-correction error offset. */
-  renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return out.lerpVectors(this.prevTickPos, this.curTickPos, alpha).add(this.renderError) }
-
-  /** After a prediction correction: keep the visual where it was (offset by the jump) and let it slide to truth. */
-  addRenderError(dx: number, dy: number, dz: number) { this.renderError.x += dx; this.renderError.y += dy; this.renderError.z += dz }
-
-  /** Post-replay: the cache (`position`) already holds the CORRECTED position. Re-base the tick snapshots to it and
-   *  set the visual offset to (predicted − corrected), so rendering starts at the predicted spot and eases to truth. */
-  commitCorrection(predX: number, predY: number, predZ: number) {
-    this.curTickPos.copy(this.position); this.prevTickPos.copy(this.position)
-    this.renderError.set(predX - this.position.x, predY - this.position.y, predZ - this.position.z)
-  }
-
-  /** Decay the post-correction visual offset toward zero each render frame (snaps to 0 below an epsilon). */
-  decayRenderError() {
-    this.renderError.multiplyScalar(RENDER_ERROR_DECAY)
-    if (this.renderError.lengthSq() < RENDER_ERROR_EPS * RENDER_ERROR_EPS) this.renderError.set(0, 0, 0)
-  }
+  /** Visual position for rendering: lerp(prevTick, curTick, alpha). */
+  renderPos(alpha: number, out: THREE.Vector3): THREE.Vector3 { return out.lerpVectors(this.prevTickPos, this.curTickPos, alpha) }
 
   /** Teleport/init: collapse both snapshots to the live position so interpolation doesn't sweep across the jump. */
-  resetTickPos() { this.curTickPos.copy(this.position); this.prevTickPos.copy(this.position); this.renderError.set(0, 0, 0) }
-
-  /** Snapshot the movement-relevant state for prediction replay (value copy — safe to keep across ticks). */
-  saveState(): BodyState {
-    return {
-      pos: [this.position.x, this.position.y, this.position.z], vy: this.velocityY, grounded: this.grounded,
-      airJumps: this.airJumps, jumpHeld: this.jumpHeld, prevJumpHeld: this.prevJumpHeld,
-      dashTimer: this.dashTimer, dashCooldown: this.dashCooldown, knockTimer: this.knockTimer,
-      velH: [this.velH.x, this.velH.y, this.velH.z],
-    }
-  }
-
-  /** Restore state before replaying inputs (re-seeds the position cache). */
-  restoreState(s: BodyState): void {
-    this.position.set(s.pos[0], s.pos[1], s.pos[2]); this.velocityY = s.vy; this.grounded = s.grounded
-    this.airJumps = s.airJumps; this.jumpHeld = s.jumpHeld; this.prevJumpHeld = s.prevJumpHeld
-    this.dashTimer = s.dashTimer; this.dashCooldown = s.dashCooldown; this.knockTimer = s.knockTimer
-    this.velH.set(s.velH[0], s.velH[1], s.velH[2])
-  }
+  resetTickPos() { this.curTickPos.copy(this.position); this.prevTickPos.copy(this.position) }
 
   /** Desired horizontal velocity this frame (NOT integrated immediately — stepHorizontal accumulates it via velH). */
   move(worldDir: THREE.Vector3, _dt: number) {
@@ -327,8 +275,8 @@ export class Body {
   }
 
   // --- networking: remote player position (client renders from buffered snapshots, ~100ms in the past) ---
-  applyNetTarget(pos: THREE.Vector3, hostTick: number = 0) {
-    this.interp.push(Date.now(), pos.x, pos.y, pos.z, hostTick)
+  applyNetTarget(pos: THREE.Vector3, senderTick: number = 0) {
+    this.interp.push(Date.now(), pos.x, pos.y, pos.z, senderTick)
     this.hasSample = true
   }
   hasNetTarget() { return this.hasSample }
@@ -337,8 +285,6 @@ export class Body {
     if (this.interp.sample(Date.now() - NET_INTERP_DELAY_MS, this._remoteOut)) return this._remoteOut
     return this.position
   }
-  /** The host-tick this remote is currently being RENDERED at — the client stamps it on a fire (lag-comp viewTick). */
-  renderHostTick(): number { return this.interp.sampleTick(Date.now() - NET_INTERP_DELAY_MS) }
 
   /** Cache the position from the physics body (result of the previous step). */
   syncFromBody() {

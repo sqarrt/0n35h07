@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { NoopAchievements, SteamAchievements } from '../../src/steam/achievements'
+import type { IAchievements } from '../../src/steam/achievements'
 import { STREAK_DOUBLE, STREAK_TRIPLE, STREAK_SINGULARITY } from '../../src/game/streakConfig'
 
 describe('NoopAchievements', () => {
   it('never throws (off-Steam default)', () => {
-    const a = new NoopAchievements()
+    // Typed as the interface: that's how Match sees it (the Noop overrides drop the params, but callers pass them).
+    const a: IAchievements = new NoopAchievements()
     expect(() => { a.onKill(STREAK_SINGULARITY, false); a.onPerfectBlock(); a.onMatchEnd(true, true) }).not.toThrow()
   })
 })

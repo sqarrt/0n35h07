@@ -19,7 +19,7 @@ describe('MatchSfx.combat', () => {
   it('block→block, kill→death, respawn→respawn', () => {
     const fake = new FakeSfxEngine()
     const sfx = new MatchSfx(fake)
-    sfx.combat({ t: 'block', shooter: 0, victim: 1 }, () => pos())
+    sfx.combat({ t: 'block', shooter: 0, victim: 1, perfect: false }, () => pos())
     sfx.combat({ t: 'kill', shooter: 0, victim: 1 }, () => pos())
     sfx.combat({ t: 'respawn', id: 1, pos: [0, 1, 0] }, () => pos())
     expect(fake.played('block')).toBe(1)
@@ -33,9 +33,9 @@ describe('MatchSfx.combat', () => {
     expect(fake.played('beam_fire')).toBe(0)
   })
 
-  it('ignores non-combat events (scores/time)', () => {
+  it('ignores non-combat events (ready)', () => {
     const fake = new FakeSfxEngine()
-    new MatchSfx(fake).combat({ t: 'time', remainingMs: 1000 }, () => pos())
+    new MatchSfx(fake).combat({ t: 'ready', id: 1 }, () => pos())
     expect(fake.calls.length).toBe(0)
   })
 })

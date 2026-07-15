@@ -1,15 +1,20 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createLoopbackPair } from '../../src/net/LoopbackNet'
+import { createLoopbackPair, createLoopbackHub } from '../../src/net/LoopbackNet'
 import { RoomSession } from '../../src/net/RoomSession'
 import type { RoomView } from '../../src/net/RoomSession'
 import type { PlayerProfile } from '../../src/settings'
 import { OPPONENT_ID, HOST_ID } from '../../src/constants'
+import type { GameMode } from '../../src/game/modes'
+import type { Vec3 } from '../../src/net/protocol'
 import { MAP_IDS } from '../../src/game/maps'
 import { botAppearance } from '../../src/game/botAppearance'
+import { testProfile } from './helpers/profile'
 
-const GUEST: PlayerProfile = { name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
+// Name + color pair are pinned: the roster assertions below compare against exactly these.
+// The styles (classic/echo/streak/dome) come from the prod default — the tests read them back as such.
+const GUEST: PlayerProfile = testProfile({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa' })
 
-const HOST: PlayerProfile = { name: 'Host', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
+const HOST: PlayerProfile = testProfile({ name: 'Host', primaryColor: '#4af', reserveColor: '#fa4' })
 
 /** Brings up host+client over loopback (delivery is synchronous → handshake completes immediately). */
 function handshake(clientProfile: PlayerProfile) {
@@ -58,21 +63,28 @@ describe('RoomSession map selection', () => {
   })
 })
 
-describe('RoomSession — color assignment by host', () => {
-  it('client with the same primary color as the host gets its reserve one', () => {
-    const { hostView } = handshake({ name: 'Guest', primaryColor: '#4af', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
+describe('RoomSession — personal colors are never substituted', () => {
+  it('client with the same primary color as the host KEEPS it (collision is allowed)', () => {
+    const { hostView } = handshake({ ...GUEST, primaryColor: HOST.primaryColor })
     const clientEntry = hostView.roster.find(r => r.id === 1)!
-    expect(clientEntry.color).toBe('#4fa')   // primary #4af taken by host → reserve
+    expect(clientEntry.color).toBe(HOST.primaryColor)
     expect(clientEntry.name).toBe('Guest')
   })
 
-  it('client with a free primary color gets exactly it', () => {
-    const { hostView } = handshake({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
-    expect(hostView.roster.find(r => r.id === 1)!.color).toBe('#fd4')
+  it('the client color pair ships in the roster whole', () => {
+    const { hostView } = handshake(GUEST)
+    const clientEntry = hostView.roster.find(r => r.id === 1)!
+    expect(clientEntry.color).toBe(GUEST.primaryColor)
+    expect(clientEntry.reserveColor).toBe(GUEST.reserveColor)
+  })
+
+  it('the host entry carries its reserveColor', () => {
+    const { hostView } = handshake(GUEST)
+    expect(hostView.roster.find(r => r.id === 0)!.reserveColor).toBe(HOST.reserveColor)
   })
 
   it('client receives its id and the shared roster (ASSIGN arrived)', () => {
-    const { clientView } = handshake({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
+    const { clientView } = handshake(GUEST)
     expect(clientView.connected).toBe(true)
     expect(clientView.localPlayerId).toBe(1)
     expect(clientView.roster.map(r => r.id).sort()).toEqual([0, 1])
@@ -98,7 +110,7 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     expect(get().canStart).toBe(true)
   })
 
-  it('addBot assigns botAppearance(name) cosmetics and a color without collision with the host', () => {
+  it('addBot assigns botAppearance(name) cosmetics — the color pair exactly as the skin', () => {
     const { host, get } = hostWithView()
     host.addBot('normal')
     const bot = get().roster.find(r => r.id === OPPONENT_ID)!
@@ -109,7 +121,8 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     expect(bot.respawnStyle).toBe(want.respawnStyle)
     expect(bot.dashStyle).toBe(want.dashStyle)
     expect(bot.shieldStyle).toBe(want.shieldStyle)
-    expect(bot.color).not.toBe(HOST.primaryColor)   // no collision with the host's color
+    expect(bot.color).toBe(want.color)                 // exactly the skin color — no collision dodging
+    expect(bot.reserveColor).toBe(want.reserveColor)   // the pair ships whole
   })
 
   it('repeated addBot — no-op (single opponent)', () => {
@@ -128,7 +141,7 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     expect(get().canStart).toBe(false)
   })
 
-  it('an arriving human evicts the bot; the human leaving frees the slot', () => {
+  it('no eviction: a human arriving into a full room is rejected; a human leaving frees the slot', () => {
     const [hostNet, clientNet] = createLoopbackPair('H', 'C')
     const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
     let view!: RoomView
@@ -136,13 +149,217 @@ describe('RoomSession — opponent slot (strictly 1v1)', () => {
     host.addBot('normal')
     expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('bot')
 
-    new RoomSession(clientNet, 'client', 'AB12', GUEST)   // HELLO synchronously evicts the bot
-    expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('human')
-    expect(view.canStart).toBe(true)
+    new RoomSession(clientNet, 'client', 'AB12', GUEST)   // HELLO → room is full (bot holds the slot, no eviction)
+    expect(view.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('bot')
 
-    hostNet.triggerLeave()                                 // client left
-    expect(view.roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
-    expect(view.canStart).toBe(false)
+    host.removeBot()                                       // host frees the slot explicitly → the retrying HELLO seats the human
+    // (client resends HELLO on a timer in prod; in loopback simulate by rebuilding the session)
+    const [hn2, cn2] = createLoopbackPair('H2', 'C2')
+    const host2 = new RoomSession(hn2, 'host', 'AB12', HOST)
+    let view2!: RoomView
+    host2.onChange(v => { view2 = v })
+    new RoomSession(cn2, 'client', 'AB12', GUEST)
+    expect(view2.roster.find(r => r.id === OPPONENT_ID)!.kind).toBe('human')
+    expect(view2.canStart).toBe(true)
+
+    hn2.triggerLeave()                                     // client left
+    expect(view2.roster.find(r => r.id === OPPONENT_ID)).toBeUndefined()
+    expect(view2.canStart).toBe(false)
+  })
+})
+
+describe('RoomSession — музыкальный сид создателя', () => {
+  it('код пуст (Steam-лобби) → хост генерит сид; гость получает его из Assign', () => {
+    const [a, b] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', '', HOST)
+    expect(host.seed).toMatch(/^[A-Z0-9]{4}$/)   // сгенерён, не пустой
+    const guest = new RoomSession(b, 'client', '', GUEST)
+    expect(guest.seed).toBe(host.seed)           // приехал в Assign — музыка общая
+  })
+
+  it('веб-комната: сид равен коду (музыка та же, что раньше)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const host = new RoomSession(a, 'host', 'AB12', HOST)
+    expect(host.seed).toBe('AB12')
+  })
+})
+
+describe('RoomSession — пер-слотовая сложность бота', () => {
+  it('setBotDifficulty(d, slot) меняет ровно одного бота; на не-боте — no-op', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('ffa')
+    solo.addBot('normal', 'ONE', 1)
+    solo.addBot('normal', 'TWO', 2)
+    solo.setBotDifficulty('passive', 2)
+    expect(solo.view().slots[1]?.difficulty).toBe('normal')
+    expect(solo.view().slots[2]?.difficulty).toBe('passive')
+    solo.setBotDifficulty('passive', 0)   // слот хоста — не бот
+    expect(solo.view().slots[0]?.difficulty).toBeUndefined()
+  })
+})
+
+describe('RoomSession — много-гостевое лобби', () => {
+  // Гейт старта зависит и от готовности, и от СОСТАВА мест. Раньше его пересчитывали только на смене
+  // готовности → уход неготового гостя оставлял лобби в дедлоке: все оставшиеся готовы, гейт выполнен,
+  // а старта нет и нажать нечего (у готового кнопка — «ждём остальных»).
+  it('ffa: уход неготового гостя пересчитывает гейт — оставшиеся готовы → матч стартует', () => {
+    const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])
+    const host = new RoomSession(h, 'host', 'AB12', HOST)
+    host.setMode('ffa')
+    const gb = new RoomSession(b, 'client', 'AB12', GUEST)
+    new RoomSession(c, 'client', 'AB12', { ...GUEST, name: 'Guest2' })
+    let started = 0
+    host.onStart(() => { started++ })
+    gb.setLocalReady(true)
+    host.setLocalReady(true)
+    expect(started).toBe(0)      // гость C ещё не готов — ждём его
+    h.triggerLeave('C')          // неготовый гость ушёл: занято двое, оба готовы, ffa-гейт (≥2) выполнен
+    expect(started).toBe(1)
+  })
+
+  it('уход ДРУГОГО гостя не закрывает комнату у клиента; уход хоста — закрывает', () => {
+    const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])
+    const host = new RoomSession(h, 'host', 'AB12', HOST)
+    host.setMode('ffa')
+    const gb = new RoomSession(b, 'client', 'AB12', GUEST)
+    const gc = new RoomSession(c, 'client', 'AB12', { ...GUEST, name: 'Guest2' })
+    let closedB = 0
+    gb.onClosed(() => { closedB++ })
+    expect(gb.view().connected).toBe(true)
+    expect(gc.view().connected).toBe(true)
+    b.triggerLeave('C')          // у гостя B исчез гость C
+    expect(closedB).toBe(0)      // комната жива
+    b.triggerLeave('H')          // ушёл хост
+    expect(closedB).toBe(1)
+  })
+})
+
+describe('RoomSession — режимы и слоты', () => {
+  it('дефолтный режим 1v1: 2 слота, canStart при полной комнате', () => {
+    const { hostView } = handshake(GUEST)
+    expect(hostView.mode).toBe('1v1')
+    expect(hostView.slots).toHaveLength(2)
+    expect(hostView.canStart).toBe(true)
+  })
+
+  it('setMode(2v2): 4 слота, canStart только при полных составах', () => {
+    const { host } = handshake(GUEST)   // host + 1 human
+    host.setMode('2v2')
+    const v = host.view()
+    expect(v.mode).toBe('2v2')
+    expect(v.slots).toHaveLength(4)
+    expect(v.canStart).toBe(false)
+    host.addBot('normal')
+    host.addBot('normal')
+    expect(host.view().canStart).toBe(true)
+  })
+
+  it('клиент видит режим и слоты из Assign', () => {
+    const { host, clientView, client } = handshake(GUEST)
+    host.setMode('ffa')
+    expect(client.view().mode).toBe('ffa')
+    expect(client.view().slots).toHaveLength(4)
+    void clientView
+  })
+
+  it('setMode вниз заблокирован, пока занятых больше лимита', () => {
+    const { host } = handshake(GUEST)
+    host.setMode('ffa')
+    host.addBot('normal'); host.addBot('normal')   // 4 занятых
+    host.setMode('1v1')
+    expect(host.view().mode).toBe('ffa')   // no-op
+  })
+
+  it('setMode вниз компактует занятые слоты (бот с высокого индекса переезжает)', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('ffa')
+    solo.addBot('normal', 'GLITCH', 3)             // бот в слот 3
+    solo.setMode('1v1')                            // занятых 2 → влезает, бот компактуется в слот 1
+    const v = solo.view()
+    expect(v.mode).toBe('1v1')
+    expect(v.slots[1]?.name).toBe('GLITCH')
+    expect(v.slots[1]?.id).toBe(1)
+    expect(v.ready).toContain(1)                   // авто-ready бота переехал вместе с ним
+  })
+
+  it('addBot(slot): бот садится в указанный слот; removeBot(slot) освобождает', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('2v2')
+    solo.addBot('normal', undefined, 3)
+    expect(solo.view().slots[3]?.kind).toBe('bot')
+    expect(solo.view().slots[1]).toBeNull()
+    solo.removeBot(3)
+    expect(solo.view().slots[3]).toBeNull()
+  })
+
+  it('ffa: canStart от 2 занятых', () => {
+    const [a] = createLoopbackPair('H', 'C')
+    const solo = new RoomSession(a, 'host', 'AB12', HOST)
+    solo.setMode('ffa')
+    expect(solo.view().canStart).toBe(false)
+    solo.addBot('normal')
+    expect(solo.view().canStart).toBe(true)
+  })
+
+  it('клиент пересаживается requestSlot в свободный слот (2v2: смена команды)', () => {
+    const { host, client } = handshake(GUEST)
+    host.setMode('2v2')
+    expect(client.view().localPlayerId).toBe(1)
+    client.requestSlot(2)                          // слоты 2-3 — команда 1
+    expect(host.view().slots[1]).toBeNull()
+    expect(host.view().slots[2]?.name).toBe('Guest')
+    expect(client.view().localPlayerId).toBe(2)
+  })
+
+  it('requestSlot в занятый слот — no-op', () => {
+    const { host, client } = handshake(GUEST)
+    host.setMode('2v2')
+    host.addBot('normal', undefined, 2)
+    client.requestSlot(2)
+    expect(host.view().slots[2]?.kind).toBe('bot')
+    expect(client.view().localPlayerId).toBe(1)
+  })
+
+  it('start в ffa кладёт spawns в onStart по числу занятых', () => {
+    const { host, client } = handshake(GUEST)
+    host.setMode('ffa')
+    host.addBot('normal')                          // host + client + bot = 3 занятых
+    let got: Vec3[] | undefined
+    let gotMode: GameMode | undefined
+    client.onStart((_ms, _map, mode, spawns) => { gotMode = mode; got = spawns })
+    client.setLocalReady(true)                     // человек-клиент ready → хосту
+    host.setLocalReady(true)                       // все занятые ready (бот авто) → старт
+    expect(gotMode).toBe('ffa')
+    expect(got).toHaveLength(3)
+  })
+
+  it('owners: боты принадлежат создателю, люди — своим пирам; клиент видит то же из Assign', () => {
+    const { host, client } = handshake(GUEST)
+    host.setMode('ffa')
+    host.addBot('normal')                          // slot 2 — owned by the creator
+    expect(host.netConfig().owners).toEqual({ 0: 'H', 1: 'C', 2: 'H' })
+    expect(client.netConfig().owners).toEqual({ 0: 'H', 1: 'C', 2: 'H' })
+  })
+
+  it('owners едут в onStart', () => {
+    const { host, client } = handshake(GUEST)
+    let got: Record<number, string> | undefined
+    client.onStart((_ms, _map, _mode, _spawns, owners) => { got = owners })
+    client.setLocalReady(true)
+    host.setLocalReady(true)
+    expect(got).toEqual({ 0: 'H', 1: 'C' })
+  })
+
+  it('в 1v1 start НЕ кладёт spawns (карта решает)', () => {
+    const { host, client } = handshake(GUEST)
+    let got: Vec3[] | undefined = [[9, 9, 9]]
+    client.onStart((_ms, _map, _mode, spawns) => { got = spawns })
+    client.setLocalReady(true)
+    host.setLocalReady(true)
+    expect(got).toBeUndefined()
   })
 })
 
@@ -281,14 +498,17 @@ describe('RoomSession — readiness (lobby gate)', () => {
     expect(started).toBe(1)
   })
 
-  it('human evicts bot → slot readiness resets (human not ready)', () => {
+  it('a freshly seated human is NOT ready (bots are auto-ready)', () => {
     const [hostNet, clientNet] = createLoopbackPair('H', 'C')
     const host = new RoomSession(hostNet, 'host', 'AB12', HOST)
     let view = host.view(); host.onChange(v => { view = v })
-    host.addBot('normal')
-    expect(view.ready).toContain(OPPONENT_ID)
-    new RoomSession(clientNet, 'client', 'AB12', GUEST)
-    expect(view.ready).not.toContain(OPPONENT_ID)
+    host.setMode('ffa')                                    // free seats for both a bot and a human
+    host.addBot('normal')                                  // seat 1 — auto-ready
+    expect(view.ready).toContain(1)
+    new RoomSession(clientNet, 'client', 'AB12', GUEST)    // human takes seat 2
+    expect(view.slots[2]?.kind).toBe('human')
+    expect(view.ready).not.toContain(2)
+    expect(view.ready).toContain(1)                        // the bot's readiness is untouched
   })
 })
 

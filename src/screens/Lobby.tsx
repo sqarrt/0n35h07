@@ -1,128 +1,145 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import type { MapFilter, DurationFilter, BotDifficulty } from '../constants'
 import { IS_DESKTOP } from '../platform'
 import { onSteamInviteDeclined } from '../steam/steam'
 import { Button } from '../ui/Button'
 import { useT } from '../i18n'
-import type { LobbySlot, OppSlot, LobbyTab } from '../components/lobby/types'
-import { LobbyTabs } from '../components/lobby/LobbyTabs'
-import { LobbySeats } from '../components/lobby/LobbySeats'
+import type { SeatView, SeatZone, PendingInvite } from '../components/lobby/types'
+import type { GameMode } from '../game/modes'
+import { ModeCarousel } from '../components/lobby/ModeCarousel'
+import { Seats } from '../components/lobby/Seats'
 import { MapPicker } from '../components/lobby/MapPicker'
 import { TimePicker } from '../components/lobby/TimePicker'
-import { LobbyAction } from '../components/lobby/LobbyAction'
-import { RoomCodeField } from '../components/lobby/RoomCodeField'
-import { BotDifficultyPicker } from '../components/lobby/BotDifficultyPicker'
 import { SteamFriendPicker } from '../components/lobby/SteamFriendPicker'
 
-export type { LobbySlot } from '../components/lobby/types'   // re-export for App (builds me/opponent)
+const ROOM_CODE_LEN = 4
 
 interface LobbyProps {
   isHost: boolean
-  tab: LobbyTab
-  me: LobbySlot
-  opponent: OppSlot | null
+  mode: GameMode
+  seats: SeatView[]
+  seatedPeerIds: string[]      // transport peer ids currently seated (prunes accepted Steam invites)
+  connected: boolean           // client: Assign received (gates READY)
+  myReady: boolean
+  canStart: boolean            // host: enough seats filled for this mode
+  searching: boolean
+  joinCode: string | null      // web host: the room code revealed inside a seat's invite zone
   mapSel: MapFilter
   durationSel: DurationFilter
-  searching: boolean
-  botDifficulty: BotDifficulty
-  botName: string
-  onSetTab: (tab: LobbyTab) => void
-  onSetBotDifficulty: (d: BotDifficulty) => void
-  onSetBotName: (name: string) => void
-  onFriendSearch: (code: string) => void
+  onSetMode: (m: GameMode) => void
+  onSeatClick: (slot: number, zone: SeatZone) => void
+  onBotRemove: (slot: number) => void
+  onBotName: (slot: number, name: string) => void
+  onBotDifficulty: (slot: number, d: BotDifficulty) => void
   onSetMap: (m: MapFilter) => void
   onSetDuration: (d: DurationFilter) => void
-  onSearch: () => void
+  onJoinByCode: (code: string) => void   // web: join someone's room as a guest
+  onSearch: () => void                   // desktop Duel: Steam quick-match
   onStopSearch: () => void
   onReady: () => void
   onBack: () => void
-  // Steam "With friend" (desktop): the lobby is still forming + invite a specific friend.
+  // Steam (desktop): the lobby is still forming + invite a specific friend.
   steamFriendForming?: boolean
   onSteamInviteFriend?: (id: string) => void
 }
 
-/** Lobby screen with Matchmaking/With a friend/With a bot sub-tabs. Map/time/slots are shared; the mode block + action change. */
+/** The "Play" screen, no tabs: mode carousel → map/time → seats (invite/bot/code zones per seat) →
+ *  one auto-switching action button (SEARCH / STOP / READY / waiting). */
 export function Lobby(props: LobbyProps) {
-  const { isHost, tab, me, opponent, mapSel, durationSel, searching } = props
+  const { isHost, mode, seats, searching } = props
   const t = useT()
-  const [roomCode, setRoomCode] = useState('')
-  const codeInputRef = useRef<HTMLInputElement>(null)
-  // Steam "With friend": the friend picker modal + which friend we invited (the seat's "waiting" state).
+  // Steam invites we are waiting on (desktop host): projected onto free seats by <Seats>.
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [invited, setInvited] = useState<{ id: string; name: string } | null>(null)
-  // Once the friend actually joins (opponent fills) the pending state is irrelevant — clear it so a later
-  // leave returns the seat to the CTA, not a stale "waiting".
-  useEffect(() => { if (opponent) setInvited(null) }, [opponent])
-  // Leaving the "With friend" tab cancels any pending invite and closes the modal.
-  useEffect(() => { if (tab !== 'friend') { setInvited(null); setPickerOpen(false) } }, [tab])
-  // The invited friend declined → revert the seat from "waiting for {name}" to the invite CTA.
-  const invitedRef = useRef(invited); invitedRef.current = invited
+  const [invites, setInvites] = useState<PendingInvite[]>([])
+  // Once an invited friend actually SITS (their peer id appears among the seated), its pending entry is done.
+  useEffect(() => {
+    if (!props.seatedPeerIds.length) return
+    setInvites(prev => {
+      const next = prev.filter(i => !props.seatedPeerIds.includes(i.id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [props.seatedPeerIds])
+  // An invited friend declined → drop exactly that pending entry.
   useEffect(() => {
     if (!IS_DESKTOP) return
     let alive = true; let un = () => {}
-    void onSteamInviteDeclined(declinerId => { if (invitedRef.current?.id === declinerId) setInvited(null) })
+    void onSteamInviteDeclined(declinerId => setInvites(prev => prev.filter(i => i.id !== declinerId)))
       .then(u => { if (alive) un = u; else u() })
     return () => { alive = false; un() }
   }, [])
 
-  const startFriend = () => { const c = roomCode.trim().toUpperCase(); if (c) props.onFriendSearch(c) }
+  // Web guest path: a compact "join by code" field below the seats.
+  const [code, setCode] = useState('')
+  const joinGo = () => { const c = code.trim().toUpperCase(); if (c) props.onJoinByCode(c) }
 
-  // Lock map/time:
-  //  • during an active search;
-  //  • on the client (human opponent = host) — settings are always someone else's;
-  //  • on the host with a human in the slot — only on matchmaking (params are resolved); on "With a friend" the host
-  //    can change params live (RoomSession sends an updated Assign to the client). A bot doesn't lock.
-  const humanOpp = opponent != null && !opponent.isBot
-  const optsLocked = searching || (humanOpp && !isHost) || (humanOpp && isHost && tab !== 'friend')
-  // On the Steam (desktop) build "With a friend" is invite-based (no room code): the empty opponent seat is
-  // the single invite entry point (click → friend picker), so no room-code field is rendered.
-  const steamFriend = IS_DESKTOP && tab === 'friend'
-  // SEARCH: on web "With a friend" available only with a code entered; on matchmaking — always.
-  const canSearch = tab === 'friend' ? !!roomCode.trim() : true
-  const doSearch = tab === 'friend' ? startFriend : props.onSearch
+  const steamInvites = IS_DESKTOP && isHost
+  const freeSeats = seats.filter(s => s.entry === null).length
+  const othersSeated = seats.some(s => s.entry !== null && !s.mine)
+  // Map/time are the host's: guests always see them locked; searching locks them for everyone.
+  const optsLocked = searching || !isHost
+
+  // The single action button: same size in every state (no layout jumps).
+  const action = searching
+    ? <Button variant="primary" className="btn--stop" data-testid="lobby-stop" style={{ width: '100%' }} onClick={props.onStopSearch}>{t.lobbyStop}</Button>
+    : invites.length > 0
+      ? <Button variant="primary" data-testid="lobby-waiting" style={{ width: '100%' }} disabled>{t.lobbyWaitingFriend}</Button>
+      : IS_DESKTOP && isHost && mode === '1v1' && freeSeats > 0
+        ? <Button variant="primary" data-testid="lobby-search" style={{ width: '100%' }} onClick={props.onSearch}>{t.lobbySearch}</Button>
+        : props.myReady
+          ? <Button variant="primary" data-testid="lobby-waiting" style={{ width: '100%' }} disabled>{t.lobbyWaitOthers}</Button>
+          : <Button variant="primary" className="btn--go" data-testid="lobby-ready" style={{ width: '100%' }}
+              disabled={isHost ? !props.canStart : !props.connected} onClick={props.onReady}>{t.lobbyReady}</Button>
 
   return (
-    <div className="panel-fill" style={{ justifyContent: 'flex-start' }}>
+    <div className="panel-fill panel-fill--bleed" style={{ justifyContent: 'flex-start' }}>
       <div className="lobby">
         <div className="lobby-body">
           <h2 style={{ color: 'var(--accent)', letterSpacing: '0.2em', marginBottom: '1rem', marginTop: 0 }}>{t.menuPlay}</h2>
 
-          <LobbyTabs tab={tab} onSetTab={props.onSetTab} />
+          <ModeCarousel mode={mode} enabled={isHost && !searching} onSetMode={props.onSetMode} />
 
           <div className={`lobby-opts${optsLocked ? ' lobby-opts--locked' : ''}`}>
-            <MapPicker mapSel={mapSel} onSetMap={props.onSetMap} />
-            <TimePicker durationSel={durationSel} onSetDuration={props.onSetDuration} />
+            <MapPicker mapSel={props.mapSel} onSetMap={props.onSetMap} />
+            <TimePicker durationSel={props.durationSel} onSetDuration={props.onSetDuration} />
           </div>
 
           <div className="lobby-ogrp">
             <span className="lobby-ol">// {t.lobbyPlayers}</span>
-            <LobbySeats isHost={isHost} me={me} opponent={opponent} searching={searching}
-              botEdit={isHost && tab === 'bot' && opponent?.isBot ? { name: props.botName, onSetName: props.onSetBotName } : undefined}
-              inviteSeat={steamFriend && !opponent ? { invitedName: invited?.name ?? null, onInvite: () => setPickerOpen(true), onCancel: () => setInvited(null) } : undefined} />
+            <Seats mode={mode} isHost={isHost} seats={seats} searching={searching}
+              onSeatClick={props.onSeatClick} onBotRemove={props.onBotRemove}
+              onBotName={props.onBotName} onBotDifficulty={props.onBotDifficulty}
+              invite={steamInvites ? {
+                pending: invites,
+                onInvite: () => setPickerOpen(true),
+                onCancel: id => setInvites(prev => prev.filter(i => i.id !== id)),
+              } : undefined}
+              joinCode={props.joinCode} />
           </div>
 
-          {tab === 'friend' && !steamFriend && (
-            <RoomCodeField value={roomCode} inputRef={codeInputRef} onChange={setRoomCode} onSubmit={startFriend} />
-          )}
-          {tab === 'bot' && (
-            <BotDifficultyPicker difficulty={props.botDifficulty} onSetDifficulty={props.onSetBotDifficulty} />
+          {!IS_DESKTOP && (
+            <div className="join-code">
+              <span className="lobby-ol">// {t.lobbyJoinByCode}</span>
+              <div className="join-code-row">
+                <input className="input join-code-input" data-testid="join-code-field"
+                  value={code} maxLength={ROOM_CODE_LEN}
+                  onChange={e => setCode(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') joinGo() }} />
+                <Button className="join-code-go" data-testid="join-code-go" disabled={!code.trim()} onClick={joinGo}>→</Button>
+              </div>
+            </div>
           )}
         </div>
 
-        {steamFriend && (
+        {steamInvites && (
           <SteamFriendPicker
             open={pickerOpen} forming={!!props.steamFriendForming}
             onClose={() => setPickerOpen(false)}
-            onPick={(id, name) => { props.onSteamInviteFriend?.(id); setInvited({ id, name }); setPickerOpen(false) }} />
+            onPick={(id, name) => { props.onSteamInviteFriend?.(id); setInvites(prev => (prev.some(i => i.id === id) ? prev : [...prev, { id, name }])); setPickerOpen(false) }} />
         )}
 
-        <LobbyAction
-          tab={tab} opponent={opponent} searching={searching} canSearch={canSearch}
-          steamFriend={steamFriend} steamFriendInvited={!!invited}
-          onReady={props.onReady} onStopSearch={props.onStopSearch} onSearch={doSearch}
-        />
+        <div data-testid="lobby-action" style={{ width: '100%' }}>{action}</div>
 
-        <Button variant="ghost" data-testid="lobby-back" onClick={props.onBack} style={{ width: '100%' }}>{opponent ? t.lobbyLeave : t.roomBack}</Button>
+        <Button variant="ghost" data-testid="lobby-back" onClick={props.onBack} style={{ width: '100%' }}>{othersSeated ? t.lobbyLeave : t.roomBack}</Button>
       </div>
     </div>
   )

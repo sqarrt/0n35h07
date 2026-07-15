@@ -50,6 +50,7 @@ Tauri 2 desktop build.
   - A feature branch must be cut ONLY from the release branch.
     - If no release branch existed at branching time — create one.
   - The release branch is named "release_{version}".
+  - A release branch must be cut ONLY from ACTUAL master branch
   - Confirm the version with the user before creating the release branch.
   - Nothing needs to be pushed: the user pushes the release branch and merges into master themselves.
 - The version in package.json on the release branch must reflect the release branch version.
@@ -75,22 +76,35 @@ namespaces are **forbidden**. Declare fields explicitly and assign them in the c
 
 Three layers: **simulation — pure TS classes in `src/game/` (no React); R3F — a thin host; HUD — a React/DOM overlay.**
 
-**Simulation (`src/game/`).** A single `Player` entity — the human, the bot opponent and the remote networked
-player alike — composes **injected** `Body` + `IWeapon` (`BeamWeapon`) + `IShield` (`Shield`) (Dependency Inversion).
+The map of `src/` (the shooter is only about half of it): `game/` — the simulation; `net/` — P2P mesh + room;
+`components/` + `screens/` + `ui/` + `hooks/` — React (HUD, menus, lobby, the 3D menu backdrop); `editor/` — the
+in-app map editor at `#editor` (dev-only: it reads/writes `src/maps/<id>/` through a Vite dev-bridge plugin, so it is
+NOT driven by the map registry in `game/maps.ts`); `maps/` — maps as data (`raw.json` source + `geo.json` compiled
+geometry + `preview.png`, per map); `radio/` — the generative radio (Strudel-based; a large, self-contained
+subsystem); `steam/` — Steam integration (achievements, cloud, lobby/invites, rich presence) behind Tauri;
+`i18n/` — 10 locales typed as `Dict = typeof en`; `diag/` — session logging; `trailer/` — the demo/trailer recorder.
+
+**Simulation (`src/game/`).** A single `Player` entity — the human, a bot and a remote networked
+player alike — composes an **injected** `Body` + `IWeapon` (`BeamWeapon`) + `IShield` (`Shield`); weapon and shield
+are injected behind interfaces (Dependency Inversion), `Body` as the concrete class (a player IS its body).
 `Player` exposes intent methods `moveIntent/jump/aim/startFiring/activateShield` with built-in cooldowns. Controllers
 (`HumanController` — keyboard/mouse/camera; `BotController` — AI) drive the **same** `Player` methods:
 the AI is just another controller, like a keyboard. `Player` **does not respawn itself** — `Match` does.
 `Match` owns the world/players/controllers and is the **single place for the rules** (combat, respawn,
 HUD events, the ready ritual, excluding self-hits); its `update(dt)` is the shared heartbeat.
 
-**R3F host.** `App` renders `<Canvas>`; `Game` builds the `Match` once (`useMemo`) and spins a single
-`useFrame((_, dt) => match.update(Math.min(dt, 0.1)))` (dt is clamped against frame spikes). Each game object
-**owns its own THREE meshes**; the world-space visuals (bodies + beams) live in `match.root`, rendered via
-`<primitive object={match.root} />`. `Match.update` order: `syncFromBody` → `controllers.update`
-(intents/aim) → `players.update` (weapon/shield/visuals) → `applyPhysics` → combat/respawn/HUD →
+**R3F host — fixed 60Hz tick.** `App` renders `<Canvas>`; `Game` builds the `Match` once (`useMemo`) and drives it
+through a `TickDriver` accumulator: one `useFrame` turns the variable render dt into whole `FIXED_DT` ticks (spikes
+clamped, catch-up capped). Per tick — `match.update(FIXED_DT)` → `match.step(FIXED_DT)` (manual Rapier step, see
+Physics) → `match.captureTick()` → `session.afterUpdate()` (net send). After the loop, `match.renderInterpolate(alpha)`
+places visuals + camera between ticks, so rendering stays smooth at any refresh rate. There is **no shared clock** —
+every peer ticks its own sim. Each game object **owns its own THREE meshes**; the world-space visuals (bodies + beams)
+live in `match.root`, rendered via `<primitive object={match.root} />`. `Match.update` order: `syncFromBody` →
+`controllers.update` (intents/aim) → `players.update` (weapon/shield/visuals) → `applyPhysics` → combat/respawn/HUD →
 `controllers.lateUpdate` (the camera reads the fresh position cache).
 
-**Physics — Rapier KinematicCharacterController.** `<Physics timeStep="vary" interpolate={false}>` in `Game`.
+**Physics — Rapier KinematicCharacterController.** `<Physics paused timeStep={FIXED_DT} interpolate={false}>` in
+`Game` — **paused**: the world is stepped by hand from the tick loop (`match.step`), not by r3f.
 Per player — a `<RigidBody type="kinematicPosition">` **with only a `<CapsuleCollider>`** (physics). **Visuals are
 decoupled from the RigidBody:** `bodyGroup` is NOT placed inside the `<RigidBody>` (otherwise the hitbox gets a
 double transform) — it lives in `match.root` and is positioned from `rb.translation()` in `Player.syncFromBody`.
@@ -100,32 +114,50 @@ kinematic body ignores world `gravity`). `RapierBridge` (via `useRapier`) hands 
 do **not** enable `enableSnapToGround` (it kills the jump); the arena is static `<CuboidCollider>`s.
 
 **Combat and raycast — on Three.js, not Rapier.** `World.raycast` hits mesh hitboxes with `userData.entityId`;
-`excludeEntityIds` excludes the shooter (`[p.id]`) — in strict 1v1 the only "other" entity is the opponent, so
-friendly fire is impossible (there are no teams). The capsule collider is for movement only. Meshes that must not
-be raycast targets are tagged with `userData.noRaycast` at creation time.
+`excludeEntityIds` excludes only the shooter itself (`[p.id]`) — **teammate bodies DO block the beam** (that's the
+tactic), but friendly fire deals no harm: the gate is `shooter.team === victim.team` in `resolveHit`/`judgeClaim`,
+not the raycast. The capsule collider is for movement only. Meshes that must not be raycast targets are tagged with
+`userData.noRaycast` at creation time.
 
 **HUD/menus.** The HUD is a React/DOM overlay on `useGameHUD` (a reducer in `App`); `Match` dispatches HUD actions
-to it. Menu/room is a screen state machine in `App` (menu/join/room/game) + hash routing. The room is **strictly
-1v1, always p2p**: the code creator = host (`HOST_ID=0`), joining by `#CODE` = client. `RoomSession` holds
-`hostEntry` + ONE opponent slot (`opponent`, `OPPONENT_ID=1`) — bot XOR client; a joining human **evicts** the bot,
-and START is blocked without an opponent (`canStart`). Entering a match is a phase ritual `ready → countdown → live`
-(split-screen READY + 3s countdown, movement/actions frozen except the camera; the bot opponent is auto-ready); the
-phase is owned by `Match`. For e2e — debug globals
-`__debugCamera/__debugTargetHitCount/__debugBotPos/__debugRole/__debugPlayerPos/__debugPhase/__debugReady/__debugForceLive/__debugLeave`.
+to it. Screens are a state machine in `App` (`menu|lobby|game|settings|appearance|about|trailer|radio`) + hash
+routing. The room is **seat-based, always p2p**. The mode (`src/game/modes.ts`) is a **lobby preset** — it fixes the
+seat count (1v1→2, 2v2/ffa→4), the team layout (`teamOfSlot`) and the start gate (`canStartFor`); **the simulation
+itself is always team-based and never branches on the mode**. The seat index IS the player id, and the lobby creator
+always sits in seat 0. Humans take the first free seat via `HELLO → ASSIGN`; there is **NO bot eviction** — the host
+manages seats explicitly (`addBot`/`removeBot`) and a client may move to a free seat via `setSlot` (that's the 2v2
+team change). Entering a match is a phase ritual `ready → countdown → live` (split-screen READY + 3s countdown,
+movement/actions frozen except the camera; bots are auto-ready); the phase is owned by `Match` and stamped by the
+lobby creator. For e2e — ~20 debug globals; the full, authoritative list with signatures is `src/debug-globals.d.ts`
+(don't duplicate it here — it rots).
 
-**Networking — P2P, host-authoritative (`src/net/`).** There is no single-player; a match is always host + one
-opponent. `Match` receives a `role` (`host|client`): the **host** authoritatively simulates both (its own human +
-the bot opponent `BotController` OR a remote human `RemoteInputController`) and sends **snapshots** (position/visual
-flags) + **events** (`fired/kill/block/respawn/scores`); the **client** predicts only its own player (KCC locally)
-and renders remotes from snapshots with interpolation (`updateRemote`, without running their combat). Layers: `INet`
-— transport (`TrysteroNet` internet / `BroadcastChannelNet` tabs+e2e / `LoopbackNet` units; chosen by
-`createNet`/`?net`), `protocol.ts` — JSON messages + roster, `NetSession` — orchestrator (`afterUpdate` after
-`match.update`), `intentsFromInput` — the host applies the client's `InputFrame` via the same intent methods (DRY via
-`controllers/movement.ts`). Combat is computed **only** by the host (raycast in its world) — the client is not
-trusted for hits. The TURN hook is `NET_ICE_SERVERS` (empty = STUN). Gotchas: action names ≤12 bytes; snapshots are
-throttled by `NET_SNAPSHOT_HZ`.
+**Networking — P2P, symmetric full mesh (`src/net/`).** There is no single-player and **no host authority**: every
+peer runs the same `NetSession` and simulates the players it **owns** (itself + its bots). Ownership is the core
+idea — *every fact has exactly one owner*: `Match` gets `owners` (id → peer) + `selfPeer` from the room and derives
+`ownedIds`; absent owners → the local peer owns everyone (bot matches, unit tests).
+
+Each peer broadcasts only its OWN facts: **snapshots** of its owned players (throttled to `NET_SNAPSHOT_HZ`) +
+**events** (`fired/kill/block/respawn/ready/…`). Combat is **shooter-authoritative, victim-judged**: the shooter
+raycasts what it sees and sends a `HitClaim` ADDRESSED to the **victim's owner**, who judges it against the victim's
+real local state (alive / not a ghost / not a teammate / **the shield on the VICTIM'S screen always wins**) and
+broadcasts the verdict. A dropped claim needs no reply — the shooter's predicted kill self-corrects from snapshots
+after `NET_PREDICT_KILL_MS`. Scores, streaks and bounty are **derived locally by every peer** from the same slim
+event stream — there is nothing to desync. The lobby creator is the only arbiter of the phase (`iAmCreator`/
+`creatorPeer`; other peers' phase stamps are dropped).
+
+Layers: `INet` — transport (`TrysteroNet` internet / `SteamNet` Steam relay / `BroadcastChannelNet` tabs+e2e /
+`LagNet` — a lag/jitter wrapper for `?net=bc-lag` / `LoopbackNet` units, N peers via `createLoopbackHub`; chosen by
+`createNet`/`?net`), `protocol.ts` — JSON messages + roster (tags: `hello/assign/start/snapshot/event/ready/phase/
+hit/setSlot`), `RoomSession` — the seat handshake, `NetSession` — the mesh orchestrator (`afterUpdate` per tick).
+The TURN hook is `NET_ICE_SERVERS` (empty = STUN). Gotchas: action names ≤12 bytes; a peer leaving mid-match does
+**not** end it while two teams remain (its bots leave with it).
 
 **Test strategy.** Rapier (WASM) and the r3f renderer don't run in jsdom → **physics/movement/collisions/in-browser
-networking are tested in e2e** (`tests/*.spec.ts`, real Chromium; `multiplayer.spec` — two pages over
-BroadcastChannel). Unit tests (`tests/unit/*.test.ts`) hold the pure logic: classes are constructed directly,
-`Match.applyPhysics` without Rapier is a no-op, and the network layer is tested via `LoopbackNet` (host↔client in-process).
+networking are tested in e2e** (`tests/*.spec.ts`, real Chromium; `multiplayer.spec` — two pages, `mesh.spec` — three,
+over BroadcastChannel). Unit tests (`tests/unit/*.test.ts`) hold the pure logic: classes are constructed directly,
+`Match.applyPhysics` without Rapier is a no-op, and the network layer is tested via `LoopbackNet`
+(`createLoopbackHub` — N peers in-process).
+
+`tests/` has **its own tsconfig** (`tsconfig.test.json`, referenced from `tsconfig.json`), so `tsc -b` type-checks it
+too. Keep it that way: vitest runs through esbuild transpile-only, so a test outside the type-check silently rots —
+that is exactly how tests ended up referencing protocol fields that no longer existed.

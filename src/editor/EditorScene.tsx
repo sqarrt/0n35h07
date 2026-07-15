@@ -2,11 +2,13 @@ import { useMemo, useRef, useEffect } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { VOXEL, parseCellKey, shapeBlock } from './editorStore'
+import { VOXEL, cellKey, parseCellKey, shapeBlock } from './editorStore'
 import type { Cell, BlockType, Dir } from './editorStore'
+import { regionBounds, canStamp } from './editorSelection'
+import type { Fragment } from './editorSelection'
 import type { Vec3 } from '../game/maps'
-import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
-import { unitWedgeGeometry, wedgeRotationY } from '../game/wedge'
+import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY, AUTOSTEP_MAX_HEIGHT } from '../constants'
+import { unitWedgeGeometry, wedgeQuaternion } from '../game/wedge'
 import { gridGeometry } from '../game/grid'
 import { cellCenter, cellsGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from '../game/blockGrid'
 import { MapLights } from '../components/MapVisualBits'
@@ -25,10 +27,14 @@ const SPAWN_CYL_H = 2.4
 const SPAWN_SNAP = VOXEL / 2
 const snapHalf = (v: number) => Math.round(v / SPAWN_SNAP) * SPAWN_SNAP
 const SPAWN_COLORS = ['#4af', '#fa4'] as const
+const GHOST_COLOR = '#4af'            // ghost установки/выделения
+const GHOST_INVALID_COLOR = '#f66'    // ghost вставки при пересечении/выходе за арену
+const GHOST_OPACITY = 0.35            // прозрачность ghost-мешей установки/вставки
+const SELECT_BOX_OPACITY = 0.18       // полупрозрачный бокс выделения
 
 type CellCoord = [number, number, number]
 // Hotbar tool: a block type or placing a spawn (host=0 / guest=1).
-export type EditorTool = BlockType | 'spawn0' | 'spawn1'
+export type EditorTool = BlockType | 'spawn0' | 'spawn1' | 'select'
 const isSpawnTool = (t: EditorTool): t is 'spawn0' | 'spawn1' => t === 'spawn0' || t === 'spawn1'
 
 // Sides for wedge auto-orientation: dir 0=+Z,1=+X,2=−Z,3=−X.
@@ -56,7 +62,8 @@ function axisStep(n: THREE.Vector3): CellCoord {
 
 // Wedge high side in world by dir (accounting for wedgeRotationY = −dir·90°): d0=+Z,1=−X,2=−Z,3=+X.
 const HIGH_DIR: Record<Dir, [number, number]> = { 0: [0, 1], 1: [-1, 0], 2: [0, -1], 3: [1, 0] }
-const STEP = 0.4   // max step-up height (like autostep in-game; > per-frame rise on a slope, < a cube edge)
+// Step-up height in walk mode — the SAME constant the in-game KCC autostep uses, so walking the map in the
+// editor answers the passability question exactly as the game will (a 1×1 block is a stair, not a wall).
 
 interface Props {
   voxels: Map<string, Cell>     // a new Map on every edit → instance rebuild
@@ -68,14 +75,22 @@ interface Props {
   fly: boolean                  // fly mode (no gravity/collision); false by default
   wedgeRot: number              // manual wedge turn (R) on top of auto-orientation, 90° step
   wedgeFlip: boolean            // wedge flipped on Y (T) — slope underneath
+  wedgeSide: boolean            // клин на боку (диагональная стена) — G
   showCubeGrid: boolean         // highlight all cell borders (L) — build mode
   color: string
   brushBeam: boolean            // brush: blocksBeam (true = beam-blocking)
   brushTransparent: boolean     // brush: translucent
   brushPassable: boolean        // brush: passable (no collider)
+  selection: { a: CellCoord; b?: CellCoord } | null   // выделение: угол 1 (+ угол 2, когда зафиксирован)
+  paste: Fragment | null        // не-null = режим вставки (фрагмент уже повёрнут)
   onPlace: (cell: CellCoord, data: Cell) => void
   onRemove: (cell: CellCoord) => void
   onSpawn: (idx: 0 | 1, x: number, z: number, surfaceY: number) => void
+  onCorner: (cell: CellCoord) => void
+  onSelectionClear: () => void
+  onSelectTool: () => void
+  onStamp: (anchor: CellCoord) => void
+  onPasteCancel: () => void
 }
 
 /** Vertical gradient for the spawn cylinder's alphaMap: opaque bottom → transparent top. */
@@ -93,9 +108,10 @@ function useSpawnAlpha(): THREE.Texture {
   }, [])
 }
 
-/** Cell-outline geometry (cube borders) — edges of every occupied cell (a primitive shared with the game). */
-function useEdgesGeometry(voxels: Map<string, Cell>): THREE.BufferGeometry {
-  return useMemo(() => cellsGridGeometry([...voxels.keys()].map(parseCellKey)), [voxels])
+/** Cell-outline geometry (cube borders) — edges of every occupied cell. Built only when the grid is shown
+ *  (on a big map rebuilding it every edit is the main waste); null when off — no build, no render. */
+function useEdgesGeometry(voxels: Map<string, Cell>, enabled: boolean): THREE.BufferGeometry | null {
+  return useMemo(() => (enabled ? cellsGridGeometry([...voxels.keys()].map(parseCellKey)) : null), [voxels, enabled])
 }
 
 /** Instanced cube mesh (t==='cube'); per-instance color. Rebuilt when the Map changes. */
@@ -132,33 +148,56 @@ function useCubeMeshes(voxels: Map<string, Cell>): { opaque: THREE.InstancedMesh
   }, [voxels])
 }
 
-/** Separate wedge meshes (non-cube cells). On the block layer → included in the edge outline. */
-function ShapeMeshes({ voxels, wedgeGeo, wedgeGeoFlip }: { voxels: Map<string, Cell>; wedgeGeo: THREE.BufferGeometry; wedgeGeoFlip: THREE.BufferGeometry }) {
-  const shapes = useMemo(() => {
-    const out: { key: string; b: ReturnType<typeof shapeBlock> }[] = []
+/** Instanced wedge meshes (non-cube cells): geometry (normal/flip) × transparency. Per-instance matrix
+ *  (wedgeQuaternion) + color. Each mesh carries userData.wedgeCellKeys (instanceId → cell key) for raycast. */
+function useWedgeMeshes(voxels: Map<string, Cell>, wedgeGeo: THREE.BufferGeometry, wedgeGeoFlip: THREE.BufferGeometry): THREE.InstancedMesh[] {
+  return useMemo(() => {
+    const groups = [
+      { geo: wedgeGeo, transparent: false, cells: [] as [string, Cell][] },
+      { geo: wedgeGeo, transparent: true, cells: [] as [string, Cell][] },
+      { geo: wedgeGeoFlip, transparent: false, cells: [] as [string, Cell][] },
+      { geo: wedgeGeoFlip, transparent: true, cells: [] as [string, Cell][] },
+    ]
     for (const [k, cell] of voxels) {
       if (cell.t === 'cube') continue
-      const [x, y, z] = parseCellKey(k)
-      out.push({ key: k, b: shapeBlock(x, y, z, cell) })
+      const useFlip = !cell.s && cell.f
+      groups[(useFlip ? 2 : 0) + (cell.tr ? 1 : 0)].cells.push([k, cell])
     }
-    return out
-  }, [voxels])
-  return (
-    <>
-      {shapes.map(({ key, b }) => (
-        <mesh key={key} position={b.pos} rotation={[0, wedgeRotationY(b.dir ?? 0), 0]} geometry={b.flip ? wedgeGeoFlip : wedgeGeo}
-          scale={[b.size[0] * 2, b.size[1] * 2, b.size[2] * 2]} castShadow receiveShadow
-          userData={{ editorTarget: true, cellKey: key }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial color={b.color} transparent={b.transparent === true} opacity={b.transparent ? BLOCK_TRANSPARENT_OPACITY : 1} depthWrite={b.transparent !== true} />
-        </mesh>
-      ))}
-    </>
-  )
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3()
+    const s = new THREE.Vector3(VOXEL, VOXEL, VOXEL), col = new THREE.Color()
+    const meshes: THREE.InstancedMesh[] = []
+    for (const g of groups) {
+      if (!g.cells.length) continue
+      const mat = new THREE.MeshStandardMaterial(g.transparent ? { transparent: true, opacity: BLOCK_TRANSPARENT_OPACITY, depthWrite: false } : {})
+      const mesh = new THREE.InstancedMesh(g.geo, mat, g.cells.length)
+      mesh.layers.enable(BLOCK_LAYER)
+      const wedgeCellKeys: string[] = []
+      let i = 0
+      for (const [k, cell] of g.cells) {
+        const [x, y, z] = parseCellKey(k)
+        p.set(...cellCenter(x, y, z))
+        wedgeQuaternion(cell.d, cell.s === true, q)
+        m.compose(p, q, s)
+        mesh.setMatrixAt(i, m)
+        mesh.setColorAt(i, col.set(cell.c))
+        wedgeCellKeys.push(k)
+        i++
+      }
+      mesh.instanceMatrix.needsUpdate = true
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.userData.editorTarget = true
+      mesh.userData.wedgeCellKeys = wedgeCellKeys
+      meshes.push(mesh)
+    }
+    return meshes
+  }, [voxels, wedgeGeo, wedgeGeoFlip])
 }
 
 /** Editor scene + controls (walking with gravity + placing/removing blocks at the crosshair). */
 export function EditorScene(props: Props) {
-  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn } = props
+  const { voxels, half, floorColor, wallColor, spawns, tool, fly, wedgeRot, wedgeFlip, wedgeSide, showCubeGrid, color, brushBeam, brushTransparent, brushPassable, selection, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onSelectTool, onStamp, onPasteCancel } = props
   const { camera, scene, raycaster } = useThree()
   const [hx, hz] = half
 
@@ -170,8 +209,10 @@ export function EditorScene(props: Props) {
   useEffect(() => () => wedgeGeo.dispose(), [wedgeGeo])
   const wedgeGeoFlip = useMemo(() => unitWedgeGeometry(true), [])
   useEffect(() => () => wedgeGeoFlip.dispose(), [wedgeGeoFlip])
-  const edgesGeo = useEdgesGeometry(voxels)
-  useEffect(() => () => edgesGeo.dispose(), [edgesGeo])
+  const wedgeMeshes = useWedgeMeshes(voxels, wedgeGeo, wedgeGeoFlip)
+  useEffect(() => () => { for (const mesh of wedgeMeshes) (mesh.material as THREE.Material).dispose() }, [wedgeMeshes])   // shared geo not disposed
+  const edgesGeo = useEdgesGeometry(voxels, showCubeGrid)
+  useEffect(() => () => edgesGeo?.dispose(), [edgesGeo])
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
   const postFx = useMemo(() => loadProfile().postProcessing, [])
@@ -181,6 +222,40 @@ export function EditorScene(props: Props) {
   const ghostBoxRef = useRef<THREE.Mesh>(null)
   const ghostWedgeRef = useRef<THREE.Mesh>(null)
   const ghostSpawnRef = useRef<THREE.Mesh>(null)
+  const selBoxRef = useRef<THREE.Mesh>(null)
+
+  // Ghost вставки: один материал на группу — цвет валидности переключается разом.
+  const pasteMat = useMemo(() => new THREE.MeshBasicMaterial({ color: GHOST_COLOR, transparent: true, opacity: GHOST_OPACITY, depthWrite: false }), [])
+  useEffect(() => () => pasteMat.dispose(), [pasteMat])
+  const pasteGroup = useMemo(() => {
+    if (!paste) return null
+    const grp = new THREE.Group()
+    grp.visible = false   // позиционируется в useFrame; без этого мигнёт в начале координат
+    const cubes = [...paste.cells].filter(([, cell]) => cell.t === 'cube')
+    const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(VOXEL, VOXEL, VOXEL), pasteMat, Math.max(cubes.length, 1))
+    inst.count = cubes.length
+    const m = new THREE.Matrix4()
+    cubes.forEach(([k], i) => {
+      const [x, y, z] = parseCellKey(k)
+      m.setPosition(...cellCenter(x, y, z))
+      inst.setMatrixAt(i, m)
+    })
+    inst.instanceMatrix.needsUpdate = true
+    grp.add(inst)
+    for (const [k, cell] of paste.cells) {
+      if (cell.t === 'cube') continue
+      const [x, y, z] = parseCellKey(k)
+      const b = shapeBlock(x, y, z, cell)
+      const wm = new THREE.Mesh((!cell.s && cell.f) ? wedgeGeoFlip : wedgeGeo, pasteMat)
+      wm.position.set(...b.pos)
+      wm.quaternion.copy(wedgeQuaternion(cell.d, cell.s === true))
+      wm.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
+      grp.add(wm)
+    }
+    return grp
+  }, [paste, pasteMat, wedgeGeo, wedgeGeoFlip])
+  // Первый ребёнок группы — InstancedMesh кубов с собственной BoxGeometry; wedge-геометрии общие, их не трогать.
+  useEffect(() => () => { (pasteGroup?.children[0] as THREE.InstancedMesh | undefined)?.geometry.dispose() }, [pasteGroup])
   const keys = useRef({ f: false, b: false, l: false, r: false, jump: false })
   const vy = useRef(0)
   const grounded = useRef(false)
@@ -195,10 +270,17 @@ export function EditorScene(props: Props) {
     if (!hits.length || !hits[0].face) return null
     const hit = hits[0]
     const p = hit.point
-    const n = hit.face!.normal.clone().transformDirection(hit.object.matrixWorld).normalize()
     const S = VOXEL
     const toCell = (q: THREE.Vector3): CellCoord => [Math.floor(q.x / S), Math.floor(q.y / S), Math.floor(q.z / S)]
-    const key = hit.object.userData.cellKey
+    // Wedge cell: instanced meshes carry wedgeCellKeys (instanceId → cell key); non-instanced fall back to cellKey.
+    const ud = hit.object.userData
+    const isWedgeInst = !!ud.wedgeCellKeys && typeof hit.instanceId === 'number'
+    const key = isWedgeInst ? (ud.wedgeCellKeys as string[])[hit.instanceId!] : ud.cellKey
+    // World normal: an instanced wedge carries its rotation in the per-instance matrix, not object.matrixWorld.
+    const nMat = new THREE.Matrix4()
+    if (isWedgeInst) { (hit.object as THREE.InstancedMesh).getMatrixAt(hit.instanceId!, nMat); nMat.premultiply(hit.object.matrixWorld) }
+    else nMat.copy(hit.object.matrixWorld)
+    const n = hit.face!.normal.clone().transformDirection(nMat).normalize()
     // Placing off a shape cell (sub-cell size breaks geometry: a face inside the cell) → step by the normal;
     // for full-size targets (cube/floor/wall) — geometrically. Removing a shape — by its cellKey.
     let place: CellCoord
@@ -215,6 +297,10 @@ export function EditorScene(props: Props) {
     return { place, remove, point: p.clone() }
   }
 
+  // Угол выделения под прицелом: существующий блок — его ячейка, иначе ячейка установки (пол/стена).
+  const cornerOf = (c: { place: CellCoord; remove: CellCoord }): CellCoord =>
+    voxels.has(cellKey(...c.remove)) ? c.remove : c.place
+
   useEffect(() => {
     const onKey = (down: boolean) => (e: KeyboardEvent) => {
       const k = keys.current
@@ -224,6 +310,13 @@ export function EditorScene(props: Props) {
         case 'KeyA': k.l = down; break
         case 'KeyD': k.r = down; break
         case 'Space': k.jump = down; break
+        case 'KeyB': {   // угол выделения хоткеем — из любого инструмента (без авто-повтора зажатия); в режиме вставки — игнор
+          if (down && !e.repeat && !paste && document.pointerLockElement) {
+            const c = pick()
+            if (c) onCorner(cornerOf(c))
+          }
+          break
+        }
       }
     }
     const kd = onKey(true), ku = onKey(false)
@@ -232,12 +325,22 @@ export function EditorScene(props: Props) {
       if (!document.pointerLockElement) return
       const c = pick()
       if (!c) return
+      if (paste) {
+        if (button === 0) { if (canStamp(voxels, paste, c.place, half)) onStamp(c.place) }
+        else if (button === 2) onPasteCancel()
+        return
+      }
+      if (tool === 'select') {
+        if (button === 0) onCorner(cornerOf(c))
+        else if (button === 2) onSelectionClear()
+        return
+      }
       if (button === 0) {
         if (isSpawnTool(tool)) onSpawn(tool === 'spawn0' ? 0 : 1, snapHalf(c.point.x), snapHalf(c.point.z), c.place[1] * VOXEL)
         else {
           const f = camera.getWorldDirection(new THREE.Vector3())
           const isWedge = tool === 'wedge'
-          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
+          onPlace(c.place, { t: tool, c: color, d: isWedge ? wedgeDir(f.x, f.z, wedgeRot) : 0, f: isWedge && wedgeFlip, s: isWedge && wedgeSide, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
         }
       } else if (button === 2) onRemove(c.remove)
     }
@@ -246,10 +349,19 @@ export function EditorScene(props: Props) {
     const stop = (button: number) => { const t = held[button]; if (t != null) { clearInterval(t); delete held[button] } }
     const stopAll = () => { stop(0); stop(2) }
     const onMouseDown = (e: MouseEvent) => {
+      // Средняя кнопка (колёсико): включить SELECT и поставить угол выделения (тем же действием, что ЛКМ в SELECT).
+      if (e.button === 1) {
+        if (!document.pointerLockElement) return
+        e.preventDefault()
+        const c = pick()
+        onSelectTool()
+        if (c) onCorner(cornerOf(c))
+        return
+      }
       if (e.button !== 0 && e.button !== 2) return
       if (!document.pointerLockElement) return   // first click only engages pointer lock
       act(e.button)
-      if (held[e.button] == null) held[e.button] = setInterval(() => act(e.button), AUTOCLICK_MS)
+      if (held[e.button] == null && tool !== 'select' && !paste) held[e.button] = setInterval(() => act(e.button), AUTOCLICK_MS)
     }
     const onMouseUp = (e: MouseEvent) => stop(e.button)
     const onLockChange = () => { if (!document.pointerLockElement) stopAll() }
@@ -271,11 +383,11 @@ export function EditorScene(props: Props) {
       document.removeEventListener('pointerlockchange', onLockChange)
       window.removeEventListener('contextmenu', onCtx)
     }
-  }, [tool, color, wedgeRot, wedgeFlip, brushBeam, brushTransparent, brushPassable, onPlace, onRemove, onSpawn]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tool, color, wedgeRot, wedgeFlip, wedgeSide, brushBeam, brushTransparent, brushPassable, voxels, half, paste, onPlace, onRemove, onSpawn, onCorner, onSelectionClear, onSelectTool, onStamp, onPasteCancel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cell-top height at point (px,pz): wedge (not flipped) — heightfield slope; cube/flipped — flat top.
   const cellTopAt = (cell: Cell, x: number, y: number, z: number, px: number, pz: number): number => {
-    if (cell.t === 'wedge' && !cell.f) {
+    if (cell.t === 'wedge' && !cell.f && !cell.s) {
       const [dx, dz] = HIGH_DIR[cell.d]
       const fx = px / VOXEL - x, fz = pz / VOXEL - z
       let param = dz !== 0 ? (dz > 0 ? fz : 1 - fz) : (dx > 0 ? fx : 1 - fx)
@@ -291,12 +403,12 @@ export function EditorScene(props: Props) {
   const surfaceInfo = (px: number, pz: number, feet: number, eye: number): { ground: number; blocked: boolean } => {
     let ground = 0
     const cx = Math.floor(px / VOXEL), cz = Math.floor(pz / VOXEL)
-    const yReach = Math.floor((feet + STEP) / VOXEL)
+    const yReach = Math.floor((feet + AUTOSTEP_MAX_HEIGHT) / VOXEL)
     for (let y = 0; y <= yReach; y++) {
       const cell = voxels.get(`${cx},${y},${cz}`)
       if (!cell || cell.ps) continue   // passable blocks provide no support
       const top = cellTopAt(cell, cx, y, cz, px, pz)
-      if (top <= feet + STEP + 1e-3) ground = Math.max(ground, top)
+      if (top <= feet + AUTOSTEP_MAX_HEIGHT + 1e-3) ground = Math.max(ground, top)
     }
 
     let blocked = false
@@ -307,7 +419,7 @@ export function EditorScene(props: Props) {
       for (let y = 0; y <= yTop; y++) {
         const cell = voxels.get(`${x},${y},${z}`)
         if (!cell || cell.ps) continue   // passable blocks don't block movement
-        if (cellTopAt(cell, x, y, z, px, pz) > feet + STEP + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
+        if (cellTopAt(cell, x, y, z, px, pz) > feet + AUTOSTEP_MAX_HEIGHT + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
       }
     }
     return { ground, blocked }
@@ -369,7 +481,16 @@ export function EditorScene(props: Props) {
     const c = pick()
     if (c && g && gw && gs) {
       const [x, y, z] = c.place
-      if (isSpawnTool(tool)) {
+      if (paste) {
+        g.visible = false; gw.visible = false; gs.visible = false
+        if (pasteGroup) {
+          pasteGroup.visible = true
+          pasteGroup.position.set(x * VOXEL, y * VOXEL, z * VOXEL)
+          pasteMat.color.set(canStamp(voxels, paste, c.place, half) ? GHOST_COLOR : GHOST_INVALID_COLOR)
+        }
+      } else if (tool === 'select') {
+        g.visible = false; gw.visible = false; gs.visible = false
+      } else if (isSpawnTool(tool)) {
         // spawn — a cylinder at the half-grid-snapped point (bottom on the floor)
         g.visible = false; gw.visible = false; gs.visible = true
         gs.position.set(snapHalf(c.point.x), c.place[1] * VOXEL + SPAWN_CYL_H / 2, snapHalf(c.point.z));
@@ -377,10 +498,10 @@ export function EditorScene(props: Props) {
       } else if (tool === 'wedge') {
         g.visible = false; gw.visible = true; gs.visible = false
         const d = wedgeDir(f.x, f.z, wedgeRot)
-        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
-        gw.geometry = wedgeFlip ? wedgeGeoFlip : wedgeGeo
+        const b = shapeBlock(x, y, z, { t: 'wedge', c: color, d, f: wedgeFlip, s: wedgeSide, bb: brushBeam, tr: brushTransparent, ps: brushPassable })
+        gw.geometry = (!wedgeSide && wedgeFlip) ? wedgeGeoFlip : wedgeGeo
         gw.position.set(...b.pos)
-        gw.rotation.set(0, wedgeRotationY(d), 0)
+        gw.quaternion.copy(wedgeQuaternion(d, wedgeSide))
         gw.scale.set(b.size[0] * 2, b.size[1] * 2, b.size[2] * 2)
       } else {
         // cube — a cubic ghost on the cell
@@ -392,6 +513,23 @@ export function EditorScene(props: Props) {
       if (g) g.visible = false
       if (gw) gw.visible = false
       if (gs) gs.visible = false
+    }
+    if (pasteGroup && (!c || !paste)) pasteGroup.visible = false
+
+    // бокс выделения: от угла 1 до второго угла или ячейки под прицелом (живая растяжка)
+    const sb = selBoxRef.current
+    if (sb) {
+      if (selection) {
+        const end = selection.b ?? (c ? cornerOf(c) : selection.a)
+        const { min, max } = regionBounds(selection.a, end)
+        sb.visible = true
+        sb.position.set(
+          ((min[0] + max[0] + 1) / 2) * VOXEL,
+          ((min[1] + max[1] + 1) / 2) * VOXEL,
+          ((min[2] + max[2] + 1) / 2) * VOXEL,
+        )
+        sb.scale.set((max[0] - min[0] + 1) * VOXEL, (max[1] - min[1] + 1) * VOXEL, (max[2] - min[2] + 1) * VOXEL)
+      } else sb.visible = false
     }
   })
 
@@ -409,36 +547,47 @@ export function EditorScene(props: Props) {
         <lineBasicMaterial color="#555" />
       </lineSegments>
 
-      {/* Perimeter walls (as in-game): sized to the arena */}
-      {([[0, hz], [0, -hz], [-hx, 0], [hx, 0]] as const).map(([x, z], i) => (
+      {/* Perimeter walls (as in-game): outside the floor, inner face on the arena edge (grid node) */}
+      {([[0, hz + WALL_HALF], [0, -(hz + WALL_HALF)], [-(hx + WALL_HALF), 0], [hx + WALL_HALF, 0]] as const).map(([x, z], i) => (
         <mesh key={i} position={[x, 1.5, z]} userData={{ editorTarget: true }} castShadow receiveShadow>
           <boxGeometry args={x === 0 ? [hx * 2, 3, 0.5] : [0.5, 3, hz * 2]} />
           <meshStandardMaterial color={wallColor} />
         </mesh>
       ))}
 
-      {/* Cubes (instances) + shapes (separate meshes) */}
+      {/* Cubes + wedges — both instanced (per-instance color/matrix) */}
       <primitive object={cubeMeshes.opaque} />
       <primitive object={cubeMeshes.transparent} />
-      <ShapeMeshes voxels={voxels} wedgeGeo={wedgeGeo} wedgeGeoFlip={wedgeGeoFlip} />
+      {wedgeMeshes.map((mesh, i) => <primitive key={i} object={mesh} />)}
       {postFx && <MapEdges />}
 
-      {/* "Cube faces": highlight all cell borders (build mode, L) */}
-      <lineSegments geometry={edgesGeo} visible={showCubeGrid}>
-        <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
-      </lineSegments>
+      {/* "Cube faces": highlight all cell borders (build mode, L) — geometry built only when shown */}
+      {edgesGeo && (
+        <lineSegments geometry={edgesGeo}>
+          <lineBasicMaterial color={BLOCK_GRID_COLOR} transparent opacity={BLOCK_GRID_OPACITY} />
+        </lineSegments>
+      )}
 
       {/* Placement ghosts: box (cube), wedge and spawn cylinder */}
       <mesh ref={ghostBoxRef} visible={false}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#4af" transparent opacity={0.35} depthWrite={false} />
+        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={GHOST_OPACITY} depthWrite={false} />
       </mesh>
       <mesh ref={ghostWedgeRef} visible={false} geometry={wedgeGeo}>
-        <meshBasicMaterial color="#4af" transparent opacity={0.35} depthWrite={false} />
+        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={GHOST_OPACITY} depthWrite={false} />
       </mesh>
       <mesh ref={ghostSpawnRef} visible={false}>
         <cylinderGeometry args={[SPAWN_CYL_R, SPAWN_CYL_R, SPAWN_CYL_H, 24, 1, true]} />
-        <meshBasicMaterial color="#4af" alphaMap={spawnAlpha} transparent opacity={0.5} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={GHOST_COLOR} alphaMap={spawnAlpha} transparent opacity={0.5} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Ghost вставки: полупрозрачная копия фрагмента под прицелом */}
+      {pasteGroup && <primitive object={pasteGroup} />}
+
+      {/* Бокс выделения (SELECT): полупрозрачный, виден и изнутри */}
+      <mesh ref={selBoxRef} visible={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color={GHOST_COLOR} transparent opacity={SELECT_BOX_OPACITY} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
       {/* Spawn markers: a cylinder fading to transparent toward the top (host/guest — by color). */}

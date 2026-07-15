@@ -6,6 +6,8 @@ import { PointerLockControls } from '@react-three/drei'
 import { Physics, RigidBody, CapsuleCollider } from '@react-three/rapier'
 import { Arena } from './Arena'
 import { Match } from './game/Match'
+import type { GameMode } from './game/modes'
+import type { Vec3 } from './net/protocol'
 import { TickDriver } from './game/TickDriver'
 import { createAchievements, NoopAchievements } from './steam/achievements'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
@@ -14,13 +16,13 @@ import { RapierBridge } from './components/RapierBridge'
 import { useGameInput } from './hooks/useGameInput'
 import { NetSession } from './net/NetSession'
 import type { DemoFile } from './game/demo/demoTypes'
-import type { INet, PeerId } from './net/INet'
+import type { INet } from './net/INet'
 import type { RosterEntry } from './net/protocol'
 import type { ISfxEngine } from './game/audio/sfx/types'
 import type { AudioAnalysis } from './game/audio/AudioAnalysis'
 import type { HUDAction } from './hooks/useGameHUD'
 import { CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT, CAPSULE_OFFSET_Y, FIXED_DT } from './constants'
-import type { MatchRole, MapId } from './constants'
+import type { MapId } from './constants'
 import { MAPS } from './game/maps'
 
 export interface GameApi {
@@ -33,15 +35,14 @@ export interface GameApi {
 
 interface GameProps {
   dispatch: (action: HUDAction) => void
-  role: MatchRole
   net: INet
-  netConfig: { localId: number; roster: RosterEntry[] }
-  peerToPlayer: Map<PeerId, number>
-  reserveColor: string   // local player's "second" color (their planet's ring)
+  netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   defaultThirdPerson?: boolean
   apiRef?: React.MutableRefObject<GameApi | null>
   durationMs: number
   mapId: MapId
+  gameMode?: GameMode      // lobby preset (teams/spawn rule); absent → '1v1'
+  ffaSpawns?: Vec3[]       // FFA start positions from the Start message
   seedCode: string
   sfxEngine: ISfxEngine
   // Music volume via a STABLE ref (not a value prop): live changes (the in-match volume slider) are pushed
@@ -55,7 +56,7 @@ interface GameProps {
 // memo: HUD updates (SET_WINDUP_PROGRESS every charge frame, etc.) re-render App, but must NOT
 // touch Canvas/post-process — otherwise EffectComposer rebuilds the shader every frame (spike during charge).
 // Game's props are stable for the duration of the match (gameNet/profile), so memo blocks redundant re-renders.
-function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, defaultThirdPerson, apiRef, durationMs, mapId, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
+function GameImpl({ dispatch, net, netConfig, defaultThirdPerson, apiRef, durationMs, mapId, gameMode, ffaSpawns, seedCode, sfxEngine, musicVolumeRef, audioAnalysis, radioActive, achievementsEnabled = true }: GameProps) {
   // Selectors, not the whole useThree(): subscribing to the entire store would re-render Game (and the whole
   // subtree, including Arena post-process) on every r3f state update.
   const camera = useThree(s => s.camera)
@@ -73,9 +74,11 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       controls: controlsRef,
       keys,
       dispatch,
-      role,
       netConfig,
-      localReserveColor: reserveColor,
+      owners: netConfig.owners,
+      selfPeer: net.selfId,
+      mode: gameMode,
+      ffaSpawns,
       defaultThirdPerson,
       durationMs,
       mapId,
@@ -109,13 +112,13 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   }, [audioAnalysis, musicEngine])
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- NetSession is built once on top of match
-  const session = useMemo(() => new NetSession(net, match, peerToPlayer), [])
+  const session = useMemo(() => new NetSession(net, match), [])
   const driver = useMemo(() => new TickDriver(), [])   // fixed-60Hz accumulator (drives match.update + manual Rapier step)
 
   useEffect(() => {
     camera.rotation.set(0, 0, 0)
     match.installDebug(camera)
-    const requestReady = () => (role === 'host' ? match.markReady(match.localId) : session.sendReady())
+    const requestReady = () => match.markReady(match.localId)   // symmetric: readiness rides as our own event
     // Demo recording is dev-ONLY (the trailer source). The branch under import.meta.env.DEV is stripped from the
     // prod build (DCE), and DemoRecorder is loaded dynamically — it doesn't end up in the game's prod bundle.
     let demoApi: Pick<GameApi, 'startDemo' | 'stopDemo' | 'isRecordingDemo'> = {
@@ -124,9 +127,9 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     if (import.meta.env.DEV) {
       demoApi = {
         startDemo: () => {
-          if (match.role !== 'host') return   // host only: it emits events and owns the authoritative state
+          // mesh: every peer records its own point of view
           void import('./game/demo/DemoRecorder').then(({ DemoRecorder }) => {
-            match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId, reserveColor })
+            match.recorder = new DemoRecorder({ roster: netConfig.roster, mapId, durationMs, localId: match.localId })
           })
         },
         stopDemo: () => { const f = match.recorder ? match.recorder.build() : null; match.recorder = null; return f },
@@ -139,6 +142,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
     w.__debugReady = requestReady
     w.__debugForceLive = () => match.forceLiveForTest()
     w.__debugLeave = () => net.leave()
+    w.__debugMusicBoot = () => ({ seedCode, radioActive: !!radioActive, ...match.musicState(), level: musicEngine.readLevel() })
     return () => {
       match.dispose()
       if (apiRef) apiRef.current = null
@@ -146,6 +150,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
       delete w.__debugReady
       delete w.__debugForceLive
       delete w.__debugLeave
+      delete w.__debugMusicBoot
     }
     // Installing debug hooks/ready is tied to match (stable) and camera; the rest is intentionally outside deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,7 +189,7 @@ function GameImpl({ dispatch, role, net, netConfig, peerToPlayer, reserveColor, 
   // and caps catch-up). Each tick runs one sim step + one manual Rapier step (Physics is paused). After the loop the
   // visuals + camera are interpolated by the fractional alpha so rendering stays smooth at any refresh rate.
   useFrame((_, dt) => {
-    const { ticks, alpha } = driver.advance(dt, match.clockNudge())   // clock-sync: hold the host's input buffer near target (client only)
+    const { ticks, alpha } = driver.advance(dt)   // mesh: no shared clock — every peer ticks its own sim
     for (let i = 0; i < ticks; i++) {
       match.update(FIXED_DT)        // one sim tick (syncFromBody → intents → applyPhysics(setNextKinematicTranslation) → combat → lateUpdate)
       match.step(FIXED_DT)          // manual Rapier step applies the kinematic translations + advances the world

@@ -10,18 +10,55 @@ import { sendJson, readBody } from './shared'
  *   GET    /__maps/<id>/<part>     → file contents (preview.png — binary)
  *   PUT    /__maps/<id>/<part>     → write file (preview.png — base64 body)
  *   DELETE /__maps/<id>            → delete the map folder
- * part ∈ { raw.json, geo.json, preview.png }.
+ * part ∈ { raw.json, geo.json, preview.png, backup.json }.
  */
 const MAPS_DIR = path.resolve(process.cwd(), 'src/maps')
 const ID_RE = /^[a-zA-Z0-9_-]+$/
-const PARTS = new Set(['raw.json', 'geo.json', 'preview.png'])
-const CT: Record<string, string> = { 'raw.json': 'application/json', 'geo.json': 'application/json', 'preview.png': 'image/png' }
+const PARTS = new Set(['raw.json', 'geo.json', 'preview.png', 'backup.json'])
+const CT: Record<string, string> = { 'raw.json': 'application/json', 'geo.json': 'application/json', 'preview.png': 'image/png', 'backup.json': 'application/json' }
 
 export function editorMaps(): Plugin {
   return {
     name: 'editor-maps',
     apply: 'serve',
     configureServer(server: ViteDevServer) {
+      // Dev-only: bring every map up to date via the real pipeline (ssrLoadModule) — surgically swap the
+      // perimeter:true blocks for freshly-generated ones (current perimeter() geometry), keeping all cover
+      // blocks verbatim (NO voxelize → no risk of losing blocks), then recompile geo.json. GET /__recompile.
+      server.middlewares.use('/__recompile', async (_req, res) => {
+        try {
+          const mgc = await server.ssrLoadModule('/src/game/mapGeometryCache.ts') as {
+            compileBlocks: (blocks: unknown[]) => unknown
+            serializeGeo: (c: unknown) => string
+          }
+          const gm = await server.ssrLoadModule('/src/game/maps.ts') as {
+            perimeter: (color: string, hx: number, hz: number) => Array<{ color: string }>
+          }
+          await fs.mkdir(MAPS_DIR, { recursive: true })
+          const entries = await fs.readdir(MAPS_DIR, { withFileTypes: true })
+          const done: string[] = []
+          const failed: string[] = []
+          for (const e of entries) {
+            if (!e.isDirectory()) continue
+            try {
+              const rawStr = await fs.readFile(path.join(MAPS_DIR, e.name, 'raw.json'), 'utf8').catch(() => null)
+              if (rawStr == null) continue
+              const map = JSON.parse(rawStr) as { half: [number, number]; blocks: Array<{ perimeter?: boolean; color: string }> }
+              const cover = map.blocks.filter(b => b.perimeter !== true)
+              const wallColor = map.blocks.find(b => b.perimeter === true)?.color ?? '#5a6678'
+              const blocks = [...gm.perimeter(wallColor, map.half[0], map.half[1]), ...cover]
+              const newRaw = { ...map, blocks }
+              await fs.writeFile(path.join(MAPS_DIR, e.name, 'raw.json'), JSON.stringify(newRaw, null, 2), 'utf8')
+              await fs.writeFile(path.join(MAPS_DIR, e.name, 'geo.json'), mgc.serializeGeo(mgc.compileBlocks(blocks)), 'utf8')
+              done.push(e.name)
+            } catch { failed.push(e.name) }   // one bad map (e.g. mid-write) must not abort the rest
+          }
+          return sendJson(res, 200, { recompiled: done, failed })
+        } catch (err) {
+          return sendJson(res, 500, { error: String(err) })
+        }
+      })
+
       server.middlewares.use('/__maps', async (req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost')
         const segs = url.pathname.split('/').filter(Boolean).map(decodeURIComponent)  // [] | [id] | [id, part]

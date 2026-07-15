@@ -1,23 +1,10 @@
 import { useState, useEffect, useRef, useCallback, lazy, memo, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
+import { GameOverlay } from './components/GameOverlay'
 import { useGameHUD } from './hooks/useGameHUD'
 import type { HUDAction } from './hooks/useGameHUD'
 import type { ISfxEngine } from './game/audio/sfx/types'
-import { Crosshair } from './components/Crosshair'
-import { ShieldBrackets } from './components/ShieldBrackets'
-import { ScreenFlashes } from './components/ScreenFlashes'
-import { WindupOverlay } from './components/WindupOverlay'
-import { DashIndicator } from './components/DashIndicator'
-import { StatsOverlay } from './components/StatsOverlay'
-import { RespawnOverlay } from './components/RespawnOverlay'
-import { MatchHud } from './components/MatchHud'
-import { StreakBanner } from './components/StreakBanner'
-import { EffectDefs } from './components/EffectText'
-import { OverheatVignette } from './components/OverheatVignette'
-import { ReadyOverlay } from './components/ReadyOverlay'
-import { CountdownOverlay } from './components/CountdownOverlay'
-import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { PauseMenu } from './components/PauseMenu'
 import { MatchSettings } from './components/MatchSettings'
 import { MenuBackdrop } from './components/MenuBackdrop'
@@ -40,22 +27,23 @@ import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
-import type { LobbySlot } from './screens/Lobby'
-import { DEFAULT_LOBBY_TAB } from './components/lobby/types'
-import type { LobbyTab } from './components/lobby/types'
+import type { SeatZone } from './components/lobby/types'
+import { lobbyStateFrom } from './components/lobby/lobbyState'
+import type { GameMode } from './game/modes'
+import type { Vec3 } from './net/protocol'
 import type { GameApi } from './Game'
 import { Settings } from './screens/Settings'
 import { About } from './screens/About'
 import type { SettingsSection } from './screens/Settings'
 import { Appearance } from './screens/Appearance'
 import type { AppearancePart } from './components/menuStage'
-import { loadProfile, saveProfile, isFirstRun, chooseFirstRunName } from './settings'
+import { loadProfile, saveProfile } from './settings'
 import { entitlementFor, consumeGen, consumeSave, rollTrial, emptyTrial } from './radio/entitlement'
 import { radioDlcOwned, openRadioStore, onRadioRecheckDlc } from './steam/steam'
 import { applyScreenPresence } from './steam/richPresence'
 import { hostFriendLobby, joinSteamLobby } from './steam/SteamLobby'
 import { SteamQuickMatch } from './steam/SteamQuickMatch'
-import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, getSteamUser, onSteamInvite, declineInvite, type SteamInvite } from './steam/steam'
+import { steamInviteToLobby, onSteamNetEvent, steamTakeLaunchConnect, onSteamInvite, declineInvite, type SteamInvite } from './steam/steam'
 import { InviteModal } from './components/InviteModal'
 import type { PlayerProfile } from './settings'
 import { I18nProvider, detectLocale, useT } from './i18n'
@@ -64,14 +52,12 @@ import { SfxProvider } from './sfx/SfxContext'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { MenuMusic } from './game/audio/MenuMusic'
 import { AudioAnalysis } from './game/audio/AudioAnalysis'
-import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_DESKTOP } from './platform'
 import { setPostFx } from './postFxStore'
 import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from './constants'
 import { createNet, resolveNetKind } from './net/createNet'
 import { randomRoomCode } from './net/roomCode'
-import { generateModelName } from './names'
 import { warmMapPreviews, MAP_IDS, ensureMapGeo } from './game/maps'
 import { warmRelayCache } from './net/relays'
 import { warmTrystero } from './net/TrysteroNet'
@@ -81,19 +67,16 @@ import { useDampedTranslateX } from './hooks/useDampedTranslateX'
 import { useDelayedUnmount } from './hooks/useDelayedUnmount'
 import { RoomSession } from './net/RoomSession'
 import type { RoomView, RoomRole } from './net/RoomSession'
-import type { INet, PeerId } from './net/INet'
+import type { INet } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole, MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
-import { DEFAULT_MAP_ID, HOST_ID, OPPONENT_ID, MATCH_DURATIONS_MIN } from './constants'
-import { createMatchmakingPool } from './net/createMatchmakingPool'
-import type { MatchmakingPool } from './net/matchmaking'
-import { DualMatchmaker } from './net/DualMatchmaker'
+import type { MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
+import { DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from './constants'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
 
 type Screen = 'menu' | 'lobby' | 'game' | 'settings' | 'appearance' | 'about' | 'trailer' | 'radio'
 
-const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // default bot difficulty on the "vs Bot" tab
+const BOT_DEFAULT_DIFFICULTY: BotDifficulty = 'normal'   // a freshly added bot starts at this difficulty
 
 const APPEARANCE_PANEL_MARGIN_PX = 24   // panel offset from the right edge of the screen on "Appearance"
 // We start Trystero warmup not immediately on canvas-ready but after a pause: let a couple more frames render,
@@ -107,13 +90,14 @@ const isEditorHash = () => window.location.hash.startsWith('#editor')
 const MAP_FADE_MS = 700                  // map background fade in/out duration (in sync with the .map-bg transition)
 
 interface GameNet {
-  role: MatchRole
   net: INet
-  netConfig: { localId: number; roster: RosterEntry[] }
-  peerToPlayer: Map<PeerId, number>
+  netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   durationMs: number
   mapId: MapId
+  mode: GameMode          // lobby preset (teams/spawn rule) — rides into MatchOptions
+  ffaSpawns?: Vec3[]      // FFA start positions from the Start message
   code: string
+  seed: string            // match-music seed from the room creator (independent of the transport code)
   achievementsEnabled: boolean   // false vs a PASSIVE bot — no achievements for beating a punching bag
   radioForMatch: boolean         // was the radio the soundtrack at match START? single authority for music gating
 }
@@ -135,7 +119,6 @@ const GAME_CAMERA = { fov: 75, near: 0.1, far: 200, position: [0, 1.7, 5] as [nu
 interface GameCanvasProps {
   dispatch: (action: HUDAction) => void
   gameNet: GameNet
-  reserveColor: string
   defaultThirdPerson: boolean
   apiRef: React.MutableRefObject<GameApi | null>
   sfxEngine: ISfxEngine
@@ -151,23 +134,22 @@ interface GameCanvasProps {
 // MapEdges forces EffectComposer to rebuild the EffectPass with shaders every frame — an allocation storm
 // (~18 MB/s) and multi-second Major GC pauses. memo + stable props cut the cascade off at the root.
 // (Same class of pitfall as Game's memo — see the comment in Game.tsx.)
-const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, reserveColor, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameCanvasProps) {
+const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPerson, apiRef, sfxEngine, musicVolumeRef, audioAnalysis, radioActive }: GameCanvasProps) {
   return (
     /* shadows="percentage" → PCFShadowMap directly (PCFSoftShadowMap is deprecated in three 0.184 and
        falls back to PCF anyway) — same result without the deprecation warning. */
     <Canvas shadows="percentage" camera={GAME_CAMERA}>
       <Game
         dispatch={dispatch}
-        role={gameNet.role}
         net={gameNet.net}
         netConfig={gameNet.netConfig}
-        peerToPlayer={gameNet.peerToPlayer}
-        reserveColor={reserveColor}
         defaultThirdPerson={defaultThirdPerson}
         apiRef={apiRef}
         durationMs={gameNet.durationMs}
         mapId={gameNet.mapId}
-        seedCode={gameNet.code}
+        gameMode={gameNet.mode}
+        ffaSpawns={gameNet.ffaSpawns}
+        seedCode={gameNet.seed}
         sfxEngine={sfxEngine}
         musicVolumeRef={musicVolumeRef}
         audioAnalysis={audioAnalysis}
@@ -205,7 +187,6 @@ export default function App() {
   const [locked, setLocked] = useState(false)
   const [roomView, setRoomView] = useState<RoomView | null>(null)
   const [gameNet, setGameNet] = useState<GameNet | null>(null)
-  const [wasFirstRun] = useState(() => isFirstRun())   // capture BEFORE loadProfile() (which creates+saves the profile)
   const [profile, setProfile] = useState<PlayerProfile>(() => loadProfile())
   // initial is read by the provider once — not recomputed on every render (lazy-init, no ref read during render)
   const [initialLocale] = useState(() => profile.locale ?? detectLocale())
@@ -298,6 +279,24 @@ export default function App() {
     // Desktop/Steam only: the browser build never loads @strudel/web or runs the radio.
     if (!IS_DESKTOP || radioWarmedRef.current || editorMode || screen === 'game' || screen === 'trailer') return
     radioWarmedRef.current = true
+    // The library and DLC ownership need no audio engine — resolve them IN PARALLEL with the engine
+    // warmup, so the explorer window appears immediately even when the sample CDNs stall init (they
+    // can be DPI-blocked; see the prebake budget in StrudelWebEngine).
+    void radioDlcOwned().then((owned) => {
+      // Resolve + cache DLC ownership (cache avoids a trial-strip flash for owners; Steam answer corrects it).
+      setRadioOwned(owned); setRadioResolved(true)
+      setProfile((p) => (p.radioDlcOwned === owned ? p : { ...p, radioDlcOwned: owned }))
+    })
+    void (async () => {
+      // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
+      const fsmod = await import('./radio/library/tauriFs')
+      const lib = fsmod.createRadioLibrary()
+      if (lib) {
+        // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
+        // must not leave the whole library UI absent for the session).
+        try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
+      }
+    })()
     void (async () => {
       const radio = await import('./radio')
       const ctrl = await warmupRadio({
@@ -313,22 +312,7 @@ export default function App() {
           onGenerated: () => bumpTrial('gen'),           // count each new live track
         }),
       }, setRadioInitState)
-      if (ctrl) {
-        setRadioController(ctrl)
-        // Resolve + cache DLC ownership (cache avoids a trial-strip flash for owners; Steam answer corrects it).
-        void radioDlcOwned().then((owned) => {
-          setRadioOwned(owned); setRadioResolved(true)
-          setProfile((p) => (p.radioDlcOwned === owned ? p : { ...p, radioDlcOwned: owned }))
-        })
-        // Build the on-disk track library (desktop fs). Soft-fails (radio still works).
-        const fsmod = await import('./radio/library/tauriFs')
-        const lib = fsmod.createRadioLibrary()
-        if (lib) {
-          // Mount the explorer as soon as the root exists — do NOT gate it on the migration (a migration failure
-          // must not leave the whole library UI absent for the session).
-          try { await lib.ensureRoot(); setRadioLib(lib); setRadioRoot(await fsmod.radioRootAbs()) } catch { /* fs scope/permission — explorer stays hidden, radio still plays */ }
-        }
-      }
+      if (ctrl) setRadioController(ctrl)
       // A TRANSIENT warmup failure (CDN fetch hiccup, AudioContext init race) must not disable the radio for the
       // whole session: clear the guard so the next menu navigation retries instead of staying permanently 'error'.
       else radioWarmedRef.current = false
@@ -439,23 +423,17 @@ export default function App() {
     return () => { window.removeEventListener('pointerdown', onGesture); window.removeEventListener('keydown', onGesture) }
   }, [screen, menuMusic, editorMode, radioActive])
 
-  const [lobbyTab, setLobbyTab] = useState<LobbyTab>(DEFAULT_LOBBY_TAB)
-  const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(BOT_DEFAULT_DIFFICULTY)
-  const [botName, setBotName] = useState('')   // "vs Bot" tab: bot name (empty = random when added)
   const [searching, setSearching] = useState(false)
   const [steamFriendForming, setSteamFriendForming] = useState(false)   // Steam "With friend": lobby being created
   // Steam "With friend" intended role while the lobby is still forming (no RoomView yet) — host (created the
   // lobby) vs client (joined an invite). Keeps the seat side stable so "me" doesn't flip guest→host mid-forming.
   const [steamFriendHosting, setSteamFriendHosting] = useState(true)
   const [draftSel, setDraftSel] = useState<{ map: MapFilter; durationMin: DurationFilter }>({ map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] })
-  const poolRef = useRef<MatchmakingPool | null>(null)
-  const dmRef = useRef<DualMatchmaker | null>(null)
-  const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable across role switches)
+  const lobbyCodeRef = useRef<string>('')   // host code for the lobby session (stable for the screen visit)
   const steamEnterToken = useRef(0)   // bumped on every tab entry/leave → discards a stale async Steam lobby
   const qmRef = useRef<SteamQuickMatch | null>(null)   // Steam quick-match (desktop Matchmaking tab)
 
   const sessionRef = useRef<RoomSession | null>(null)
-  const negotiateNetRef = useRef<INet | null>(null)   // "vs Friend": transport during code rendezvous before role selection
   const gameApiRef = useRef<GameApi | null>(null)
   // Music volume via a stable ref (read once at match start) + an imperative push for live changes — so
   // dragging the in-match volume slider never re-renders the Canvas (which would rebuild the post-FX pass).
@@ -466,29 +444,23 @@ export default function App() {
   // (that would re-apply the player RigidBody's spawn position and reset the camera).
   useEffect(() => { setPostFx(profile.postProcessing) }, [profile.postProcessing])
 
-  // Whether the tab's idle state is host (without an active search/connection):
-  // bot — always host; matchmaking — host if the profile doesn't force the 'client' role; friend — draft until search.
-  const idleIsHost = (tab: LobbyTab): boolean => tab === 'bot' || (tab === 'matchmaking' && profile.searchRole !== 'client')
-
   const leaveRoom = () => {
     steamEnterToken.current++   // invalidate any in-flight Steam lobby resolution
     setSteamFriendForming(false)
     qmRef.current?.stop(); qmRef.current = null
     sessionRef.current?.dispose()
     sessionRef.current = null
-    if (negotiateNetRef.current) { negotiateNetRef.current.leave(); negotiateNetRef.current = null }
     setRoomView(null)
     setGameNet(null)
   }
 
-  // Bind RoomSession to the transport: shared onChange/onStart/onClosed (for enterRoom and enterRoomNegotiated).
+  // Bind RoomSession to the transport: shared onChange/onStart/onClosed (web rooms and Steam lobbies alike).
   const bindSession = (net: INet, role: RoomRole, code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
-    session.onStart((durationMs, mapId) => {
-      const matchRole: MatchRole = session.role === 'host' ? 'host' : 'client'
-      gameLog.set({ role: matchRole, localId: session.netConfig().localId, code })
-      gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000 })
+    session.onStart((durationMs, mapId, mode, ffaSpawns) => {
+      gameLog.set({ role, localId: session.netConfig().localId, code })   // role = LOBBY role (creator/joiner); the match itself is a symmetric mesh
+      gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000, mode })
       // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
       // Reset the previous match's result/time/score — otherwise the old result screen flashes over the new match.
@@ -498,14 +470,13 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), peerToPlayer: new Map(session.hostPeerToPlayer()), durationMs, mapId, code, achievementsEnabled, radioForMatch: radioActive })
+      setGameNet({ net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
-    // Client: host left the lobby / handshake failed → roll back to the current tab's idle state.
+    // Client: host left the lobby / handshake failed → roll back to hosting an idle room of our own.
     session.onClosed(() => {
       setSearching(false)
-      dmRef.current?.stop(); dmRef.current = null
-      enterTabIdle(lobbyTab, draftSel)
+      enterPlayIdle(draftSel)
     })
     sessionRef.current = session
   }
@@ -519,48 +490,12 @@ export default function App() {
     bindSession(net, role, code, sel)
   }
 
-  // "vs Friend": both peers join room = code; the role is decided deterministically by selfId (smaller = host).
-  // Until the opponent appears we hang in rendezvous (negotiateNetRef), then build the resolved-role session on the SAME transport.
-  const enterRoomNegotiated = (code: string, sel?: { map: MapFilter; durationMin: DurationFilter }) => {
-    leaveRoom()   // clean up the previous session AND the prior rendezvous transport
-    const net = createNet(code)
-    netDiagSetContext({ role: 'negotiate', code, selfId: net.selfId })
-    netDiagSetPeers(() => net.peers())
-    negotiateNetRef.current = net
-    let resolved = false
-    const tryResolve = () => {
-      if (resolved || sessionRef.current) return
-      const others = net.peers()
-      if (!others.length) return
-      resolved = true
-      negotiateNetRef.current = null   // the transport passes into the session's ownership
-      const peerMin = others.reduce((a, b) => (a < b ? a : b))
-      const role: RoomRole = net.selfId < peerMin ? 'host' : 'client'
-      if (role === 'host') setHostLive(code)
-      netDiagSetContext({ role, code, selfId: net.selfId })
-      bindSession(net, role, code, sel)
-    }
-    net.onPeerJoin(() => tryResolve())
-    tryResolve()   // in case the opponent is already visible
-  }
-
-  // Bring the session to the tab's idle state (without an active search/connection).
-  const enterTabIdle = (tab: LobbyTab, sel: { map: MapFilter; durationMin: DurationFilter }) => {
-    if (tab === 'bot') {
-      // Pre-resolve the name so the seat input starts populated and in sync with the slot (no empty-field mismatch).
-      const name = botName.trim() || generateModelName()
-      enterRoom(lobbyCodeRef.current, 'host', sel)
-      sessionRef.current?.addBot(botDifficulty, name)   // bot straight into the slot
-      if (name !== botName) setBotName(name)
-    } else if (IS_DESKTOP && tab === 'friend') {
-      void enterSteamFriendHost(sel)   // Steam "With friend": create a lobby + host, then invite
-    } else if (IS_DESKTOP && tab === 'matchmaking') {
-      leaveRoom()   // Steam matchmaking is Steam-only (no WebRTC/cross-play); idle until SEARCH → quick-match
-    } else if (idleIsHost(tab)) {
-      enterRoom(lobbyCodeRef.current, 'host', sel)   // web matchmaking (both): host session for the announcement
-    } else {
-      leaveRoom()   // matchmaking+client / web friend → draft until search
-    }
+  // Idle "Play" screen: the local player always hosts an open room others can join —
+  // web: a WebRTC room by code (guests enter it in the "join by code" field);
+  // desktop: a private Steam lobby friends are invited into (created async).
+  const enterPlayIdle = (sel: { map: MapFilter; durationMin: DurationFilter }) => {
+    if (IS_DESKTOP) void enterSteamFriendHost(sel)
+    else enterRoom(lobbyCodeRef.current, 'host', sel)
   }
 
   // Steam "With friend" host: create a Private lobby (async) and host a session on its SteamNet.
@@ -581,7 +516,6 @@ export default function App() {
   const enterSteamFriendClient = async (lobbyId: string) => {
     leaveRoom()
     const token = ++steamEnterToken.current
-    setLobbyTab('friend')
     setScreen('lobby')
     setSteamFriendHosting(false)
     setSteamFriendForming(true)
@@ -603,22 +537,6 @@ export default function App() {
   // Steam Rich Presence: reflect the current screen (menu / lobby / match) in the friends list. No-op off-Steam.
   useEffect(() => { applyScreenPresence(screen) }, [screen])
 
-  // First launch: seed the in-game name from the Steam persona name (once Steam resolves). Off-Steam keeps the
-  // generated model name; the player can rename later in settings.
-  useEffect(() => {
-    if (!IS_DESKTOP || !wasFirstRun) return
-    void getSteamUser().then(u => {
-      if (!u) return
-      setProfile(p => {
-        const name = chooseFirstRunName(true, u.name, p.name)
-        if (name === p.name) return p
-        const next = { ...p, name }
-        saveProfile(next)
-        return next
-      })
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Global Steam invite listener: a friend's overlay invite / "Join game" → join their lobby as a client,
   // from any screen. Mounted once (off-Steam it's a no-op subscription).
@@ -713,10 +631,10 @@ export default function App() {
     return () => clearInterval(iv)
   }, [screen, locked, hud.matchPhase])
 
-  // Opponent appeared: host/both — the incomer took the slot (we fix host in the matchmaker); client — ASSIGN arrived.
+  // Search resolved into a room: someone took a seat (host) / ASSIGN arrived (client) → drop the spinner.
   useEffect(() => {
     if (!searching || !roomView) return
-    if (roomView.isHost && roomView.roster.length > 1) { dmRef.current?.hostConnected(); setSearching(false) }
+    if (roomView.isHost && roomView.roster.length > 1) setSearching(false)
     if (!roomView.isHost && roomView.connected) setSearching(false)
   }, [searching, roomView])
 
@@ -836,29 +754,19 @@ export default function App() {
     gameApiRef.current?.requestReady()
   }
 
-  const disposePool = () => { poolRef.current?.dispose(); poolRef.current = null }
-
-  // PLAY → lobby. Default — the Matchmaking tab. both immediately brings up a host session (for the announcement);
-  // client — a draft without networking until SEARCH.
+  // PLAY → the "Play" screen: Duel preset, we immediately host an open room (see enterPlayIdle).
   const handlePlay = () => {
-    disposePool()
-    poolRef.current = createMatchmakingPool()
     const sel: { map: MapFilter; durationMin: DurationFilter } = { map: [MAP_IDS[0]], durationMin: [MATCH_DURATIONS_MIN[0]] }
     gameLog.log('nego', 'play_reset', { map: sel.map, durationMin: sel.durationMin })   // selection resets to defaults on every Play
     setDraftSel(sel)
     setSearching(false)
-    setLobbyTab(DEFAULT_LOBBY_TAB)
-    setBotDifficulty(BOT_DEFAULT_DIFFICULTY)
-    setBotName('')
-    lobbyCodeRef.current = randomRoomCode()   // fix the lobby code (doesn't change when switching tabs)
-    enterTabIdle(DEFAULT_LOBBY_TAB, sel)
+    lobbyCodeRef.current = randomRoomCode()   // fix the room code for this screen visit
+    enterPlayIdle(sel)
     setScreen('lobby')
   }
 
   const handleBack = () => {
     setSearching(false)
-    dmRef.current?.stop(); dmRef.current = null
-    disposePool()
     forgetHosted()   // explicit exit to the menu → we no longer claim the host role for this code
     leaveRoom()
     setScreen('menu')
@@ -867,31 +775,25 @@ export default function App() {
   // --- lobby callbacks ---
   const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
   const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
-  const onLobbySetBotDifficulty = (d: BotDifficulty) => { setBotDifficulty(d); sessionRef.current?.setBotDifficulty(d) }
-  const onLobbySetBotName = (name: string) => { setBotName(name); sessionRef.current?.setBotName(name) }
+  const onLobbyBotName = (slot: number, name: string) => sessionRef.current?.setBotName(name, slot)
+  const onLobbyBotDifficulty = (slot: number, d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d, slot)
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
-
-  // "vs Friend": symmetric rendezvous — both enter the same code and press SEARCH; selfId decides the role.
-  const onLobbyFriendSearch = (code: string) => {
-    const c = code.trim().toUpperCase()
-    if (!c) return
-    setSearching(true)
-    dmRef.current?.stop(); dmRef.current = null
-    poolRef.current?.withdraw(); poolRef.current?.cancel()
-    enterRoomNegotiated(c, draftSel)
+  const onLobbySetMode = (m: GameMode) => sessionRef.current?.setMode(m)
+  /** Seat zone click: host adds a bot into the seat; a client moves itself onto a free seat. */
+  const onLobbySeatClick = (slot: number, zone: SeatZone) => {
+    const s = sessionRef.current
+    if (!s) return
+    if (zone === 'addbot') s.addBot(BOT_DEFAULT_DIFFICULTY, undefined, slot)
+    else s.requestSlot(slot)
   }
+  const onLobbyBotRemove = (slot: number) => sessionRef.current?.removeBot(slot)
 
-  // Tab switch: reset transient state + rebuild the session for the tab's idle state. Always available.
-  const onLobbySetTab = (tab: LobbyTab) => {
-    if (tab === lobbyTab) return
-    const sel = roomView ? { map: roomView.mapSel, durationMin: roomView.durationSel } : draftSel
-    setSearching(false)
-    qmRef.current?.stop(); qmRef.current = null
-    dmRef.current?.stop(); dmRef.current = null
-    poolRef.current?.withdraw(); poolRef.current?.cancel()
-    setDraftSel(sel)
-    setLobbyTab(tab)
-    enterTabIdle(tab, sel)
+  // Web: join someone's room as a guest by its 4-letter code (the field below the seats).
+  const onLobbyJoinByCode = (code: string) => {
+    const c = code.trim().toUpperCase()
+    if (!c || c === lobbyCodeRef.current) return   // joining our own room makes no sense
+    setSearching(true)
+    enterRoom(c, 'client', draftSel)
   }
 
   // Steam matchmaking: quick-match over Steam public lobbies (no WebRTC → no cross-play).
@@ -909,32 +811,13 @@ export default function App() {
     if (!ok && token === steamEnterToken.current) setSearching(false)   // no Steam
   }
 
-  const onLobbySearch = () => {
-    if (IS_DESKTOP) { void startSteamQuickMatch(); return }   // desktop Matchmaking = Steam quick-match
-    const pool = poolRef.current
-    if (!pool) return
-    setSearching(true)
-    const curMap = roomView?.mapSel ?? draftSel.map
-    const curDur = roomView?.durationSel ?? draftSel.durationMin
-    const dm = new DualMatchmaker({
-      pool, mode: profile.searchRole, code: lobbyCodeRef.current,
-      listing: { code: lobbyCodeRef.current, name: profile.name, color: profile.primaryColor, map: curMap, durationMin: curDur },
-      filter: { map: curMap, durationMin: curDur },
-    })
-    // Join as a client with the ACTUALLY selected search parameters (in both mode the selection lives in the
-    // host session, while draftSel stays default — otherwise the host resolves its choice against the client's
-    // default: empty intersection → default map and time NaN/00:00).
-    dm.onJoin(code => { setSearching(false); enterRoom(code, 'client', { map: curMap, durationMin: curDur }) })
-    dmRef.current = dm
-    dm.start()
-  }
+  // Duel SEARCH (desktop only): Steam quick-match. The web build has no search button.
+  const onLobbySearch = () => { if (IS_DESKTOP) void startSteamQuickMatch() }
   const onLobbyStopSearch = () => {
     setSearching(false)
     steamEnterToken.current++   // discard any in-flight quick-match resolution
     qmRef.current?.stop(); qmRef.current = null
-    dmRef.current?.stop(); dmRef.current = null
-    poolRef.current?.withdraw(); poolRef.current?.cancel()
-    if (lobbyTab === 'friend') enterTabIdle('friend', draftSel)   // friend: drop the rendezvous → draft
+    enterPlayIdle(draftSel)     // the search tore the idle room down — rebuild it
   }
 
   // Any live state without mouse capture is a pause (including when the first pointer lock failed: this case
@@ -979,36 +862,25 @@ export default function App() {
     if (m) setLastMapId(m)
   }, [roomView?.mapId, draftSel.map])
 
-  // Lobby props: normalize RoomView (or a client draft without a session) into the Lobby shape.
+  // Lobby props: the pure state (seats/flags) comes from lobbyStateFrom; App only wires the handlers onto it.
   const buildLobby = () => {
-    const v = roomView
-    // Without a session: Steam "With friend" uses the intended role (host created the lobby / client joined an
-    // invite) so the seat side is stable while the lobby forms; other tabs fall back to their idle host-ness.
-    const isHost = v ? v.isHost
-      : (IS_DESKTOP && lobbyTab === 'friend') ? steamFriendHosting
-      : idleIsHost(lobbyTab)
-    let me: LobbySlot = { name: profile.name, color: profile.primaryColor, ready: false }
-    let opponent: (LobbySlot & { isBot: boolean }) | null = null
-    if (v) {
-      const myId = isHost ? HOST_ID : OPPONENT_ID
-      const oppId = isHost ? OPPONENT_ID : HOST_ID
-      const meE = v.roster.find(r => r.id === myId)
-      if (meE) me = { name: meE.name, color: meE.color, ready: v.ready.includes(myId) }
-      // the client sees the host ONLY after connecting (ASSIGN), otherwise its own host stub looks like a "match with yourself"
-      const oppE = (isHost || v.connected) ? v.roster.find(r => r.id === oppId) : undefined
-      opponent = oppE ? { name: oppE.name, color: oppE.color, ready: v.ready.includes(oppId), isBot: oppE.kind === 'bot' } : null
-    }
+    const state = lobbyStateFrom({
+      view: roomView,
+      self: { name: profile.name, color: profile.primaryColor },
+      draft: { map: draftSel.map, durationMin: draftSel.durationMin },
+      // Without a session (Steam lobby still forming) the intended role keeps the seat side stable.
+      fallbackIsHost: IS_DESKTOP ? steamFriendHosting : true,
+    })
+    // Transport peer ids currently seated — prunes accepted Steam invites (the friend's SteamId64 IS its peer id).
+    const seatedPeerIds = sessionRef.current ? Object.values(sessionRef.current.netConfig().owners) : []
     return {
-      isHost, me, opponent,
-      mapSel: v?.mapSel ?? draftSel.map,
-      durationSel: v?.durationSel ?? draftSel.durationMin,
+      ...state, seatedPeerIds,
       searching,
-      botDifficulty,
-      botName,
-      tab: lobbyTab, onSetTab: onLobbySetTab,
-      onSetBotDifficulty: onLobbySetBotDifficulty, onSetBotName: onLobbySetBotName,
-      onFriendSearch: onLobbyFriendSearch,
+      joinCode: !IS_DESKTOP && state.isHost ? lobbyCodeRef.current : null,
+      onSetMode: onLobbySetMode, onSeatClick: onLobbySeatClick, onBotRemove: onLobbyBotRemove,
+      onBotName: onLobbyBotName, onBotDifficulty: onLobbyBotDifficulty,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
+      onJoinByCode: onLobbyJoinByCode,
       onSearch: onLobbySearch, onStopSearch: onLobbyStopSearch, onReady: onLobbyReady,
       onBack: handleBack,
       steamFriendForming,
@@ -1124,7 +996,6 @@ export default function App() {
           <GameCanvas
             dispatch={dispatch}
             gameNet={gameNet}
-            reserveColor={profile.reserveColor}
             defaultThirdPerson={profile.defaultView === 'tp'}
             apiRef={gameApiRef}
             sfxEngine={sfx}
@@ -1132,49 +1003,18 @@ export default function App() {
             audioAnalysis={audioAnalysis}
             radioActive={gameNet.radioForMatch}
           />
-          {hud.matchPhase === 'ready' && (
-            <ReadyOverlay
-              roster={gameNet.netConfig.roster}
-              localId={gameNet.netConfig.localId}
-              role={gameNet.role}
-              ready={hud.ready}
-              onReady={handleReady}
-            />
-          )}
-          {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
-          {/* Game HUD — only in live; during the countdown a clean screen (camera can turn) + the countdown itself. */}
-          {locked && hud.matchPhase === 'live' && (
-            <>
-              <WindupOverlay windupProgress={hud.windupProgress} />
-              <Crosshair beamProgress={hud.beamProgress} />
-              <ScreenFlashes
-                beamFlash={hud.beamFlash}
-                playerHit={hud.playerHit}
-                shieldBlock={hud.shieldBlock}
-                botShieldHit={hud.botShieldHit}
-                shieldVisible={hud.shieldVisible}
-              />
-              <ShieldBrackets
-                shieldProgress={hud.shieldProgress}
-                shieldVisible={hud.shieldVisible}
-                shieldBlock={hud.shieldBlock}
-              />
-              <DashIndicator dashProgress={hud.dashProgress} />
-              <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
-              {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
-              {profile.audioViz && <AudioBar analysis={audioAnalysis} />}
-              <StreakBanner announce={hud.announce} />
-              <OverheatVignette tier={hud.streaks[gameNet.netConfig.localId] ?? null} />
-              <EffectDefs />
-            </>
-          )}
-          {/* HUD bar: at the top in live (when the pointer is captured), at match end it transforms to center (final score). */}
-          {((locked && hud.matchPhase === 'live') || hud.matchPhase === 'ended') && (
-            <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} ended={!!hud.matchResult} />
-          )}
-          {hud.matchResult && (
-            <MatchEndedOverlay result={hud.matchResult} onExit={handleBack} />
-          )}
+          <GameOverlay
+            hud={hud}
+            roster={gameNet.netConfig.roster}
+            localId={gameNet.netConfig.localId}
+            locked={locked}
+            showFps={profile.showFps}
+            showSpeed={profile.showSpeed}
+            audioViz={profile.audioViz}
+            audioAnalysis={audioAnalysis}
+            onReady={handleReady}
+            onExit={handleBack}
+          />
         </>
       )}
 

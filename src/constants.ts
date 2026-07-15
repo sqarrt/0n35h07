@@ -122,6 +122,8 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 
 // Match map (host's choice in the room). The type lives here (not in game/maps.ts) so the net layer doesn't depend on game.
 // id is also used as a label in the UI.
+// os_test пока не в игре (дошлифовывается): файлы src/maps/os_test/* на месте и открываются в #editor,
+// но карта вне реестра — её не выбрать в лобби. Вернуть в игру = дописать id сюда, в MAPS и MAP_IDS.
 export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export type MapFilter = MapId[]        // selected set of maps (≥1)
@@ -132,33 +134,35 @@ export type DurationFilter = number[]  // selected set of durations (≥1)
 export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
-// Multiplayer (host-authoritative P2P)
-export const MATCH_ROLES = ['host', 'client'] as const
-export type MatchRole = typeof MATCH_ROLES[number]
-// Strictly 1v1: two fixed player ids — the host and its single opponent (bot XOR client).
+// Multiplayer (symmetric-mesh P2P)
+// Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
+// Legacy of the strict-1v1 era: seat 1. Production code must not reference it (seats are dynamic);
+// kept only for the 1v1 unit tests' readability.
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
-export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
+export const READY_COUNTDOWN_MS = 3000   // countdown before the fight, ms
 export const NET_INTERP_DELAY_MS = 100   // render remotes this far in the PAST (≈2–3 snapshots at 30 Hz) — absorbs packet jitter (entity interpolation)
-export const NET_RECONCILE_SNAP_DIST = 0.5 // client prediction error (units) above which we snap the local player to the host authority; below it the prediction is trusted (no latency injected)
-export const NET_PREDICTION_BUFFER = 64    // how many recent (seq → predicted position) samples the client keeps for reconciliation (≥ RTT worth of frames)
-export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
+export const NET_SNAPSHOT_HZ = 30     // per-peer snapshot broadcast rate (each peer sends the players it owns)
 // Fixed-tick simulation (netcode foundation). The sim advances only in whole FIXED_DT steps, independent of refresh.
 export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
 export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating
 export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — spiral-of-death guard (shed the rest)
 // Input clock sync (client→host): keep the host's input jitter-buffer near TARGET so it never starves (a gap → the
-// remote holds) nor overflows (a drop). The client nudges its own tick accumulator by a small fraction toward target,
 // using the buffer depth the host echoes in each snapshot. Gentle gain + a tight per-frame clamp keep it stable.
-export const NET_INPUT_BUFFER_TARGET = 2          // ticks of slack the host keeps buffered (~33 ms of jitter absorption)
-export const NET_CLOCK_SYNC_GAIN = 0.04           // per-frame correction fraction toward target (small = stable, slow)
-export const NET_CLOCK_SYNC_MAX_NUDGE = FIXED_DT * 0.25   // cap the per-frame tick-rate adjustment (never jump the clock)
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
-export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
-// Ball color palette (chosen in settings + host fallback assignment on collision with the opponent's color).
+// Ball color palette (personal appearance; never substituted — see colors-rework).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
+// Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.
+export const TEAM_COLORS: [string, string] = ['#37f', '#f53']
+export const NAMEPLATE_NEUTRAL_COLOR = '#ccc'   // FFA plates: everyone is an enemy, color codes nothing
+// Nameplates over remote players (2v2: team color; FFA: neutral; 1v1: none).
+export const NAMEPLATE_HEIGHT = 1.35                       // above the ball center (world units)
+export const NAMEPLATE_SCALE: [number, number] = [1.6, 0.4]  // sprite world size (w, h)
+// Mode spawn rules (see src/game/spawns.ts): 2v2 cluster offsets and the FFA scatter distance.
+export const SPAWN_CLUSTER_OFFSETS: ReadonlyArray<readonly [number, number]> = [[-0.9, 0], [0.9, 0]]  // XZ offsets inside a 2v2 team cluster (keep capsules apart)
+export const FFA_SPAWN_MIN_DIST = 6      // min pairwise distance between FFA start positions
 // ICE servers for WebRTC. Passed into Trystero rtcConfig and REPLACE its defaults — so we keep both
 // STUN and TURN here. STUN suffices for home networks; TURN is needed for symmetric NAT/CGNAT and networks that
 // cut UDP (where STUN times out — see the online diagnostics). turns:443?transport=tcp punches through UDP filtering.

@@ -25,24 +25,27 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
 
   // Geometry from compile (geo.json, preloaded via ensureMapGeo before mounting), fallback — merge from blocks.
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map.id, map.blocks])
-  // Visual groups + collider. raycast groups (beam targets) get a BVH (computeBoundsTree) — shot raycast O(log n).
+  // Per-chunk visual groups + one collider. raycast groups (beam targets) get a BVH (computeBoundsTree) — shot raycast O(log n).
   const geos = useMemo(() => {
-    const mk = (a: typeof compiled.opaqueRaycast, bvh: boolean) => {
+    const mk = (a: typeof compiled.collider, bvh: boolean) => {
       const g = a ? buildGeometry(a) : null
       if (g && bvh) g.computeBoundsTree()
       return g
     }
-    return {
-      opaqueRaycast: mk(compiled.opaqueRaycast, true),
-      opaqueNoRaycast: mk(compiled.opaqueNoRaycast, false),
-      transparentRaycast: mk(compiled.transparentRaycast, true),
-      transparentNoRaycast: mk(compiled.transparentNoRaycast, false),
-      collider: mk(compiled.collider, false),
-    }
+    const chunks = compiled.chunks.map(ch => ({
+      opaqueRaycast: mk(ch.opaqueRaycast, true),
+      opaqueNoRaycast: mk(ch.opaqueNoRaycast, false),
+      transparentRaycast: mk(ch.transparentRaycast, true),
+      transparentNoRaycast: mk(ch.transparentNoRaycast, false),
+    }))
+    return { chunks, collider: mk(compiled.collider, false) }
   }, [compiled])
   useEffect(() => () => {
-    geos.opaqueRaycast?.disposeBoundsTree(); geos.transparentRaycast?.disposeBoundsTree()
-    Object.values(geos).forEach(g => g?.dispose())
+    for (const ch of geos.chunks) {
+      ch.opaqueRaycast?.disposeBoundsTree(); ch.transparentRaycast?.disposeBoundsTree()
+      ch.opaqueRaycast?.dispose(); ch.opaqueNoRaycast?.dispose(); ch.transparentRaycast?.dispose(); ch.transparentNoRaycast?.dispose()
+    }
+    geos.collider?.dispose()
   }, [geos])
 
   // Live outline toggle via an external store (NOT a prop): re-renders only Arena on toggle, so the Canvas/
@@ -87,27 +90,32 @@ export function Arena({ map = MAPS[DEFAULT_MAP_ID] }: { map?: GameMap }) {
         </MeshCollider>
       </RigidBody>
 
-      {/* Block visuals: up to 4 merged meshes. raycast groups are beam targets (no noRaycast). baseOpacity — for World.setBlocksTransparent. */}
-      {geos.opaqueRaycast && (
-        <mesh geometry={geos.opaqueRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: 1 }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial vertexColors />
-        </mesh>
-      )}
-      {geos.transparentRaycast && (
-        <mesh geometry={geos.transparentRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
-          <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
-        </mesh>
-      )}
-      {geos.opaqueNoRaycast && (
-        <mesh geometry={geos.opaqueNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: 1 }}>
-          <meshStandardMaterial vertexColors />
-        </mesh>
-      )}
-      {geos.transparentNoRaycast && (
-        <mesh geometry={geos.transparentNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }}>
-          <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
-        </mesh>
-      )}
+      {/* Block visuals per chunk (frustum-culled by three). raycast groups are beam targets (no noRaycast).
+          baseOpacity — for World.setBlocksTransparent. */}
+      {geos.chunks.map((ch, i) => (
+        <group key={i}>
+          {ch.opaqueRaycast && (
+            <mesh geometry={ch.opaqueRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: 1 }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+              <meshStandardMaterial vertexColors />
+            </mesh>
+          )}
+          {ch.transparentRaycast && (
+            <mesh geometry={ch.transparentRaycast} castShadow receiveShadow userData={{ block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }} onUpdate={o => o.layers.enable(BLOCK_LAYER)}>
+              <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
+            </mesh>
+          )}
+          {ch.opaqueNoRaycast && (
+            <mesh geometry={ch.opaqueNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: 1 }}>
+              <meshStandardMaterial vertexColors />
+            </mesh>
+          )}
+          {ch.transparentNoRaycast && (
+            <mesh geometry={ch.transparentNoRaycast} castShadow receiveShadow userData={{ noRaycast: true, block: true, baseOpacity: BLOCK_TRANSPARENT_OPACITY }}>
+              <meshStandardMaterial vertexColors transparent opacity={BLOCK_TRANSPARENT_OPACITY} depthWrite={false} />
+            </mesh>
+          )}
+        </group>
+      ))}
 
       {/* Screen-space outline of visible cover edges (post-processing — toggled in settings) */}
       {postFx && <MapEdges />}

@@ -40,20 +40,20 @@ export class BotController implements Controller {
   private _aimPt    = new THREE.Vector3()
 
   private readonly player: Player
-  private readonly getOpponent: () => Player
+  private readonly getTarget: () => Player | null
   private readonly world: World
   private readonly passive: boolean
   private readonly personality: BotPersonality
 
   constructor(
     player: Player,
-    getOpponent: () => Player,
+    getTarget: () => Player | null,   // current hostile target (nearest alive enemy); null → nobody to fight
     world: World,
     passive: boolean,
     personality: BotPersonality,
   ) {
     this.player = player
-    this.getOpponent = getOpponent
+    this.getTarget = getTarget
     this.world = world
     this.passive = passive
     this.personality = personality
@@ -63,7 +63,12 @@ export class BotController implements Controller {
     if (this.passive) return
 
     const pos = this.player.position
-    const opp = this.getOpponent()
+    const opp = this.getTarget()
+    if (!opp) {                       // nobody hostile is alive/present — just wander
+      this.player.setJumpInput(false)
+      this._wander(pos, dt)
+      return
+    }
     const oppPos = opp.position
 
     // Ghost phase: wander only, reset combat timers

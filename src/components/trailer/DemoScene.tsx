@@ -8,7 +8,7 @@ import { useMemo, useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Player } from '../../game/Player'
-import { Body, emptyBodyState } from '../../game/Body'
+import { Body } from '../../game/Body'
 import { BeamWeapon } from '../../game/BeamWeapon'
 import { Shield } from '../../game/Shield'
 import { World } from '../../game/World'
@@ -40,7 +40,7 @@ const BEAM_SFX: Record<WindupStyle, SfxEvent> = {
 }
 
 export interface DemoHud {
-  scores: { name: string; kills: number; deaths: number }[]
+  scores: { id: number; name: string; kills: number; deaths: number; team: number }[]
   matchTimeSec: number
   streaks: Record<number, StreakTier | null>
   streakCounts: Record<number, number>
@@ -88,7 +88,7 @@ function buildPlayer(e: RosterEntry, ringColor: string): Player {
 }
 
 function toSnap(ps: DemoPlayerState): PlayerSnapshot {
-  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning, restore: emptyBodyState() }
+  return { id: ps.id, pos: ps.pos, aimDir: ps.aimDir, alive: ps.alive, shieldActive: ps.shieldActive, dashing: ps.dashing, windupProgress: ps.windupProgress, respawning: ps.respawning }
 }
 
 const _q0 = new THREE.Quaternion(), _q1 = new THREE.Quaternion()
@@ -106,11 +106,11 @@ function DemoArena({ mapId }: { mapId: MapId }) {
   const gridGeo = useMemo(() => gridGeometry(hx, hz), [hx, hz])
   useEffect(() => () => gridGeo.dispose(), [gridGeo])
   const compiled = useMemo(() => getCachedMapGeo(map.id) ?? compileBlocksCached(map.id, map.blocks), [map])
-  // Block visual (no collision — trailer). 4 groups; transparent ones are drawn with a translucent material.
-  const blockGeos = useMemo(() => [
-    { g: compiled.opaqueRaycast, transp: false }, { g: compiled.opaqueNoRaycast, transp: false },
-    { g: compiled.transparentRaycast, transp: true }, { g: compiled.transparentNoRaycast, transp: true },
-  ].map(x => ({ geo: x.g ? buildGeometry(x.g) : null, transp: x.transp })), [compiled])
+  // Block visual (no collision — trailer). Chunk groups; transparent ones are drawn with a translucent material.
+  const blockGeos = useMemo(() => compiled.chunks.flatMap(ch => [
+    { g: ch.opaqueRaycast, transp: false }, { g: ch.opaqueNoRaycast, transp: false },
+    { g: ch.transparentRaycast, transp: true }, { g: ch.transparentNoRaycast, transp: true },
+  ]).map(x => ({ geo: x.g ? buildGeometry(x.g) : null, transp: x.transp })), [compiled])
   useEffect(() => () => blockGeos.forEach(x => x.geo?.dispose()), [blockGeos])
   return (
     <>
@@ -296,7 +296,7 @@ function applyFrameEvents(
       case 'kill': {
         byId.get(e.victim)?.applyDeath()
         onSfx('death')
-        const kind = announceKind(e.streak, e.firstBlood)   // streak (CATALYST/DOUBLE/…)
+        const kind = announceKind(e.streak ?? 0, e.firstBlood ?? false)   // legacy demo fields (live events are slim)
         if (kind) {
           onSfx(announceSfx(kind))
           const r = roster.find(x => x.id === e.shooter)
@@ -323,7 +323,7 @@ function hudOf(f: DemoFrame, demo: DemoFile): DemoHud {
   for (const p of f.players) { streaks[p.id] = p.streakCount > 0 ? streakTier(p.streakCount) : null; streakCounts[p.id] = p.streakCount }
   const pov = f.players.find(p => p.id === demo.localId)
   return {
-    scores: f.players.map(p => ({ name: nameOf(p.id), kills: p.kills, deaths: p.deaths })),
+    scores: f.players.map(p => ({ id: p.id, name: nameOf(p.id), kills: p.kills, deaths: p.deaths, team: p.id })),   // demos are 1v1 → team === id
     matchTimeSec: Math.ceil(f.remainingMs / 1000),
     streaks,
     streakCounts,

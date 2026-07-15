@@ -30,12 +30,6 @@ export type BgKind =
   | 'tapeChoir' | 'droneCluster' | 'scanner' | 'tapeWarble' | 'insectoid' | 'deepBell' // co-designed dark/horror
   | 'drip' | 'steps' | 'thud'                                   // synthesized "foley" accents (note 5)
 
-export const BG_KINDS: BgKind[] = [
-  'subpulse', 'sonar', 'metallic', 'morse', 'sinearp', 'siren', 'deepBell',
-  'drip', 'steps', 'thud',
-  'crackle', 'geiger', 'granular',
-  'tapeChoir', 'droneCluster', 'tapeWarble', 'insectoid',
-]
 // Two tiers: BEDS are subliminal drones/noise with no rhythmic/tonal HOOK — safe to recur, they don't fingerprint
 // a track. ACCENTS are the memorable ones (a bell ping, a sonar blip, a morse rhythm…) — distinctive, so added only
 // OCCASIONALLY and never to two near tracks. Palette TRIAGED by ear (docs/radio-part-archetypes.md): the plain tonal

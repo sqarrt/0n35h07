@@ -1,11 +1,12 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, OPPONENT_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
-import type { BallModel, WindupStyle, RespawnStyle, DashStyle, ShieldStyle } from '../constants'
+import { BALL_RADIUS, BODY_MESH_Y, PREVIEW_SPIN_SPEED, HOST_ID, MENU_ANIM_TAU, BEAM_WINDUP, WINDUP_SHRINK_MS, DASH_SPEED, DASH_DURATION } from '../constants'
 import type { RoomView } from '../net/RoomSession'
-import { PLAYER_SPOT, OPPONENT_SPOT, cameraStateFor } from './menuStage'
+import { PLAYER_SPOT, cameraStateFor } from './menuStage'
 import type { MenuMode, AppearancePart, MenuCameraState, CameraPoses, CameraPose } from './menuStage'
+import { computeBalls } from './menuBalls'
+import type { BallSpec, ActiveBall } from './menuBalls'
 import rawPoses from './menuCameraPoses.json'
 import { Body } from '../game/Body'
 import { decodeBallArt } from '../game/ballArt'
@@ -30,6 +31,10 @@ const DAMP_TAU = MENU_ANIM_TAU // camera move — shared TAU with the menu backd
 const FADE_TAU = 0.13          // model appearance (opacity) — soft fade (~0.4s)
 const COLOR_TAU = 0.067        // smooth model color change (~0.2s to 95%)
 const EXIT_MS = 400            // how long we keep the leaving ball mounted while it fades out
+// Unified appear/leave animation, mirrored: a fast un-shrink on arrival,
+// an equally fast shrink on leave (the opacity fade above runs in parallel).
+const SPAWN_MS = 125           // arrive: scale 0 → 1 (twice as fast as the leave — reads snappier)
+const EXIT_SHRINK_MS = 250     // leave: scale → 0
 const WARMUP_FRAMES = 4        // warmup frames (shader compilation behind an invisible ball) before the fade starts
 const GLOW_MOUNT_DELAY_MS = 600 // deferred glow-composer mount (see comment in MenuBackdrop)
 
@@ -83,9 +88,7 @@ const poses: CameraPoses = JSON.parse(JSON.stringify(rawPoses)) as CameraPoses
 // Fly active → CameraRig doesn't touch the camera. A module flag — FlyCam and CameraRig live in the same Canvas.
 const flying = { current: false }
 
-// ringColor — the "secondary" color (planet ring); *Seq — click counters (one-shot preview triggers).
-interface BallSpec { color: string; model: BallModel; ringColor?: string; windupStyle?: WindupStyle; windupSeq?: number; respawnStyle?: RespawnStyle; respawnSeq?: number; dashStyle?: DashStyle; dashSeq?: number; shieldStyle?: ShieldStyle; shieldSeq?: number; ballArt?: string }
-interface ActiveBall { key: string; spec: BallSpec; spot: THREE.Vector3 }
+// BallSpec/ActiveBall/computeBalls live in menuBalls.ts (a pure module — unit-testable without the Canvas).
 
 /** The light slowly orbits the balls — the highlight glides, the models read as "living" 3D. */
 function OrbitingLight() {
@@ -216,6 +219,9 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     const ringMesh = body.ringMesh
     if (ringMesh) (ringMesh.material as { depthWrite: boolean }).depthWrite = true
   }, [body])
+
+  const spawnAge = useRef<number | null>(null)   // ms since the warmup released the ball; null while held
+  const exitAmt = useRef(0)                      // 0..1 leave-shrink progress
 
   const isPreview = part !== undefined && spot === PLAYER_SPOT   // preview cycles — only on your own ball
   const fx = useMemo(() => (isPreview && spec.windupStyle ? createWindupFx(spec.windupStyle) : null),
@@ -349,6 +355,13 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     body.setOpacity(opacityRef.current)
     body.lerpRingColor(targetRingColor, kc)
     body.tickShader(dt)
+
+    // Appear/leave scale, mirrored: fast un-shrink on arrival, fast shrink while exiting.
+    if (spawnAge.current === null) spawnAge.current = 0
+    else spawnAge.current += dt * 1000
+    const spawnScale = Math.min(spawnAge.current / SPAWN_MS, 1)
+    exitAmt.current = exiting ? Math.min(1, exitAmt.current + dt * 1000 / EXIT_SHRINK_MS) : 0
+    body.object3d.scale.setScalar(Math.max(0.0001, spawnScale * (1 - exitAmt.current)))
 
     // Position: the model stands on the spot; in the preview ghost — a run around a circle ("playing as the bot").
     // SANCTIONED manual action: when the run ends the ball is PLACED on the default spot
@@ -488,32 +501,12 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   )
 }
 
-const specOf = (color: string, model?: BallModel, ringColor?: string): BallSpec => ({ color, model: model ?? 'smooth', ringColor })
-
-/** Who stands on the scene: your own player — always on its spot; in a room with an opponent — the second on the neighboring one. */
-function computeBalls(mode: MenuMode, player: BallSpec, room: RoomView | null): ActiveBall[] {
-  if (mode === 'lobby' && room) {
-    const host = room.roster.find(r => r.id === HOST_ID)
-    const opp = room.roster.find(r => r.id === OPPONENT_ID)
-    if (host && opp) {
-      const selfIsHost = room.localPlayerId === HOST_ID
-      const self = selfIsHost ? host : opp
-      const other = selfIsHost ? opp : host
-      return [
-        { key: 'player', spec: specOf(self.color, self.ballModel, player.ringColor), spot: PLAYER_SPOT },
-        { key: 'other', spec: specOf(other.color, other.ballModel), spot: OPPONENT_SPOT },
-      ]
-    }
-    if (host) return [{ key: 'player', spec: specOf(host.color, host.ballModel, player.ringColor), spot: PLAYER_SPOT }]
-  }
-  return [{ key: 'player', spec: player, spot: PLAYER_SPOT }]
-}
-
 type RenderedBall = ActiveBall & { exiting?: boolean }
 
-/** Signature of active balls — a stable effect dependency (computeBalls returns new objects every render). */
+/** Signature of active balls — a stable effect dependency (computeBalls returns new objects every render).
+ *  Includes the spot: a seat move keeps the key but must still refresh the rendered list. */
 function signOf(balls: ActiveBall[]): string {
-  return balls.map(b => `${b.key}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}:${b.spec.ballArt ?? ''}`).join('|')
+  return balls.map(b => `${b.key}@${b.spot.x},${b.spot.z}:${b.spec.color}:${b.spec.ringColor ?? ''}:${b.spec.model}:${b.spec.windupStyle ?? ''}:${b.spec.windupSeq ?? 0}:${b.spec.respawnStyle ?? ''}:${b.spec.respawnSeq ?? 0}:${b.spec.dashStyle ?? ''}:${b.spec.dashSeq ?? 0}:${b.spec.shieldStyle ?? ''}:${b.spec.shieldSeq ?? 0}:${b.spec.ballArt ?? ''}`).join('|')
 }
 
 function Scene({ mode, player, room, appearancePart = 'color', onReady, sfx }: { mode: MenuMode; player: BallSpec; room: RoomView | null; appearancePart?: AppearancePart; onReady?: () => void; sfx?: ISfxEngine }) {
@@ -616,9 +609,9 @@ export function MenuBackdrop({ mode, player, room, appearancePart, analysis, glo
       .catch(() => { /* no endpoint (preview build) — we stay on the imported poses */ })
   }, [])
 
-  const hasOpponent = !!room?.roster.find(r => r.id === OPPONENT_ID)
+  const gameMode = room?.mode ?? '1v1'   // the MODE preset picks the lobby pose (pair vs square)
   const isClient = room != null && room.localPlayerId !== HOST_ID   // joined someone else's room
-  const camState = cameraStateFor(mode, hasOpponent, isClient, appearancePart ?? 'color')
+  const camState = cameraStateFor(mode, gameMode, isClient, appearancePart ?? 'color')
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>

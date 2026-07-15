@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
 
-// Enter the lobby (default — Matchmaking tab, host session is up; the map is chosen under "// MAP").
+// Enter the Play screen (we host a room right away; the map is chosen under "// MAP").
 async function lobbyAsHost(page: Page) {
   await page.getByTestId('menu-play').click()
 }
@@ -23,8 +23,8 @@ test('lobby — map selection: tile becomes active on click (single selection)',
 test('start on the selected map applies its spawns (os_pillars)', async ({ page }) => {
   await page.goto('/')
   await lobbyAsHost(page)
-  await page.getByTestId('lobby-map-os_pillars').click()   // the map on the Matchmaking tab is editable
-  await page.getByTestId('lobby-tab-bot').click()          // bot into slot (map choice carries over to the host session)
+  await page.getByTestId('lobby-map-os_pillars').click()   // the host owns the map choice
+  await page.getByTestId('seat-addbot-1').click()          // bot into the free seat via its zone
   await page.getByTestId('lobby-ready').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })
@@ -38,7 +38,7 @@ test('os_india: the ramp lets you climb onto the central platform', async ({ pag
   await page.goto('/')
   await lobbyAsHost(page)
   await page.getByTestId('lobby-map-os_india').click()
-  await page.getByTestId('lobby-tab-bot').click()
+  await page.getByTestId('seat-addbot-1').click()
   await page.getByTestId('lobby-ready').click()
 
   await page.waitForFunction(() => !!(window as any).__debugCamera, { timeout: 10000 })

@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { greedyMerge, voxelize, toMapData, serializeMap, parseMap, cellKey, VOXEL, isPerimeterTrim } from '../../src/editor/editorStore'
+import { greedyMerge, voxelize, toMapData, serializeMap, parseMap, cellKey, VOXEL } from '../../src/editor/editorStore'
 import type { Cell, CubeAttrs } from '../../src/editor/editorStore'
-import { perimeter } from '../../src/game/maps'
-import type { Vec3, MapBlock } from '../../src/game/maps'
+import type { Vec3 } from '../../src/game/maps'
 
 // Default block flags (non-shootable/opaque/non-passable).
 const DEF = { bb: true, tr: false, ps: false } as const
@@ -79,6 +78,7 @@ describe('editorStore — voxels ↔ boxes', () => {
       [cellKey(6, 0, 6), { t: 'wedge', c: '#444', d: 3, f: false, ...DEF }],
       [cellKey(8, 0, 0), { t: 'wedge', c: '#555', d: 0, f: true, ...DEF }],
       [cellKey(8, 0, 2), { t: 'wedge', c: '#555', d: 2, f: true, ...DEF }],
+      [cellKey(10, 0, 0), { t: 'wedge', c: '#666', d: 1, s: true, f: false, ...DEF }],
     ])
     const map = toMapData(v, { half: [20, 20], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] })
     expect(voxelize(map.blocks)).toEqual(v)
@@ -92,26 +92,17 @@ describe('editorStore — voxels ↔ boxes', () => {
     expect(voxelize(map.blocks)).toEqual(v)                          // but only the cube goes into voxels
   })
 
-  describe('stale perimeter-trim duplicates (doubled walls) are dropped on import', () => {
-    const walls = perimeter('#555', 20, 20)   // 4 perimeter:true walls for a 40×40 arena
-    // A trim strip half-buried in the north wall (the bug): long, wall-thin, overlapping the wall.
-    const northTrim: MapBlock = { pos: [0, 1.5, -19.75], size: [20, 1.5, 0.25], color: '#5a6678', blocksBeam: false }
-
-    it('isPerimeterTrim flags the buried strip, spares decor and interior blocks', () => {
-      expect(isPerimeterTrim(northTrim, walls)).toBe(true)
-      // small cube flush to the east wall inner face — short, so kept
-      expect(isPerimeterTrim({ pos: [19.75, 0.25, 5], size: [0.25, 0.25, 0.25], color: '#5a6678' }, walls)).toBe(false)
-      // long but interior strip (not buried in any wall) — kept
-      expect(isPerimeterTrim({ pos: [0, 0.25, 0], size: [10, 0.25, 0.25], color: '#5a6678' }, walls)).toBe(false)
-      // a real perimeter wall is never itself "trim"
-      expect(isPerimeterTrim(walls[0], walls)).toBe(false)
-    })
-
-    it('voxelize drops the trim strip (so re-saving cannot bring the doubled wall back)', () => {
-      const decor = cubes([[10, 0, 10, '#fff']])          // one legit interior cube
-      const blocks = [...walls, northTrim, ...toMapData(decor, { half: [20, 20], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] }).blocks.filter(b => !b.perimeter)]
-      expect(voxelize(blocks)).toEqual(decor)             // trim gone, only the decor cube survives
-    })
+  // The perimeter sits ENTIRELY outside the floor, so the outermost row of cells abuts the wall without
+  // overlapping it. Guards the regression that motivated that move: a row of blocks along the border merges
+  // into one long, wall-thin box — exactly the shape the old import heuristic mistook for stale wall trim
+  // and silently ate on reopen. Corners included: they touch two walls at once.
+  it('a strip of blocks along the arena border survives the toMapData → voxelize round-trip', () => {
+    const border: [number, number, number, string][] = []
+    for (let x = -40; x <= -21; x++) border.push([x, 0, -40, '#fff'])   // 20 cells hugging the north wall
+    border.push([39, 0, 39, '#fff'], [-40, 0, 39, '#fff'])              // opposite corners
+    const v = cubes(border)
+    const map = toMapData(v, { half: [20, 20], floorColor: '#444', wallColor: '#555', spawns: [[0, 1.7, 5], [0, 1.7, -5]] })
+    expect(voxelize(map.blocks)).toEqual(v)
   })
 
   it('toMapData carries showBlockGrid: true sets the field, otherwise it is omitted', () => {

@@ -26,12 +26,13 @@ export class DemoRecorder {
   private readonly localId: number
   private readonly reserveColor: string
 
-  constructor(meta: { roster: RosterEntry[]; mapId: MapId; durationMs: number; localId: number; reserveColor: string }) {
+  constructor(meta: { roster: RosterEntry[]; mapId: MapId; durationMs: number; localId: number }) {
     this.roster = meta.roster
     this.mapId = meta.mapId
     this.durationMs = meta.durationMs
     this.localId = meta.localId
-    this.reserveColor = meta.reserveColor
+    const me = meta.roster.find(r => r.id === meta.localId)
+    this.reserveColor = me?.reserveColor ?? me?.color ?? ''   // '' never happens (the local id is always in the roster)
   }
 
   /** Match.emit hook — accumulate the current frame's transient FX (cloned, so the network layer can't affect them). */

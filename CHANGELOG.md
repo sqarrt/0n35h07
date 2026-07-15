@@ -5,6 +5,96 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-07-07
+
+### Added
+- **Map editor: box selection with copy/paste.** A new SELECT tool (key 5, or the B hotkey from any tool) marks
+  two corner cells and highlights the box between them, stretching live to the crosshair before the second corner.
+  C copies the selected blocks, X cuts, Delete clears; V enters paste mode — a translucent ghost of the fragment
+  follows the crosshair, R spins it by 90° (wedges included), and it turns red where it would overlap blocks or
+  poke out of the arena. Left click stamps the fragment and stays in paste mode for series; right click or a tool
+  switch exits.
+- **Map editor: autosave.** The editor now saves on its own — a 3-second pause after the last edit writes all
+  three artifacts (source, compiled geometry, preview). Opening an existing map snapshots it to a session backup;
+  a REVERT button restores that snapshot. Closing the tab mid-pause still flushes the map source. The SAVE button
+  remains as an immediate manual save.
+- **Map editor: edit properties of a selection.** With a box selected, the hotbar brush controls act on the
+  selected blocks: pick a color to recolor them, toggle Opaque / Beam-blocking / Passable to change that property
+  across the whole region. The selection stays put so several properties can be tweaked in a row; block type and
+  wedge orientation are untouched.
+- **Map editor: wedges on their side.** A wedge can now be laid on its side (key **G**) as a vertical diagonal
+  wall — a full-height 45° corner for angled rooms and diagonal passages. R still picks which of the four corners;
+  the wall renders, collides and blocks/passes beams by the usual flags in-game.
+- **The Play screen, rebuilt — no more tabs.** One screen for everything: a mode carousel (Duel / Battle / War —
+  the selected tile centered, its neighbours dimmed and clickable), unified seats in every mode, and a single
+  action button that switches between SEARCH / STOP / READY / "waiting for others". Every empty seat offers two
+  zones — inviting (the Steam friend picker on desktop; on web the seat shows "send to a friend: <code>" with
+  click-to-copy) and "add a bot"; for a guest a free seat is a "take this seat" zone.
+  A seated bot is edited right in its seat: name input, click-to-reroll, a per-seat normal/passive difficulty
+  toggle and a remove cross. Web guests join through a compact "join by code" field under the seats — the old
+  code-rendezvous flow (and web matchmaking) is gone, so who hosts a room is never a lottery. Entering the screen
+  immediately hosts an open room (a private Steam lobby on desktop), Duel by default.
+- **The menu stage seats four.** The lobby backdrop arranges up to four player balls in a square (the classic duel
+  pair keeps its spots), with a dedicated wide camera pose for Battle/War — the pose follows the selected mode.
+  Players pop in with a quick un-shrink and leave with a mirrored shrink; remote balls finally show their painted
+  art and reserve-color ring in the lobby (an old bug).
+- **Mode-aware match HUD and end screen.** Battle frames the timer with team totals and two players per side on a
+  team-colored backing; War shows neutral panes with personal scores by the names. The end screen is one centered
+  column — outcome, every player ranked by kills (HUD colors and streak effects preserved), reason, EXIT — nothing
+  overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
+
+### Fixed
+- **A lobby could deadlock when someone left.** In War (and any room past its minimum), if you and another
+  player were ready and the one you were still waiting on left, the match never started: everyone left was
+  ready, the room had enough players, but nothing re-checked that — and a ready player has no button to press.
+  The start condition is now re-evaluated after every change to the room, not only when someone toggles ready.
+- **Walking a map in the editor now answers the same question the game does.** The editor's walk mode used its
+  own step height (left behind at an old value), so a single cube read as a wall you couldn't climb while the
+  game happily treats it as a stair — testing a map on foot gave the wrong answer.
+- **Map borders align with the grid; border blocks no longer vanish.** Perimeter walls now sit entirely
+  outside the floor with their inner face exactly on the arena edge, so the last row of blocks fits flush
+  without poking into the wall — and long thin blocks along the border are no longer misread as stale wall
+  trim and deleted on reopen.
+- **Map editor stays responsive on large maps.** Wedges are drawn with instancing instead of thousands of
+  separate meshes, and the cell-edge grid is built only when shown — editing a big map no longer stutters.
+- **Large maps render fast.** Map geometry is split into spatial chunks so the GPU skips off-screen parts in
+  every pass (color, shadows, outline) — heavy maps no longer tank the frame rate.
+- **Player profile is tied to the Steam account.** The first time an account plays, the in-game name is seeded
+  from Steam; afterwards every setting syncs from that account's Steam Cloud (so a second PC picks them up).
+  Switching Steam accounts on a PC no longer shows or uploads the previous player's name, skin and artwork.
+  Existing installs keep their profile untouched on upgrade.
+- **Match music in Steam lobbies.** The soundtrack seed used to come from the room code, and code-less Steam
+  lobbies got silence; now the room creator generates the seed and ships it to everyone — the whole lobby hears
+  the same track.
+- **Radio no longer stalls behind blocked sample CDNs.** The engine gives remote sample maps a short budget and
+  boots on; the track library and DLC check resolve in parallel — the explorer window appears instantly instead of
+  ~30s after opening the radio on networks where github raw is unreachable.
+
+- **Steam lobby fits four.** The Steam "With friend" lobby now holds up to 4 players: empty 2v2/FFA seats offer
+  "＋ invite a friend" (several invites at once — each pending friend shows as a waiting seat with a cancel), with a
+  corner bot button as the alternative. A guest leaving the lobby no longer kicks the other guests. Quick match
+  stays 1v1.
+- **Game modes: 2v2 and Free-for-All (up to 4 players).** The lobby got a mode picker (1v1 / 2v2 / FFA) on the
+  friend/bot tabs. 2v2/FFA rooms show a 4-seat grid: the host seats or removes bots with a click, a guest moves to
+  any free seat (in 2v2 that switches their team). Teams spawn clustered at the two map points; FFA scatters players
+  randomly with a minimum distance. Teammate bodies block your beam but never take harm. Name plates over remote
+  players tell friend from foe (team-colored in 2v2, neutral in FFA, none in 1v1 — the classic duel looks untouched).
+  A player leaving no longer kills the match while at least two teams remain; the final screen ranks teams by summed
+  kills. Quick match stays 1v1.
+
+### Changed
+- **Networking rebuilt as a full mesh — no host authority.** Every peer now simulates the players it owns (itself
+  and its bots) and is the sole judge of their deaths: the shooter raycasts what it sees, the claim goes straight to
+  the victim's owner, and a raised shield on the VICTIM'S screen always wins. Scores, streaks and the match timer are
+  derived locally by every peer from the same slim event stream — nothing to desync. A player (or even the lobby
+  creator) leaving mid-match no longer ends it while two teams remain; their bots leave with them. Lag compensation,
+  prediction-replay reconciliation and input buffering are gone entirely — your own movement is always fully local.
+- **Player colors are a fixed identity now.** The primary+reserve color pair is part of a player's appearance and is
+  never substituted: joining a room no longer swaps your color when it collides with the host's (two players may share
+  a color — the upcoming multi-player rooms will disambiguate with team nameplates). The reserve color travels in the
+  roster, so a remote player's planet ring is painted with THEIR actual reserve color instead of a copy of their
+  primary; bots got a deterministic reserve color of their own.
+
 ## [1.0.1] - 2026-07-04
 
 ### Fixed

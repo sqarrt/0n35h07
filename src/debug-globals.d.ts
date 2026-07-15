@@ -8,7 +8,6 @@ declare global {
     __debugCamera?: THREE.Camera
     __debugWindup?: () => boolean
     __debugTargetHitCount?: number
-    __debugLastAnnounce?: string
     __debugAnnounces?: string[]
     __debugKnockCount?: number
     __debugBotPos?: Record<number, () => Vec3Lite>
@@ -24,6 +23,7 @@ declare global {
     __debugForceLive?: () => void
     __debugLeave?: () => void
     __debugMusic?: () => { loopIndex: number; active: string[] }
+    __debugMusicBoot?: () => { seedCode: string; radioActive: boolean; created: boolean; started: boolean; level: number }
     __netReport?: () => unknown   // dev diagnostics for the P2P connection (src/net/netDiag.ts)
   }
 }
