@@ -140,7 +140,7 @@ export class RoomSession {
     this.readyIds = ready
     this.peerBySlot = peers
     gameLog.log('room', 'mode_set', { mode: m })
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   private onHello(hello: Hello, from: PeerId) {
@@ -155,7 +155,7 @@ export class RoomSession {
     this.peerBySlot.set(slot, from)
     this.readyIds.delete(slot)   // a fresh human is not ready
     this.resolveAgainst(hello.desiredMap ?? ALL_MAPS, hello.desiredDuration ?? ALL_DURS)
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   /** Host: a client asks to move to a FREE seat (2v2 team change; harmless elsewhere). */
@@ -173,7 +173,7 @@ export class RoomSession {
     const peer = this.peerBySlot.get(fromSlot)
     if (peer !== undefined) { this.peerBySlot.delete(fromSlot); this.peerBySlot.set(toSlot, peer) }
     gameLog.log('room', 'slot_move', { from: fromSlot, to: toSlot })
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   /** Client: ask the host to move me to a free seat. (The creator keeps seat 0 — the star topology and the
@@ -189,7 +189,7 @@ export class RoomSession {
     this.slots[seat] = null
     this.peerBySlot.delete(seat)
     this.readyIds.delete(seat)
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   // --- host: bots ---
@@ -214,7 +214,7 @@ export class RoomSession {
     this.slots[target] = this.makeBotEntry(botName, difficulty, target)
     this.readyIds.add(target)   // bot is auto-ready
     this.resolveAgainst(ALL_MAPS, ALL_DURS)   // bot accepts anything → random from the host's set
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   /** Remove the bot at `slot`; without an argument — the first bot seat (1v1 compat). */
@@ -224,7 +224,7 @@ export class RoomSession {
     if (target < 0 || this.slots[target]?.kind !== 'bot') return
     this.slots[target] = null
     this.readyIds.delete(target)
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   /** Set one bot's difficulty (per-seat picker). No-op if the seat isn't a bot. */
@@ -232,7 +232,7 @@ export class RoomSession {
     const s = this.slots[slot]
     if (s?.kind !== 'bot' || s.difficulty === d) return
     s.difficulty = d
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   /** Rename a bot live: the name re-derives personality+appearance. Without `slot` — the first bot (1v1 compat).
@@ -243,7 +243,7 @@ export class RoomSession {
     const botName = name.trim()
     if (!botName) return   // empty field — keep the current (random) bot
     this.slots[target] = this.makeBotEntry(botName, this.slots[target]!.difficulty ?? 'normal', target)
-    this.broadcastRoster()
+    this.syncRoom()
   }
 
   // --- host: assign/start ---
@@ -262,9 +262,14 @@ export class RoomSession {
     gameLog.log('room', 'assign_send', { mapId: this.mapId, durationMin: this.durationMin, yourId })
     this.net.send(peer, 'assign', { yourId, roster: this.roster(), durationMin: this.durationMin, mapId: this.mapId, ready: [...this.readyIds], mode: this.mode, owners: this.ownersMap(), seed: this.seed } satisfies Assign)
   }
-  private broadcastRoster() {
+  /** Room state changed (seats, readiness, map/duration) → push it to the guests, tell the UI, and RE-EVALUATE
+   *  the start gate. The gate depends on readiness AND on who occupies the seats, so it must be re-checked after
+   *  every change — not only when someone toggles ready. (A guest leaving used to strand the room: everyone left
+   *  was ready and the gate was satisfied, but nothing re-checked it and no button was left to press.) */
+  private syncRoom() {
     for (const peer of this.peerBySlot.values()) this.sendAssign(peer)
     this.emitChange()
+    this.maybeStart()
   }
 
   start() {
@@ -283,8 +288,7 @@ export class RoomSession {
   setLocalReady(ready: boolean) {
     if (this.role === 'host') {
       if (ready) this.readyIds.add(this.localPlayerId); else this.readyIds.delete(this.localPlayerId)
-      this.broadcastRoster()
-      this.maybeStart()
+      this.syncRoom()
     } else {
       this.net.broadcast('ready', { ready } satisfies ReadyMsg)
     }
@@ -295,8 +299,7 @@ export class RoomSession {
     const seat = [...this.peerBySlot.entries()].find(([, p]) => p === from)?.[0]
     if (seat === undefined) return
     if (msg.ready) this.readyIds.add(seat); else this.readyIds.delete(seat)
-    this.broadcastRoster()
-    this.maybeStart()
+    this.syncRoom()
   }
 
   /** host: the mode's start gate is satisfied and every occupied seat is ready → start the match. */
@@ -321,7 +324,7 @@ export class RoomSession {
     this.selDuration = mins
     if (mins.length) this.durationMin = mins[0]
     gameLog.log('nego', 'set_duration', { role: this.role, sel: this.selDuration, durationMin: this.durationMin })
-    if (this.role === 'host') this.broadcastRoster()   // clients will see the choice in Assign
+    if (this.role === 'host') this.syncRoom()   // clients will see the choice in Assign
     else this.emitChange()                             // client: local UI; the wish ships out in Hello
   }
 
@@ -329,7 +332,7 @@ export class RoomSession {
     this.selMap = maps
     if (maps.length) this.mapId = maps[0]
     gameLog.log('nego', 'set_map', { role: this.role, sel: this.selMap, mapId: this.mapId })
-    if (this.role === 'host') this.broadcastRoster()
+    if (this.role === 'host') this.syncRoom()
     else this.emitChange()
   }
 
