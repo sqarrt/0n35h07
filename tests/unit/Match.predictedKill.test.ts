@@ -30,7 +30,7 @@ function makePeerMatch() {
     scene, camera,
     controls: { current: { pointerSpeed: 1 } } as any,
     keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-    dispatch: vi.fn(), role: 'peer', netConfig: { localId: 1, roster: ROSTER },
+    dispatch: vi.fn(), netConfig: { localId: 1, roster: ROSTER },
     owners: { 0: 'X', 1: 'ME' }, selfPeer: 'ME',
   })
   scene.add(match.root)
@@ -59,11 +59,10 @@ function fireAndClaim(match: Match, scene: THREE.Scene) {
 /** The victim owner's snapshot showing ITS player (id 0) alive at the current position. */
 function aliveSnapshot(opp: Player): Snapshot {
   return {
-    ackTick: 0, tick: 0, buffered: 0,
+    tick: 0,
     players: [{
       id: opp.id, pos: toVec3(opp.position), aimDir: [0, 0, -1] as [number, number, number],
       alive: true, shieldActive: false, dashing: false, windupProgress: 0, respawning: false,
-      restore: opp.saveBodyState(),
     }],
   }
 }

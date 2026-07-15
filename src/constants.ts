@@ -122,7 +122,9 @@ export const DEFAULT_MATCH_DURATION_MIN = 5
 
 // Match map (host's choice in the room). The type lives here (not in game/maps.ts) so the net layer doesn't depend on game.
 // id is also used as a label in the UI.
-export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day' | 'os_test'
+// os_test пока не в игре (дошлифовывается): файлы src/maps/os_test/* на месте и открываются в #editor,
+// но карта вне реестра — её не выбрать в лобби. Вернуть в игру = дописать id сюда, в MAPS и MAP_IDS.
+export type MapId = 'os_arena' | 'os_india' | 'os_pillars' | 'os_pool_day'
 export const DEFAULT_MAP_ID: MapId = 'os_arena'
 export type MapFilter = MapId[]        // selected set of maps (≥1)
 export type DurationFilter = number[]  // selected set of durations (≥1)
@@ -132,10 +134,7 @@ export type DurationFilter = number[]  // selected set of durations (≥1)
 export const MENU_ANIM_TAU = 0.06
 export const MATCH_TIME_BROADCAST_MS = 1000   // host broadcasts the time remaining ~1/s
 
-// Multiplayer (host-authoritative P2P)
-// 'peer' is the production role (symmetric mesh); 'host'/'client' remain for star-era unit harnesses.
-export const MATCH_ROLES = ['host', 'client', 'peer'] as const
-export type MatchRole = typeof MATCH_ROLES[number]
+// Multiplayer (symmetric-mesh P2P)
 // Player id === seat index. The lobby creator always occupies seat 0.
 export const HOST_ID = 0
 // Legacy of the strict-1v1 era: seat 1. Production code must not reference it (seats are dynamic);
@@ -143,9 +142,9 @@ export const HOST_ID = 0
 export const OPPONENT_ID = 1
 export const MATCH_PHASES = ['ready', 'countdown', 'live', 'ended'] as const
 export type MatchPhase = typeof MATCH_PHASES[number]
-export const READY_COUNTDOWN_MS = 3000   // countdown before the fight (1v1), ms
+export const READY_COUNTDOWN_MS = 3000   // countdown before the fight, ms
 export const NET_INTERP_DELAY_MS = 100   // render remotes this far in the PAST (≈2–3 snapshots at 30 Hz) — absorbs packet jitter (entity interpolation)
-export const NET_SNAPSHOT_HZ = 30     // host's snapshot broadcast rate
+export const NET_SNAPSHOT_HZ = 30     // per-peer snapshot broadcast rate (each peer sends the players it owns)
 // Fixed-tick simulation (netcode foundation). The sim advances only in whole FIXED_DT steps, independent of refresh.
 export const FIXED_DT = 1 / 60          // 60 Hz simulation tick
 export const MAX_FRAME_DT = 0.25        // clamp a render-frame spike (tab resume / WASM load) before accumulating
@@ -153,7 +152,6 @@ export const MAX_CATCHUP_STEPS = 5      // most sim ticks per render frame — s
 // Input clock sync (client→host): keep the host's input jitter-buffer near TARGET so it never starves (a gap → the
 // using the buffer depth the host echoes in each snapshot. Gentle gain + a tight per-frame clamp keep it stable.
 export const NET_PREDICT_KILL_MS = 250            // client holds a predicted opponent-death this long, ignoring snapshots that still show it alive (in-flight, pre-claim), until the host's 'kill' confirms or this grace expires (host rejected → revive)
-export const NET_HUMAN_SPAWN_Z = 5    // 1v1: humans spawn facing each other along ±Z (deterministic)
 // Ball color palette (personal appearance; never substituted — see colors-rework).
 export const PLAYER_COLORS = ['#4af', '#fa4', '#4fa', '#f4a', '#fd4', '#a4f', '#4ff', '#f55']
 // Team identity lives ONLY on nameplates (2v2): fixed pair, deliberately outside PLAYER_COLORS semantics.

@@ -5,7 +5,7 @@ import type { MatchNet } from '../../src/net/NetSession'
 import type { MatchEvent, Snapshot, HitClaim, PhaseMsg } from '../../src/net/protocol'
 import { NET_SNAPSHOT_HZ } from '../../src/constants'
 
-const SNAP: Snapshot = { ackTick: 0, tick: 1, buffered: 0, players: [] }
+const SNAP: Snapshot = { tick: 1, players: [] }
 const PHASE: PhaseMsg = { phase: 'countdown', ready: [0, 1, 2] }
 
 /** Минимальный симметричный MatchNet: записывает входящее, отдаёт заготовленное исходящее. */

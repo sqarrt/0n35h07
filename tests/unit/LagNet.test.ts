@@ -26,10 +26,10 @@ describe('LagNet', () => {
     vi.useFakeTimers()
     const inner = fakeNet()
     const net = new LagNet(inner as unknown as INet, 100, 0)
-    net.broadcast('input', { tick: 1 })
+    net.broadcast('snapshot', { tick: 1 })
     expect(inner.sent.length).toBe(0)                 // not sent yet
     vi.advanceTimersByTime(100)
-    expect(inner.sent).toEqual([{ tag: 'input', payload: { tick: 1 } }])
+    expect(inner.sent).toEqual([{ tag: 'snapshot', payload: { tick: 1 } }])
     vi.useRealTimers()
   })
 
@@ -37,10 +37,10 @@ describe('LagNet', () => {
     vi.useFakeTimers()
     const inner = fakeNet()
     const net = new LagNet(inner as unknown as INet, 50, 0)
-    net.send('peerX', 'input', { tick: 2 })
+    net.send('peerX', 'hit', { shooter: 0 })
     expect(inner.sent.length).toBe(0)
     vi.advanceTimersByTime(50)
-    expect(inner.sent).toEqual([{ peer: 'peerX', tag: 'input', payload: { tick: 2 } }])
+    expect(inner.sent).toEqual([{ peer: 'peerX', tag: 'hit', payload: { shooter: 0 } }])
     vi.useRealTimers()
   })
 

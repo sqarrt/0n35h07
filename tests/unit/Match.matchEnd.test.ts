@@ -1,23 +1,30 @@
 import { describe, it, expect, vi } from 'vitest'
+import type { Mock } from 'vitest'
 import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { RosterEntry } from '../../src/net/protocol'
-import type { MatchRole } from '../../src/constants'
+import type { HUDAction } from '../../src/hooks/useGameHUD'
+
+/** Match's dispatch, mocked with its real signature (no cast). */
+type DispatchMock = Mock<(a: HUDAction) => void>
+const makeDispatch = (): DispatchMock => vi.fn<(a: HUDAction) => void>()
+
+type MatchResultAction = Extract<HUDAction, { type: 'SET_MATCH_RESULT' }>
+const isMatchResult = (a: HUDAction): a is MatchResultAction => a.type === 'SET_MATCH_RESULT'
 
 const ROSTER: RosterEntry[] = [
   { id: 0, name: 'You', color: '#4af', kind: 'human' },
   { id: 1, name: 'Bot', color: '#5af', kind: 'bot', difficulty: 'passive' },
 ]
 
-function makeMatch(role: MatchRole, opts: { durationMs?: number; dispatch?: ReturnType<typeof vi.fn> } = {}) {
-  const dispatch = opts.dispatch ?? vi.fn()
+function makeMatch(opts: { durationMs?: number; dispatch?: DispatchMock } = {}) {
+  const dispatch = opts.dispatch ?? makeDispatch()
   const match = new Match({
     scene: new THREE.Scene(),
     camera: new THREE.PerspectiveCamera(),
     controls: { current: null } as React.RefObject<any>,
     keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
     dispatch,
-    role,
     netConfig: { localId: 0, roster: ROSTER },
     durationMs: opts.durationMs,
   })
@@ -28,8 +35,8 @@ describe('Match: end by time', () => {
   it('after durationMs the match ends, outcome by frags (draw 0-0)', () => {
     const t0 = 2_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
-    const dispatch = vi.fn()
-    const { match } = makeMatch('host', { durationMs: 5000, dispatch })
+    const dispatch = makeDispatch()
+    const { match } = makeMatch({ durationMs: 5000, dispatch })
     match.forceLiveForTest()
     // First frame: matchEndsAt = t0 + 5000; remaining = 5000 (not the end)
     match.update(0.016)
@@ -42,10 +49,10 @@ describe('Match: end by time', () => {
     spy.mockReturnValue(t0 + 5001 + 250)
     match.update(0.016)
     spy.mockRestore()
-    const ended = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0]
+    const ended = dispatch.mock.calls.map(c => c[0]).find(isMatchResult)
     expect(ended).toBeTruthy()
-    expect(ended.result.reason).toBe('time')
-    expect(ended.result.outcome).toBe('draw')   // 0-0
+    expect(ended!.result.reason).toBe('time')
+    expect(ended!.result.outcome).toBe('draw')   // 0-0
   })
 })
 
@@ -53,8 +60,8 @@ describe('Match: opponent disconnect', () => {
   it('handlePlayerLeft → ended, outcome win, reason disconnect', () => {
     const t0 = 3_000_000
     const spy = vi.spyOn(Date, 'now').mockReturnValue(t0)
-    const dispatch = vi.fn()
-    const { match } = makeMatch('host', { durationMs: 600000, dispatch })
+    const dispatch = makeDispatch()
+    const { match } = makeMatch({ durationMs: 600000, dispatch })
     match.forceLiveForTest()
     match.handlePlayerLeft(1)
     expect(match.phase).toBe('ended')
@@ -62,8 +69,8 @@ describe('Match: opponent disconnect', () => {
     spy.mockReturnValue(t0 + 250)
     match.update(0.016)
     spy.mockRestore()
-    const r = dispatch.mock.calls.find(c => c[0].type === 'SET_MATCH_RESULT')?.[0].result
-    expect(r.reason).toBe('disconnect')
-    expect(r.outcome).toBe('win')
+    const r = dispatch.mock.calls.map(c => c[0]).find(isMatchResult)?.result
+    expect(r!.reason).toBe('disconnect')
+    expect(r!.outcome).toBe('win')
   })
 })

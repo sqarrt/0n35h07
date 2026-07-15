@@ -8,10 +8,13 @@ import type { GameMode } from '../../src/game/modes'
 import type { Vec3 } from '../../src/net/protocol'
 import { MAP_IDS } from '../../src/game/maps'
 import { botAppearance } from '../../src/game/botAppearance'
+import { testProfile } from './helpers/profile'
 
-const GUEST: PlayerProfile = { name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
+// Name + color pair are pinned: the roster assertions below compare against exactly these.
+// The styles (classic/echo/streak/dome) come from the prod default — the tests read them back as such.
+const GUEST: PlayerProfile = testProfile({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa' })
 
-const HOST: PlayerProfile = { name: 'Host', primaryColor: '#4af', reserveColor: '#fa4', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo', dashStyle: 'streak', shieldStyle: 'dome' }
+const HOST: PlayerProfile = testProfile({ name: 'Host', primaryColor: '#4af', reserveColor: '#fa4' })
 
 /** Brings up host+client over loopback (delivery is synchronous → handshake completes immediately). */
 function handshake(clientProfile: PlayerProfile) {
@@ -81,7 +84,7 @@ describe('RoomSession — personal colors are never substituted', () => {
   })
 
   it('client receives its id and the shared roster (ASSIGN arrived)', () => {
-    const { clientView } = handshake({ name: 'Guest', primaryColor: '#fd4', reserveColor: '#4fa', defaultView: 'fp', ballModel: 'smooth', windupStyle: 'classic', respawnStyle: 'echo' })
+    const { clientView } = handshake(GUEST)
     expect(clientView.connected).toBe(true)
     expect(clientView.localPlayerId).toBe(1)
     expect(clientView.roster.map(r => r.id).sort()).toEqual([0, 1])
@@ -197,6 +200,24 @@ describe('RoomSession — пер-слотовая сложность бота', 
 })
 
 describe('RoomSession — много-гостевое лобби', () => {
+  // Гейт старта зависит и от готовности, и от СОСТАВА мест. Раньше его пересчитывали только на смене
+  // готовности → уход неготового гостя оставлял лобби в дедлоке: все оставшиеся готовы, гейт выполнен,
+  // а старта нет и нажать нечего (у готового кнопка — «ждём остальных»).
+  it('ffa: уход неготового гостя пересчитывает гейт — оставшиеся готовы → матч стартует', () => {
+    const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])
+    const host = new RoomSession(h, 'host', 'AB12', HOST)
+    host.setMode('ffa')
+    const gb = new RoomSession(b, 'client', 'AB12', GUEST)
+    new RoomSession(c, 'client', 'AB12', { ...GUEST, name: 'Guest2' })
+    let started = 0
+    host.onStart(() => { started++ })
+    gb.setLocalReady(true)
+    host.setLocalReady(true)
+    expect(started).toBe(0)      // гость C ещё не готов — ждём его
+    h.triggerLeave('C')          // неготовый гость ушёл: занято двое, оба готовы, ffa-гейт (≥2) выполнен
+    expect(started).toBe(1)
+  })
+
   it('уход ДРУГОГО гостя не закрывает комнату у клиента; уход хоста — закрывает', () => {
     const [h, b, c] = createLoopbackHub(['H', 'B', 'C'])
     const host = new RoomSession(h, 'host', 'AB12', HOST)

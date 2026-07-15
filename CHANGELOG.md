@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - 2026-07-07
 
 ### Added
-- **New map: os_test.** Added to the map picker alongside the existing arenas.
 - **Map editor: box selection with copy/paste.** A new SELECT tool (key 5, or the B hotkey from any tool) marks
   two corner cells and highlights the box between them, stretching live to the crosshair before the second corner.
   C copies the selected blocks, X cuts, Delete clears; V enters paste mode — a translucent ghost of the fragment
@@ -45,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overlaps. The 3+-player READY list aligns names and statuses to the screen's center line.
 
 ### Fixed
+- **A lobby could deadlock when someone left.** In War (and any room past its minimum), if you and another
+  player were ready and the one you were still waiting on left, the match never started: everyone left was
+  ready, the room had enough players, but nothing re-checked that — and a ready player has no button to press.
+  The start condition is now re-evaluated after every change to the room, not only when someone toggles ready.
+- **Walking a map in the editor now answers the same question the game does.** The editor's walk mode used its
+  own step height (left behind at an old value), so a single cube read as a wall you couldn't climb while the
+  game happily treats it as a stair — testing a map on foot gave the wrong answer.
 - **Map borders align with the grid; border blocks no longer vanish.** Perimeter walls now sit entirely
   outside the floor with their inner face exactly on the arena edge, so the last row of blocks fits flush
   without poking into the wall — and long thin blocks along the border are no longer misread as stale wall

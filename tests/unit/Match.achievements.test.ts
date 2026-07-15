@@ -3,7 +3,6 @@ import * as THREE from 'three'
 import { Match } from '../../src/game/Match'
 import type { IAchievements } from '../../src/steam/achievements'
 import type { RosterEntry } from '../../src/net/protocol'
-import type { MatchRole } from '../../src/constants'
 
 const ROSTER: RosterEntry[] = [
   { id: 0, name: 'You', color: '#4af', kind: 'human' },
@@ -20,14 +19,13 @@ class FakeAchievements implements IAchievements {
   onMatchEnd(won: boolean, flawless: boolean): void { this.ends.push([won, flawless]) }
 }
 
-function makeMatch(role: MatchRole, achievements: IAchievements) {
+function makeMatch(achievements: IAchievements) {
   return new Match({
     scene: new THREE.Scene(),
     camera: new THREE.PerspectiveCamera(),
     controls: { current: null } as React.RefObject<any>,
     keys: { current: { forward: false, back: false, left: false, right: false } } as React.MutableRefObject<any>,
     dispatch: vi.fn(),
-    role,
     netConfig: { localId: 0, roster: ROSTER },   // local player is id 0
     durationMs: 600000,
     achievements,
@@ -37,7 +35,7 @@ function makeMatch(role: MatchRole, achievements: IAchievements) {
 describe('Match → achievements routing (local player only)', () => {
   it('client: own kill drives onKill, opponent kill does not', () => {
     const ach = new FakeAchievements()
-    const match = makeMatch('client', ach)
+    const match = makeMatch(ach)
     // Our kill (shooter = localId 0). Mesh: streak/firstBlood are DERIVED locally — first kill → streak 1, firstBlood.
     match.applyEvent({ t: 'kill', shooter: 0, victim: 1 })
     // Opponent's kill (shooter = 1) — must NOT credit us
@@ -47,7 +45,7 @@ describe('Match → achievements routing (local player only)', () => {
 
   it('client: own perfect block drives onPerfectBlock; a non-perfect block does not', () => {
     const ach = new FakeAchievements()
-    const match = makeMatch('client', ach)
+    const match = makeMatch(ach)
     match.applyEvent({ t: 'block', shooter: 1, victim: 0, perfect: true })
     match.applyEvent({ t: 'block', shooter: 1, victim: 0, perfect: false })
     match.applyEvent({ t: 'block', shooter: 0, victim: 1, perfect: true })   // opponent blocked us — not ours
@@ -57,7 +55,7 @@ describe('Match → achievements routing (local player only)', () => {
   it('host: a win (opponent disconnect, 0 deaths) drives onMatchEnd(true, true)', () => {
     const ach = new FakeAchievements()
     const spy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000)
-    const match = makeMatch('host', ach)
+    const match = makeMatch(ach)
     match.forceLiveForTest()
     match.handlePlayerLeft(1)   // opponent leaves → win by disconnect, we never died
     spy.mockRestore()

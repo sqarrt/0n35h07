@@ -29,7 +29,7 @@ function makeMatch(opts: { seedCode?: string; musicEngine?: IMusicEngine }) {
   ]
   return new Match({
     scene, camera, controls: controls as any, keys: keys as any, dispatch: vi.fn(),
-    role: 'host', netConfig: { localId: 0, roster }, ...opts,
+    netConfig: { localId: 0, roster }, ...opts,
   })
 }
 

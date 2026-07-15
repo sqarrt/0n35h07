@@ -1,23 +1,10 @@
 import { useState, useEffect, useRef, useCallback, lazy, memo, Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Game } from './Game'
+import { GameOverlay } from './components/GameOverlay'
 import { useGameHUD } from './hooks/useGameHUD'
 import type { HUDAction } from './hooks/useGameHUD'
 import type { ISfxEngine } from './game/audio/sfx/types'
-import { Crosshair } from './components/Crosshair'
-import { ShieldBrackets } from './components/ShieldBrackets'
-import { ScreenFlashes } from './components/ScreenFlashes'
-import { WindupOverlay } from './components/WindupOverlay'
-import { DashIndicator } from './components/DashIndicator'
-import { StatsOverlay } from './components/StatsOverlay'
-import { RespawnOverlay } from './components/RespawnOverlay'
-import { MatchHud } from './components/MatchHud'
-import { StreakBanner } from './components/StreakBanner'
-import { EffectDefs } from './components/EffectText'
-import { OverheatVignette } from './components/OverheatVignette'
-import { ReadyOverlay } from './components/ReadyOverlay'
-import { CountdownOverlay } from './components/CountdownOverlay'
-import { MatchEndedOverlay } from './components/MatchEndedOverlay'
 import { PauseMenu } from './components/PauseMenu'
 import { MatchSettings } from './components/MatchSettings'
 import { MenuBackdrop } from './components/MenuBackdrop'
@@ -40,8 +27,8 @@ import type { IStrudelEngine } from './radio/music/IStrudelEngine'
 import type { MusicalState } from './radio/music/radio/MusicalState'
 import { MainMenu } from './screens/MainMenu'
 import { Lobby } from './screens/Lobby'
-import type { SeatView, SeatZone } from './components/lobby/types'
-import { teamOfSlot, MODE_SLOT_COUNT } from './game/modes'
+import type { SeatZone } from './components/lobby/types'
+import { lobbyStateFrom } from './components/lobby/lobbyState'
 import type { GameMode } from './game/modes'
 import type { Vec3 } from './net/protocol'
 import type { GameApi } from './Game'
@@ -65,7 +52,6 @@ import { SfxProvider } from './sfx/SfxContext'
 import { WebAudioMusicEngine } from './game/audio/WebAudioMusicEngine'
 import { MenuMusic } from './game/audio/MenuMusic'
 import { AudioAnalysis } from './game/audio/AudioAnalysis'
-import { AudioBar } from './components/AudioBar'
 import { POINTERLOCK_COOLDOWN } from './constants'
 import { IS_DESKTOP } from './platform'
 import { setPostFx } from './postFxStore'
@@ -83,7 +69,7 @@ import { RoomSession } from './net/RoomSession'
 import type { RoomView, RoomRole } from './net/RoomSession'
 import type { INet } from './net/INet'
 import type { RosterEntry } from './net/protocol'
-import type { MatchRole, MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
+import type { MapId, MapFilter, DurationFilter, BotDifficulty } from './constants'
 import { DEFAULT_MAP_ID, MATCH_DURATIONS_MIN } from './constants'
 import { TrailerScreen } from './components/trailer/TrailerScreen'
 import type { DemoFile } from './game/demo/demoTypes'
@@ -104,7 +90,6 @@ const isEditorHash = () => window.location.hash.startsWith('#editor')
 const MAP_FADE_MS = 700                  // map background fade in/out duration (in sync with the .map-bg transition)
 
 interface GameNet {
-  role: MatchRole
   net: INet
   netConfig: { localId: number; roster: RosterEntry[]; owners: Record<number, string> }
   durationMs: number
@@ -156,7 +141,6 @@ const GameCanvas = memo(function GameCanvas({ dispatch, gameNet, defaultThirdPer
     <Canvas shadows="percentage" camera={GAME_CAMERA}>
       <Game
         dispatch={dispatch}
-        role={gameNet.role}
         net={gameNet.net}
         netConfig={gameNet.netConfig}
         defaultThirdPerson={defaultThirdPerson}
@@ -475,8 +459,7 @@ export default function App() {
     const session = new RoomSession(net, role, code, loadProfile(), sel)
     session.onChange(v => setRoomView(v))
     session.onStart((durationMs, mapId, mode, ffaSpawns) => {
-      const matchRole: MatchRole = 'peer'   // symmetric mesh: the lobby host/client split ends at match start
-      gameLog.set({ role: matchRole, localId: session.netConfig().localId, code })
+      gameLog.set({ role, localId: session.netConfig().localId, code })   // role = LOBBY role (creator/joiner); the match itself is a symmetric mesh
       gameLog.log('room', 'match_boot', { mapId, durationMs, durationMin: durationMs / 60000, mode })
       // Start preloading geo.json for the map: it'll finish loading before Arena mounts during the countdown.
       void ensureMapGeo(mapId)
@@ -487,7 +470,7 @@ export default function App() {
       // Copy of the map: roster cleanup in RoomSession.onPeerLeave must not erase the game's routing.
       // Achievements don't count against a PASSIVE bot (a punching bag); a normal bot or a human is fine.
       const achievementsEnabled = !session.netConfig().roster.some(r => r.kind === 'bot' && r.difficulty === 'passive')
-      setGameNet({ role: matchRole, net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
+      setGameNet({ net, netConfig: session.netConfig(), durationMs, mapId, mode, ffaSpawns, code, seed: session.seed, achievementsEnabled, radioForMatch: radioActive })
       setScreen('game')
     })
     // Client: host left the lobby / handshake failed → roll back to hosting an idle room of our own.
@@ -879,43 +862,21 @@ export default function App() {
     if (m) setLastMapId(m)
   }, [roomView?.mapId, draftSel.map])
 
-  // Lobby props: normalize RoomView (or the pre-session forming state) into the Lobby shape.
+  // Lobby props: the pure state (seats/flags) comes from lobbyStateFrom; App only wires the handlers onto it.
   const buildLobby = () => {
-    const v = roomView
-    // Without a session (Steam lobby still forming) the intended role keeps the seat side stable.
-    const isHost = v ? v.isHost : (IS_DESKTOP ? steamFriendHosting : true)
-    const mode: GameMode = v?.mode ?? '1v1'
-    const myId = v?.localPlayerId ?? -1   // host: seat 0; client: assigned seat (-1 until ASSIGN)
-    let seats: SeatView[]
-    if (v) {
-      // the client sees the others ONLY after connecting (ASSIGN), otherwise its own host stub looks like a "match with yourself"
-      seats = v.slots.map((e, slot) => ({
-        slot,
-        entry: (isHost || v.connected) && e ? { name: e.name, color: e.color, ready: v.ready.includes(e.id), isBot: e.kind === 'bot', difficulty: e.difficulty } : null,
-        mine: myId >= 0 && e?.id === myId,
-        team: teamOfSlot(mode, slot),
-      }))
-    } else {
-      // No session yet: show me on my expected side of a Duel pair so the screen doesn't blink empty.
-      const mySlot = isHost ? 0 : 1
-      seats = Array.from({ length: MODE_SLOT_COUNT[mode] }, (_, slot) => ({
-        slot,
-        entry: slot === mySlot ? { name: profile.name, color: profile.primaryColor, ready: false, isBot: false } : null,
-        mine: slot === mySlot,
-        team: teamOfSlot(mode, slot),
-      }))
-    }
+    const state = lobbyStateFrom({
+      view: roomView,
+      self: { name: profile.name, color: profile.primaryColor },
+      draft: { map: draftSel.map, durationMin: draftSel.durationMin },
+      // Without a session (Steam lobby still forming) the intended role keeps the seat side stable.
+      fallbackIsHost: IS_DESKTOP ? steamFriendHosting : true,
+    })
     // Transport peer ids currently seated — prunes accepted Steam invites (the friend's SteamId64 IS its peer id).
     const seatedPeerIds = sessionRef.current ? Object.values(sessionRef.current.netConfig().owners) : []
     return {
-      isHost, mode, seats, seatedPeerIds,
-      connected: v?.connected ?? false,
-      myReady: v ? v.ready.includes(myId) : false,
-      canStart: v?.canStart ?? false,
+      ...state, seatedPeerIds,
       searching,
-      joinCode: !IS_DESKTOP && isHost ? lobbyCodeRef.current : null,
-      mapSel: v?.mapSel ?? draftSel.map,
-      durationSel: v?.durationSel ?? draftSel.durationMin,
+      joinCode: !IS_DESKTOP && state.isHost ? lobbyCodeRef.current : null,
       onSetMode: onLobbySetMode, onSeatClick: onLobbySeatClick, onBotRemove: onLobbyBotRemove,
       onBotName: onLobbyBotName, onBotDifficulty: onLobbyBotDifficulty,
       onSetMap: onLobbySetMap, onSetDuration: onLobbySetDuration,
@@ -1042,50 +1003,18 @@ export default function App() {
             audioAnalysis={audioAnalysis}
             radioActive={gameNet.radioForMatch}
           />
-          {hud.matchPhase === 'ready' && (
-            <ReadyOverlay
-              roster={gameNet.netConfig.roster}
-              localId={gameNet.netConfig.localId}
-              role={gameNet.role}
-              ready={hud.ready}
-              onReady={handleReady}
-            />
-          )}
-          {hud.matchPhase === 'countdown' && <CountdownOverlay n={hud.countdown} />}
-          {/* Game HUD — only in live; during the countdown a clean screen (camera can turn) + the countdown itself. */}
-          {locked && hud.matchPhase === 'live' && (
-            <>
-              <WindupOverlay windupProgress={hud.windupProgress} />
-              <Crosshair beamProgress={hud.beamProgress} />
-              <ScreenFlashes
-                beamFlash={hud.beamFlash}
-                playerHit={hud.playerHit}
-                shieldBlock={hud.shieldBlock}
-                botShieldHit={hud.botShieldHit}
-                shieldVisible={hud.shieldVisible}
-              />
-              <ShieldBrackets
-                shieldProgress={hud.shieldProgress}
-                shieldVisible={hud.shieldVisible}
-                shieldBlock={hud.shieldBlock}
-              />
-              <DashIndicator dashProgress={hud.dashProgress} />
-              <StatsOverlay showFps={profile.showFps} showSpeed={profile.showSpeed} speed={hud.playerSpeed} />
-              {hud.respawning && <RespawnOverlay progress={hud.respawning.progress} />}
-              {profile.audioViz && <AudioBar analysis={audioAnalysis} />}
-              <StreakBanner announce={hud.announce} />
-              <OverheatVignette tier={hud.streaks[gameNet.netConfig.localId] ?? null} />
-              <EffectDefs />
-            </>
-          )}
-          {/* HUD bar: at the top in live (when the pointer is captured). At match end the overlay owns the
-              screen (ranked player list) — the bar hides so nothing overlaps it. */}
-          {locked && hud.matchPhase === 'live' && !hud.matchResult && (
-            <MatchHud scores={hud.scores} matchTime={hud.matchTime} roster={gameNet.netConfig.roster} localId={gameNet.netConfig.localId} streaks={hud.streaks} streakCounts={hud.streakCounts} />
-          )}
-          {hud.matchResult && (
-            <MatchEndedOverlay result={hud.matchResult} roster={gameNet.netConfig.roster} streaks={hud.streaks} onExit={handleBack} />
-          )}
+          <GameOverlay
+            hud={hud}
+            roster={gameNet.netConfig.roster}
+            localId={gameNet.netConfig.localId}
+            locked={locked}
+            showFps={profile.showFps}
+            showSpeed={profile.showSpeed}
+            audioViz={profile.audioViz}
+            audioAnalysis={audioAnalysis}
+            onReady={handleReady}
+            onExit={handleBack}
+          />
         </>
       )}
 

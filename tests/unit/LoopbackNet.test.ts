@@ -5,20 +5,20 @@ describe('LoopbackNet', () => {
   it('broadcast reaches the other endpoint with from=sender', () => {
     const [host, client] = createLoopbackPair('host', 'client')
     const got = vi.fn()
-    client.on('input', got)
-    host.broadcast('input', { seq: 1 })
-    expect(got).toHaveBeenCalledWith({ seq: 1 }, 'host')
+    client.on('snapshot', got)
+    host.broadcast('snapshot', { tick: 1, players: [] })
+    expect(got).toHaveBeenCalledWith({ tick: 1, players: [] }, 'host')
   })
 
   it('on(tag) filters by tag', () => {
     const [host, client] = createLoopbackPair()
-    const onInput = vi.fn()
+    const onEvent = vi.fn()
     const onSnap = vi.fn()
-    client.on('input', onInput)
+    client.on('event', onEvent)
     client.on('snapshot', onSnap)
-    host.broadcast('snapshot', { ackSeq: 0, players: [] })
+    host.broadcast('snapshot', { tick: 0, players: [] })
     expect(onSnap).toHaveBeenCalledOnce()
-    expect(onInput).not.toHaveBeenCalled()
+    expect(onEvent).not.toHaveBeenCalled()
   })
 
   it('send delivers only to the addressee', () => {

@@ -32,7 +32,3 @@ export interface Composition {
   readonly code: string
   readonly layers: readonly CompositionLayer[]
 }
-
-export function emptyLibrary(): StemLibrary {
-  return { kicks: [], bass: [], lead: [], sfx: [] }
-}

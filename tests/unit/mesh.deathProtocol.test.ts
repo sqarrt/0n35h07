@@ -38,7 +38,7 @@ function makeMesh(mode: GameMode = 'ffa'): Record<'A' | 'B' | 'C', Peer> {
     const match = new Match({
       scene, camera, controls: { current: { pointerSpeed: 1 } } as any,
       keys: { current: { forward: false, back: false, left: false, right: false } } as any,
-      dispatch: vi.fn(), role: 'peer', netConfig: { localId: localOf[id], roster: ROSTER }, mode,
+      dispatch: vi.fn(), netConfig: { localId: localOf[id], roster: ROSTER }, mode,
       owners: OWNERS, selfPeer: id,
     })
     scene.add(match.root)

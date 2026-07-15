@@ -12,7 +12,9 @@ class FakeWS {
   onclose: (() => void) | null = null
   onmessage: ((e: MessageEvent) => void) | null = null
   private sub: string | null = null
-  constructor(public url: string) {
+  url: string
+  constructor(url: string) {
+    this.url = url
     if (isAlive(url)) setTimeout(() => this.onopen?.(), latencyFor(url))
     else setTimeout(() => this.onerror?.(), 1)
   }

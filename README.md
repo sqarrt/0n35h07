@@ -1,6 +1,6 @@
 # 0N35H07
 
-> A fast, arcade first-person shooter — strictly **1v1**, peer-to-peer, right in the browser.
+> A fast, arcade first-person shooter — **1v1, 2v2 or free-for-all**, peer-to-peer, right in the browser.
 
 *"0N35H07" is leetspeak for **OneShot** — the docs use the readable form "OneShot" interchangeably.*
 
@@ -13,9 +13,9 @@ Built with React 19 · React Three Fiber · Three.js · Rapier (physics) · Trys
 
 ## What it is
 
-OneShot is a duel-focused arena shooter: charge a beam, bait your opponent into wasting a shield or dash, dodge at the last moment, and land the one shot that counts. No teams, no lobbies full of strangers — just you, one opponent (a human over WebRTC or an AI bot), and the arena.
+OneShot is a duel-focused arena shooter: charge a beam, bait your opponent into wasting a shield or dash, dodge at the last moment, and land the one shot that counts. No lobbies full of strangers — just you, up to three others (humans over WebRTC or AI bots), and the arena.
 
-- **Strictly 1v1, always P2P.** The room creator is the host; a second player joins by code. No game server — the host authoritatively simulates the match and streams snapshots to the client.
+- **Duel, Battle or War — always P2P.** Pick a mode in the lobby: 1v1, 2v2 teams, or a four-way free-for-all. Friends join by code (or a Steam invite); empty seats take bots. No game server, and no host either — every peer simulates the players it owns and the match is a full mesh between them.
 - **Human-like bots.** The AI is "just another controller" driving the same intent methods a human keyboard does. Bot personality (skill, accuracy, fire rate, evasion, baiting) is derived deterministically from its nickname — type a name to replay a specific (tough) opponent.
 - **Skins & arenas.** Ball models, charge / respawn / dash / shield FX, a paintable ball, a built-in voxel map editor, and several arenas (including a few shoot-through / passable trick maps).
 - **10 languages** in the UI.
@@ -89,10 +89,10 @@ platform (`src/net/poolNamespace.ts`).
 Three layers, deliberately separated:
 
 - **Simulation** — pure TypeScript in `src/game/` (no React). A single `Player` entity is the human, the bot, and the remote player alike; it composes an injectable `Body` + `IWeapon` + `IShield`. Controllers (`HumanController`, `BotController`) drive the *same* intent methods. `Match` owns the world, players, controllers and is the single place where the rules live (combat, respawn, the ready→countdown→live ritual).
-- **R3F host** — a thin `<Canvas>` host that builds the `Match` once and runs a single `useFrame` tick.
+- **R3F host** — a thin `<Canvas>` host that builds the `Match` once and drives it at a fixed 60Hz tick, interpolating the visuals between ticks.
 - **HUD / menus** — a React/DOM overlay.
 
-Physics is Rapier's kinematic character controller; combat raycasts run on Three.js mesh hitboxes. Networking is host-authoritative (`src/net/`): only the host computes hits; the client predicts its own movement and renders remotes from snapshots.
+Physics is Rapier's kinematic character controller; combat raycasts run on Three.js mesh hitboxes. Networking is a symmetric full mesh (`src/net/`) with no host authority: every peer simulates the players it owns, and a hit is shooter-claimed but judged by the victim's owner — so the shield that counts is the one on the victim's screen.
 
 Type config note: `erasableSyntaxOnly` is on — **no** `enum`, `namespace`, or constructor parameter-properties.
 

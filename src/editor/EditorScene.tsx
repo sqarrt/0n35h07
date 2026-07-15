@@ -7,7 +7,7 @@ import type { Cell, BlockType, Dir } from './editorStore'
 import { regionBounds, canStamp } from './editorSelection'
 import type { Fragment } from './editorSelection'
 import type { Vec3 } from '../game/maps'
-import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY } from '../constants'
+import { GRAVITY, JUMP_FORCE, EYE_HEIGHT, BLOCK_TRANSPARENT_OPACITY, AUTOSTEP_MAX_HEIGHT } from '../constants'
 import { unitWedgeGeometry, wedgeQuaternion } from '../game/wedge'
 import { gridGeometry } from '../game/grid'
 import { cellCenter, cellsGridGeometry, BLOCK_GRID_COLOR, BLOCK_GRID_OPACITY } from '../game/blockGrid'
@@ -62,7 +62,8 @@ function axisStep(n: THREE.Vector3): CellCoord {
 
 // Wedge high side in world by dir (accounting for wedgeRotationY = −dir·90°): d0=+Z,1=−X,2=−Z,3=+X.
 const HIGH_DIR: Record<Dir, [number, number]> = { 0: [0, 1], 1: [-1, 0], 2: [0, -1], 3: [1, 0] }
-const STEP = 0.4   // max step-up height (like autostep in-game; > per-frame rise on a slope, < a cube edge)
+// Step-up height in walk mode — the SAME constant the in-game KCC autostep uses, so walking the map in the
+// editor answers the passability question exactly as the game will (a 1×1 block is a stair, not a wall).
 
 interface Props {
   voxels: Map<string, Cell>     // a new Map on every edit → instance rebuild
@@ -402,12 +403,12 @@ export function EditorScene(props: Props) {
   const surfaceInfo = (px: number, pz: number, feet: number, eye: number): { ground: number; blocked: boolean } => {
     let ground = 0
     const cx = Math.floor(px / VOXEL), cz = Math.floor(pz / VOXEL)
-    const yReach = Math.floor((feet + STEP) / VOXEL)
+    const yReach = Math.floor((feet + AUTOSTEP_MAX_HEIGHT) / VOXEL)
     for (let y = 0; y <= yReach; y++) {
       const cell = voxels.get(`${cx},${y},${cz}`)
       if (!cell || cell.ps) continue   // passable blocks provide no support
       const top = cellTopAt(cell, cx, y, cz, px, pz)
-      if (top <= feet + STEP + 1e-3) ground = Math.max(ground, top)
+      if (top <= feet + AUTOSTEP_MAX_HEIGHT + 1e-3) ground = Math.max(ground, top)
     }
 
     let blocked = false
@@ -418,7 +419,7 @@ export function EditorScene(props: Props) {
       for (let y = 0; y <= yTop; y++) {
         const cell = voxels.get(`${x},${y},${z}`)
         if (!cell || cell.ps) continue   // passable blocks don't block movement
-        if (cellTopAt(cell, x, y, z, px, pz) > feet + STEP + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
+        if (cellTopAt(cell, x, y, z, px, pz) > feet + AUTOSTEP_MAX_HEIGHT + 1e-3 && y * VOXEL < eye - 1e-3) { blocked = true; break }
       }
     }
     return { ground, blocked }

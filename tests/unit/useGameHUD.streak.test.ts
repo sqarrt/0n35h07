@@ -3,9 +3,9 @@ import { hudReducer, initialHUD } from '../../src/hooks/useGameHUD'
 
 describe('useGameHUD · streaks', () => {
   it('SET_STREAK sets tier by id, null clears it', () => {
-    let s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 1, tier: 'double' })
+    let s = hudReducer(initialHUD, { type: 'SET_STREAK', id: 1, tier: 'double', count: 2 })
     expect(s.streaks[1]).toBe('double')
-    s = hudReducer(s, { type: 'SET_STREAK', id: 1, tier: null })
+    s = hudReducer(s, { type: 'SET_STREAK', id: 1, tier: null, count: 0 })
     expect(s.streaks[1]).toBeNull()
   })
   it('RESET_MATCH clears streaks', () => {
