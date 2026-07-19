@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-07-19
+
+### Fixed
+- **Duel search kept only the first map selected.** On the Play screen, picking several maps and then pressing
+  SEARCH (Steam quick-match) collapsed the highlight back to the first map — and the quick-match actually searched
+  for that one map only, ignoring the rest of the selection. The map/duration choice is now retained when the idle
+  room is torn down for search, so the full selection is highlighted and used for matchmaking.
+
 ## [1.1.0] - 2026-07-07
 
 ### Added
