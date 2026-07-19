@@ -773,8 +773,10 @@ export default function App() {
   }
 
   // --- lobby callbacks ---
-  const onLobbySetMap = (m: MapFilter) => { if (sessionRef.current) sessionRef.current.setMap(m); else setDraftSel(s => ({ ...s, map: m })) }
-  const onLobbySetDuration = (d: DurationFilter) => { if (sessionRef.current) sessionRef.current.setDuration(d); else setDraftSel(s => ({ ...s, durationMin: d })) }
+  // Keep draftSel in sync with the live session too: it's the durable fallback when the session is torn
+  // down (search teardown / client rollback) — otherwise the selection reverts to the Play defaults.
+  const onLobbySetMap = (m: MapFilter) => { setDraftSel(s => ({ ...s, map: m })); sessionRef.current?.setMap(m) }
+  const onLobbySetDuration = (d: DurationFilter) => { setDraftSel(s => ({ ...s, durationMin: d })); sessionRef.current?.setDuration(d) }
   const onLobbyBotName = (slot: number, name: string) => sessionRef.current?.setBotName(name, slot)
   const onLobbyBotDifficulty = (slot: number, d: BotDifficulty) => sessionRef.current?.setBotDifficulty(d, slot)
   const onLobbyReady = () => sessionRef.current?.setLocalReady(true)
