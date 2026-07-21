@@ -5,6 +5,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-07-21
+
+### Changed
+- **Internal design docs are no longer tracked in git.** `docs/` has been in `.gitignore` for a while, but the
+  30 plan/spec files added before that were still in the index. They are now untracked (the files stay on disk),
+  so the repository carries only shipped code and its public documentation.
+
 ## [1.1.1] - 2026-07-19
 
 ### Fixed
