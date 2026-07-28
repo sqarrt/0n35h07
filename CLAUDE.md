@@ -2,6 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 2.0.0 — Godot rewrite (in progress)
+
+OneShot is being reimplemented natively on **Godot 4.7 (GDScript, Windows-native)**.
+The repo **root is the Godot project** (`project.godot`, `scenes/`, `scripts/`, `autoloads/`,
+`addons/gut/`, `tests/unit/`). The previous React/Three.js web game is preserved under
+**`web-reference/`** as the 1:1 parity oracle and will be removed once Godot reaches parity.
+Requirement: **all visuals and functionality must be reproduced 1:1**.
+
+- Run the game (headless): `scripts/godot.sh --headless --path . scenes/main.tscn --quit-after 5`
+- Run tests (Godot analog of `npm run test`): `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit`
+  (first time / after adding `class_name`s: run `scripts/godot.sh --headless --path . --import` once)
+- The web reference builds from `web-reference/` (its own `package.json`).
+- Note: `.github/workflows/*` still target the old web layout and are stale until CI is reworked.
+
+The rest of this document describes the **web-reference** architecture; the Godot
+architecture is documented incrementally as sub-projects land.
+
 OneShot — an arcade first-person shooter. Stack: React 19 + React Three Fiber (@react-three/fiber 9) +
 Three.js 0.184 + @react-three/rapier 2 (physics), Trystero (WebRTC P2P), Vite 8 build, TypeScript 6,
 Tauri 2 desktop build.

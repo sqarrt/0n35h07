@@ -44,7 +44,7 @@ TODO.md
 .mcp.json
 
 # Map editor per-session backup (autosave artifact — not shipped)
-src/maps/*/backup.json
+web-reference/src/maps/*/backup.json
 
 # Steamworks SDK — vendored locally for builds; not redistributable in a public repo (Valve license)
 steamworks_sdk_164/
@@ -54,3 +54,12 @@ Trace-*.json.gz
 *netreport*
 piska*.json
 localhost_*.png
+
+# Godot
+.godot/
+/android/
+export_presets.cfg
+*.translation
+
+# Trailer build artifact (regenerated; not part of the Godot project)
+trailer-dist
