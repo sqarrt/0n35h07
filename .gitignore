@@ -60,3 +60,6 @@ localhost_*.png
 /android/
 export_presets.cfg
 *.translation
+
+# Trailer build artifact (regenerated; not part of the Godot project)
+trailer-dist
