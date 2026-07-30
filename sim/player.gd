@@ -71,6 +71,20 @@ func shield_active() -> bool:
 func windup_progress() -> float:
 	return weapon.windup_progress() if weapon != null else 0.0
 
+# --- HUD readouts (1 = ready) ---
+
+func beam_progress() -> float:
+	return weapon.cooldown_progress() if weapon != null else 1.0
+
+func shield_progress() -> float:
+	return shield.progress() if shield != null else 1.0
+
+func dash_progress() -> float:
+	return body.dash_progress()
+
+func speed() -> float:
+	return body.horizontal_speed()
+
 # --- combat rules (driven by the match, never self-respawn) ---
 
 ## Verdict of an incoming beam on this player: "blocked" (dead/ghost or shield up) or "killed".
