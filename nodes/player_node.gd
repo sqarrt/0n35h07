@@ -32,7 +32,7 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(MoveConst.KCC_SLOPE_DEG)         # 50° climb/slide (web KCC_SLOPE_DEG)
 	global_position = player.body.position
 	collision_layer = CombatConst.LAYER_PLAYER_BIT               # movement capsule: not a combat target
-	collision_mask = CombatConst.LAYER_WORLD_BIT                 # collide with world walls only
+	collision_mask = CombatConst.MOVE_MASK                       # collide with both wall kinds
 	_beam_fx = BeamFx.new()
 	add_child(_beam_fx)
 	var raycaster := WorldRaycaster.new(get_world_3d().direct_space_state)

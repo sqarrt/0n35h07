@@ -3,7 +3,11 @@ extends Node3D
 
 const PLAYER := preload("res://scenes/player.tscn")
 
+const MAP_PATH := "res://maps/os_pillars.json"
+
 func _ready() -> void:
+	add_child(MapLoader.build(MAP_PATH))   # real map geometry (boxes) instead of the placeholder arena
+
 	var human: PlayerNode = $Player
 	human.player.id = 0
 	var camera: Camera3D = human.get_node("Camera3D")
