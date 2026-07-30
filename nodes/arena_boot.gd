@@ -6,3 +6,6 @@ func _ready() -> void:
 	var camera: Camera3D = pnode.get_node("Camera3D")
 	var hc: HumanController = $HumanController
 	hc.setup(pnode, camera)
+	# First-person: hide the player's own sphere so the camera (at eye level, inside the
+	# sphere) isn't occluded by it. TP will re-show it in a later slice.
+	pnode.get_node("Mesh").visible = false
