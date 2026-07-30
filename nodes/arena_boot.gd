@@ -26,6 +26,9 @@ func _ready() -> void:
 	add_child(hud)
 	hud.setup(human, match_node)
 
+	# Pause menu (Esc): resume / back to the main menu.
+	add_child(PauseOverlay.new())
+
 func _spawn_bot(human: PlayerNode) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()
 	bot.player.id = 1
