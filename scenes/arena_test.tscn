@@ -1,0 +1,92 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://nodes/arena_boot.gd" id="boot"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="p"]
+[ext_resource type="Script" path="res://nodes/human_controller.gd" id="hc"]
+
+[sub_resource type="BoxShape3D" id="floorbox"]
+size = Vector3(60, 1, 60)
+
+[sub_resource type="BoxMesh" id="floormesh"]
+size = Vector3(60, 1, 60)
+
+[sub_resource type="BoxShape3D" id="rampbox"]
+size = Vector3(8, 0.5, 8)
+
+[sub_resource type="BoxMesh" id="rampmesh"]
+size = Vector3(8, 0.5, 8)
+
+[sub_resource type="BoxShape3D" id="stepbox"]
+size = Vector3(4, 1, 4)
+
+[sub_resource type="BoxMesh" id="stepmesh"]
+size = Vector3(4, 1, 4)
+
+[sub_resource type="BoxShape3D" id="cratebox"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="BoxMesh" id="cratemesh"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="ProceduralSkyMaterial" id="skymat"]
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("skymat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+ambient_light_source = 3
+
+[node name="ArenaTest" type="Node3D"]
+script = ExtResource("boot")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Light" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.7, 0.7, 0, -0.7, 0.7, 0, 20, 0)
+shadow_enabled = true
+
+[node name="Floor" type="StaticBody3D" parent="."]
+
+[node name="FloorCol" type="CollisionShape3D" parent="Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("floorbox")
+
+[node name="FloorMesh" type="MeshInstance3D" parent="Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+mesh = SubResource("floormesh")
+
+[node name="Ramp" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.9238, 0.3826, 0, -0.3826, 0.9238, -8, 1.5, -8)
+
+[node name="RampCol" type="CollisionShape3D" parent="Ramp"]
+shape = SubResource("rampbox")
+
+[node name="RampMesh" type="MeshInstance3D" parent="Ramp"]
+mesh = SubResource("rampmesh")
+
+[node name="Step" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -8)
+
+[node name="StepCol" type="CollisionShape3D" parent="Step"]
+shape = SubResource("stepbox")
+
+[node name="StepMesh" type="MeshInstance3D" parent="Step"]
+mesh = SubResource("stepmesh")
+
+[node name="Crate" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, -4)
+
+[node name="CrateCol" type="CollisionShape3D" parent="Crate"]
+shape = SubResource("cratebox")
+
+[node name="CrateMesh" type="MeshInstance3D" parent="Crate"]
+mesh = SubResource("cratemesh")
+
+[node name="Player" parent="." instance=ExtResource("p")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 4)
+
+[node name="HumanController" type="Node" parent="."]
+script = ExtResource("hc")
