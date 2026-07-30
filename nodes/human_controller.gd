@@ -6,6 +6,7 @@ const MOUSE_SENSITIVITY := 0.003          # rad per pixel
 const PITCH_LIMIT := deg_to_rad(89.0)
 const FOV_IDLE := 75.0
 const FOV_MOVING := 87.0
+const FOV_WINDUP := 70.0
 const FOV_DASH := 95.0
 const FOV_LERP := 6.0
 
@@ -69,6 +70,12 @@ func _process(delta: float) -> void:
 	if _pnode == null: return
 	var moving := Input.is_action_pressed("move_fwd") or Input.is_action_pressed("move_back") \
 		or Input.is_action_pressed("move_left") or Input.is_action_pressed("move_right")
-	var target := FOV_DASH if _pnode.player.body.is_dashing() else (FOV_MOVING if moving else FOV_IDLE)
+	var target := FOV_IDLE
+	if _pnode.player.body.is_dashing():
+		target = FOV_DASH
+	elif _pnode.player.is_winding_up():
+		target = FOV_WINDUP           # narrow while charging a shot (web parity)
+	elif moving:
+		target = FOV_MOVING
 	_fov = lerpf(_fov, target, delta * FOV_LERP)
 	_camera.fov = _fov
