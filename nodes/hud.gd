@@ -17,7 +17,9 @@ var _beam_bar: ProgressBar
 var _shield_bar: ProgressBar
 var _dash_bar: ProgressBar
 var _speed: Label
+var _feed: VBoxContainer
 var _banner_time := 0.0
+const FEED_LINE_TIME := 4.0
 
 func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_human = human
@@ -68,6 +70,14 @@ func _ready() -> void:
 	_shield_bar = _bar(row, "SHIELD")
 	_dash_bar = _bar(row, "DASH")
 
+	_feed = VBoxContainer.new()
+	_feed.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_feed.alignment = BoxContainer.ALIGNMENT_END
+	_feed.offset_left = -280
+	_feed.offset_top = 12
+	_feed.offset_right = -14
+	add_child(_feed)
+
 	_speed = _label(18)
 	_speed.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_speed.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -117,9 +127,16 @@ func _process(delta: float) -> void:
 		if _banner_time == 0.0:
 			_banner.visible = false
 
-func _on_frag(shooter_id: int, _victim_id: int, streak: int, first_blood: bool) -> void:
+func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -> void:
 	var text := HudModel.banner_for(shooter_id == HUMAN_ID, streak, first_blood)
 	if text != "":
 		_banner.text = text
 		_banner.visible = true
 		_banner_time = BANNER_TIME
+	# Kill feed line (auto-removed after a few seconds).
+	var line := Label.new()
+	line.text = HudModel.frag_line(shooter_id, victim_id)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	line.add_theme_font_size_override("font_size", 18)
+	_feed.add_child(line)
+	get_tree().create_timer(FEED_LINE_TIME).timeout.connect(line.queue_free)

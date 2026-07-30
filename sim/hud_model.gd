@@ -9,3 +9,10 @@ static func banner_for(shooter_is_human: bool, streak: int, first_blood: bool) -
 
 static func score_line(you: int, them: int) -> String:
 	return "YOU %d   —   BOT %d" % [you, them]
+
+static func player_name(id: int) -> String:
+	return "YOU" if id == 0 else "BOT"
+
+## Kill-feed line: "SHOOTER  >  VICTIM".
+static func frag_line(shooter_id: int, victim_id: int) -> String:
+	return "%s  ▸  %s" % [player_name(shooter_id), player_name(victim_id)]
