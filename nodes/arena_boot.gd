@@ -4,7 +4,9 @@ extends Node3D
 const PLAYER := preload("res://scenes/player.tscn")
 
 func _ready() -> void:
-	add_child(MapLoader.build(Game.selected_map))   # the map chosen in the menu
+	var raw_path: String = Game.selected_map
+	var geo_path := raw_path.replace(".json", "_geo.json")
+	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
 
 	var human: PlayerNode = $Player
 	human.player.id = 0

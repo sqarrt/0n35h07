@@ -5,15 +5,13 @@
 [ext_resource type="Script" path="res://nodes/human_controller.gd" id="hc"]
 [ext_resource type="PackedScene" path="res://scenes/target_dummy.tscn" id="dummy"]
 
-[sub_resource type="ProceduralSkyMaterial" id="skymat"]
-
-[sub_resource type="Sky" id="sky"]
-sky_material = SubResource("skymat")
-
 [sub_resource type="Environment" id="env"]
-background_mode = 2
-sky = SubResource("sky")
-ambient_light_source = 3
+background_mode = 1
+background_color = Color(0.02, 0.03, 0.05, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.35, 0.38, 0.45, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
 
 [node name="ArenaTest" type="Node3D"]
 script = ExtResource("boot")
