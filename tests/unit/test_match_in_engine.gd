@@ -29,6 +29,7 @@ func test_kill_scores_and_victim_respawns() -> void:
 	arena.add_child(m)
 	m.add_entity(victim, 0)    # team 0
 	m.add_entity(shooter, 1)   # team 1 -> enemies
+	m.force_live()             # skip the entry countdown for the test
 	await get_tree().physics_frame
 	shooter.player.aim(Vector3(0, MoveConst.EYE_HEIGHT, -6), Vector3(0, MoveConst.EYE_HEIGHT, 0))
 	shooter.player.start_firing()

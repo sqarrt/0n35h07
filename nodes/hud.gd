@@ -12,6 +12,7 @@ var _crosshair: Label
 var _score: Label
 var _banner: Label
 var _respawn: Label
+var _countdown: Label
 var _banner_time := 0.0
 
 func setup(human: PlayerNode, match_node: MatchNode) -> void:
@@ -47,6 +48,12 @@ func _ready() -> void:
 	_respawn.visible = false
 	add_child(_respawn)
 
+	_countdown = _label(96)
+	_countdown.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_countdown.visible = false
+	add_child(_countdown)
+
 func _label(font_size: int) -> Label:
 	var l := Label.new()
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -57,9 +64,12 @@ func _process(delta: float) -> void:
 	if _human == null or _match == null:
 		return
 	_score.text = HudModel.score_line(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID))
+	var cd := _match.countdown_label()
+	_countdown.text = cd
+	_countdown.visible = cd != ""
 	var ghost: bool = _human.player.respawning
-	_respawn.visible = ghost
-	_crosshair.visible = not ghost
+	_respawn.visible = ghost and cd == ""
+	_crosshair.visible = (not ghost) and cd == ""
 	if _banner_time > 0.0:
 		_banner_time = maxf(0.0, _banner_time - delta)
 		if _banner_time == 0.0:
