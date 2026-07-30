@@ -120,5 +120,15 @@ func halt() -> void:
 	_wish_vel = Vector3.ZERO
 	velocity_y = 0.0
 
+## Respawn/teleport: don't carry inertia or dash cooldown over.
+func set_position(p: Vector3) -> void:
+	position = p
+	velocity_y = 0.0
+	_vel_h = Vector3.ZERO
+	_wish_vel = Vector3.ZERO
+	_dash_timer = 0.0
+	_dash_cooldown = 0.0
+	grounded = p.y <= MoveConst.EYE_HEIGHT + 0.01
+
 func horizontal_speed() -> float:
 	return Vector2(_vel_h.x, _vel_h.z).length()

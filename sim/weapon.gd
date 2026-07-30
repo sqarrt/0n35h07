@@ -8,6 +8,7 @@ enum Phase { IDLE, WINDUP, COOLDOWN }
 var just_fired := false
 var outcome: Dictionary = {}      # {end, hit_entity_id, hit_point, rc_origin, rc_dir}
 var has_outcome := false
+var fire_seq := 0                 # increments per fire — lets the match consume outcomes independent of just_fired
 
 var _raycaster
 var _phase := Phase.IDLE
@@ -63,6 +64,7 @@ func _fire(ctx: Dictionary) -> void:
 		"rc_origin": rc_origin, "rc_dir": rc_dir}
 	has_outcome = true
 	just_fired = true
+	fire_seq += 1
 
 func interrupt() -> void:
 	if _phase != Phase.WINDUP:
