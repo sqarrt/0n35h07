@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://nodes/arena_boot.gd" id="boot"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="p"]
@@ -15,6 +15,12 @@ size = Vector3(8, 0.5, 8)
 
 [sub_resource type="BoxMesh" id="rampmesh"]
 size = Vector3(8, 0.5, 8)
+
+[sub_resource type="BoxShape3D" id="stepbox"]
+size = Vector3(4, 1, 4)
+
+[sub_resource type="BoxMesh" id="stepmesh"]
+size = Vector3(4, 1, 4)
 
 [sub_resource type="BoxShape3D" id="cratebox"]
 size = Vector3(2, 2, 2)
@@ -60,6 +66,15 @@ shape = SubResource("rampbox")
 
 [node name="RampMesh" type="MeshInstance3D" parent="Ramp"]
 mesh = SubResource("rampmesh")
+
+[node name="Step" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -8)
+
+[node name="StepCol" type="CollisionShape3D" parent="Step"]
+shape = SubResource("stepbox")
+
+[node name="StepMesh" type="MeshInstance3D" parent="Step"]
+mesh = SubResource("stepmesh")
 
 [node name="Crate" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, -4)

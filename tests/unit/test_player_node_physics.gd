@@ -20,6 +20,16 @@ func _spawn(arena: Node3D, at: Vector3) -> PlayerNode:
 	arena.add_child(p)   # arena is already in the tree -> _ready runs, sets global_position from body.position
 	return p
 
+func _ledge(at: Vector3, size: Vector3) -> StaticBody3D:
+	var sb := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	cs.shape = box
+	sb.add_child(cs)
+	sb.position = at
+	return sb
+
 func test_player_falls_and_rests_at_eye_height() -> void:
 	var arena := Node3D.new()
 	arena.add_child(_floor())
@@ -42,3 +52,18 @@ func test_player_walks_forward_on_ground() -> void:
 		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
 		await get_tree().physics_frame
 	assert_lt(p.global_position.z, z0 - 3.0, "moved forward (-Z) a few metres")
+
+func test_player_steps_up_low_ledge() -> void:
+	var arena := Node3D.new()
+	arena.add_child(_floor())
+	# 0.8 m ledge (< AUTOSTEP_MAX_HEIGHT), deep in -Z so the player stays on top after climbing
+	arena.add_child(_ledge(Vector3(0, 0.4, -17), Vector3(8, 0.8, 30)))
+	add_child_autofree(arena)
+	var p := _spawn(arena, Vector3(0, MoveConst.EYE_HEIGHT, 0))
+	for i in range(30):  # settle
+		await get_tree().physics_frame
+	for i in range(90):  # walk forward into the ledge
+		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
+		await get_tree().physics_frame
+	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 0.5,
+		"stepped up onto the 0.8 m ledge (eyes rise by ~0.8)")
