@@ -5,6 +5,7 @@ class_name Player extends RefCounted
 var body := Body.new()
 var frozen := false
 var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
+var shield = null   # a Shield (injected by the host); null in movement-only contexts
 var _look_dir := Vector3(0, 0, -1)
 var _aim_point := Vector3(0, MoveConst.EYE_HEIGHT, -100)
 var _aim_origin := Vector3.ZERO
@@ -76,6 +77,27 @@ func aim(point: Vector3, origin = null) -> void:
 
 func aim_point_for_fx() -> Vector3:
 	return _aim_point
+
+## --- shield ---
+
+func set_shield(s) -> void:
+	shield = s
+
+func activate_shield() -> void:
+	if not can_act():
+		return
+	if shield != null:
+		shield.activate()
+
+func is_shielded() -> bool:
+	return shield != null and shield.is_active()
+
+func is_perfect_block() -> bool:
+	return shield != null and shield.is_perfect_block()
+
+func update_shield(dt: float) -> void:
+	if shield != null:
+		shield.update(dt)
 
 func update_weapon(dt: float, exclude_ids: Array) -> void:
 	if weapon == null:
