@@ -28,8 +28,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pnode.rotate_y(-event.relative.x * MOUSE_SENSITIVITY)
 		_pitch = clampf(_pitch - event.relative.y * MOUSE_SENSITIVITY, -PITCH_LIMIT, PITCH_LIMIT)
 		_camera.rotation.x = _pitch
-	elif event.is_action_pressed("pause"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 
 func apply_intent(_delta: float = 0.0) -> void:
 	var player := _pnode.player
