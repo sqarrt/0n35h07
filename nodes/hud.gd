@@ -13,6 +13,10 @@ var _score: Label
 var _banner: Label
 var _respawn: Label
 var _countdown: Label
+var _beam_bar: ProgressBar
+var _shield_bar: ProgressBar
+var _dash_bar: ProgressBar
+var _speed: Label
 var _banner_time := 0.0
 
 func setup(human: PlayerNode, match_node: MatchNode) -> void:
@@ -54,6 +58,40 @@ func _ready() -> void:
 	_countdown.visible = false
 	add_child(_countdown)
 
+	var row := HBoxContainer.new()
+	row.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.offset_top = -52
+	row.add_theme_constant_override("separation", 20)
+	add_child(row)
+	_beam_bar = _bar(row, "BEAM")
+	_shield_bar = _bar(row, "SHIELD")
+	_dash_bar = _bar(row, "DASH")
+
+	_speed = _label(18)
+	_speed.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_speed.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_speed.offset_left = 16
+	_speed.offset_top = -32
+	add_child(_speed)
+
+func _bar(parent: Node, label_text: String) -> ProgressBar:
+	var v := VBoxContainer.new()
+	var lbl := Label.new()
+	lbl.text = label_text
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 12)
+	v.add_child(lbl)
+	var bar := ProgressBar.new()
+	bar.min_value = 0.0
+	bar.max_value = 1.0
+	bar.value = 1.0
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(120, 14)
+	v.add_child(bar)
+	parent.add_child(v)
+	return bar
+
 func _label(font_size: int) -> Label:
 	var l := Label.new()
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -70,6 +108,10 @@ func _process(delta: float) -> void:
 	var ghost: bool = _human.player.respawning
 	_respawn.visible = ghost and cd == ""
 	_crosshair.visible = (not ghost) and cd == ""
+	_beam_bar.value = _human.player.beam_progress()
+	_shield_bar.value = _human.player.shield_progress()
+	_dash_bar.value = _human.player.dash_progress()
+	_speed.text = "%d u/s" % int(round(_human.player.speed()))
 	if _banner_time > 0.0:
 		_banner_time = maxf(0.0, _banner_time - delta)
 		if _banner_time == 0.0:
