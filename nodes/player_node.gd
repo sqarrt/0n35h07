@@ -13,6 +13,12 @@ var controller = null  # optional; must expose apply_intent() -> void
 var _step_smooth := 0.0            # visual: how far the camera still lags below the true eye
 var _beam_fx: BeamFx
 var _shield_fx: ShieldFx
+var entity_id := 0
+var _flash := 0.0
+var _mesh: MeshInstance3D
+var _hitbox: Hitbox
+
+const HIT_FLASH_TIME := 0.25
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -30,10 +36,26 @@ func _ready() -> void:
 	_shield_fx = ShieldFx.new()
 	add_child(_shield_fx)
 	player.set_shield(Shield.new())
+	# Combat hitbox (layer 3), separate from the movement capsule — makes this entity shootable.
+	entity_id = player.id
+	add_to_group("targets")
+	_hitbox = Hitbox.new()
+	_hitbox.entity_id = player.id
+	var hcs := CollisionShape3D.new()
+	var hbox := BoxShape3D.new()
+	hbox.size = Vector3(1, 2, 1)
+	hcs.shape = hbox
+	_hitbox.add_child(hcs)
+	_hitbox.position = Vector3(0, MoveConst.HITBOX_Y, 0)
+	add_child(_hitbox)
+	_mesh = get_node_or_null("Mesh")
+
+func hitbox_rid() -> RID:
+	return _hitbox.get_rid()
 
 func _physics_process(delta: float) -> void:
 	if controller != null:
-		controller.apply_intent()
+		controller.apply_intent(delta)
 	var b := player.body
 	b.step_jump()
 	b.step_horizontal(delta)
@@ -46,7 +68,7 @@ func _physics_process(delta: float) -> void:
 		_try_step_up(Vector3(desired.x, 0.0, desired.z))
 	b.set_grounded(is_on_floor())
 	b.position = global_position
-	player.update_weapon(delta, [])
+	player.update_weapon(delta, [_hitbox.get_rid()])   # exclude own hitbox from the beam
 	player.update_shield(delta)
 	_shield_fx.show_dome(player.is_shielded())
 	var w = player.weapon
@@ -73,9 +95,23 @@ func _muzzle_point() -> Vector3:
 
 func _find_target(eid: int):
 	for d in get_tree().get_nodes_in_group("targets"):
-		if is_instance_valid(d) and "entity_id" in d and d.entity_id == eid:
+		if is_instance_valid(d) and d != self and "entity_id" in d and d.entity_id == eid:
 			return d
 	return null
+
+# --- shootable-target surface (so bot and human can hit each other) ---
+
+func is_shielded() -> bool:
+	return player.is_shielded()
+
+func on_hit() -> void:
+	_flash = HIT_FLASH_TIME
+
+func on_block() -> void:
+	_flash = 0.0   # a block shows no hit flash (dome already visible)
+
+func is_flashing() -> bool:
+	return _flash > 0.0
 
 func _process(delta: float) -> void:
 	# Smoothly close the camera's step lag so a climb reads as a rise, not a snap.
@@ -84,6 +120,10 @@ func _process(delta: float) -> void:
 		_cam.position.y = -_step_smooth
 	if _beam_fx != null:
 		_beam_fx.update_fx(delta)
+	if _flash > 0.0:
+		_flash = maxf(0.0, _flash - delta)
+		if _mesh != null:
+			_mesh.transparency = 1.0 - (_flash / HIT_FLASH_TIME) * 0.7   # brief fade pulse
 
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
