@@ -11,6 +11,7 @@ var controller = null  # optional; must expose apply_intent() -> void
 
 @onready var _cam: Camera3D = get_node_or_null("Camera3D")
 var _step_smooth := 0.0            # visual: how far the camera still lags below the true eye
+var _beam_fx: BeamFx
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -19,6 +20,12 @@ func _ready() -> void:
 	floor_snap_length = 0.3
 	floor_max_angle = deg_to_rad(MoveConst.KCC_SLOPE_DEG)         # 50° climb/slide (web KCC_SLOPE_DEG)
 	global_position = player.body.position
+	collision_layer = CombatConst.LAYER_PLAYER_BIT               # movement capsule: not a combat target
+	collision_mask = CombatConst.LAYER_WORLD_BIT                 # collide with world walls only
+	_beam_fx = BeamFx.new()
+	add_child(_beam_fx)
+	var raycaster := WorldRaycaster.new(get_world_3d().direct_space_state)
+	player.set_weapon(BeamWeapon.new(raycaster))
 
 func _physics_process(delta: float) -> void:
 	if controller != null:
@@ -35,12 +42,33 @@ func _physics_process(delta: float) -> void:
 		_try_step_up(Vector3(desired.x, 0.0, desired.z))
 	b.set_grounded(is_on_floor())
 	b.position = global_position
+	player.update_weapon(delta, [])
+	var w = player.weapon
+	if w != null and w.just_fired:
+		var o: Dictionary = w.outcome
+		_beam_fx.play(_muzzle_point(), o["end"])
+		if o["hit_point"] != null:
+			_beam_fx.spawn_impact(o["hit_point"])
+			_notify_hit(o["hit_entity_id"])
+		w.clear_just_fired()
+
+func _muzzle_point() -> Vector3:
+	var base := global_position + Vector3(0, MoveConst.MUZZLE_Y, 0)
+	var aim := (player.aim_point_for_fx() - base).normalized()
+	return base + aim * MoveConst.BALL_RADIUS
+
+func _notify_hit(eid: int) -> void:
+	for d in get_tree().get_nodes_in_group("targets"):
+		if is_instance_valid(d) and "entity_id" in d and d.entity_id == eid and d.has_method("on_hit"):
+			d.on_hit()
 
 func _process(delta: float) -> void:
 	# Smoothly close the camera's step lag so a climb reads as a rise, not a snap.
 	if _cam != null and _step_smooth > 0.0:
 		_step_smooth = maxf(0.0, _step_smooth - STEP_SMOOTH_SPEED * delta)
 		_cam.position.y = -_step_smooth
+	if _beam_fx != null:
+		_beam_fx.update_fx(delta)
 
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.

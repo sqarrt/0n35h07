@@ -49,6 +49,9 @@ func apply_intent() -> void:
 	player.set_jump_input(Input.is_action_pressed("jump"))
 	var look := -_camera.global_transform.basis.z
 	player.set_look(look)
+	player.aim(_camera.global_position + look * CombatConst.AIM_RANGE, _camera.global_position)
+	if Input.is_action_pressed("fire"):
+		player.start_firing()
 	if Input.is_action_just_pressed("dash"):
 		var d := _dash_dir(look, right)
 		if d != Vector3.ZERO:
