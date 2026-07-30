@@ -23,10 +23,10 @@ size = Vector3(4, 1, 4)
 size = Vector3(4, 1, 4)
 
 [sub_resource type="BoxShape3D" id="cratebox"]
-size = Vector3(2, 2, 2)
+size = Vector3(2, 1.5, 2)
 
 [sub_resource type="BoxMesh" id="cratemesh"]
-size = Vector3(2, 2, 2)
+size = Vector3(2, 1.5, 2)
 
 [sub_resource type="ProceduralSkyMaterial" id="skymat"]
 
@@ -77,7 +77,7 @@ shape = SubResource("stepbox")
 mesh = SubResource("stepmesh")
 
 [node name="Crate" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1, -4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.75, -4)
 
 [node name="CrateCol" type="CollisionShape3D" parent="Crate"]
 shape = SubResource("cratebox")

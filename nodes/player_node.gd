@@ -1,12 +1,16 @@
 class_name PlayerNode extends CharacterBody3D
 ## Godot host for the sim Body. Runs the fixed tick and applies movement via move_and_slide.
 ## Adds manual stair/ledge stepping (CharacterBody3D has no native step height) to match the
-## web KCC autostep (climb ledges up to AUTOSTEP_MAX_HEIGHT — e.g. onto low blocks).
+## web KCC autostep, plus camera smoothing so the step rise isn't an abrupt snap.
 
 const STEP_FORWARD_PROBE := 0.35   # how far ahead to test for a step (~capsule radius)
+const STEP_SMOOTH_SPEED := 6.0     # units/s the camera catches up after a step (visual only)
 
 var player := Player.new()
 var controller = null  # optional; must expose apply_intent() -> void
+
+@onready var _cam: Camera3D = get_node_or_null("Camera3D")
+var _step_smooth := 0.0            # visual: how far the camera still lags below the true eye
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -26,15 +30,21 @@ func _physics_process(delta: float) -> void:
 	b.step_dash(delta)
 	var desired := b.consume_desired()
 	velocity = desired / delta
-	var was_grounded := is_on_floor()
 	move_and_slide()
-	if was_grounded and is_on_wall():
+	if is_on_wall():
 		_try_step_up(Vector3(desired.x, 0.0, desired.z))
 	b.set_grounded(is_on_floor())
 	b.position = global_position
 
+func _process(delta: float) -> void:
+	# Smoothly close the camera's step lag so a climb reads as a rise, not a snap.
+	if _cam != null and _step_smooth > 0.0:
+		_step_smooth = maxf(0.0, _step_smooth - STEP_SMOOTH_SPEED * delta)
+		_cam.position.y = -_step_smooth
+
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
+## Works grounded or airborne (matches web autostep), so you can also jump onto ledges.
 func _try_step_up(horiz: Vector3) -> void:
 	if horiz.length() < 1e-4:
 		return
@@ -64,7 +74,9 @@ func _try_step_up(horiz: Vector3) -> void:
 	if not test_move(over, Vector3.DOWN * (up_dist + 0.05), down_res):
 		return  # nothing beneath -> would be stepping into the air
 	var landed := over.translated(down_res.get_travel())
-	if landed.origin.y > global_position.y + 0.02:
+	var dy := landed.origin.y - global_position.y
+	if dy > 0.02:
 		global_position = landed.origin
 		velocity.y = 0.0
 		player.body.velocity_y = 0.0
+		_step_smooth = minf(_step_smooth + dy, max_h)   # camera absorbs the rise, then eases up
