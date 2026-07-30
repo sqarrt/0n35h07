@@ -4,7 +4,11 @@ class_name Player extends RefCounted
 
 var body := Body.new()
 var frozen := false
+var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
 var _look_dir := Vector3(0, 0, -1)
+var _aim_point := Vector3(0, MoveConst.EYE_HEIGHT, -100)
+var _aim_origin := Vector3.ZERO
+var _has_aim_origin := false
 
 func can_move() -> bool:
 	return not frozen
@@ -29,7 +33,11 @@ func dash(dir: Vector3) -> bool:
 		return false
 	if dir.length_squared() == 0.0:
 		return false
-	return body.dash(dir)
+	if not body.dash(dir):
+		return false
+	if weapon != null:
+		weapon.interrupt()   # a successful dash cancels the windup (web parity)
+	return true
 
 func set_frozen(v: bool) -> void:
 	frozen = v
@@ -38,3 +46,44 @@ func set_frozen(v: bool) -> void:
 
 func look_dir() -> Vector3:
 	return _look_dir
+
+# --- weapon ---
+
+func set_weapon(w) -> void:
+	weapon = w
+
+func start_firing() -> void:
+	if not can_act():
+		return
+	if weapon != null:
+		weapon.begin_windup()
+
+func cancel_firing() -> void:
+	if not can_act():
+		return
+	if weapon != null:
+		weapon.interrupt()
+
+func is_winding_up() -> bool:
+	return weapon != null and weapon.is_winding_up()
+
+## Aim AT a world point; origin (the human camera) makes the hit ray camera->point.
+func aim(point: Vector3, origin = null) -> void:
+	_aim_point = point
+	_has_aim_origin = origin != null
+	if origin != null:
+		_aim_origin = origin
+
+func aim_point_for_fx() -> Vector3:
+	return _aim_point
+
+func update_weapon(dt: float, exclude_ids: Array) -> void:
+	if weapon == null:
+		return
+	var muzzle := body.position + Vector3(0, MoveConst.MUZZLE_Y, 0)
+	var aim_dir := (_aim_point - muzzle).normalized()
+	muzzle += aim_dir * MoveConst.BALL_RADIUS   # muzzle on the sphere surface
+	var hit_origin: Vector3 = _aim_origin if _has_aim_origin else muzzle
+	var hit_dir := (_aim_point - hit_origin).normalized() if _has_aim_origin else aim_dir
+	weapon.update(dt, {"muzzle": muzzle, "aim": aim_dir, "hit_origin": hit_origin,
+		"hit_dir": hit_dir, "exclude_ids": exclude_ids})
