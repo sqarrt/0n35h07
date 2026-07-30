@@ -4,5 +4,15 @@ extends Node
 
 const GAME_VERSION := "2.0.0"
 
+## Selectable maps: [display name, resource path]. Order is stable for the menu picker.
+const MAPS := [
+	["Pillars", "res://maps/os_pillars.json"],
+	["Arena", "res://maps/os_arena.json"],
+	["India", "res://maps/os_india.json"],
+	["Pool", "res://maps/os_pool_day.json"],
+]
+
+var selected_map := "res://maps/os_pillars.json"   # set by the main menu
+
 func _ready() -> void:
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

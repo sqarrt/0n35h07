@@ -3,10 +3,8 @@ extends Node3D
 
 const PLAYER := preload("res://scenes/player.tscn")
 
-const MAP_PATH := "res://maps/os_pillars.json"
-
 func _ready() -> void:
-	add_child(MapLoader.build(MAP_PATH))   # real map geometry (boxes) instead of the placeholder arena
+	add_child(MapLoader.build(Game.selected_map))   # the map chosen in the menu
 
 	var human: PlayerNode = $Player
 	human.player.id = 0
