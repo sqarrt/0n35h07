@@ -14,6 +14,10 @@ func _initialize() -> void:
 	var extra := OS.get_cmdline_user_args()
 	if extra.size() > 0:
 		scene_path = extra[0]
+	if extra.size() > 1:
+		var g := root.get_node_or_null("Game")   # autoload node (not a compile-time global here)
+		if g != null:
+			g.selected_map = extra[1]
 	root.add_child(load(scene_path).instantiate())
 
 func _process(_delta: float) -> bool:
