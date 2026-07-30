@@ -5,8 +5,13 @@ class_name Player extends RefCounted
 var body := Body.new()
 var frozen := false
 var id := 0                 # entity id (seat) — set by the host/match
-var kills := 0              # session score (0 until 2e adds rules)
-var respawning := false     # ghost phase (false until 2e)
+var team := 0               # team (same team -> no harm); set by the match
+var alive := true
+var kills := 0              # session score
+var deaths := 0
+var streak := 0             # consecutive kills without dying
+var respawn_timer := 0.0    # ms remaining in the ghost phase
+var respawning := false     # ghost phase
 var pierce_walls := false   # SINGULARITY pierce (false until overheat)
 var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
 var shield = null   # a Shield (injected by the host); null in movement-only contexts
@@ -16,10 +21,10 @@ var _aim_origin := Vector3.ZERO
 var _has_aim_origin := false
 
 func can_move() -> bool:
-	return not frozen
+	return not frozen and (alive or respawning)
 
 func can_act() -> bool:
-	return not frozen
+	return not frozen and alive
 
 func move_intent(dir: Vector3) -> void:
 	if not can_move():
@@ -65,6 +70,50 @@ func shield_active() -> bool:
 
 func windup_progress() -> float:
 	return weapon.windup_progress() if weapon != null else 0.0
+
+# --- combat rules (driven by the match, never self-respawn) ---
+
+## Verdict of an incoming beam on this player: "blocked" (dead/ghost or shield up) or "killed".
+func receive_hit() -> String:
+	if not alive:
+		return "blocked"          # already dead/ghost — no double kill
+	if is_shielded():
+		return "blocked"
+	alive = false
+	_start_ghost()
+	return "killed"
+
+## Non-owner death application (idempotent) — used by apply_kill for peers that didn't judge.
+func apply_death() -> void:
+	if not alive:
+		return
+	alive = false
+	_start_ghost()
+
+func _start_ghost() -> void:
+	respawning = true
+	respawn_timer = MatchConst.RESPAWN_GHOST_MS
+	if weapon != null:
+		weapon.interrupt()        # the ghost doesn't fire off an unfinished windup
+
+## Materialize at pos (end of the ghost phase). ALL cooldowns reset (beam/shield/dash).
+func respawn_at(pos: Vector3) -> void:
+	body.set_position(pos)        # teleport + dash cooldown reset
+	if weapon != null:
+		weapon.reset()
+	if shield != null:
+		shield.reset()
+	alive = true
+	respawning = false
+	respawn_timer = 0.0
+
+## Reward reset: instantly clear beam/shield/dash cooldowns (perfect block / streak break).
+func reset_cooldowns() -> void:
+	if weapon != null:
+		weapon.reset_cooldown()
+	if shield != null:
+		shield.reset_cooldown()
+	body.reset_dash_cooldown()
 
 # --- weapon ---
 
