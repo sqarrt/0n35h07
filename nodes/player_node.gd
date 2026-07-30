@@ -12,6 +12,7 @@ var controller = null  # optional; must expose apply_intent() -> void
 @onready var _cam: Camera3D = get_node_or_null("Camera3D")
 var _step_smooth := 0.0            # visual: how far the camera still lags below the true eye
 var _beam_fx: BeamFx
+var _shield_fx: ShieldFx
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -26,6 +27,9 @@ func _ready() -> void:
 	add_child(_beam_fx)
 	var raycaster := WorldRaycaster.new(get_world_3d().direct_space_state)
 	player.set_weapon(BeamWeapon.new(raycaster))
+	_shield_fx = ShieldFx.new()
+	add_child(_shield_fx)
+	player.set_shield(Shield.new())
 
 func _physics_process(delta: float) -> void:
 	if controller != null:
@@ -43,13 +47,23 @@ func _physics_process(delta: float) -> void:
 	b.set_grounded(is_on_floor())
 	b.position = global_position
 	player.update_weapon(delta, [])
+	player.update_shield(delta)
+	_shield_fx.show_dome(player.is_shielded())
 	var w = player.weapon
 	if w != null and w.just_fired:
 		var o: Dictionary = w.outcome
 		_beam_fx.play(_muzzle_point(), o["end"])
-		if o["hit_point"] != null:
-			_beam_fx.spawn_impact(o["hit_point"])
-			_notify_hit(o["hit_entity_id"])
+		var eid: int = int(o["hit_entity_id"])
+		if eid >= 0:
+			var target = _find_target(eid)
+			if target != null and target.has_method("is_shielded") and target.is_shielded():
+				if target.has_method("on_block"):
+					target.on_block()          # the shield wins: no impact, no hit flash
+			else:
+				if o["hit_point"] != null:
+					_beam_fx.spawn_impact(o["hit_point"])
+				if target != null and target.has_method("on_hit"):
+					target.on_hit()
 		w.clear_just_fired()
 
 func _muzzle_point() -> Vector3:
@@ -57,10 +71,11 @@ func _muzzle_point() -> Vector3:
 	var aim := (player.aim_point_for_fx() - base).normalized()
 	return base + aim * MoveConst.BALL_RADIUS
 
-func _notify_hit(eid: int) -> void:
+func _find_target(eid: int):
 	for d in get_tree().get_nodes_in_group("targets"):
-		if is_instance_valid(d) and "entity_id" in d and d.entity_id == eid and d.has_method("on_hit"):
-			d.on_hit()
+		if is_instance_valid(d) and "entity_id" in d and d.entity_id == eid:
+			return d
+	return null
 
 func _process(delta: float) -> void:
 	# Smoothly close the camera's step lag so a climb reads as a rise, not a snap.
