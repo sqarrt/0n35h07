@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://nodes/arena_boot.gd" id="boot"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="p"]
 [ext_resource type="Script" path="res://nodes/human_controller.gd" id="hc"]
+[ext_resource type="PackedScene" path="res://scenes/target_dummy.tscn" id="dummy"]
 
 [sub_resource type="BoxShape3D" id="floorbox"]
 size = Vector3(60, 1, 60)
@@ -87,6 +88,9 @@ mesh = SubResource("cratemesh")
 
 [node name="Player" parent="." instance=ExtResource("p")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 4)
+
+[node name="TargetDummy" parent="." instance=ExtResource("dummy")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -6)
 
 [node name="HumanController" type="Node" parent="."]
 script = ExtResource("hc")
