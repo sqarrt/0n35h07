@@ -17,8 +17,12 @@ var entity_id := 0
 var _flash := 0.0
 var _mesh: MeshInstance3D
 var _hitbox: Hitbox
+var _body_visible := true
 
 const HIT_FLASH_TIME := 0.25
+
+func set_body_visible(v: bool) -> void:
+	_body_visible = v
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -124,6 +128,12 @@ func _process(delta: float) -> void:
 		_flash = maxf(0.0, _flash - delta)
 		if _mesh != null:
 			_mesh.transparency = 1.0 - (_flash / HIT_FLASH_TIME) * 0.7   # brief fade pulse
+	# Reflect the ghost phase: hide the body + make it unshootable while dead.
+	var ghost := player.respawning
+	if _mesh != null:
+		_mesh.visible = _body_visible and not ghost
+	if _hitbox != null:
+		_hitbox.collision_layer = 0 if ghost else CombatConst.LAYER_HITBOX_BIT
 
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
