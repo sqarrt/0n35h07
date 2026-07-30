@@ -67,3 +67,20 @@ func test_player_steps_up_low_ledge() -> void:
 		await get_tree().physics_frame
 	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 0.5,
 		"stepped up onto the 0.8 m ledge (eyes rise by ~0.8)")
+
+func test_player_jumps_onto_2m_block() -> void:
+	# Web parity: a single jump (apex ~1.45) + airborne autostep (1.05) lands you on a 2m block.
+	var arena := Node3D.new()
+	arena.add_child(_floor())
+	arena.add_child(_ledge(Vector3(0, 1.0, -18), Vector3(8, 2.0, 30)))  # top at y=2
+	add_child_autofree(arena)
+	var p := _spawn(arena, Vector3(0, MoveConst.EYE_HEIGHT, 0))
+	for i in range(30):  # settle
+		await get_tree().physics_frame
+	for i in range(150):  # walk forward while holding jump (bhop) into the block
+		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
+		p.player.set_jump_input(true)
+		await get_tree().physics_frame
+	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 1.5,
+		"jump + airborne autostep lands the player on top of the 2 m block")
+
