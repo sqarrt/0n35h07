@@ -22,6 +22,7 @@ const WINDUP_MOVE_FACTOR := 0.25
 const EYE_HEIGHT := 1.7
 const BALL_RADIUS := 0.5
 const MUZZLE_Y := -0.3              # muzzle origin relative to eye position (= body sphere center)
+const HITBOX_Y := -0.7             # combat hitbox [1,2,1] center relative to eye (span 0..2 from floor)
 const CAPSULE_RADIUS := 0.5
 const CAPSULE_HALF_HEIGHT := 0.35
 const CAPSULE_OFFSET_Y := -0.85

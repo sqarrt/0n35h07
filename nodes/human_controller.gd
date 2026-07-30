@@ -31,7 +31,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("pause"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
 
-func apply_intent() -> void:
+func apply_intent(_delta: float = 0.0) -> void:
 	var player := _pnode.player
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		player.move_intent(Vector3.ZERO)
