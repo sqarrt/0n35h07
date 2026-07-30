@@ -2,7 +2,7 @@ class_name MatchNode extends Node
 ## Owns the fighting entities and runs the local match rules each tick (after the entities move/fire).
 ## The sim MatchRules does kill/block/respawn/score; this node just drives it and exposes scores.
 
-signal kill(shooter_id: int, victim_id: int)
+signal frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool)
 
 var rules := MatchRules.new()
 var _entities := {}   # id -> PlayerNode
@@ -22,4 +22,4 @@ func _physics_process(delta: float) -> void:
 	rules.resolve(delta)
 	for e in rules.events:
 		if e["t"] == "kill":
-			kill.emit(int(e["shooter"]), int(e["victim"]))
+			frag.emit(int(e["shooter"]), int(e["victim"]), int(e["streak"]), bool(e["first_blood"]))

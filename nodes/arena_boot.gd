@@ -21,6 +21,11 @@ func _ready() -> void:
 	match_node.add_entity(human, 0)
 	match_node.add_entity(bot, 1)
 
+	# HUD: crosshair + score + streak banner + respawn indicator.
+	var hud := Hud.new()
+	add_child(hud)
+	hud.setup(human, match_node)
+
 func _spawn_bot(human: PlayerNode) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()
 	bot.player.id = 1
