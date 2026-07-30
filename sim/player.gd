@@ -4,6 +4,10 @@ class_name Player extends RefCounted
 
 var body := Body.new()
 var frozen := false
+var id := 0                 # entity id (seat) — set by the host/match
+var kills := 0              # session score (0 until 2e adds rules)
+var respawning := false     # ghost phase (false until 2e)
+var pierce_walls := false   # SINGULARITY pierce (false until overheat)
 var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
 var shield = null   # a Shield (injected by the host); null in movement-only contexts
 var _look_dir := Vector3(0, 0, -1)
@@ -47,6 +51,20 @@ func set_frozen(v: bool) -> void:
 
 func look_dir() -> Vector3:
 	return _look_dir
+
+# --- opponent-read accessors (used by the bot AI) ---
+
+func position() -> Vector3:
+	return body.position
+
+func is_dashing() -> bool:
+	return body.is_dashing()
+
+func shield_active() -> bool:
+	return is_shielded()
+
+func windup_progress() -> float:
+	return weapon.windup_progress() if weapon != null else 0.0
 
 # --- weapon ---
 
