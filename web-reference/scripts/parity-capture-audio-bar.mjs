@@ -3,6 +3,7 @@
 // saves a screenshot plus the SVG polyline points and the SVG box (getBoundingClientRect) for exact geometry checks;
 // the band values are exported so the Godot fixture feeds the same spectrum.
 //   node scripts/parity-capture-audio-bar.mjs <output dir> [base url]
+//   PARITY_AUDIO_BAR_FILTER=off also saves each run with the SVG drop-shadow filter removed (the line alone).
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { VIEWPORT, launchReferencePage, enterLiveMatch } from './parity-lib.mjs';
@@ -24,6 +25,7 @@ const pattern = Array.from({ length: BANDS }, (_, i) => {
   return Number((fall + bump + HIGH_FLOOR).toFixed(4));
 });
 const RUNS = { pattern, silence: Array(BANDS).fill(0) };
+const LINE_ONLY = process.env.PARITY_AUDIO_BAR_FILTER === 'off';
 
 await mkdir(output, { recursive: true });
 const facts = { mapId, viewport: VIEWPORT, settleMs: SETTLE_MS, runs: {} };
@@ -43,6 +45,11 @@ for (const [run, bands] of Object.entries(RUNS)) {
     const centerY = Number(line.points.split(/\s+/)[BANDS - 1].split(',')[1]);
     if (run === 'pattern' && !(centerY < 80)) throw new Error('__debugAudioBands hook missing: restart the Vite dev server');
     await page.screenshot({ path: resolve(output, `web-audio-bar-${run}.png`) });
+    if (LINE_ONLY) {
+      await page.evaluate(() => { document.querySelector('svg polyline[stroke="#4af"]').ownerSVGElement.style.filter = 'none'; });
+      await page.waitForTimeout(100);
+      await page.screenshot({ path: resolve(output, `web-audio-bar-${run}-line.png`) });
+    }
     await writeFile(resolve(output, `web-audio-bar-${run}.json`), JSON.stringify({ run, bands, ...line }, null, 2));
     facts.runs[run] = { renderer, errors, centerY };
   } finally {

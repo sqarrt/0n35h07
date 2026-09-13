@@ -10,7 +10,9 @@ const HORIZONTAL := Vector2(1.0, 0.0)
 const VERTICAL := Vector2(0.0, 1.0)
 const HALF := 0.5
 
-## The polyline with round joins and caps (SVG stroke-linejoin / linecap round), offset to where the bar box sits.
+## The polyline with round caps at its two ends (SVG stroke-linecap round), offset to where the bar box sits. Round
+## joins add nothing visible on this nearly straight line, and discs at all 79 vertices would thicken the stroke well
+## past the web's 2.5 px coverage (measured with tools/audio_bar_probe.gd against the web capture).
 class LineCanvas extends Control:
 	var points := PackedVector2Array()
 	var offset := Vector2.ZERO
@@ -22,8 +24,8 @@ class LineCanvas extends Control:
 		for point in points:
 			shifted.append(point + offset)
 		draw_polyline(shifted, AudioBarModel.COLOR, AudioBarModel.STROKE_PX, true)
-		for point in shifted:
-			draw_circle(point, AudioBarModel.STROKE_PX * HudAudioBar.HALF, AudioBarModel.COLOR, true, -1.0, true)
+		for end in [shifted[0], shifted[shifted.size() - 1]]:
+			draw_circle(end, AudioBarModel.STROKE_PX * HudAudioBar.HALF, AudioBarModel.COLOR, true, -1.0, true)
 
 var model := AudioBarModel.new()
 
