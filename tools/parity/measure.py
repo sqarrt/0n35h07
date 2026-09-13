@@ -88,9 +88,27 @@ def measure(path):
     return out
 
 
+HUD_FLAG = "--hud"
+HUD_POINTS = {                           # single pixels on HUD elements (web layout, 1280x720)
+    "bracket_arm": (60, 24),             # top-left shield bracket, horizontal arm
+    "bracket_vertex": (24, 24),          # the corner vertex (group opacity: no brighter seam)
+    "bracket_vertical": (24, 60),
+    "dash_bar": (24, 360),               # left dash strip, vertical centre
+    "ring_right": (654, 360),            # crosshair ring, 3 o'clock
+    "ring_top": (640, 346),              # crosshair ring, 12 o'clock
+}
+
+
+def measure_hud(path):
+    bpp, rows = read_png(path)
+    return {name: hex_color(rows[y][x * bpp:x * bpp + 3]) for name, (x, y) in HUD_POINTS.items()}
+
+
 def main():
-    for path in sys.argv[1:]:
-        print(path, measure(path))
+    args = sys.argv[1:]
+    hud = HUD_FLAG in args
+    for path in (a for a in args if a != HUD_FLAG):
+        print(path, measure_hud(path) if hud else measure(path))
 
 
 if __name__ == "__main__":

@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   strength. Checked by measuring pixels against the original on the same GPU: sky, floor and walls agree within one
   step of 255.
 
+- **Match HUD in the original's style.** The top bar shows both sides' frags around the match timer in the original
+  layout and font; the crosshair ring fills as the beam recharges; four corner brackets fill as the shield recharges
+  and side bars as the dash recharges. The old bottom cooldown bars and the always-on speed readout are gone, as in the
+  original. Positions and colours were checked pixel by pixel against the original.
 - **Block cell grid.** Maps that enable it (Pool) outline every block cell with translucent blue lines, as in the
   original.
 
