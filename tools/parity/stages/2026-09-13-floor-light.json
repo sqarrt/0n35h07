@@ -1,0 +1,104 @@
+{
+  "id": "2026-09-13-floor-light",
+  "title": "Сверка паритета OneShot · пол и свет",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса G6: сетка пола, цвет неба и освещение карт перенесены и откалиброваны по пикселям против web на одном GPU (NVIDIA RTX 4080). По ходу калибровки найден и исправлен баг загрузки карт: Godot рисовал обратные грани всей геометрии.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-floor-light.json`. Замеры: `tools/parity/measure.py` (медиана окна 9×9, для линии — самый яркий пиксель). Подбор тонмаппера: `tools/calibrate_lights.gd` → `test-results/parity-gpu-g6*/tonemap-*.png`. Кадры: web `parity-gpu/`, `parity-gpu-g6-pool/`; Godot `parity-gpu/` (до), `parity-gpu-g6-winding/` и `parity-gpu-g6-pool/` (после).",
+  "pages": [
+    {
+      "slug": "floor-light",
+      "name": "Пол, сетка и освещение",
+      "verdict": "Небо, пол и стены совпадают с web в пределах одной ступени из 255; освещённая и теневая стороны больше не перепутаны. Остались сетка ячеек на блоках (Pool) и чуть более тусклый пик линий сетки.",
+      "verdict_short": "G6 и вывернутые грани закрыты; сетка ячеек на блоках открыта",
+      "conditions": [
+        ["карты", "Arena (замеры), Pool (визуально)", "Arena (замеры), Pool (визуально)"],
+        ["рендер", "ANGLE D3D11, RTX 4080, MSAA", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["тонмаппинг", "ACES Filmic (по умолчанию r3f)", "Linear — выбран замером из Linear, Reinhard, Filmic, ACES, AgX"],
+        ["камера", "точка появления 0, взгляд на −Z, FOV 75", "то же, штатный запуск (`passive-bot`)"],
+        ["небо (640, 200)", "`#0a0c11`", "`#0a0c11` (до слайса `#06090f`)"],
+        ["пол (700, 600)", "`#2a2d32`", "`#2b2e33` (до слайса `#4c525c`)"],
+        ["стена слева (100, 360)", "`#303030`", "`#313131` (до слайса `#13161c`)"],
+        ["стена справа (1180, 360)", "`#202020`", "`#202020` (до слайса `#13161c`)"],
+        ["линия сетки (x 630–650, y 600)", "`#4d4d4e`", "`#444546` (до слайса сетки не было)"],
+        ["тесты", "—", "GUT 169/169, 432 проверки"]
+      ],
+      "comparisons": [
+        {
+          "title": "Arena после слайса",
+          "wipe": true,
+          "note": "Шторка: Godot снизу, web сверху — пол, сетка, стены и небо должны сливаться; расходится только HUD (отдельный слайс).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu/web-game.png", "note": "Сетка 1×1, левая стена светлее правой."},
+            {"kind": "godot", "img": "parity-gpu-g6-winding/godot-arena.png", "note": "Сетка 1×1, левая стена светлее правой."}
+          ]
+        },
+        {
+          "title": "Godot до и после слайса",
+          "note": "«До»: пол без сетки и заметно светлее, небо холоднее, обе стены одинаково тёмные — Godot рисовал внешние грани стен, повёрнутые от света.",
+          "panels": [
+            {"kind": "godot", "label": "GODOT · до", "img": "parity-gpu/godot-arena-spawns.png"},
+            {"kind": "godot", "label": "GODOT · после", "img": "parity-gpu-g6-winding/godot-arena.png"}
+          ]
+        },
+        {
+          "title": "Pool: сложная геометрия",
+          "wipe": true,
+          "note": "Цвета блоков, освещённые и теневые стороны, полупрозрачный блок и тень на полу совпадают. В web поверх блоков видна голубая сетка ячеек — в Godot её пока нет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g6-pool/web-game.png", "note": "Сетка ячеек `#4af` на блоках (у карты включён `showBlockGrid`)."},
+            {"kind": "godot", "img": "parity-gpu-g6-pool/godot-pool.png", "note": "Та же геометрия и свет, без сетки ячеек."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G6", "severity": "fixed",
+          "title": "Пол, сетка и освещение",
+          "web": "Сетка `#555` 1×1 на y = 0.01; небо — фон страницы `#0a0c11`; ambient 0.5 и солнце 1.05 из `[10, 20, 8]` с тенями.",
+          "godot": "`FloorGrid` и `MapLights`: те же линии, небо и источники света; интенсивности three.js разделены на π (Godot вшивает π в энергию света). Замеры в таблице условий.",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["nodes/floor_grid.gd", "nodes/map_lights.gd", "tests/unit/test_floor_grid.gd", "tests/unit/test_map_lights.gd", "tools/parity/measure.py"]
+        },
+        {
+          "id": "W1", "severity": "fixed",
+          "title": "Вывернутые грани карт",
+          "web": "geo.json собран three.js: лицевая грань — обход против часовой стрелки; луч попадает только в лицевые грани (`FrontSide`).",
+          "godot": "Godot считает лицевым обход по часовой, поэтому рисовал обратные грани всех блоков и освещал их не с той стороны. `GeoLoader` теперь разворачивает каждый треугольник в мешах и trimesh-коллайдерах; тест сверяет намотку исходника и загруженного меша.",
+          "evidence": ["test", "screenshot", "runtime"],
+          "sources": ["nodes/geo_loader.gd", "tests/unit/test_geo_loader.gd"]
+        },
+        {
+          "id": "B1", "severity": "missing",
+          "title": "Сетка ячеек на блоках",
+          "web": "При `showBlockGrid` на карте рёбра воксельных ячеек рисуются голубым `#4af` с прозрачностью 0.5 (Pool).",
+          "godot": "Нет — следующий слайс.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/game/blockGrid.ts", "web-reference/src/Arena.tsx", "maps/os_pool_day.json"]
+        },
+        {
+          "id": "G6a", "severity": "visual",
+          "title": "Яркость линий сетки",
+          "web": "Пиковый пиксель линии `#4d4d4e`.",
+          "godot": "Пиковый пиксель `#444546`: MSAA Godot размывает однопиксельную линию чуть сильнее.",
+          "evidence": ["runtime"],
+          "sources": ["nodes/floor_grid.gd", "project.godot"]
+        },
+        {
+          "id": "T1", "severity": "platform",
+          "title": "Тонмаппер",
+          "web": "ACES Filmic three.js; в тёмном диапазоне сцены выход почти линейный.",
+          "godot": "Linear: ACES и AgX Godot дают пол `#20232a`–`#24272d`, Filmic — `#33373e`; Linear совпадает с web. Разные конвейеры, одинаковый результат.",
+          "evidence": ["runtime"],
+          "sources": ["nodes/map_lights.gd", "tools/calibrate_lights.gd"]
+        }
+      ],
+      "limitations": [
+        "Замеры сделаны в пяти точках одного кадра Arena; Pool сравнивается визуально, остальные карты не снимались.",
+        "Тени: web подгоняет теневую камеру под габариты арены, Godot использует каскады по умолчанию — мягкость края тени может отличаться (на Pool край тени у Godot мягче).",
+        "В web-захвате Pool шаг выстрела не выполнился: бот вне линии огня. Кадры меню, лобби и игры сняты до этого шага; скрипт теперь записывает такой пропуск вместо падения.",
+        "HUD, скины и экран результата вне этого этапа (см. предыдущие отчёты)."
+      ]
+    }
+  ]
+}
