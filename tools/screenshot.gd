@@ -9,6 +9,7 @@ extends SceneTree
 ##   hud-banner-<kind> the same for catalyst / double / triple / singularity (web __debugAnnounce frames).
 ##   hud-names-<tier>  passive bot + both players on a double / triple / singularity streak, 600 ms in
 ##                     (web __debugStreak frames).
+##   third-person      passive bot + the human's view toggled to third person (web: the V key).
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   (any other value, e.g. "-") no fixture.
 ## <match ms> overrides Game.match_duration_ms, e.g. to capture the match-end screen quickly.
@@ -22,6 +23,8 @@ const MODE_REFERENCE_CAMERA := "reference-camera"
 const MODE_HUD_BANNER := "hud-banner"
 const MODE_HUD_GHOST := "hud-ghost"
 const MODE_HUD_NAMES := "hud-names-"
+const MODE_THIRD_PERSON := "third-person"
+const VIEW_SETTLE_FRAMES := 2        # the controller places the camera on its next frame
 const KIND_SEPARATOR := "-"
 const HUMAN_ID := 0
 const REFERENCE_FOV := 75.0
@@ -69,7 +72,7 @@ func _initialize() -> void:
 		if g != null:
 			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
-	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST] \
+	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON] \
 		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES)
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
@@ -117,6 +120,9 @@ func _apply_hud_fixture() -> int:
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES
+	if _mode == MODE_THIRD_PERSON:
+		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
+		return VIEW_SETTLE_FRAMES
 	if _mode == MODE_HUD_GHOST:
 		var human := _human()
 		human.player.respawning = true

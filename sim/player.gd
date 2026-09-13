@@ -159,6 +159,10 @@ func aim(point: Vector3, origin = null) -> void:
 func aim_point_for_fx() -> Vector3:
 	return _aim_point
 
+## True when the hit ray starts at an explicit origin (the third-person camera) instead of the muzzle.
+func has_aim_origin() -> bool:
+	return _has_aim_origin
+
 ## --- shield ---
 
 func set_shield(s) -> void:
