@@ -3,7 +3,7 @@ shader_type canvas_item;
 // background first (a radial gradient or a line grid), then an inset box-shadow glow on top.
 //   radial-gradient(ellipse at center, transparent <inner_stop>, <edge_color> 100%)   (farthest-corner ellipse)
 //   linear-gradient(<grid_color> 1px, transparent 1px) in both axes, repeated every <grid_px>
-//   box-shadow: inset 0 0 <glow_px> <glow_color>
+//   box-shadow: inset 0 0 <glow_px> <glow_spread_px> <glow_color>
 
 uniform vec4 edge_color : source_color = vec4(0.0);
 uniform float inner_stop = 0.5;
@@ -12,6 +12,7 @@ uniform float grid_px = 0.0;          // 0 = no grid
 uniform float grid_line_px = 1.0;
 uniform vec4 glow_color : source_color = vec4(0.0);
 uniform float glow_px = 0.0;          // CSS blur radius; 0 = no glow
+uniform float glow_spread_px = 0.0;   // CSS spread: the shadow edge moves this far inwards before the blur
 uniform vec2 screen_px = vec2(1280.0, 720.0);
 
 const float CSS_BLUR_TO_SIGMA = 0.5;  // CSS: a blur radius B is a Gaussian with standard deviation B / 2
@@ -30,9 +31,9 @@ vec4 over(vec4 src, vec4 dst) {       // straight-alpha "over"
 	return vec4(rgb, a);
 }
 
-// Share of an inset shadow reaching a point `x` pixels inside one edge.
+// Share of an inset shadow reaching a point `x` pixels inside one edge (the spread shifts the edge inwards).
 float edge_shadow(float x, float sigma) {
-	return 1.0 / (1.0 + exp(LOGISTIC_GAUSS * x / sigma));
+	return 1.0 / (1.0 + exp(LOGISTIC_GAUSS * (x - glow_spread_px) / sigma));
 }
 
 void fragment() {
