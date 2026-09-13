@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - **The game is being rewritten natively on Godot 4.7.** The repository root is now the Godot project; the
   React/Three.js game lives in `web-reference/` as the 1:1 parity oracle until the port catches up.
+- **Controls match the original.** The shield is on the right mouse button; a shot fires once per click instead of
+  repeating while the button is held; aiming follows what the camera actually looks at.
 
 ### Added
 - **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
@@ -47,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   overdrives, SINGULARITY burns and corrupts its letters, CATALYST throbs with sparks; streak dots count each
   player's run. Every HUD glow — the countdown number, the respawn caption and bars, the result headline — is now a
   soft blur like the original's instead of a hard outline.
+- **Third-person view and camera feel.** V switches to the original's over-the-shoulder view (your ball becomes
+  visible); your own shot shakes the camera briefly; the field of view widens during the respawn ghost phase like a
+  dash. Mouse look uses the original's sensitivity and slows down while charging a shot.
 
 ### Fixed
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game
