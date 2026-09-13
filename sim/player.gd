@@ -12,7 +12,8 @@ var deaths := 0
 var streak := 0             # consecutive kills without dying
 var respawn_timer := 0.0    # ms remaining in the ghost phase
 var respawning := false     # ghost phase
-var pierce_walls := false   # SINGULARITY pierce (false until overheat)
+var pierce_walls := false   # SINGULARITY pierce: set for everyone by the match rules (web Match.applyComeback)
+var move_scale := 1.0       # OVERHEAT movement speed multiplier
 var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
 var shield = null   # a Shield (injected by the host); null in movement-only contexts
 var _look_dir := Vector3(0, 0, -1)
@@ -29,7 +30,27 @@ func can_act() -> bool:
 func move_intent(dir: Vector3) -> void:
 	if not can_move():
 		return
-	body.move(dir)
+	body.move(dir * (respawn_speed_mult() if respawning else 1.0) * move_scale)
+
+## Ghost-phase speed: the full RESPAWN_SPEED_MULT, easing back to x1 over the last RESPAWN_SPEED_RAMP of the phase.
+func respawn_speed_mult() -> float:
+	var left := respawn_timer / MatchConst.RESPAWN_GHOST_MS
+	if left >= MatchConst.RESPAWN_SPEED_RAMP:
+		return MatchConst.RESPAWN_SPEED_MULT
+	return 1.0 + (MatchConst.RESPAWN_SPEED_MULT - 1.0) * (left / MatchConst.RESPAWN_SPEED_RAMP)
+
+## OVERHEAT for the current streak: movement speed and the beam / shield cooldown lengths (web applyOverheat).
+func apply_overheat() -> void:
+	var mods := Overheat.overheat_mods(streak)
+	move_scale = mods["speed"]
+	if weapon != null:
+		weapon.set_cooldown_scale(mods["beam_cd"])
+	if shield != null:
+		shield.set_cooldown_scale(mods["shield_cd"])
+
+## Overheated to the see-through level (SINGULARITY): blocks turn see-through and every beam pierces them.
+func see_through() -> bool:
+	return Overheat.overheat_mods(streak)["see_through"]
 
 func set_jump_input(held: bool) -> void:
 	body.set_jump_input(can_move() and held)
@@ -193,4 +214,4 @@ func update_weapon(dt: float, exclude_ids: Array) -> void:
 	var hit_origin: Vector3 = _aim_origin if _has_aim_origin else muzzle
 	var hit_dir := (_aim_point - hit_origin).normalized() if _has_aim_origin else aim_dir
 	weapon.update(dt, {"muzzle": muzzle, "aim": aim_dir, "hit_origin": hit_origin,
-		"hit_dir": hit_dir, "exclude_ids": exclude_ids})
+		"hit_dir": hit_dir, "exclude_ids": exclude_ids, "pierce_walls": pierce_walls})

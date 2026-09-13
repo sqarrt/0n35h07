@@ -31,13 +31,14 @@
   `parity-capture-streak.mjs`, `parity-capture-camera.mjs`, `parity-capture-profile.mjs`, пробник
   `parity-probe-fx-region.mjs`; общий код — `parity-lib.mjs` (`enterLiveMatch(page, base, map, onStage, {profile, botName})`).
   Хуки web: `__debugAnnounce(kind)`, `__debugStreak(id,n)`, `__debugPlayerColor(id)`, `__debugTimeScale(k)` (только
-  симуляция; `Date.now`-визуалы не замедляет), `__debugKill(id)`, `__debugRespawning(id)`, `__debugForceEnd`, …
+  симуляция; `Date.now`-визуалы не замедляет), `__debugKill(id)`, `__debugRespawning(id)`, `__debugSetStreak(id,n)`
+  (настоящая серия: перегрев/pierce/прозрачность + HUD), `__debugForceEnd`, …
   Ещё скрипты: `parity-capture-skins/-beams/-shield-dash/-windup-respawn.mjs`. Vite из WSL на /mnt/c не видит правок —
   перезапускать (`pgrep -f "^node node_modules/vite"` + kill; `pkill -f` убивает свою оболочку).
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 304/304)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 319/319)
 
 | Слайс | Суть |
 |---|---|
@@ -52,19 +53,20 @@
 | G11b лучи | `BeamFx` classic/rage/singularity (`BeamCurves`), бот — classic `#f44`, искры только от выстрелов человека |
 | G11c щиты и следы | `ShieldFx` dome/hex/crystal (`ShieldSkinState`), `DashTrailView` streak/wave/rift |
 | G11d замахи и респавны | `WindupWorldView` (`RageJaws`, `SingularityVortex`, точки `size_attenuated_points`), `RespawnFxView` echo/chaos/swarm (`ChaosRespawn`, `SwarmRespawn`); шар пишет глубину в призраке |
+| OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
-Скины G11a–G11d смержены в `release_2.0.0`. Следующий слайс — **перегрев**: спека
-`docs/superpowers/specs/2026-09-14-godot-overheat-design.md` (в Godot НЕ подключены модификаторы скорости/кулдаунов,
-pierce/seeThrough при серии ≥5, полупрозрачные блоки; затем виньетка и молнии перегрева G11e).
+Скины G11a–G11d и перегрев (OV + G11e) смержены в `release_2.0.0`. Следующий слайс — **PP1 контур рёбер блоков**:
+web `components/EdgeOutline.tsx` (`MapEdges`, включён настройкой `postProcessing`, по умолчанию true) — проход
+нормалей+глубины только блоков и осветление цвета блока на разрывах нормалей; в Godot пост-обработки нет.
 
 ## 5. Что ещё осталось (бэклог паритета)
 
-- **Перегрев** (следующий): модификаторы, pierce/seeThrough, прозрачные блоки; overheat-виньетка и молнии (G11e).
+- **PP1 контур рёбер блоков** (следующий, найден сверкой перегрева): пост-обработка `MapEdges`.
 - **Звук** (музыка, SFX) и **AudioBar** (визуализатор, `audioViz` вкл. по умолчанию); StatsOverlay (FPS/скорость).
 - **Тема интерфейса**: кнопки (`Button variant=primary`), экран результата E2 (кнопка/высота колонки).
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`

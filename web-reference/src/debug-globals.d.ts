@@ -23,6 +23,7 @@ declare global {
     __debugTimeScale?: (k: number) => void
     __debugKill?: (id: number) => void
     __debugRespawning?: (id: number) => boolean
+    __debugSetStreak?: (id: number, count: number) => void
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void

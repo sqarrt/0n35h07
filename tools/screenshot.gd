@@ -19,6 +19,9 @@ extends SceneTree
 ##   third-person-ghost-<style>   respawn style echo / chaos / swarm, 600 ms into a ghost phase (no shooter).
 ##   third-person-rebirth-<style> the same style, REBIRTH_FRAMES after materialising at the end of that ghost.
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
+##   hud-overheat-<tier>  passive bot + the local player on a double / triple / singularity streak; with
+##                     web-overheat-<tier>.json next to the output PNG (parity-capture-overheat.mjs) the vignette shows
+##                     exactly those bolts at their strike peak with the pulse at its start.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -35,6 +38,9 @@ const MODE_REFERENCE_CAMERA := "reference-camera"
 const MODE_HUD_BANNER := "hud-banner"
 const MODE_HUD_GHOST := "hud-ghost"
 const MODE_HUD_NAMES := "hud-names-"
+const MODE_HUD_OVERHEAT := "hud-overheat-"
+const OVERHEAT_FIXTURE := "web-overheat-%s.json"
+const OVERHEAT_FRAMES := 2           # the HUD picks the streak up, then the frozen fixture draws
 const MODE_THIRD_PERSON := "third-person"
 const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
@@ -108,7 +114,8 @@ func _initialize() -> void:
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
 	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON, MODE_TP_WINDUP,
 		MODE_TP_DEFLATE] \
-		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE)
+		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE) \
+		or _mode.begins_with(MODE_HUD_OVERHEAT)
 	if _mode.begins_with(MODE_PROFILE) and g != null:
 		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
 		g.lobby_bot_name = PARITY_BOT_NAME
@@ -195,6 +202,16 @@ func _apply_hud_fixture() -> int:
 		_human().player.start_firing()   # web: one mousedown
 		var half := _mode == MODE_TP_WINDUP or _mode.begins_with(MODE_TP_WINDUP_STYLE)
 		return HALF_WINDUP_FRAMES if half else DEFLATE_FRAMES   # the shot frame = 50 ms into it
+	if _mode.begins_with(MODE_HUD_OVERHEAT):
+		var tier := _mode.trim_prefix(MODE_HUD_OVERHEAT)
+		_human().player.streak = TIER_STREAKS[tier]
+		var fixture := _output.get_base_dir().path_join(OVERHEAT_FIXTURE % tier)
+		if FileAccess.file_exists(fixture):
+			var json := JSON.new()
+			if json.parse(FileAccess.get_file_as_string(fixture)) == OK:
+				var vignette := root.find_child("OverheatVignette", true, false) as HudOverheatVignette
+				vignette.show_fixture(tier, _web_bolts(json.data["bolts"]))
+		return OVERHEAT_FRAMES
 	if _mode == MODE_HUD_GHOST:
 		var human := _human()
 		human.player.respawning = true
@@ -246,6 +263,18 @@ func _capture() -> void:
 	metadata.store_string(JSON.stringify(facts, "\t"))
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(_output))
 	_capture_done = true
+
+## web bolts ({side, topPct, length, segments: [{from: [x, y], to: [x, y], width}]}) in OverheatFx form.
+func _web_bolts(bolts: Array) -> Array:
+	var out := []
+	for bolt in bolts:
+		var segments := []
+		for s in bolt["segments"]:
+			segments.append({"from": Vector2(s["from"][0], s["from"][1]), "to": Vector2(s["to"][0], s["to"][1]),
+				"width": float(s["width"])})
+		out.append({"side": bolt["side"], "top_pct": float(bolt["topPct"]), "length": float(bolt["length"]),
+			"segments": segments})
+	return out
 
 func _vec(v: Vector3) -> Array:
 	return [v.x, v.y, v.z]

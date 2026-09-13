@@ -1079,6 +1079,13 @@ export class Match {
     // Parity captures: start a player's ghost phase without a shooter (no score), and watch it materialise.
     w.__debugKill = (id: number) => this.byId.get(id)?.applyDeath()
     w.__debugRespawning = (id: number) => this.byId.get(id)?.isRespawning ?? false
+    // Parity captures: a real streak (OVERHEAT mods, pierce and see-through blocks next tick) with its HUD tier.
+    w.__debugSetStreak = (id: number, count: number) => {
+      const p = this.byId.get(id)
+      if (!p) return
+      p.streak = count
+      this.dispatch({ type: 'SET_STREAK', id, tier: streakTier(count), count })
+    }
     w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
     // Physics ready = Rapier WASM loaded and the world attached (before that applyPhysics is a no-op, no movement).
     // For e2e: __debugForceLive enters live before physics is ready (in the real flow the readiness ritual
@@ -1103,6 +1110,7 @@ export class Match {
     delete w.__debugPlayerColor
     delete w.__debugKill
     delete w.__debugRespawning
+    delete w.__debugSetStreak
     delete w.__debugPlayerSpeed
     delete w.__debugPhysicsReady
     if (this.singularityActive) this.world.setBlocksTransparent(false)   // restore blocks to opaque

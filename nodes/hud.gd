@@ -13,6 +13,7 @@ var _top_bar: HudTopBar
 var _crosshair: HudCrosshair
 var _brackets: HudShieldBrackets
 var _dash: HudDashBars
+var _overheat: HudOverheatVignette
 var _ghost: HudGhostIndicator
 var _banner: HudStreakBanner
 var _countdown: HudCountdown
@@ -50,6 +51,8 @@ func _ready() -> void:
 	add_child(_crosshair)
 	_top_bar = HudTopBar.new()
 	add_child(_top_bar)
+	_overheat = HudOverheatVignette.new()   # web z-index 13 (bolts 14): over the top bar, under the ghost bars / banner
+	add_child(_overheat)
 	_ghost = HudGhostIndicator.new()
 	add_child(_ghost)
 	_banner = HudStreakBanner.new()
@@ -79,6 +82,8 @@ func _process(delta: float) -> void:
 	_overlay.set_ghost(live and player.respawning)
 	_overlay.set_shield_active(live and player.is_shielded())
 	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
+	_overheat.set_tier(Streak.streak_tier(_match.streak_of(HUMAN_ID)) if live else "")   # web hud.streaks[localId]
+	_overheat.tick(delta)
 	if live and _respawn_progress != null:
 		_ghost.show_progress(_respawn_progress)
 		_ghost.tick(delta)

@@ -70,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   snaps shut when you fire; a singularity shot pulls a vortex of sparks into the ball and ends in a white collapse
   flash. Respawns follow the chosen style too — the particle burst and translucent ghost, a jittering glitch ghost
   that reassembles in steps, or a swarm of fragments that orbits you and gathers back into the ball.
+- **Overheat works like the original.** A kill streak now speeds you up while lengthening your beam and shield
+  cooldowns; once anyone reaches a SINGULARITY streak every beam and aim ray passes through map blocks and the blocks
+  turn see-through for everyone. Your screen edges glow red with flickering lightning that grows with your streak.
+  Ghosts move twice as fast again, easing back before they respawn, and glass blocks use the original's transparency.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

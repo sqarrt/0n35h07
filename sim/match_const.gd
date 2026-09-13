@@ -2,6 +2,8 @@ class_name MatchConst
 ## Match-rule constants — ported from web-reference/src/constants.ts (+ Match.ts END_FREEZE_MS).
 
 const RESPAWN_GHOST_MS := 1500.0    # ghost (invulnerable) phase duration after a death
+const RESPAWN_SPEED_MULT := 2.0      # ghost movement speed multiplier
+const RESPAWN_SPEED_RAMP := 0.3      # share at the end of the ghost phase where the speed-up eases back to x1
 const READY_COUNTDOWN_MS := 3000.0  # countdown before the fight (used by the entry ritual, later)
 
 const MS_PER_MIN := 60000.0

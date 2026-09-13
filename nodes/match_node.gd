@@ -9,6 +9,7 @@ signal frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool)
 signal fired(id: int)
 signal blocked(shooter_id: int, victim_id: int, perfect: bool)
 signal match_ended(result: Dictionary)
+signal singularity_changed(active: bool)   # web World.setBlocksTransparent on the mode switch
 
 const MS_PER_S := 1000.0
 const NO_TEAM := -1
@@ -75,6 +76,8 @@ func _physics_process(delta: float) -> void:
 	_apply_freeze()
 	rules.resolve(delta)
 	emit_events(rules.events)
+	if rules.apply_comeback():   # web: at the top of the next tick, before anyone moves or fires
+		singularity_changed.emit(rules.singularity_active)
 	_tick_result(delta)
 
 ## Re-emit rule events as signals (web Match dispatches BEAM_FLASH / SHIELD_BLOCK / PLAYER_HIT from these facts).
