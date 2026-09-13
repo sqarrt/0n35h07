@@ -189,7 +189,7 @@ function GameImpl({ dispatch, net, netConfig, defaultThirdPerson, apiRef, durati
   // and caps catch-up). Each tick runs one sim step + one manual Rapier step (Physics is paused). After the loop the
   // visuals + camera are interpolated by the fractional alpha so rendering stays smooth at any refresh rate.
   useFrame((_, dt) => {
-    const { ticks, alpha } = driver.advance(dt)   // mesh: no shared clock — every peer ticks its own sim
+    const { ticks, alpha } = driver.advance(dt * debugTimeScale)   // mesh: no shared clock — every peer ticks its own sim
     for (let i = 0; i < ticks; i++) {
       match.update(FIXED_DT)        // one sim tick (syncFromBody → intents → applyPhysics(setNextKinematicTranslation) → combat → lateUpdate)
       match.step(FIXED_DT)          // manual Rapier step applies the kinematic translations + advances the world
@@ -237,3 +237,7 @@ function GameImpl({ dispatch, net, netConfig, defaultThirdPerson, apiRef, durati
 }
 
 export const Game = memo(GameImpl)
+
+// Parity captures: slow the whole simulation clock so short effects (a 200 ms beam) can be screenshotted.
+let debugTimeScale = 1
+if (typeof window !== 'undefined') window.__debugTimeScale = (k: number) => { debugTimeScale = k > 0 ? k : 1 }

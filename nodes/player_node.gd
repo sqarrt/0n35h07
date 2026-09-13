@@ -25,7 +25,7 @@ var _ghost_trail: AfterimageTrail
 var _ghost_trail_view: ParticleView
 var _visual_ms := 0.0                  # visual clock (web Date.now for fireTime / spawnTime)
 var _fire_ms := -INF                   # the last own shot (windup deflate)
-var _spawn_ms := -INF                  # the last materialisation (rebirth poof); -INF before any respawn
+var _spawn_ms := 0.0                   # the last materialisation (rebirth poof); web Match places everyone via respawnAt
 var _was_respawning := false
 
 const HIT_FLASH_TIME := 0.25
@@ -40,6 +40,10 @@ func apply_appearance(entry: Dictionary) -> void:
 	_base_color = Color(entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR))
 	if _ball == null:
 		return   # not ready yet: _ready applies the stored entry
+	if entry.get("kind", "") == Roster.KIND_BOT:
+		_beam_fx.setup(BeamFx.STYLE_CLASSIC, BeamCurves.BOT_SHELL_COLOR)   # web Match: red "enemy" beam for bots
+	else:
+		_beam_fx.setup(entry.get("windupStyle", BeamFx.STYLE_CLASSIC), _base_color)
 	_ball.setup(_base_color, entry.get("ballModel", AppearanceConst.BALL_MODELS[0]),
 		Color(entry.get("reserveColor", entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR))),
 		entry.get("ballArt", ""))
@@ -71,6 +75,7 @@ func _ready() -> void:
 	collision_layer = CombatConst.LAYER_PLAYER_BIT               # movement capsule: not a combat target
 	collision_mask = CombatConst.MOVE_MASK                       # collide with both wall kinds
 	_beam_fx = BeamFx.new()
+	_beam_fx.name = "BeamFx"
 	add_child(_beam_fx)
 	var raycaster := WorldRaycaster.new(get_world_3d().direct_space_state)
 	player.set_weapon(BeamWeapon.new(raycaster))
@@ -130,15 +135,14 @@ func _physics_process(delta: float) -> void:
 		_beam_fx.play(_muzzle_point(), o["end"])
 		var eid: int = int(o["hit_entity_id"])
 		if eid >= 0:
+			if o["hit_point"] != null and controller is HumanController:
+				_beam_fx.spawn_impact(o["hit_point"])   # web: only the human's own hits spark, blocked or not
 			var target = _find_target(eid)
 			if target != null and target.has_method("is_shielded") and target.is_shielded():
 				if target.has_method("on_block"):
-					target.on_block()          # the shield wins: no impact, no hit flash
-			else:
-				if o["hit_point"] != null:
-					_beam_fx.spawn_impact(o["hit_point"])
-				if target != null and target.has_method("on_hit"):
-					target.on_hit()
+					target.on_block()          # the shield wins: no hit flash
+			elif target != null and target.has_method("on_hit"):
+				target.on_hit()
 		w.clear_just_fired()
 
 func _muzzle_point() -> Vector3:

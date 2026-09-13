@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   with its ring) and artwork, turns with the player's look, swells and whitens while charging a shot (or chars red /
   collapses for the other windup styles), bursts into particles on death, floats as a translucent ghost with a trail
   and pops back in when it respawns. Your own ball and shield stay hidden in first person, as in the original.
+- **Beams in every style.** Your shot fires the original's beam for your windup style — the classic white core in
+  your colour with its afterglow, the ragged rage discharge or the dark singularity thread with its spiral — while
+  bots fire the classic beam with a red shell. Impact sparks come only from your own hits, as in the original.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
