@@ -25,7 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   defeat or draw, every player ranked by kills, the reason and an exit back to the main menu. The pause menu no
   longer opens once the match is over.
 
+- **Floor grid, sky and map lighting match the original.** Arenas show the 1 m floor grid, the sky takes the
+  original's dark page colour, and the ambient light and shadow-casting sun come from the same place with the same
+  strength. Checked by measuring pixels against the original on the same GPU: sky, floor and walls agree within one
+  step of 255.
+
 ### Fixed
+- **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game
+  drew the back faces of blocks and walls and lit them from the wrong side (the bright and dark perimeter walls were
+  swapped). Faces now point the right way, which also makes the beam hit block surfaces from the correct side.
+  Edges are antialiased as in the original.
 - **Players start on the map's spawn points.** The human and the bot now appear on the map's own start positions
   (slot 0 on the first point, the opponent on the second), instead of a fixed spot and a hard-coded bot position.
 - **Map collisions match the original.** Movement collides with the map's compiled collision geometry, the floor and

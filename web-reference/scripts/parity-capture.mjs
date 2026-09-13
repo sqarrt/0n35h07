@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const output = resolve(process.argv[2] ?? '../test-results/parity-corrected');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
-const mapId = 'os_arena';
+const mapId = process.env.PARITY_MAP ?? 'os_arena';   // e.g. PARITY_MAP=os_pool_day
 const settleFrames = 180;
 const settleMs = 5000;
 // SwiftShader (the default software GL of headless Chromium) drops screen-space-steep GL_LINES, so the 1×1
@@ -83,33 +83,41 @@ try {
   });
   await settleScene();
   await page.screenshot({ path: resolve(output, 'web-game.png') });
-  const before = await page.evaluate(() => window.__debugTargetHitCount ?? 0);
-  await page.evaluate(() => {
-    const target = window.__debugBotPos?.[0]?.();
-    if (!target) throw new Error('No bot position available');
-    window.__debugCamera.lookAt(target.x, target.y + 0.5, target.z);
-    window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
-  });
-  await page.waitForFunction(count => (window.__debugTargetHitCount ?? 0) > count, before, { timeout: 10000 });
-  await page.evaluate(() => window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })));
-  const facts = await page.evaluate(() => ({
+  const runtime = { mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, errors };
+  const saveRuntime = () => writeFile(resolve(output, 'web-runtime.json'), JSON.stringify(runtime, null, 2));
+  await saveRuntime();   // the map frame is captured: keep its facts even if a later step fails
+  // Shot: optional — on maps where the bot is out of the line of fire there is no hit to wait for.
+  try {
+    const before = await page.evaluate(() => window.__debugTargetHitCount ?? 0);
+    await page.evaluate(() => {
+      const target = window.__debugBotPos?.[0]?.();
+      if (!target) throw new Error('No bot position available');
+      window.__debugCamera.lookAt(target.x, target.y + 0.5, target.z);
+      window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+    });
+    await page.waitForFunction(count => (window.__debugTargetHitCount ?? 0) > count, before, { timeout: 10000 });
+    await page.evaluate(() => window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })));
+    await page.screenshot({ path: resolve(output, 'web-hit.png') });
+  } catch (error) {
+    runtime.shotSkipped = error.message;
+  }
+  runtime.facts = await page.evaluate(() => ({
     phase: window.__debugPhase?.(),
     score: window.__debugScore?.(0),
     hits: window.__debugTargetHitCount,
     position: window.__debugPlayerPos?.(0),
   }));
-  await page.screenshot({ path: resolve(output, 'web-hit.png') });
   // Match end: take the time-up path, then let the freeze-frame and the outcome fade-in settle.
   await page.evaluate(() => window.__debugForceEnd?.());
   await page.getByTestId('match-outcome').waitFor({ timeout: 10000 });
   await settleScene();
   await page.screenshot({ path: resolve(output, 'web-match-end.png') });
-  const matchEnd = {
+  runtime.matchEnd = {
     outcome: await page.getByTestId('match-outcome').innerText(),
     reason: await page.getByTestId('match-reason').innerText(),
   };
-  await writeFile(resolve(output, 'web-runtime.json'), JSON.stringify({ mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, facts, matchEnd, errors }, null, 2));
-  console.log(JSON.stringify({ output, facts, errors }));
+  await saveRuntime();
+  console.log(JSON.stringify({ output, facts: runtime.facts, shotSkipped: runtime.shotSkipped, errors }));
 } finally {
   await browser.close();
 }
