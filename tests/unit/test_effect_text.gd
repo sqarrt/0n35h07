@@ -45,6 +45,10 @@ func test_double_is_player_coloured_glitched_and_electrified() -> void:
 	assert_eq(fx.glow().layer_count(), 1, "text-shadow 0 0 12px --pc")
 	var filter := fx.display().material as ShaderMaterial
 	assert_almost_eq(filter.get_shader_parameter("scale_px"), 3.0, EPS, "ks-el1 displacement scale")
+	var origin: Vector2 = filter.get_shader_parameter("box_origin_px")
+	var region := Rect2(filter.get_shader_parameter("region_origin_px"), filter.get_shader_parameter("region_size_px"))
+	var glow_box := Rect2(origin, fx.get_combined_minimum_size()).grow(fx.glow().padding())
+	assert_true(region.encloses(glow_box), "the filter never cuts the 12px glow into a box")
 
 func test_catalyst_throbs_with_sparks_and_ticks_but_no_filter() -> void:
 	var fx := _fx()

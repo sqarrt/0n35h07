@@ -220,7 +220,9 @@ func _apply_element(origin: Vector2, box: Vector2, composite_size: Vector2i) -> 
 	filter.set_shader_parameter("octaves", settings.get("octaves", 1))
 	filter.set_shader_parameter("seed", float(settings.get("seed", 0)))
 	filter.set_shader_parameter("box_origin_px", origin)
-	filter.set_shader_parameter("box_size_px", box)
+	var region := StreakFx.filter_region(Rect2(origin, box), StreakFx.text_shadows(_kind, _player_color, _elapsed))
+	filter.set_shader_parameter("region_origin_px", region.position)
+	filter.set_shader_parameter("region_size_px", region.size)
 
 func _update_scramble() -> void:
 	if not _style.get("scramble", false):

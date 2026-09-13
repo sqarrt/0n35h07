@@ -1,8 +1,8 @@
 shader_type canvas_item;
 // Shows a composited EffectText (premultiplied SubViewport texture) through the web SVG filter ks-elN:
 // feTurbulence type="fractalNoise" (gradient noise summed over octaves) feeding feDisplacementMap on the alpha channel
-// (both axes shift by scale * (A - 0.5)), clipped to the default filter region: the element box grown 10% per side.
-// scale_px = 0 means no filter (CATALYST): the texture is shown unclipped.
+// (both axes shift by scale * (A - 0.5)), clipped to the filter region (StreakFx.filter_region). Noise coordinates
+// start at the element box origin. scale_px = 0 means no filter (CATALYST): the texture is shown unclipped.
 render_mode blend_premul_alpha;
 
 uniform float scale_px = 0.0;
@@ -10,9 +10,9 @@ uniform vec2 base_frequency = vec2(0.0);
 uniform int octaves = 1;
 uniform float seed = 0.0;
 uniform vec2 box_origin_px = vec2(0.0);
-uniform vec2 box_size_px = vec2(1.0);
+uniform vec2 region_origin_px = vec2(0.0);
+uniform vec2 region_size_px = vec2(1.0);
 
-const float REGION_MARGIN = 0.1;       // SVG filter region x/y = -10%, width/height = 120%
 const float NOISE_HALF = 0.5;
 const float OCTAVE_GAIN = 0.5;
 const float OCTAVE_LACUNARITY = 2.0;
@@ -53,9 +53,7 @@ float fractal_noise(vec2 p) {
 }
 
 bool in_region(vec2 p) {
-	vec2 lo = box_origin_px - box_size_px * REGION_MARGIN;
-	vec2 hi = box_origin_px + box_size_px * (1.0 + REGION_MARGIN);
-	return all(greaterThanEqual(p, lo)) && all(lessThan(p, hi));
+	return all(greaterThanEqual(p, region_origin_px)) && all(lessThan(p, region_origin_px + region_size_px));
 }
 
 vec4 faded(vec4 premultiplied) {
