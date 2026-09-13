@@ -29,6 +29,7 @@ SEVERITY = {
     "behavior": "поведение",
     "visual": "визуал",
     "platform": "не дефект",
+    "fixed": "исправлено",
 }
 EVIDENCE = {"screenshot": "скриншот", "code": "код", "test": "тест", "runtime": "запуск"}
 KIND_LABEL = {"web": "WEB · эталон", "godot": "GODOT · порт"}
@@ -106,6 +107,7 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .chip i{font-style:normal;color:var(--text)}
 .sev-missing{color:var(--sev-missing)} .sev-behavior{color:var(--sev-behavior)}
 .sev-visual{color:var(--sev-visual)} .sev-platform{color:var(--sev-platform)}
+.sev-fixed{color:var(--sev-fixed,#4fa)}
 
 .toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .toc a{display:grid;gap:10px;padding:16px 18px;background:var(--panel);border:1px solid var(--line);text-decoration:none;color:var(--body)}

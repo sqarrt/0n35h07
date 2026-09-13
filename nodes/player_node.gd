@@ -54,6 +54,12 @@ func _ready() -> void:
 	add_child(_hitbox)
 	_mesh = get_node_or_null("Mesh")
 
+## Teleport onto a spawn point: moves the sim body and the physics body together, without an interpolated slide.
+func place_at(pos: Vector3) -> void:
+	player.body.position = pos
+	global_position = pos
+	reset_physics_interpolation()
+
 func hitbox_rid() -> RID:
 	return _hitbox.get_rid()
 
