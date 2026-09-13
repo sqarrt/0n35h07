@@ -12,6 +12,7 @@ extends SceneTree
 ##   third-person      passive bot + the human's view toggled to third person (web: the V key).
 ##   third-person-windup   the same, halfway through an own windup (200 ms after the click).
 ##   third-person-deflate  the same, 50 ms after the own shot (inside the 200 ms deflate).
+##   third-person-shot-<style>  the profile's windup style set to classic / rage / singularity, 50 ms into the beam.
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
@@ -34,6 +35,7 @@ const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
 const HALF_WINDUP_FRAMES := 12       # 200 ms at --fixed-fps 60 (BEAM_WINDUP 400 ms)
 const DEFLATE_FRAMES := 27           # 450 ms: the shot at 400 ms plus 50 ms of deflate
+const MODE_TP_SHOT := "third-person-shot-"
 const MODE_PROFILE := "profile"
 const MODE_PROFILE_DOUBLE := "profile-double"
 const PROFILE_PREFIX := "profile:"
@@ -96,6 +98,10 @@ func _initialize() -> void:
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
+	if _mode.begins_with(MODE_TP_SHOT):
+		_passive_bot = true
+		if g != null:
+			g.profile["windupStyle"] = _mode.trim_prefix(MODE_TP_SHOT)
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
@@ -146,12 +152,12 @@ func _apply_hud_fixture() -> int:
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES
-	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE]:
+	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE] or _mode.begins_with(MODE_TP_SHOT):
 		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
 		if _mode == MODE_THIRD_PERSON:
 			return VIEW_SETTLE_FRAMES
 		_human().player.start_firing()   # web: one mousedown
-		return HALF_WINDUP_FRAMES if _mode == MODE_TP_WINDUP else DEFLATE_FRAMES
+		return HALF_WINDUP_FRAMES if _mode == MODE_TP_WINDUP else DEFLATE_FRAMES   # the shot frame = 50 ms into it
 	if _mode == MODE_HUD_GHOST:
 		var human := _human()
 		human.player.respawning = true

@@ -20,6 +20,7 @@ declare global {
     __debugAnnounce?: (kind: 'catalyst' | 'double' | 'triple' | 'singularity', shooterId?: number) => void
     __debugStreak?: (id: number, count: number) => void
     __debugPlayerColor?: (id: number) => string | null
+    __debugTimeScale?: (k: number) => void
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
