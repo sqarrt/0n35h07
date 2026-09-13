@@ -12,11 +12,14 @@ func _init(net, match_obj) -> void:
 	_match = match_obj
 	_net.on("snapshot", func(payload, from): _match.apply_peer_snapshot(from, payload))
 	_net.on("event", func(payload, from): _match.apply_peer_event(from, payload))
+	_net.on("hit", func(payload, from): _match.judge_claim(from, payload))
 
 ## Send outgoing data after the simulation step (now in ms).
 func after_update(now_ms: float) -> void:
 	for e in _match.drain_events():
 		_net.broadcast("event", e)                       # reliable, every tick
+	for c in _match.drain_claims():
+		_net.send(c["to"], "hit", c["claim"])            # addressed to the victim's owner
 	if now_ms - _last_snapshot_at >= _snapshot_interval:  # snapshots throttled
 		_last_snapshot_at = now_ms
 		_net.broadcast("snapshot", _match.serialize_snapshot())

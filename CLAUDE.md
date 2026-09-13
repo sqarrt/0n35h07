@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Resume here:** read [SESSION_HANDOFF.md](SESSION_HANDOFF.md) for the 2026-09-13 session state,
+verified results, corrected screenshots and pending per-stage HTML parity reports.
+
 ## 2.0.0 — Godot rewrite (in progress)
 
 OneShot is being reimplemented natively on **Godot 4.7 (GDScript, Windows-native)**.
@@ -10,9 +13,13 @@ The repo **root is the Godot project** (`project.godot`, `scenes/`, `scripts/`, 
 **`web-reference/`** as the 1:1 parity oracle and will be removed once Godot reaches parity.
 Requirement: **all visuals and functionality must be reproduced 1:1**.
 
+- Two runners, same Godot 4.7.1: **Claude Code works in WSL** → `scripts/godot.sh` (Linux binary in
+  `~/.local/share/godot/godot`; engine runs need the sandbox disabled). **Codex works natively in Windows / PowerShell**
+  → `./scripts/godot.ps1` (set `$env:GODOT_BIN` to the Windows `.exe`, or put `godot` / `godot4` on PATH).
 - Run the game (headless): `scripts/godot.sh --headless --path . scenes/main.tscn --quit-after 5`
 - Run tests (Godot analog of `npm run test`): `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit`
-  (first time / after adding `class_name`s: run `scripts/godot.sh --headless --path . --import` once)
+  (PowerShell: quote `'-gdir=res://tests/unit'`; first time / after adding `class_name`s: run `--headless --path . --import` once)
+- Parity reports: `python3 tools/parity/report.py tools/parity/stages/<stage>.json` → `test-results/parity-reports/<stage>/`.
 - The web reference builds from `web-reference/` (its own `package.json`).
 - Note: `.github/workflows/*` still target the old web layout and are stale until CI is reworked.
 
@@ -55,11 +62,14 @@ Tauri 2 desktop build.
   - The user usually already has it running.
 
 ## Tests
+
+- The user asked Codex to perform parity checks independently (2026-09-13).
+  Run the relevant automated checks yourself; do not require the user to compare versions manually.
+  For EACH parity-comparison stage, produce a standalone HTML report with embedded screenshots,
+  explicit capture conditions, confirmed discrepancies and limitations. Use the same map, phase,
+  viewport and camera; wait for scene warmup and entrance animations before visual conclusions.
 - No test may be flaky.
 - If a test simply cannot be stabilised — ask the user whether it can be dropped.
-- Don't run the tests until the user has confirmed the changes are correct.
-  - First ask the user whether it matches expectations.
-  - Then run the tests.
 
 ## GitFlow
 - Develop in a separate feature branch.

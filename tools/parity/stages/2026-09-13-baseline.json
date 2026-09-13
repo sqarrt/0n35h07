@@ -1,0 +1,334 @@
+{
+  "id": "2026-09-13-baseline",
+  "title": "Сверка паритета OneShot · 13.09",
+  "date": "2026-09-13",
+  "captures_dir": "test-results/parity-corrected",
+  "lede": "Базовая сверка переноса на Godot 4.7 с web-эталоном по трём экранам: главное меню, лобби, матч на Arena. Кадры сняты после прогрева сцены и входных анимаций, на одной карте, в одной фазе, в окне 1280×720. Ниже только расхождения, подтверждённые кадром или кодом.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-baseline.json`. Web-кадры: `web-reference/scripts/parity-capture.mjs`, Godot-кадры: `tools/screenshot.gd`. Ранние кадры из `test-results/parity/` в отчёт не входят: web-меню там снято до появления шара, карты и фазы не совпадали, Godot-меню рендерилось в Compatibility.",
+  "pages": [
+    {
+      "slug": "menu",
+      "name": "Главное меню",
+      "verdict": "Паритета нет. Godot-меню — функциональная заглушка: другой фон, логотип, шрифт, набор пунктов; нет локализации и заставки-предупреждения.",
+      "verdict_short": "Заглушка вместо меню: фон, логотип, пункты, i18n",
+      "conditions": [
+        ["окно", "1280×720, Chromium (Playwright)", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "Vite dev-сервер из `web-reference/`, WebGL", "Godot 4.7.1, Forward+ (Windows)"],
+        ["прогрев", "не меньше 180 кадров и 5000 мс; повторный кадр позже", "480 кадров"],
+        ["состояние", "после заставки-предупреждения, шар на фоне появился", "стартовая сцена `scenes/main_menu.tscn`"],
+        ["локаль", "русская (из профиля браузера)", "локализации нет, текст английский"],
+        ["съёмка", "`web-reference/scripts/parity-capture.mjs`", "`tools/screenshot.gd`"]
+      ],
+      "comparisons": [
+        {
+          "title": "Главное меню после прогрева",
+          "panels": [
+            {"kind": "web", "img": "web-menu.png", "note": "Шар на фоне, логотип 0N35H07, четыре пункта."},
+            {"kind": "godot", "img": "godot-menu.png", "note": "Однотонный фон, ONESHOT, выбор карты, PLAY / QUIT."}
+          ]
+        },
+        {
+          "title": "Контроль стабильности web-кадра",
+          "note": "Второй web-кадр снят позже: шар на месте на обоих, значит первый кадр не пойман посреди входной анимации.",
+          "panels": [
+            {"kind": "web", "label": "WEB · первый кадр", "img": "web-menu.png"},
+            {"kind": "web", "label": "WEB · позже", "img": "web-menu-later.png"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "M1", "severity": "visual",
+          "title": "Фон меню",
+          "web": "3D-сцена: шар игрока с мягким свечением, вертикальные границы центральной панели.",
+          "godot": "Однотонная заливка, 3D-сцены нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MenuBackdrop.tsx", "web-reference/src/components/menuStage.ts", "scenes/main_menu.tscn"]
+        },
+        {
+          "id": "M2", "severity": "visual",
+          "title": "Логотип и шрифт",
+          "web": "«0N35H07» в Share Tech Mono с голубым свечением и разделительной линией под ним; весь UI в Share Tech Mono (включая кириллицу).",
+          "godot": "«ONESHOT» стандартным шрифтом темы Godot, без свечения и разделителя.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/screens/MainMenu.tsx", "web-reference/src/ui/theme.css", "nodes/main_menu.gd"]
+        },
+        {
+          "id": "M3", "severity": "missing",
+          "title": "Пункты меню и экраны за ними",
+          "web": "ИГРАТЬ / ВНЕШНОСТЬ / НАСТРОЙКИ / ОБ ИГРЕ, подсказка «F11 — на весь экран», чип версии `v2.0.0`.",
+          "godot": "Только PLAY и QUIT. Экранов внешности, настроек и «об игре» нет, версии нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/screens/MainMenu.tsx", "web-reference/src/screens/Appearance.tsx", "web-reference/src/screens/Settings.tsx", "web-reference/src/screens/About.tsx"]
+        },
+        {
+          "id": "M4", "severity": "visual",
+          "title": "Оформление кнопок",
+          "web": "Прямоугольные контурные кнопки: обводка `#2f6f9e`, текст `#7fd0ff`, основная — заливка `#2b9ff0` с тёмным текстом, разрядка букв.",
+          "godot": "Стандартные тёмные плашки темы Godot без обводки и акцента.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "M5", "severity": "missing",
+          "title": "Локализация",
+          "web": "10 локалей, язык выбирается автоматически; на кадре — русский.",
+          "godot": "Строки захардкожены на английском.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/i18n/", "nodes/main_menu.gd"]
+        },
+        {
+          "id": "M6", "severity": "missing",
+          "title": "Заставка-предупреждение перед меню",
+          "web": "Экран предупреждения о фотосенситивности; закрывается кликом после прогрева сцены.",
+          "godot": "Игра сразу открывает меню.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/EpilepsyWarning.tsx"]
+        },
+        {
+          "id": "M7", "severity": "behavior",
+          "title": "Где выбирается карта",
+          "web": "В лобби: сетка превью карт с мультивыбором.",
+          "godot": "Выпадающий список прямо в главном меню.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/screens/Lobby.tsx", "nodes/main_menu.gd"]
+        },
+        {
+          "id": "M8", "severity": "platform",
+          "title": "Кнопка выхода",
+          "web": "Нет (браузерная вкладка).",
+          "godot": "QUIT — нормальная кнопка для нативного приложения; при переносе оформления её оставить.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/main_menu.gd"]
+        }
+      ],
+      "limitations": [
+        "Фазы анимации шара на двух движках не синхронизированы — сравниваются композиция и состав элементов, а не пиксели.",
+        "В Godot-кадре список показывает Pillars, хотя инструменту передан `os_arena`: параметр карты влияет только на запуск матча, в меню он не отображается.",
+        "Кадры сняты в сессии на Windows 13.09; в этой сессии (WSL) повторно не снимались."
+      ]
+    },
+    {
+      "slug": "lobby",
+      "name": "Лобби",
+      "verdict": "Экрана нет. В Godot кнопка PLAY сразу запускает матч «человек против бота», поэтому сравнивать можно только с тем, чего не хватает.",
+      "verdict_short": "Экрана нет: режимы, места, боты, время, код комнаты",
+      "conditions": [
+        ["путь", "меню → ИГРАТЬ", "меню → PLAY (сразу матч)"],
+        ["режим", "DUEL (2 места)", "аналога нет: всегда 1 человек против 1 бота"],
+        ["карта", "`os_arena`, выбор проверен скриптом", "выпадающий список в меню"],
+        ["время", "3 мин", "ограничения по времени нет"],
+        ["соперник", "бот добавлен и переключён в «пассивный»", "бот создаётся в `nodes/arena_boot.gd`"],
+        ["съёмка", "`web-reference/scripts/parity-capture.mjs`, окно 1280×720", "кадр невозможен: экрана нет"]
+      ],
+      "comparisons": [
+        {
+          "title": "Лобби сразу после входа",
+          "panels": [
+            {"kind": "web", "img": "web-lobby.png", "note": "Режимы WAR / DUEL / BATTLE, сетка карт, мультивыбор."},
+            {"kind": "godot", "absent_title": "экрана нет", "absent": "PLAY запускает `scenes/arena_test.tscn` без промежуточного экрана."}
+          ]
+        },
+        {
+          "title": "Лобби с добавленным ботом",
+          "panels": [
+            {"kind": "web", "img": "web-lobby-with-bot.png", "note": "Время 3/5/10 мин, места игроков, сложность бота, вход по коду, «ГОТОВ»."},
+            {"kind": "godot", "absent_title": "экрана нет", "absent": "Места, сложность бота и готовность в Godot не реализованы."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "L1", "severity": "missing",
+          "title": "Экран лобби",
+          "web": "Отдельный экран «ИГРАТЬ» с панелью по центру и фоном из шаров команд.",
+          "godot": "Отсутствует.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/screens/Lobby.tsx", "web-reference/src/components/lobby/"]
+        },
+        {
+          "id": "L2", "severity": "missing",
+          "title": "Режимы DUEL / BATTLE / WAR",
+          "web": "Режим — пресет лобби: число мест (1v1 → 2, 2v2 и FFA → 4), раскладка команд, условие старта.",
+          "godot": "Режимов нет; состав матча захардкожен.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/game/modes.ts", "nodes/arena_boot.gd"]
+        },
+        {
+          "id": "L3", "severity": "missing",
+          "title": "Места игроков и боты",
+          "web": "Места с именами профилей, добавление и удаление бота хостом, сложность бота «нормальный / пассивный», переход на свободное место.",
+          "godot": "Один бот без выбора сложности, мест нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/screens/Lobby.tsx", "sim/bot_controller.gd"]
+        },
+        {
+          "id": "L4", "severity": "missing",
+          "title": "Выбор карт",
+          "web": "Сетка из 5 превью (`os_arena`, `os_india`, `os_pillars`, `os_pool_day`, `os_test`), мультивыбор, «выбрать все».",
+          "godot": "Выпадающий список из 4 карт, `os_test` не перенесена, превью нет. Данные четырёх перенесённых карт (raw и geo) совпадают с web побайтно по SHA256.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/maps/", "maps/"]
+        },
+        {
+          "id": "L5", "severity": "missing",
+          "title": "Длительность матча",
+          "web": "3 / 5 / 10 минут.",
+          "godot": "Выбора нет, матч не ограничен по времени (см. G9).",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchSettings.tsx"]
+        },
+        {
+          "id": "L6", "severity": "missing",
+          "title": "Сетевая комната",
+          "web": "Код комнаты для друга, копирование, вход по коду, ритуал готовности «ГОТОВ» → отсчёт.",
+          "godot": "Нет. `NetSync` и `NetSession` покрыты тестами на `LoopbackNet`, но к меню и матчу не подключены; реального транспорта нет.",
+          "evidence": ["screenshot", "code", "test"],
+          "sources": ["web-reference/src/net/RoomSession.ts", "sim/net/net_session.gd", "nodes/arena_boot.gd"]
+        }
+      ],
+      "limitations": [
+        "Godot-кадра нет, поэтому это сверка состава функций по коду, а не визуальная.",
+        "Имена и цвета бота в web берутся из случайного профиля (на кадре XJ417X) и между прогонами меняются."
+      ]
+    },
+    {
+      "slug": "match",
+      "name": "Матч · Arena",
+      "verdict": "Сцена совпадает по геометрии карты, но HUD, пол, скины и правила матча расходятся. Точки появления совпали только в контрольном режиме инструмента съёмки, штатный запуск их не использует.",
+      "verdict_short": "HUD, пол, спавны, конец матча, лишний столб",
+      "conditions": [
+        ["карта", "`os_arena`, выбрана в лобби и проверена", "`maps/os_arena.json` + `maps/os_arena_geo.json`"],
+        ["фаза", "live после READY и отсчёта 3-2-1", "live (`MatchNode.is_live()` = true)"],
+        ["камера", "точка появления `[0, 1.7, 16]`, взгляд на −Z, FOV 75", "режим `reference-camera`: камера `[0, 1.7, 16]`, поворот 0, FOV 75"],
+        ["соперник", "пассивный бот на `[0, 1.7, −16]`", "бот без контроллера, перенесён на `raw.spawns[1]`"],
+        ["прогрев", "не меньше 180 кадров и 5000 мс в live", "480 кадров при 60 FPS"],
+        ["время матча", "02:43 на кадре", "таймера нет"],
+        ["итог прогона", "live, 1 убийство, 0 смертей, 1 попадание, `errors: []`", "кадр сохранён без ошибок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Спокойный кадр live с точки появления",
+          "wipe": true,
+          "note": "В режиме «шторка» Godot-кадр лежит снизу, web — сверху; двигайте ползунок, чтобы сравнить горизонт, стены и положение бота.",
+          "panels": [
+            {"kind": "web", "img": "web-game.png", "note": "HUD: имена, счёт, таймер, рамка, полосы кулдаунов, график скорости."},
+            {"kind": "godot", "img": "godot-arena.png", "note": "HUD: «YOU 0 — BOT 0», белый крест, три полосы, «0 u/s»; красный столб TargetDummy."}
+          ]
+        },
+        {
+          "title": "Попадание и убийство",
+          "note": "Web-кадр фиксирует факт попадания, это другое состояние, чем спокойный кадр выше; с ним не сравнивать.",
+          "panels": [
+            {"kind": "web", "img": "web-hit.png", "note": "Осколки фиолетового шара, баннер «CATALYST», счёт 1."},
+            {"kind": "godot", "absent_title": "кадр не снят", "absent": "Для Godot сценарий выстрела в инструменте съёмки пока не реализован."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G1", "severity": "visual",
+          "title": "Верхняя строка HUD",
+          "web": "Имя игрока и счёт в цвете команды, таймер «02:43» между разделителями, счёт и имя соперника.",
+          "godot": "«YOU 0 — BOT 0» белым текстом, таймера нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G2", "severity": "visual",
+          "title": "Прицел",
+          "web": "Бирюзовое кольцо с маленьким крестом; кольцо показывает перезарядку дугой.",
+          "godot": "Белый крест без кольца.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/Crosshair.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G3", "severity": "visual",
+          "title": "Индикаторы кулдаунов",
+          "web": "Вертикальные зелёные полосы у левого и правого края экрана.",
+          "godot": "Три горизонтальные полосы BEAM / SHIELD / DASH внизу по центру.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G4", "severity": "visual",
+          "title": "Скорость",
+          "web": "Светящийся синий график профиля скорости внизу по центру.",
+          "godot": "Текст «0 u/s» в левом нижнем углу.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G5", "severity": "visual",
+          "title": "Рамка HUD",
+          "web": "Синие угловые скобки во всех четырёх углах.",
+          "godot": "Нет.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/components/GameOverlay.tsx"]
+        },
+        {
+          "id": "G6", "severity": "visual",
+          "title": "Пол и освещение",
+          "web": "Тёмно-серый пол с сеткой линий, более тёмный тон сцены.",
+          "godot": "Пол заметно светлее, сетки нет. Карта та же, поэтому разница — в свете, тонмаппинге и отсутствии сетки.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/Arena.tsx", "web-reference/src/game/grid.ts", "nodes/geo_loader.gd", "scenes/arena_test.tscn"]
+        },
+        {
+          "id": "G7", "severity": "behavior",
+          "title": "Лишняя тестовая мишень",
+          "web": "На Arena ничего, кроме геометрии карты и игроков.",
+          "godot": "В `scenes/arena_test.tscn` остался узел TargetDummy — красный столб слева от центра.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["scenes/arena_test.tscn"]
+        },
+        {
+          "id": "G8", "severity": "behavior",
+          "title": "Точки появления",
+          "web": "`spawnPositionsFor` берёт точки из данных карты (Arena: `[0, 1.7, 16]` и `[0, 1.7, −16]`) с учётом режима и мест.",
+          "godot": "Игрок стоит в позиции `Body` по умолчанию, бот — жёстко `[8, EYE_HEIGHT, −10]`. `raw.spawns` не читается.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/spawns.ts", "nodes/arena_boot.gd", "nodes/player_node.gd"]
+        },
+        {
+          "id": "G9", "severity": "missing",
+          "title": "Конец матча",
+          "web": "Таймер матча, `endMatch('time')` и `endMatch('disconnect')`, экран результата.",
+          "godot": "`MatchPhase` знает только COUNTDOWN и LIVE; таймера и результата нет, матч бесконечный.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/Match.ts", "web-reference/src/components/MatchEndedOverlay.tsx", "sim/match_phase.gd"]
+        },
+        {
+          "id": "G10", "severity": "behavior",
+          "title": "Коллизии карты",
+          "web": "Движение идёт по отдельной геометрии `collider` из geo.json (непроходимые блоки); высокие невидимые границы; пол не блокирует луч (`noRaycast`).",
+          "godot": "`GeoLoader` строит коллайдеры из рендер-чанков, ключ `collider` игнорируется; невидимых границ нет; пол на слое, блокирующем луч. На Pool 146 блоков помечены `passable` — там поведение может разойтись.",
+          "evidence": ["code"],
+          "sources": ["nodes/geo_loader.gd", "maps/os_pool_day_geo.json", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "G11", "severity": "visual",
+          "title": "Скин игрока и эффект убийства",
+          "web": "Шар-скин в цвете профиля (фиолетовый у бота); при убийстве — разлёт осколков и баннер серии.",
+          "godot": "Белая сфера; осколков нет.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/components/StreakBanner.tsx", "nodes/player_node.gd"]
+        },
+        {
+          "id": "G12", "severity": "missing",
+          "title": "Камера",
+          "web": "Переключение на вид от третьего лица; всплеск FOV при рывке и в ghost-фазе.",
+          "godot": "Только первое лицо; FOV меняется при рывке, замахе и движении, ghost-фаза не учитывается.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/controllers/HumanController.ts", "nodes/human_controller.gd"]
+        }
+      ],
+      "limitations": [
+        "Режим `reference-camera` существует только в инструменте съёмки: он ставит участников на `raw.spawns`, отключает контроллер бота и выставляет камеру. Штатный запуск Godot эти позиции не использует (G8).",
+        "Время в live и фазы анимаций не синхронизированы, пиксельный diff не заявляется. Шторка нужна для сверки композиции.",
+        "G10 и G12 — выводы по коду, в запуске не воспроизводились.",
+        "За рамками этой сверки: настройки, редактор карт, внешность и FX щита и луча, Steam, радио, трейлер."
+      ]
+    }
+  ]
+}
