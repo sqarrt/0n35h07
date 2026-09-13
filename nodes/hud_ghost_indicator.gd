@@ -7,7 +7,7 @@ class_name HudGhostIndicator extends Control
 const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
 const COLOR := Color("#99ccff")              # web GHOST #9cf
 const TEXT := "RESPAWNING"                   # web dictionary respawning
-const INSET := 21.0                          # web HUD_FRAME_INSET
+const INSET := HudModel.FRAME_INSET
 const THICKNESS := 6.0
 const GLOW_BLUR := 10.0                      # web box-shadow 0 0 10px
 const FONT_SIZE := 12                        # web 0.75rem
