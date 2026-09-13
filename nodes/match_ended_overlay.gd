@@ -68,6 +68,7 @@ func show_result(result: Dictionary, roster: Roster = null, tiers := {}) -> void
 	exit.text = EXIT_TEXT
 	exit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	exit.pressed.connect(_on_exit)
+	UiSounds.attach(exit)
 	column.add_child(exit)
 
 	visible = true

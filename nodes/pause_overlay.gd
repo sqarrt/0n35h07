@@ -27,10 +27,12 @@ func _ready() -> void:
 	var resume := Button.new()
 	resume.text = "RESUME"
 	resume.pressed.connect(_on_resume)
+	UiSounds.attach(resume)
 	box.add_child(resume)
 	var menu := Button.new()
 	menu.text = "MAIN MENU"
 	menu.pressed.connect(_on_main_menu)
+	UiSounds.attach(menu)
 	box.add_child(menu)
 	visible = false
 

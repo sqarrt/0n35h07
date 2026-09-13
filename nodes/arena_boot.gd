@@ -11,6 +11,7 @@ const BOT_TEAM := 1
 const BOT_DIFFICULTY := "normal"   # web addBot default
 
 func _ready() -> void:
+	Audio.stop_menu_music()   # web App: the menu music fades out in the match
 	var raw_path: String = Game.selected_map
 	var geo_path := raw_path.replace(".json", "_geo.json")
 	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
