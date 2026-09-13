@@ -40,12 +40,41 @@ static func ranked_scores(scores: Array) -> Array:
 	rows.sort_custom(func(a, b): return a["kills"] > b["kills"] or (a["kills"] == b["kills"] and a["id"] < b["id"]))
 	return rows
 
-static func score_line(you: int, them: int) -> String:
-	return "YOU %d   —   BOT %d" % [you, them]
+const READY := 1.0
+const RING_CHARGING := Color("#006666")        # web Crosshair stroke #066
+const RING_READY := Color("#00ffff")           # web #0ff
+const BRACKET_ARM := 78.0                      # web ShieldBrackets A: arm length, px
+const SHIELD_ACTIVE := Color("#66aaff")        # web #6af while the shield is up
+const SHIELD_READY := Color("#4169e1")
+const SHIELD_CHARGING := Color("#1a2a6e")
+const SHIELD_ACTIVE_OPACITY := 1.0
+const SHIELD_READY_OPACITY := 0.85
+const SHIELD_CHARGING_OPACITY := 0.5
+const DASH_READY := Color("#2e9d57")           # web DashIndicator
+const DASH_CHARGING := Color("#0c4d28")
+const DASH_READY_OPACITY := 1.0
+const DASH_CHARGING_OPACITY := 0.55
+
+## Beam cooldown ring colour (web Crosshair).
+static func crosshair_ring_color(progress: float) -> Color:
+	return RING_READY if progress >= READY else RING_CHARGING
+
+## Shield corner bracket look (web ShieldBrackets): colour, group opacity and the arm length grown from the vertex.
+static func shield_bracket_look(progress: float, active: bool) -> Dictionary:
+	var p := clampf(progress, 0.0, READY)
+	var length := BRACKET_ARM * p
+	if active:
+		return {"color": SHIELD_ACTIVE, "opacity": SHIELD_ACTIVE_OPACITY, "length": length}
+	if p >= READY:
+		return {"color": SHIELD_READY, "opacity": SHIELD_READY_OPACITY, "length": length}
+	return {"color": SHIELD_CHARGING, "opacity": SHIELD_CHARGING_OPACITY, "length": length}
+
+## Dash side bar look (web DashIndicator): colour, opacity and the fill share grown from the centre.
+static func dash_bar_look(progress: float) -> Dictionary:
+	var p := clampf(progress, 0.0, READY)
+	if p >= READY:
+		return {"color": DASH_READY, "opacity": DASH_READY_OPACITY, "fill": p}
+	return {"color": DASH_CHARGING, "opacity": DASH_CHARGING_OPACITY, "fill": p}
 
 static func player_name(id: int) -> String:
 	return "YOU" if id == 0 else "BOT"
-
-## Kill-feed line: "SHOOTER  >  VICTIM".
-static func frag_line(shooter_id: int, victim_id: int) -> String:
-	return "%s  ▸  %s" % [player_name(shooter_id), player_name(victim_id)]

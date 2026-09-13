@@ -1,28 +1,29 @@
 class_name Hud extends CanvasLayer
-## Minimal combat HUD: crosshair, score, match timer, streak-announce banner, respawn indicator.
-## Reads the human player + match each frame; styled skinning/kill-feed come later.
+## Match HUD — port of web GameOverlay (1v1): top bar with frags and the timer, beam-cooldown crosshair ring,
+## shield corner brackets and dash side bars; the combat HUD shows only while live (web hides it during the
+## countdown). The streak banner, respawn indicator and countdown number get their web styling in H2.
 
 const BANNER_TIME := 2.0
 const HUMAN_ID := 0
 const BOT_ID := 1
-const TIMER_FONT_SIZE := 22
-const TIMER_OFFSET_TOP := 46   # just under the score line
+const BANNER_FONT_SIZE := 48
+const BANNER_OFFSET_TOP := 120
+const BANNER_COLOR := Color(1.0, 0.85, 0.2)
+const RESPAWN_TEXT := "RESPAWNING…"
+const RESPAWN_FONT_SIZE := 32
+const RESPAWN_COLOR := Color(1.0, 0.4, 0.4)
+const COUNTDOWN_FONT_SIZE := 96
 
 var _human: PlayerNode
 var _match: MatchNode
-var _crosshair: Label
-var _score: Label
-var _timer: Label
+var _top_bar: HudTopBar
+var _crosshair: HudCrosshair
+var _brackets: HudShieldBrackets
+var _dash: HudDashBars
 var _banner: Label
 var _respawn: Label
 var _countdown: Label
-var _beam_bar: ProgressBar
-var _shield_bar: ProgressBar
-var _dash_bar: ProgressBar
-var _speed: Label
-var _feed: VBoxContainer
 var _banner_time := 0.0
-const FEED_LINE_TIME := 4.0
 
 func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_human = human
@@ -35,122 +36,68 @@ func _on_match_ended(_result: Dictionary) -> void:
 	visible = false
 
 func _ready() -> void:
-	_crosshair = _label(28)
-	_crosshair.text = "+"
-	_crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_crosshair.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_brackets = HudShieldBrackets.new()
+	add_child(_brackets)
+	_dash = HudDashBars.new()
+	add_child(_dash)
+	_crosshair = HudCrosshair.new()
 	add_child(_crosshair)
+	_top_bar = HudTopBar.new()
+	add_child(_top_bar)
 
-	_score = _label(24)
-	_score.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_score.offset_top = 12
-	add_child(_score)
-
-	_timer = _label(TIMER_FONT_SIZE)
-	_timer.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_timer.offset_top = TIMER_OFFSET_TOP
-	add_child(_timer)
-
-	_banner = _label(48)
+	_banner = _label(BANNER_FONT_SIZE)
 	_banner.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_banner.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_banner.offset_top = 120
-	_banner.modulate = Color(1.0, 0.85, 0.2)
+	_banner.offset_top = BANNER_OFFSET_TOP
+	_banner.modulate = BANNER_COLOR
 	_banner.visible = false
 	add_child(_banner)
 
-	_respawn = _label(32)
-	_respawn.text = "RESPAWNING…"
+	_respawn = _label(RESPAWN_FONT_SIZE)
+	_respawn.text = RESPAWN_TEXT
 	_respawn.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_respawn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_respawn.modulate = Color(1.0, 0.4, 0.4)
+	_respawn.modulate = RESPAWN_COLOR
 	_respawn.visible = false
 	add_child(_respawn)
 
-	_countdown = _label(96)
+	_countdown = _label(COUNTDOWN_FONT_SIZE)
 	_countdown.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_countdown.visible = false
 	add_child(_countdown)
 
-	var row := HBoxContainer.new()
-	row.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.offset_top = -52
-	row.add_theme_constant_override("separation", 20)
-	add_child(row)
-	_beam_bar = _bar(row, "BEAM")
-	_shield_bar = _bar(row, "SHIELD")
-	_dash_bar = _bar(row, "DASH")
-
-	_feed = VBoxContainer.new()
-	_feed.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_feed.alignment = BoxContainer.ALIGNMENT_END
-	_feed.offset_left = -280
-	_feed.offset_top = 12
-	_feed.offset_right = -14
-	add_child(_feed)
-
-	_speed = _label(18)
-	_speed.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_speed.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	_speed.offset_left = 16
-	_speed.offset_top = -32
-	add_child(_speed)
-
-func _bar(parent: Node, label_text: String) -> ProgressBar:
-	var v := VBoxContainer.new()
-	var lbl := Label.new()
-	lbl.text = label_text
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 12)
-	v.add_child(lbl)
-	var bar := ProgressBar.new()
-	bar.min_value = 0.0
-	bar.max_value = 1.0
-	bar.value = 1.0
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(120, 14)
-	v.add_child(bar)
-	parent.add_child(v)
-	return bar
-
 func _label(font_size: int) -> Label:
 	var l := Label.new()
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	l.add_theme_font_override("font", UiFont.base())
 	l.add_theme_font_size_override("font_size", font_size)
 	return l
 
 func _process(delta: float) -> void:
 	if _human == null or _match == null:
 		return
-	_score.text = HudModel.score_line(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID))
-	_timer.text = HudModel.match_time(_match.seconds_left())
+	var player := _human.player
 	var cd := _match.countdown_label()
+	var live := cd == ""
 	_countdown.text = cd
-	_countdown.visible = cd != ""
-	var ghost: bool = _human.player.respawning
-	_respawn.visible = ghost and cd == ""
-	_crosshair.visible = (not ghost) and cd == ""
-	_beam_bar.value = _human.player.beam_progress()
-	_shield_bar.value = _human.player.shield_progress()
-	_dash_bar.value = _human.player.dash_progress()
-	_speed.text = "%d u/s" % int(round(_human.player.speed()))
+	_countdown.visible = not live
+	for element in [_top_bar, _crosshair, _brackets, _dash]:
+		element.visible = live
+	_top_bar.set_state(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID), HudModel.match_time(_match.seconds_left()))
+	_crosshair.set_progress(player.beam_progress())
+	_brackets.set_state(player.shield_progress(), player.is_shielded())
+	_dash.set_progress(player.dash_progress())
+	_respawn.visible = live and player.respawning
 	if _banner_time > 0.0:
 		_banner_time = maxf(0.0, _banner_time - delta)
 		if _banner_time == 0.0:
 			_banner.visible = false
 
-func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -> void:
+func _on_frag(shooter_id: int, _victim_id: int, streak: int, first_blood: bool) -> void:
 	var text := HudModel.banner_for(shooter_id == HUMAN_ID, streak, first_blood)
 	if text != "":
 		_banner.text = text
 		_banner.visible = true
 		_banner_time = BANNER_TIME
-	# Kill feed line (auto-removed after a few seconds).
-	var line := Label.new()
-	line.text = HudModel.frag_line(shooter_id, victim_id)
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	line.add_theme_font_size_override("font_size", 18)
-	_feed.add_child(line)
-	get_tree().create_timer(FEED_LINE_TIME).timeout.connect(line.queue_free)
