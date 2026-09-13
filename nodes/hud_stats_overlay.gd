@@ -40,6 +40,7 @@ var _show_speed := false
 var _fps_text: GlowText
 var _graph: Graph
 var _speed_text: GlowText
+var _frozen := false                                     # a parity fixture holds its readings
 
 func _ready() -> void:
 	name = "StatsOverlay"
@@ -68,14 +69,24 @@ func set_flags(show_fps: bool, show_speed: bool) -> void:
 
 ## One rendered frame: the FPS readings and the graph follow it while FPS shows.
 func tick(frame_ms: float) -> void:
-	if not _show_fps:
+	if not _show_fps or _frozen:
 		return
 	model.push_frame(frame_ms)
 	refresh()
 
 func set_speed(speed: float) -> void:
+	if _frozen:
+		return
 	_speed_text.set_text(StatsModel.speed_text(speed))
 	_layout()
+
+## Parity fixture (tool-only): show these readings (web __debugStats) and ignore live frames and speed from then on.
+func show_fixture(fixed_fps: int, fixed_worst_ms: float, frame_times: PackedFloat32Array, speed: float) -> void:
+	_frozen = false
+	model.set_fixed(fixed_fps, fixed_worst_ms, frame_times)
+	set_speed(speed)
+	refresh()
+	_frozen = true
 
 ## Re-read the model (after a tick or a fixture).
 func refresh() -> void:

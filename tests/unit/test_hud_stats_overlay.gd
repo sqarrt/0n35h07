@@ -45,3 +45,12 @@ func test_fps_text_follows_the_frames() -> void:
 	for i in WINDOW_FRAMES:
 		overlay.tick(FRAME_MS)
 	assert_eq(overlay.fps_text().label().text, "63 FPS · MIN 63 (16.0 ms)")
+
+func test_a_fixture_freezes_the_readings() -> void:
+	var overlay := _overlay()
+	overlay.set_flags(true, true)
+	overlay.show_fixture(144, 9.7, PackedFloat32Array([6.9, 22.0]), 7.4)
+	overlay.tick(40.0)
+	overlay.set_speed(1.0)
+	assert_eq(overlay.fps_text().label().text, "144 FPS · MIN 103 (9.7 ms)", "live frames no longer count")
+	assert_eq(overlay.speed_text().label().text, "7.4 u/s", "nor the live speed")
