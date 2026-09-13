@@ -85,7 +85,7 @@
           "sources": ["nodes/hud_overheat_vignette.gd", "sim/overheat_fx.gd", "assets/shaders/overheat_bolts.gdshader", "tests/unit/test_overheat_fx.gd", "tests/unit/test_hud_overheat_vignette.gd", "web-reference/src/components/OverheatVignette.tsx"]
         },
         {
-          "id": "PP1", "severity": "open",
+          "id": "PP1", "severity": "missing",
           "title": "Нет контура рёбер блоков (пост-обработка MapEdges)",
           "web": "`Arena.tsx`: при `postProcessing` (по умолчанию true) `MapEdges` — EffectComposer с проходом нормалей+глубины только для блоков (BLOCK_LAYER) и эффектом, осветляющим цвет блока на разрывах нормалей там, где блок виден.",
           "godot": "Пост-обработки нет; настройка `postProcessing` хранится в профиле, но ничего не включает. Заметно на прозрачных блоках и на рёбрах непрозрачных. Следующий слайс.",
