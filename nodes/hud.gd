@@ -16,6 +16,8 @@ var _dash: HudDashBars
 var _overheat: HudOverheatVignette
 var _ghost: HudGhostIndicator
 var _audio_bar: HudAudioBar
+var _stats: HudStatsOverlay
+var _speed := 0.0                    # web SET_PLAYER_SPEED, throttled with the rest of the HUD
 var _banner: HudStreakBanner
 var _countdown: HudCountdown
 var _throttle := HudThrottle.new()   # web syncHud: progress values at most every 50 ms
@@ -52,6 +54,8 @@ func _ready() -> void:
 	add_child(_crosshair)
 	_top_bar = HudTopBar.new()
 	add_child(_top_bar)
+	_stats = HudStatsOverlay.new()   # web z-index 12: over the top bar, under the overheat vignette
+	add_child(_stats)
 	_overheat = HudOverheatVignette.new()   # web z-index 13 (bolts 14): over the top bar, under the ghost bars / banner
 	add_child(_overheat)
 	_ghost = HudGhostIndicator.new()
@@ -87,6 +91,13 @@ func _process(delta: float) -> void:
 	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
 	_overheat.set_tier(Streak.streak_tier(_match.streak_of(HUMAN_ID)) if live else "")   # web hud.streaks[localId]
 	_overheat.tick(delta)
+	var show_fps := bool(Game.profile.get("showFps", false))
+	var show_speed := bool(Game.profile.get("showSpeed", false))
+	_stats.visible = live and (show_fps or show_speed)   # web: StatsOverlay renders nothing without a flag
+	_stats.set_flags(show_fps, show_speed)
+	if _stats.visible:
+		_stats.tick(delta * MatchNode.MS_PER_S)
+		_stats.set_speed(_speed)
 	var audio_bar_shown := live and bool(Game.profile.get("audioViz", true))   # web {audioViz && <AudioBar />}
 	if audio_bar_shown and not _audio_bar.visible:
 		_audio_bar.reset()   # web remounts the component with zeroed levels
@@ -113,6 +124,7 @@ func _sync_progress(player: Player, delta: float) -> void:
 	_beam_progress = player.beam_progress()
 	_shield_progress = player.shield_progress()
 	_dash_progress = player.dash_progress()
+	_speed = player.speed()
 	_respawn_progress = player.respawn_timer / MatchConst.RESPAWN_GHOST_MS if player.respawning else null   # 1 -> 0
 
 ## web BEAM_FLASH: only the local player's own shot tints the screen.
