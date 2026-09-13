@@ -1,31 +1,41 @@
 class_name GeoLoader
 ## Loads a map's COMPILED geometry (geo.json) — the merged, vertex-coloured mesh the game renders,
-## not the raw editor blocks. Builds render meshes per chunk + beam/no-beam trimesh colliders.
+## not the raw editor blocks. Physics mirrors web Arena.tsx: movement collides with geo.collider (impassable
+## blocks), the floor and four tall invisible bounds; the beam hits only the raycast render groups.
 ## Floor + floor colour come from raw.json (geo has no floor plane).
+
+const BOUND_H := 32.0               # half-height of the invisible perimeter walls (web BOUND_H): no jumping out
+const BOUND_T := 0.5                # half-thickness of the invisible perimeter walls (web BOUND_T)
+const FLOOR_HALF_THICKNESS := 0.5   # floor collider hangs below y=0, top face at y=0 (web CuboidCollider)
+const DEFAULT_FLOOR_COLOR := "#3a3f47"
+const TRANSPARENT_OPACITY := 0.3    # see-through blocks
+const TRIANGLE_VERTS := 3
 
 static func build(raw_path: String, geo_path: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Map"
-	var raw: Dictionary = JSON.parse_string(FileAccess.open(raw_path, FileAccess.READ).get_as_text())
+	var raw := MapFiles.read_json(raw_path)
 	var half: Array = raw["half"]
-	root.add_child(_floor(float(half[0]), float(half[1]), str(raw.get("floorColor", "#3a3f47"))))
+	var hx := float(half[0])
+	var hz := float(half[1])
+	root.add_child(_floor(hx, hz, str(raw.get("floorColor", DEFAULT_FLOOR_COLOR))))
+	_add_bounds(root, hx, hz)
 
-	var geo: Dictionary = JSON.parse_string(FileAccess.open(geo_path, FileAccess.READ).get_as_text())
-	var beam := PackedVector3Array()
-	var nobeam := PackedVector3Array()
+	var geo := MapFiles.read_json(geo_path)
+	var beam_targets := PackedVector3Array()
 	for chunk in geo["chunks"]:
 		_add_mesh(root, chunk.get("opaqueRaycast"), false)
 		_add_mesh(root, chunk.get("opaqueNoRaycast"), false)
 		_add_mesh(root, chunk.get("transparentRaycast"), true)
 		_add_mesh(root, chunk.get("transparentNoRaycast"), true)
-		_collect(beam, chunk.get("opaqueRaycast"))
-		_collect(beam, chunk.get("transparentRaycast"))
-		_collect(nobeam, chunk.get("opaqueNoRaycast"))
-		_collect(nobeam, chunk.get("transparentNoRaycast"))
-	if beam.size() >= 3:
-		root.add_child(_collider(beam, CombatConst.LAYER_WORLD_BIT))       # blocks beam + movement
-	if nobeam.size() >= 3:
-		root.add_child(_collider(nobeam, CombatConst.LAYER_WORLD_NOBEAM_BIT))  # movement only
+		_collect(beam_targets, chunk.get("opaqueRaycast"))
+		_collect(beam_targets, chunk.get("transparentRaycast"))
+	var solid := PackedVector3Array()
+	_collect(solid, geo.get("collider"))
+	if beam_targets.size() >= TRIANGLE_VERTS:
+		root.add_child(_trimesh_body(beam_targets, CombatConst.LAYER_BEAM_ONLY_BIT))   # beam only (web raycast meshes)
+	if solid.size() >= TRIANGLE_VERTS:
+		root.add_child(_trimesh_body(solid, CombatConst.LAYER_WORLD_NOBEAM_BIT))       # movement only (web collider)
 	return root
 
 static func _floats(b64: String) -> PackedFloat32Array:
@@ -60,7 +70,7 @@ static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
 	mat.vertex_color_use_as_albedo = true
 	if transparent:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(1, 1, 1, 0.3)
+		mat.albedo_color = Color(1, 1, 1, TRANSPARENT_OPACITY)
 	mi.material_override = mat
 	root.add_child(mi)
 
@@ -68,7 +78,7 @@ static func _collect(acc: PackedVector3Array, m) -> void:
 	if m != null:
 		acc.append_array(_verts(m["position"]))
 
-static func _collider(faces: PackedVector3Array, layer: int) -> StaticBody3D:
+static func _trimesh_body(faces: PackedVector3Array, layer: int) -> StaticBody3D:
 	var sb := StaticBody3D.new()
 	sb.collision_layer = layer
 	sb.collision_mask = 0
@@ -79,21 +89,43 @@ static func _collider(faces: PackedVector3Array, layer: int) -> StaticBody3D:
 	sb.add_child(cs)
 	return sb
 
-static func _floor(hx: float, hz: float, color: String) -> StaticBody3D:
+## A static box collider given web-style half-extents and a centre.
+static func _box_body(half_extents: Vector3, center: Vector3, layer: int) -> StaticBody3D:
 	var sb := StaticBody3D.new()
-	sb.collision_layer = CombatConst.LAYER_WORLD_BIT
+	sb.collision_layer = layer
 	sb.collision_mask = 0
-	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(hx * 2.0, 1.0, hz * 2.0)
+	box.size = half_extents * 2.0
+	var cs := CollisionShape3D.new()
 	cs.shape = box
-	cs.position = Vector3(0, -0.5, 0)
+	cs.position = center
 	sb.add_child(cs)
+	return sb
+
+## Four tall invisible walls on the arena edges (web Arena.tsx): movement only, the beam flies through.
+static func _add_bounds(root: Node3D, hx: float, hz: float) -> void:
+	var walls := [
+		[Vector3(hx, BOUND_H, BOUND_T), Vector3(0, BOUND_H, -hz)],
+		[Vector3(hx, BOUND_H, BOUND_T), Vector3(0, BOUND_H, hz)],
+		[Vector3(BOUND_T, BOUND_H, hz), Vector3(-hx, BOUND_H, 0)],
+		[Vector3(BOUND_T, BOUND_H, hz), Vector3(hx, BOUND_H, 0)],
+	]
+	for i in walls.size():
+		var body := _box_body(walls[i][0], walls[i][1], CombatConst.LAYER_WORLD_NOBEAM_BIT)
+		body.name = "Bound%d" % i
+		root.add_child(body)
+
+## Floor: solid for movement, invisible to the beam (web: noRaycast plane + CuboidCollider).
+static func _floor(hx: float, hz: float, color: String) -> StaticBody3D:
+	var half_extents := Vector3(hx, FLOOR_HALF_THICKNESS, hz)
+	var center := Vector3(0, -FLOOR_HALF_THICKNESS, 0)
+	var sb := _box_body(half_extents, center, CombatConst.LAYER_WORLD_NOBEAM_BIT)
+	sb.name = "Floor"
 	var mi := MeshInstance3D.new()
 	var mesh := BoxMesh.new()
-	mesh.size = Vector3(hx * 2.0, 1.0, hz * 2.0)
+	mesh.size = half_extents * 2.0
 	mi.mesh = mesh
-	mi.position = Vector3(0, -0.5, 0)
+	mi.position = center
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(color)
 	mi.material_override = mat

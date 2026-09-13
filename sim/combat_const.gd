@@ -21,6 +21,7 @@ const IMPACT_SPREAD_V := 6.0
 const LAYER_WORLD_BIT := 1         # layer 1: walls (block beam + movement)
 const LAYER_PLAYER_BIT := 2        # layer 2: player movement capsule
 const LAYER_HITBOX_BIT := 4        # layer 3: combat hitboxes
-const LAYER_WORLD_NOBEAM_BIT := 16 # layer 5: blocks the beam does NOT hit (blocksBeam=false), still solid
-const COMBAT_RAY_MASK := LAYER_WORLD_BIT | LAYER_HITBOX_BIT           # walls block, hitboxes register
+const LAYER_WORLD_NOBEAM_BIT := 16 # layer 5: solid for movement, the beam passes (map collider, floor, bounds)
+const LAYER_BEAM_ONLY_BIT := 32    # layer 6: beam targets that are not solid (map raycast render groups)
+const COMBAT_RAY_MASK := LAYER_WORLD_BIT | LAYER_HITBOX_BIT | LAYER_BEAM_ONLY_BIT   # walls block, hitboxes register
 const MOVE_MASK := LAYER_WORLD_BIT | LAYER_WORLD_NOBEAM_BIT           # the player collides with both wall kinds

@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   snapshots from peers that do not own the player are ignored.
 - **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
+  Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+
+### Fixed
+- **Players start on the map's spawn points.** The human and the bot now appear on the map's own start positions
+  (slot 0 on the first point, the opponent on the second), instead of a fixed spot and a hard-coded bot position.
+- **Map collisions match the original.** Movement collides with the map's compiled collision geometry, the floor and
+  tall invisible walls around the arena; the beam hits only what it hits in the original, so it passes over the floor
+  and through walls marked as beam-transparent. Passable blocks no longer stop the player.
+- **No leftover test target in matches.** The red practice dummy is gone from the match scene.
 
 ## [1.1.2] - 2026-07-21
 
