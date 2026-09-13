@@ -1,0 +1,3189 @@
+{
+ "hashes": {
+  "K7Q2X": 1375026424,
+  "ABCD": 3541452541,
+  "room-42": 319409459,
+  "Ñandú": 4089202725,
+  "": 2166136261
+ },
+ "prng": {
+  "seed": 12345,
+  "values": [
+   0.9797282677609473,
+   0.3067522644996643,
+   0.484205421525985,
+   0.817934412509203,
+   0.5094283693470061,
+   0.34747186047025025,
+   0.07375754183158278,
+   0.7663964673411101
+  ]
+ },
+ "library": {
+  "bass": [
+   "bass/decent_bass",
+   "bass/kutting",
+   "bass/substk_03",
+   "bass/substk_04",
+   "bass/substk_07",
+   "bass/substk_15",
+   "bass/wt_flute_sub"
+  ],
+  "kicks": [
+   "kicks/accent_808",
+   "kicks/acid_perc2",
+   "kicks/boom_808",
+   "kicks/break_hat",
+   "kicks/deep_shaker",
+   "kicks/drive_8",
+   "kicks/eight_crush",
+   "kicks/floor_16hat",
+   "kicks/floor_8hat",
+   "kicks/floor_ghost",
+   "kicks/floor_shaker",
+   "kicks/floor_shaker_hat",
+   "kicks/good_kick",
+   "kicks/linn_dist",
+   "kicks/linn_floor",
+   "kicks/nine_room",
+   "kicks/nine_thin",
+   "kicks/perc_roll",
+   "kicks/punchy_dirt",
+   "kicks/raw_dirt6",
+   "kicks/raw_seven",
+   "kicks/seven_dub",
+   "kicks/seven_tight",
+   "kicks/shape_808",
+   "kicks/sine_thud",
+   "kicks/six_kick",
+   "kicks/six06_raw",
+   "kicks/speed_pitch",
+   "kicks/sub_duck",
+   "kicks/sub_long",
+   "kicks/tape_kick"
+  ],
+  "lead": [
+   "lead/acid_line",
+   "lead/crickets_tex",
+   "lead/decent_lead",
+   "lead/lacid_08",
+   "lead/lroller_01",
+   "lead/lroller_06",
+   "lead/lsynth_11",
+   "lead/lwt_12",
+   "lead/lwt_14",
+   "lead/lwt_15",
+   "lead/saw_hook"
+  ],
+  "sfx": [
+   "sfx/deep_sine",
+   "sfx/drone_root",
+   "sfx/fm_sub",
+   "sfx/grab_hypno",
+   "sfx/pluck_minor",
+   "sfx/reese_mono",
+   "sfx/rubber",
+   "sfx/wt_drone",
+   "sfx/xdbl_01"
+  ]
+ },
+ "compose": [
+  {
+   "code": "K7Q2X",
+   "loops": [
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.08689609402092174
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07620030046906322,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07649666742770933
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07070832700352184,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.06886765746632591,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.06652724378975108,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.06460547242779285
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.07039044746663421,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.08896967136650347,
+      "reverb": 0.22,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.07686205954058095,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.0627120710501913
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.05649281942751259,
+      "reverb": 0.22,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.06101669348776341
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/crickets_tex",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.05652364290435799,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.08482342751813121,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07536589033203199,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07949497799389063,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.0896744937938638,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/xdbl_01",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/xdbl_01",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_12",
+      "gain": 0.32,
+      "doubleSec": 0.05084543129778467,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_12",
+      "gain": 0.32,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_12",
+      "gain": 0.32,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_12",
+      "gain": 0.32,
+      "doubleSec": 0.0690846082509961,
+      "reverb": 0.22,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.07776658414746634,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.05399386735749431
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/crickets_tex",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.06667082229978405
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.07848737310036086
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/seven_tight",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ]
+   ],
+   "outro": {
+    "loop": 30,
+    "remainingMs": 12000,
+    "voices": [
+     {
+      "role": "kicks",
+      "stemId": "kicks/shape_808",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ]
+   }
+  },
+  {
+   "code": "ABCD",
+   "loops": [
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.06353233468253165
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07695873731747269,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.038869465400930496
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.06735102470847779
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.07702310805325396
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.08034144180244765
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.06774994478211738
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "doubleSec": 0.06986325866892001
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "doubleSec": 0.04396561071276665
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "doubleSec": 0.07479319709469565
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/deep_sine",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lacid_08",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lacid_08",
+      "gain": 0.32,
+      "doubleSec": 0.07441808988456614,
+      "reverb": 0.22,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lacid_08",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lacid_08",
+      "gain": 0.32,
+      "doubleSec": 0.07947736505419015,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.2,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.048825992253841835,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.05513341285171919
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.06983900893945247
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/wt_drone",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.32,
+      "doubleSec": 0.05988871965906583
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.08501738966442644,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/decent_bass",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.036810365971177816,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/fm_sub",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.035653344455640765
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07581994711537846,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/reese_mono",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lwt_15",
+      "gain": 0.32,
+      "doubleSec": 0.07968664893414826,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "doubleSec": 0.08424270547460765,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/grab_hypno",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.32,
+      "echo": 0.2
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "bass",
+      "stemId": "bass/wt_flute_sub",
+      "gain": 0.9,
+      "reverb": 0.34
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/drone_root",
+      "gain": 0.5,
+      "reverb": 0.34
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.06404265273245982
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.04965534543851391
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "doubleSec": 0.0708069794299081
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_06",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/kutting",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.05314345687511377,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_03",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "echo": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/pluck_minor",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lsynth_11",
+      "gain": 0.32,
+      "doubleSec": 0.06196355182095431
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/acid_line",
+      "gain": 0.2
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_04",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5,
+      "reverb": 0.22
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_07",
+      "gain": 0.9
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.062144821586553003
+     }
+    ],
+    [
+     {
+      "role": "kicks",
+      "stemId": "kicks/speed_pitch",
+      "gain": 1
+     },
+     {
+      "role": "bass",
+      "stemId": "bass/substk_15",
+      "gain": 0.9,
+      "reverb": 0.22
+     },
+     {
+      "role": "sfx",
+      "stemId": "sfx/rubber",
+      "gain": 0.5,
+      "reverb": 0.22
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/saw_hook",
+      "gain": 0.32,
+      "doubleSec": 0.04558265150524676,
+      "reverb": 0.22
+     }
+    ]
+   ],
+   "outro": {
+    "loop": 30,
+    "remainingMs": 12000,
+    "voices": [
+     {
+      "role": "kicks",
+      "stemId": "kicks/sub_duck",
+      "gain": 1
+     },
+     {
+      "role": "lead",
+      "stemId": "lead/lroller_01",
+      "gain": 0.32,
+      "echo": 0.2
+     }
+    ]
+   }
+  }
+ ],
+ "menu": {
+  "rngSeed": 99,
+  "loops": [
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "doubleSec": 0.04030629849294201
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "doubleSec": 0.05342577939038165,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "reverb": 0.2,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "doubleSec": 0.07136168674915097
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "doubleSec": 0.03856102973688394,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "doubleSec": 0.0461948275519535
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9,
+     "reverb": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "doubleSec": 0.047238338959869,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "doubleSec": 0.0859758426749613,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/lwt_14",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "bass",
+     "stemId": "bass/kutting",
+     "gain": 0.9
+    }
+   ],
+   [
+    {
+     "role": "kicks",
+     "stemId": "kicks/sub_long",
+     "gain": 1
+    },
+    {
+     "role": "lead",
+     "stemId": "lead/crickets_tex",
+     "gain": 0.5,
+     "echo": 0.2
+    }
+   ]
+  ]
+ }
+}
