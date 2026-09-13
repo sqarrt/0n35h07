@@ -48,9 +48,51 @@ func test_movement_keyframes_for_triple_and_singularity() -> void:
 	assert_eq(burn["offset"], Vector2(-1.0, 0.6))
 	assert_almost_eq(burn["scale"], 1.03, EPS)
 
+func test_text_shadows_follow_the_css_lists() -> void:
+	var pc := Color("#3377ff")
+	var d := StreakFx.text_shadows(DOUBLE, pc, 0.0)
+	assert_eq(d.size(), 1)
+	assert_almost_eq(d[0]["blur"], 12.0, EPS)
+	assert_eq(d[0]["color"], pc)
+	var t := StreakFx.text_shadows(TRIPLE, pc, 0.0)
+	assert_eq([t[0]["blur"], t[1]["blur"]], [14.0, 2.0])
+	assert_eq(t[1]["color"], Color.WHITE)
+	var s := StreakFx.text_shadows(SINGULARITY, pc, 0.0)
+	assert_eq([s[0]["blur"], s[1]["blur"], s[2]["blur"]], [6.0, 18.0, 32.0])
+	assert_eq(StreakFx.text_shadows("", pc, 0.0), [])
+	assert_eq(StreakFx.text_color(DOUBLE, pc), pc)
+	assert_eq(StreakFx.text_color(TRIPLE, pc), Color("#eaf4ff"))
+
 func test_catalyst_glow_throbs() -> void:
-	assert_almost_eq(StreakFx.throb_glow_px(0.0), 8.0, EPS)
-	assert_almost_eq(StreakFx.throb_glow_px(0.8 * 0.5), 18.0, EPS)
+	var pc := Color("#3377ff")
+	var rest := StreakFx.text_shadows(CATALYST, pc, 0.0)
+	assert_almost_eq(rest[0]["blur"], 8.0, EPS)
+	assert_almost_eq(rest[1]["blur"], 2.0, EPS)
+	assert_almost_eq((rest[2]["color"] as Color).a, 0.0, EPS, "the third glow only exists at the peak")
+	var peak := StreakFx.text_shadows(CATALYST, pc, 0.8 * 0.5)
+	assert_almost_eq(peak[0]["blur"], 18.0, EPS)
+	assert_almost_eq(peak[1]["blur"], 6.0, EPS)
+	assert_almost_eq(peak[2]["blur"], 30.0, EPS)
+	assert_almost_eq((peak[2]["color"] as Color).a, 0.6, EPS, "color-mix(--pc 60%, transparent)")
+
+func test_turbulence_filters_match_the_svg_defs() -> void:
+	var el1 := StreakFx.filter_at(DOUBLE, 0.0)
+	assert_eq(el1["frequency"], Vector2(0.0, 0.9))
+	assert_almost_eq(el1["scale"], 3.0, EPS)
+	assert_eq(el1["octaves"], 2)
+	assert_eq(StreakFx.filter_at(DOUBLE, 1.5)["frequency"], Vector2(0.0, 0.55), "values a;b;a: b at half of 3 s")
+	assert_almost_eq(StreakFx.filter_at(TRIPLE, 0.0)["scale"], 5.0, EPS)
+	var el3 := StreakFx.filter_at(SINGULARITY, 0.0)
+	assert_almost_eq(el3["scale"], 8.0, EPS)
+	assert_eq(el3["octaves"], 3)
+	assert_true(StreakFx.filter_at(CATALYST, 0.0).is_empty(), "catalyst has no filter")
+
+func test_spark_and_tick_layout_resolves_css_positions() -> void:
+	var box := Vector2(300.0, 28.0)
+	assert_eq(StreakFx.arc_position(0, box), Vector2(-12.0, 5.6), "top 20%, left -12px")
+	assert_eq(StreakFx.arc_position(1, box), Vector2(292.0, 22.4), "right -12px, width 20")
+	assert_eq(StreakFx.arc_position(2, box), Vector2(226.0, 2.24), "right 20%, width 14")
+	assert_eq(StreakFx.tick_position(1, box), Vector2(120.0, 3.92), "left 40%, top 14%")
 
 func test_spark_and_tick_flash_windows() -> void:
 	var period := 0.5
