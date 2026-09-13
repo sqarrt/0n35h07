@@ -2,7 +2,7 @@ class_name HudStatsOverlay extends Control
 ## Debug stats in the HUD corner — port of web components/StatsOverlay.tsx: under the shield bracket (top 116, left 22)
 ## in the 13 px UI font, accent colour and a 6 px black glow; FPS with the worst frame of the last half second over a
 ## 150 x 46 frame-time graph (120 / 60 FPS guides), and the player's speed. Each text sits centred in the CSS line box
-## (line-height 1.5); blocks are 3 px apart.
+## (line-height 1.5); blocks are 3 px apart and land on whole pixels like Chrome's composited boxes.
 
 const TOP := 116.0
 const LEFT := 22.0
@@ -27,11 +27,12 @@ class Graph extends Control:
 		for guide in [StatsModel.MS_120, StatsModel.MS_60]:
 			var y := StatsModel.graph_y(guide)
 			draw_line(Vector2(0.0, y), Vector2(StatsModel.GRAPH_W, y), HudStatsOverlay.GUIDE_COLOR, HudStatsOverlay.LINE_PX, true)
+		# Separate segments, not one polyline: Godot's antialiased polyline joins cut a one-frame spike's tip, while the
+		# canvas bevel keeps it.
 		var history := model.history()
-		var points := PackedVector2Array()
-		for i in history.size():
-			points.append(Vector2(float(i), StatsModel.graph_y(history[i])))
-		draw_polyline(points, HudStatsOverlay.COLOR, HudStatsOverlay.LINE_PX, true)
+		for i in range(1, history.size()):
+			draw_line(Vector2(float(i - 1), StatsModel.graph_y(history[i - 1])), Vector2(float(i), StatsModel.graph_y(history[i])),
+				HudStatsOverlay.COLOR, HudStatsOverlay.LINE_PX, true)
 
 var model := StatsModel.new()
 
@@ -107,12 +108,23 @@ func _layout() -> void:
 	var line_box := FONT_SIZE * LINE_HEIGHT
 	var y := TOP
 	if _show_fps:
-		_fps_text.position = Vector2(LEFT, y + (line_box - _fps_text.size.y) * HALF)
+		_place_text(_fps_text, y, line_box)
 		y += line_box + GAP_PX
-		_graph.position = Vector2(LEFT, y)
+		_graph.position = Vector2(LEFT, _whole_pixel(y))
 		y += StatsModel.GRAPH_H + GAP_PX
 	if _show_speed:
-		_speed_text.position = Vector2(LEFT, y + (line_box - _speed_text.size.y) * HALF)
+		_place_text(_speed_text, y, line_box)
+
+## A text's baseline where Chrome paints it: the line box composited on a whole pixel, the glyph box centred in it
+## (half-leading) and the baseline itself rounded to a pixel.
+func _place_text(text: GlowText, box_top: float, line_box: float) -> void:
+	var ascent := text.label().get_theme_font("font").get_ascent(FONT_SIZE)
+	var baseline := _whole_pixel(_whole_pixel(box_top) + (line_box - text.size.y) * HALF + ascent)
+	text.position = Vector2(LEFT, baseline - ascent)
+
+## Chrome snaps fractional layout box offsets to device pixels, a half going down the page.
+static func _whole_pixel(value: float) -> float:
+	return floorf(value + HALF)
 
 func _text(node_name: String) -> GlowText:
 	var text := GlowText.new()

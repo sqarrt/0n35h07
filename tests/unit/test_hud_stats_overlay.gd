@@ -32,12 +32,17 @@ func test_corner_layout_follows_the_web_boxes() -> void:
 	overlay.set_speed(7.4)
 	var line_box := HudStatsOverlay.FONT_SIZE * HudStatsOverlay.LINE_HEIGHT
 	assert_almost_eq(overlay.fps_text().position.x, HudStatsOverlay.LEFT, EPS)
-	assert_almost_eq(overlay.graph().position.y, HudStatsOverlay.TOP + line_box + HudStatsOverlay.GAP_PX, EPS,
-		"the graph 3 px under the FPS line box")
+	var graph_box_top := HudStatsOverlay.TOP + line_box + HudStatsOverlay.GAP_PX
+	assert_almost_eq(overlay.graph().position.y, floorf(graph_box_top + 0.5), EPS,
+		"the graph 3 px under the FPS line box, at the whole pixel Chrome composites it on")
 	assert_almost_eq(overlay.graph().size.x, StatsModel.GRAPH_W, EPS)
-	var speed_box_top := overlay.graph().position.y + StatsModel.GRAPH_H + HudStatsOverlay.GAP_PX
-	assert_almost_eq(overlay.speed_text().position.y + overlay.speed_text().size.y * 0.5, speed_box_top + line_box * 0.5,
-		EPS, "the speed text centred in its line box")
+	var speed := overlay.speed_text()
+	var ascent := speed.label().get_theme_font("font").get_ascent(HudStatsOverlay.FONT_SIZE)
+	var speed_box_top := floorf(graph_box_top + StatsModel.GRAPH_H + HudStatsOverlay.GAP_PX + 0.5)
+	var css_baseline := speed_box_top + (line_box - speed.size.y) * 0.5 + ascent
+	var baseline := speed.position.y + ascent
+	assert_almost_eq(baseline, roundf(baseline), EPS, "the speed baseline on a whole pixel")
+	assert_true(absf(baseline - css_baseline) <= 0.5, "the speed baseline %.2f at its line box's %.2f" % [baseline, css_baseline])
 
 func test_fps_text_follows_the_frames() -> void:
 	var overlay := _overlay()
