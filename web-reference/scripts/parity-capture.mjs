@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 const output = resolve(process.argv[2] ?? '../test-results/parity-corrected');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
-const mapId = 'os_arena';
+const mapId = process.env.PARITY_MAP ?? 'os_arena';   // e.g. PARITY_MAP=os_pool_day
 const settleFrames = 180;
 const settleMs = 5000;
 // SwiftShader (the default software GL of headless Chromium) drops screen-space-steep GL_LINES, so the 1×1

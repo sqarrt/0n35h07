@@ -60,9 +60,9 @@ static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
 		cols[i] = Color(cf[i * 3], cf[i * 3 + 1], cf[i * 3 + 2])
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
-	arr[Mesh.ARRAY_VERTEX] = _verts(m["position"])
-	arr[Mesh.ARRAY_NORMAL] = _verts(m["normal"])
-	arr[Mesh.ARRAY_COLOR] = cols
+	arr[Mesh.ARRAY_VERTEX] = _godot_winding(_verts(m["position"]))
+	arr[Mesh.ARRAY_NORMAL] = _godot_winding(_verts(m["normal"]))
+	arr[Mesh.ARRAY_COLOR] = _godot_winding(cols)
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	var mi := MeshInstance3D.new()
@@ -77,7 +77,17 @@ static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
 
 static func _collect(acc: PackedVector3Array, m) -> void:
 	if m != null:
-		acc.append_array(_verts(m["position"]))
+		acc.append_array(_godot_winding(_verts(m["position"])))   # front faces match three.js FrontSide ray hits
+
+## geo.json comes from three.js (counter-clockwise front faces); Godot's front faces are clockwise.
+## Swapping the last two vertices of every triangle keeps each surface in place and flips which side is front,
+## otherwise back faces render and are lit from the wrong side. Works for positions, normals and colours alike.
+static func _godot_winding(triangles):
+	for i in range(0, triangles.size() - 2, TRIANGLE_VERTS):
+		var tail = triangles[i + 1]
+		triangles[i + 1] = triangles[i + 2]
+		triangles[i + 2] = tail
+	return triangles
 
 static func _trimesh_body(faces: PackedVector3Array, layer: int) -> StaticBody3D:
 	var sb := StaticBody3D.new()

@@ -21,6 +21,37 @@ func _trimesh_vertex_count(bodies: Array) -> int:
 				n += cs.shape.get_faces().size()
 	return n
 
+const MIN_FRONT_SHARE := 0.99   # tolerate degenerate slivers
+const RENDER_GROUPS := ["opaqueRaycast", "opaqueNoRaycast", "transparentRaycast", "transparentNoRaycast"]
+
+## Share of triangles whose vertex order is clockwise relative to their normal (Godot's front-face convention).
+func _clockwise_share(verts: PackedVector3Array, normals: PackedVector3Array) -> float:
+	var clockwise := 0
+	var counted := 0
+	for i in range(0, verts.size() - 2, 3):
+		var side := (verts[i + 1] - verts[i]).cross(verts[i + 2] - verts[i]).dot(normals[i])
+		if is_zero_approx(side):
+			continue
+		counted += 1
+		if side < 0.0:
+			clockwise += 1
+	return float(clockwise) / maxi(counted, 1)
+
+func test_render_triangles_are_reversed_to_godot_front_faces() -> void:
+	var geo := MapFiles.read_json(ARENA_GEO)
+	var group = null
+	for key in RENDER_GROUPS:
+		if group == null:
+			group = geo["chunks"][0].get(key)
+	var source_share := _clockwise_share(GeoLoader._verts(group["position"]), GeoLoader._verts(group["normal"]))
+	assert_lt(source_share, 1.0 - MIN_FRONT_SHARE, "geo.json comes from three.js: counter-clockwise front faces")
+	var m := GeoLoader.build(ARENA_RAW, ARENA_GEO)
+	var meshes := m.get_children().filter(func(n): return n is MeshInstance3D and n.name != "FloorGrid")
+	var arrays: Array = (meshes[0] as MeshInstance3D).mesh.surface_get_arrays(0)
+	assert_gt(_clockwise_share(arrays[Mesh.ARRAY_VERTEX], arrays[Mesh.ARRAY_NORMAL]), MIN_FRONT_SHARE,
+		"Godot treats clockwise as front: otherwise back faces render and walls are lit from the wrong side")
+	m.free()
+
 func test_geo_mesh_has_vertices() -> void:
 	var m := GeoLoader.build(ARENA_RAW, ARENA_GEO)
 	var meshes := m.find_children("*", "MeshInstance3D", true, false)

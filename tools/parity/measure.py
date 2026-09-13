@@ -22,7 +22,7 @@ FILL_POINTS = {
     "wall_left": (100, 360),
     "wall_right": (1180, 360),
 }
-LINE_WINDOW = (range(630, 651), 700)     # x span across the centre vertical grid line, at row y
+LINE_WINDOW = (range(630, 651), 600)     # x span across the centre vertical grid line, at row y (above HUD bars)
 
 
 def read_png(path):
