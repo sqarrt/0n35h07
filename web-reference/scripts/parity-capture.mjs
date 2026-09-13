@@ -7,11 +7,29 @@ const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
 const mapId = 'os_arena';
 const settleFrames = 180;
 const settleMs = 5000;
+// SwiftShader (the default software GL of headless Chromium) drops screen-space-steep GL_LINES, so the 1×1
+// floor grid renders as horizontal stripes only. Route WebGL to a real driver: the GPU through D3D11 on Windows
+// (the reference — what players see), ANGLE on desktop GL elsewhere; refuse to capture on SwiftShader.
+const ANGLE_BACKEND = process.platform === 'win32' ? 'd3d11' : 'gl';
+const GL_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu', `--use-angle=${ANGLE_BACKEND}`];
+const FORBIDDEN_RENDERER = /SwiftShader/i;
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  args: GL_ARGS,
+  // Optional override when the installed Playwright browser build differs from the package's expected one.
+  ...(process.env.PARITY_CHROMIUM ? { executablePath: process.env.PARITY_CHROMIUM } : {}),
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
+async function glRenderer() {
+  return page.evaluate(() => {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const info = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    return gl ? gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) : 'no-webgl2';
+  });
+}
 // The button can mount before Canvas warmup, model fade, glow compilation and camera damping.
 // Wait for both real rendered frames and elapsed time; inspect the resulting captures as well.
 async function settleScene() {
@@ -35,6 +53,8 @@ async function settleScene() {
 }
 try {
   await page.goto(base, { waitUntil: 'domcontentloaded' });
+  const renderer = await glRenderer();
+  if (FORBIDDEN_RENDERER.test(renderer)) throw new Error(`Refusing to capture with a line-dropping renderer: ${renderer}`);
   await page.getByTestId('menu-play').waitFor({ timeout: 60000 });
   await settleScene();
   await page.screenshot({ path: resolve(output, 'web-menu.png') });
@@ -79,7 +99,7 @@ try {
     position: window.__debugPlayerPos?.(0),
   }));
   await page.screenshot({ path: resolve(output, 'web-hit.png') });
-  await writeFile(resolve(output, 'web-runtime.json'), JSON.stringify({ mapId, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, facts, errors }, null, 2));
+  await writeFile(resolve(output, 'web-runtime.json'), JSON.stringify({ mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, facts, errors }, null, 2));
   console.log(JSON.stringify({ output, facts, errors }));
 } finally {
   await browser.close();
