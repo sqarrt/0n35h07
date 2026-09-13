@@ -1,0 +1,89 @@
+{
+  "id": "2026-09-13-block-grid",
+  "title": "Сверка паритета OneShot · сетка ячеек",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса B1: карты с включённой сеткой ячеек (Pool) обводят каждую воксельную ячейку блоков голубыми линиями, как в web. Отдельный блок уточняет по коду web описания HUD из прежних отчётов: угловые скобки, зелёные полосы и синяя линия внизу оказались индикаторами щита, рывка и визуализатором звука.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-block-grid.json`. Web: `parity-gpu-g6-pool/web-game.png` (ANGLE D3D11, RTX 4080). Godot: `parity-gpu-g6-pool/godot-pool.png` (до) и `parity-gpu-b1/godot-pool.png` (после), `tools/screenshot.gd` в режиме `passive-bot`. Предыдущие отчёты не изменялись; уточнения ниже относятся к ним.",
+  "pages": [
+    {
+      "slug": "block-grid",
+      "name": "Сетка ячеек на блоках",
+      "verdict": "Сетка ячеек Pool совпадает с web по составу ячеек (17 210), цвету и прозрачности; на кадрах линии ложатся на те же рёбра. HUD по-прежнему расходится — ниже его элементы описаны точно, по коду web.",
+      "verdict_short": "B1 закрыт; описания HUD уточнены",
+      "conditions": [
+        ["карта", "`os_pool_day` (`showBlockGrid: true`)", "`maps/os_pool_day.json`"],
+        ["рендер", "ANGLE D3D11, NVIDIA RTX 4080, MSAA", "Vulkan 1.4 Forward+, NVIDIA RTX 4080, MSAA 3D 4x"],
+        ["камера", "точка появления 0 `[−18.5, 5.2, −1.25]`, взгляд на −Z", "то же, штатный запуск (`passive-bot`)"],
+        ["ячейки", "`blockCells`: 17 210 (порт алгоритма на Python)", "`BlockGrid.cells`: 17 210 (тест)"],
+        ["линии", "`#4af`, прозрачность 0.5, `lineSegments`", "`#4af`, альфа 0.5, `PRIMITIVE_LINES`, unshaded"],
+        ["тесты", "—", "GUT 178/178, 449 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Pool после слайса",
+          "wipe": true,
+          "note": "Шторка: Godot снизу, web сверху — линии сетки на стенах, полу, полупрозрачном блоке и ступенях должны совпадать.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g6-pool/web-game.png", "note": "Голубые рёбра ячеек на всех блоках."},
+            {"kind": "godot", "img": "parity-gpu-b1/godot-pool.png", "note": "Те же рёбра ячеек; HUD пока другой."}
+          ]
+        },
+        {
+          "title": "Godot до и после слайса",
+          "panels": [
+            {"kind": "godot", "label": "GODOT · до", "img": "parity-gpu-g6-pool/godot-pool.png", "note": "Геометрия и свет без сетки ячеек."},
+            {"kind": "godot", "label": "GODOT · после", "img": "parity-gpu-b1/godot-pool.png", "note": "Сетка ячеек включена по флагу карты."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "B1", "severity": "fixed",
+          "title": "Сетка ячеек на блоках",
+          "web": "При `showBlockGrid` — рёбра воксельных ячеек `VOXEL = 0.5`: периметр пропускается, клин — одна ячейка, куб или слитый бокс заполняет свои ячейки.",
+          "godot": "`BlockGrid` переносит алгоритм (включая округление `Math.round` через `floor(v + 0.5)`), `BlockGridMesh` рисует линии; `GeoLoader` добавляет сетку по флагу карты.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["sim/block_grid.gd", "nodes/block_grid_mesh.gd", "tests/unit/test_block_grid.gd"]
+        },
+        {
+          "id": "G5", "severity": "visual",
+          "title": "Угловые скобки — индикатор щита (уточнение)",
+          "web": "Прежние отчёты называли их «рамкой HUD». Это `ShieldBrackets`: четыре L-скобки 90px (плечо 78px) в 20px от углов; плечи заполняются от вершины по мере перезарядки щита — `#1a2a6e` при зарядке, `#4169e1` готов, `#6af` пока щит активен; вспышка при готовности.",
+          "godot": "Перезарядка щита — горизонтальная полоса SHIELD внизу.",
+          "evidence": ["code", "screenshot"],
+          "sources": ["web-reference/src/components/ShieldBrackets.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G3", "severity": "visual",
+          "title": "Зелёные полосы по краям — индикатор рывка (уточнение)",
+          "web": "`DashIndicator`: вертикальные полосы шириной 6px на треть высоты экрана у левого и правого края; заполняются от центра, `#0c4d28` (55%) при зарядке, `#2e9d57` готов, вспышка при готовности.",
+          "godot": "Перезарядка рывка — горизонтальная полоса DASH внизу.",
+          "evidence": ["code", "screenshot"],
+          "sources": ["web-reference/src/components/DashIndicator.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G2", "severity": "visual",
+          "title": "Прицел показывает перезарядку луча (уточнение)",
+          "web": "`Crosshair`: SVG 40×40, фоновое кольцо r = 14 (`#333`, 0.6), кольцо прогресса заполняется по часовой от верха — `#066` при зарядке, `#0ff` готов; «+» белым Share Tech Mono 16px с тенью.",
+          "godot": "Белый «+» без кольца; перезарядка луча — полоса BEAM внизу.",
+          "evidence": ["code", "screenshot"],
+          "sources": ["web-reference/src/components/Crosshair.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G4", "severity": "missing",
+          "title": "Синяя линия внизу — визуализатор звука (уточнение)",
+          "web": "Прежние отчёты называли её «графиком скорости». Это `AudioBar`: спектр музыки и эффектов матча, `#4af`, 46% ширины и 42px высоты, симметрично от центра; включается настройкой. Скорость и FPS выводит `StatsOverlay` по настройкам.",
+          "godot": "Звука и визуализатора нет; скорость «u/s» показывается всегда.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/AudioBar.tsx", "web-reference/src/components/StatsOverlay.tsx", "nodes/hud.gd"]
+        }
+      ],
+      "limitations": [
+        "Сетка ячеек сравнивалась визуально и через число ячеек; толщина и смешение полупрозрачных линий пиксельно не мерились.",
+        "Уточнения HUD сделаны по коду web; кадрами они будут проверены в слайсе HUD.",
+        "Опубликованные ранее отчёты не изменялись: их пункты G2–G5 читать с учётом этого уточнения."
+      ]
+    }
+  ]
+}

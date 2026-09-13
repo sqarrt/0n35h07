@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   strength. Checked by measuring pixels against the original on the same GPU: sky, floor and walls agree within one
   step of 255.
 
+- **Block cell grid.** Maps that enable it (Pool) outline every block cell with translucent blue lines, as in the
+  original.
+
 ### Fixed
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game
   drew the back faces of blocks and walls and lit them from the wrong side (the bright and dark perimeter walls were
