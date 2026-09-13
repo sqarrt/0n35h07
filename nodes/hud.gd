@@ -92,7 +92,7 @@ func _process(delta: float) -> void:
 		_audio_bar.reset()   # web remounts the component with zeroed levels
 	_audio_bar.visible = audio_bar_shown
 	if audio_bar_shown:
-		_audio_bar.tick(Audio.analysis.bands())
+		_audio_bar.tick(Audio.bands())
 	if live and _respawn_progress != null:
 		_ghost.show_progress(_respawn_progress)
 		_ghost.tick(delta)

@@ -13,6 +13,7 @@ const KEY_SFX := "volumeSfx"
 const KEY_MENU_MUSIC := "volumeMenuMusic"
 
 var analysis := AudioAnalysisHub.new()
+var debug_bands := PackedFloat32Array()        # parity fixtures: a fixed spectrum instead of the live sound
 
 var _sfx: SfxEngine
 var _menu_rng := RandomNumberGenerator.new()   # web Math.random for the menu layers
@@ -38,6 +39,10 @@ func sfx() -> SfxEngine:
 
 func menu_music() -> MusicEngine:
 	return _menu_music
+
+## The spectrum the HUD visualiser draws: the fixture's bands when set (web __debugAudioBands), else the live analysis.
+func bands() -> PackedFloat32Array:
+	return analysis.bands() if debug_bands.is_empty() else debug_bands
 
 func play_ui(event: String) -> void:
 	_sfx.play_2d(event)

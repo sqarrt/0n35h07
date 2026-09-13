@@ -24,6 +24,7 @@ func after_each() -> void:
 	Game.profile = _saved_profile
 	Audio.apply_volumes()
 	Audio.stop_menu_music()
+	Audio.debug_bands = PackedFloat32Array()
 
 func _sine_capture() -> FakeCapture:
 	var capture := FakeCapture.new()
@@ -72,6 +73,15 @@ func test_buttons_click_and_hover_through_the_sfx_engine() -> void:
 	button.disabled = true
 	button.mouse_entered.emit()
 	assert_eq(Audio.sfx().get_child_count(), before + 2, "a disabled button stays silent")
+
+func test_fixture_bands_replace_the_live_analysis() -> void:
+	var fixed := PackedFloat32Array()
+	fixed.resize(AudioBarModel.BANDS)
+	fixed[0] = 0.7
+	Audio.debug_bands = fixed
+	assert_almost_eq(Audio.bands()[0], 0.7, EPS, "web __debugAudioBands")
+	Audio.debug_bands = PackedFloat32Array()
+	assert_eq(Audio.bands(), Audio.analysis.bands(), "the live analysis otherwise")
 
 func test_the_hub_max_combines_its_sources() -> void:
 	var hub := AudioAnalysisHub.new()
