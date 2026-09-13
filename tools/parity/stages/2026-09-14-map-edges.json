@@ -1,0 +1,53 @@
+{
+  "id": "2026-09-14-map-edges",
+  "title": "Сверка паритета OneShot · контур рёбер блоков (MapEdges)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап PP1: пост-обработка web `MapEdges` — светлый контур видимых рёбер блоков карты (включён настройкой `postProcessing`, по умолчанию true). Расхождение найдено сверкой перегрева: в Godot рёбер не было. Сравнение на os_pillars — с непрозрачными блоками (серия double) и с прозрачными (SINGULARITY).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-map-edges.json`. Web: `web-reference/scripts/parity-capture-overheat.mjs` (`PARITY_MAP=os_pillars`, `PARITY_TIERS=double`) → `test-results/parity-gpu-pp1/os_pillars/`; кадр SINGULARITY взят из сверки перегрева (`parity-gpu-ov/os_pillars`). Godot: `tools/screenshot.gd` режим `profile:hud-overheat-<tier>` на `maps/os_pillars.json`, кадр 300. Замеры: `tools/parity/measure.py read_png` по области x 440–880, y 180–440; вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "map-edges",
+      "name": "Контур рёбер блоков на os_pillars",
+      "verdict": "Контур перенесён: на непрозрачных блоках рёбра совпадают с web по расположению и яркости (среднее отличие области 2.4/255, светлых пикселей рёбер 11 458 против 11 992). На прозрачных блоках рёбра на месте, но в Godot их на 18% меньше (10 319 против 12 575) и среднее отличие 4.0/255; причина не установлена.",
+      "verdict_short": "Контур рёбер блоков перенесён",
+      "conditions": [
+        ["карта", "`os_pillars`", "`maps/os_pillars.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080, EffectComposer", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["игрок", "PARITY7 `#fa4`, первое лицо, `__debugSetStreak(0, 2 / 5)`", "то же, `player.streak = 2 / 5`"],
+        ["пост-обработка", "`postProcessing` по умолчанию (вкл.)", "`MapEdges` по `postProcessing` профиля (вкл.)"],
+        ["тесты", "—", "GUT 323/323, 1177 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Непрозрачные блоки, серия double (увеличение ×2)", "wipe": true,
+          "note": "Рёбра блоков осветлены ×2 там, где блок виден.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-pp1/crops/web-pillars-double.png", "note": "Среднее (36.4, 41.0, 47.5)."},
+            {"kind": "godot", "img": "parity-gpu-pp1/crops/godot-pillars-double.png", "note": "Среднее (36.7, 40.9, 47.7)."}
+          ]},
+        {"title": "Прозрачные блоки, SINGULARITY (увеличение ×2)", "wipe": true,
+          "note": "Блоки α 0.2; рёбра рисуются и у прозрачных блоков (проход нормалей непрозрачный).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-pp1/crops/web-pillars-singularity.png", "note": "Среднее (30.1, 33.7, 39.7)."},
+            {"kind": "godot", "img": "parity-gpu-pp1/crops/godot-pillars-singularity.png", "note": "Среднее (30.6, 33.8, 39.3); рёбер меньше."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "PP1", "severity": "fixed",
+          "title": "Контур рёбер блоков (пост-обработка MapEdges)",
+          "web": "`EdgeOutline.tsx`: проход нормалей только блоков (`MeshNormalMaterial`, очистка `#7777ff`, своя глубина) и эффект `mix(c, min(2c, 1), edge)` на разрывах нормалей видимого блока.",
+          "godot": "`MapEdges`: копии raycast-блоков на слое 20 с шейдером `block_normals` в float-SubViewport (камера повторяет основную на `frame_pre_draw`), полноэкранный квад `map_edges` умножает кадр на `1 + edge`. Было: рёбер не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/map_edges.gd", "assets/shaders/block_normals.gdshader", "assets/shaders/map_edges.gdshader", "nodes/geo_loader.gd", "tests/unit/test_map_edges.gd", "web-reference/src/components/EdgeOutline.tsx"]
+        }
+      ],
+      "limitations": [
+        "На прозрачных блоках в Godot на 18% меньше светлых пикселей рёбер; причина не установлена.",
+        "Godot умножает кадр на 2 без обрезки до 1: у пикселей ярче 0.5 линейного web обрезает до белого. Блоки карты тёмные, в кадрах таких рёбер нет.",
+        "Поправка к отчёту перегрева: там разница яркости прозрачной стены (26,28,32 против 23,24,26) предположительно объяснялась композитором web. Здесь средние по области прозрачных блоков совпадают (30.1 против 30.6 по красному), так что это объяснение не подтвердилось.",
+        "Внизу кадров web — полоса AudioBar; в Godot её пока нет (бэклог «звук»)."
+      ]
+    }
+  ]
+}
