@@ -23,6 +23,7 @@ var _death_burst: DeathBurst
 var _burst_view: ParticleView
 var _ghost_trail: AfterimageTrail
 var _ghost_trail_view: ParticleView
+var _dash_trail: DashTrailView
 var _visual_ms := 0.0                  # visual clock (web Date.now for fireTime / spawnTime)
 var _fire_ms := -INF                   # the last own shot (windup deflate)
 var _spawn_ms := 0.0                   # the last materialisation (rebirth poof); web Match places everyone via respawnAt
@@ -47,6 +48,8 @@ func apply_appearance(entry: Dictionary) -> void:
 	_ball.setup(_base_color, entry.get("ballModel", AppearanceConst.BALL_MODELS[0]),
 		Color(entry.get("reserveColor", entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR))),
 		entry.get("ballArt", ""))
+	_shield_fx.setup(entry.get("shieldStyle", ShieldSkinState.DOME))
+	_dash_trail.setup(entry.get("dashStyle", DashTrailView.STYLE_STREAK), _base_color)
 	_rebuild_particles()
 
 func ball_visual() -> BallVisual:
@@ -94,6 +97,9 @@ func _ready() -> void:
 	_hitbox.add_child(hcs)
 	_hitbox.position = Vector3(0, MoveConst.HITBOX_Y, 0)
 	add_child(_hitbox)
+	_dash_trail = DashTrailView.new()
+	_dash_trail.name = "DashTrail"
+	add_child(_dash_trail)
 	_ball = BallVisual.new()
 	_ball.name = "BallVisual"
 	_ball.position.y = SkinCurves.BODY_MESH_Y
@@ -218,6 +224,15 @@ func update_visuals(delta: float) -> void:
 	_ghost_trail_view.refresh()
 	_death_burst.update(delta)
 	_burst_view.refresh()
+	_dash_trail.visible = _body_visible   # web setBodyVisible: no own trail in first person
+	_dash_trail.update(delta, player.body.is_dashing(), global_position)
+	_shield_fx.update(delta)
+
+func dash_trail() -> DashTrailView:
+	return _dash_trail
+
+func shield_fx() -> ShieldFx:
+	return _shield_fx
 
 ## web: no shield bubble in first person, during the ghost phase or the rebirth window.
 func _shield_can_show() -> bool:
