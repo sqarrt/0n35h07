@@ -1,0 +1,108 @@
+{
+  "id": "2026-09-13-match-clock",
+  "title": "Сверка паритета OneShot · часы и конец матча",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса G9: у матча появились часы, фаза окончания и экран результата; HUD под экраном результата скрывается, как в web. Обе стороны сняты на одном GPU (NVIDIA RTX 4080): web — WebGL через ANGLE D3D11, Godot — Vulkan Forward+. Логика перенесена и покрыта тестами; оформление экрана результата и таймера пока расходится.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-match-clock.json`. Web: `web-reference/scripts/parity-capture.mjs` → `test-results/parity-gpu-g9/` (конец матча через `__debugForceEnd`). Godot: `tools/screenshot.gd` в режиме `passive-bot` → `test-results/parity-gpu-g9/` (кадр конца с длительностью матча 2000 мс). Предыдущие этапы: базовая сверка и «карта в матче».",
+  "pages": [
+    {
+      "slug": "match-end",
+      "name": "Часы и экран результата",
+      "verdict": "Часы, заморозка в конце, расчёт исхода, экран результата и скрытие HUD работают как в web. Расходится оформление: шрифт и разрядка, свечение заголовка, имена и цвета игроков, кнопка выхода, вид таймера; выбор длительности ждёт лобби.",
+      "verdict_short": "G9 и E4 закрыты; оформление экрана результата и таймера открыто",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, NVIDIA RTX 4080 (Windows)", "Vulkan 1.4 Forward+, NVIDIA RTX 4080 (Windows)"],
+        ["длительность", "3 мин (выбор в лобби)", "5 мин по умолчанию (`Game.match_duration_ms`); кадр конца — 2000 мс через инструмент"],
+        ["кадр HUD", "live, таймер 02:55", "live, 480 кадров, таймер 04:55"],
+        ["кадр конца", "`__debugForceEnd` → `endMatch('time')` после 1 убийства; ждём исход и прогрев", "кадр 420: `ended = true`, `live = false` по JSON кадра"],
+        ["исход", "ПОБЕДА, 1 : 0", "DRAW, 0 : 0 (пассивный бот, убийств нет)"],
+        ["тесты", "—", "GUT 163/163, 418 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "HUD с таймером матча",
+          "wipe": true,
+          "note": "Разные длительности (3 и 5 мин), поэтому сравнивается наличие и положение таймера, а не значение.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g9/web-game.png", "note": "Таймер 02:55 между счётами и именами в верхней строке."},
+            {"kind": "godot", "img": "parity-gpu-g9/godot-arena-timer.png", "note": "Таймер 04:55 отдельной строкой под «YOU 0 — BOT 0»."}
+          ]
+        },
+        {
+          "title": "Экран результата",
+          "note": "Исходы разные по условиям съёмки (победа против ничьей); сравнивается компоновка и оформление.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g9/web-match-end.png", "note": "Мягкое свечение заголовка, имена в цветах игроков, серая причина, синяя кнопка ВЫЙТИ; HUD скрыт."},
+            {"kind": "godot", "img": "parity-gpu-g9/godot-match-end.png", "note": "Та же колонка по центру; HUD скрыт; шрифт темы, тонкий контур вместо свечения, YOU / BOT одним цветом, простая кнопка EXIT."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G9", "severity": "fixed",
+          "title": "Часы и конец матча",
+          "web": "Часы идут только в live, секунды округляются вверх; по нулю — фаза `ended`, заморозка всех, через 200 мс экран результата; исход по сумме убийств команд.",
+          "godot": "`MatchClock`, фаза `ENDED`, `MatchResult`, сигнал `match_ended` через `END_FREEZE_MS`, таймер в HUD, `MatchEndedOverlay`. Пауза по Esc после конца не открывается.",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["sim/match_clock.gd", "sim/match_phase.gd", "sim/match_result.gd", "nodes/match_node.gd", "nodes/match_ended_overlay.gd", "tests/unit/test_match_end_in_engine.gd"]
+        },
+        {
+          "id": "E4", "severity": "fixed",
+          "title": "HUD под экраном результата",
+          "web": "HUD рендерится только пока результата нет: под затемнением видна одна сцена.",
+          "godot": "`Hud` скрывается по `match_ended`; на кадре конца счёта, таймера и полос нет.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["web-reference/src/components/GameOverlay.tsx", "nodes/hud.gd", "tests/unit/test_hud_match_end_visibility.gd"]
+        },
+        {
+          "id": "E1", "severity": "visual",
+          "title": "Типографика экрана результата",
+          "web": "Share Tech Mono с широкой разрядкой; заголовок 52px с мягким размытым свечением; причина мелким капсом с разрядкой.",
+          "godot": "Шрифт темы Godot без разрядки; тени Label не размываются, поэтому вокруг заголовка тонкий полупрозрачный контур, а не свечение.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchEndedOverlay.tsx", "nodes/match_ended_overlay.gd"]
+        },
+        {
+          "id": "E2", "severity": "visual",
+          "title": "Имена и цвета игроков в таблице",
+          "web": "Имена профилей в цвете игрока, с эффектом серии; ушедшие игроки полупрозрачные с «✕».",
+          "godot": "YOU / BOT одним цветом текста; профилей и цветов игроков пока нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchEndedOverlay.tsx", "sim/hud_model.gd"]
+        },
+        {
+          "id": "E3", "severity": "visual",
+          "title": "Кнопка выхода",
+          "web": "Основная кнопка: заливка `#2b9ff0`, тёмный текст, широкая плашка «ВЫЙТИ».",
+          "godot": "Стандартная кнопка темы Godot «EXIT» по ширине текста.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/ui/theme.css", "nodes/match_ended_overlay.gd"]
+        },
+        {
+          "id": "G1", "severity": "visual",
+          "title": "Вид таймера в HUD",
+          "web": "Крупный моноширинный таймер в центре верхней строки между счётами, разделители по бокам.",
+          "godot": "Таймер отдельной строкой под счётом, шрифт темы.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "L5", "severity": "missing",
+          "title": "Выбор длительности",
+          "web": "3 / 5 / 10 минут в лобби.",
+          "godot": "Длительность задаётся `Game.match_duration_ms` (5 мин), выбора нет — появится с лобби.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/MatchSettings.tsx", "autoloads/game.gd"]
+        }
+      ],
+      "limitations": [
+        "Исходы на кадрах разные: в web сценарий делает одно убийство (победа), в Godot бот пассивен и убийств нет (ничья). Цвета победы, поражения и ничьей проверены юнит-тестами, а не кадрами.",
+        "Godot-кадр конца снят с укороченным матчем (2000 мс, аргумент инструмента); в штатной игре матч длится 5 минут.",
+        "Путь окончания по отключению соперника (`disconnect`) не перенесён — появится с сетевым матчем.",
+        "Кадры сняты в разные моменты; пиксельный diff не заявляется."
+      ]
+    }
+  ]
+}

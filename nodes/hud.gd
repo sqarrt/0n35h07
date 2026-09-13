@@ -28,6 +28,11 @@ func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_human = human
 	_match = match_node
 	_match.frag.connect(_on_frag)
+	_match.match_ended.connect(_on_match_ended)
+
+## The match-end screen replaces the HUD (web GameOverlay renders the HUD only while there is no result).
+func _on_match_ended(_result: Dictionary) -> void:
+	visible = false
 
 func _ready() -> void:
 	_crosshair = _label(28)
