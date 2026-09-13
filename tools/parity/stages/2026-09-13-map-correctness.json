@@ -1,0 +1,117 @@
+{
+  "id": "2026-09-13-map-correctness",
+  "title": "Сверка паритета OneShot · карта в матче",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса «корректность карты»: закрыты пункты G7, G8 и G10 базовой сверки. Обе стороны сняты на одном GPU (NVIDIA RTX 4080): web — WebGL через ANGLE D3D11, Godot — Vulkan Forward+. Godot-кадр снят со штатными точками появления и камерой, без контрольного режима.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-map-correctness.json`. Web: `web-reference/scripts/parity-capture.mjs` → `test-results/parity-gpu/`. Godot: `tools/screenshot.gd` в режиме `passive-bot` → `test-results/parity-gpu/godot-arena-spawns.png` (+ `.json` с позициями игроков). Базовая сверка: `tools/parity/stages/2026-09-13-baseline.json`.",
+  "pages": [
+    {
+      "slug": "match",
+      "name": "Матч · Arena после слайса",
+      "verdict": "Точки появления, коллизии и состав сцены приведены к web. Остались HUD, пол с сеткой и освещение, скины, конец матча и вид камеры.",
+      "verdict_short": "G7, G8, G10 закрыты; HUD, пол, скины, конец матча открыты",
+      "conditions": [
+        ["карта", "`os_arena`, выбрана в лобби и проверена", "`maps/os_arena.json` + `maps/os_arena_geo.json`"],
+        ["рендер", "ANGLE D3D11, NVIDIA RTX 4080 (Windows)", "Vulkan 1.4 Forward+, NVIDIA RTX 4080 (Windows)"],
+        ["фаза", "live после READY и отсчёта", "live (`MatchNode.is_live()` = true)"],
+        ["камера", "точка появления `[0, 1.7, 16]`, взгляд на −Z, FOV 75", "штатная: камера игрока на `[0, 1.7, 16]`, FOV 75"],
+        ["позиции", "игрок `[0, 1.71, 16]` по `__debugPlayerPos`", "игрок `[0, 1.7, 16]`, бот `[0, 1.7, −16]` по JSON кадра"],
+        ["соперник", "пассивный бот (настройка лобби)", "бот без контроллера (режим `passive-bot` инструмента)"],
+        ["прогрев", "не меньше 180 кадров и 5000 мс в live", "480 кадров при 60 FPS"],
+        ["тесты", "—", "GUT 141/141, 368 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Спокойный кадр live с точки появления",
+          "wipe": true,
+          "note": "Шторка: Godot снизу, web сверху. Горизонт, стены периметра и бот в прицеле совпадают; расходятся пол, свет и HUD.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu/web-game.png", "note": "Пол с сеткой 1×1, красный шар бота в прицеле, HUD эталона."},
+            {"kind": "godot", "img": "parity-gpu/godot-arena-spawns.png", "note": "Штатные спавны: бот в прицеле у дальней стены; мишени нет."}
+          ]
+        },
+        {
+          "title": "Godot до и после слайса",
+          "note": "Кадр «до» снят в контрольном режиме `reference-camera`: без него игрок и бот стояли бы не на точках карты. Кадр «после» — штатный запуск.",
+          "panels": [
+            {"kind": "godot", "label": "GODOT · до", "img": "parity-corrected/godot-arena.png", "note": "Красный столб TargetDummy; спавны выставлены инструментом."},
+            {"kind": "godot", "label": "GODOT · после", "img": "parity-gpu/godot-arena-spawns.png", "note": "Мишени нет; позиции выставила сама игра."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G7", "severity": "fixed",
+          "title": "Лишняя тестовая мишень",
+          "web": "На Arena только геометрия карты и игроки.",
+          "godot": "Узел TargetDummy удалён из `scenes/arena_test.tscn`; тест проверяет его отсутствие.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["scenes/arena_test.tscn", "tests/unit/test_arena_scene.gd"]
+        },
+        {
+          "id": "G8", "severity": "fixed",
+          "title": "Точки появления",
+          "web": "`spawnPositionsFor`: слот 0 → точка 0, соперник → точка 1.",
+          "godot": "`Spawns.positions_for` с тем же правилом 1v1; `arena_boot` ставит игроков через `PlayerNode.place_at`. В штатном кадре игрок на `[0, 1.7, 16]`, бот на `[0, 1.7, −16]`.",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["sim/spawns.gd", "nodes/arena_boot.gd", "nodes/player_node.gd", "tests/unit/test_spawns.gd"]
+        },
+        {
+          "id": "G10", "severity": "fixed",
+          "title": "Коллизии карты",
+          "web": "Движение: `geo.collider`, пол, 4 невидимые границы. Луч: только raycast-меши; пол и стены `blocksBeam:false` пропускают.",
+          "godot": "То же разделение: движение по `geo.collider`, полу и границам на слое NOBEAM, цели луча на `LAYER_BEAM_ONLY_BIT`. Лучи в физическом пространстве Arena подтверждают: луч проходит пол и периметр, движение — нет.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/geo_loader.gd", "sim/combat_const.gd", "tests/unit/test_geo_loader.gd"]
+        },
+        {
+          "id": "G6", "severity": "visual",
+          "title": "Пол: сетка и освещение",
+          "web": "Тёмно-серый пол с полной сеткой линий 1×1.",
+          "godot": "Пол светлее, сетки нет.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/game/grid.ts", "web-reference/src/components/MapVisualBits.tsx", "nodes/geo_loader.gd"]
+        },
+        {
+          "id": "G1–G5", "severity": "visual",
+          "title": "HUD",
+          "web": "Имена и счёт в цветах команд, таймер, бирюзовое кольцо прицела, вертикальные полосы кулдаунов, график скорости, угловые скобки.",
+          "godot": "«YOU 0 — BOT 0», белый крест, горизонтальные полосы BEAM / SHIELD / DASH, «0 u/s», без рамки.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "web-reference/src/components/Crosshair.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G11", "severity": "visual",
+          "title": "Скины игрока и луча",
+          "web": "Шар-скин в цвете профиля (бот на кадре красный), сужающийся луч в цвете игрока.",
+          "godot": "Белая сфера, луч-заглушка (тонкий голубой цилиндр).",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/game/BeamWeapon.ts", "nodes/beam_fx.gd"]
+        },
+        {
+          "id": "G9", "severity": "missing",
+          "title": "Часы и конец матча",
+          "web": "Таймер матча, фаза `ended`, экран результата.",
+          "godot": "Нет — следующий слайс (спека `docs/superpowers/specs/2026-09-13-godot-match-clock-design.md`).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/Match.ts", "sim/match_phase.gd"]
+        },
+        {
+          "id": "G12", "severity": "missing",
+          "title": "Камера",
+          "web": "Вид от третьего лица; FOV в ghost-фазе.",
+          "godot": "Только первое лицо.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/controllers/HumanController.ts", "nodes/human_controller.gd"]
+        }
+      ],
+      "limitations": [
+        "G10 подтверждён тестами на Arena (лучи) и India (слои), в живом матче не проверялся; проходимые блоки Pool отдельно не обходились.",
+        "Бот пассивен в обоих кадрах, но по-разному: в web — настройка лобби, в Godot — режим инструмента съёмки.",
+        "Кадры сняты в разные моменты live (web — 02:55 на таймере); пиксельный diff не заявляется.",
+        "Кадр Godot «до» снят в контрольном режиме камеры и на Forward+ в предыдущей сессии."
+      ]
+    }
+  ]
+}
