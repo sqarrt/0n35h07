@@ -50,6 +50,11 @@ func _ready() -> void:
 	add_child(hud)
 	hud.setup(human, match_node)
 
+	# Match sound: SFX transitions, combat and announce sounds, countdown / GO and the seeded match music.
+	var match_audio := MatchAudio.new()
+	add_child(match_audio)
+	match_audio.setup(match_node, [human, bot], HUMAN_SLOT, self)
+
 	# Pause menu (Esc): resume / back to the main menu.
 	var pause := PauseOverlay.new()
 	add_child(pause)
