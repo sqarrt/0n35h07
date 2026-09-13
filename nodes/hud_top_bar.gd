@@ -122,6 +122,7 @@ func _side(children: Array, align: BoxContainer.AlignmentMode) -> HBoxContainer:
 func _name_text(node_name: String) -> EffectText:
 	var text := EffectText.new()
 	text.name = node_name
+	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # web .side align-items: center
 	text.configure(UiFont.spaced(NAME_SPACING_EM, NAME_FONT_SIZE), NAME_FONT_SIZE, NAME_COLOR)
 	return text
 

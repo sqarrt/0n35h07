@@ -8,4 +8,6 @@ const MS_PER_MIN := 60000.0
 const MATCH_DURATIONS_MIN := [3, 5, 10]   # lobby choices (web MATCH_DURATIONS_MIN)
 const DEFAULT_MATCH_DURATION_MIN := 5     # web DEFAULT_MATCH_DURATION_MIN
 const DEFAULT_MATCH_DURATION_MS := DEFAULT_MATCH_DURATION_MIN * MS_PER_MIN
+const LOBBY_DEFAULT_DURATION_MIN := 3     # web App.tsx: every Play preselects MATCH_DURATIONS_MIN[0]
+const LOBBY_DEFAULT_DURATION_MS := LOBBY_DEFAULT_DURATION_MIN * MS_PER_MIN
 const END_FREEZE_MS := 200.0              # freeze-frame between the match end and the outcome screen
