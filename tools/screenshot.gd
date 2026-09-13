@@ -5,6 +5,8 @@ extends SceneTree
 ## Modes:
 ##   passive-bot       the opponent stands still (like the web capture fixture); spawns and camera stay native.
 ##   reference-camera  passive bot + participants forced onto raw.spawns + camera forced to spawn 0 (tool-only).
+##   hud-banner        passive bot + the streak banner announcing the local player's CATALYST, 600 ms in (web frame).
+##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   (any other value, e.g. "-") no fixture.
 ## <match ms> overrides Game.match_duration_ms, e.g. to capture the match-end screen quickly.
 ## Writes <output png>.json with the capture facts (map, frame, mode, camera, live/ended, player positions).
@@ -14,8 +16,13 @@ const CAPTURE_FRAME := 90
 const OUT := "user://shot.png"
 const MODE_PASSIVE_BOT := "passive-bot"
 const MODE_REFERENCE_CAMERA := "reference-camera"
+const MODE_HUD_BANNER := "hud-banner"
+const MODE_HUD_GHOST := "hud-ghost"
 const HUMAN_ID := 0
 const REFERENCE_FOV := 75.0
+const FIRST_BLOOD_STREAK := 1
+const BANNER_FRAME_S := 0.6          # web capture takes the banner 600 ms after the kill
+const GHOST_SHARE_LEFT := 0.5
 const ARG_SCENE := 0
 const ARG_MAP := 1
 const ARG_OUTPUT := 2
@@ -54,13 +61,19 @@ func _initialize() -> void:
 		if g != null:
 			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
-	_passive_bot = _reference_camera or _mode == MODE_PASSIVE_BOT
+	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_BANNER, MODE_HUD_GHOST]
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
 
 func _players() -> Array:
 	return root.find_children("*", "", true, false).filter(func(n): return n is PlayerNode)
+
+func _human() -> PlayerNode:
+	for node in _players():
+		if node.player.id == HUMAN_ID:
+			return node
+	return null
 
 func _setup_fixture() -> void:
 	var map := {}
@@ -80,6 +93,21 @@ func _process(_delta: float) -> bool:
 		_capture()
 	return _capture_done
 
+## HUD states the tool can't reach by playing (tool-only fixtures, stated in reports).
+func _apply_hud_fixture() -> bool:
+	match _mode:
+		MODE_HUD_BANNER:
+			var banner := root.find_child("StreakBanner", true, false) as HudStreakBanner
+			banner.announce(HudModel.player_name(HUMAN_ID), HudModel.announce_word(FIRST_BLOOD_STREAK, true))
+			banner.tick(BANNER_FRAME_S)
+			return true
+		MODE_HUD_GHOST:
+			var human := _human()
+			human.player.respawning = true
+			human.player.respawn_timer = MatchConst.RESPAWN_GHOST_MS * GHOST_SHARE_LEFT
+			return true
+	return false
+
 func _capture() -> void:
 	var camera := root.get_camera_3d()
 	# reference-camera only: align the camera to the map's spawn 0. Other modes keep the game's own camera.
@@ -89,6 +117,8 @@ func _capture() -> void:
 		camera.global_position = Vector3(spawn[0], spawn[1], spawn[2])
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
+	if _apply_hud_fixture():
+		await process_frame   # let the HUD pick the fixture up before drawing
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(_output)
 	if result != OK:
@@ -105,10 +135,15 @@ func _capture() -> void:
 	for node in _players():
 		positions[str(node.player.id)] = _vec(node.global_position)
 	facts["players"] = positions
+	var human := _human()
+	if human != null:
+		facts["human_respawning"] = human.player.respawning
+		facts["human_ghost_left_ms"] = human.player.respawn_timer
 	for node in root.find_children("*", "", true, false):
 		if node is MatchNode:
 			facts["live"] = node.is_live()
 			facts["ended"] = node.is_ended()
+			facts["countdown"] = node.countdown_label()
 	var metadata := FileAccess.open(_output + ".json", FileAccess.WRITE)
 	metadata.store_string(JSON.stringify(facts, "\t"))
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(_output))

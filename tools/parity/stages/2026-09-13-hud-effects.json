@@ -1,0 +1,130 @@
+{
+  "id": "2026-09-13-hud-effects",
+  "title": "Сверка паритета OneShot · эффекты HUD",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса H2: отсчёт перед боем, баннер серии, индикатор ghost-фазы, виньетки замаха и щита и вспышки выстрела, попадания и блока перенесены из web. Кадры сняты на одном GPU (NVIDIA RTX 4080); тайминги и цвета вспышек проверены тестами. По ходу найдено и исправлено расхождение: web объявляет серии любого игрока, Godot — только свои.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-hud-effects.json`. Web: `web-reference/scripts/parity-capture.mjs` → `test-results/parity-gpu-h2/` (`web-countdown.png` через 450 мс после старта отсчёта, `web-banner.png` через 600 мс после убийства). Godot: `tools/screenshot.gd` → `test-results/parity-gpu-h2/` (`godot-countdown-f40.png` — кадр 40; `godot-banner.png` и `godot-ghost.png` — фикстуры `hud-banner` и `hud-ghost`). Замеры: `tools/parity/measure.py` и поиск строк/столбцов цвета.",
+  "pages": [
+    {
+      "slug": "hud-effects",
+      "name": "Отсчёт, баннер, ghost-фаза и вспышки",
+      "verdict": "Отсчёт, баннер серии и ghost-индикатор совпадают с web по положению, размерам и цветам; затемнение отсчёта — в пределах одной ступени из 255. Открыты: свечения без размытия, текстовые эффекты серий и цвета игроков (H3), визуализатор звука и тряска камеры при выстреле.",
+      "verdict_short": "Отсчёт, баннер, ghost и вспышки перенесены; свечения, H3, звук, тряска открыты",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["кадр отсчёта", "цифра «3», 450 мс анимации (`cdPop` 45%)", "цифра «3», кадр 40 ≈ 650 мс (`cdPop` 65%)"],
+        ["кадр баннера", "через 600 мс после настоящего убийства", "фикстура `hud-banner`: объявление + 600 мс"],
+        ["кадр ghost-фазы", "нет (нет debug-глобала смерти своего игрока)", "фикстура `hud-ghost`: половина фазы (750 мс)"],
+        ["затемнение: небо (640, 200)", "`#0a0b10`", "`#0a0b10`"],
+        ["затемнение: пол (700, 600)", "`#1e2026`", "`#1f2126`"],
+        ["затемнение: стены (100 / 1180, 360)", "`#222224` / `#18181a`", "`#232325` / `#18181a`"],
+        ["цифра: цвет", "`#44a4f8`", "`#41a2f4`"],
+        ["цифра: размер", "126×56px при масштабе ≈1.22", "118×54px при масштабе ≈1.10"],
+        ["баннер: строки текста", "50–84 (вместе с таймером)", "50–85 (вместе с таймером)"],
+        ["тесты", "—", "GUT 208/208, 585 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Отсчёт перед боем",
+          "wipe": true,
+          "note": "Шторка: затемнение, горизонт и цифра должны совпадать. Цифра в Godot чуть меньше — кадр позже в анимации появления.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h2/web-countdown.png", "note": "Затемнение, цифра 144px `#4af` с мягким свечением; HUD скрыт."},
+            {"kind": "godot", "img": "parity-gpu-h2/godot-countdown-f40.png", "note": "То же затемнение и цифра; свечение — тонкий ореол."}
+          ]
+        },
+        {
+          "title": "Баннер серии",
+          "wipe": true,
+          "note": "Положение и размер совпадают по строкам; в web текст с эффектом серии и именем профиля.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h2/web-banner.png", "note": "«JX75295: CATALYST» с цветным сдвигом (эффект H3); кольцо прицела перезаряжается."},
+            {"kind": "godot", "img": "parity-gpu-h2/godot-banner.png", "note": "«YOU: CATALYST» без эффекта серии."}
+          ]
+        },
+        {
+          "title": "Ghost-фаза",
+          "note": "Web-кадр снять нельзя: в web нет способа убить своего игрока из сценария. Сверка по коду `RespawnOverlay.tsx` и тестам.",
+          "panels": [
+            {"kind": "web", "absent_title": "кадр не снят", "absent": "Нет debug-глобала смерти своего игрока; поведение взято из `RespawnOverlay.tsx`."},
+            {"kind": "godot", "img": "parity-gpu-h2/godot-ghost.png", "note": "Голубая виньетка по краям, полосы `#9cf` на половину от максимума, подпись RESPAWNING."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "H2a", "severity": "fixed",
+          "title": "Отсчёт перед боем",
+          "web": "Затемнение `rgba(10,10,15,0.35)`, цифра 9rem жирная `#4af`, анимация `cdPop` (масштаб 1.6 → 1, прозрачность 0 → 1 → 0.9, ease-out), перезапуск на каждой цифре.",
+          "godot": "`HudCountdown`: те же параметры; ease-out решается как `cubic-bezier(0, 0, 0.58, 1)`; жирность синтезируется, как в браузере.",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["nodes/hud_countdown.gd", "sim/hud_model.gd", "tests/unit/test_hud_text_effects.gd", "tests/unit/test_hud_effects_curves.gd"]
+        },
+        {
+          "id": "H2b", "severity": "fixed",
+          "title": "Баннер серии",
+          "web": "«ИМЯ: TIER» в 64px от верха, 24px, разрядка 0.18em, мерцание `ks-annShow` 2.05 с; объявляется серия любого игрока (`announceStreak`).",
+          "godot": "`HudStreakBanner` с тем же положением, размером и ступенчатым мерцанием. Раньше баннер показывался только для своих серий — исправлено (`HudModel.announce_word`).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_streak_banner.gd", "sim/hud_model.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "H2c", "severity": "fixed",
+          "title": "Индикатор ghost-фазы",
+          "web": "Полосы `#9cf` 6px в 21px от верха и низа, ширина `прогресс × 50%`, свечение; подпись RESPAWNING 12px над центром; голубая виньетка по краям.",
+          "godot": "`HudGhostIndicator` и виньетка в `HudOverlayFx` с теми же размерами и цветами.",
+          "evidence": ["test", "code", "screenshot"],
+          "sources": ["nodes/hud_ghost_indicator.gd", "nodes/hud_overlay_fx.gd", "web-reference/src/components/RespawnOverlay.tsx"]
+        },
+        {
+          "id": "H2d", "severity": "fixed",
+          "title": "Виньетки замаха и щита, вспышки",
+          "web": "Виньетка замаха по заряду; при активном щите — свечение по краям и сетка 40px; тонировки: свой выстрел 200 мс, смерть своего игрока 350 мс, свой блок 250 мс.",
+          "godot": "Шейдер `hud_vignette.gdshader` и `HudOverlayFx`; события матча (`fired`, `blocked`, `frag`) запускают вспышки только для своего игрока; цвета и длительности проверены тестами.",
+          "evidence": ["test", "code"],
+          "sources": ["assets/shaders/hud_vignette.gdshader", "nodes/hud_overlay_fx.gd", "nodes/match_node.gd", "tests/unit/test_hud_overlay_fx.gd", "tests/unit/test_hud_effects_wiring.gd"]
+        },
+        {
+          "id": "H2e", "severity": "visual",
+          "title": "Свечение текста",
+          "web": "Мягкие размытые `text-shadow`: у цифры отсчёта 40px, у подписи ghost-фазы 8px.",
+          "godot": "Тени `Label` в Godot не размываются: вместо свечения — тонкий полупрозрачный ореол.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_countdown.gd", "nodes/hud_ghost_indicator.gd"]
+        },
+        {
+          "id": "H3", "severity": "visual",
+          "title": "Эффекты текста серий и цвета игроков",
+          "web": "Баннер и имена рисуются `EffectText` по уровню серии (цветной сдвиг, свечение), в цвете игрока.",
+          "godot": "Простой текст цвета `#cfe6ff`, имя YOU / BOT. Следующий слайс.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/EffectText.tsx", "nodes/hud_streak_banner.gd"]
+        },
+        {
+          "id": "CAM1", "severity": "missing",
+          "title": "Тряска камеры при своём выстреле",
+          "web": "Вместе со вспышкой выстрела вызывается `humanController.shake()` (короткая тряска камеры).",
+          "godot": "Тряски нет.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/Match.ts", "web-reference/src/game/controllers/HumanController.ts", "nodes/human_controller.gd"]
+        },
+        {
+          "id": "G4", "severity": "missing",
+          "title": "Визуализатор звука",
+          "web": "`AudioBar` внизу кадра (на web-кадре баннера видна его линия).",
+          "godot": "Звука и визуализатора нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/AudioBar.tsx"]
+        }
+      ],
+      "limitations": [
+        "Кадр ghost-фазы web не снят; баннер и ghost-фаза в Godot получены фикстурами инструмента съёмки, а не игрой.",
+        "Фазы анимации отсчёта на кадрах разные (45% и 65%), поэтому размер цифры сравнивается с поправкой на масштаб.",
+        "Самый ранний Godot-кадр отсчёта (кадр 28) исключён: окно ещё не приняло размер 1280×720, вид искажён; на кадрах 40 и 88 вид ровный.",
+        "Вспышки выстрела, попадания и блока проверены тестами по цветам и длительностям, но не кадрами."
+      ]
+    }
+  ]
+}

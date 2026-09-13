@@ -1,7 +1,8 @@
 extends GutTest
+## Streak banner words — web announceStreak announces every shooter's streak (not only the local player's).
 
-func test_banner_only_for_human_shooter() -> void:
-	assert_eq(HudModel.banner_for(false, 5, false), "", "no banner for the bot's frags")
-	assert_eq(HudModel.banner_for(true, 2, false), "DOUBLE KILL")
-	assert_eq(HudModel.banner_for(true, 1, true), "CATALYST", "first blood")
-	assert_eq(HudModel.banner_for(true, 4, false), "", "no banner between tiers")
+func test_announce_word_for_any_shooter() -> void:
+	assert_eq(HudModel.announce_word(2, false), "DOUBLE KILL")
+	assert_eq(HudModel.announce_word(1, true), "CATALYST", "first blood")
+	assert_eq(HudModel.announce_word(4, false), "", "no banner between tiers")
+	assert_eq(HudModel.announce_word(0, false), "", "no streak, no banner")
