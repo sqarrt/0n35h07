@@ -20,10 +20,7 @@ func _ready() -> void:
 	human.place_at(spawns[HUMAN_SLOT])
 	var camera: Camera3D = human.get_node("Camera3D")
 	var hc: HumanController = $HumanController
-	hc.setup(human, camera)
-	# First-person: hide the player's own sphere (the camera sits inside it).
-	human.set_body_visible(false)
-	human.get_node("Mesh").visible = false
+	hc.setup(human, camera)   # first person hides the player's own sphere (the camera sits inside it)
 
 	var bot := _spawn_bot(human, spawns[BOT_SLOT])
 
@@ -34,6 +31,7 @@ func _ready() -> void:
 	add_child(match_node)
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)
+	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera
 
 	# HUD: crosshair + score + streak banner + respawn indicator.
 	var hud := Hud.new()

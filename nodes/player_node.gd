@@ -9,7 +9,6 @@ const STEP_SMOOTH_SPEED := 6.0     # units/s the camera catches up after a step 
 var player := Player.new()
 var controller = null  # optional; must expose apply_intent() -> void
 
-@onready var _cam: Camera3D = get_node_or_null("Camera3D")
 var _step_smooth := 0.0            # visual: how far the camera still lags below the true eye
 var _beam_fx: BeamFx
 var _shield_fx: ShieldFx
@@ -23,6 +22,13 @@ const HIT_FLASH_TIME := 0.25
 
 func set_body_visible(v: bool) -> void:
 	_body_visible = v
+
+func is_body_visible() -> bool:
+	return _body_visible
+
+## How far the eye still lags below its true height after a step-up (the camera owner eases it out).
+func step_lag() -> float:
+	return _step_smooth
 
 func _ready() -> void:
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
@@ -124,10 +130,9 @@ func is_flashing() -> bool:
 	return _flash > 0.0
 
 func _process(delta: float) -> void:
-	# Smoothly close the camera's step lag so a climb reads as a rise, not a snap.
-	if _cam != null and _step_smooth > 0.0:
+	# Smoothly close the eye's step lag so a climb reads as a rise, not a snap (HumanController places the camera).
+	if _step_smooth > 0.0:
 		_step_smooth = maxf(0.0, _step_smooth - STEP_SMOOTH_SPEED * delta)
-		_cam.position.y = -_step_smooth
 	if _beam_fx != null:
 		_beam_fx.update_fx(delta)
 	if _flash > 0.0:
