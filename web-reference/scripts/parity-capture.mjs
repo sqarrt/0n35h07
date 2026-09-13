@@ -75,6 +75,11 @@ try {
   await page.getByTestId('lobby-ready').click();
   await page.waitForFunction(() => !!window.__debugCamera, { timeout: 30000 });
   await page.evaluate(() => window.__debugReady?.());
+  // Countdown frame: mid-way through the first number's 1 s cdPop animation (scale/opacity settling).
+  const COUNTDOWN_FRAME_MS = 450;
+  await page.waitForFunction(() => window.__debugPhase?.() === 'countdown', null, { timeout: 30000 });
+  await page.waitForTimeout(COUNTDOWN_FRAME_MS);
+  await page.screenshot({ path: resolve(output, 'web-countdown.png') });
   await page.waitForFunction(() => window.__debugPhysicsReady?.() && window.__debugPhase?.() === 'live');
   await page.evaluate(() => {
     const canvas = document.querySelector('canvas');
@@ -98,6 +103,10 @@ try {
     await page.waitForFunction(count => (window.__debugTargetHitCount ?? 0) > count, before, { timeout: 10000 });
     await page.evaluate(() => window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })));
     await page.screenshot({ path: resolve(output, 'web-hit.png') });
+    // Streak banner frame: inside the fully visible stretch (5%..90%) of the 2.05 s ks-annShow flicker.
+    const BANNER_FRAME_MS = 600;
+    await page.waitForTimeout(BANNER_FRAME_MS);
+    await page.screenshot({ path: resolve(output, 'web-banner.png') });
   } catch (error) {
     runtime.shotSkipped = error.message;
   }
