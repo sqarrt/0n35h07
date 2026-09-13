@@ -1,10 +1,13 @@
 class_name MatchNode extends Node
 ## Owns the fighting entities and runs the local match each tick (after the entities move/fire):
 ## entry countdown -> live -> ended when the match clock runs out. The sim MatchRules does
-## kill/block/respawn/score; this node drives it, freezes players outside live (web tickPhase) and
-## announces the outcome after the end freeze-frame (web endMatch + END_FREEZE_MS).
+## kill/block/respawn/score; this node drives it, freezes players outside live (web tickPhase),
+## re-emits each tick's rule events as signals for the HUD/FX and announces the outcome after the end
+## freeze-frame (web endMatch + END_FREEZE_MS).
 
 signal frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool)
+signal fired(id: int)
+signal blocked(shooter_id: int, victim_id: int, perfect: bool)
 signal match_ended(result: Dictionary)
 
 const MS_PER_S := 1000.0
@@ -59,10 +62,19 @@ func _physics_process(delta: float) -> void:
 		_end_match()
 	_apply_freeze()
 	rules.resolve(delta)
-	for e in rules.events:
-		if e["t"] == "kill":
-			frag.emit(int(e["shooter"]), int(e["victim"]), int(e["streak"]), bool(e["first_blood"]))
+	emit_events(rules.events)
 	_tick_result(delta)
+
+## Re-emit rule events as signals (web Match dispatches BEAM_FLASH / SHIELD_BLOCK / PLAYER_HIT from these facts).
+func emit_events(events: Array) -> void:
+	for e in events:
+		match e["t"]:
+			"fired":
+				fired.emit(int(e["id"]))
+			"block":
+				blocked.emit(int(e["shooter"]), int(e["victim"]), bool(e["perfect"]))
+			"kill":
+				frag.emit(int(e["shooter"]), int(e["victim"]), int(e["streak"]), bool(e["first_blood"]))
 
 ## Players move only while live (web: frozen = phase !== 'live'); applied on change so a frozen body isn't re-halted.
 func _apply_freeze() -> void:

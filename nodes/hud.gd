@@ -1,7 +1,7 @@
 class_name Hud extends CanvasLayer
-## Match HUD — port of web GameOverlay (1v1): top bar with frags and the timer, beam-cooldown crosshair ring,
-## shield corner brackets and dash side bars; the combat HUD shows only while live (web hides it during the
-## countdown). The streak banner, respawn indicator and countdown number get their web styling in H2.
+## Match HUD — port of web GameOverlay (1v1): screen vignettes and flash tints, top bar with frags and the timer,
+## beam-cooldown crosshair ring, shield corner brackets and dash side bars; the combat HUD shows only while live
+## (web hides it during the countdown). Countdown / banner / respawn text get their web styling in H2 task 3.
 
 const BANNER_TIME := 2.0
 const HUMAN_ID := 0
@@ -16,6 +16,7 @@ const COUNTDOWN_FONT_SIZE := 96
 
 var _human: PlayerNode
 var _match: MatchNode
+var _overlay: HudOverlayFx
 var _top_bar: HudTopBar
 var _crosshair: HudCrosshair
 var _brackets: HudShieldBrackets
@@ -29,6 +30,8 @@ func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_human = human
 	_match = match_node
 	_match.frag.connect(_on_frag)
+	_match.fired.connect(_on_fired)
+	_match.blocked.connect(_on_blocked)
 	_match.match_ended.connect(_on_match_ended)
 
 ## The match-end screen replaces the HUD (web GameOverlay renders the HUD only while there is no result).
@@ -36,6 +39,9 @@ func _on_match_ended(_result: Dictionary) -> void:
 	visible = false
 
 func _ready() -> void:
+	# Vignettes first: the web windup vignette sits under the crosshair and brackets (z-index 9 vs 10/11).
+	_overlay = HudOverlayFx.new()
+	add_child(_overlay)
 	_brackets = HudShieldBrackets.new()
 	add_child(_brackets)
 	_dash = HudDashBars.new()
@@ -89,13 +95,28 @@ func _process(delta: float) -> void:
 	_crosshair.set_progress(player.beam_progress())
 	_brackets.set_state(player.shield_progress(), player.is_shielded())
 	_dash.set_progress(player.dash_progress())
+	_overlay.set_ghost(live and player.respawning)
+	_overlay.set_shield_active(live and player.is_shielded())
+	_overlay.set_windup(player.windup_progress() if live else 0.0)
 	_respawn.visible = live and player.respawning
 	if _banner_time > 0.0:
 		_banner_time = maxf(0.0, _banner_time - delta)
 		if _banner_time == 0.0:
 			_banner.visible = false
 
-func _on_frag(shooter_id: int, _victim_id: int, streak: int, first_blood: bool) -> void:
+## web BEAM_FLASH: only the local player's own shot tints the screen.
+func _on_fired(shooter_id: int) -> void:
+	if shooter_id == HUMAN_ID:
+		_overlay.flash_beam()
+
+## web SHIELD_BLOCK: the local player blocked a shot.
+func _on_blocked(_shooter_id: int, victim_id: int, _perfect: bool) -> void:
+	if victim_id == HUMAN_ID:
+		_overlay.flash_block()
+
+func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -> void:
+	if victim_id == HUMAN_ID:
+		_overlay.flash_hit()   # web PLAYER_HIT: the local player was killed
 	var text := HudModel.banner_for(shooter_id == HUMAN_ID, streak, first_blood)
 	if text != "":
 		_banner.text = text
