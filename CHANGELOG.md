@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Third-person view and camera feel.** V switches to the original's over-the-shoulder view (your ball becomes
   visible); your own shot shakes the camera briefly; the field of view widens during the respawn ghost phase like a
   dash. Mouse look uses the original's sensitivity and slows down while charging a shot.
+- **Player profiles.** The first launch creates a profile like the original — a generated model-style name and a
+  colour pair — and keeps it between sessions. Bots get a fresh model name each match, and the name decides their
+  colour and look exactly as in the original. The top bar, the streak banner and the result screen show everyone's
+  real name in their own colour, with the streak effect kept on the names at the end of the match.
 
 ### Fixed
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game

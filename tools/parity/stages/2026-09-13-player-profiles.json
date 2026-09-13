@@ -1,0 +1,126 @@
+{
+  "id": "2026-09-13-player-profiles",
+  "title": "Сверка паритета OneShot · профили игроков",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса P1: профиль игрока (ник в стиле модели и пара цветов, хранится между запусками), ник бота (сгенерированный или заданный хостом), внешность бота по нику и ростер матча. Верхняя строка, баннер серии и экран результата показывают настоящие ники в цветах игроков. Для сравнимых кадров web и Godot получили одинаковый профиль PARITY7 `#fa4` и бота EX82R. По ходу найдены и исправлены три дефекта текста: неверный размер колонки имён, жёсткий прямоугольник вокруг свечения серий и перезапись профиля фикстуры.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-player-profiles.json`. Web: `web-reference/scripts/parity-capture-profile.mjs` → `test-results/parity-gpu-p1/` (профиль через `localStorage['oneshot:profile']`, ник бота через поле лобби, серия ×2 через `__debugStreak`, конец через `__debugForceEnd`); пробник свечения `parity-probe-fx-region.mjs` → `test-results/probes/fx-region/`. Godot: `tools/screenshot.gd` режимы `profile`, `profile-double`, `profile:hud-banner-<kind>` (профиль задаётся в памяти, настоящий не меняется). Вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "player-profiles",
+      "name": "Ники, цвета и экран результата",
+      "verdict": "Ники и цвета совпадают: у игрока — из профиля, у бота — из его ника (цвет EX82R `#fd4` в обоих). Фраги и точки серии окрашены цветом игрока, имена в верхней строке серые, с эффектом серии — в цвете игрока. На экране результата имена сохраняют эффект серии, колонки имён и фрагов разнесены как в web. Свечение серий больше не обрезается прямоугольником. Остаются мелочи вёрстки экрана результата (кнопка EXIT без стиля web, колонка ниже на ~15px).",
+      "verdict_short": "Ники, цвета, внешность бота по нику перенесены; три дефекта текста исправлены",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["профиль", "PARITY7, `#fa4` / `#4af` (localStorage)", "PARITY7, `#fa4` / `#4af` (в памяти инструмента)"],
+        ["бот", "EX82R из поля лобби, пассивный", "EX82R через `Game.lobby_bot_name`, пассивный"],
+        ["цвет бота по нику", "`#fd4` (`__debugPlayerColor`)", "`#fd4` (`BotAppearance.from_name`)"],
+        ["серия ×2", "`__debugStreak` обоим + 600 мс", "серия обоим с начала матча, кадр 300"],
+        ["конец матча", "`__debugForceEnd` после серий", "длительность 1 с, кадр 460"],
+        ["тесты", "—", "GUT 262/262, 892 проверки"]
+      ],
+      "comparisons": [
+        {
+          "title": "Верхняя строка (увеличение ×3)",
+          "wipe": true,
+          "note": "Ники профиля и бота, фраги цветом игрока. Разница секунд таймера — момент кадра.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-p1/crops/web-hud.png", "note": "PARITY7 серый, фраг `#fa4`; EX82R серый, фраг `#fd4`."},
+            {"kind": "godot", "img": "parity-gpu-p1/crops/godot-hud.png", "note": "То же."}
+          ]
+        },
+        {
+          "title": "Серия ×2 на именах (увеличение ×3)",
+          "wipe": true,
+          "note": "Имена в цвете игрока с глитчем и мягким свечением, точки серии цветом игрока.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-p1/crops/web-hud-double.png", "note": "Свечение мягкое, без рамки."},
+            {"kind": "godot", "img": "parity-gpu-p1/crops/godot-hud-double.png", "note": "После исправления H3f — тоже без рамки."}
+          ]
+        },
+        {
+          "title": "Экран результата (увеличение ×2)",
+          "wipe": true,
+          "note": "Имена с эффектом серии в цветах игроков, фраги тем же цветом, колонки по общей границе.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-p1/crops/web-match-end.png", "note": "DRAW, PARITY7 / EX82R, TIME UP."},
+            {"kind": "godot", "img": "parity-gpu-p1/crops/godot-match-end.png", "note": "Тот же состав; колонка ниже из-за кнопки без стиля web."}
+          ]
+        },
+        {
+          "title": "Свечение SINGULARITY до и после исправления (увеличение ×3)",
+          "note": "Пробник области фильтра: web не обрезает свечение по рамке текста. Godot-кадр снят после исправления.",
+          "panels": [
+            {"kind": "web", "img": "probes/fx-region/crop-web-sing-banner.png", "note": "Широкое мягкое свечение."},
+            {"kind": "godot", "img": "probes/fx-region/crop-godot-sing-banner.png", "note": "Мягкое свечение без прямоугольника."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "P1", "severity": "fixed",
+          "title": "Профили игроков и ники",
+          "web": "Первый запуск: ник `generateModelName` и случайная пара цветов из 8; `sanitize` чинит сохранённые данные; бот получает ник из поля лобби или сгенерированный.",
+          "godot": "`PlayerProfile.random/sanitize`, `ModelNames.generate/bot_name`, `ProfileStore` (`user://profile.json`, ключи web); те же вызовы случайных чисел в том же порядке.",
+          "evidence": ["test", "screenshot", "code"],
+          "sources": ["sim/player_profile.gd", "sim/model_names.gd", "nodes/profile_store.gd", "tests/unit/test_profiles.gd", "web-reference/src/settings.ts", "web-reference/src/names.ts"]
+        },
+        {
+          "id": "P2", "severity": "fixed",
+          "title": "Внешность бота по нику",
+          "web": "`botAppearance(name)`: seededRng от ника выбирает цвет, модель шара, стили замаха / респавна / рывка / щита, запасной цвет последним.",
+          "godot": "`BotAppearance.from_name` на `SeededRng`; эталонные значения для EX82R и GTX59555 посчитаны кодом web и совпадают.",
+          "evidence": ["test", "runtime"],
+          "sources": ["sim/bot_appearance.gd", "sim/seeded_rng.gd", "web-reference/src/game/botAppearance.ts"]
+        },
+        {
+          "id": "P3", "severity": "fixed",
+          "title": "Ростер в HUD и на экране результата",
+          "web": "`MatchHud`: имя из ростера, цвет стороны = цвет игрока; баннер — имя и цвет стрелка; экран результата — `EffectText` с уровнем серии, фраги цветом игрока.",
+          "godot": "`MatchNode.roster` (`Roster.human_entry/bot_entry`), `HudTopBar.set_players`, баннер и `MatchEndedOverlay.show_result(result, roster, tiers)`.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["sim/roster.gd", "nodes/hud_top_bar.gd", "nodes/hud.gd", "nodes/match_ended_overlay.gd", "tests/unit/test_hud_streak_names.gd", "tests/unit/test_match_ended_overlay.gd"]
+        },
+        {
+          "id": "H3f", "severity": "fixed",
+          "title": "Прямоугольник вокруг свечения серий (найдено на этапе, дефект H3)",
+          "web": "Свечение `text-shadow` серий расходится мягко; область SVG-фильтра его не обрезает (замер пробником по рамкам элементов).",
+          "godot": "Было: область фильтра = рамка текста ±10%, свечение обрезалось жёстким прямоугольником. Стало: `StreakFx.filter_region` расширяет рамку на вылет тени, затем +10%.",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["sim/streak_fx.gd", "assets/shaders/text_turbulence.gdshader", "web-reference/scripts/parity-probe-fx-region.mjs"]
+        },
+        {
+          "id": "H3g", "severity": "fixed",
+          "title": "Колонка имён уже текста (найдено на этапе)",
+          "web": "Колонки рейтинга по содержимому: имена кончаются на общей границе, фраги через 28px.",
+          "godot": "Было: минимальный размер `EffectText` / `GlowText` брался до применения шрифта темы (64 вместо 81px), текст заходил в зазор. Стало: пересчёт по `minimum_size_changed`.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/effect_text.gd", "nodes/glow_text.gd", "tests/unit/test_effect_text.gd", "tests/unit/test_glow_text.gd"]
+        },
+        {
+          "id": "E2", "severity": "visual",
+          "title": "Кнопка EXIT и высота колонки экрана результата",
+          "web": "Кнопка `Button variant=\"primary\"` в стиле темы; колонка компактнее.",
+          "godot": "Кнопка Godot по умолчанию; колонка ниже примерно на 15px. Слайс темы интерфейса.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/match_ended_overlay.gd", "web-reference/src/ui/Button.tsx"]
+        },
+        {
+          "id": "S2", "severity": "missing",
+          "title": "Первое имя из Steam и экран «Внешность»",
+          "web": "На свежем профиле берётся имя Steam; ник, цвета и скины меняются в меню «Внешность».",
+          "godot": "Имя всегда сгенерированное; меню нет. Слайсы Steam и меню.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/settings.ts", "web-reference/src/screens/Appearance.tsx"]
+        }
+      ],
+      "limitations": [
+        "Кадры web и Godot сняты в разные моменты анимации глитча; сравнивается характер эффекта, не пиксели.",
+        "Секунды таймера на кадрах различаются из-за разного времени входа в матч.",
+        "Профиль в Godot-кадрах задан инструментом в памяти; сохранение на диск проверено тестом `ProfileStore`."
+      ]
+    }
+  ]
+}
