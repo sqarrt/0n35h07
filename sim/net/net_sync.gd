@@ -7,9 +7,13 @@ var owned_ids := {}     # id -> true
 var local_id := 0
 var tick := 0
 var _out_events := []   # events about our owned players, drained by NetSession each tick
+var _out_claims := []   # hit claims addressed to victims' owners, drained each tick
+var owner_of := {}      # id -> peer id; configured for mesh play, empty for local-only fixtures
+var rules := MatchRules.new()
 
 func add_player(p, owned: bool) -> void:
 	players[p.id] = p
+	rules.add_player(p)
 	if owned:
 		owned_ids[p.id] = true
 
@@ -20,11 +24,13 @@ func serialize_snapshot() -> Dictionary:
 			ps.append(NetProtocol.player_snapshot(players[id]))
 	return {"tick": tick, "players": ps}
 
-func apply_peer_snapshot(_from: String, snap: Dictionary) -> void:
+func apply_peer_snapshot(from: String, snap: Dictionary) -> void:
 	for s in snap["players"]:
 		var id := int(s["id"])
 		if owned_ids.has(id):
 			continue   # never overwrite our own authoritative state
+		if not _sender_owns(from, id):
+			continue
 		if players.has(id):
 			NetProtocol.apply_player_snapshot(players[id], s)
 
@@ -37,18 +43,83 @@ func drain_events() -> Array:
 	_out_events = []
 	return out
 
-## Apply a peer's discrete event to the players we don't own (reliable combat facts).
-func apply_peer_event(_from: String, e: Dictionary) -> void:
+# --- shooter-authoritative, victim-judged combat ---
+
+## Route a local shot's claim: judge now if we own the victim, else address it to the victim's owner.
+func queue_or_judge(claim: Dictionary) -> void:
+	if claim.get("hit_id") == null or claim.get("shooter") == null:
+		return
+	var hit_id: int = int(claim.get("hit_id", -1))
+	var shooter_id: int = int(claim.get("shooter", -1))
+	if not players.has(hit_id) or not owned_ids.has(shooter_id):
+		return
+	if owned_ids.has(hit_id):
+		judge_claim(local_id_peer(), claim)
+	elif owner_of.has(hit_id) and owner_of[hit_id] != "":
+		_out_claims.append({"to": owner_of[hit_id], "claim": claim})
+
+## Judge an incoming claim against a victim WE own — the victim's real local state decides.
+## Broadcasts a slim kill/block verdict (as an event) that every peer derives numbers from.
+func judge_claim(from: String, claim: Dictionary) -> void:
+	if claim.get("hit_id") == null or claim.get("shooter") == null:
+		return
+	var hit_id: int = int(claim.get("hit_id", -1))
+	var shooter_id: int = int(claim.get("shooter", -1))
+	if not owned_ids.has(hit_id):
+		return
+	if not players.has(hit_id) or not players.has(shooter_id):
+		return
+	if not _sender_owns(from, shooter_id):
+		return
+	var victim = players[hit_id]
+	var shooter = players[shooter_id]
+	if victim == shooter:
+		return
+	if shooter.team == victim.team:
+		return                       # teammate: no harm
+	if not victim.alive:
+		return
+	var point: Vector3 = victim.position()
+	var claim_point = claim.get("point")
+	if claim_point != null:
+		if not claim_point is Array or claim_point.size() != 3:
+			return
+		for component in claim_point:
+			if not (component is float or component is int):
+				return
+		point = Vector3(claim_point[0], claim_point[1], claim_point[2])
+	var distance: float = shooter.position().distance_to(point)
+	if not is_finite(distance) or distance > CombatConst.AIM_RANGE:
+		return
+	var res: String = victim.receive_hit()   # the shield on the victim's screen wins
+	var verdict: Dictionary
+	if res == "blocked":
+		verdict = {"t": "block", "shooter": shooter_id, "victim": hit_id, "perfect": victim.is_perfect_block()}
+	else:
+		verdict = {"t": "kill", "shooter": shooter_id, "victim": hit_id}
+	rules.apply_combat_event(verdict)
+	emit_event(verdict)
+
+func drain_claims() -> Array:
+	var out := _out_claims
+	_out_claims = []
+	return out
+
+func local_id_peer() -> String:
+	return owner_of.get(local_id, "")
+
+func _sender_owns(from: String, id: int) -> bool:
+	return owner_of.is_empty() or (owner_of.has(id) and owner_of[id] == from)
+
+## Only the victim's owner judges combat; all peers derive the same scores and rewards.
+func apply_peer_event(from: String, e: Dictionary) -> void:
 	match e.get("t", ""):
-		"kill":
+		"kill", "block":
 			var v := int(e["victim"])
-			if players.has(v) and not owned_ids.has(v):
-				players[v].alive = false
-				players[v].respawning = true
+			if not owned_ids.has(v) and _sender_owns(from, v):
+				rules.apply_combat_event(e)
 		"respawn":
 			var id := int(e["id"])
-			if players.has(id) and not owned_ids.has(id):
+			if players.has(id) and not owned_ids.has(id) and _sender_owns(from, id):
 				var pos: Array = e["pos"]
-				players[id].body.position = Vector3(pos[0], pos[1], pos[2])
-				players[id].alive = true
-				players[id].respawning = false
+				players[id].respawn_at(Vector3(pos[0], pos[1], pos[2]))

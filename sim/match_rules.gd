@@ -77,6 +77,19 @@ func _apply_block(_shooter, victim, perfect: bool) -> void:
 	if perfect:
 		victim.reset_cooldowns()
 
+## Apply an already judged network verdict using the same score/reward rules as local combat.
+## The caller checks ownership; receive_hit must only run on the victim's owner.
+func apply_combat_event(e: Dictionary) -> void:
+	var shooter = _by_id(int(e.get("shooter", -1)))
+	var victim = _by_id(int(e.get("victim", -1)))
+	if shooter == null or victim == null:
+		return
+	match e.get("t", ""):
+		"kill":
+			_apply_kill(shooter, victim)
+		"block":
+			_apply_block(shooter, victim, bool(e.get("perfect", false)))
+
 func _resolve_respawns(dt: float) -> void:
 	for p in players:
 		if not p.respawning:
