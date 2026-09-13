@@ -254,8 +254,8 @@ def issue_html(issue: dict) -> str:
     return (f'<li class="issue"><div class="issue-id"><span class="num">{html.escape(issue["id"])}</span>'
             f'<span class="chip sev-{sev}">{SEVERITY[sev]}</span></div>'
             f'<div class="issue-body"><div class="issue-title">{text(issue["title"])}</div>'
-            f'<div class="sides"><div class="side"><span class="kind-web">WEB</span>{text(issue["web"])}</div>'
-            f'<div class="side"><span class="kind-godot">GODOT</span>{text(issue["godot"])}</div></div>'
+            f'<div class="sides"><div class="side"><span class="kind-web">WEB</span><p>{text(issue["web"])}</p></div>'
+            f'<div class="side"><span class="kind-godot">GODOT</span><p>{text(issue["godot"])}</p></div></div>'
             f'<div class="issue-foot"><span class="ev">подтверждено: {evidence}</span>{sources}</div></div></li>')
 
 
