@@ -21,6 +21,8 @@ declare global {
     __debugStreak?: (id: number, count: number) => void
     __debugPlayerColor?: (id: number) => string | null
     __debugTimeScale?: (k: number) => void
+    __debugKill?: (id: number) => void
+    __debugRespawning?: (id: number) => boolean
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void

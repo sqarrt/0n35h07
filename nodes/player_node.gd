@@ -19,10 +19,9 @@ var _hitbox: Hitbox
 var _body_visible := true
 var _appearance := {}                  # roster entry: colour and cosmetic styles
 var _base_color := Color(AppearanceConst.FALLBACK_EFFECT_COLOR)
-var _death_burst: DeathBurst
-var _burst_view: ParticleView
-var _ghost_trail: AfterimageTrail
-var _ghost_trail_view: ParticleView
+var _respawn_fx: RespawnFxView
+var _respawn_frame := RespawnFxView.Frame.new()
+var _windup_world: WindupWorldView
 var _dash_trail: DashTrailView
 var _visual_ms := 0.0                  # visual clock (web Date.now for fireTime / spawnTime)
 var _fire_ms := -INF                   # the last own shot (windup deflate)
@@ -50,16 +49,23 @@ func apply_appearance(entry: Dictionary) -> void:
 		entry.get("ballArt", ""))
 	_shield_fx.setup(entry.get("shieldStyle", ShieldSkinState.DOME))
 	_dash_trail.setup(entry.get("dashStyle", DashTrailView.STYLE_STREAK), _base_color)
-	_rebuild_particles()
+	_respawn_fx.setup(entry.get("respawnStyle", AppearanceConst.RESPAWN_STYLES[0]), _base_color, _roll)
+	_windup_world.setup(entry.get("windupStyle", AppearanceConst.WINDUP_STYLES[0]), _roll)
 
 func ball_visual() -> BallVisual:
 	return _ball
 
 func burst_view() -> ParticleView:
-	return _burst_view
+	return _respawn_fx.burst_view()
 
 func ghost_trail_view() -> ParticleView:
-	return _ghost_trail_view
+	return _respawn_fx.ghost_trail_view()
+
+func respawn_fx() -> RespawnFxView:
+	return _respawn_fx
+
+func windup_world() -> WindupWorldView:
+	return _windup_world
 
 func is_body_visible() -> bool:
 	return _body_visible
@@ -105,6 +111,12 @@ func _ready() -> void:
 	_ball.position.y = SkinCurves.BODY_MESH_Y
 	add_child(_ball)
 	_shield_fx.position.y = SkinCurves.BODY_MESH_Y   # web: the shield rides at the ball centre
+	_respawn_fx = RespawnFxView.new()
+	_respawn_fx.name = "RespawnFx"
+	add_child(_respawn_fx)
+	_windup_world = WindupWorldView.new()
+	_windup_world.name = "WindupWorld"
+	add_child(_windup_world)
 	apply_appearance(_appearance)
 
 ## Teleport onto a spawn point: moves the sim body and the physics body together, without an interpolated slide.
@@ -188,45 +200,55 @@ func _process(delta: float) -> void:
 		_hitbox.collision_layer = 0 if ghost else CombatConst.LAYER_HITBOX_BIT   # the ghost can't be shot
 	update_visuals(delta)
 
-## The ball's per-frame look (web Player.syncVisuals + ClassicWindupFx / EchoRespawnFx): death burst on the death edge,
-## translucent ghost with its clone trail, windup swell / deflate, the springy rebirth poof.
+## The ball's per-frame look (web Player.syncVisuals): the windup strategy (ball + world part) outside the ghost, then
+## the respawn strategy (death edge, ghost, rebirth window beating the windup scale), the dash trail and the shield.
 func update_visuals(delta: float) -> void:
 	if _ball == null:
 		return
 	_visual_ms += delta * SkinCurves.MS_PER_S
 	var ghost := player.respawning
+	var origin := global_position + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)
 	if ghost and not _was_respawning and _body_visible:
-		_death_burst.emit(global_position + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0), func() -> float: return randf())
+		_respawn_fx.on_death(origin, _roll)
 	if _was_respawning and not ghost:
 		_spawn_ms = _visual_ms
 	_was_respawning = ghost
 	_ball.visible = _body_visible
 	_ball.face_dir(player.look_dir())
 	_ball.tick(delta)
-	var rebirth := SkinCurves.echo_respawn(ghost, _visual_ms - _spawn_ms)
 	if ghost:
-		_ball.set_scale_factor(rebirth["scale"])
-		_ball.set_color(_base_color)
 		_ball.set_emission(Color.BLACK)
-		_ball.set_opacity(rebirth["opacity"])
+		_windup_world.visible = false
 	else:
+		_ball.set_opacity(1.0)
+		var progress := player.windup_progress()
+		var shrink := SkinCurves.shrink(_visual_ms - _fire_ms)
 		var look := SkinCurves.windup_ball(_appearance.get("windupStyle", AppearanceConst.WINDUP_STYLES[0]),
-			player.windup_progress(), SkinCurves.shrink(_visual_ms - _fire_ms), _base_color,
-			_visual_ms / SkinCurves.MS_PER_S)
+			progress, shrink, _base_color, _visual_ms / SkinCurves.MS_PER_S)
 		_ball.set_scale_factor(look["scale"])
 		_ball.set_color(look["color"])
 		_ball.set_emission(look["emission"])
-		_ball.set_opacity(1.0)
-		if rebirth["active"]:   # the poof beats the windup scale
-			_ball.set_scale_factor(rebirth["scale"])
-			_ball.set_color(_base_color)
-	_ghost_trail.update(delta, ghost and _body_visible, global_position)
-	_ghost_trail_view.refresh()
-	_death_burst.update(delta)
-	_burst_view.refresh()
+		_windup_world.apply(delta, progress, shrink, origin, player.look_dir(), _body_visible, _roll)
+	_respawn_fx.apply(delta, _ball, _fill_respawn_frame(ghost, origin), _roll)
+	_respawn_fx.update(delta)
 	_dash_trail.visible = _body_visible   # web setBodyVisible: no own trail in first person
 	_dash_trail.update(delta, player.body.is_dashing(), global_position)
 	_shield_fx.update(delta)
+
+func _fill_respawn_frame(ghost: bool, origin: Vector3) -> RespawnFxView.Frame:
+	var f := _respawn_frame
+	f.ghost = ghost
+	f.ghost_left = maxf(0.0, player.respawn_timer / MatchConst.RESPAWN_GHOST_MS)   # web respawnProgress
+	f.since_rebirth_ms = _visual_ms - _spawn_ms
+	f.origin = origin
+	f.eye = global_position
+	f.base_color = _base_color
+	f.shown = _body_visible
+	return f
+
+## web Math.random for the cosmetic strategies.
+func _roll() -> float:
+	return randf()
 
 func dash_trail() -> DashTrailView:
 	return _dash_trail
@@ -236,22 +258,7 @@ func shield_fx() -> ShieldFx:
 
 ## web: no shield bubble in first person, during the ghost phase or the rebirth window.
 func _shield_can_show() -> bool:
-	return _body_visible and not player.respawning and not SkinCurves.is_echo_rebirth(_visual_ms - _spawn_ms)
-
-func _rebuild_particles() -> void:
-	for view in [_burst_view, _ghost_trail_view]:
-		if view != null:
-			view.queue_free()
-	_death_burst = DeathBurst.new(_base_color)
-	_burst_view = ParticleView.new()
-	_burst_view.name = "DeathBurst"
-	add_child(_burst_view)
-	_burst_view.setup(_death_burst.pool, SkinCurves.DEATH_BURST_RADIUS, _base_color)
-	_ghost_trail = AfterimageTrail.new(_base_color)
-	_ghost_trail_view = ParticleView.new()
-	_ghost_trail_view.name = "GhostTrail"
-	add_child(_ghost_trail_view)
-	_ghost_trail_view.setup(_ghost_trail.pool, SkinCurves.DASH_TRAIL_RADIUS, _base_color)
+	return _body_visible and not player.respawning and not _respawn_fx.is_rebirth_active(_visual_ms - _spawn_ms)
 
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
