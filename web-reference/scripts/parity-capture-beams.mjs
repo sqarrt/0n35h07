@@ -22,7 +22,11 @@ for (const style of STYLES) {
     const renderer = await enterLiveMatch(page, base, mapId, async () => {}, { profile, botName: 'EX82R' });
     await page.keyboard.press('KeyV');
     await settleScene(page);
-    await page.evaluate(k => window.__debugTimeScale?.(k), TIME_SCALE);
+    // A stale dev server (no file watching on some mounts) would lack the hook: fail instead of capturing real time.
+    if (!(await page.evaluate(() => typeof window.__debugTimeScale === 'function'))) {
+      throw new Error('__debugTimeScale hook missing: restart the Vite dev server');
+    }
+    await page.evaluate(k => window.__debugTimeScale(k), TIME_SCALE);
     await page.evaluate(() => window.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true })));
     // Wait for the shot in sim time (windup), then the offset into the beam life.
     await page.waitForTimeout((WINDUP_MS + SHOT_OFFSET_MS - SIM_MARGIN_MS) / TIME_SCALE);

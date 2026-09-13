@@ -275,6 +275,7 @@ func _spiral_points() -> MultiMeshInstance3D:
 	multimesh.mesh = quad
 	multimesh.instance_count = BeamCurves.SING_SPIRAL_PARTICLES
 	var node := MultiMeshInstance3D.new()
+	node.top_level = true   # instance transforms are world positions; the beam's parent moves with the player
 	node.multimesh = multimesh
 	var material := _material(_shell_color, 0.0, true)
 	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
