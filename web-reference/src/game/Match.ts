@@ -28,6 +28,7 @@ import type { ISfxEngine } from './audio/sfx/types'
 import { MatchSfx } from './audio/sfx/MatchSfx'
 import type { PlayerSfxInput } from './audio/sfx/MatchSfx'
 import { streakTier, announceKind, announceSfx } from './streak'
+import type { AnnounceKind } from './streak'
 import type { IAchievements } from '../steam/achievements'
 import { NoopAchievements } from '../steam/achievements'
 import { bountyFrags, breakResetsCooldowns } from './overheat'
@@ -907,11 +908,15 @@ export class Match {
     this.dispatch({ type: 'SET_STREAK', id: victimId, tier: null, count: 0 })
     const kind = announceKind(streak, firstBlood)
     if (!kind) return
+    this.dispatchAnnounce(shooterId, kind)
+    this.sfx?.play2D(announceSfx(kind))
+    ;(window.__debugAnnounces ??= []).push(kind)      // for e2e: full announce history (first = catalyst)
+  }
+
+  private dispatchAnnounce(shooterId: number, kind: AnnounceKind) {
     const name = this.byId.get(shooterId)?.name ?? ''
     const color = this.colorOf.get(shooterId) ?? '#4af'
     this.dispatch({ type: 'ANNOUNCE', name, color, kind })
-    this.sfx?.play2D(announceSfx(kind))
-    ;(window.__debugAnnounces ??= []).push(kind)      // for e2e: full announce history (first = catalyst)
   }
 
   /** host: match events over the past frames (to broadcast) + clear. */
@@ -1066,6 +1071,11 @@ export class Match {
     }
     w.__debugBodyScale = (id: number) => this.byId.get(id)?.bodyScale ?? null
     w.__debugForceEnd = () => this.endMatch('time')
+    // Parity captures: show a streak banner / HUD name tier without playing the kills out (display only).
+    w.__debugAnnounce = (kind: AnnounceKind, shooterId = this.localId) => this.dispatchAnnounce(shooterId, kind)
+    w.__debugStreak = (id: number, count: number) =>
+      this.dispatch({ type: 'SET_STREAK', id, tier: streakTier(count), count })
+    w.__debugPlayerColor = (id: number) => this.colorOf.get(id) ?? null
     w.__debugPlayerSpeed = (id: number) => this.byId.get(id)?.speed ?? null
     // Physics ready = Rapier WASM loaded and the world attached (before that applyPhysics is a no-op, no movement).
     // For e2e: __debugForceLive enters live before physics is ready (in the real flow the readiness ritual
@@ -1085,6 +1095,9 @@ export class Match {
     delete w.__debugScore
     delete w.__debugBodyScale
     delete w.__debugForceEnd
+    delete w.__debugAnnounce
+    delete w.__debugStreak
+    delete w.__debugPlayerColor
     delete w.__debugPlayerSpeed
     delete w.__debugPhysicsReady
     if (this.singularityActive) this.world.setBlocksTransparent(false)   // restore blocks to opaque

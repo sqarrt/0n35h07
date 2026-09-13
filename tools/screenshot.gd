@@ -6,6 +6,9 @@ extends SceneTree
 ##   passive-bot       the opponent stands still (like the web capture fixture); spawns and camera stay native.
 ##   reference-camera  passive bot + participants forced onto raw.spawns + camera forced to spawn 0 (tool-only).
 ##   hud-banner        passive bot + the streak banner announcing the local player's CATALYST, 600 ms in (web frame).
+##   hud-banner-<kind> the same for catalyst / double / triple / singularity (web __debugAnnounce frames).
+##   hud-names-<tier>  passive bot + both players on a double / triple / singularity streak, 600 ms in
+##                     (web __debugStreak frames).
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   (any other value, e.g. "-") no fixture.
 ## <match ms> overrides Game.match_duration_ms, e.g. to capture the match-end screen quickly.
@@ -18,10 +21,15 @@ const MODE_PASSIVE_BOT := "passive-bot"
 const MODE_REFERENCE_CAMERA := "reference-camera"
 const MODE_HUD_BANNER := "hud-banner"
 const MODE_HUD_GHOST := "hud-ghost"
+const MODE_HUD_NAMES := "hud-names-"
+const KIND_SEPARATOR := "-"
 const HUMAN_ID := 0
 const REFERENCE_FOV := 75.0
-const FIRST_BLOOD_STREAK := 1
+const FIRST_BLOOD_KIND := "catalyst"
+const TIER_STREAKS := {"double": Streak.STREAK_DOUBLE, "triple": Streak.STREAK_TRIPLE,
+	"singularity": Streak.STREAK_SINGULARITY}
 const BANNER_FRAME_S := 0.6          # web capture takes the banner 600 ms after the kill
+const NAME_FRAME_FRAMES := 36        # web capture takes the names 600 ms after __debugStreak (at --fixed-fps 60)
 const GHOST_SHARE_LEFT := 0.5
 const ARG_SCENE := 0
 const ARG_MAP := 1
@@ -61,7 +69,8 @@ func _initialize() -> void:
 		if g != null:
 			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
-	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_BANNER, MODE_HUD_GHOST]
+	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST] \
+		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES)
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
@@ -93,20 +102,27 @@ func _process(_delta: float) -> bool:
 		_capture()
 	return _capture_done
 
-## HUD states the tool can't reach by playing (tool-only fixtures, stated in reports).
-func _apply_hud_fixture() -> bool:
-	match _mode:
-		MODE_HUD_BANNER:
-			var banner := root.find_child("StreakBanner", true, false) as HudStreakBanner
-			banner.announce(HudModel.player_name(HUMAN_ID), HudModel.announce_word(FIRST_BLOOD_STREAK, true))
-			banner.tick(BANNER_FRAME_S)
-			return true
-		MODE_HUD_GHOST:
-			var human := _human()
-			human.player.respawning = true
-			human.player.respawn_timer = MatchConst.RESPAWN_GHOST_MS * GHOST_SHARE_LEFT
-			return true
-	return false
+## HUD states the tool can't reach by playing (tool-only fixtures, stated in reports); returns the frames to render
+## before the capture (0 = no fixture).
+func _apply_hud_fixture() -> int:
+	if _mode.begins_with(MODE_HUD_BANNER):
+		var kind := _mode.trim_prefix(MODE_HUD_BANNER).trim_prefix(KIND_SEPARATOR)
+		var banner := root.find_child("StreakBanner", true, false) as HudStreakBanner
+		banner.announce(HudModel.player_name(HUMAN_ID), kind if kind != "" else FIRST_BLOOD_KIND,
+			HudModel.player_color(HUMAN_ID))
+		banner.tick(BANNER_FRAME_S)
+		return 1
+	if _mode.begins_with(MODE_HUD_NAMES):
+		var streak: int = TIER_STREAKS[_mode.trim_prefix(MODE_HUD_NAMES)]
+		for node in _players():
+			node.player.streak = streak
+		return NAME_FRAME_FRAMES
+	if _mode == MODE_HUD_GHOST:
+		var human := _human()
+		human.player.respawning = true
+		human.player.respawn_timer = MatchConst.RESPAWN_GHOST_MS * GHOST_SHARE_LEFT
+		return 1
+	return 0
 
 func _capture() -> void:
 	var camera := root.get_camera_3d()
@@ -117,8 +133,8 @@ func _capture() -> void:
 		camera.global_position = Vector3(spawn[0], spawn[1], spawn[2])
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
-	if _apply_hud_fixture():
-		await process_frame   # let the HUD pick the fixture up before drawing
+	for i in _apply_hud_fixture():
+		await process_frame   # let the HUD pick the fixture up (and play its animation) before drawing
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(_output)
 	if result != OK:

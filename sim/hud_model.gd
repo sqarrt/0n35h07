@@ -77,8 +77,6 @@ static func dash_bar_look(progress: float) -> Dictionary:
 const BANNER_DURATION_S := 2.05                # web ks-annShow
 # web ks-annShow keyframes as [fraction, opacity]; steps(1, end) holds each value until the next keyframe.
 const BANNER_KEYFRAMES := [[0.0, 0.0], [0.02, 0.25], [0.03, 1.0], [0.04, 0.4], [0.05, 1.0], [0.90, 1.0], [0.98, 0.5], [1.0, 0.0]]
-const EASE_OUT_X2 := 0.58                      # CSS ease-out = cubic-bezier(0, 0, 0.58, 1)
-const BEZIER_STEPS := 30                       # bisection steps when solving the curve for x
 const POP_START_SCALE := 1.6                   # web cdPop
 const POP_END_SCALE := 1.0
 const POP_VISIBLE_AT := 0.25                   # cdPop opacity keyframe: fully visible at 25%
@@ -94,22 +92,9 @@ static func banner_opacity(elapsed_s: float) -> float:
 			value = key[1]
 	return value
 
-## CSS `ease-out` timing: solve cubic-bezier(0, 0, 0.58, 1) for x (monotonic) and return y.
+## CSS `ease-out` timing (cubic-bezier(0, 0, 0.58, 1)).
 static func css_ease_out(x: float) -> float:
-	var target := clampf(x, 0.0, READY)
-	var lo := 0.0
-	var hi := READY
-	var t := target
-	for i in BEZIER_STEPS:
-		t = (lo + hi) / 2.0
-		if _bezier_x(t) < target:
-			lo = t
-		else:
-			hi = t
-	return 3.0 * (1.0 - t) * t * t + t * t * t
-
-static func _bezier_x(t: float) -> float:
-	return 3.0 * (1.0 - t) * t * t * EASE_OUT_X2 + t * t * t
+	return CssTiming.cubic_bezier(x, CssTiming.EASE_OUT)
 
 ## Countdown number pop `progress` (0..1) through its 1 s animation (web cdPop, ease-out per keyframe segment).
 static func countdown_pop(progress: float) -> Dictionary:
@@ -143,3 +128,10 @@ const SHIELD_BLOCK_TINT := Color(0.0, 180.0 / 255.0, 1.0, 0.07) # web rgba(0,180
 
 static func player_name(id: int) -> String:
 	return "YOU" if id == 0 else "BOT"
+
+const YOU_COLOR := Color("#3377ff")            # web TEAM_COLORS[0] (#37f) until player profiles exist
+const OPPONENT_COLOR := Color("#ff5533")       # web TEAM_COLORS[1] (#f53)
+
+## A player's colour (web roster colour, the --pc of streak effects).
+static func player_color(id: int) -> Color:
+	return YOU_COLOR if id == 0 else OPPONENT_COLOR

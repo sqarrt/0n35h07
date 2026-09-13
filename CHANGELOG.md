@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
 
-- **Matches end on time.** A match now runs for a set length (5 minutes by default) with the time left shown in
+- **Matches end on time.** A match now runs for a set length (3 minutes by default, the original lobby's first
+  choice) with the time left shown in
   the HUD. When the clock runs out everyone freezes and, after a brief freeze-frame, the result screen shows victory,
   defeat or draw, every player ranked by kills, the reason and an exit back to the main menu. The pause menu no
   longer opens once the match is over.
@@ -41,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   for the original's durations.
 - **Block cell grid.** Maps that enable it (Pool) outline every block cell with translucent blue lines, as in the
   original.
+- **Kill-streak text effects and soft glows.** The streak banner and the players' names in the top bar take the
+  original's streak effects: DOUBLE KILL flickers in the player's colour with electric distortion, TRIPLE KILL
+  overdrives, SINGULARITY burns and corrupts its letters, CATALYST throbs with sparks; streak dots count each
+  player's run. Every HUD glow — the countdown number, the respawn caption and bars, the result headline — is now a
+  soft blur like the original's instead of a hard outline.
 
 ### Fixed
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game

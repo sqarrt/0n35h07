@@ -1,0 +1,197 @@
+{
+  "id": "2026-09-13-streak-text",
+  "title": "Сверка паритета OneShot · эффекты серий и свечения",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса H3: текст баннера серии и имена игроков рисуются эффектом серии из web (`EffectText`: глитч-копии, искры, турбулентность, мерцание, подмена символов), а все свечения HUD — настоящим гауссовым размытием вместо контура. Закрыты замечания пользователя о свечении цифр отсчёта и о полосах ghost-фазы. Кадры сняты на одном GPU (NVIDIA RTX 4080); уровни серий в web вызваны новыми отладочными хуками `__debugAnnounce` и `__debugStreak`.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-streak-text.json`. Web: `web-reference/scripts/parity-capture-streak.mjs` → `test-results/parity-gpu-h3/` (баннер каждого вида через 600 мс после `__debugAnnounce`, имена через 600 мс после `__debugStreak` для обоих игроков). Godot: `tools/screenshot.gd` → `test-results/parity-gpu-h3/` (фикстуры `hud-banner-<kind>`, `hud-names-<tier>`, `hud-ghost`; отсчёт — кадр 40). Отсчёт и экран результата web — из `test-results/parity-gpu-h2/`. Увеличенные фрагменты: `tools/parity/crop.py` → `test-results/parity-gpu-h3/crops/`.",
+  "pages": [
+    {
+      "slug": "streak-text",
+      "name": "Эффекты серий, имена и свечения",
+      "verdict": "Баннеры всех четырёх видов и имена на трёх уровнях серии воспроизводят web-эффекты: цвет текста по правилу вида, цветные глитч-полосы, искры, турбулентность с обрезкой по области SVG-фильтра, мерцание и подмену символов. Свечения отсчёта, подписи и полос ghost-фазы, заголовка результата стали мягкими, как в web. Открыты: профили игроков (ники и цвета), размер глифа точек серии и рисунок шума турбулентности.",
+      "verdict_short": "Эффекты серий и свечения перенесены; профили игроков открыты",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["кадр баннера", "`__debugAnnounce(kind)` + 600 мс, живой матч", "фикстура `hud-banner-<kind>`: объявление + 600 мс, кадр 300"],
+        ["кадр имён", "`__debugStreak` для обоих игроков + 600 мс", "фикстура `hud-names-<tier>`: серия обоих игроков + 36 кадров (600 мс)"],
+        ["цвет игрока `--pc`", "цвет профиля `#fd4` у обоих", "цвета команд `#37f` / `#f53` (профилей ещё нет)"],
+        ["имена", "ники профиля GTX59555 / EX82R", "YOU / OPPONENT"],
+        ["отсчёт", "кадр web из этапа H2 (450 мс)", "кадр 40"],
+        ["тесты", "—", "GUT 239/239, 750 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Баннер DOUBLE KILL (увеличение ×2)",
+          "wipe": true,
+          "note": "Текст в цвете игрока, свечение 12px, голубая и розовая глитч-полосы со сдвигом, турбулентность по строкам. Разница цвета — профиль.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-banner-double.png", "note": "Жёлтый `#fd4` профиля, полосы `#5ff` / `#f6a`."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-banner-double.png", "note": "Синий `#37f`, те же полосы и искажение."}
+          ]
+        },
+        {
+          "title": "Баннер TRIPLE KILL (увеличение ×2)",
+          "wipe": true,
+          "note": "Светлый `#eaf4ff` текст с двойным свечением, дрожание, более сильная турбулентность.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-banner-triple.png", "note": "Разорванные глифы, розовая полоса сверху, голубая снизу."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-banner-triple.png", "note": "Та же картина; полосы на другой фазе `steps(2)`."}
+          ]
+        },
+        {
+          "title": "Баннер SINGULARITY (увеличение ×2)",
+          "wipe": true,
+          "note": "Белый текст, три свечения (6/18/32px), сильная турбулентность; свечение обрезано прямоугольником области фильтра (±10% рамки) — в обоих.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-banner-singularity.png", "note": "Тёплое прямоугольное свечение, символы частично подменены."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-banner-singularity.png", "note": "Такой же прямоугольник свечения и искажения."}
+          ]
+        },
+        {
+          "title": "Баннер CATALYST (увеличение ×2)",
+          "wipe": true,
+          "note": "Белый текст с пульсирующим свечением цвета игрока, без глитча и фильтра; искры вспыхивают на доли секунды.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-banner-catalyst.png", "note": "Мягкое жёлтое свечение."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-banner-catalyst.png", "note": "Мягкое синее свечение той же силы."}
+          ]
+        },
+        {
+          "title": "Имена: серия ×2 (увеличение ×3)",
+          "wipe": true,
+          "note": "Имя с эффектом DOUBLE и две точки серии у каждого игрока.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-names-double.png", "note": "Точки `●●` перед именем, эффект уровня на нике."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-names-double.png", "note": "Те же точки и эффект."}
+          ]
+        },
+        {
+          "title": "Имена: серия ×3 (увеличение ×3)",
+          "wipe": true,
+          "note": "TRIPLE: светлый текст, сильная турбулентность.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-names-triple.png", "note": "Три точки, разорванные глифы."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-names-triple.png", "note": "Три точки, разорванные глифы."}
+          ]
+        },
+        {
+          "title": "Имена: серия ×5 (увеличение ×3)",
+          "wipe": true,
+          "note": "SINGULARITY: подмена символов, прямоугольник свечения по области фильтра.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-names-singularity.png", "note": "Пять точек, подмена символов."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-names-singularity.png", "note": "Пять точек, подмена символов."}
+          ]
+        },
+        {
+          "title": "Свечение цифры отсчёта (увеличение ×2)",
+          "wipe": true,
+          "note": "Замечание пользователя: свечение было обводкой. Теперь размытие 40px `rgba(68,170,255,0.6)`.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-countdown.png", "note": "Мягкий голубой ореол вокруг «3»."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-countdown.png", "note": "Такой же мягкий ореол; цифра на другой фазе `cdPop`."}
+          ]
+        },
+        {
+          "title": "Полосы ghost-фазы (увеличение ×2)",
+          "note": "Замечание пользователя: вокруг полосы был залитый прямоугольник. Теперь `box-shadow 0 0 10px #9cf` решается точно (гауссово размытие прямоугольника). Web-кадр ghost-фазы снять нельзя.",
+          "panels": [
+            {"kind": "web", "absent_title": "кадр не снят", "absent": "Нет хука смерти своего игрока; параметры из `RespawnOverlay.tsx`: полоса 6px `#9cf`, свечение 10px."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-ghost-top.png", "note": "Тонкая светящаяся линия с мягким затуханием, без рамки."}
+          ]
+        },
+        {
+          "title": "Заголовок экрана результата (увеличение ×2)",
+          "note": "Свечение 26px цвета исхода стало размытием; разрядка 0.22em. Исход и язык разные (web-кадр на русском, после попадания).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-h3/crops/web-match-end.png", "note": "«ПОБЕДА» зелёным с мягким свечением."},
+            {"kind": "godot", "img": "parity-gpu-h3/crops/godot-match-end.png", "note": "«DRAW» жёлтым с таким же мягким свечением."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "H3a", "severity": "fixed",
+          "title": "Эффекты текста серий",
+          "web": "`EffectText`: DOUBLE — цвет игрока, свечение 12px, `ks-flick`; TRIPLE — `#eaf4ff`, `ks-jitter`; SINGULARITY — белый, три свечения, `ks-burn`, подмена символов каждые 240 мс; все уровни — глитч-копии `#5ff` / `#f6a` по `ks-gA` / `ks-gB` и турбулентность `ks-el1..3`; CATALYST — пульс свечения `ks-throb`, 5 искр и 3 засечки.",
+          "godot": "`StreakFx` (таблица стилей, ключевые кадры через `CssTiming`) и узел `EffectText`: композиция в SubViewport, глитч-копии с обрезкой полос, искры и засечки шейдерами, показ через шейдер турбулентности с обрезкой по области фильтра.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/streak_fx.gd", "sim/css_timing.gd", "nodes/effect_text.gd", "assets/shaders/text_turbulence.gdshader", "assets/shaders/glow_arc.gdshader", "tests/unit/test_streak_fx.gd", "tests/unit/test_effect_text.gd", "web-reference/src/components/EffectText.tsx"]
+        },
+        {
+          "id": "H3b", "severity": "fixed",
+          "title": "Свечение текста без размытия (замечание пользователя)",
+          "web": "`text-shadow` размывается по Гауссу (радиус B → σ = B/2): отсчёт 40px, подпись ghost-фазы 8px, заголовок результата 26px, эффекты серий 2–32px.",
+          "godot": "Было: контур `shadow_outline_size`. Стало: `GlowText` — маска глифов в SubViewport, горизонтальный и вертикальный проходы размытия, слои в порядке CSS.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/glow_text.gd", "assets/shaders/glow_blur.gdshader", "sim/css_shadow.gd", "nodes/hud_countdown.gd", "nodes/match_ended_overlay.gd", "tests/unit/test_glow_text.gd", "tests/unit/test_css_shadow.gd"]
+        },
+        {
+          "id": "H3c", "severity": "fixed",
+          "title": "Полосы ghost-фазы (замечание пользователя)",
+          "web": "Полосы 6px `#9cf` с `box-shadow: 0 0 10px #9cf` — тонкие линии с мягким затуханием.",
+          "godot": "Было: полупрозрачный прямоугольник вокруг полосы. Стало: шейдер `glow_rect` считает размытие прямоугольника точно (произведение разностей нормального распределения по осям).",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/hud_ghost_indicator.gd", "assets/shaders/glow_rect.gdshader", "tests/unit/test_hud_text_effects.gd"]
+        },
+        {
+          "id": "H3d", "severity": "fixed",
+          "title": "Уровень серии на имени и точки серии",
+          "web": "`MatchHud`: имя — `EffectText` с уровнем `streakTier`, перед именем `●` по числу серии (до 10) цветом игрока; тот же уровень не перезапускает анимацию.",
+          "godot": "`HudTopBar.set_streaks` по `MatchNode.streak_of`: `EffectText` имени, метка точек; смена только при смене уровня.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/hud_top_bar.gd", "nodes/hud.gd", "nodes/match_node.gd", "tests/unit/test_hud_streak_names.gd", "web-reference/src/components/MatchHud.tsx"]
+        },
+        {
+          "id": "H3e", "severity": "fixed",
+          "title": "Вертикаль имени в верхней строке (найдено на этапе)",
+          "web": "`.side { align-items: center }` — имя центрировано по высоте строки с фрагами.",
+          "godot": "После замены `Label` на `EffectText` имя прижалось к верху (≈4px выше). Исправлено: `SIZE_SHRINK_CENTER`; перепроверено кадром.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_top_bar.gd"]
+        },
+        {
+          "id": "L7", "severity": "fixed",
+          "title": "Длительность матча по умолчанию (найдено на этапе)",
+          "web": "Каждое «Играть» сбрасывает выбор длительности на `MATCH_DURATIONS_MIN[0]` = 3 минуты (`App.tsx`); на кадрах таймер 02:5x.",
+          "godot": "Было: 5 минут (`DEFAULT_MATCH_DURATION_MIN`, в web этой константой лобби не пользуется). Стало: `MatchConst.LOBBY_DEFAULT_DURATION_MIN` = 3, кадры пересняты.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/App.tsx", "autoloads/game.gd"]
+        },
+        {
+          "id": "P1", "severity": "missing",
+          "title": "Профили игроков: ники и цвета",
+          "web": "Имя и цвет `--pc` берутся из профиля (`roster.name`, `roster.color`); у бота — сгенерированный ник и цвет; фраги окрашены цветом игрока.",
+          "godot": "YOU / OPPONENT, цвета команд `#37f` / `#f53`. Следующий слайс.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MatchHud.tsx", "sim/hud_model.gd"]
+        },
+        {
+          "id": "H3f", "severity": "visual",
+          "title": "Глиф точек серии",
+          "web": "`●` берётся браузером из системного запасного шрифта — точки ≈4px.",
+          "godot": "Запасной глиф Godot мельче — точки ≈3px.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_top_bar.gd", "web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "I18N", "severity": "missing",
+          "title": "Язык интерфейса",
+          "web": "Интерфейс на языке браузера (кадр результата — «ПОБЕДА»); 10 локалей.",
+          "godot": "Только английские строки. Слайс меню и i18n.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/i18n"]
+        }
+      ],
+      "limitations": [
+        "Эффекты анимированы: фазы глитч-полос, искр и подмены символов на кадрах web и Godot не совпадают; сравнивается характер эффекта, а не пиксели.",
+        "Шум турбулентности в Godot — градиентный шум на GPU; рисунок SVG `feTurbulence` с тем же зерном не воспроизводится попиксельно, совпадают частоты, число октав и сила смещения.",
+        "Цвет игрока в web — цвет профиля (`#fd4`), в Godot — цвет команды; сравнение силы свечения поэтому приблизительное.",
+        "Кадр ghost-фазы web не снят; баннеры и уровни в Godot получены фикстурами инструмента съёмки, в web — отладочными хуками.",
+        "Web-кадры отсчёта и результата взяты из этапа H2 (другой запуск), Godot — из этого этапа."
+      ]
+    }
+  ]
+}

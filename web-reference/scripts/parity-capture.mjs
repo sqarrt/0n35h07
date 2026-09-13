@@ -1,94 +1,31 @@
-import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { VIEWPORT, SETTLE_FRAMES, SETTLE_MS, launchReferencePage, settleScene, enterLiveMatch } from './parity-lib.mjs';
 
 const output = resolve(process.argv[2] ?? '../test-results/parity-corrected');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
 const mapId = process.env.PARITY_MAP ?? 'os_arena';   // e.g. PARITY_MAP=os_pool_day
-const settleFrames = 180;
-const settleMs = 5000;
-// SwiftShader (the default software GL of headless Chromium) drops screen-space-steep GL_LINES, so the 1×1
-// floor grid renders as horizontal stripes only. Route WebGL to a real driver: the GPU through D3D11 on Windows
-// (the reference — what players see), ANGLE on desktop GL elsewhere; refuse to capture on SwiftShader.
-const ANGLE_BACKEND = process.platform === 'win32' ? 'd3d11' : 'gl';
-const GL_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu', `--use-angle=${ANGLE_BACKEND}`];
-const FORBIDDEN_RENDERER = /SwiftShader/i;
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({
-  headless: true,
-  args: GL_ARGS,
-  // Optional override when the installed Playwright browser build differs from the package's expected one.
-  ...(process.env.PARITY_CHROMIUM ? { executablePath: process.env.PARITY_CHROMIUM } : {}),
-});
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-const errors = [];
-page.on('pageerror', error => errors.push(error.message));
-async function glRenderer() {
-  return page.evaluate(() => {
-    const gl = document.createElement('canvas').getContext('webgl2');
-    const info = gl && gl.getExtension('WEBGL_debug_renderer_info');
-    return gl ? gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER) : 'no-webgl2';
-  });
-}
-// The button can mount before Canvas warmup, model fade, glow compilation and camera damping.
-// Wait for both real rendered frames and elapsed time; inspect the resulting captures as well.
-async function settleScene() {
-  await page.locator('canvas').first().waitFor({ state: 'visible' });
-  await page.evaluate(async ({ frameCount, duration }) => {
-    await document.fonts.ready;
-    await new Promise((done, reject) => {
-      let frames = 0;
-      const start = performance.now();
-      const timeout = setTimeout(() => reject(new Error('Scene did not settle in 60 seconds')), 60000);
-      function step(now) {
-        frames++;
-        if (frames >= frameCount && now - start >= duration) {
-          clearTimeout(timeout);
-          done();
-        } else requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
-    });
-  }, { frameCount: settleFrames, duration: settleMs });
-}
+const { browser, page, errors } = await launchReferencePage();
+const shot = name => page.screenshot({ path: resolve(output, `${name}.png`) });
 try {
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
-  const renderer = await glRenderer();
-  if (FORBIDDEN_RENDERER.test(renderer)) throw new Error(`Refusing to capture with a line-dropping renderer: ${renderer}`);
-  await page.getByTestId('menu-play').waitFor({ timeout: 60000 });
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-menu.png') });
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-menu-later.png') });
-  await page.getByTestId('menu-play').click();
-  await page.getByTestId('seat-addbot-1').waitFor();
-  await page.getByTestId(`lobby-map-${mapId}`).click();
-  const selectedMaps = await page.locator('[data-testid^="lobby-map-os_"][aria-pressed="true"]').getAttribute('data-testid');
-  if (selectedMaps !== `lobby-map-${mapId}`) throw new Error('Unexpected map selection');
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-lobby.png') });
-  await writeFile(resolve(output, 'web-lobby.txt'), await page.locator('body').innerText());
-  await page.getByTestId('seat-addbot-1').click();
-  await page.getByTestId('seat-diff-1-passive').click();
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-lobby-with-bot.png') });
-  await page.getByTestId('lobby-ready').click();
-  await page.waitForFunction(() => !!window.__debugCamera, { timeout: 30000 });
-  await page.evaluate(() => window.__debugReady?.());
-  // Countdown frame: mid-way through the first number's 1 s cdPop animation (scale/opacity settling).
-  const COUNTDOWN_FRAME_MS = 450;
-  await page.waitForFunction(() => window.__debugPhase?.() === 'countdown', null, { timeout: 30000 });
-  await page.waitForTimeout(COUNTDOWN_FRAME_MS);
-  await page.screenshot({ path: resolve(output, 'web-countdown.png') });
-  await page.waitForFunction(() => window.__debugPhysicsReady?.() && window.__debugPhase?.() === 'live');
-  await page.evaluate(() => {
-    const canvas = document.querySelector('canvas');
-    Object.defineProperty(document, 'pointerLockElement', { get: () => canvas, configurable: true });
-    document.dispatchEvent(new Event('pointerlockchange'));
+  const renderer = await enterLiveMatch(page, base, mapId, async stage => {
+    switch (stage) {
+      case 'menu':
+        await shot('web-menu');
+        await settleScene(page);
+        await shot('web-menu-later');
+        break;
+      case 'lobby':
+        await shot('web-lobby');
+        await writeFile(resolve(output, 'web-lobby.txt'), await page.locator('body').innerText());
+        break;
+      case 'lobby-with-bot': await shot('web-lobby-with-bot'); break;
+      case 'countdown': await shot('web-countdown'); break;
+      case 'live': await shot('web-game'); break;
+    }
   });
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-game.png') });
-  const runtime = { mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, errors };
+  const runtime = { mapId, renderer, viewport: VIEWPORT, settleFrames: SETTLE_FRAMES, settleMs: SETTLE_MS, errors };
   const saveRuntime = () => writeFile(resolve(output, 'web-runtime.json'), JSON.stringify(runtime, null, 2));
   await saveRuntime();   // the map frame is captured: keep its facts even if a later step fails
   // Shot: optional — on maps where the bot is out of the line of fire there is no hit to wait for.
@@ -102,11 +39,11 @@ try {
     });
     await page.waitForFunction(count => (window.__debugTargetHitCount ?? 0) > count, before, { timeout: 10000 });
     await page.evaluate(() => window.dispatchEvent(new MouseEvent('mouseup', { button: 0, bubbles: true })));
-    await page.screenshot({ path: resolve(output, 'web-hit.png') });
+    await shot('web-hit');
     // Streak banner frame: inside the fully visible stretch (5%..90%) of the 2.05 s ks-annShow flicker.
     const BANNER_FRAME_MS = 600;
     await page.waitForTimeout(BANNER_FRAME_MS);
-    await page.screenshot({ path: resolve(output, 'web-banner.png') });
+    await shot('web-banner');
   } catch (error) {
     runtime.shotSkipped = error.message;
   }
@@ -119,8 +56,8 @@ try {
   // Match end: take the time-up path, then let the freeze-frame and the outcome fade-in settle.
   await page.evaluate(() => window.__debugForceEnd?.());
   await page.getByTestId('match-outcome').waitFor({ timeout: 10000 });
-  await settleScene();
-  await page.screenshot({ path: resolve(output, 'web-match-end.png') });
+  await settleScene(page);
+  await shot('web-match-end');
   runtime.matchEnd = {
     outcome: await page.getByTestId('match-outcome').innerText(),
     reason: await page.getByTestId('match-reason').innerText(),
