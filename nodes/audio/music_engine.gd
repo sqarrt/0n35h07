@@ -23,7 +23,7 @@ const REVERB_ROOM := 0.6                        # approximates the web 1.8 s dec
 const REVERB_DAMPING := 0.5
 const MS_PER_S := 1000.0
 const USEC_PER_SEC := 1000000.0
-const SILENT_DB := -80.0
+const MASTER_OUT := "Master"
 const MIN_LINEAR := 0.0001
 const SLOT_ROLES := {
 	MusicSlots.SLOT_KICKS: MusicDirector.ROLE_KICKS, MusicSlots.SLOT_BASS: MusicDirector.ROLE_BASS,
@@ -70,7 +70,7 @@ func slot_bus(slot: String) -> String:
 	return "%s_%s" % [bus_prefix, slot]
 
 func capture() -> AudioEffectCapture:
-	return AudioServer.get_bus_effect(AudioServer.get_bus_index(master_bus()), EFFECT_CAPTURE) as AudioEffectCapture
+	return AudioBuses.effect(master_bus(), EFFECT_CAPTURE) as AudioEffectCapture
 
 func loop_index() -> int:
 	return _scheduler.applied_loop()
@@ -132,7 +132,7 @@ func step(elapsed_s: float, delta: float) -> void:
 	_fade_elapsed += delta
 	_fade = _fade_to if _fade_sec <= 0.0 else lerpf(_fade_from, _fade_to, minf(_fade_elapsed / _fade_sec, 1.0))
 	_smoothed_gain += (_user_gain - _smoothed_gain) * (1.0 - exp(-delta / GAIN_SMOOTHING_SEC))
-	var amplify := AudioServer.get_bus_effect(AudioServer.get_bus_index(master_bus()), EFFECT_AMPLIFY) as AudioEffectAmplify
+	var amplify := AudioBuses.effect(master_bus(), EFFECT_AMPLIFY) as AudioEffectAmplify
 	amplify.volume_db = linear_to_db(maxf(MIN_LINEAR, _fade * _smoothed_gain * MASTER_GAIN_DEFAULT))
 
 ## Ramp the fade linearly from its current level (web linearRampToValueAtTime on the master gain).
@@ -144,8 +144,8 @@ func _fade_to_level(level: float, sec: float) -> void:
 
 func _exit_tree() -> void:
 	for slot in MusicSlots.ALL_SLOTS:
-		_remove_bus(slot_bus(slot))
-	_remove_bus(master_bus())
+		AudioBuses.remove(slot_bus(slot))
+	AudioBuses.remove(master_bus())
 
 func _request(loop: int) -> void:
 	var states := _slots.assign(_provider.call(loop))
@@ -201,7 +201,7 @@ func _clip_name(stem: String) -> StringName:
 	return StringName(_manifest["silence"] if stem == MusicSlots.SILENT else stem)
 
 func _build_buses() -> void:
-	var master := _add_bus(master_bus(), "Master")
+	var master := AudioBuses.ensure(master_bus(), MASTER_OUT)
 	AudioServer.add_bus_effect(master, AudioEffectAmplify.new(), EFFECT_AMPLIFY)
 	var tail := AudioEffectDelay.new()
 	tail.dry = 1.0
@@ -216,7 +216,7 @@ func _build_buses() -> void:
 	AudioServer.set_bus_effect_enabled(master, EFFECT_TAIL, false)
 	AudioServer.add_bus_effect(master, AudioEffectCapture.new(), EFFECT_CAPTURE)
 	for slot in MusicSlots.ALL_SLOTS:
-		var bus := _add_bus(slot_bus(slot), master_bus())
+		var bus := AudioBuses.ensure(slot_bus(slot), master_bus())
 		AudioServer.add_bus_effect(bus, AudioEffectPanner.new(), EFFECT_PANNER)
 		var copy := AudioEffectDelay.new()
 		copy.dry = 0.0
@@ -243,18 +243,3 @@ func _build_buses() -> void:
 		AudioServer.add_bus_effect(bus, echo, EFFECT_ECHO)
 		for effect in [EFFECT_COPY_DELAY, EFFECT_REVERB, EFFECT_ECHO]:
 			AudioServer.set_bus_effect_enabled(bus, effect, false)
-
-func _add_bus(bus_name: String, send: String) -> int:
-	var index := AudioServer.get_bus_index(bus_name)
-	if index != -1:
-		return index
-	AudioServer.add_bus()
-	index = AudioServer.get_bus_count() - 1
-	AudioServer.set_bus_name(index, bus_name)
-	AudioServer.set_bus_send(index, send)
-	return index
-
-func _remove_bus(bus_name: String) -> void:
-	var index := AudioServer.get_bus_index(bus_name)
-	if index != -1:
-		AudioServer.remove_bus(index)
