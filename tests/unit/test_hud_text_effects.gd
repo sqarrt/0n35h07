@@ -90,6 +90,7 @@ func test_ghost_bars_glow_softly_on_the_hud_frame() -> void:
 	assert_almost_eq(bars[1].position.y + pad + HudGhostIndicator.THICKNESS, SCREEN.y - HudGhostIndicator.INSET, EPS)
 	assert_almost_eq(bars[0].position.x + pad + width / 2.0, SCREEN.x / 2.0, EPS, "centred")
 	ghost.show_progress(0.0)
+	ghost.tick(HudGhostIndicator.WIDTH_TRANSITION_S)   # web: width glides to 0 over 50 ms
 	assert_false(bars[0].visible, "no bar once the phase is over")
 
 func test_hud_uses_the_styled_text_effects() -> void:

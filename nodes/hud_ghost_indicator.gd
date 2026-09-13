@@ -16,8 +16,10 @@ const LABEL_RAISE := 120.0                   # web translateY(-120px) from top: 
 const LABEL_GLOW_BLUR := 8.0                 # web text-shadow 0 0 8px
 const HALF := 0.5
 const BAR_NAMES := ["BarTop", "BarBottom"]
+const WIDTH_TRANSITION_S := 0.05             # web transition: width 0.05s linear
 
 var _progress := 0.0
+var _width := CssTransition.new(WIDTH_TRANSITION_S)
 var _label: GlowText
 var _bars: Array[ColorRect] = []
 
@@ -51,14 +53,22 @@ func _ready() -> void:
 ## Show the indicator with the remaining share of the ghost phase (web progress runs 1 -> 0).
 func show_progress(progress: float) -> void:
 	_progress = clampf(progress, 0.0, HudModel.READY)
+	if not visible:
+		_width.snap(_progress)   # the bars mount at their width; later changes glide
+	_width.set_target(_progress)
 	visible = true
 	_layout()
 
 func hide_indicator() -> void:
 	visible = false
 
+## Advance the bar width transition (the HUD clock).
+func tick(delta: float) -> void:
+	_width.advance(delta)
+	_layout()
+
 func bar_width() -> float:
-	return size.x * HudModel.ghost_bar_width_share(_progress)
+	return size.x * HudModel.ghost_bar_width_share(_width.value)
 
 func bars() -> Array[ColorRect]:
 	return _bars

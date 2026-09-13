@@ -60,6 +60,11 @@ func set_shadows(shadows: Array) -> void:
 		_offsets[i] = shadow["offset"]
 	_resize()
 
+func _notification(what: int) -> void:
+	# The mask label lives outside the tree until a shadow needs it; free it with the node so it never leaks.
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(_mask_label) and _mask_label.get_parent() == null:
+		_mask_label.free()
+
 func label() -> Label:
 	return _label
 

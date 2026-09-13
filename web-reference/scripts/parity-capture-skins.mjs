@@ -1,5 +1,5 @@
-// Ball skin frames (G11a): the fixed parity identity (PARITY7 #fa4 smooth; bot EX82R, whose name rolls the planet
-// model in #fd4 with a #f55 ring) seen in third person at rest, halfway through an own windup and right after the
+// Ball skin frames (G11a): the fixed parity identity (PARITY7 #fa4 smooth; bot EX82R, whose name rolls the waves
+// model in #fd4) seen in third person at rest, halfway through an own windup and right after the
 // shot (deflate), with the camera facts.
 //   node scripts/parity-capture-skins.mjs <output dir> [base url]
 import { mkdir, writeFile } from 'node:fs/promises';
