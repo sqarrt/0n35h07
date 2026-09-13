@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Beams in every style.** Your shot fires the original's beam for your windup style — the classic white core in
   your colour with its afterglow, the ragged rage discharge or the dark singularity thread with its spiral — while
   bots fire the classic beam with a red shell. Impact sparks come only from your own hits, as in the original.
+- **Shield and dash skins.** Shields take the player's style — the pulsing wireframe dome, the hexagon tiles that
+  flash in a wave, or the crystal with a flickering face — and dashes leave the chosen trail: speed clones,
+  shockwave rings or a red-green-blue rift.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

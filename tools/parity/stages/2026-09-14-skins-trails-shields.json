@@ -1,0 +1,85 @@
+{
+  "id": "2026-09-14-skins-trails-shields",
+  "title": "Сверка паритета OneShot · скины: щиты и следы рывка",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап G11c: три скина щита (dome — заливка и каркасная сфера three.js, hex — 36 шестиугольников с волной вспышки, crystal — икосаэдр с вспыхивающей гранью) и три следа рывка (streak — полупрозрачные клоны шара, wave — расширяющиеся кольца поперёк движения, rift — R/G/B-копии). Стили берутся из профиля; свой след в первом лице скрыт. Кадры web сняты с замедленными часами симуляции (`__debugTimeScale`).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-skins-trails-shields.json`. Web: `web-reference/scripts/parity-capture-shield-dash.mjs` → `test-results/parity-gpu-g11c/` (профиль PARITY7 `#fa4` с парами стилей dome+streak, hex+wave, crystal+rift; вид V; ПКМ и кадр через 100 мс симуляции; W+Shift и кадр через 60 мс). Godot: `tools/screenshot.gd` режимы `profile:third-person-shield-<style>` (6 кадров) и `profile:third-person-dash-<style>` (4 кадра). Вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "skins-trails-shields",
+      "name": "Щиты dome / hex / crystal и следы streak / wave / rift",
+      "verdict": "Все шесть скинов совпадают с web по форме, размеру, цвету и положению: hex — тот же узор плиток Фибоначчи, crystal — та же грань икосаэдра в тот же момент, dome — та же каркасная сфера (линии web чуть ярче), wave — кольцо на том же месте. У streak и rift на кадрах разное число видимых копий — момент кадра web сдвинут задержкой скриншота.",
+      "verdict_short": "Щиты и следы рывка перенесены; формы и цвета совпадают",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["игрок", "PARITY7 `#fa4`, третье лицо", "то же"],
+        ["кадр щита", "100 мс симуляции после ПКМ", "6 кадров после `activate_shield`"],
+        ["кадр рывка", "60 мс симуляции после Shift (W зажата)", "4 кадра после `dash(вперёд)`"],
+        ["тесты", "—", "GUT 292/292, 1021 проверка (на момент съёмки)"]
+      ],
+      "comparisons": [
+        {"title": "Щит dome (увеличение ×2)", "wipe": true,
+          "note": "Заливка r 0.75 и каркас SphereGeometry(0.76, 12, 8) со всеми рёбрами треугольников; пульс прозрачности.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-shield-dome.png", "note": "Каркас чуть ярче."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-shield-dome.png", "note": "Тот же рисунок рёбер."}
+          ]},
+        {"title": "Щит hex (увеличение ×2)", "wipe": true,
+          "note": "36 шестиугольников r 0.22 на сфере r 0.78, волна вспышки сверху вниз за 350 мс.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-shield-hex.png", "note": "Узор плиток."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-shield-hex.png", "note": "Тот же узор и яркость волны."}
+          ]},
+        {"title": "Щит crystal (увеличение ×2)", "wipe": true,
+          "note": "Икосаэдр r 0.78: заливка 0.12, рёбра 0.5, одна вспыхивающая грань (шаг 7 каждые 140 мс).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-shield-crystal.png", "note": "Грань слева вверху."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-shield-crystal.png", "note": "Та же грань."}
+          ]},
+        {"title": "След streak (увеличение ×2)", "wipe": true,
+          "note": "Клоны шара каждые 16 мс, жизнь 260 мс, прозрачность 0.4 → 0 со сжатием.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-dash-streak.png", "note": "5 клонов."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-dash-streak.png", "note": "3 клона (кадр раньше)."}
+          ]},
+        {"title": "След wave (увеличение ×2)", "wipe": true,
+          "note": "Кольцо 0.3–0.38 поперёк движения, рост 3.5/с, затухание 450 мс.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-dash-wave.png", "note": "Кольцо у шара."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-dash-wave.png", "note": "Кольцо на том же месте."}
+          ]},
+        {"title": "След rift (увеличение ×2)", "wipe": true,
+          "note": "R/G/B-копии r 0.475 со сдвигом ±0.12 поперёк движения, мерцание 110 мс.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11c/crops/web-dash-rift.png", "note": "Два триплета."},
+            {"kind": "godot", "img": "parity-gpu-g11c/crops/godot-dash-rift.png", "note": "Один видимый триплет (кадр раньше)."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "G11c", "severity": "fixed",
+          "title": "Скины щита",
+          "web": "`createShieldFx(shieldStyle)`: DomeShieldFx, HexShieldFx, CrystalShieldFx, всегда `#4af`; щит на высоте центра шара.",
+          "godot": "`ShieldFx.setup(style)` + `ShieldSkinState`. Было: одна полупрозрачная сфера r 1 на уровне глаз.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/shield_fx.gd", "sim/shield_skin_state.gd", "tests/unit/test_dash_shield_skins.gd", "tests/unit/test_trail_shield_nodes.gd", "web-reference/src/game/fx/shield"]
+        },
+        {
+          "id": "G11c-2", "severity": "fixed",
+          "title": "Следы рывка",
+          "web": "`createDashFx(dashStyle, color)`: AfterimageTrail, WaveTrail, RiftTrail в мировых координатах; свой след скрыт в первом лице.",
+          "godot": "`DashTrailView` + `WaveTrail` / `RiftTrail` / `AfterimageTrail`. Было: следа рывка не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/skins/dash_trail_view.gd", "sim/wave_trail.gd", "sim/rift_trail.gd", "web-reference/src/game/fx/dash"]
+        }
+      ],
+      "limitations": [
+        "Пульс dome в web идёт по `Date.now()` (реальные часы), в Godot — по часам кадров; фаза пульса на кадрах разная.",
+        "Число копий streak / rift на кадрах зависит от точного момента съёмки; ритм эмиссии и жизнь проверены тестами.",
+        "Линии каркаса в Godot тоньше и чуть темнее: WebGL рисует линии в 1 px с другим сглаживанием."
+      ]
+    }
+  ]
+}

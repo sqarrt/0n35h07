@@ -13,6 +13,8 @@ extends SceneTree
 ##   third-person-windup   the same, halfway through an own windup (200 ms after the click).
 ##   third-person-deflate  the same, 50 ms after the own shot (inside the 200 ms deflate).
 ##   third-person-shot-<style>  the profile's windup style set to classic / rage / singularity, 50 ms into the beam.
+##   third-person-shield-<style>  shield style dome / hex / crystal, 100 ms after raising the shield.
+##   third-person-dash-<style>    dash style streak / wave / rift, ≈ 60 ms into a dash straight ahead.
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
@@ -36,6 +38,10 @@ const MODE_TP_DEFLATE := "third-person-deflate"
 const HALF_WINDUP_FRAMES := 12       # 200 ms at --fixed-fps 60 (BEAM_WINDUP 400 ms)
 const DEFLATE_FRAMES := 27           # 450 ms: the shot at 400 ms plus 50 ms of deflate
 const MODE_TP_SHOT := "third-person-shot-"
+const MODE_TP_SHIELD := "third-person-shield-"
+const MODE_TP_DASH := "third-person-dash-"
+const SHIELD_FRAMES := 6             # 100 ms into the shield
+const DASH_FRAMES := 4               # ≈ 60 ms into the dash (web frame 60 ms)
 const MODE_PROFILE := "profile"
 const MODE_PROFILE_DOUBLE := "profile-double"
 const PROFILE_PREFIX := "profile:"
@@ -102,6 +108,11 @@ func _initialize() -> void:
 		_passive_bot = true
 		if g != null:
 			g.profile["windupStyle"] = _mode.trim_prefix(MODE_TP_SHOT)
+	if _mode.begins_with(MODE_TP_SHIELD) or _mode.begins_with(MODE_TP_DASH):
+		_passive_bot = true
+		if g != null:
+			var shield := _mode.begins_with(MODE_TP_SHIELD)
+			g.profile["shieldStyle" if shield else "dashStyle"] = _mode.trim_prefix(MODE_TP_SHIELD if shield else MODE_TP_DASH)
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
@@ -152,6 +163,13 @@ func _apply_hud_fixture() -> int:
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES
+	if _mode.begins_with(MODE_TP_SHIELD) or _mode.begins_with(MODE_TP_DASH):
+		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
+		if _mode.begins_with(MODE_TP_SHIELD):
+			_human().player.activate_shield()   # web: right mouse button
+			return SHIELD_FRAMES
+		_human().player.dash(Vector3.FORWARD)   # web: W held + Shift, straight at the bot
+		return DASH_FRAMES
 	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE] or _mode.begins_with(MODE_TP_SHOT):
 		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
 		if _mode == MODE_THIRD_PERSON:
