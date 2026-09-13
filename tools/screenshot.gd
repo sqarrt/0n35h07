@@ -22,6 +22,8 @@ extends SceneTree
 ##   hud-overheat-<tier>  passive bot + the local player on a double / triple / singularity streak; with
 ##                     web-overheat-<tier>.json next to the output PNG (parity-capture-overheat.mjs) the vignette shows
 ##                     exactly those bolts at their strike peak with the pulse at its start.
+##   hud-audio-bar-<run>  passive bot + the visualiser fed the fixed bands of web-audio-bar-<run>.json next to the
+##                     output PNG (parity-capture-audio-bar.mjs), 90 frames to settle; the bar geometry joins the facts.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -41,6 +43,9 @@ const MODE_HUD_NAMES := "hud-names-"
 const MODE_HUD_OVERHEAT := "hud-overheat-"
 const OVERHEAT_FIXTURE := "web-overheat-%s.json"
 const OVERHEAT_FRAMES := 2           # the HUD picks the streak up, then the frozen fixture draws
+const MODE_HUD_AUDIO_BAR := "hud-audio-bar-"
+const AUDIO_BAR_FIXTURE := "web-audio-bar-%s.json"
+const AUDIO_BAR_FRAMES := 90         # web settles the line's smoothing for 1.5 s (at --fixed-fps 60)
 const MODE_THIRD_PERSON := "third-person"
 const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
@@ -115,7 +120,7 @@ func _initialize() -> void:
 	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON, MODE_TP_WINDUP,
 		MODE_TP_DEFLATE] \
 		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE) \
-		or _mode.begins_with(MODE_HUD_OVERHEAT)
+		or _mode.begins_with(MODE_HUD_OVERHEAT) or _mode.begins_with(MODE_HUD_AUDIO_BAR)
 	if _mode.begins_with(MODE_PROFILE) and g != null:
 		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
 		g.lobby_bot_name = PARITY_BOT_NAME
@@ -202,6 +207,14 @@ func _apply_hud_fixture() -> int:
 		_human().player.start_firing()   # web: one mousedown
 		var half := _mode == MODE_TP_WINDUP or _mode.begins_with(MODE_TP_WINDUP_STYLE)
 		return HALF_WINDUP_FRAMES if half else DEFLATE_FRAMES   # the shot frame = 50 ms into it
+	if _mode.begins_with(MODE_HUD_AUDIO_BAR):
+		var bar_fixture := _output.get_base_dir().path_join(AUDIO_BAR_FIXTURE % _mode.trim_prefix(MODE_HUD_AUDIO_BAR))
+		var bar_json := JSON.new()
+		if FileAccess.file_exists(bar_fixture) and bar_json.parse(FileAccess.get_file_as_string(bar_fixture)) == OK:
+			var audio := root.get_node_or_null("Audio")   # autoload node (not a compile-time global in a tool script)
+			if audio != null:
+				audio.debug_bands = PackedFloat32Array(bar_json.data["bands"])
+		return AUDIO_BAR_FRAMES
 	if _mode.begins_with(MODE_HUD_OVERHEAT):
 		var tier := _mode.trim_prefix(MODE_HUD_OVERHEAT)
 		_human().player.streak = TIER_STREAKS[tier]
@@ -250,6 +263,11 @@ func _capture() -> void:
 	for node in _players():
 		positions[str(node.player.id)] = _vec(node.global_position)
 	facts["players"] = positions
+	var audio_bar := root.find_child("AudioBar", true, false) as HudAudioBar
+	if audio_bar != null:
+		facts["audio_bar"] = {"visible": audio_bar.visible, "origin": [audio_bar.bar_origin().x, audio_bar.bar_origin().y],
+			"size": [audio_bar.bar_size().x, audio_bar.bar_size().y],
+			"points": Array(audio_bar.line_points()).map(func(p: Vector2) -> Array: return [p.x, p.y])}
 	var human := _human()
 	if human != null:
 		facts["human_respawning"] = human.player.respawning

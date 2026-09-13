@@ -5,6 +5,7 @@ class_name HudModel
 static func announce_word(streak: int, first_blood: bool) -> String:
 	return Streak.tier_word(Streak.announce_kind(streak, first_blood))
 
+const FRAME_INSET := 21.0                  # web HUD_FRAME_INSET: screen edge to the dash / respawn bars
 const SECONDS_PER_MIN := 60
 const NO_TIME := "--:--"
 

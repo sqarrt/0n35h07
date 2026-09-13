@@ -64,6 +64,8 @@ export class AudioAnalysis {
   /** Fills out[] (N bands, 0..1) with the overall spectrum — max across all sources. */
   bands(out: Float32Array): void {
     out.fill(0)
+    const fixed = window.__debugAudioBands   // parity captures: a fixed spectrum instead of the live sound
+    if (fixed) { out.set(fixed.slice(0, out.length)); return }
     for (const r of this.bandReaders) r(out)
   }
 }

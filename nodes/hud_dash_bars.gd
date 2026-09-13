@@ -2,7 +2,7 @@ class_name HudDashBars extends Control
 ## Dash cooldown bars — port of web DashIndicator.tsx: two 6px vertical strips a third of the screen tall, 21px from
 ## the left and right edges, vertically centred; the fill grows from the centre as the dash recharges.
 
-const INSET := 21.0                           # web HUD_FRAME_INSET
+const INSET := HudModel.FRAME_INSET
 const WIDTH := 6.0
 const HEIGHT_SHARE := 1.0 / 3.0               # web calc(100vh / 3)
 const TRACK_COLOR := Color(1, 1, 1, 0.05)     # web rgba(255,255,255,0.05)

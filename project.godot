@@ -15,9 +15,14 @@ config/version="2.0.0"
 run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[audio]
+
+driver/mix_rate=48000
+
 [autoload]
 
 Game="*res://autoloads/game.gd"
+Audio="*res://autoloads/audio.gd"
 
 [editor_plugins]
 

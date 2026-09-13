@@ -10,6 +10,7 @@ signal fired(id: int)
 signal blocked(shooter_id: int, victim_id: int, perfect: bool)
 signal match_ended(result: Dictionary)
 signal singularity_changed(active: bool)   # web World.setBlocksTransparent on the mode switch
+signal combat_event(event: Dictionary)      # every rule event as it resolves (web emit / applyEvent -> sfx.combat)
 
 const MS_PER_S := 1000.0
 const NO_TEAM := -1
@@ -64,6 +65,10 @@ func countdown_label() -> String:
 func seconds_left():
 	return _clock.seconds_left() if _clock.has_timer() else null
 
+## Milliseconds left on the match clock, INF without a time limit (web musicRemainingMs: the music outro).
+func remaining_ms() -> float:
+	return _clock.remaining_ms() if _clock.has_timer() else INF
+
 func force_live() -> void:
 	phase.force_live()
 	_apply_freeze()
@@ -83,6 +88,7 @@ func _physics_process(delta: float) -> void:
 ## Re-emit rule events as signals (web Match dispatches BEAM_FLASH / SHIELD_BLOCK / PLAYER_HIT from these facts).
 func emit_events(events: Array) -> void:
 	for e in events:
+		combat_event.emit(e)
 		match e["t"]:
 			"fired":
 				fired.emit(int(e["id"]))

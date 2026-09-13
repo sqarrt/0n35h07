@@ -11,6 +11,7 @@ const BOT_TEAM := 1
 const BOT_DIFFICULTY := "normal"   # web addBot default
 
 func _ready() -> void:
+	Audio.stop_menu_music()   # web App: the menu music fades out in the match
 	var raw_path: String = Game.selected_map
 	var geo_path := raw_path.replace(".json", "_geo.json")
 	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
@@ -48,6 +49,11 @@ func _ready() -> void:
 	var hud := Hud.new()
 	add_child(hud)
 	hud.setup(human, match_node)
+
+	# Match sound: SFX transitions, combat and announce sounds, countdown / GO and the seeded match music.
+	var match_audio := MatchAudio.new()
+	add_child(match_audio)
+	match_audio.setup(match_node, [human, bot], HUMAN_SLOT, self)
 
 	# Pause menu (Esc): resume / back to the main menu.
 	var pause := PauseOverlay.new()

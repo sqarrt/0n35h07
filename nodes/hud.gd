@@ -15,6 +15,7 @@ var _brackets: HudShieldBrackets
 var _dash: HudDashBars
 var _overheat: HudOverheatVignette
 var _ghost: HudGhostIndicator
+var _audio_bar: HudAudioBar
 var _banner: HudStreakBanner
 var _countdown: HudCountdown
 var _throttle := HudThrottle.new()   # web syncHud: progress values at most every 50 ms
@@ -55,6 +56,8 @@ func _ready() -> void:
 	add_child(_overheat)
 	_ghost = HudGhostIndicator.new()
 	add_child(_ghost)
+	_audio_bar = HudAudioBar.new()   # web z-index 14 after the respawn overlay, before the streak banner
+	add_child(_audio_bar)
 	_banner = HudStreakBanner.new()
 	add_child(_banner)
 	_countdown = HudCountdown.new()
@@ -84,6 +87,12 @@ func _process(delta: float) -> void:
 	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
 	_overheat.set_tier(Streak.streak_tier(_match.streak_of(HUMAN_ID)) if live else "")   # web hud.streaks[localId]
 	_overheat.tick(delta)
+	var audio_bar_shown := live and bool(Game.profile.get("audioViz", true))   # web {audioViz && <AudioBar />}
+	if audio_bar_shown and not _audio_bar.visible:
+		_audio_bar.reset()   # web remounts the component with zeroed levels
+	_audio_bar.visible = audio_bar_shown
+	if audio_bar_shown:
+		_audio_bar.tick(Audio.bands())
 	if live and _respawn_progress != null:
 		_ghost.show_progress(_respawn_progress)
 		_ghost.tick(delta)

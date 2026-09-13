@@ -1,0 +1,73 @@
+{
+  "id": "2026-09-14-audio",
+  "title": "Сверка паритета OneShot · звук: музыка, SFX, визуализатор",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс «звук»: в Godot звука не было совсем. Перенесены музыка матча (детерминированная композиция по сиду комнаты из 8-секундных стемов), музыка меню, SFX матча и интерфейса (переходы состояний игроков, бой, отсчёт, анонсы серий) и HUD-визуализатор AudioBar. Композиция сверена оракулом — самим кодом web, запущенным в Node. Воспроизведение по тактам проверено записью звука. AudioBar сравнен попиксельно на кадрах с фиксированным спектром (новый хук web `__debugAudioBands`). Сам звук на слух и по записанному спектру с web не сравнивался — это ограничение отчёта.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-audio.json`. Оракул: `web-reference/scripts/parity-oracle-music.mjs` → `tests/fixtures/music_oracle.json` (тест `test_music_oracle`). Ассеты: `tools/audio/convert_web_audio.py`. Пробники: `tools/audio_probe.gd` + `tools/audio/analyse_probe.py` (переход по такту), `tools/line_probe.gd`, `tools/audio_bar_probe.gd` (слои AudioBar). Кадры: `web-reference/scripts/parity-capture-audio-bar.mjs` → `test-results/parity-gpu-audio/`; Godot `tools/screenshot.gd` режим `profile:hud-audio-bar-<run>` (кадр 300, 90 кадров на сглаживание). Замеры: `tools/parity/measure.py read_png`.",
+  "pages": [
+    {
+      "slug": "audio",
+      "name": "Музыка, SFX и визуализатор AudioBar",
+      "verdict": "Композиция музыки совпадает с web точно: FNV-1a, mulberry32, 60 петель на двух сидах, аутро и 40 петель меню — 2421 проверка против вывода кода web. Переключение стемов ложится ровно на 8-секундный такт, роль-слоты идут синхронно 20 с. Геометрия AudioBar совпадает до сотых пикселя (рамка 345.60, 643.00, 588.80 × 42.00; 79 точек линии в пределах 0.024 px). Пиксели полосы расходятся в среднем на 0.9 уровня из 255. Внутри слайса найдены и исправлены два дефекта: захват звука оставался в анализе после каждого матча, а штрих AudioBar был на пиксель толще. Остальное — перечисленные ограничения движка звука.",
+      "verdict_short": "Звук перенесён; композиция и AudioBar совпадают с web",
+      "conditions": [
+        ["карта кадров", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["игрок", "PARITY7 `#fa4`, первое лицо, `__debugAudioBands` = фиксированные 40 полос", "то же, `Audio.debug_bands` из JSON web"],
+        ["кадр", "1.5 с после установки полос (сглаживание установилось)", "90 кадров после установки полос"],
+        ["звук", "Web Audio, частота устройства (48 кГц)", "`audio/driver/mix_rate` 48000; пробник на headless-драйвере 44 100 Гц"],
+        ["тесты", "—", "GUT 364/364, 4141 проверка"]
+      ],
+      "comparisons": [
+        {"title": "AudioBar, фиксированный спектр (увеличение ×2)", "wipe": true,
+          "note": "Бас в центре, спад к краям, горб на 22-й полосе; линия 2.5 px `#4af` со свечением drop-shadow 4 px (σ 4).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-audio/crops/web-audio-bar-pattern.png", "note": "x = 360: 95 / 236 / 255 / 196 / 93."},
+            {"kind": "godot", "img": "parity-gpu-audio/crops/godot-audio-bar-pattern.png", "note": "x = 360: 100 / 228 / 255 / 187 / 93; среднее отличие области 0.91."}
+          ]},
+        {"title": "AudioBar, тишина (увеличение ×2)", "wipe": true,
+          "note": "Линия лежит внизу рамки (y 89 из 90 единиц viewBox).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-audio/crops/web-audio-bar-silence.png", "note": "x = 360: 94 / 210 / 255 / 221 / 95."},
+            {"kind": "godot", "img": "parity-gpu-audio/crops/godot-audio-bar-silence.png", "note": "x = 360: 93 / 203 / 255 / 212 / 93; хвосты свечения ±1; среднее 0.87."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SND", "severity": "fixed",
+          "title": "Звука не было",
+          "web": "Музыка матча (`MatchMusic` + `MusicDirector` + `WebAudioMusicEngine`), музыка меню (`MenuMusic`), SFX (`MatchSfx` + `ThreeSfxEngine`), звуки кнопок (`ui/Button`), `AudioBar`.",
+          "godot": "`MusicRng`, `MusicDirector`, `MenuMusicArranger`, `MusicSlots`, `MusicScheduler`, `MusicEngine`; `MatchSfx`, `SfxEngine`, `MatchAudioCues`, `MatchAudio`; автозагрузка `Audio` (меню, UI, анализ), `UiSounds`; `AudioAnalyser`, `AudioAnalysisHub`, `AudioBarModel`, `HudAudioBar`; стемы и SFX сконвертированы из Opus в Ogg Vorbis.",
+          "evidence": ["test", "screenshot", "runtime", "code"],
+          "sources": ["tests/unit/test_music_oracle.gd", "tests/fixtures/music_oracle.json", "nodes/audio/music_engine.gd", "nodes/audio/sfx_engine.gd", "nodes/audio/match_audio.gd", "autoloads/audio.gd", "nodes/hud_audio_bar.gd", "tools/audio/convert_web_audio.py", "web-reference/src/game/audio"]
+        },
+        {
+          "id": "SND-2", "severity": "fixed",
+          "title": "Захват музыки оставался в анализе после матча",
+          "web": "`useEffect` снимает читателей уровня при размонтировании движка.",
+          "godot": "Узел матча запрашивал захват у движка музыки уже после удаления его шин (дети выходят из дерева раньше родителя): Godot писал `p_bus = -1`, источник оставался в `Audio.analysis`. Захват теперь запоминается при старте музыки; тест проверяет, что число источников возвращается.",
+          "evidence": ["runtime", "test"],
+          "sources": ["nodes/audio/match_audio.gd", "tests/unit/test_match_audio.gd"]
+        },
+        {
+          "id": "SND-3", "severity": "fixed",
+          "title": "Штрих AudioBar толще web",
+          "web": "SVG-полилиния 2.5 px: краевые строки покрыты на 0.71 / 0.79 (кадр без фильтра).",
+          "godot": "Круги на каждой из 79 вершин наращивали покрытие краёв (одна линия: 45 / 248 / 255 / 252 / 57). Круги оставлены только на концах; линия отдельно — 17 / 177 / 255 / 191 / 17 (покрытие 0.67 / 0.73).",
+          "evidence": ["screenshot", "runtime"],
+          "sources": ["nodes/hud_audio_bar.gd", "tools/line_probe.gd", "tools/audio_bar_probe.gd"]
+        }
+      ],
+      "limitations": [
+        "Звук на слух и по записанному спектру с web не сравнивался: сверены композиция (оракул), такты (запись Godot) и визуализатор (кадры).",
+        "Форма кроссфейда `AudioStreamInteractive` FADE_CROSS (120 мс) не измерена; в web — равномощный кроссфейд. Подгонка по записи вырождается на разреженных стемах.",
+        "Реверб и эхо — эффекты шин Godot (`AudioEffectReverb`, `AudioEffectDelay`) вместо свёртки с шумовой ИК 1.8 с и петли обратной связи web; хвост эха в конце матча включается эффектом на шине.",
+        "Нет 3-мс огибающих де-клика у источников; громкость и панорама слота меняются на границе такта с точностью до блока микширования.",
+        "Задержка удвоенной копии лида (35–90 мс) переключается между петлями параметром эффекта, а не отдельным источником.",
+        "Дальше 60 м звук продолжает затухать как 6 / расстояние, а web держит уровень 0.1.",
+        "Headless-драйвер микширует на 44 100 Гц (пробник); в проекте 48 кГц, на Windows — частота устройства."
+      ]
+    }
+  ]
+}

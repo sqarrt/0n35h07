@@ -24,6 +24,7 @@ declare global {
     __debugKill?: (id: number) => void
     __debugRespawning?: (id: number) => boolean
     __debugSetStreak?: (id: number, count: number) => void
+    __debugAudioBands?: number[] | null
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
