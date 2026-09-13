@@ -26,6 +26,13 @@ func test_plain_text_has_no_effect_layers() -> void:
 	assert_false(fx.display().visible)
 	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_minimum_size())
 
+func test_plain_size_follows_the_font_once_the_theme_settles() -> void:
+	var fx := _fx()
+	fx.show_text("PARITY7", "", PC)
+	await get_tree().process_frame
+	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_minimum_size(),
+		"a stale minimum from the default font would let the text spill into the next column")
+
 func test_double_is_player_coloured_glitched_and_electrified() -> void:
 	var fx := _fx()
 	fx.show_text(TEXT, "double", PC)

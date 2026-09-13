@@ -20,5 +20,6 @@ var lobby_bot_name := ""                           # the host's name for the bot
 
 func _ready() -> void:
 	random.randomize()
-	profile = ProfileStore.load_profile(random.randf)
+	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
+		profile = ProfileStore.load_profile(random.randf)
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

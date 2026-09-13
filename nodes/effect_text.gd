@@ -44,6 +44,7 @@ func _init() -> void:
 	_plain = Label.new()
 	_plain.name = "Plain"
 	_plain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plain.minimum_size_changed.connect(_on_plain_size_changed)   # fonts reshape after the theme settles
 	add_child(_plain)
 	_composite = SubViewport.new()
 	_composite.name = "Composite"
@@ -139,6 +140,10 @@ func arcs() -> Array[ColorRect]:
 
 func ticks() -> Array[ColorRect]:
 	return _ticks
+
+func _on_plain_size_changed() -> void:
+	if _style.is_empty():
+		custom_minimum_size = _plain.get_minimum_size()
 
 func _process(delta: float) -> void:
 	if auto_advance:
