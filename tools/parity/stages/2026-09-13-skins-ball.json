@@ -1,0 +1,111 @@
+{
+  "id": "2026-09-13-skins-ball",
+  "title": "Сверка паритета OneShot · скины: шар",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап G11a: шар игрока в стиле web — цвет профиля, модели smooth / waves / planet, рисунок на шаре, поворот по взгляду, раздувание при замахе (classic / rage / singularity), полупрозрачный призрак с шлейфом, взрыв частиц при смерти и «пуф» возрождения. По ходу найден и исправлен дефект слайса H2: виньетка замаха всегда рисовалась на полную силу; заодно перенесён темп обновления HUD web (раз в 50 мс) и CSS-переходы. Кадры сняты на одном GPU с одинаковым профилем PARITY7 `#fa4` и ботом EX82R.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-skins-ball.json`. Web: `web-reference/scripts/parity-capture-skins.mjs` → `test-results/parity-gpu-g11a/` (клавиша V, покой; клик + 200 мс; ещё 250 мс). Godot: `tools/screenshot.gd` режимы `profile:third-person`, `profile:third-person-windup` (12 кадров), `profile:third-person-deflate` (27 кадров), кадр 300. Замеры пикселей — python по `measure.read_png`, вырезки — `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "skins-ball",
+      "name": "Шар игрока, замах и виньетка",
+      "verdict": "Шар в покое совпадает с web до пикселя: цвет центра `#ae732e`, размер 117×129 против 117×130, тень на месте. Бот EX82R у прицела совпадает цветом и размером. На замахе шар раздувается и светлеет в обоих; разница размера — момент съёмки (web снимает в реальном времени). Виньетка замаха после исправления совпадает по силе. Открыты: мягкость тени (Godot темнее и жёстче), стили rage / singularity для мира (челюсти, вихрь), chaos / swarm, лучи, следы рывка и щиты — следующие части G11.",
+      "verdict_short": "Шар, замах, призрак и взрыв перенесены; виньетка замаха исправлена",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["профиль / бот", "PARITY7 `#fa4` smooth; EX82R `#fd4` waves", "то же (в памяти инструмента)"],
+        ["вид", "третье лицо после V, камера (0.70, 3.21, 20.00)", "третье лицо, камера (0.70, 3.20, 20.00)"],
+        ["шар в покое: центр / размер", "`#ae732e`, 117×129 px", "`#ae732e`, 117×130 px"],
+        ["шар на замахе (центр)", "`#b39b8b`, ширина 145 px (≈ прогресс 0.6)", "`#b39682`, ширина 139 px (прогресс 0.5)"],
+        ["виньетка замаха (30, 150)", "`#091d2e`", "было `#07385d`, стало `#091a29`"],
+        ["тесты", "—", "GUT 277/277, 954 проверки"]
+      ],
+      "comparisons": [
+        {
+          "title": "Шар в покое (увеличение ×2)",
+          "wipe": true,
+          "note": "Цвет профиля, освещение и положение тени совпадают; тень в Godot темнее и с резким краем.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11a/crops/web-tp-rest-ball.png", "note": "Мягкая тень, линия визуализатора звука."},
+            {"kind": "godot", "img": "parity-gpu-g11a/crops/godot-tp-rest-ball.png", "note": "Тот же шар; тень жёстче."}
+          ]
+        },
+        {
+          "title": "Половина замаха (увеличение ×2)",
+          "wipe": true,
+          "note": "Шар раздувается (1 + 0.4·прогресс) и уходит к белому в линейном цвете; синяя виньетка по краям.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11a/crops/web-tp-windup-ball.png", "note": "Прогресс ≈ 0.6 на момент кадра."},
+            {"kind": "godot", "img": "parity-gpu-g11a/crops/godot-tp-windup-ball.png", "note": "Прогресс 0.5."}
+          ]
+        },
+        {
+          "title": "Бот у прицела (увеличение ×5)",
+          "wipe": true,
+          "note": "Цвет бота выбран по нику EX82R (`#fd4`), модель waves на таком расстоянии не различима.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11a/crops/web-tp-rest-bot.png", "note": "Жёлтый шар."},
+            {"kind": "godot", "img": "parity-gpu-g11a/crops/godot-tp-rest-bot.png", "note": "Жёлтый шар."}
+          ]
+        },
+        {
+          "title": "Кадр замаха целиком",
+          "wipe": true,
+          "note": "Сила синей виньетки по краям после исправления шейдера.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11a/web-tp-windup.png", "note": "Виньетка с непрозрачностью = прогресс (переход 70 мс)."},
+            {"kind": "godot", "img": "parity-gpu-g11a/godot-tp-windup.png", "note": "То же."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G11a", "severity": "fixed",
+          "title": "Шар игрока",
+          "web": "`Body`: сфера R 0.5, 128 сегментов, центр на −0.3 от глаз, тени; `createBallMaterial`: цвет, волны `waves`, рисунок через дисковую проекцию нормали; кольцо `planet` в запасном цвете; поворот только по yaw.",
+          "godot": "`BallVisual` + `ball.gdshader` / `ball_ring.gdshader`; прозрачность призрака через `GeometryInstance3D.transparency` (тень сохраняется); внешность из ростера `PlayerNode.apply_appearance`.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/skins/ball_visual.gd", "assets/shaders/ball.gdshader", "assets/shaders/ball_ring.gdshader", "sim/ball_art.gd", "tests/unit/test_ball_visual.gd", "web-reference/src/game/Body.ts", "web-reference/src/game/fx/ballMaterial.ts"]
+        },
+        {
+          "id": "G11a-2", "severity": "fixed",
+          "title": "Замах, призрак, взрыв и «пуф»",
+          "web": "Classic: 1+0.4p и цвет к белому, сдувание 200 мс; rage: 1+0.25p, к `#1a0505`, пульс свечения `#ff2200`; singularity: 1−0.35p, к `#05050d`. Echo: взрыв 14 частиц, призрак 0.4 со шлейфом клонов, «пуф» 280 мс; в первом лице своё тело, щит и взрыв скрыты.",
+          "godot": "`SkinCurves`, `ParticlePool`, `AfterimageTrail`, `DeathBurst`, `ParticleView`; жизненный цикл в `PlayerNode.update_visuals`. Было: шар бота пропадал в ghost-фазе, при попадании мигал (в web этого нет), свой щит был виден в первом лице.",
+          "evidence": ["test", "screenshot"],
+          "sources": ["sim/skin_curves.gd", "sim/particle_pool.gd", "sim/afterimage_trail.gd", "sim/death_burst.gd", "nodes/player_node.gd", "tests/unit/test_skin_curves.gd"]
+        },
+        {
+          "id": "H2f", "severity": "fixed",
+          "title": "Виньетка замаха всегда на полную силу (найдено на этапе, дефект H2)",
+          "web": "Непрозрачность оверлея = прогресс замаха, переход `opacity 70ms linear`; прогресс HUD обновляется не чаще раза в 50 мс.",
+          "godot": "Было: шейдер виньетки игнорировал `modulate`, в углу `#07385d` при прогрессе 0.5. Стало: шейдер умножает на `modulate`, `HudThrottle` и `CssTransition` повторяют темп и переходы web.",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["assets/shaders/hud_vignette.gdshader", "nodes/hud_overlay_fx.gd", "nodes/hud.gd", "sim/hud_throttle.gd", "sim/css_transition.gd", "tests/unit/test_hud_throttle.gd", "web-reference/src/components/WindupOverlay.tsx"]
+        },
+        {
+          "id": "G6s", "severity": "visual",
+          "title": "Мягкость тени шара",
+          "web": "Мягкая светлее тень (PCF three.js).",
+          "godot": "Тень темнее и с резким краем; настройка теней света карты.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/map_lights.gd"]
+        },
+        {
+          "id": "G11b-e", "severity": "missing",
+          "title": "Остальные скины",
+          "web": "Лучи classic / rage / singularity, челюсти rage и вихрь singularity, респавны chaos / swarm, следы рывка streak / wave / rift, щиты dome / hex / crystal, виньетка перегрева.",
+          "godot": "Лучи и щит — заглушки; остальное — следующие части G11.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/fx"]
+        }
+      ],
+      "limitations": [
+        "Кадры замаха и сдувания сняты в разные моменты: web — в реальном времени с задержкой скриншота, Godot — по кадрам; кривые проверены тестами точно.",
+        "Призрак, взрыв смерти и «пуф» web снять нельзя без убийства своего игрока; проверены тестами и по коду.",
+        "Модель waves и рисунок шара на кадрах не видны (бот далеко, у профиля нет рисунка); проверены тестами."
+      ]
+    }
+  ]
+}

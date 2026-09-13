@@ -86,10 +86,10 @@ func _rebuild(count: int) -> void:
 	if not _passes.is_empty():
 		var outer: SubViewport = _passes.back()
 		remove_child(outer)
-		outer.queue_free()   # frees the nested chain with it
+		outer.free()   # out of the tree: frees the nested chain with it right away
 	for layer in _layers:
 		remove_child(layer)
-		layer.queue_free()
+		layer.free()
 	_mask = null
 	_passes.clear()
 	_pass_rects.clear()

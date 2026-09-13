@@ -56,8 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   colour pair — and keeps it between sessions. Bots get a fresh model name each match, and the name decides their
   colour and look exactly as in the original. The top bar, the streak banner and the result screen show everyone's
   real name in their own colour, with the streak effect kept on the names at the end of the match.
+- **Player balls look like the original.** Each ball takes its player's colour and model (smooth, waves or a planet
+  with its ring) and artwork, turns with the player's look, swells and whitens while charging a shot (or chars red /
+  collapses for the other windup styles), bursts into particles on death, floats as a translucent ghost with a trail
+  and pops back in when it respawns. Your own ball and shield stay hidden in first person, as in the original.
 
 ### Fixed
+- **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
+  up with the charge and eases like the original; HUD gauges update at the original's pace.
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game
   drew the back faces of blocks and walls and lit them from the wrong side (the bright and dark perimeter walls were
   swapped). Faces now point the right way, which also makes the beam hit block surfaces from the correct side.
