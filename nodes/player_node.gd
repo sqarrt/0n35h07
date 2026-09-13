@@ -14,14 +14,45 @@ var _beam_fx: BeamFx
 var _shield_fx: ShieldFx
 var entity_id := 0
 var _flash := 0.0
-var _mesh: MeshInstance3D
+var _ball: BallVisual
 var _hitbox: Hitbox
 var _body_visible := true
+var _appearance := {}                  # roster entry: colour and cosmetic styles
+var _base_color := Color(AppearanceConst.FALLBACK_EFFECT_COLOR)
+var _death_burst: DeathBurst
+var _burst_view: ParticleView
+var _ghost_trail: AfterimageTrail
+var _ghost_trail_view: ParticleView
+var _visual_ms := 0.0                  # visual clock (web Date.now for fireTime / spawnTime)
+var _fire_ms := -INF                   # the last own shot (windup deflate)
+var _spawn_ms := -INF                  # the last materialisation (rebirth poof); -INF before any respawn
+var _was_respawning := false
 
 const HIT_FLASH_TIME := 0.25
 
 func set_body_visible(v: bool) -> void:
 	_body_visible = v
+
+## Take the roster entry's look: ball colour / model / ring / art, windup and respawn styles, the player colour of the
+## particle effects (web Match builds Player + Body from the RosterEntry).
+func apply_appearance(entry: Dictionary) -> void:
+	_appearance = entry
+	_base_color = Color(entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR))
+	if _ball == null:
+		return   # not ready yet: _ready applies the stored entry
+	_ball.setup(_base_color, entry.get("ballModel", AppearanceConst.BALL_MODELS[0]),
+		Color(entry.get("reserveColor", entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR))),
+		entry.get("ballArt", ""))
+	_rebuild_particles()
+
+func ball_visual() -> BallVisual:
+	return _ball
+
+func burst_view() -> ParticleView:
+	return _burst_view
+
+func ghost_trail_view() -> ParticleView:
+	return _ghost_trail_view
 
 func is_body_visible() -> bool:
 	return _body_visible
@@ -58,7 +89,12 @@ func _ready() -> void:
 	_hitbox.add_child(hcs)
 	_hitbox.position = Vector3(0, MoveConst.HITBOX_Y, 0)
 	add_child(_hitbox)
-	_mesh = get_node_or_null("Mesh")
+	_ball = BallVisual.new()
+	_ball.name = "BallVisual"
+	_ball.position.y = SkinCurves.BODY_MESH_Y
+	add_child(_ball)
+	_shield_fx.position.y = SkinCurves.BODY_MESH_Y   # web: the shield rides at the ball centre
+	apply_appearance(_appearance)
 
 ## Teleport onto a spawn point: moves the sim body and the physics body together, without an interpolated slide.
 func place_at(pos: Vector3) -> void:
@@ -86,9 +122,10 @@ func _physics_process(delta: float) -> void:
 	b.position = global_position
 	player.update_weapon(delta, [_hitbox.get_rid()])   # exclude own hitbox from the beam
 	player.update_shield(delta)
-	_shield_fx.show_dome(player.is_shielded())
+	_shield_fx.show_dome(player.is_shielded() and _shield_can_show())
 	var w = player.weapon
 	if w != null and w.just_fired:
+		_fire_ms = _visual_ms
 		var o: Dictionary = w.outcome
 		_beam_fx.play(_muzzle_point(), o["end"])
 		var eid: int = int(o["hit_entity_id"])
@@ -135,16 +172,67 @@ func _process(delta: float) -> void:
 		_step_smooth = maxf(0.0, _step_smooth - STEP_SMOOTH_SPEED * delta)
 	if _beam_fx != null:
 		_beam_fx.update_fx(delta)
-	if _flash > 0.0:
-		_flash = maxf(0.0, _flash - delta)
-		if _mesh != null:
-			_mesh.transparency = 1.0 - (_flash / HIT_FLASH_TIME) * 0.7   # brief fade pulse
-	# Reflect the ghost phase: hide the body + make it unshootable while dead.
+	_flash = maxf(0.0, _flash - delta)
 	var ghost := player.respawning
-	if _mesh != null:
-		_mesh.visible = _body_visible and not ghost
 	if _hitbox != null:
-		_hitbox.collision_layer = 0 if ghost else CombatConst.LAYER_HITBOX_BIT
+		_hitbox.collision_layer = 0 if ghost else CombatConst.LAYER_HITBOX_BIT   # the ghost can't be shot
+	update_visuals(delta)
+
+## The ball's per-frame look (web Player.syncVisuals + ClassicWindupFx / EchoRespawnFx): death burst on the death edge,
+## translucent ghost with its clone trail, windup swell / deflate, the springy rebirth poof.
+func update_visuals(delta: float) -> void:
+	if _ball == null:
+		return
+	_visual_ms += delta * SkinCurves.MS_PER_S
+	var ghost := player.respawning
+	if ghost and not _was_respawning and _body_visible:
+		_death_burst.emit(global_position + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0), func() -> float: return randf())
+	if _was_respawning and not ghost:
+		_spawn_ms = _visual_ms
+	_was_respawning = ghost
+	_ball.visible = _body_visible
+	_ball.face_dir(player.look_dir())
+	_ball.tick(delta)
+	var rebirth := SkinCurves.echo_respawn(ghost, _visual_ms - _spawn_ms)
+	if ghost:
+		_ball.set_scale_factor(rebirth["scale"])
+		_ball.set_color(_base_color)
+		_ball.set_emission(Color.BLACK)
+		_ball.set_opacity(rebirth["opacity"])
+	else:
+		var look := SkinCurves.windup_ball(_appearance.get("windupStyle", AppearanceConst.WINDUP_STYLES[0]),
+			player.windup_progress(), SkinCurves.shrink(_visual_ms - _fire_ms), _base_color,
+			_visual_ms / SkinCurves.MS_PER_S)
+		_ball.set_scale_factor(look["scale"])
+		_ball.set_color(look["color"])
+		_ball.set_emission(look["emission"])
+		_ball.set_opacity(1.0)
+		if rebirth["active"]:   # the poof beats the windup scale
+			_ball.set_scale_factor(rebirth["scale"])
+			_ball.set_color(_base_color)
+	_ghost_trail.update(delta, ghost and _body_visible, global_position)
+	_ghost_trail_view.refresh()
+	_death_burst.update(delta)
+	_burst_view.refresh()
+
+## web: no shield bubble in first person, during the ghost phase or the rebirth window.
+func _shield_can_show() -> bool:
+	return _body_visible and not player.respawning and not SkinCurves.is_echo_rebirth(_visual_ms - _spawn_ms)
+
+func _rebuild_particles() -> void:
+	for view in [_burst_view, _ghost_trail_view]:
+		if view != null:
+			view.queue_free()
+	_death_burst = DeathBurst.new(_base_color)
+	_burst_view = ParticleView.new()
+	_burst_view.name = "DeathBurst"
+	add_child(_burst_view)
+	_burst_view.setup(_death_burst.pool, SkinCurves.DEATH_BURST_RADIUS, _base_color)
+	_ghost_trail = AfterimageTrail.new(_base_color)
+	_ghost_trail_view = ParticleView.new()
+	_ghost_trail_view.name = "GhostTrail"
+	add_child(_ghost_trail_view)
+	_ghost_trail_view.setup(_ghost_trail.pool, SkinCurves.DASH_TRAIL_RADIUS, _base_color)
 
 ## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
 ## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
