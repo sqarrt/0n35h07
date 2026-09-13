@@ -64,3 +64,6 @@ export_presets.cfg
 # Trailer build artifact (regenerated; not part of the Godot project)
 trailer-dist
 /.codex/
+
+# Python bytecode (tools/parity scripts)
+__pycache__/
