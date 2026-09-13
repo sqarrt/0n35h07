@@ -136,5 +136,12 @@ static func windup_vignette_opacity(progress: float) -> float:
 static func banner_text(player: String, tier_word: String) -> String:
 	return "%s: %s" % [player, tier_word]
 
+const BEAM_FLASH_MS := 200.0                                    # web useFlash(200): own shot
+const PLAYER_HIT_FLASH_MS := 350.0                              # web useFlash(350): the local player was hit
+const SHIELD_BLOCK_FLASH_MS := 250.0                            # web useFlash(250): the local player blocked
+const BEAM_TINT := Color(0.0, 1.0, 1.0, 0.04)                   # web rgba(0,255,255,0.04)
+const PLAYER_HIT_TINT := Color(1.0, 0.0, 0.0, 0.08)             # web rgba(255,0,0,0.08)
+const SHIELD_BLOCK_TINT := Color(0.0, 180.0 / 255.0, 1.0, 0.07) # web rgba(0,180,255,0.07)
+
 static func player_name(id: int) -> String:
 	return "YOU" if id == 0 else "BOT"
