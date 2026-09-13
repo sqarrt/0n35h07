@@ -1,0 +1,398 @@
+{
+ "loop_seconds": 8.0,
+ "bpm": 120,
+ "beat_count": 16,
+ "roles": {
+  "bass": [
+   "bass/decent_bass",
+   "bass/kutting",
+   "bass/substk_03",
+   "bass/substk_04",
+   "bass/substk_07",
+   "bass/substk_15",
+   "bass/wt_flute_sub"
+  ],
+  "kicks": [
+   "kicks/accent_808",
+   "kicks/acid_perc2",
+   "kicks/boom_808",
+   "kicks/break_hat",
+   "kicks/deep_shaker",
+   "kicks/drive_8",
+   "kicks/eight_crush",
+   "kicks/floor_16hat",
+   "kicks/floor_8hat",
+   "kicks/floor_ghost",
+   "kicks/floor_shaker",
+   "kicks/floor_shaker_hat",
+   "kicks/good_kick",
+   "kicks/linn_dist",
+   "kicks/linn_floor",
+   "kicks/nine_room",
+   "kicks/nine_thin",
+   "kicks/perc_roll",
+   "kicks/punchy_dirt",
+   "kicks/raw_dirt6",
+   "kicks/raw_seven",
+   "kicks/seven_dub",
+   "kicks/seven_tight",
+   "kicks/shape_808",
+   "kicks/sine_thud",
+   "kicks/six_kick",
+   "kicks/six06_raw",
+   "kicks/speed_pitch",
+   "kicks/sub_duck",
+   "kicks/sub_long",
+   "kicks/tape_kick"
+  ],
+  "lead": [
+   "lead/acid_line",
+   "lead/crickets_tex",
+   "lead/decent_lead",
+   "lead/lacid_08",
+   "lead/lroller_01",
+   "lead/lroller_06",
+   "lead/lsynth_11",
+   "lead/lwt_12",
+   "lead/lwt_14",
+   "lead/lwt_15",
+   "lead/saw_hook"
+  ],
+  "sfx": [
+   "sfx/deep_sine",
+   "sfx/drone_root",
+   "sfx/fm_sub",
+   "sfx/grab_hypno",
+   "sfx/pluck_minor",
+   "sfx/reese_mono",
+   "sfx/rubber",
+   "sfx/wt_drone",
+   "sfx/xdbl_01"
+  ]
+ },
+ "gains": {
+  "bass/decent_bass": 0.782945,
+  "bass/kutting": 1.093224,
+  "bass/substk_03": 0.852743,
+  "bass/substk_04": 0.826825,
+  "bass/substk_07": 0.765688,
+  "bass/substk_15": 0.876617,
+  "bass/wt_flute_sub": 0.835627,
+  "kicks/accent_808": 1.847075,
+  "kicks/acid_perc2": 1.719559,
+  "kicks/boom_808": 1.656277,
+  "kicks/break_hat": 0.488082,
+  "kicks/deep_shaker": 1.668179,
+  "kicks/drive_8": 1.734728,
+  "kicks/eight_crush": 1.895106,
+  "kicks/floor_16hat": 0.475815,
+  "kicks/floor_8hat": 0.482913,
+  "kicks/floor_ghost": 1.700993,
+  "kicks/floor_shaker": 1.730155,
+  "kicks/floor_shaker_hat": 0.482013,
+  "kicks/good_kick": 0.666118,
+  "kicks/linn_dist": 4.0,
+  "kicks/linn_floor": 0.622196,
+  "kicks/nine_room": 0.494795,
+  "kicks/nine_thin": 0.466096,
+  "kicks/perc_roll": 0.48913,
+  "kicks/punchy_dirt": 3.510786,
+  "kicks/raw_dirt6": 0.651181,
+  "kicks/raw_seven": 0.66192,
+  "kicks/seven_dub": 0.687969,
+  "kicks/seven_tight": 0.708302,
+  "kicks/shape_808": 0.940646,
+  "kicks/sine_thud": 0.825465,
+  "kicks/six06_raw": 1.054211,
+  "kicks/six_kick": 0.554525,
+  "kicks/speed_pitch": 1.848408,
+  "kicks/sub_duck": 0.998044,
+  "kicks/sub_long": 0.774977,
+  "kicks/tape_kick": 0.499928,
+  "lead/acid_line": 4.0,
+  "lead/crickets_tex": 4.0,
+  "lead/decent_lead": 4.0,
+  "lead/lacid_08": 4.0,
+  "lead/lroller_01": 3.686868,
+  "lead/lroller_06": 4.0,
+  "lead/lsynth_11": 4.0,
+  "lead/lwt_12": 4.0,
+  "lead/lwt_14": 4.0,
+  "lead/lwt_15": 4.0,
+  "lead/saw_hook": 4.0,
+  "sfx/deep_sine": 1.071059,
+  "sfx/drone_root": 3.237913,
+  "sfx/fm_sub": 2.765514,
+  "sfx/grab_hypno": 4.0,
+  "sfx/pluck_minor": 2.44458,
+  "sfx/reese_mono": 3.164326,
+  "sfx/rubber": 2.317822,
+  "sfx/wt_drone": 4.0,
+  "sfx/xdbl_01": 4.0
+ },
+ "loudness": {
+  "bass/decent_bass": {
+   "rms": 0.127723,
+   "peak": 0.356926
+  },
+  "bass/kutting": {
+   "rms": 0.091473,
+   "peak": 0.305721
+  },
+  "bass/substk_03": {
+   "rms": 0.117269,
+   "peak": 0.402407
+  },
+  "bass/substk_04": {
+   "rms": 0.120945,
+   "peak": 0.363569
+  },
+  "bass/substk_07": {
+   "rms": 0.130602,
+   "peak": 0.373276
+  },
+  "bass/substk_15": {
+   "rms": 0.114075,
+   "peak": 0.397349
+  },
+  "bass/wt_flute_sub": {
+   "rms": 0.119671,
+   "peak": 0.415118
+  },
+  "kicks/accent_808": {
+   "rms": 0.045783,
+   "peak": 0.487257
+  },
+  "kicks/acid_perc2": {
+   "rms": 0.058154,
+   "peak": 0.499351
+  },
+  "kicks/boom_808": {
+   "rms": 0.060376,
+   "peak": 0.536271
+  },
+  "kicks/break_hat": {
+   "rms": 0.204883,
+   "peak": 0.936435
+  },
+  "kicks/deep_shaker": {
+   "rms": 0.059946,
+   "peak": 0.51579
+  },
+  "kicks/drive_8": {
+   "rms": 0.057646,
+   "peak": 0.490816
+  },
+  "kicks/eight_crush": {
+   "rms": 0.052767,
+   "peak": 0.444425
+  },
+  "kicks/floor_16hat": {
+   "rms": 0.210166,
+   "peak": 0.916152
+  },
+  "kicks/floor_8hat": {
+   "rms": 0.207077,
+   "peak": 0.908067
+  },
+  "kicks/floor_ghost": {
+   "rms": 0.058789,
+   "peak": 0.481943
+  },
+  "kicks/floor_shaker": {
+   "rms": 0.057798,
+   "peak": 0.494601
+  },
+  "kicks/floor_shaker_hat": {
+   "rms": 0.207463,
+   "peak": 0.923073
+  },
+  "kicks/good_kick": {
+   "rms": 0.150123,
+   "peak": 0.900863
+  },
+  "kicks/linn_dist": {
+   "rms": 0.011438,
+   "peak": 0.042279
+  },
+  "kicks/linn_floor": {
+   "rms": 0.160721,
+   "peak": 0.880615
+  },
+  "kicks/nine_room": {
+   "rms": 0.202104,
+   "peak": 0.903245
+  },
+  "kicks/nine_thin": {
+   "rms": 0.214548,
+   "peak": 0.939558
+  },
+  "kicks/perc_roll": {
+   "rms": 0.204445,
+   "peak": 0.88608
+  },
+  "kicks/punchy_dirt": {
+   "rms": 0.028484,
+   "peak": 0.098874
+  },
+  "kicks/raw_dirt6": {
+   "rms": 0.153567,
+   "peak": 1.038406
+  },
+  "kicks/raw_seven": {
+   "rms": 0.151076,
+   "peak": 0.930459
+  },
+  "kicks/seven_dub": {
+   "rms": 0.145355,
+   "peak": 0.766241
+  },
+  "kicks/seven_tight": {
+   "rms": 0.141183,
+   "peak": 0.829319
+  },
+  "kicks/shape_808": {
+   "rms": 0.10631,
+   "peak": 0.72254
+  },
+  "kicks/sine_thud": {
+   "rms": 0.121144,
+   "peak": 0.289469
+  },
+  "kicks/six06_raw": {
+   "rms": 0.094675,
+   "peak": 0.853719
+  },
+  "kicks/six_kick": {
+   "rms": 0.180335,
+   "peak": 0.812947
+  },
+  "kicks/speed_pitch": {
+   "rms": 0.054101,
+   "peak": 0.44259
+  },
+  "kicks/sub_duck": {
+   "rms": 0.100196,
+   "peak": 0.267843
+  },
+  "kicks/sub_long": {
+   "rms": 0.129036,
+   "peak": 0.302406
+  },
+  "kicks/tape_kick": {
+   "rms": 0.200029,
+   "peak": 0.928871
+  },
+  "lead/acid_line": {
+   "rms": 0.015773,
+   "peak": 0.054694
+  },
+  "lead/crickets_tex": {
+   "rms": 0.003601,
+   "peak": 0.019617
+  },
+  "lead/decent_lead": {
+   "rms": 0.011802,
+   "peak": 0.051102
+  },
+  "lead/lacid_08": {
+   "rms": 0.014775,
+   "peak": 0.068242
+  },
+  "lead/lroller_01": {
+   "rms": 0.027123,
+   "peak": 0.142386
+  },
+  "lead/lroller_06": {
+   "rms": 0.020822,
+   "peak": 0.110169
+  },
+  "lead/lsynth_11": {
+   "rms": 0.009459,
+   "peak": 0.040261
+  },
+  "lead/lwt_12": {
+   "rms": 0.015594,
+   "peak": 0.054875
+  },
+  "lead/lwt_14": {
+   "rms": 0.003236,
+   "peak": 0.013174
+  },
+  "lead/lwt_15": {
+   "rms": 0.011359,
+   "peak": 0.091455
+  },
+  "lead/saw_hook": {
+   "rms": 0.006446,
+   "peak": 0.060182
+  },
+  "sfx/deep_sine": {
+   "rms": 0.093366,
+   "peak": 0.29089
+  },
+  "sfx/drone_root": {
+   "rms": 0.030884,
+   "peak": 0.193356
+  },
+  "sfx/fm_sub": {
+   "rms": 0.03616,
+   "peak": 0.242048
+  },
+  "sfx/grab_hypno": {
+   "rms": 0.019452,
+   "peak": 0.069729
+  },
+  "sfx/pluck_minor": {
+   "rms": 0.040907,
+   "peak": 0.180741
+  },
+  "sfx/reese_mono": {
+   "rms": 0.02735,
+   "peak": 0.284421
+  },
+  "sfx/rubber": {
+   "rms": 0.043144,
+   "peak": 0.182254
+  },
+  "sfx/wt_drone": {
+   "rms": 0.001367,
+   "peak": 0.014053
+  },
+  "sfx/xdbl_01": {
+   "rms": 0.0039,
+   "peak": 0.037876
+  }
+ },
+ "sfx": [
+  "beam_fire",
+  "beam_fire_rage",
+  "beam_fire_singularity",
+  "block",
+  "catalyst",
+  "cooldown_ready",
+  "count_tick",
+  "dash",
+  "death",
+  "double_kill",
+  "ghost_loop",
+  "go",
+  "jump",
+  "land",
+  "ready",
+  "respawn",
+  "room_join",
+  "shield_down",
+  "shield_loop",
+  "shield_up",
+  "singularity",
+  "triple_kill",
+  "ui_click",
+  "ui_hover",
+  "ui_toggle"
+ ],
+ "sfx_loops": [
+  "ghost_loop",
+  "shield_loop"
+ ]
+}
