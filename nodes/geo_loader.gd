@@ -20,6 +20,7 @@ static func build(raw_path: String, geo_path: String) -> Node3D:
 	var hz := float(half[1])
 	root.add_child(_floor(hx, hz, str(raw.get("floorColor", DEFAULT_FLOOR_COLOR))))
 	_add_bounds(root, hx, hz)
+	root.add_child(FloorGrid.build(hx, hz))   # web Arena.tsx: 1 m floor grid
 
 	var geo := MapFiles.read_json(geo_path)
 	var beam_targets := PackedVector3Array()
