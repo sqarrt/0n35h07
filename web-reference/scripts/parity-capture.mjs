@@ -99,7 +99,16 @@ try {
     position: window.__debugPlayerPos?.(0),
   }));
   await page.screenshot({ path: resolve(output, 'web-hit.png') });
-  await writeFile(resolve(output, 'web-runtime.json'), JSON.stringify({ mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, facts, errors }, null, 2));
+  // Match end: take the time-up path, then let the freeze-frame and the outcome fade-in settle.
+  await page.evaluate(() => window.__debugForceEnd?.());
+  await page.getByTestId('match-outcome').waitFor({ timeout: 10000 });
+  await settleScene();
+  await page.screenshot({ path: resolve(output, 'web-match-end.png') });
+  const matchEnd = {
+    outcome: await page.getByTestId('match-outcome').innerText(),
+    reason: await page.getByTestId('match-reason').innerText(),
+  };
+  await writeFile(resolve(output, 'web-runtime.json'), JSON.stringify({ mapId, renderer, viewport: { width: 1280, height: 720 }, settleFrames, settleMs, facts, matchEnd, errors }, null, 2));
   console.log(JSON.stringify({ output, facts, errors }));
 } finally {
   await browser.close();
