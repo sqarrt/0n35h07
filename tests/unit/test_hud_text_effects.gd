@@ -51,7 +51,7 @@ func test_streak_banner_names_the_player_and_flickers_out() -> void:
 	assert_eq(HudStreakBanner.TOP, 64, "web .streak-banner top")
 	assert_eq(HudStreakBanner.FONT_SIZE, 24)
 	assert_false(banner.visible)
-	banner.announce("YOU", "catalyst", HudModel.YOU_COLOR)
+	banner.announce("YOU", "catalyst", Color("#4af"))
 	var text := banner.find_child("Text", true, false) as EffectText
 	assert_true(banner.visible)
 	assert_eq(text.shown_text(), "YOU: CATALYST")

@@ -112,6 +112,10 @@ func set_rng(rng: Callable) -> void:
 func shown_text() -> String:
 	return _shown
 
+## The text as given (shown_text() may be momentarily scrambled).
+func base_text() -> String:
+	return _text
+
 func kind() -> String:
 	return _kind
 

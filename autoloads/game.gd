@@ -14,6 +14,11 @@ const MAPS := [
 
 var selected_map := "res://maps/os_pillars.json"   # set by the main menu
 var match_duration_ms := MatchConst.LOBBY_DEFAULT_DURATION_MS   # set by the lobby (3 / 5 / 10 min)
+var random := RandomNumberGenerator.new()          # names and first-run profile rolls (web Math.random)
+var profile := {}                                  # the local player's PlayerProfile (web loadProfile)
+var lobby_bot_name := ""                           # the host's name for the bot; "" = generated (web setBotName)
 
 func _ready() -> void:
+	random.randomize()
+	profile = ProfileStore.load_profile(random.randf)
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

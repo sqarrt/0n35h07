@@ -1,8 +1,8 @@
 class_name HudTopBar extends VBoxContainer
 ## Match HUD top bar — port of web MatchHud (1v1) + theme.css .match-hud: your side · timer · opponent side,
 ## centred horizontally with its top edge 30px from the screen top. A side is 150px wide: streak dots + name + frags
-## (yours right-aligned, the opponent's mirrored); the timer sits between hairline borders. Names are EffectText with
-## the player's streak tier; names / colours follow the web fallbacks until player profiles exist.
+## (yours right-aligned, the opponent's mirrored); the timer sits between hairline borders. Names come from the roster
+## as EffectText with the player's streak tier; frags and dots take the player's colour.
 
 const TOP := 30                              # web .match-hud top
 const GAP := 18                              # web gap between side / timer / side
@@ -18,10 +18,8 @@ const TIMER_COLOR := Color("#dfe9f5")
 const TIMER_PADDING := 14
 const TIMER_BORDER := 1
 const TIMER_BORDER_COLOR := Color("#25303f")
-const YOU_LABEL := "YOU"                     # web dictionary hudYou (fallback name)
+const YOU_LABEL := "YOU"                     # web dictionary hudYou (name fallback without a roster entry)
 const OPPONENT_LABEL := "OPPONENT"           # web dictionary hudOpponent
-const YOU_COLOR := HudModel.YOU_COLOR
-const OPPONENT_COLOR := HudModel.OPPONENT_COLOR
 const DOT := "●"                             # web streak-dots glyph
 const DOT_FONT_SIZE := 10                    # web .streak-dots font-size
 const DOT_SPACING_PX := 1                    # web .streak-dots letter-spacing
@@ -34,6 +32,8 @@ var _opp_name: EffectText
 var _you_dots: Label
 var _opp_dots: Label
 var _timer: Label
+var _you := {}
+var _opp := {}
 var _you_streak := NO_STREAK
 var _opp_streak := NO_STREAK
 
@@ -55,9 +55,9 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", GAP)
 	add_child(row)
 
-	_you_frags = _frag_label(YOU_COLOR)
+	_you_frags = _frag_label("YouFrags")
 	_you_name = _name_text("YouName")
-	_you_dots = _dots_label("YouDots", YOU_COLOR)
+	_you_dots = _dots_label("YouDots")
 	row.add_child(_side([_you_dots, _you_name, _you_frags], BoxContainer.ALIGNMENT_END))
 
 	var frame := PanelContainer.new()
@@ -79,11 +79,22 @@ func _ready() -> void:
 	frame.add_child(_timer)
 	row.add_child(frame)
 
-	_opp_frags = _frag_label(OPPONENT_COLOR)
+	_opp_frags = _frag_label("OpponentFrags")
 	_opp_name = _name_text("OpponentName")
-	_opp_dots = _dots_label("OpponentDots", OPPONENT_COLOR)
+	_opp_dots = _dots_label("OpponentDots")
 	row.add_child(_side([_opp_frags, _opp_name, _opp_dots], BoxContainer.ALIGNMENT_BEGIN))
-	set_streaks(0, 0)
+	set_players({}, {})
+
+## Roster entries of both sides ({} = none: the web fallbacks YOU / OPPONENT and --text).
+func set_players(you: Dictionary, opponent: Dictionary) -> void:
+	_you = you
+	_opp = opponent
+	for side in [[_you_frags, _you_dots, you], [_opp_frags, _opp_dots, opponent]]:
+		var color := _side_color(side[2])
+		(side[0] as Label).add_theme_color_override("font_color", color)
+		(side[1] as Label).add_theme_color_override("font_color", color)
+	_show_streak(_you_name, _you_dots, _you, YOU_LABEL, maxi(_you_streak, 0))
+	_show_streak(_opp_name, _opp_dots, _opp, OPPONENT_LABEL, maxi(_opp_streak, 0))
 
 ## Frags for both sides and the timer text (HudModel.match_time).
 func set_state(you_frags: int, opponent_frags: int, time_text: String) -> void:
@@ -95,18 +106,23 @@ func set_state(you_frags: int, opponent_frags: int, time_text: String) -> void:
 func set_streaks(you_streak: int, opponent_streak: int) -> void:
 	if you_streak != _you_streak:
 		_you_streak = you_streak
-		_show_streak(_you_name, _you_dots, YOU_LABEL, you_streak, YOU_COLOR)
+		_show_streak(_you_name, _you_dots, _you, YOU_LABEL, you_streak)
 	if opponent_streak != _opp_streak:
 		_opp_streak = opponent_streak
-		_show_streak(_opp_name, _opp_dots, OPPONENT_LABEL, opponent_streak, OPPONENT_COLOR)
+		_show_streak(_opp_name, _opp_dots, _opp, OPPONENT_LABEL, opponent_streak)
 
-func _show_streak(player_name: EffectText, dots: Label, label: String, streak: int, color: Color) -> void:
+func _show_streak(player_name: EffectText, dots: Label, entry: Dictionary, fallback: String, streak: int) -> void:
+	var label: String = entry.get("name", fallback)
 	var tier := Streak.streak_tier(streak)
-	if player_name.shown_text() == "" or tier != player_name.kind():   # same tier: the effect keeps running
-		player_name.show_text(label, tier, color)
+	if player_name.base_text() != label or tier != player_name.kind():   # same name and tier: the effect keeps running
+		player_name.show_text(label, tier, Color(entry.get("color", AppearanceConst.FALLBACK_EFFECT_COLOR)))
 	var count := Overheat.streak_dots(streak)
 	dots.text = DOT.repeat(count)
 	dots.visible = count > 0
+
+## web `.side { color: entry.color }`; without an entry the text colour is inherited (--text).
+func _side_color(entry: Dictionary) -> Color:
+	return Color(entry.get("color", AppearanceConst.FALLBACK_TEXT_COLOR))
 
 func _side(children: Array, align: BoxContainer.AlignmentMode) -> HBoxContainer:
 	var side := HBoxContainer.new()
@@ -126,19 +142,18 @@ func _name_text(node_name: String) -> EffectText:
 	text.configure(UiFont.spaced(NAME_SPACING_EM, NAME_FONT_SIZE), NAME_FONT_SIZE, NAME_COLOR)
 	return text
 
-func _dots_label(node_name: String, color: Color) -> Label:
+func _dots_label(node_name: String) -> Label:
 	var label := Label.new()
 	label.name = node_name
 	label.add_theme_font_override("font", UiFont.spaced(float(DOT_SPACING_PX) / DOT_FONT_SIZE, DOT_FONT_SIZE))
 	label.add_theme_font_size_override("font_size", DOT_FONT_SIZE)
-	label.add_theme_color_override("font_color", color)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return label
 
-func _frag_label(color: Color) -> Label:
+func _frag_label(node_name: String) -> Label:
 	var label := Label.new()
+	label.name = node_name
 	label.text = "0"
 	label.add_theme_font_override("font", UiFont.base())
 	label.add_theme_font_size_override("font_size", FRAG_FONT_SIZE)
-	label.add_theme_color_override("font_color", color)
 	return label

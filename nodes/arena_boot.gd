@@ -1,12 +1,14 @@
 extends Node3D
 ## Wires the human controller, spawns a bot opponent, places both on the map's spawn points
-## and runs the match once the arena is ready.
+## and runs the match once the arena is ready. The roster comes from the local profile and the bot's generated
+## model name (web RoomSession: the bot name seeds both its look and its personality).
 
 const PLAYER := preload("res://scenes/player.tscn")
 const HUMAN_SLOT := 0
 const BOT_SLOT := 1
 const HUMAN_TEAM := 0   # 1v1: each slot is its own team (web teamOfSlot)
 const BOT_TEAM := 1
+const BOT_DIFFICULTY := "normal"   # web addBot default
 
 func _ready() -> void:
 	var raw_path: String = Game.selected_map
@@ -22,12 +24,15 @@ func _ready() -> void:
 	var hc: HumanController = $HumanController
 	hc.setup(human, camera)   # first person hides the player's own sphere (the camera sits inside it)
 
-	var bot := _spawn_bot(human, spawns[BOT_SLOT])
+	var bot_name := ModelNames.bot_name(Game.lobby_bot_name, Game.random.randf)
+	var bot := _spawn_bot(human, spawns[BOT_SLOT], bot_name)
 
 	# Run the local match: human (team 0) vs bot (team 1).
 	var match_node := MatchNode.new()
 	match_node.set_duration_ms(Game.match_duration_ms)
 	match_node.local_id = HUMAN_SLOT
+	match_node.roster.add(Roster.human_entry(HUMAN_SLOT, Game.profile))
+	match_node.roster.add(Roster.bot_entry(BOT_SLOT, bot_name, BOT_DIFFICULTY))
 	add_child(match_node)
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)
@@ -47,9 +52,9 @@ func _ready() -> void:
 	add_child(ended)
 	match_node.match_ended.connect(func(result: Dictionary) -> void:
 		pause.enabled = false
-		ended.show_result(result))
+		ended.show_result(result, match_node.roster, match_node.streak_tiers()))
 
-func _spawn_bot(human: PlayerNode, spawn: Vector3) -> PlayerNode:
+func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()
 	bot.player.id = BOT_SLOT
 	bot.player.body.position = spawn   # PlayerNode._ready copies it into the physics body
@@ -57,7 +62,7 @@ func _spawn_bot(human: PlayerNode, spawn: Vector3) -> PlayerNode:
 	add_child(bot)
 	var get_target := func(): return human.player
 	var los_rc := WorldRaycaster.new(get_world_3d().direct_space_state)
-	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, false, BotPersonality.from_name("Bot 1"))
+	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, false, BotPersonality.from_name(bot_name))
 	bot_ctrl.set_self_exclude([bot.hitbox_rid()])
 	bot.controller = bot_ctrl
 	return bot
