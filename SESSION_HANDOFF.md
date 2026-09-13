@@ -38,7 +38,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 323/323)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 364/364)
 
 | Слайс | Суть |
 |---|---|
@@ -53,20 +53,22 @@
 | G11b лучи | `BeamFx` classic/rage/singularity (`BeamCurves`), бот — classic `#f44`, искры только от выстрелов человека |
 | G11c щиты и следы | `ShieldFx` dome/hex/crystal (`ShieldSkinState`), `DashTrailView` streak/wave/rift |
 | G11d замахи и респавны | `WindupWorldView` (`RageJaws`, `SingularityVortex`, точки `size_attenuated_points`), `RespawnFxView` echo/chaos/swarm (`ChaosRespawn`, `SwarmRespawn`); шар пишет глубину в призраке |
+| Звук (SND) | `MusicRng`/`MusicDirector`/`MenuMusicArranger` (сверены оракулом web), `MusicSlots`/`MusicScheduler`/`MusicEngine` (слот-плееры с `AudioStreamInteractive`, переход на следующий такт = 8 с), `MatchSfx`/`SfxEngine`/`MatchAudio`, автозагрузка `Audio` (меню, UI, `AudioAnalysisHub`), `HudAudioBar`; стемы/SFX → Ogg (`tools/audio/convert_web_audio.py`) |
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
-Скины G11a–G11d, перегрев (OV + G11e) и контур рёбер блоков (PP1) смержены в `release_2.0.0`. Следующий слайс —
-**звук**: музыка/SFX, `AudioBar` (видна на всех кадрах web), `StatsOverlay`.
+Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1) и звук (SND) смержены в `release_2.0.0`. Следующий
+слайс — **StatsOverlay** (FPS/скорость по настройкам профиля), затем тема UI и меню.
 
 ## 5. Что ещё осталось (бэклог паритета)
 
-- **Звук** (следующий: музыка, SFX) и **AudioBar** (визуализатор, `audioViz` вкл. по умолчанию); StatsOverlay (FPS/скорость).
+- **StatsOverlay** (следующий: FPS/скорость по `showFps`/`showSpeed`). Открыто по звуку: форма кроссфейда, реверб/эхо
+  шинами вместо свёртки web, нет де-клика (см. отчёт `2026-09-14-audio-*`).
 - **Тема интерфейса**: кнопки (`Button variant=primary`), экран результата E2 (кнопка/высота колонки).
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
   в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
@@ -77,6 +79,10 @@
 
 ## 6. Грабли (не наступать повторно)
 
+- Звук: у узла дети выходят из дерева раньше родителя — не спрашивать у дочернего движка шину в `_exit_tree`;
+  Callable на метод не держит RefCounted живым; в GutTest нельзя назвать хелпер `_input`; автозагрузки не глобальны
+  в `-s`-скриптах (брать `root.get_node_or_null`); у `AudioStreamInteractive` `get_playback_position()` = 0;
+  такт = `bar_beats` (16 для 8-секундной петли); headless-драйвер микширует и пишет звук.
 - `set_anchors_preset` у полноэкранного Control оставляет размер 0×0 → только `set_anchors_and_offsets_preset`;
   тесты раскладки — в `SubViewport` 1280×720 (headless root 64×64).
 - `Label.get_minimum_size()` сразу после `add_theme_font_override` — ещё со старым шрифтом → `minimum_size_changed`.

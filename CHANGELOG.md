@@ -76,6 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Ghosts move twice as fast again, easing back before they respawn, and glass blocks use the original's transparency.
 - **Block edges are outlined.** With post-processing on (the default), the visible edges of map blocks are drawn
   lighter, as in the original, including on see-through blocks.
+- **The game has sound.** Matches play the original's music, composed from the same room code into the same song form
+  of 8-second loops and fading out with an echo when the match ends; the menu has its own music. Players, shots,
+  shields, dashes, landings, blocks, kills, respawns, the countdown and streak announces sound as in the original,
+  positionally for the opponent. Buttons click and blip on hover. The HUD shows the original's sound visualiser line,
+  and every level follows the master / music / effects / menu music volumes of the profile.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
