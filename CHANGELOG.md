@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   layout and font; the crosshair ring fills as the beam recharges; four corner brackets fill as the shield recharges
   and side bars as the dash recharges. The old bottom cooldown bars and the always-on speed readout are gone, as in the
   original. Positions and colours were checked pixel by pixel against the original.
+- **HUD effects from the original.** The countdown dims the arena and pops each big glowing number in; a streak
+  banner flickers in under the timer naming the player (any player's streak, as in the original); the screen edges
+  glow while charging a shot, while the shield is up (with its faint grid) and during the respawn ghost phase, which
+  also shows shrinking bars and a "RESPAWNING" caption; own shots, being hit and blocking tint the screen briefly
+  for the original's durations.
 - **Block cell grid.** Maps that enable it (Pool) outline every block cell with translucent blue lines, as in the
   original.
 
