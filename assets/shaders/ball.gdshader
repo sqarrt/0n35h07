@@ -1,4 +1,6 @@
 shader_type spatial;
+// three.js keeps depthWrite on a transparent ball: the ghost hides the same-centre trail clones inside it.
+render_mode depth_draw_always;
 // The combat ball — port of web ballMaterial.ts over a MeshStandardMaterial (roughness 1, metalness 0): the player
 // colour, the `waves` model's travelling vertex waves along the normal, and the ball artwork sampled through a disc
 // projection of the model normal (front hemisphere = local -Z, the aim side). Ghost opacity comes from the instance

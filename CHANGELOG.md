@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Shield and dash skins.** Shields take the player's style — the pulsing wireframe dome, the hexagon tiles that
   flash in a wave, or the crystal with a flickering face — and dashes leave the chosen trail: speed clones,
   shockwave rings or a red-green-blue rift.
+- **Windup and respawn skins.** Charging a rage shot opens a glitching hologram of jaws in front of the ball that
+  snaps shut when you fire; a singularity shot pulls a vortex of sparks into the ball and ends in a white collapse
+  flash. Respawns follow the chosen style too — the particle burst and translucent ghost, a jittering glitch ghost
+  that reassembles in steps, or a swarm of fragments that orbits you and gathers back into the ball.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

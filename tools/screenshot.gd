@@ -15,6 +15,9 @@ extends SceneTree
 ##   third-person-shot-<style>  the profile's windup style set to classic / rage / singularity, 50 ms into the beam.
 ##   third-person-shield-<style>  shield style dome / hex / crystal, 100 ms after raising the shield.
 ##   third-person-dash-<style>    dash style streak / wave / rift, ≈ 60 ms into a dash straight ahead.
+##   third-person-windup-<style>  windup style rage / singularity, 200 ms into an own charge (the world part).
+##   third-person-ghost-<style>   respawn style echo / chaos / swarm, 600 ms into a ghost phase (no shooter).
+##   third-person-rebirth-<style> the same style, REBIRTH_FRAMES after materialising at the end of that ghost.
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
@@ -40,8 +43,16 @@ const DEFLATE_FRAMES := 27           # 450 ms: the shot at 400 ms plus 50 ms of 
 const MODE_TP_SHOT := "third-person-shot-"
 const MODE_TP_SHIELD := "third-person-shield-"
 const MODE_TP_DASH := "third-person-dash-"
+const MODE_TP_WINDUP_STYLE := "third-person-windup-"
+const MODE_TP_GHOST := "third-person-ghost-"
+const MODE_TP_REBIRTH := "third-person-rebirth-"
+## Style fixtures: mode prefix -> the profile key it sets from the mode suffix.
+const STYLE_MODES := {MODE_TP_SHOT: "windupStyle", MODE_TP_WINDUP_STYLE: "windupStyle", MODE_TP_SHIELD: "shieldStyle",
+	MODE_TP_DASH: "dashStyle", MODE_TP_GHOST: "respawnStyle", MODE_TP_REBIRTH: "respawnStyle"}
 const SHIELD_FRAMES := 6             # 100 ms into the shield
 const DASH_FRAMES := 4               # ≈ 60 ms into the dash (web frame 60 ms)
+const GHOST_FRAMES := 36             # 600 ms into the ghost
+const REBIRTH_FRAMES := 8            # ≈ 133 ms after materialising (web frame measured ≈ 140 ms)
 const MODE_PROFILE := "profile"
 const MODE_PROFILE_DOUBLE := "profile-double"
 const PROFILE_PREFIX := "profile:"
@@ -104,18 +115,20 @@ func _initialize() -> void:
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
-	if _mode.begins_with(MODE_TP_SHOT):
+	var style_mode := _style_mode()
+	if style_mode != "":
 		_passive_bot = true
 		if g != null:
-			g.profile["windupStyle"] = _mode.trim_prefix(MODE_TP_SHOT)
-	if _mode.begins_with(MODE_TP_SHIELD) or _mode.begins_with(MODE_TP_DASH):
-		_passive_bot = true
-		if g != null:
-			var shield := _mode.begins_with(MODE_TP_SHIELD)
-			g.profile["shieldStyle" if shield else "dashStyle"] = _mode.trim_prefix(MODE_TP_SHIELD if shield else MODE_TP_DASH)
+			g.profile[STYLE_MODES[style_mode]] = _mode.trim_prefix(style_mode)
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
+
+func _style_mode() -> String:
+	for prefix in STYLE_MODES:
+		if _mode.begins_with(prefix):
+			return prefix
+	return ""
 
 func _players() -> Array:
 	return root.find_children("*", "", true, false).filter(func(n): return n is PlayerNode)
@@ -163,6 +176,10 @@ func _apply_hud_fixture() -> int:
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES
+	if _mode.begins_with(MODE_TP_GHOST) or _mode.begins_with(MODE_TP_REBIRTH):
+		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
+		_human().player.apply_death()   # web __debugKill: a ghost phase without a shooter
+		return GHOST_FRAMES if _mode.begins_with(MODE_TP_GHOST) else REBIRTH_FRAMES
 	if _mode.begins_with(MODE_TP_SHIELD) or _mode.begins_with(MODE_TP_DASH):
 		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
 		if _mode.begins_with(MODE_TP_SHIELD):
@@ -170,12 +187,14 @@ func _apply_hud_fixture() -> int:
 			return SHIELD_FRAMES
 		_human().player.dash(Vector3.FORWARD)   # web: W held + Shift, straight at the bot
 		return DASH_FRAMES
-	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE] or _mode.begins_with(MODE_TP_SHOT):
+	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE] or _mode.begins_with(MODE_TP_SHOT) \
+			or _mode.begins_with(MODE_TP_WINDUP_STYLE):
 		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
 		if _mode == MODE_THIRD_PERSON:
 			return VIEW_SETTLE_FRAMES
 		_human().player.start_firing()   # web: one mousedown
-		return HALF_WINDUP_FRAMES if _mode == MODE_TP_WINDUP else DEFLATE_FRAMES   # the shot frame = 50 ms into it
+		var half := _mode == MODE_TP_WINDUP or _mode.begins_with(MODE_TP_WINDUP_STYLE)
+		return HALF_WINDUP_FRAMES if half else DEFLATE_FRAMES   # the shot frame = 50 ms into it
 	if _mode == MODE_HUD_GHOST:
 		var human := _human()
 		human.player.respawning = true
@@ -192,7 +211,11 @@ func _capture() -> void:
 		camera.global_position = Vector3(spawn[0], spawn[1], spawn[2])
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
-	for i in _apply_hud_fixture():
+	var fixture_frames := _apply_hud_fixture()
+	if _mode.begins_with(MODE_TP_REBIRTH):
+		while _human().player.respawning:   # the rebirth offset counts from the materialisation
+			await process_frame
+	for i in fixture_frames:
 		await process_frame   # let the HUD pick the fixture up (and play its animation) before drawing
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(_output)

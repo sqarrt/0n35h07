@@ -30,11 +30,14 @@
   (карта: `set PARITY_MAP=os_pool_day&& ...`). Скрипты: `parity-capture.mjs` (меню/лобби/игра/попадание/баннер/отсчёт/конец),
   `parity-capture-streak.mjs`, `parity-capture-camera.mjs`, `parity-capture-profile.mjs`, пробник
   `parity-probe-fx-region.mjs`; общий код — `parity-lib.mjs` (`enterLiveMatch(page, base, map, onStage, {profile, botName})`).
-  Хуки web: `__debugAnnounce(kind)`, `__debugStreak(id,n)`, `__debugPlayerColor(id)`, `__debugForceEnd`, …
+  Хуки web: `__debugAnnounce(kind)`, `__debugStreak(id,n)`, `__debugPlayerColor(id)`, `__debugTimeScale(k)` (только
+  симуляция; `Date.now`-визуалы не замедляет), `__debugKill(id)`, `__debugRespawning(id)`, `__debugForceEnd`, …
+  Ещё скрипты: `parity-capture-skins/-beams/-shield-dash/-windup-respawn.mjs`. Vite из WSL на /mnt/c не видит правок —
+  перезапускать (`pgrep -f "^node node_modules/vite"` + kill; `pkill -f` убивает свою оболочку).
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 262/262)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 304/304)
 
 | Слайс | Суть |
 |---|---|
@@ -45,19 +48,23 @@
 | H3 эффекты серий + размытые свечения | `StreakFx`/`CssTiming`/`CssShadow`, `GlowText` (гауссово размытие через SubViewport), `EffectText`, шейдеры glow_*/text_turbulence; длительность по умолчанию 3 мин |
 | CAM1/G12 камера и управление | `CameraModel`, `HumanController`: ЛКМ/ПКМ(щит)/Shift/V события, чувств. 0.002×0.15, наклон ±90°, тряска, FOV ghost, третье лицо, прицел лучом из камеры |
 | P1 профили игроков | `PlayerProfile`/`ModelNames`/`BotAppearance`/`Roster`/`ProfileStore`; ники и цвета в HUD, баннере, результате; фиксы размеров текста и области фильтра серий |
+| G11a шар | `BallVisual` (модели/кольцо/рисунок), `SkinCurves`, `ParticlePool`/`DeathBurst`/`AfterimageTrail`, замах шара, призрак, «пуф»; `HudThrottle`/`CssTransition` |
+| G11b лучи | `BeamFx` classic/rage/singularity (`BeamCurves`), бот — classic `#f44`, искры только от выстрелов человека |
+| G11c щиты и следы | `ShieldFx` dome/hex/crystal (`ShieldSkinState`), `DashTrailView` streak/wave/rift |
+| G11d замахи и респавны | `WindupWorldView` (`RageJaws`, `SingularityVortex`, точки `size_attenuated_points`), `RespawnFxView` echo/chaos/swarm (`ChaosRespawn`, `SwarmRespawn`); шар пишет глубину в призраке |
 
-Отчёты: `test-results/parity-reports/` (baseline … hud-effects, streak-text, camera-view, player-profiles).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
-Ветка **`feature/godot-skins`** (от `release_2.0.0`, слайс G11). Спека: `docs/superpowers/specs/2026-09-13-godot-skins-design.md`
-(все web-скины прочитаны и выписаны: 3 модели шара + рисунок, 3 луча, 3 замаха, 3 респавна, 3 рывка, 3 щита).
+Скины G11a–G11d смержены в `release_2.0.0`. Следующий слайс — **перегрев**: спека
+`docs/superpowers/specs/2026-09-14-godot-overheat-design.md` (в Godot НЕ подключены модификаторы скорости/кулдаунов,
+pierce/seeThrough при серии ≥5, полупрозрачные блоки; затем виньетка и молнии перегрева G11e).
 
 ## 5. Что ещё осталось (бэклог паритета)
 
-- **G11 скины** (следующий): шар/кольцо/рисунок, лучи, замахи, респавны (взрыв частиц, призрак), следы рывка, щиты;
-  overheat-виньетка и молнии; FX импакта.
+- **Перегрев** (следующий): модификаторы, pierce/seeThrough, прозрачные блоки; overheat-виньетка и молнии (G11e).
 - **Звук** (музыка, SFX) и **AudioBar** (визуализатор, `audioViz` вкл. по умолчанию); StatsOverlay (FPS/скорость).
 - **Тема интерфейса**: кнопки (`Button variant=primary`), экран результата E2 (кнопка/высота колонки).
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`

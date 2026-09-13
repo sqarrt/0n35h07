@@ -70,6 +70,14 @@ func set_opacity(opacity: float) -> void:
 	if _ring != null:
 		_ring_material.set_shader_parameter("opacity", opacity)
 
+## Visual-only offset of the ball mesh (the chaos respawn jitter; physics stays put).
+func set_mesh_offset(offset: Vector3) -> void:
+	_mesh.position = offset
+
+## Hide just the ball (the swarm respawn fragments mark the player instead).
+func set_mesh_visible(shown: bool) -> void:
+	_mesh.visible = shown
+
 ## web Body.faceDir: yaw only, so looking up or down never tilts the model.
 func face_dir(direction: Vector3) -> void:
 	var flat := Vector3(direction.x, 0.0, direction.z)
