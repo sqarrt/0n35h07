@@ -68,8 +68,9 @@ Tauri 2 desktop build.
   For EACH parity-comparison stage, produce a standalone HTML report with embedded screenshots,
   explicit capture conditions, confirmed discrepancies and limitations. Use the same map, phase,
   viewport and camera; wait for scene warmup and entrance animations before visual conclusions.
-- Never update an existing parity report: every check — corrections included — produces a NEW report with a new link.
+- Never update an existing parity report: every check — corrections included — produces a NEW report.
   `tools/parity/report.py` writes each run to a fresh timestamped folder and refuses to overwrite.
+  Do NOT publish reports (no Artifacts): keep them as local HTML files only.
 - Capture web reference frames on a real GPU only (SwiftShader draws the floor grid as stripes and drops the beam skin).
 - No test may be flaky.
 - If a test simply cannot be stabilised — ask the user whether it can be dropped.
