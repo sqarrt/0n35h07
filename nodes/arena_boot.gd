@@ -34,6 +34,8 @@ func _ready() -> void:
 	match_node.roster.add(Roster.human_entry(HUMAN_SLOT, Game.profile))
 	match_node.roster.add(Roster.bot_entry(BOT_SLOT, bot_name, BOT_DIFFICULTY))
 	add_child(match_node)
+	human.apply_appearance(match_node.roster.entry(HUMAN_SLOT))
+	bot.apply_appearance(match_node.roster.entry(BOT_SLOT))
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)
 	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera

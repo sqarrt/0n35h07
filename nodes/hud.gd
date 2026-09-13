@@ -16,6 +16,13 @@ var _dash: HudDashBars
 var _ghost: HudGhostIndicator
 var _banner: HudStreakBanner
 var _countdown: HudCountdown
+var _throttle := HudThrottle.new()   # web syncHud: progress values at most every 50 ms
+var _beam_progress := HudModel.READY
+var _shield_progress := HudModel.READY
+var _dash_progress := HudModel.READY
+var _windup_progress := 0.0
+var _respawn_progress = null         # null while not in the ghost phase
+var _was_winding_up := false
 
 func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_human = human
@@ -65,17 +72,34 @@ func _process(delta: float) -> void:
 		element.visible = live
 	_top_bar.set_state(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID), HudModel.match_time(_match.seconds_left()))
 	_top_bar.set_streaks(_match.streak_of(HUMAN_ID), _match.streak_of(BOT_ID))
-	_crosshair.set_progress(player.beam_progress())
-	_brackets.set_state(player.shield_progress(), player.is_shielded())
-	_dash.set_progress(player.dash_progress())
+	_sync_progress(player, delta)
+	_crosshair.set_progress(_beam_progress)
+	_brackets.set_state(_shield_progress, player.is_shielded())   # shield visibility is immediate in the web
+	_dash.set_progress(_dash_progress)
 	_overlay.set_ghost(live and player.respawning)
 	_overlay.set_shield_active(live and player.is_shielded())
-	_overlay.set_windup(player.windup_progress() if live else 0.0)
-	if live and player.respawning:
-		_ghost.show_progress(player.respawn_timer / MatchConst.RESPAWN_GHOST_MS)   # web progress runs 1 -> 0
+	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
+	if live and _respawn_progress != null:
+		_ghost.show_progress(_respawn_progress)
+		_ghost.tick(delta)
 	else:
 		_ghost.hide_indicator()
 	_banner.tick(delta)
+
+## web Match.syncHud: the windup ends at once, everything else is sampled at most every 50 ms.
+func _sync_progress(player: Player, delta: float) -> void:
+	var winding := player.is_winding_up()
+	if not winding and _was_winding_up:
+		_windup_progress = 0.0
+	_was_winding_up = winding
+	if not _throttle.tick(delta * MatchNode.MS_PER_S):
+		return
+	if winding:
+		_windup_progress = player.windup_progress()
+	_beam_progress = player.beam_progress()
+	_shield_progress = player.shield_progress()
+	_dash_progress = player.dash_progress()
+	_respawn_progress = player.respawn_timer / MatchConst.RESPAWN_GHOST_MS if player.respawning else null   # 1 -> 0
 
 ## web BEAM_FLASH: only the local player's own shot tints the screen.
 func _on_fired(shooter_id: int) -> void:

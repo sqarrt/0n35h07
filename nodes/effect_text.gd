@@ -270,7 +270,7 @@ func _build_decor() -> void:
 func _clear_decor() -> void:
 	for node in _glitches + _arcs + _ticks:
 		_composite.remove_child(node)
-		node.queue_free()
+		node.free()   # already out of the tree: free now, nothing is left orphaned until the frame ends
 	_glitches.clear()
 	_arcs.clear()
 	_ticks.clear()

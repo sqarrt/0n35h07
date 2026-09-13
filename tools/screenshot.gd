@@ -10,6 +10,8 @@ extends SceneTree
 ##   hud-names-<tier>  passive bot + both players on a double / triple / singularity streak, 600 ms in
 ##                     (web __debugStreak frames).
 ##   third-person      passive bot + the human's view toggled to third person (web: the V key).
+##   third-person-windup   the same, halfway through an own windup (200 ms after the click).
+##   third-person-deflate  the same, 50 ms after the own shot (inside the 200 ms deflate).
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
@@ -28,6 +30,10 @@ const MODE_HUD_BANNER := "hud-banner"
 const MODE_HUD_GHOST := "hud-ghost"
 const MODE_HUD_NAMES := "hud-names-"
 const MODE_THIRD_PERSON := "third-person"
+const MODE_TP_WINDUP := "third-person-windup"
+const MODE_TP_DEFLATE := "third-person-deflate"
+const HALF_WINDUP_FRAMES := 12       # 200 ms at --fixed-fps 60 (BEAM_WINDUP 400 ms)
+const DEFLATE_FRAMES := 27           # 450 ms: the shot at 400 ms plus 50 ms of deflate
 const MODE_PROFILE := "profile"
 const MODE_PROFILE_DOUBLE := "profile-double"
 const PROFILE_PREFIX := "profile:"
@@ -81,7 +87,8 @@ func _initialize() -> void:
 		if g != null:
 			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
-	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON] \
+	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON, MODE_TP_WINDUP,
+		MODE_TP_DEFLATE] \
 		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE)
 	if _mode.begins_with(MODE_PROFILE) and g != null:
 		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
@@ -139,9 +146,12 @@ func _apply_hud_fixture() -> int:
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES
-	if _mode == MODE_THIRD_PERSON:
+	if _mode in [MODE_THIRD_PERSON, MODE_TP_WINDUP, MODE_TP_DEFLATE]:
 		(root.find_children("*", "HumanController", true, false)[0] as HumanController).toggle_view()
-		return VIEW_SETTLE_FRAMES
+		if _mode == MODE_THIRD_PERSON:
+			return VIEW_SETTLE_FRAMES
+		_human().player.start_firing()   # web: one mousedown
+		return HALF_WINDUP_FRAMES if _mode == MODE_TP_WINDUP else DEFLATE_FRAMES
 	if _mode == MODE_HUD_GHOST:
 		var human := _human()
 		human.player.respawning = true

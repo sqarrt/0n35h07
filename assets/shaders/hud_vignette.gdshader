@@ -18,6 +18,12 @@ const float CSS_BLUR_TO_SIGMA = 0.5;  // CSS: a blur radius B is a Gaussian with
 const float LOGISTIC_GAUSS = 1.702;   // logistic approximation of the normal CDF
 const float CORNER_RADIUS = 1.41421356;
 
+varying vec4 modulate;                // the node's modulate: CSS opacity of the overlay element
+
+void vertex() {
+	modulate = COLOR;
+}
+
 vec4 over(vec4 src, vec4 dst) {       // straight-alpha "over"
 	float a = src.a + dst.a * (1.0 - src.a);
 	vec3 rgb = a > 0.0 ? (src.rgb * src.a + dst.rgb * dst.a * (1.0 - src.a)) / a : vec3(0.0);
@@ -52,5 +58,5 @@ void fragment() {
 		color = over(vec4(glow_color.rgb, glow_color.a * (1.0 - clear)), color);
 	}
 
-	COLOR = color;
+	COLOR = vec4(color.rgb * modulate.rgb, color.a * modulate.a);
 }

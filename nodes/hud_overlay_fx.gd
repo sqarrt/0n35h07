@@ -19,6 +19,9 @@ const SHIELD_GLOW_PX := 140.0
 const SHIELD_GRID := Color(65.0 / BYTE, 105.0 / BYTE, 225.0 / BYTE, 0.07)
 const SHIELD_GRID_PX := 40.0
 
+const WINDUP_FADE_S := 0.07   # web WindupOverlay transition: opacity 70ms linear
+
+var _windup_fade := CssTransition.new(WINDUP_FADE_S)
 var _windup: ColorRect
 var _shield: ColorRect
 var _ghost: ColorRect
@@ -37,11 +40,19 @@ func _ready() -> void:
 	_add_tint("HitTint", HudModel.PLAYER_HIT_TINT, HudModel.PLAYER_HIT_FLASH_MS)
 	_add_tint("BlockTint", HudModel.SHIELD_BLOCK_TINT, HudModel.SHIELD_BLOCK_FLASH_MS)
 
-## Windup vignette opacity follows the charge; nothing is drawn at zero (web renders null).
+## Windup vignette opacity follows the charge through the web `transition: opacity 70ms linear`; it mounts at the
+## current value and is not drawn at zero (web renders null).
 func set_windup(progress: float) -> void:
 	var opacity := HudModel.windup_vignette_opacity(progress)
-	_windup.visible = opacity > 0.0
-	_windup.modulate.a = opacity
+	if opacity <= 0.0:
+		_windup_fade.snap(0.0)
+		_windup.visible = false
+		return
+	if not _windup.visible:
+		_windup_fade.snap(opacity)
+	_windup_fade.set_target(opacity)
+	_windup.visible = true
+	_windup.modulate.a = _windup_fade.value
 
 func set_ghost(active: bool) -> void:
 	_ghost.visible = active
@@ -60,6 +71,9 @@ func flash_block() -> void:
 
 ## Advance the flash timers (called every frame; exposed for deterministic tests).
 func tick(delta: float) -> void:
+	_windup_fade.advance(delta)
+	if _windup.visible:
+		_windup.modulate.a = _windup_fade.value
 	for tint in _tints.values():
 		if tint["left_ms"] <= 0.0:
 			continue
