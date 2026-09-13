@@ -74,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   cooldowns; once anyone reaches a SINGULARITY streak every beam and aim ray passes through map blocks and the blocks
   turn see-through for everyone. Your screen edges glow red with flickering lightning that grows with your streak.
   Ghosts move twice as fast again, easing back before they respawn, and glass blocks use the original's transparency.
+- **Block edges are outlined.** With post-processing on (the default), the visible edges of map blocks are drawn
+  lighter, as in the original, including on see-through blocks.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

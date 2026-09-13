@@ -14,6 +14,9 @@ func _ready() -> void:
 	var raw_path: String = Game.selected_map
 	var geo_path := raw_path.replace(".json", "_geo.json")
 	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
+	var edges := MapEdges.new()                      # web Arena: {postFx && <MapEdges />}
+	edges.enabled = bool(Game.profile.get("postProcessing", true))
+	add_child(edges)
 	add_child(MapLights.build())                     # web MapLights + the page background as the sky
 	var spawns := Spawns.positions_for([HUMAN_SLOT, BOT_SLOT], Spawns.from_raw(MapFiles.read_json(raw_path)))
 

@@ -26,10 +26,10 @@ static func build(raw_path: String, geo_path: String) -> Node3D:
 	var geo := MapFiles.read_json(geo_path)
 	var beam_targets := PackedVector3Array()
 	for chunk in geo["chunks"]:
-		_add_mesh(root, chunk.get("opaqueRaycast"), false)
-		_add_mesh(root, chunk.get("opaqueNoRaycast"), false)
-		_add_mesh(root, chunk.get("transparentRaycast"), true)
-		_add_mesh(root, chunk.get("transparentNoRaycast"), true)
+		_add_mesh(root, chunk.get("opaqueRaycast"), false, true)
+		_add_mesh(root, chunk.get("opaqueNoRaycast"), false, false)
+		_add_mesh(root, chunk.get("transparentRaycast"), true, true)
+		_add_mesh(root, chunk.get("transparentNoRaycast"), true, false)
 		_collect(beam_targets, chunk.get("opaqueRaycast"))
 		_collect(beam_targets, chunk.get("transparentRaycast"))
 	var solid := PackedVector3Array()
@@ -51,7 +51,7 @@ static func _verts(b64: String) -> PackedVector3Array:
 		out[i] = Vector3(f[i * 3], f[i * 3 + 1], f[i * 3 + 2])
 	return out
 
-static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
+static func _add_mesh(root: Node3D, m, transparent: bool, raycast: bool) -> void:
 	if m == null:
 		return
 	var cf := _floats(m["color"])
@@ -72,6 +72,8 @@ static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
 	mat.vertex_color_use_as_albedo = true
 	mi.material_override = mat
 	MapBlocks.mark(mi, MapBlocks.GLASS_OPACITY if transparent else MapBlocks.OPAQUE)   # web userData.block + baseOpacity
+	if raycast:
+		MapEdges.mark_block(mi)   # web BLOCK_LAYER: only the raycast groups get the edge outline
 	root.add_child(mi)
 
 static func _collect(acc: PackedVector3Array, m) -> void:
