@@ -21,6 +21,7 @@ var _pad := 0
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_label = _new_label("Text")
+	_label.minimum_size_changed.connect(_resize)   # the glyph box changes once theme fonts apply
 	add_child(_label)
 	_mask_label = _new_label("MaskText")
 	_mask_label.add_theme_color_override("font_color", Color.WHITE)

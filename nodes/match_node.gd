@@ -16,6 +16,7 @@ const NO_TEAM := -1
 var rules := MatchRules.new()
 var phase := MatchPhase.new()
 var local_id := 0   # whose point of view the outcome is computed for (web localId)
+var roster := Roster.new()   # names, colours and looks of the participants (web RosterEntry list)
 var _clock := MatchClock.new(MatchConst.DEFAULT_MATCH_DURATION_MS)
 var _entities := {}   # id -> PlayerNode
 var _result := {}
@@ -41,6 +42,13 @@ func score_of(id: int) -> int:
 ## Current kill streak of a player (web streakCounts), 0 for unknown ids.
 func streak_of(id: int) -> int:
 	return _entities[id].player.streak if _entities.has(id) else 0
+
+## Streak tier per player id ("" for none) — the HUD streaks the result screen keeps on the names.
+func streak_tiers() -> Dictionary:
+	var tiers := {}
+	for id in _entities:
+		tiers[id] = Streak.streak_tier(streak_of(id))
+	return tiers
 
 func is_live() -> bool:
 	return phase.is_live()

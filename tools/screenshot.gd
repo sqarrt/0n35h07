@@ -11,6 +11,10 @@ extends SceneTree
 ##                     (web __debugStreak frames).
 ##   third-person      passive bot + the human's view toggled to third person (web: the V key).
 ##   hud-ghost         passive bot + the local player in the ghost phase with half of it left (tool fixture).
+##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
+##                     (web parity-capture-profile.mjs identity).
+##   profile-double    the same with both players on a double streak, 600 ms in.
+##   profile:<mode>    the parity identity combined with any mode above, e.g. profile:hud-banner-singularity.
 ##   (any other value, e.g. "-") no fixture.
 ## <match ms> overrides Game.match_duration_ms, e.g. to capture the match-end screen quickly.
 ## Writes <output png>.json with the capture facts (map, frame, mode, camera, live/ended, player positions).
@@ -24,6 +28,11 @@ const MODE_HUD_BANNER := "hud-banner"
 const MODE_HUD_GHOST := "hud-ghost"
 const MODE_HUD_NAMES := "hud-names-"
 const MODE_THIRD_PERSON := "third-person"
+const MODE_PROFILE := "profile"
+const MODE_PROFILE_DOUBLE := "profile-double"
+const PROFILE_PREFIX := "profile:"
+const PARITY_PROFILE := {"name": "PARITY7", "primaryColor": "#fa4", "reserveColor": "#4af"}
+const PARITY_BOT_NAME := "EX82R"
 const VIEW_SETTLE_FRAMES := 2        # the controller places the camera on its next frame
 const KIND_SEPARATOR := "-"
 const HUMAN_ID := 0
@@ -73,7 +82,13 @@ func _initialize() -> void:
 			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
 	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON] \
-		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES)
+		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE)
+	if _mode.begins_with(MODE_PROFILE) and g != null:
+		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
+		g.lobby_bot_name = PARITY_BOT_NAME
+	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
+		_mode = _mode.trim_prefix(PROFILE_PREFIX)
+		_passive_bot = true
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
@@ -97,6 +112,8 @@ func _setup_fixture() -> void:
 			node.place_at(Vector3(spawn[0], spawn[1], spawn[2]))
 		if node.player.id != HUMAN_ID:
 			node.controller = null   # passive opponent, like the web capture fixture
+		if _mode == MODE_PROFILE_DOUBLE:
+			node.player.streak = Streak.STREAK_DOUBLE   # from the start, so the result screen keeps the effect too
 
 func _process(_delta: float) -> bool:
 	_frames += 1
@@ -111,12 +128,14 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_HUD_BANNER):
 		var kind := _mode.trim_prefix(MODE_HUD_BANNER).trim_prefix(KIND_SEPARATOR)
 		var banner := root.find_child("StreakBanner", true, false) as HudStreakBanner
-		banner.announce(HudModel.player_name(HUMAN_ID), kind if kind != "" else FIRST_BLOOD_KIND,
-			HudModel.player_color(HUMAN_ID))
+		var roster := (root.find_children("*", "MatchNode", true, false)[0] as MatchNode).roster
+		banner.announce(roster.name_of(HUMAN_ID), kind if kind != "" else FIRST_BLOOD_KIND,
+			roster.color_of(HUMAN_ID, AppearanceConst.FALLBACK_EFFECT_COLOR))
 		banner.tick(BANNER_FRAME_S)
 		return 1
-	if _mode.begins_with(MODE_HUD_NAMES):
-		var streak: int = TIER_STREAKS[_mode.trim_prefix(MODE_HUD_NAMES)]
+	if _mode.begins_with(MODE_HUD_NAMES) or _mode == MODE_PROFILE_DOUBLE:
+		var tier := "double" if _mode == MODE_PROFILE_DOUBLE else _mode.trim_prefix(MODE_HUD_NAMES)
+		var streak: int = TIER_STREAKS[tier]
 		for node in _players():
 			node.player.streak = streak
 		return NAME_FRAME_FRAMES

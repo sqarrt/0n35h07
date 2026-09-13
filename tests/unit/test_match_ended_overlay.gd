@@ -16,7 +16,10 @@ const RESULT := {
 func _overlay() -> MatchEndedOverlay:
 	var o := MatchEndedOverlay.new()
 	add_child_autofree(o)
-	o.show_result(RESULT)
+	var roster := Roster.new()
+	roster.add({"id": TOP_ID, "name": "RA-1", "color": "#4af"})
+	roster.add({"id": 1, "name": "EX82R", "color": "#fd4"})
+	o.show_result(RESULT, roster, {TOP_ID: "double", 1: ""})
 	return o
 
 func test_shows_outcome_reason_and_exit() -> void:
@@ -32,8 +35,12 @@ func test_shows_outcome_reason_and_exit() -> void:
 func test_rows_list_players_by_kills() -> void:
 	var o := _overlay()
 	var ranking := o.find_child("Ranking", true, false)
-	assert_eq((ranking.get_child(0) as Label).text, HudModel.player_name(TOP_ID), "row 1: name column")
-	assert_eq((ranking.get_child(1) as Label).text, str(TOP_KILLS), "row 1: kills column")
+	var top_name := ranking.get_child(0) as EffectText
+	assert_eq(top_name.base_text(), "RA-1", "row 1: name column from the roster")
+	assert_eq(top_name.kind(), "double", "the HUD streak effect stays on the name")
+	var top_kills := ranking.get_child(1) as Label
+	assert_eq(top_kills.text, str(TOP_KILLS), "row 1: kills column")
+	assert_eq(top_kills.get_theme_color("font_color"), Color("#4af"), "kills in the player colour")
 
 func test_pause_menu_can_be_disabled() -> void:
 	var p := PauseOverlay.new()

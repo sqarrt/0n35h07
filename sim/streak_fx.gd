@@ -65,6 +65,7 @@ const GLITCH_A_KEYS := [[0.0, Vector3(0.0, 0.85, 0)], [0.2, Vector3(0.2, 0.55, -
 const GLITCH_B_KEYS := [[0.0, Vector3(0.7, 0.05, 0)], [0.25, Vector3(0.35, 0.4, 2)], [0.55, Vector3(0.05, 0.8, -2)], [1.0, Vector3(0.7, 0.05, 0)]]
 const GLITCH_STEPS := 2
 const FILTER_MIDPOINT := 0.5       # SMIL values="from;to;from": `to` at half the period
+const FILTER_REGION_MARGIN := 0.1  # SVG filter region: -10% / 120% of the reference box
 
 # web ARC / TICK tables: top as a share of the box height; left / right in px or as a share of the box width.
 const ARCS := [
@@ -132,6 +133,13 @@ static func filter_at(kind: String, time_s: float) -> Dictionary:
 	var frequency := from.lerp(to, phase / FILTER_MIDPOINT) if phase < FILTER_MIDPOINT \
 		else to.lerp(from, (phase - FILTER_MIDPOINT) / FILTER_MIDPOINT)
 	return {"frequency": frequency, "octaves": f["octaves"], "seed": f["seed"], "scale": f["scale"]}
+
+## The area the turbulence filter may paint: the text box grown by its text-shadow ink overflow, plus the SVG default
+## 10% margin of that (measured on web frames: Chrome never clips the glow to the bare text box).
+static func filter_region(box: Rect2, shadows: Array) -> Rect2:
+	var ink := box.grow(CssShadow.padding(shadows))
+	return ink.grow_individual(ink.size.x * FILTER_REGION_MARGIN, ink.size.y * FILTER_REGION_MARGIN,
+		ink.size.x * FILTER_REGION_MARGIN, ink.size.y * FILTER_REGION_MARGIN)
 
 ## Top-left of spark `index`'s unrotated 1 px box inside a text box of `box` size (CSS absolute positioning).
 static func arc_position(index: int, box: Vector2) -> Vector2:

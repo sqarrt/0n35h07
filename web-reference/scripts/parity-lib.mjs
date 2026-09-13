@@ -63,8 +63,10 @@ export async function settleScene(page) {
  * Menu → lobby on `mapId` with a passive bot → READY → countdown → live with a faked pointer lock.
  * `onStage(stage)` runs at 'menu', 'lobby', 'lobby-with-bot', 'countdown' and 'live' (e.g. to take screenshots).
  */
-export async function enterLiveMatch(page, base, mapId, onStage = async () => {}) {
+export async function enterLiveMatch(page, base, mapId, onStage = async () => {}, { profile, botName } = {}) {
   const COUNTDOWN_FRAME_MS = 450;   // mid-way through the first number's 1 s cdPop animation
+  // Optional fixed identity: the stored profile (web settings.ts key) is written before the app reads it.
+  if (profile) await page.addInitScript(p => localStorage.setItem('oneshot:profile', JSON.stringify(p)), profile);
   await page.goto(base, { waitUntil: 'domcontentloaded' });
   const renderer = await glRenderer(page);
   await page.getByTestId('menu-play').waitFor({ timeout: SETTLE_TIMEOUT_MS });
@@ -79,6 +81,7 @@ export async function enterLiveMatch(page, base, mapId, onStage = async () => {}
   await onStage('lobby');
   await page.getByTestId('seat-addbot-1').click();
   await page.getByTestId('seat-diff-1-passive').click();
+  if (botName) await page.getByTestId('lobby-bot-name-1').fill(botName);   // the host names the bot (setBotName)
   await settleScene(page);
   await onStage('lobby-with-bot');
   await page.getByTestId('lobby-ready').click();

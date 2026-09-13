@@ -24,6 +24,7 @@ func setup(human: PlayerNode, match_node: MatchNode) -> void:
 	_match.fired.connect(_on_fired)
 	_match.blocked.connect(_on_blocked)
 	_match.match_ended.connect(_on_match_ended)
+	_top_bar.set_players(_match.roster.entry(HUMAN_ID), _match.roster.opponent_of(HUMAN_ID))
 
 ## The match-end screen replaces the HUD (web GameOverlay renders the HUD only while there is no result).
 func _on_match_ended(_result: Dictionary) -> void:
@@ -91,4 +92,5 @@ func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -
 		_overlay.flash_hit()   # web PLAYER_HIT: the local player was killed
 	var kind := Streak.announce_kind(streak, first_blood)
 	if kind != "":   # web announces every player's streak, in the shooter's colour
-		_banner.announce(HudModel.player_name(shooter_id), kind, HudModel.player_color(shooter_id))
+		_banner.announce(_match.roster.name_of(shooter_id), kind,
+			_match.roster.color_of(shooter_id, AppearanceConst.FALLBACK_EFFECT_COLOR))

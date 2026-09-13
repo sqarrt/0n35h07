@@ -23,6 +23,12 @@ func test_without_shadows_it_is_just_the_text() -> void:
 	assert_eq(glow.label().text, "YOU: CATALYST")
 	assert_eq(glow.get_combined_minimum_size(), glow.label().get_minimum_size(), "lays out like the text")
 
+func test_size_follows_the_font_once_the_theme_settles() -> void:
+	var glow := _glow()
+	await get_tree().process_frame
+	assert_eq(glow.get_combined_minimum_size(), glow.label().get_minimum_size())
+	assert_eq(glow.label().size, glow.label().get_minimum_size())
+
 func test_each_shadow_is_a_two_pass_blur_under_the_text() -> void:
 	var glow := _glow()
 	var pc := Color("#3377ff")

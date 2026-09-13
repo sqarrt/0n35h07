@@ -87,6 +87,16 @@ func test_turbulence_filters_match_the_svg_defs() -> void:
 	assert_eq(el3["octaves"], 3)
 	assert_true(StreakFx.filter_at(CATALYST, 0.0).is_empty(), "catalyst has no filter")
 
+func test_filter_region_leaves_room_for_the_glow() -> void:
+	var box := Rect2(100.0, 50.0, 300.0, 28.0)
+	var shadows := StreakFx.text_shadows(SINGULARITY, Color.WHITE, 0.0)
+	var region := StreakFx.filter_region(box, shadows)
+	var reach := CssShadow.padding(shadows)
+	assert_true(region.encloses(box.grow(reach)), "the widest glow is never clipped")
+	var ink := box.grow(reach)
+	assert_almost_eq(region.size.y, ink.size.y * 1.2, EPS, "plus the SVG 10% margin each side")
+	assert_eq(StreakFx.filter_region(box, []), box.grow_individual(30.0, 2.8, 30.0, 2.8), "no glow: box ±10%")
+
 func test_spark_and_tick_layout_resolves_css_positions() -> void:
 	var box := Vector2(300.0, 28.0)
 	assert_eq(StreakFx.arc_position(0, box), Vector2(-12.0, 5.6), "top 20%, left -12px")

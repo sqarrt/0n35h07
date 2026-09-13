@@ -1,7 +1,7 @@
 class_name MatchEndedOverlay extends CanvasLayer
 ## Match-end screen — port of web MatchEndedOverlay: a dimmed backdrop and one centred column with the outcome
-## headline in its semantic colour (glowing), every player ranked by kills, the end reason and an exit to the menu.
-## Share Tech Mono, the primary button style and per-player colours arrive with the UI theme / skins slices.
+## headline in its semantic colour (glowing), every player ranked by kills in their roster colour with the HUD streak
+## effect kept on the name, the end reason and an exit to the menu. The primary button style arrives with the UI theme.
 
 const LAYER := 20                                # above the HUD and the pause menu
 const BACKDROP := Color8(7, 10, 14, 230)         # web rgba(7,10,14,0.9)
@@ -15,7 +15,9 @@ const OUTCOME_COLORS := {
 const OUTCOME_FONT_SIZE := 52
 const RANK_NAME_FONT_SIZE := 18
 const RANK_KILLS_FONT_SIZE := 22
+const RANK_SPACING_EM := 0.12   # web rankingBox letter-spacing (names and kills)
 const REASON_FONT_SIZE := 12
+const REASON_SPACING_EM := 0.2
 const COLUMN_GAP := 26          # web: gap between outcome, ranking, reason and exit
 const RANK_COLUMNS := 2         # name | kills
 const RANK_COLUMN_GAP := 28
@@ -31,8 +33,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
 
-## Show a MatchResult.compute() dictionary; the mouse is released so EXIT can be clicked.
-func show_result(result: Dictionary) -> void:
+## Show a MatchResult.compute() dictionary with the roster (names / colours) and the streak tier per id; the mouse
+## is released so EXIT can be clicked.
+func show_result(result: Dictionary, roster: Roster = null, tiers := {}) -> void:
 	var dim := ColorRect.new()
 	dim.color = BACKDROP
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -54,8 +57,11 @@ func show_result(result: Dictionary) -> void:
 	headline.set_text(HudModel.outcome_label(outcome))
 	headline.set_shadows([CssShadow.make(GLOW_BLUR, color)])
 
-	column.add_child(_ranking(result.get("scores", [])))
-	column.add_child(_label("Reason", HudModel.reason_label(result.get("reason", "")), REASON_FONT_SIZE, REASON_COLOR))
+	column.add_child(_ranking(result.get("scores", []), roster if roster != null else Roster.new(), tiers))
+	var reason := _label("Reason", HudModel.reason_label(result.get("reason", "")), REASON_FONT_SIZE, REASON_COLOR,
+		REASON_SPACING_EM)
+	reason.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(reason)
 
 	var exit := Button.new()
 	exit.name = "Exit"
@@ -72,7 +78,7 @@ func show_result(result: Dictionary) -> void:
 		tween.tween_property(layer_node, "modulate:a", 1.0, FADE_S)
 
 ## Two content-hugging columns centred as a block: names end at the shared edge, kills follow (web rankingBox).
-func _ranking(scores: Array) -> GridContainer:
+func _ranking(scores: Array, roster: Roster, tiers: Dictionary) -> GridContainer:
 	var grid := GridContainer.new()
 	grid.name = "Ranking"
 	grid.columns = RANK_COLUMNS
@@ -80,22 +86,26 @@ func _ranking(scores: Array) -> GridContainer:
 	grid.add_theme_constant_override("h_separation", RANK_COLUMN_GAP)
 	grid.add_theme_constant_override("v_separation", RANK_ROW_GAP)
 	for row in HudModel.ranked_scores(scores):
-		var player_name := _label("", HudModel.player_name(int(row["id"])), RANK_NAME_FONT_SIZE, TEXT_COLOR)
-		player_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		player_name.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		var id := int(row["id"])
+		var player_color := roster.color_of(id)
+		var player_name := EffectText.new()
+		player_name.size_flags_horizontal = Control.SIZE_SHRINK_END
+		player_name.size_flags_vertical = Control.SIZE_SHRINK_END
 		grid.add_child(player_name)
-		var kills := _label("", str(row["kills"]), RANK_KILLS_FONT_SIZE, TEXT_COLOR)
-		kills.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		kills.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+		player_name.configure(UiFont.spaced(RANK_SPACING_EM, RANK_NAME_FONT_SIZE), RANK_NAME_FONT_SIZE, player_color)
+		player_name.show_text(roster.name_of(id), tiers.get(id, ""), player_color)
+		var kills := _label("", str(row["kills"]), RANK_KILLS_FONT_SIZE, player_color, RANK_SPACING_EM)
+		kills.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		kills.size_flags_vertical = Control.SIZE_SHRINK_END
 		grid.add_child(kills)
 	return grid
 
-func _label(node_name: String, text: String, font_size: int, color: Color) -> Label:
+func _label(node_name: String, text: String, font_size: int, color: Color, spacing_em: float) -> Label:
 	var l := Label.new()
 	if node_name != "":
 		l.name = node_name
 	l.text = text
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.add_theme_font_override("font", UiFont.spaced(spacing_em, font_size))
 	l.add_theme_font_size_override("font_size", font_size)
 	l.add_theme_color_override("font_color", color)
 	return l

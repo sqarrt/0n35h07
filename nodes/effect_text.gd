@@ -44,6 +44,7 @@ func _init() -> void:
 	_plain = Label.new()
 	_plain.name = "Plain"
 	_plain.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plain.minimum_size_changed.connect(_on_plain_size_changed)   # fonts reshape after the theme settles
 	add_child(_plain)
 	_composite = SubViewport.new()
 	_composite.name = "Composite"
@@ -112,6 +113,10 @@ func set_rng(rng: Callable) -> void:
 func shown_text() -> String:
 	return _shown
 
+## The text as given (shown_text() may be momentarily scrambled).
+func base_text() -> String:
+	return _text
+
 func kind() -> String:
 	return _kind
 
@@ -135,6 +140,10 @@ func arcs() -> Array[ColorRect]:
 
 func ticks() -> Array[ColorRect]:
 	return _ticks
+
+func _on_plain_size_changed() -> void:
+	if _style.is_empty():
+		custom_minimum_size = _plain.get_minimum_size()
 
 func _process(delta: float) -> void:
 	if auto_advance:
@@ -211,7 +220,9 @@ func _apply_element(origin: Vector2, box: Vector2, composite_size: Vector2i) -> 
 	filter.set_shader_parameter("octaves", settings.get("octaves", 1))
 	filter.set_shader_parameter("seed", float(settings.get("seed", 0)))
 	filter.set_shader_parameter("box_origin_px", origin)
-	filter.set_shader_parameter("box_size_px", box)
+	var region := StreakFx.filter_region(Rect2(origin, box), StreakFx.text_shadows(_kind, _player_color, _elapsed))
+	filter.set_shader_parameter("region_origin_px", region.position)
+	filter.set_shader_parameter("region_size_px", region.size)
 
 func _update_scramble() -> void:
 	if not _style.get("scramble", false):
