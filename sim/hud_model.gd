@@ -1,10 +1,8 @@
 class_name HudModel
 ## Pure HUD text helpers (testable, no nodes).
 
-## Streak banner text for a frag by the local player; "" when nothing should show.
-static func banner_for(shooter_is_human: bool, streak: int, first_blood: bool) -> String:
-	if not shooter_is_human:
-		return ""
+## Streak banner word for a frag by ANY player (web announceStreak announces every shooter); "" when nothing shows.
+static func announce_word(streak: int, first_blood: bool) -> String:
 	return Streak.tier_word(Streak.announce_kind(streak, first_blood))
 
 const SECONDS_PER_MIN := 60
