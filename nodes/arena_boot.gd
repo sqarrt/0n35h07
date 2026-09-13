@@ -28,6 +28,8 @@ func _ready() -> void:
 
 	# Run the local match: human (team 0) vs bot (team 1).
 	var match_node := MatchNode.new()
+	match_node.set_duration_ms(Game.match_duration_ms)
+	match_node.local_id = HUMAN_SLOT
 	add_child(match_node)
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)
@@ -38,7 +40,15 @@ func _ready() -> void:
 	hud.setup(human, match_node)
 
 	# Pause menu (Esc): resume / back to the main menu.
-	add_child(PauseOverlay.new())
+	var pause := PauseOverlay.new()
+	add_child(pause)
+
+	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; no pause menu from then on.
+	var ended := MatchEndedOverlay.new()
+	add_child(ended)
+	match_node.match_ended.connect(func(result: Dictionary) -> void:
+		pause.enabled = false
+		ended.show_result(result))
 
 func _spawn_bot(human: PlayerNode, spawn: Vector3) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()

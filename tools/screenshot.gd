@@ -1,11 +1,13 @@
 extends SceneTree
 ## Dev tool: render a scene for a few frames and save a screenshot, then quit.
 ## Needs a real rendering context (not --headless): scripts/godot.sh (WSL) or ./scripts/godot.ps1 (Windows)
-##   --path . -s tools/screenshot.gd -- <scene> [<raw map>] [<output png>] [<capture frame>] [<mode>]
+##   --path . -s tools/screenshot.gd -- <scene> [<raw map>] [<output png>] [<capture frame>] [<mode>] [<match ms>]
 ## Modes:
 ##   passive-bot       the opponent stands still (like the web capture fixture); spawns and camera stay native.
 ##   reference-camera  passive bot + participants forced onto raw.spawns + camera forced to spawn 0 (tool-only).
-## Writes <output png>.json with the capture facts (map, frame, mode, camera, live, player positions).
+##   (any other value, e.g. "-") no fixture.
+## <match ms> overrides Game.match_duration_ms, e.g. to capture the match-end screen quickly.
+## Writes <output png>.json with the capture facts (map, frame, mode, camera, live/ended, player positions).
 
 const DEFAULT_SCENE := "res://scenes/arena_test.tscn"
 const CAPTURE_FRAME := 90
@@ -14,6 +16,13 @@ const MODE_PASSIVE_BOT := "passive-bot"
 const MODE_REFERENCE_CAMERA := "reference-camera"
 const HUMAN_ID := 0
 const REFERENCE_FOV := 75.0
+const ARG_SCENE := 0
+const ARG_MAP := 1
+const ARG_OUTPUT := 2
+const ARG_FRAME := 3
+const ARG_MODE := 4
+const ARG_MATCH_MS := 5
+const NO_OVERRIDE := -1.0
 
 var _frames := 0
 var _output := OUT
@@ -21,26 +30,29 @@ var _capture_frame := CAPTURE_FRAME
 var _mode := ""
 var _reference_camera := false
 var _passive_bot := false
+var _match_ms := NO_OVERRIDE
 var _capture_started := false
 var _capture_done := false
 var _map_path := ""
 
 func _initialize() -> void:
-	var scene_path := DEFAULT_SCENE
 	var extra := OS.get_cmdline_user_args()
-	if extra.size() > 0:
-		scene_path = extra[0]
-	if extra.size() > 1:
-		_map_path = extra[1]
-		var g := root.get_node_or_null("Game")   # autoload node (not a compile-time global here)
+	var scene_path := extra[ARG_SCENE] if extra.size() > ARG_SCENE else DEFAULT_SCENE
+	var g := root.get_node_or_null("Game")   # autoload node (not a compile-time global here)
+	if extra.size() > ARG_MAP:
+		_map_path = extra[ARG_MAP]
 		if g != null:
-			g.selected_map = extra[1]
-	if extra.size() > 2:
-		_output = extra[2]
-	if extra.size() > 3:
-		_capture_frame = maxi(1, int(extra[3]))
-	if extra.size() > 4:
-		_mode = extra[4]
+			g.selected_map = _map_path
+	if extra.size() > ARG_OUTPUT:
+		_output = extra[ARG_OUTPUT]
+	if extra.size() > ARG_FRAME:
+		_capture_frame = maxi(1, int(extra[ARG_FRAME]))
+	if extra.size() > ARG_MODE:
+		_mode = extra[ARG_MODE]
+	if extra.size() > ARG_MATCH_MS:
+		_match_ms = float(extra[ARG_MATCH_MS])
+		if g != null:
+			g.match_duration_ms = _match_ms
 	_reference_camera = _mode == MODE_REFERENCE_CAMERA
 	_passive_bot = _reference_camera or _mode == MODE_PASSIVE_BOT
 	root.add_child(load(scene_path).instantiate())
@@ -85,6 +97,8 @@ func _capture() -> void:
 		return
 	var facts := {"map": _map_path, "capture_frame": _frames, "mode": _mode,
 		"reference_camera": _reference_camera, "passive_bot": _passive_bot}
+	if _match_ms != NO_OVERRIDE:
+		facts["match_duration_ms"] = _match_ms
 	if camera != null:
 		facts["camera"] = {"position": _vec(camera.global_position), "fov": camera.fov}
 	var positions := {}
@@ -94,6 +108,7 @@ func _capture() -> void:
 	for node in root.find_children("*", "", true, false):
 		if node is MatchNode:
 			facts["live"] = node.is_live()
+			facts["ended"] = node.is_ended()
 	var metadata := FileAccess.open(_output + ".json", FileAccess.WRITE)
 	metadata.store_string(JSON.stringify(facts, "\t"))
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(_output))

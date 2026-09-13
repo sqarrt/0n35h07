@@ -13,6 +13,7 @@ const MAPS := [
 ]
 
 var selected_map := "res://maps/os_pillars.json"   # set by the main menu
+var match_duration_ms := MatchConst.DEFAULT_MATCH_DURATION_MS   # set by the lobby (3 / 5 / 10 min)
 
 func _ready() -> void:
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

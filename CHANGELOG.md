@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
 
+- **Matches end on time.** A match now runs for a set length (5 minutes by default) with the time left shown in
+  the HUD. When the clock runs out everyone freezes and, after a brief freeze-frame, the result screen shows victory,
+  defeat or draw, every player ranked by kills, the reason and an exit back to the main menu. The pause menu no
+  longer opens once the match is over.
+
 ### Fixed
 - **Players start on the map's spawn points.** The human and the bot now appear on the map's own start positions
   (slot 0 on the first point, the opponent on the second), instead of a fixed spot and a hard-coded bot position.

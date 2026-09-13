@@ -3,10 +3,10 @@
 
 Usage: python3 tools/parity/report.py tools/parity/stages/<stage>.json
 
-Writes to test-results/parity-reports/<stage id>/:
+Every run writes a NEW report to test-results/parity-reports/<stage id>-<YYYYMMDD-HHMMSS>/ (never overwrites):
   index.html      every page of the stage, full standalone document
   <slug>.html     one standalone document per page (menu, lobby, match, ...)
-  artifact.html   the combined report as a body fragment (for publishing as an Artifact)
+  artifact.html   the combined report as a body fragment (publish it as a NEW Artifact each time)
 Screenshots and fonts are embedded as data URIs, so every file opens offline on its own.
 """
 import base64
@@ -15,9 +15,11 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
+STAMP_FORMAT = "%Y%m%d-%H%M%S"
 OUT_ROOT = REPO / "test-results" / "parity-reports"
 FONT_LATIN = REPO / "web-reference/node_modules/@fontsource/share-tech-mono/files/share-tech-mono-latin-400-normal.woff2"
 FONT_CYRILLIC = REPO / "web-reference/src/ui/fonts/share-tech-mono-cyrillic.ttf"
@@ -321,8 +323,11 @@ def main() -> None:
                     images[panel["img"]] = data_uri(captures / panel["img"], "image/png")
     meta = {"branch": git("rev-parse", "--abbrev-ref", "HEAD"), "head": git("rev-parse", "--short", "HEAD"),
             "dirty": git("status", "--porcelain", "--untracked-files=no") not in ("", "?")}
-    out = OUT_ROOT / spec["id"]
-    out.mkdir(parents=True, exist_ok=True)
+    # Every run is a NEW report: a timestamped folder, never an overwrite of an earlier one.
+    out = OUT_ROOT / f'{spec["id"]}-{datetime.now().strftime(STAMP_FORMAT)}'
+    if out.exists():
+        sys.exit(f"Report {out} already exists; reports are never overwritten — run again in a second.")
+    out.mkdir(parents=True)
     (out / "index.html").write_text(document(spec, spec["pages"], images, meta, False), encoding="utf-8")
     (out / "artifact.html").write_text(document(spec, spec["pages"], images, meta, True), encoding="utf-8")
     for page in spec["pages"]:

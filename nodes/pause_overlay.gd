@@ -2,6 +2,7 @@ class_name PauseOverlay extends CanvasLayer
 ## Pause menu in the arena: `pause` (Esc) toggles it; Resume or return to the main menu.
 ## Owns the mouse mode + tree pause while shown (process_mode ALWAYS so it works while paused).
 
+var enabled := true   # the match-end screen switches the pause menu off
 var _dim: ColorRect
 var _shown := false
 
@@ -34,7 +35,7 @@ func _ready() -> void:
 	visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
+	if enabled and event.is_action_pressed("pause"):
 		_set_shown(not _shown)
 
 func _set_shown(v: bool) -> void:
