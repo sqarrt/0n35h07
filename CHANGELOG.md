@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - Unreleased
+
+### Changed
+- **The game is being rewritten natively on Godot 4.7.** The repository root is now the Godot project; the
+  React/Three.js game lives in `web-reference/` as the 1:1 parity oracle until the port catches up.
+
+### Added
+- **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
+  victim's owner against the victim's real local state — the shield on the victim's screen always wins — and every
+  peer derives the same score, streak, bounty and perfect-block reward from the verdict. Claims, verdicts and
+  snapshots from peers that do not own the player are ignored.
+- **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
+  (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
+
 ## [1.1.2] - 2026-07-21
 
 ### Changed
