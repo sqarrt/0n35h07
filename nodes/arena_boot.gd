@@ -39,6 +39,7 @@ func _ready() -> void:
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)
 	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera
+	match_node.singularity_changed.connect(func(active: bool) -> void: MapBlocks.set_transparent(get_tree(), active))
 
 	# HUD: crosshair + score + streak banner + respawn indicator.
 	var hud := Hud.new()

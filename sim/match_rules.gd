@@ -6,6 +6,7 @@ class_name MatchRules extends RefCounted
 var players: Array = []          # Array[Player]
 var events: Array = []           # collected each resolve() for the host to reflect (FX/HUD)
 var first_kill_done := false
+var singularity_active := false  # someone is on a SINGULARITY streak: everyone pierces, blocks see-through
 
 var _last_seq := {}              # id -> last processed weapon.fire_seq
 
@@ -24,6 +25,20 @@ func resolve(dt: float) -> void:
 	events.clear()
 	_resolve_combat()
 	_resolve_respawns(dt)
+
+## web Match.applyComeback: OVERHEAT for everyone, and pierce for ALL players while anyone is see-through.
+## Returns true when the SINGULARITY mode switched (the host toggles the block see-through then).
+func apply_comeback() -> bool:
+	var singularity := false
+	for p in players:
+		p.apply_overheat()
+		singularity = singularity or p.see_through()
+	for p in players:
+		p.pierce_walls = singularity
+	if singularity == singularity_active:
+		return false
+	singularity_active = singularity
+	return true
 
 func _resolve_combat() -> void:
 	for shooter in players:

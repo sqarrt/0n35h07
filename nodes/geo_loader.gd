@@ -8,7 +8,6 @@ const BOUND_H := 32.0               # half-height of the invisible perimeter wal
 const BOUND_T := 0.5                # half-thickness of the invisible perimeter walls (web BOUND_T)
 const FLOOR_HALF_THICKNESS := 0.5   # floor collider hangs below y=0, top face at y=0 (web CuboidCollider)
 const DEFAULT_FLOOR_COLOR := "#3a3f47"
-const TRANSPARENT_OPACITY := 0.3    # see-through blocks
 const TRIANGLE_VERTS := 3
 
 static func build(raw_path: String, geo_path: String) -> Node3D:
@@ -71,10 +70,8 @@ static func _add_mesh(root: Node3D, m, transparent: bool) -> void:
 	mi.mesh = mesh
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	if transparent:
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(1, 1, 1, TRANSPARENT_OPACITY)
 	mi.material_override = mat
+	MapBlocks.mark(mi, MapBlocks.GLASS_OPACITY if transparent else MapBlocks.OPAQUE)   # web userData.block + baseOpacity
 	root.add_child(mi)
 
 static func _collect(acc: PackedVector3Array, m) -> void:

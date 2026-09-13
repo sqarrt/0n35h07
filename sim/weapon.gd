@@ -48,7 +48,7 @@ func _fire(ctx: Dictionary) -> void:
 	var rc_origin: Vector3 = ctx.get("hit_origin", origin)
 	var rc_dir: Vector3 = (ctx.get("hit_dir", aim) as Vector3).normalized()
 	var exclude: Array = ctx.get("exclude_ids", [])
-	var hit = _raycaster.raycast(rc_origin, rc_dir, exclude, false)
+	var hit = _raycaster.raycast(rc_origin, rc_dir, exclude, bool(ctx.get("pierce_walls", false)))
 	var hit_entity_id := -1
 	var hit_point = null
 	var end: Vector3

@@ -24,4 +24,5 @@ const LAYER_HITBOX_BIT := 4        # layer 3: combat hitboxes
 const LAYER_WORLD_NOBEAM_BIT := 16 # layer 5: solid for movement, the beam passes (map collider, floor, bounds)
 const LAYER_BEAM_ONLY_BIT := 32    # layer 6: beam targets that are not solid (map raycast render groups)
 const COMBAT_RAY_MASK := LAYER_WORLD_BIT | LAYER_HITBOX_BIT | LAYER_BEAM_ONLY_BIT   # walls block, hitboxes register
+const PIERCE_RAY_MASK := LAYER_HITBOX_BIT   # SINGULARITY pierce: map blocks are ignored (web excludes userData.block)
 const MOVE_MASK := LAYER_WORLD_BIT | LAYER_WORLD_NOBEAM_BIT           # the player collides with both wall kinds
