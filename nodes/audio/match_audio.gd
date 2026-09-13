@@ -20,6 +20,7 @@ var _director := MusicDirector.new()
 var _library := {}
 var _seed := 0
 var _music: MusicEngine
+var _music_capture: AudioEffectCapture         # kept: the engine's buses are gone by the time this node exits
 
 func setup(match_node: MatchNode, players: Array, local_id: int, world: Node3D) -> void:
 	_match = match_node
@@ -54,8 +55,9 @@ func _physics_process(_delta: float) -> void:
 	_sfx.frame(_inputs(), Time.get_ticks_msec())
 
 func _exit_tree() -> void:
-	if _music != null:
-		Audio.analysis.remove_capture(_music.capture())
+	if _music_capture != null:   # children exit first, so never look the bus up again here
+		Audio.analysis.remove_capture(_music_capture)
+		_music_capture = null
 	if _sfx != null:
 		_sfx.reset()
 	Audio.sfx().world_parent = null
@@ -68,7 +70,8 @@ func _start_music() -> void:
 	add_child(_music)
 	_music.set_user_gain(Audio.music_gain())
 	_music.start()
-	Audio.analysis.add_capture(_music.capture())
+	_music_capture = _music.capture()
+	Audio.analysis.add_capture(_music_capture)
 
 func _on_frag(_shooter_id: int, _victim_id: int, streak: int, first_blood: bool) -> void:
 	var event := MatchAudioCues.announce_event(Streak.announce_kind(streak, first_blood))

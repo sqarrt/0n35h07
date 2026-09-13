@@ -211,7 +211,9 @@ func _apply_hud_fixture() -> int:
 		var bar_fixture := _output.get_base_dir().path_join(AUDIO_BAR_FIXTURE % _mode.trim_prefix(MODE_HUD_AUDIO_BAR))
 		var bar_json := JSON.new()
 		if FileAccess.file_exists(bar_fixture) and bar_json.parse(FileAccess.get_file_as_string(bar_fixture)) == OK:
-			Audio.debug_bands = PackedFloat32Array(bar_json.data["bands"])
+			var audio := root.get_node_or_null("Audio")   # autoload node (not a compile-time global in a tool script)
+			if audio != null:
+				audio.debug_bands = PackedFloat32Array(bar_json.data["bands"])
 		return AUDIO_BAR_FRAMES
 	if _mode.begins_with(MODE_HUD_OVERHEAT):
 		var tier := _mode.trim_prefix(MODE_HUD_OVERHEAT)
