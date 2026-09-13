@@ -7,6 +7,18 @@ static func banner_for(shooter_is_human: bool, streak: int, first_blood: bool) -
 		return ""
 	return Streak.tier_word(Streak.announce_kind(streak, first_blood))
 
+const SECONDS_PER_MIN := 60
+const NO_TIME := "--:--"
+
+## Match timer text "MM:SS" (web MatchHud fmt): null -> "--:--", negative seconds clamp to 00:00.
+static func match_time(seconds) -> String:
+	if seconds == null:
+		return NO_TIME
+	var s := maxi(0, int(seconds))
+	@warning_ignore("integer_division")
+	var minutes := s / SECONDS_PER_MIN
+	return "%02d:%02d" % [minutes, s % SECONDS_PER_MIN]
+
 static func score_line(you: int, them: int) -> String:
 	return "YOU %d   —   BOT %d" % [you, them]
 

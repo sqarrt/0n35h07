@@ -1,15 +1,18 @@
 class_name Hud extends CanvasLayer
-## Minimal combat HUD: crosshair, score, streak-announce banner, respawn indicator.
+## Minimal combat HUD: crosshair, score, match timer, streak-announce banner, respawn indicator.
 ## Reads the human player + match each frame; styled skinning/kill-feed come later.
 
 const BANNER_TIME := 2.0
 const HUMAN_ID := 0
 const BOT_ID := 1
+const TIMER_FONT_SIZE := 22
+const TIMER_OFFSET_TOP := 46   # just under the score line
 
 var _human: PlayerNode
 var _match: MatchNode
 var _crosshair: Label
 var _score: Label
+var _timer: Label
 var _banner: Label
 var _respawn: Label
 var _countdown: Label
@@ -37,6 +40,11 @@ func _ready() -> void:
 	_score.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	_score.offset_top = 12
 	add_child(_score)
+
+	_timer = _label(TIMER_FONT_SIZE)
+	_timer.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_timer.offset_top = TIMER_OFFSET_TOP
+	add_child(_timer)
 
 	_banner = _label(48)
 	_banner.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -112,6 +120,7 @@ func _process(delta: float) -> void:
 	if _human == null or _match == null:
 		return
 	_score.text = HudModel.score_line(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID))
+	_timer.text = HudModel.match_time(_match.seconds_left())
 	var cd := _match.countdown_label()
 	_countdown.text = cd
 	_countdown.visible = cd != ""

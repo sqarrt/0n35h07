@@ -28,6 +28,8 @@ func _ready() -> void:
 
 	# Run the local match: human (team 0) vs bot (team 1).
 	var match_node := MatchNode.new()
+	match_node.set_duration_ms(Game.match_duration_ms)
+	match_node.local_id = HUMAN_SLOT
 	add_child(match_node)
 	match_node.add_entity(human, HUMAN_TEAM)
 	match_node.add_entity(bot, BOT_TEAM)

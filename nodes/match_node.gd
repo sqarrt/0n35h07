@@ -1,15 +1,30 @@
 class_name MatchNode extends Node
-## Owns the fighting entities and runs the local match rules each tick (after the entities move/fire).
-## The sim MatchRules does kill/block/respawn/score; this node just drives it and exposes scores.
+## Owns the fighting entities and runs the local match each tick (after the entities move/fire):
+## entry countdown -> live -> ended when the match clock runs out. The sim MatchRules does
+## kill/block/respawn/score; this node drives it, freezes players outside live (web tickPhase) and
+## announces the outcome after the end freeze-frame (web endMatch + END_FREEZE_MS).
 
 signal frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool)
+signal match_ended(result: Dictionary)
+
+const MS_PER_S := 1000.0
+const NO_TEAM := -1
 
 var rules := MatchRules.new()
 var phase := MatchPhase.new()
+var local_id := 0   # whose point of view the outcome is computed for (web localId)
+var _clock := MatchClock.new(MatchConst.DEFAULT_MATCH_DURATION_MS)
 var _entities := {}   # id -> PlayerNode
+var _result := {}
+var _freeze_left_ms := 0.0
+var _announced := false
 
 func _ready() -> void:
 	process_physics_priority = 100   # run after the entities' _physics_process each tick
+
+## Match length in ms (0 = no time limit). Set before the match goes live.
+func set_duration_ms(ms: float) -> void:
+	_clock = MatchClock.new(ms)
 
 func add_entity(pnode: PlayerNode, team: int) -> void:
 	pnode.player.team = team
@@ -23,21 +38,51 @@ func score_of(id: int) -> int:
 func is_live() -> bool:
 	return phase.is_live()
 
+func is_ended() -> bool:
+	return phase.is_ended()
+
 func countdown_label() -> String:
 	return phase.countdown_label()
 
+## Whole seconds left on the match clock, or null when the match has no time limit (HUD shows --:--).
+func seconds_left():
+	return _clock.seconds_left() if _clock.has_timer() else null
+
 func force_live() -> void:
 	phase.force_live()
-	for e in _entities.values():
-		e.player.set_frozen(false)
+	_apply_freeze()
 
 func _physics_process(delta: float) -> void:
-	var was_live := phase.is_live()
 	phase.update(delta)
-	if phase.is_live() and not was_live:
-		for e in _entities.values():
-			e.player.set_frozen(false)   # unfreeze once, when the countdown ends
+	_clock.update(delta, phase.is_live())
+	if phase.is_live() and _clock.is_over():
+		_end_match()
+	_apply_freeze()
 	rules.resolve(delta)
 	for e in rules.events:
 		if e["t"] == "kill":
 			frag.emit(int(e["shooter"]), int(e["victim"]), int(e["streak"]), bool(e["first_blood"]))
+	_tick_result(delta)
+
+## Players move only while live (web: frozen = phase !== 'live'); applied on change so a frozen body isn't re-halted.
+func _apply_freeze() -> void:
+	var frozen := not phase.is_live()
+	for e in _entities.values():
+		if e.player.frozen != frozen:
+			e.player.set_frozen(frozen)
+
+func _end_match() -> void:
+	phase.end()
+	var players: Array = _entities.values().map(func(e): return e.player)
+	var local_team: int = _entities[local_id].player.team if _entities.has(local_id) else NO_TEAM
+	_result = MatchResult.compute(players, local_team, MatchResult.REASON_TIME)
+	_freeze_left_ms = MatchConst.END_FREEZE_MS
+
+## The outcome is announced once, after the freeze-frame (the overlay fades in on its own).
+func _tick_result(delta: float) -> void:
+	if _announced or _result.is_empty():
+		return
+	_freeze_left_ms -= delta * MS_PER_S
+	if _freeze_left_ms <= 0.0:
+		_announced = true
+		match_ended.emit(_result)
