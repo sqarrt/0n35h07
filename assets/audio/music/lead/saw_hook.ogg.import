@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://dmnn84yn5bqb6"
+uid="uid://b7uj3mkry1u5m"
 path="res://.godot/imported/saw_hook.ogg-1d996dd789e6761df46721b05cc667f0.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

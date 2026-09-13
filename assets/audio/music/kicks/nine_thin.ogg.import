@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://tpfveai1a8vy"
+uid="uid://cwi5tbguf53ha"
 path="res://.godot/imported/nine_thin.ogg-9926fa8eb5150f79dd34f1ff86434cc1.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

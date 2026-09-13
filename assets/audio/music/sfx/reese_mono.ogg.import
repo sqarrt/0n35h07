@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://bgvlueymcbbjn"
+uid="uid://dcei28jy3fw3e"
 path="res://.godot/imported/reese_mono.ogg-4c6fe47bf24c66abe07c9280c343aafb.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

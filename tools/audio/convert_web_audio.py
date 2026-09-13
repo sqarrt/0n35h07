@@ -3,9 +3,10 @@
 
 Music stems get the web loudness normalisation baked in (web WebAudioMusicEngine normGainFor: RMS toward 0.10,
 multiplier clamped to 0.25..4 and the peak kept under 0.9, measured on the decoded PCM of every channel) and import
-as 8-second loops on a 120 bpm / 16-beat grid for AudioStreamInteractive bar transitions. SFX keep their level; only
-the shield and ghost loops loop. A manifest records the web stem order (from the music oracle fixture), the gains and
-the measured loudness.
+as 8-second loops on a 120 bpm / 16-beat grid with one 16-beat bar, so an AudioStreamInteractive next-bar transition
+lands on the loop boundary (verified with tools/audio_probe.gd). A silent stem on the same grid fills empty slots.
+SFX keep their level; only the shield and ghost loops loop. A manifest records the web stem order (from the music
+oracle fixture), the gains and the measured loudness.
 
     python3 tools/audio/convert_web_audio.py
 """
@@ -35,7 +36,10 @@ NORM_PEAK_CEILING = 0.9
 LOOP_SECONDS = 8.0
 LOOP_BPM = 120
 LOOP_BEATS = 16
-BAR_BEATS = 4
+BAR_BEATS = 4                    # SFX (unused: they are not on a musical grid)
+LOOP_BAR_BEATS = 16              # music: one bar = the whole 8-second loop
+SILENCE_ID = "silence"
+SILENCE_SOURCE = "anullsrc=r=48000:cl=stereo"
 LOOPING_SFX = {"shield_loop", "ghost_loop"}
 GAIN_DIGITS = 6
 
@@ -71,17 +75,18 @@ def encode(source: Path, target: Path, gain: float = 1.0) -> None:
                     "-c:a", "libvorbis", "-q:a", VORBIS_QUALITY, str(target)], check=True)
 
 
-def write_import(target: Path, loop: bool, bpm: int = 0, beats: int = 0) -> None:
+def write_import(target: Path, loop: bool, bpm: int = 0, beats: int = 0, bar_beats: int = BAR_BEATS) -> None:
     """Import parameters Godot keeps when it (re)imports the file."""
     target.with_name(target.name + ".import").write_text(
         '[remap]\n\nimporter="oggvorbisstr"\ntype="AudioStreamOggVorbis"\n\n[params]\n\n'
-        f"loop={str(loop).lower()}\nloop_offset=0\nbpm={bpm}\nbeat_count={beats}\nbar_beats={BAR_BEATS}\n")
+        f"loop={str(loop).lower()}\nloop_offset=0\nbpm={bpm}\nbeat_count={beats}\nbar_beats={bar_beats}\n")
 
 
 def main() -> None:
     oracle_order = json.loads(ORACLE.read_text())["library"]
-    manifest = {"loop_seconds": LOOP_SECONDS, "bpm": LOOP_BPM, "beat_count": LOOP_BEATS, "roles": {}, "gains": {},
-                "loudness": {}, "sfx": [], "sfx_loops": sorted(LOOPING_SFX)}
+    manifest = {"loop_seconds": LOOP_SECONDS, "bpm": LOOP_BPM, "beat_count": LOOP_BEATS, "bar_beats": LOOP_BAR_BEATS,
+                "silence": SILENCE_ID, "roles": {}, "gains": {}, "loudness": {}, "sfx": [],
+                "sfx_loops": sorted(LOOPING_SFX)}
     for role in ROLES:
         names = sorted(p.stem for p in (WEB_MUSIC / role).glob(f"*{SOURCE_EXT}"))
         ids = [f"{role}/{name}" for name in names]
@@ -94,11 +99,16 @@ def main() -> None:
             gain = norm_gain(rms, peak)
             target = OUT_MUSIC / role / f"{name}{TARGET_EXT}"
             encode(source, target, gain)
-            write_import(target, True, LOOP_BPM, LOOP_BEATS)
+            write_import(target, True, LOOP_BPM, LOOP_BEATS, LOOP_BAR_BEATS)
             stem_id = f"{role}/{name}"
             manifest["gains"][stem_id] = round(gain, GAIN_DIGITS)
             manifest["loudness"][stem_id] = {"rms": round(rms, GAIN_DIGITS), "peak": round(peak, GAIN_DIGITS)}
             print(f"music {stem_id}: gain {gain:.3f}")
+    silence = OUT_MUSIC / f"{SILENCE_ID}{TARGET_EXT}"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", SILENCE_SOURCE, "-t", str(LOOP_SECONDS),
+                    "-c:a", "libvorbis", "-q:a", VORBIS_QUALITY, str(silence)], check=True)
+    write_import(silence, True, LOOP_BPM, LOOP_BEATS, LOOP_BAR_BEATS)
+    print(f"music {SILENCE_ID}")
     for source in sorted(WEB_SFX.glob(f"*{SOURCE_EXT}")):
         target = OUT_SFX / f"{source.stem}{TARGET_EXT}"
         encode(source, target)

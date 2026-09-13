@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://5biwoql77w41"
+uid="uid://c2ogiyhp1kl8a"
 path="res://.godot/imported/kutting.ogg-84fea37de31c7bab27dc79f09ba47cb2.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

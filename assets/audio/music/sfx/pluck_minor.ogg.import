@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://cf10et3eqbyab"
+uid="uid://q7wxxauajooy"
 path="res://.godot/imported/pluck_minor.ogg-f8717147346c3122f6c2fd27d92d30d6.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

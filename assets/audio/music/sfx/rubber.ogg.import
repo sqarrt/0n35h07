@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://cw2invqvy30u1"
+uid="uid://7f7gccgh1ci0"
 path="res://.godot/imported/rubber.ogg-f90ee092824ac17364da62265634d4f4.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

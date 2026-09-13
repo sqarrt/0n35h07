@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://cdnmqyqjvhkov"
+uid="uid://o7b5aatjv0sp"
 path="res://.godot/imported/punchy_dirt.ogg-281101a440cb18ec912b5d97d89a6a65.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

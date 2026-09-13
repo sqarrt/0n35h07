@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://dn4at5oa8ebgs"
+uid="uid://2xett5gfkf23"
 path="res://.godot/imported/floor_ghost.ogg-63854a15b71840471e1b1bf6e64e4caa.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

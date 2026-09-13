@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://bsk04lhu7csg8"
+uid="uid://c8rqc0istp2yt"
 path="res://.godot/imported/floor_shaker.ogg-c51aa08db5e3d19d9046062cce731e4e.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://bsnsoad8vcrwp"
+uid="uid://cd8iaia75xnlc"
 path="res://.godot/imported/decent_bass.ogg-199afe9f143dab0d5181b4eb18d91be8.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

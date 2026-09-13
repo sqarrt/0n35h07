@@ -1,7 +1,7 @@
 extends GutTest
-## Converted audio assets (tools/audio/convert_web_audio.py): the manifest keeps the web stem order, every stem imports
-## as an 8-second loop on the 120 bpm / 16-beat grid, every web SFX event is present, and the baked loudness gains stay
-## inside the web normalisation bounds.
+## Converted audio assets (tools/audio/convert_web_audio.py): the manifest keeps the web stem order, every stem (and
+## the silent filler) imports as an 8-second loop on the 120 bpm / 16-beat grid with one 16-beat bar, every web SFX
+## event is present, and the baked loudness gains stay inside the web normalisation bounds.
 
 const MANIFEST := "res://assets/audio/music/manifest.json"
 const ORACLE := "res://tests/fixtures/music_oracle.json"
@@ -28,15 +28,18 @@ func test_manifest_keeps_the_web_stem_order() -> void:
 
 func test_every_stem_is_an_eight_second_bar_loop() -> void:
 	var manifest := _json(MANIFEST)
+	var ids: Array = [manifest["silence"]]
 	for role in manifest["roles"]:
-		for stem_id in manifest["roles"][role]:
-			var stream := load(MUSIC_DIR % stem_id) as AudioStreamOggVorbis
-			assert_not_null(stream, stem_id)
-			if stream == null:
-				continue
-			assert_true(stream.loop, "%s loops" % stem_id)
-			assert_eq(stream.bpm, float(manifest["bpm"]), "%s bpm" % stem_id)
-			assert_eq(stream.beat_count, int(manifest["beat_count"]), "%s beats" % stem_id)
+		ids.append_array(manifest["roles"][role])
+	for stem_id in ids:
+		var stream := load(MUSIC_DIR % stem_id) as AudioStreamOggVorbis
+		assert_not_null(stream, stem_id)
+		if stream == null:
+			continue
+		assert_true(stream.loop, "%s loops" % stem_id)
+		assert_eq(stream.bpm, float(manifest["bpm"]), "%s bpm" % stem_id)
+		assert_eq(stream.beat_count, int(manifest["beat_count"]), "%s beats" % stem_id)
+		assert_eq(stream.bar_beats, int(manifest["bar_beats"]), "%s: one bar per loop" % stem_id)
 
 func test_every_web_sfx_event_is_present() -> void:
 	for event in WEB_SFX_EVENTS:

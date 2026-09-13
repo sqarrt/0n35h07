@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://bcw246t0jyofj"
+uid="uid://bpmxx3veq286h"
 path="res://.godot/imported/wt_flute_sub.ogg-84504256db69e98c83fefc662769ee85.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

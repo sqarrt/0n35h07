@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://tcjxr2p7fg7s"
+uid="uid://bakakm7ykhyfq"
 path="res://.godot/imported/grab_hypno.ogg-f6602fb4117ce4980d52891a9da70dc1.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

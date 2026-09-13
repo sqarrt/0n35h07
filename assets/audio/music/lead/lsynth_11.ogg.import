@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://kgnj1dv1geik"
+uid="uid://dpkunit1lqcdn"
 path="res://.godot/imported/lsynth_11.ogg-81e6a54168a9150022f3d79b7db47002.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

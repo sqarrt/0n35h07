@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://biujc8rawt4of"
+uid="uid://cc3dqs8bbk36k"
 path="res://.godot/imported/lroller_01.ogg-955441ede7fea33568ce860ec3b0326e.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

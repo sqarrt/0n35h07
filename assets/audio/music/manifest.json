@@ -2,6 +2,8 @@
  "loop_seconds": 8.0,
  "bpm": 120,
  "beat_count": 16,
+ "bar_beats": 16,
+ "silence": "silence",
  "roles": {
   "bass": [
    "bass/decent_bass",

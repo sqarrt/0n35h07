@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://dx6vs66gvoyu7"
+uid="uid://dg0eoqakxjew5"
 path="res://.godot/imported/deep_sine.ogg-903adb7b0775614d00c3a1345385691e.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://cu0cvcnc0kjp1"
+uid="uid://csewlx1bnq34q"
 path="res://.godot/imported/deep_shaker.ogg-6cb55d953e792d3d59227e22f1b1fe90.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

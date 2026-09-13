@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://dtn8tj5oo1qix"
+uid="uid://c1jtf5at4xfst"
 path="res://.godot/imported/eight_crush.ogg-d29e1de6e624202fca43fd1d03056945.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

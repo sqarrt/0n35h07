@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://c47hltvvv4mh4"
+uid="uid://djt4of2oesoct"
 path="res://.godot/imported/six_kick.ogg-3451dc056b16f2239944db5e7654356c.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

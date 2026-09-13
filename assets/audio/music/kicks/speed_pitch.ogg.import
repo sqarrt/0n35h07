@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://68k2u48esagw"
+uid="uid://b2atyt0b57cvg"
 path="res://.godot/imported/speed_pitch.ogg-16f4f332ee66d242657129ee792a80ec.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16

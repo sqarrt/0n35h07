@@ -2,7 +2,7 @@
 
 importer="oggvorbisstr"
 type="AudioStreamOggVorbis"
-uid="uid://bcdh2go027qi"
+uid="uid://b1s4dtlnmhdw1"
 path="res://.godot/imported/tape_kick.ogg-a23c61b9d41bf678bf0fb5a721040856.oggvorbisstr"
 
 [deps]
@@ -16,4 +16,4 @@ loop=true
 loop_offset=0
 bpm=120
 beat_count=16
-bar_beats=4
+bar_beats=16
