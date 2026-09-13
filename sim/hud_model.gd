@@ -128,3 +128,10 @@ const SHIELD_BLOCK_TINT := Color(0.0, 180.0 / 255.0, 1.0, 0.07) # web rgba(0,180
 
 static func player_name(id: int) -> String:
 	return "YOU" if id == 0 else "BOT"
+
+const YOU_COLOR := Color("#3377ff")            # web TEAM_COLORS[0] (#37f) until player profiles exist
+const OPPONENT_COLOR := Color("#ff5533")       # web TEAM_COLORS[1] (#f53)
+
+## A player's colour (web roster colour, the --pc of streak effects).
+static func player_color(id: int) -> Color:
+	return YOU_COLOR if id == 0 else OPPONENT_COLOR

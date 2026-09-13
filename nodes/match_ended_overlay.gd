@@ -20,8 +20,8 @@ const COLUMN_GAP := 26          # web: gap between outcome, ranking, reason and 
 const RANK_COLUMNS := 2         # name | kills
 const RANK_COLUMN_GAP := 28
 const RANK_ROW_GAP := 12
-const GLOW_SIZE := 12           # halo width around the headline (Godot label shadows have no blur)
-const GLOW_ALPHA := 0.35        # faint halo approximating the web's 26px blurred text-shadow
+const OUTCOME_SPACING_EM := 0.22   # web outcome letter-spacing
+const GLOW_BLUR := 26.0            # web text-shadow 0 0 26px <outcome colour>
 const FADE_S := 0.1             # web matchEndFade 0.1s
 const EXIT_TEXT := "EXIT"       # web dictionary matchExit
 const MAIN_MENU := "res://scenes/main_menu.tscn"
@@ -46,12 +46,13 @@ func show_result(result: Dictionary) -> void:
 
 	var outcome: String = result.get("outcome", "")
 	var color: Color = OUTCOME_COLORS.get(outcome, TEXT_COLOR)
-	var headline := _label("Outcome", HudModel.outcome_label(outcome), OUTCOME_FONT_SIZE, color)
-	headline.add_theme_color_override("font_shadow_color", Color(color, GLOW_ALPHA))
-	headline.add_theme_constant_override("shadow_outline_size", GLOW_SIZE)
-	headline.add_theme_constant_override("shadow_offset_x", 0)
-	headline.add_theme_constant_override("shadow_offset_y", 0)
+	var headline := GlowText.new()
+	headline.name = "Outcome"
+	headline.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(headline)
+	headline.configure(UiFont.spaced(OUTCOME_SPACING_EM, OUTCOME_FONT_SIZE), OUTCOME_FONT_SIZE, color)
+	headline.set_text(HudModel.outcome_label(outcome))
+	headline.set_shadows([CssShadow.make(GLOW_BLUR, color)])
 
 	column.add_child(_ranking(result.get("scores", [])))
 	column.add_child(_label("Reason", HudModel.reason_label(result.get("reason", "")), REASON_FONT_SIZE, REASON_COLOR))

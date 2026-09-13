@@ -63,6 +63,7 @@ func _process(delta: float) -> void:
 	for element in [_top_bar, _crosshair, _brackets, _dash]:
 		element.visible = live
 	_top_bar.set_state(_match.score_of(HUMAN_ID), _match.score_of(BOT_ID), HudModel.match_time(_match.seconds_left()))
+	_top_bar.set_streaks(_match.streak_of(HUMAN_ID), _match.streak_of(BOT_ID))
 	_crosshair.set_progress(player.beam_progress())
 	_brackets.set_state(player.shield_progress(), player.is_shielded())
 	_dash.set_progress(player.dash_progress())
@@ -88,6 +89,6 @@ func _on_blocked(_shooter_id: int, victim_id: int, _perfect: bool) -> void:
 func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -> void:
 	if victim_id == HUMAN_ID:
 		_overlay.flash_hit()   # web PLAYER_HIT: the local player was killed
-	var word := HudModel.announce_word(streak, first_blood)
-	if word != "":
-		_banner.announce(HudModel.player_name(shooter_id), word)   # web announces every player's streak
+	var kind := Streak.announce_kind(streak, first_blood)
+	if kind != "":   # web announces every player's streak, in the shooter's colour
+		_banner.announce(HudModel.player_name(shooter_id), kind, HudModel.player_color(shooter_id))

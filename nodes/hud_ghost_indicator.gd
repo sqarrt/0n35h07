@@ -1,51 +1,58 @@
 class_name HudGhostIndicator extends Control
 ## Ghost-phase indicator — port of the web RespawnOverlay bars and label: #9cf bars 6px thick, 21px from the top and
-## bottom, centred and shrinking with the remaining phase (width = progress × 50%), glowing; "RESPAWNING" in small
-## tracked caps 120px above the screen centre. The edge vignette lives in HudOverlayFx.
+## bottom, centred and shrinking with the remaining phase (width = progress × 50%), with a 10px box-shadow glow solved
+## analytically (glow_rect shader); "RESPAWNING" in small tracked caps with an 8px blurred glow, its top edge 120px
+## above the screen centre (web top: 50% + translateY(-120px)). The edge vignette lives in HudOverlayFx.
 
+const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
 const COLOR := Color("#99ccff")              # web GHOST #9cf
 const TEXT := "RESPAWNING"                   # web dictionary respawning
 const INSET := 21.0                          # web HUD_FRAME_INSET
 const THICKNESS := 6.0
-const GLOW := 10.0                           # web box-shadow 0 0 10px
-const GLOW_ALPHA := 0.35
+const GLOW_BLUR := 10.0                      # web box-shadow 0 0 10px
 const FONT_SIZE := 12                        # web 0.75rem
 const SPACING_EM := 0.25
-const LABEL_RAISE := 120.0                   # web translateY(-120px) from the centre
-const LABEL_GLOW_ALPHA := 0.5                # web text-shadow 0 0 8px (approximated, no blur)
-const LABEL_GLOW_OUTLINE := 4
+const LABEL_RAISE := 120.0                   # web translateY(-120px) from top: 50%
+const LABEL_GLOW_BLUR := 8.0                 # web text-shadow 0 0 8px
+const HALF := 0.5
+const BAR_NAMES := ["BarTop", "BarBottom"]
 
 var _progress := 0.0
-var _label: Label
+var _label: GlowText
+var _bars: Array[ColorRect] = []
 
 func _ready() -> void:
 	name = "GhostIndicator"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
-	_label = Label.new()
+	_label = GlowText.new()
 	_label.name = "Label"
-	_label.text = TEXT
-	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_label.offset_top = -LABEL_RAISE
-	_label.offset_bottom = -LABEL_RAISE
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_label.add_theme_font_override("font", UiFont.spaced(SPACING_EM, FONT_SIZE))
-	_label.add_theme_font_size_override("font_size", FONT_SIZE)
-	_label.add_theme_color_override("font_color", COLOR)
-	_label.add_theme_color_override("font_shadow_color", Color(COLOR, LABEL_GLOW_ALPHA))
-	_label.add_theme_constant_override("shadow_outline_size", LABEL_GLOW_OUTLINE)
-	_label.add_theme_constant_override("shadow_offset_x", 0)
-	_label.add_theme_constant_override("shadow_offset_y", 0)
 	add_child(_label)
+	_label.configure(UiFont.spaced(SPACING_EM, FONT_SIZE), FONT_SIZE, COLOR)
+	_label.set_text(TEXT)
+	_label.set_shadows([CssShadow.make(LABEL_GLOW_BLUR, COLOR)])
+	var glow_pad := float(CssShadow.reach_px(CssShadow.make(GLOW_BLUR, COLOR)))
+	for bar_name in BAR_NAMES:
+		var bar := ColorRect.new()
+		bar.name = bar_name
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var material := ShaderMaterial.new()
+		material.shader = GLOW_SHADER
+		material.set_shader_parameter("pad_px", glow_pad)
+		material.set_shader_parameter("sigma", CssShadow.sigma(GLOW_BLUR))
+		material.set_shader_parameter("core_color", COLOR)
+		material.set_shader_parameter("glow_color", COLOR)
+		bar.material = material
+		add_child(bar)
+		_bars.append(bar)
+	_layout()
 
 ## Show the indicator with the remaining share of the ghost phase (web progress runs 1 -> 0).
 func show_progress(progress: float) -> void:
 	_progress = clampf(progress, 0.0, HudModel.READY)
 	visible = true
-	queue_redraw()
+	_layout()
 
 func hide_indicator() -> void:
 	visible = false
@@ -53,16 +60,28 @@ func hide_indicator() -> void:
 func bar_width() -> float:
 	return size.x * HudModel.ghost_bar_width_share(_progress)
 
+func bars() -> Array[ColorRect]:
+	return _bars
+
+func label() -> GlowText:
+	return _label
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
-		queue_redraw()
+		_layout()
 
-func _draw() -> void:
-	var width := bar_width()
-	if width <= 0.0:
+func _layout() -> void:
+	if _label == null:
 		return
-	var x := (size.x - width) / 2.0
-	var glow := Color(COLOR, GLOW_ALPHA)
-	for y in [INSET, size.y - INSET - THICKNESS]:
-		draw_rect(Rect2(x - GLOW / 2.0, y - GLOW / 2.0, width + GLOW, THICKNESS + GLOW), glow)
-		draw_rect(Rect2(x, y, width, THICKNESS), COLOR)
+	var label_size := _label.get_combined_minimum_size()
+	_label.position = Vector2((size.x - label_size.x) * HALF, size.y * HALF - LABEL_RAISE)
+	var width := bar_width()
+	var tops := [INSET, size.y - INSET - THICKNESS]
+	for i in _bars.size():
+		var bar := _bars[i]
+		var material := bar.material as ShaderMaterial
+		var pad: float = material.get_shader_parameter("pad_px")
+		bar.visible = width > 0.0
+		bar.position = Vector2((size.x - width) * HALF - pad, tops[i] - pad)
+		bar.size = Vector2(width, THICKNESS) + Vector2.ONE * 2.0 * pad
+		material.set_shader_parameter("box_px", Vector2(width, THICKNESS))

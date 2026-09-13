@@ -34,6 +34,8 @@ var _scramble_tick := 0
 var _scrambled := ""
 var _random := RandomNumberGenerator.new()
 var _rng: Callable
+## Advance the animations every frame; owners that drive time themselves (the banner's tick) turn it off.
+var auto_advance := true
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -110,6 +112,9 @@ func set_rng(rng: Callable) -> void:
 func shown_text() -> String:
 	return _shown
 
+func kind() -> String:
+	return _kind
+
 func elapsed() -> float:
 	return _elapsed
 
@@ -132,7 +137,8 @@ func ticks() -> Array[ColorRect]:
 	return _ticks
 
 func _process(delta: float) -> void:
-	advance(delta)
+	if auto_advance:
+		advance(delta)
 
 func _apply() -> void:
 	_update_scramble()

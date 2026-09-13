@@ -38,6 +38,10 @@ func add_entity(pnode: PlayerNode, team: int) -> void:
 func score_of(id: int) -> int:
 	return _entities[id].player.kills if _entities.has(id) else 0
 
+## Current kill streak of a player (web streakCounts), 0 for unknown ids.
+func streak_of(id: int) -> int:
+	return _entities[id].player.streak if _entities.has(id) else 0
+
 func is_live() -> bool:
 	return phase.is_live()
 

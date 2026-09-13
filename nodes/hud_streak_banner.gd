@@ -1,14 +1,14 @@
 class_name HudStreakBanner extends Control
 ## Streak banner — port of web StreakBanner.tsx + theme.css .streak-banner: "NAME: TIER" centred 64px from the top,
-## 24px with 0.18em tracking, flickering in and out over 2.05 s (ks-annShow). Per-tier text effects and player colours
-## arrive in H3.
+## 24px with 0.18em tracking, drawn as EffectText in the shooter's colour and flickering in and out over 2.05 s
+## (ks-annShow on the wrapper).
 
 const TOP := 64                              # web .streak-banner top
 const FONT_SIZE := 24
 const SPACING_EM := 0.18
-const TEXT_COLOR := Color("#cfe6ff")         # web --text until player colours / EffectText arrive
 
-var _text: Label
+var _row: HBoxContainer
+var _text: EffectText
 var _elapsed := 0.0
 
 func _ready() -> void:
@@ -16,20 +16,22 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	visible = false
-	_text = Label.new()
+	_row = HBoxContainer.new()
+	_row.name = "Row"
+	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_row.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_row.offset_top = TOP
+	_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_child(_row)
+	_text = EffectText.new()
 	_text.name = "Text"
-	_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_text.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	_text.offset_top = TOP
-	_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_text.add_theme_font_override("font", UiFont.spaced(SPACING_EM, FONT_SIZE))
-	_text.add_theme_font_size_override("font_size", FONT_SIZE)
-	_text.add_theme_color_override("font_color", TEXT_COLOR)
-	add_child(_text)
+	_text.auto_advance = false   # tick() drives the effect with the banner clock
+	_text.configure(UiFont.spaced(SPACING_EM, FONT_SIZE), FONT_SIZE, Color.WHITE)
+	_row.add_child(_text)
 
-## Start a new announcement (replaces a running one, like the web re-keying the banner).
-func announce(player: String, tier_word: String) -> void:
-	_text.text = HudModel.banner_text(player, tier_word)
+## Start a new announcement of `kind` for a player (replaces a running one, like the web re-keying the banner).
+func announce(player: String, kind: String, color: Color) -> void:
+	_text.show_text(HudModel.banner_text(player, Streak.tier_word(kind)), kind, color)
 	_elapsed = 0.0
 	visible = true
 	_apply()
@@ -41,7 +43,11 @@ func tick(delta: float) -> void:
 	if _elapsed >= HudModel.BANNER_DURATION_S:
 		visible = false
 		return
+	_text.advance(delta)
 	_apply()
+
+func text() -> EffectText:
+	return _text
 
 func _apply() -> void:
 	_text.modulate.a = HudModel.banner_opacity(_elapsed)

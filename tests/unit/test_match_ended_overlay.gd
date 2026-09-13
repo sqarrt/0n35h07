@@ -22,7 +22,10 @@ func _overlay() -> MatchEndedOverlay:
 func test_shows_outcome_reason_and_exit() -> void:
 	var o := _overlay()
 	assert_true(o.visible)
-	assert_eq((o.find_child("Outcome", true, false) as Label).text, "VICTORY")
+	var outcome := o.find_child("Outcome", true, false) as GlowText
+	assert_eq(outcome.label().text, "VICTORY")
+	assert_eq(outcome.layer_count(), 1, "web text-shadow 0 0 26px <outcome colour>")
+	assert_almost_eq((outcome.layers()[0].material as ShaderMaterial).get_shader_parameter("sigma"), 13.0, 0.001)
 	assert_eq((o.find_child("Reason", true, false) as Label).text, "TIME UP")
 	assert_true(o.find_child("Exit", true, false) is Button, "an exit back to the menu")
 
