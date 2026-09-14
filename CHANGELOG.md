@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+- **The ready ritual before every match.** As in the original, a match opens on the ready screen: both sides'
+  names with their READY / NOT READY status, the "LMB to start" hint and the controls legend; a click takes the mouse
+  and confirms, and the 3-second countdown starts once everyone is ready (bots are ready at once).
 - **Settings from the pause menu.** SETTINGS in the pause now opens the original's in-match panel: the sound volumes
   and the graphics switches (block outlines, FPS counter, player speed) change live and are saved; leaving the pause
   brings back its menu.

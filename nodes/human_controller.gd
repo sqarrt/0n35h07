@@ -31,9 +31,6 @@ func setup(pnode: PlayerNode, camera: Camera3D, third_person := false) -> void:
 	_raycaster = WorldRaycaster.new(pnode.get_world_3d().direct_space_state)
 	_pnode.set_body_visible(_third_person)   # web: the first-person view hides the own model
 
-func _ready() -> void:
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
 ## Inject the shake random source (tests).
 func set_rng(rng: Callable) -> void:
 	_rng = rng

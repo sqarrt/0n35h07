@@ -1,0 +1,91 @@
+{
+  "id": "2026-09-14-ready-ritual",
+  "title": "Сверка паритета OneShot · ритуал готовности матча",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс фазы готовности: web `Match` (фаза `ready`, боты готовы сразу, отсчёт только когда готовы все), `components/ReadyOverlay.tsx`, `components/ControlsLegend.tsx` и `App.handleReady` (захват указателя + requestReady). В Godot матч раньше сразу начинал отсчёт, экрана готовности и легенды управления не было. Кадры — os_arena, пассивные боты, до подтверждения игрока.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-ready-ritual.json`. Web: `web-reference/scripts/parity-capture-ready.mjs` (меню → лобби → боты → READY; дуэль с EX82R и 2v2 с B1..B3; шрифты — CDP `getPlatformFontsForNode`: легенда Consolas) → `test-results/parity-ready/en/web-ready-*.png` + `web-ready.json`. Godot: `tools/screenshot.gd` на `scenes/arena_test.tscn` + `maps/os_arena.json`, кадр 120, режимы `profile:ready-duel`, `profile:ready-2v2` (остальные съёмки матча подтверждают готовность при монтировании, как web `__debugReady`). Пиксели — среднее отличие каналов (0–255) по областям.",
+  "pages": [
+    {
+      "slug": "ready",
+      "name": "Экран готовности",
+      "verdict": "Ритуал готовности перенесён: матч стартует в фазе READY (боты готовы сразу), клик в любом месте захватывает указатель, отмечает игрока и играет звук `ready`, отсчёт 3 s начинается, когда готовы все. Экран совпадает с web: боковые подсветки 0.28/255, углы с именами и статусами 2.55 / 3.43, подсказка «[LMB] to start» 4.76, легенда управления в две строки 4.37 (рамка 640×72 у (320, 634), как в web), список 2v2 вокруг средней линии 5.15; кадр целиком 2.28 (дуэль) и 2.37 (2v2). Остаток — текст на целых пикселях: разрядка легенды 1 px вместо 0.576, глифы ○ / ✓ и толщина букв.",
+      "verdict_short": "READY перенесён",
+      "conditions": [
+        ["сборка", "браузер (матч через лобби)", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["матч", "os_arena; дуэль с EX82R, 2v2 с B1..B3 (пассивные); игрок PARITY7 не подтвердил", "то же"],
+        ["тесты", "—", "GUT 556/556 (`test_match_phase`, `test_ready_overlay`)"]
+      ],
+      "comparisons": [
+        {"title": "Дуэль целиком", "wipe": true,
+          "note": "Подсветки 34% ширины, углы, подсказка по центру, легенда внизу.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-duel-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-duel-full.png", "note": "Кадр 2.28/255."}
+          ]},
+        {"title": "Левый угол (×3)", "wipe": true,
+          "note": "Имя 13 px 0.12em в цвете игрока, своё подчёркнуто (смещение 3 px); статус 10 px 0.16em.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-duel-corner-left.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-duel-corner-left.png", "note": "2.55/255"}
+          ]},
+        {"title": "Правый угол (×3)", "wipe": true,
+          "note": "Выравнивание вправо в 18 px от края; READY ✓ цветом --ok.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-duel-corner-right.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-duel-corner-right.png", "note": "3.43/255: ✓ тоньше"}
+          ]},
+        {"title": "Подсказка (×3)", "wipe": true,
+          "note": "Чип `.hkey` 13 px (разрядка 2.4 px от подсказки), 15 px 0.16em; центр — по дробным ширинам Chrome.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-duel-hint.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-duel-hint.png", "note": "4.76/255"}
+          ]},
+        {"title": "Легенда управления (×2)", "wipe": true,
+          "note": "Чипы Consolas 0.72rem; элементы переносятся в строки шириной 610 px и центрируются.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-duel-legend.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-duel-legend.png", "note": "4.37/255: разрядка действий 1 px"}
+          ]},
+        {"title": "Список 2v2 (×3)", "wipe": true,
+          "note": "Имена заканчиваются в 6 px левее середины, статусы начинаются в 6 px правее; шаг строк 24 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-ready/en/crops/web-2v2-list.png", "note": "—"},
+            {"kind": "godot", "img": "parity-ready/en/crops/godot-2v2-list.png", "note": "5.15/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "R1", "severity": "fixed",
+          "title": "Матч начинался без ритуала готовности",
+          "web": "`phase = 'ready'` для каждого матча, боты в `readySet` сразу; клик по `ReadyOverlay` → `requestPointerLock` + `markReady`; `maybeStampCountdown` начинает отсчёт, когда готовы все; пауза только в live.",
+          "godot": "`MatchPhase` READY → COUNTDOWN → LIVE → ENDED (`add_participant(id, ready)`, `mark_ready`), `MatchNode.mark_ready` / `ready_ids` / `is_ready_phase`, `arena_boot` делает ботов готовыми и подключает `ReadyOverlay.ready_requested` (захват указателя, отметка, звук `ready`); `HumanController` больше не захватывает мышь при старте. Было: отсчёт шёл сразу после загрузки арены.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/match_phase.gd", "nodes/match_node.gd", "nodes/arena_boot.gd", "nodes/human_controller.gd", "tests/unit/test_match_phase.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "R2", "severity": "fixed",
+          "title": "Экран готовности и легенда управления",
+          "web": "`ReadyOverlay`: подсветки, углы (≤ 2 игроков) или список, подсказка / WAITING FOR OPPONENT, `ControlsLegend` в нижней рамке.",
+          "godot": "`ReadyOverlay` (CanvasLayer 12), `ControlsLegend` (Consolas, переносы по дробным ширинам), `UnderlinedLabel` (общий с ником лобби), `UiFont.css_width` (общий расчёт ширин Chrome для заставки, легенды и подсказки). Было: не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/ready_overlay.gd", "nodes/controls_legend.gd", "nodes/underlined_label.gd", "nodes/ui_font.gd", "nodes/lobby_seat.gd", "tests/unit/test_ready_overlay.gd", "web-reference/src/components/ReadyOverlay.tsx", "web-reference/src/components/ControlsLegend.tsx"]
+        },
+        {
+          "id": "R3", "severity": "visual",
+          "title": "Текст экрана на целых пикселях",
+          "web": "Разрядка действий легенды 0.576 px, статусов 1.6 px; глифы ○ / ✓ — Microsoft YaHei.",
+          "godot": "Разрядка 1 и 2 px (действия шире на ~2 px), ✓ тоньше; позиции элементов совпадают до 2 px.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd"]
+        }
+      ],
+      "limitations": [
+        "Состояние «WAITING FOR OPPONENT» в локальном матче не наступает (боты готовы сразу) — проверено тестом, без кадра.",
+        "Сетевой ритуал (подтверждения других пиров, штамп создателя лобби) — со слайсом сети."
+      ]
+    }
+  ]
+}

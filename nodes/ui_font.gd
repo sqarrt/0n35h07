@@ -27,6 +27,7 @@ const DESCENT_EM := 0.242
 
 static var _base: FontFile
 static var _base_cjk: FontFile
+static var _measure_fonts := {}                # face -> its unspaced variation at MEASURE_PX
 
 ## The shared base face (Latin + Cyrillic fallback).
 static func base() -> FontFile:
@@ -51,6 +52,15 @@ static func base_cjk() -> FontFile:
 ## The letter spacing of a `.btn` / `.seg` label in the active locale (an inline letter spacing keeps its own).
 static func control_spacing_em(latin_em: float) -> float:
 	return CJK_CONTROL_SPACING_EM if I18n.is_cjk() else latin_em
+
+## A run's CSS width: Chrome's fractional advances (measured at MEASURE_PX, as Godot rounds them per size) plus the
+## letter spacing Chrome adds after every glyph. `face` draws the glyphs (the UI font by default).
+static func css_width(text: String, css_px: float, spacing_em := 0.0, face: Font = null) -> float:
+	if not _measure_fonts.has(face):
+		_measure_fonts[face] = spaced(0.0, MEASURE_PX, 0.0, face)
+	var line := TextLine.new()
+	line.add_string(text, _measure_fonts[face], MEASURE_PX, SYSTEM_FALLBACK_LOCALE)
+	return line.get_size().x * css_px / MEASURE_PX + text.length() * spacing_em * css_px
 
 ## A fractional CSS font size (rem sizes such as 0.7rem = 11.2 px) as the nearest Godot font size.
 static func css_size(css_px: float) -> int:

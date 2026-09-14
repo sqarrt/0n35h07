@@ -126,7 +126,6 @@ var _chip: Chip
 var _chip_label: Label
 var _hint_label: Label
 var _body_font: FontVariation
-var _measure_font: FontVariation
 
 func _init() -> void:
 	name = "WarningSplash"
@@ -160,7 +159,6 @@ func _init() -> void:
 		[CssShadow.make(TITLE_GLOW_BLUR, TITLE_GLOW), CssShadow.make(ICON_DROP_BLUR, ICON_DROP)], symbol)
 	_title = _glow_text("Title", I18n.t(TITLE_KEY), TITLE_PX, TITLE_SPACING_EM, [CssShadow.make(TITLE_GLOW_BLUR, TITLE_GLOW)])
 	_body_font = UiFont.with_css_line(UiFont.spaced(BODY_SPACING_EM, BODY_PX), BODY_PX)
-	_measure_font = UiFont.spaced(0.0, UiFont.MEASURE_PX)
 	_paragraph = Paragraph.new()
 	_paragraph.name = "Body"
 	_content.add_child(_paragraph)
@@ -282,12 +280,9 @@ func _set_body(text: String) -> void:
 		line.add_string(line_text, _body_font, BODY_PX, UiFont.SYSTEM_FALLBACK_LOCALE)
 		_paragraph.lines.append(line)
 
-## A run's CSS width at the body size: the advances measured large (Godot rounds them per size), plus the letter
-## spacing after every glyph.
+## A run's CSS width at the body size.
 func _css_width(text: String) -> float:
-	var line := TextLine.new()
-	line.add_string(text, _measure_font, UiFont.MEASURE_PX, UiFont.SYSTEM_FALLBACK_LOCALE)
-	return line.get_size().x * BODY_PX / UiFont.MEASURE_PX + text.length() * BODY_SPACING_EM * BODY_PX
+	return UiFont.css_width(text, BODY_PX, BODY_SPACING_EM)
 
 func _layout() -> void:
 	if not is_inside_tree():
