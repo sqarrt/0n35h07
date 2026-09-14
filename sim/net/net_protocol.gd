@@ -16,7 +16,9 @@ static func player_snapshot(p) -> Dictionary:
 		"respawning": p.respawning,
 	}
 
-## Apply a remote player's snapshot (position/aim/alive/respawning). Combat is judged by owners.
+## Apply a remote player's snapshot (web applyNetState): position, aim, life and the visual flags the player then shows
+## instead of a local simulation. Combat is judged by owners. A demo frame adds the HUD readiness ("beam", "dash_ready",
+## "shield_ready", 1 = ready) and the ghost time left ("respawn_left", 1 -> 0).
 static func apply_player_snapshot(p, s: Dictionary) -> void:
 	var pos: Array = s["pos"]
 	p.body.position = Vector3(pos[0], pos[1], pos[2])
@@ -24,3 +26,13 @@ static func apply_player_snapshot(p, s: Dictionary) -> void:
 	p.set_look(Vector3(aim[0], aim[1], aim[2]))
 	p.alive = bool(s["alive"])
 	p.respawning = bool(s["respawning"])
+	if p.remote == null:
+		p.remote = RemoteState.new()
+	p.remote.windup = float(s.get("windup", 0.0))
+	p.remote.dashing = bool(s.get("dashing", false))
+	p.remote.shield = bool(s.get("shield", false))
+	p.remote.beam_progress = float(s.get("beam", RemoteState.READY))
+	p.remote.dash_progress = float(s.get("dash_ready", RemoteState.READY))
+	p.remote.shield_progress = float(s.get("shield_ready", RemoteState.READY))
+	if p.respawning:
+		p.respawn_timer = float(s.get("respawn_left", 0.0)) * MatchConst.RESPAWN_GHOST_MS
