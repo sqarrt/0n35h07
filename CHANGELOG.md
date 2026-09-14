@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+- **The lobby shows the chosen map behind the spheres.** As in the original, the selected map's preview fills the
+  screen blurred and dimmed while the lobby is open, fades in and out with it and crossfades when another map is picked.
 - **The ready ritual before every match.** As in the original, a match opens on the ready screen: both sides'
   names with their READY / NOT READY status, the "LMB to start" hint and the controls legend; a click takes the mouse
   and confirms, and the 3-second countdown starts once everyone is ready (bots are ready at once).

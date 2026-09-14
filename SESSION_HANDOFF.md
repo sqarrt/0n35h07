@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 556/556)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 560/560)
 
 | Слайс | Суть |
 |---|---|
@@ -72,9 +72,10 @@
 | Заставка M6 (W) | `WarningSplash` поверх `MainMenu` один раз за запуск (`Game.warning_seen`), `WarningTimeline` (проявление 320, подсказка 1500/240, пульс 4 s, затухание 280 мс), шейдер `warning_backdrop`, планета из SVG web (`Image.load_svg_from_string`), `CssLineBreak` (переносы Chrome), ⚠ на Segoe UI Symbol (`UiFont.with_face_line`); web `parity-capture-warning.mjs` (анимации на паузе через `getAnimations`), режимы `warning[-early|-peak]` |
 | Настройки в паузе (MS) | `MatchSettings` в `PauseOverlay` (`open_settings`/`close_settings`, сброс при снятии паузы), общие `SoundControls`/`GraphicsControls`/`SettingsRows` (вынесены из `SettingsScreen`), `profile_changed` → сохранение, громкость, `MapEdges.set_enabled`; `set_desktop(false)` = раскладка браузера; web `parity-capture-match-settings.mjs`, режим `pause-settings-<tab>` |
 | Ритуал готовности (R) | `MatchPhase` READY→COUNTDOWN→LIVE→ENDED (`add_participant`/`mark_ready`), боты готовы сразу; `ReadyOverlay` (подсветки, углы/список, подсказка, `ControlsLegend` на Consolas), клик → захват мыши + `mark_ready` + звук; `UnderlinedLabel`, `UiFont.css_width`; инструмент подтверждает готовность при монтировании (режимы `ready-duel`/`ready-2v2` — без); web `parity-capture-ready.mjs` |
+| Фон карты в лобби (LM) | `MapBackground` за `MenuBackdrop`: два слоя (текущий и гаснущий 320 мс), превью cover в SubViewport, горизонтальное размытие во вложенном SubViewport один раз на карту, вертикальное на экране (`image_blur`, предумноженный цвет, brightness 0.7), проявление 0.7 s; web `parity-capture-lobby-map.mjs`, режим `lobby-map-<id>` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
@@ -82,8 +83,8 @@
 Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
 шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT и APPEARANCE с превью
-стилей, переводы интерфейса i18n (10 языков), заставка-предупреждение M6, настройки в паузе и ритуал готовности матча
-(GUT 556/556) смержены в `release_2.0.0`. Следующие слайсы: сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
+стилей, переводы интерфейса i18n (10 языков), заставка-предупреждение M6, настройки в паузе, ритуал готовности матча и
+размытый фон карты в лобби (GUT 560/560) смержены в `release_2.0.0`. Следующие слайсы: сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
 вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
@@ -94,8 +95,8 @@
 - **Дробная разрядка букв**: `FontVariation.spacing_glyph` — целое (0.08em × 13 px = 1.04 → 1), длинные строки
   к концу отстают на 1–2 px (отчёты hud-core, stats); общее решение для всех текстов `UiFont.spaced`.
 - Открыто после темы UI: MENU — дробная базовая линия Chrome (отчёт `2026-09-14-ui-theme-*`).
-- Открыто после лобби: нет сети (код комнаты, «вход по коду», Steam-приглашения, SEARCH, гости) и размытого превью
-  карты в фоне (отчёты `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
+- Открыто после лобби: нет сети (Steam-приглашения, SEARCH, гости; в проекте нет аддона GodotSteam) (отчёты
+  `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
 - Открыто после главного меню: WATCH в ABOUT шлёт
   `screen_requested('trailer')` — трейлера нет; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
   RADIO скрыт до радио (отчёт `2026-09-14-settings-about-*`).
