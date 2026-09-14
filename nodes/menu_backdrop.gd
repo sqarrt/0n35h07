@@ -16,6 +16,8 @@ const COLOR_TAU := 0.067                            # web COLOR_TAU: a ball's co
 const EXIT_MS := 400.0                              # web EXIT_MS: a leaving ball stays mounted while it fades
 const COMPOSITE_SHADER := preload("res://assets/shaders/menu_backdrop_composite.gdshader")
 const PROFILE_MENU_GLOW := "menuGlow"
+const SHOT_AIM := Vector3(-0.78, -0.55, 1.3)        # web SHOT_AIM_DIR (normalised where used)
+const PAINT_AIM := Vector3(0.0, 0.0, 1.0)           # web: the art's front hemisphere faces +Z while painting
 
 ## One ball on the stage: its visual, its appearance state and where it stands.
 class StageEntry:
@@ -27,6 +29,7 @@ class StageEntry:
 	var exit_ms := 0.0
 
 var rig: MenuCameraRig
+var glow_muted := false                             # web glowMuted: the appearance screen silences the edge glow
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -44,6 +47,7 @@ var _ball_time := 0.0
 var _ball_time_pinned := false
 var _glow_input := 0.0
 var _glow_input_pinned := false
+var _appearance_part := ""
 
 func _ready() -> void:
 	name = "Backdrop"
@@ -87,8 +91,20 @@ func _ready() -> void:
 	set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
 
 ## The camera pose for a screen (web cameraStateFor): menu / settings — default; lobby — the Duel pair or the square.
-func set_screen(screen: String, game_mode := GameModes.DUEL, is_client := false) -> void:
-	rig.set_state(MenuCameraRig.state_for(screen, game_mode, is_client))
+func set_screen(screen: String, game_mode := GameModes.DUEL, is_client := false,
+		part := MenuCameraRig.PART_COLOR) -> void:
+	rig.set_state(MenuCameraRig.state_for(screen, game_mode, is_client, part))
+	_appearance_part = part if screen == MenuCameraRig.SCREEN_APPEARANCE else ""
+
+## Where your ball looks (web StageBall on the appearance preview): its art side toward +Z while painting, the fixed
+## diagonal of the SHOT block, otherwise at the camera.
+func facing_of(key: String, visual: BallVisual) -> Vector3:
+	if key == MenuStage.PLAYER_KEY:
+		if _appearance_part in [MenuCameraRig.PART_PAINT_FRONT, MenuCameraRig.PART_PAINT_BACK]:
+			return PAINT_AIM
+		if _appearance_part == MenuCameraRig.PART_SHOT:
+			return SHOT_AIM.normalized()
+	return (_camera.global_position - visual.global_position).normalized()
 
 ## The stage's balls ([{key, spec, spot}], MenuStage.balls): new keys fade in, missing keys shrink out.
 func set_balls(balls: Array) -> void:
@@ -179,7 +195,7 @@ func _process(delta: float) -> void:
 		entry.visual.set_color(entry.color)
 		entry.visual.set_opacity(entry.stage.opacity)
 		entry.visual.set_scale_factor(entry.stage.scale)
-		entry.visual.face_dir((_camera.global_position - entry.visual.global_position).normalized())   # facing you
+		entry.visual.face_dir(facing_of(key, entry.visual))
 		if _ball_time_pinned:
 			entry.visual.set_time(_ball_time)
 		else:
@@ -190,7 +206,7 @@ func _process(delta: float) -> void:
 ## intensity; the post chain renders only while that is visible.
 func _step_glow(delta: float) -> void:
 	var level := _glow_input if _glow_input_pinned else Audio.analysis.level()
-	_glow_level.step(delta, level, not bool(Game.profile.get(PROFILE_MENU_GLOW, true)))
+	_glow_level.step(delta, level, glow_muted or not bool(Game.profile.get(PROFILE_MENU_GLOW, true)))
 	var lit := _glow_level.is_lit()
 	if lit != _glow.is_lit():
 		_glow.set_lit(lit)

@@ -14,10 +14,13 @@ const GL_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu', `--use-angle=${ANGLE_
 const FORBIDDEN_RENDERER = /SwiftShader/i;
 
 /** Launch the browser and a page; throws when WebGL runs on a line-dropping renderer. */
-export async function launchReferencePage() {
+/** `showScrollbars`: keep classic scrollbars (headless Chromium hides them by default; the desktop WebView draws the
+ *  themed 5 px bar, which takes layout width inside a scrolling panel). */
+export async function launchReferencePage({ showScrollbars = false } = {}) {
   const browser = await chromium.launch({
     headless: true,
     args: GL_ARGS,
+    ...(showScrollbars ? { ignoreDefaultArgs: ['--hide-scrollbars'] } : {}),
     // Optional override when the installed Playwright browser build differs from the package's expected one.
     ...(process.env.PARITY_CHROMIUM ? { executablePath: process.env.PARITY_CHROMIUM } : {}),
   });

@@ -95,6 +95,12 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_APPEARANCE := "appearance"   # appearance[-reserve|-planet|-paint][-panel]
+const APPEARANCE_STATES := ["", "-reserve", "-planet", "-paint"]
+const APPEARANCE_PANEL := "-panel"
+const APPEARANCE_RESERVE := "#4fa"      # web RESERVE_PICK
+const APPEARANCE_MODEL := "planet"
+const APPEARANCE_CELL := Vector2i(8, 8) # web PAINT_CELL
 const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
 const MODE_ABOUT := "about"
 const SCREEN_FRAMES := 6               # the screen lays out in the panel (web waits 400 ms, nothing animates)
@@ -307,6 +313,29 @@ func _apply_hud_fixture() -> int:
 			if node.player.id == PLATE_BOT_ID:
 				node.place_at(Vector3(target.x, node.global_position.y, target.z))
 		return PLATE_FRAMES
+	if _mode.begins_with(MODE_APPEARANCE):
+		# web parity-capture-appearance.mjs: APPEARANCE after the state's clicks (cumulative, as the web script runs
+		# them), the light, ball clock and glow pinned; -panel hides the backdrop
+		var state := _mode.trim_prefix(MODE_APPEARANCE)
+		var appearance_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		appearance_menu.set("profile_saving", false)
+		var backdrop: Node = appearance_menu.call("backdrop")
+		backdrop.call("set_light_angle", 0.0)
+		backdrop.call("pin_ball_time", STAGE_BALL_TIME_S)
+		backdrop.call("pin_glow_level", 0.0)
+		if state.ends_with(APPEARANCE_PANEL):
+			(backdrop as CanvasItem).visible = false
+			state = state.trim_suffix(APPEARANCE_PANEL)
+		appearance_menu.call("open_appearance")
+		var appearance: Node = appearance_menu.call("screen")
+		var steps := APPEARANCE_STATES.find(state)
+		if steps >= 1:
+			appearance.call("choose_reserve", APPEARANCE_RESERVE)
+		if steps >= 2:
+			appearance.call("choose_model", APPEARANCE_MODEL)
+		if steps >= 3:
+			appearance.call("paint", BallArt.FRONT, APPEARANCE_CELL.x, APPEARANCE_CELL.y, 1)
+		return STAGE_FRAMES
 	if _mode.begins_with(MODE_SETTINGS) or _mode == MODE_ABOUT:
 		# web parity-capture-settings.mjs: SETTINGS on a tab or ABOUT, the backdrop canvases hidden
 		var screen_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
@@ -467,7 +496,7 @@ func _capture() -> void:
 			if control != null and control.is_visible_in_tree():
 				menu_boxes[box_name] = _rect(control)
 		facts["MainMenu"] = menu_boxes
-	for screen_class in ["SettingsScreen", "AboutScreen"]:
+	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen"]:
 		for screen in root.find_children("*", screen_class, true, false):
 			var screen_boxes := {}
 			for control in screen.find_children("*", "Control", true, false):

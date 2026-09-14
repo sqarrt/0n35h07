@@ -40,9 +40,6 @@ const VS_FONT_SIZE := 10
 const VS_SPACING_EM := 0.2
 const VS_COLOR := Color("#3a4655")
 const BLEED := 28.0                             # .panel-fill--bleed --bleed
-const SCROLLBAR_PX := 5.0
-const SCROLLBAR_RADIUS := 3
-const SCROLLBAR_THUMB := Color(47.0 / 255.0, 111.0 / 255.0, 158.0 / 255.0, 0.35)
 const HALF := 0.5
 
 var room: RoomModel
@@ -81,7 +78,7 @@ func _ready() -> void:
 	_scroll = ScrollContainer.new()
 	_scroll.name = "Body"
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_style_scrollbar(_scroll.get_v_scroll_bar())
+	UiScroll.style(_scroll.get_v_scroll_bar())
 	add_child(_scroll)
 	_content = Control.new()
 	_content.name = "Content"
@@ -303,20 +300,6 @@ func _seg(node_name: String, text: String) -> SegButton:
 	seg.name = node_name
 	_content.add_child(seg)
 	return seg
-
-func _style_scrollbar(bar: VScrollBar) -> void:
-	var track := StyleBoxEmpty.new()
-	track.content_margin_left = SCROLLBAR_PX * HALF
-	track.content_margin_right = SCROLLBAR_PX * HALF
-	bar.add_theme_stylebox_override("scroll", track)
-	bar.add_theme_stylebox_override("scroll_focus", track)
-	for state in ["grabber", "grabber_highlight", "grabber_pressed"]:
-		var thumb := StyleBoxFlat.new()
-		thumb.bg_color = SCROLLBAR_THUMB if state == "grabber" else UiTokens.ACCENT_DIM
-		thumb.set_corner_radius_all(SCROLLBAR_RADIUS)
-		thumb.content_margin_left = SCROLLBAR_PX * HALF
-		thumb.content_margin_right = SCROLLBAR_PX * HALF
-		bar.add_theme_stylebox_override(state, thumb)
 
 func _on_mode_picked(mode: String) -> void:
 	UiSounds.toggle()
