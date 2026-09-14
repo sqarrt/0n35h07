@@ -100,6 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   enemy. With more than two players the top bar lists everyone's frags on two panes around the timer, with the team
   totals in Battle, and every other player carries a name plate — in their team's colour in Battle, neutral grey in
   War — that disappears while they are dead.
+- **The menu stage behind the panel.** The menus now sit over the original's 3D backdrop: your ball stands in the
+  scene under a slowly orbiting light, framed by the original's camera poses. In the lobby every seated player
+  appears on their seat's spot — the Duel pair or the Battle / War square — fading in when they sit down and shrinking
+  away when they leave.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
