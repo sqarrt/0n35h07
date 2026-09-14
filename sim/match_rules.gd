@@ -1,10 +1,14 @@
 class_name MatchRules extends RefCounted
-## Local match rules: one-shot kill / shield block / ghost respawn / teams / score / streak / bounty.
+## Match rules: one-shot kill / shield block / ghost respawn / teams / score / streak / bounty.
 ## Ported from the web Match combat path (resolveCombat/resolveHit/applyKill/applyBlock/resolveRespawns).
-## Reads each player's newest weapon outcome via fire_seq, so it's independent of the FX layer.
+## Reads each player's newest weapon outcome via fire_seq, so it's independent of the FX layer. On a mesh a peer
+## resolves only the players it simulates (`owns`): a hit on a player simulated elsewhere becomes a claim for its owner
+## to judge, and that owner's verdict comes back through apply_combat_event.
 
 var players: Array = []          # Array[Player]
 var events: Array = []           # collected each resolve() for the host to reflect (FX/HUD)
+var claims: Array = []           # this tick's hits on players simulated elsewhere: {shooter, hit_id, point}
+var owns := Callable()           # (id) -> bool: the players this peer simulates; unset: every player
 var first_kill_done := false
 var singularity_active := false  # someone is on a SINGULARITY streak: everyone pierces, blocks see-through
 
@@ -20,9 +24,10 @@ func _by_id(eid: int):
 			return p
 	return null
 
-## Resolve every player's newest fire, then tick respawns. Call once per tick; read `events`.
+## Resolve every simulated player's newest fire, then tick respawns. Call once per tick; read `events` and `claims`.
 func resolve(dt: float) -> void:
 	events.clear()
+	claims.clear()
 	_resolve_combat()
 	_resolve_respawns(dt)
 
@@ -43,18 +48,22 @@ func apply_comeback() -> bool:
 func _resolve_combat() -> void:
 	for shooter in players:
 		var w = shooter.weapon
-		if w == null:
-			continue
+		if w == null or not _owns(shooter.id):
+			continue                  # a remote's shot arrives as its owner's fired event, its hits as claims
 		if w.fire_seq <= int(_last_seq.get(shooter.id, 0)):
 			continue
 		_last_seq[shooter.id] = w.fire_seq
 		var o: Dictionary = w.outcome
 		events.append({"t": "fired", "id": shooter.id, "end": o["end"], "hit_point": o["hit_point"], "hit": int(o["hit_entity_id"])})
 		var eid: int = int(o["hit_entity_id"])
-		if eid >= 0:
-			var victim = _by_id(eid)
-			if victim != null:
-				_resolve_hit(shooter, victim, o["hit_point"])
+		if eid < 0:
+			continue
+		if not _owns(eid):
+			claims.append({"shooter": shooter.id, "hit_id": eid, "point": _wire(o["hit_point"])})
+			continue
+		var victim = _by_id(eid)
+		if victim != null:
+			_resolve_hit(shooter, victim, o["hit_point"])
 
 func _resolve_hit(shooter, victim, point) -> void:
 	if shooter != victim and shooter.team == victim.team:
@@ -92,24 +101,36 @@ func _apply_block(_shooter, victim, perfect: bool) -> void:
 	if perfect:
 		victim.reset_cooldowns()
 
-## Apply an already judged network verdict using the same score/reward rules as local combat.
+## Apply an already judged network verdict using the same score/reward rules as local combat; returns the event as
+## local combat would have raised it (streak, first blood), or {} for unknown players.
 ## The caller checks ownership; receive_hit must only run on the victim's owner.
-func apply_combat_event(e: Dictionary) -> void:
+func apply_combat_event(e: Dictionary) -> Dictionary:
 	var shooter = _by_id(int(e.get("shooter", -1)))
 	var victim = _by_id(int(e.get("victim", -1)))
 	if shooter == null or victim == null:
-		return
+		return {}
 	match e.get("t", ""):
 		"kill":
-			_apply_kill(shooter, victim)
+			var first_blood := _apply_kill(shooter, victim)
+			return {"t": "kill", "shooter": shooter.id, "victim": victim.id, "point": victim.position(),
+				"streak": (shooter.streak if shooter != victim else 0), "first_blood": first_blood}
 		"block":
-			_apply_block(shooter, victim, bool(e.get("perfect", false)))
+			var perfect := bool(e.get("perfect", false))
+			_apply_block(shooter, victim, perfect)
+			return {"t": "block", "shooter": shooter.id, "victim": victim.id, "perfect": perfect}
+	return {}
 
 func _resolve_respawns(dt: float) -> void:
 	for p in players:
-		if not p.respawning:
-			continue
+		if not p.respawning or not _owns(p.id):
+			continue                  # a remote's ghost ends with its owner's respawn event
 		p.respawn_timer -= dt * 1000.0
 		if p.respawn_timer <= 0.0:
 			p.respawn_at(p.position())
 			events.append({"t": "respawn", "id": p.id, "pos": p.position()})
+
+func _owns(id: int) -> bool:
+	return not owns.is_valid() or bool(owns.call(id))
+
+static func _wire(point):
+	return [point.x, point.y, point.z] if point is Vector3 else null
