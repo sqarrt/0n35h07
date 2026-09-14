@@ -140,3 +140,18 @@ func test_browser_layout_for_parity_captures() -> void:
 	menu.set_browser_layout(true)
 	assert_true(_control(menu, "Hint").visible)
 	assert_false(_control(menu, "Quit").visible, "the web tab has no exit")
+	assert_false(_control(menu, "Radio").visible, "nor a radio (web IS_DESKTOP)")
+	assert_false(_control(menu, "RadioPlayer").visible)
+
+func test_radio_between_about_and_quit_and_its_player_in_the_corner() -> void:
+	var menu := await _menu()
+	var radio := _control(menu, "Radio") as UiButton
+	assert_eq(radio.variant, UiButton.SECONDARY)
+	assert_eq(radio.text, I18n.t(MainMenu.RADIO_KEY).to_upper(), "web t.settingsVolRadio.toUpperCase()")
+	var about := _control(menu, "About")
+	var quit := _control(menu, "Quit")
+	assert_true(absf(radio.global_position.y - about.global_position.y - BUTTON_STEP) <= 1.0)
+	assert_true(absf(quit.global_position.y - radio.global_position.y - BUTTON_STEP) <= 1.0)
+	var player := _control(menu, "RadioPlayer") as RadioPlayer
+	assert_true(player.visible, "the mini-player lives on every menu screen")
+	assert_gt(player.get_index(), _control(menu, "Version").get_index(), "above the version chip")

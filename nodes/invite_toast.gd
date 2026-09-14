@@ -10,28 +10,11 @@ signal declined(inviter_id: String)
 const TITLE_KEY := "inviteTitle"
 const ACCEPT_KEY := "inviteAccept"
 const DECLINE_KEY := "inviteDecline"
-const BLUR_PASS_SHADER := preload("res://assets/shaders/glass_blur_pass.gdshader")
-const SURFACE_SHADER := preload("res://assets/shaders/glass_surface.gdshader")
 const WIDTH := 240.0
 const RIGHT := 18.0
 const BOTTOM := 132.0
-const BORDER_PX := 1.0
 const PADDING := Vector2(15.0, 13.0)
 const GAP := 11.0
-const RADIUS := 14.0
-const FILL := Color(10.0 / 255.0, 15.0 / 255.0, 20.0 / 255.0, 0.55)
-const BORDER := Color(1.0, 1.0, 1.0, 0.12)
-const HIGHLIGHT := Color(1.0, 1.0, 1.0, 0.18)        # inset 0 1px 0
-const HIGHLIGHT_PX := 1.0
-const RING := Color(1.0, 1.0, 1.0, 0.06)             # 0 0 0 0.5px
-const RING_PX := 0.5
-const SHADOW := Color(0.0, 0.0, 0.0, 0.5)            # 0 8px 40px
-const SHADOW_OFFSET := Vector2(0.0, 8.0)
-const SHADOW_BLUR := 40.0
-const SHADOW_SIGMA_SHARE := 0.5                      # a box-shadow blur is 2σ
-const BACKDROP_SIGMA := 24.0                         # backdrop-filter blur(24px): σ 24 px
-const SATURATION := 1.6                              # saturate(160%)
-const KERNEL_SIGMAS := 3.0
 const TITLE_PX := 12.5
 const TITLE_SPACING_EM := 0.04
 const TITLE_LINE_EM := 1.5
@@ -62,8 +45,7 @@ var lobby_id := ""
 
 var _age := 0.0
 var _height := 0.0
-var _blur: ColorRect
-var _surface: ColorRect
+var _glass: GlassCard
 var _title: RichTextLabel
 var _accept: UiButton
 var _decline: UiButton
@@ -72,10 +54,8 @@ func _ready() -> void:
 	name = "InviteToast"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE          # no backdrop: only the buttons take the mouse
 	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	add_child(_screen_copy())                           # what the menu drew so far
-	_blur = _shader_rect("BackdropBlur", BLUR_PASS_SHADER)
-	add_child(_screen_copy())                           # with the horizontal half of the blur in the box
-	_surface = _shader_rect("Surface", SURFACE_SHADER)
+	_glass = GlassCard.new()                            # the glass under everything the card holds
+	add_child(_glass)
 	_title = RichTextLabel.new()
 	_title.name = "Title"
 	_title.bbcode_enabled = false
@@ -134,9 +114,9 @@ func _fill_title() -> void:
 	_title.add_text(" " + I18n.t(TITLE_KEY))
 
 func _layout() -> void:
-	var left := BORDER_PX + PADDING.x
+	var left := GlassCard.BORDER_PX + PADDING.x
 	var content_width := WIDTH - 2.0 * left
-	_title.position = Vector2(left, BORDER_PX + PADDING.y)
+	_title.position = Vector2(left, GlassCard.BORDER_PX + PADDING.y)
 	_title.size = Vector2(content_width, 0.0)
 	var title_height := float(_title.get_content_height())
 	_title.size.y = title_height
@@ -148,47 +128,9 @@ func _layout() -> void:
 		var x := left + i * (button_width + ROW_GAP)
 		button.position = Vector2(CssPixel.snap(x), CssPixel.snap(row_y))
 		button.size = Vector2(CssPixel.snap(x + button_width) - button.position.x, button_height)
-	_height = row_y + button_height + PADDING.y + BORDER_PX
-	var box := Vector2(WIDTH, _height)
-	_blur.position = Vector2.ZERO
-	_blur.size = box
-	(_blur.material as ShaderMaterial).set_shader_parameter("box_px", box)
-	var pad := KERNEL_SIGMAS * SHADOW_BLUR * SHADOW_SIGMA_SHARE + SHADOW_OFFSET.length()
-	_surface.position = -Vector2.ONE * pad
-	_surface.size = box + Vector2.ONE * 2.0 * pad
-	var surface := _surface.material as ShaderMaterial
-	surface.set_shader_parameter("box_px", box)
-	surface.set_shader_parameter("pad_px", pad)
+	_height = row_y + button_height + PADDING.y + GlassCard.BORDER_PX
+	_glass.set_box(Vector2(WIDTH, _height))
 	_place(ENTER_SHIFT * (1.0 - modulate.a) if _age < ENTER_S else 0.0)
-
-func _screen_copy() -> BackBufferCopy:
-	var copy := BackBufferCopy.new()
-	copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
-	return copy
-
-func _shader_rect(node_name: String, shader: Shader) -> ColorRect:
-	var rect := ColorRect.new()
-	rect.name = node_name
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var material := ShaderMaterial.new()
-	material.shader = shader
-	material.set_shader_parameter("sigma", BACKDROP_SIGMA)
-	if shader == SURFACE_SHADER:
-		material.set_shader_parameter("radius_px", RADIUS)
-		material.set_shader_parameter("border_px", BORDER_PX)
-		material.set_shader_parameter("saturation", SATURATION)
-		material.set_shader_parameter("fill_color", FILL)
-		material.set_shader_parameter("border_color", BORDER)
-		material.set_shader_parameter("highlight_color", HIGHLIGHT)
-		material.set_shader_parameter("highlight_px", HIGHLIGHT_PX)
-		material.set_shader_parameter("ring_color", RING)
-		material.set_shader_parameter("ring_px", RING_PX)
-		material.set_shader_parameter("shadow_color", SHADOW)
-		material.set_shader_parameter("shadow_offset_px", SHADOW_OFFSET)
-		material.set_shader_parameter("shadow_sigma", SHADOW_BLUR * SHADOW_SIGMA_SHARE)
-	rect.material = material
-	add_child(rect)
-	return rect
 
 ## 12.5 px spaced 0.04em on a 1.5 line box: Chrome's normal line with the half-leading over and under it; the spacing is
 ## fitted to Chrome's run width, so the title breaks where web's does.

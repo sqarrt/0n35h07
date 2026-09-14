@@ -71,6 +71,15 @@ func test_the_baseline_is_where_the_native_button_puts_it() -> void:
 	assert_almost_eq(button.text_origin().y + button.run().baseline(), native, EPS,
 		"button.cpp: the text line centred, unrounded, its ascent down to the baseline")
 
+func test_a_set_line_height_centres_the_strut() -> void:
+	var button := _button("⏮")
+	button.css_line_height = FONT_PX   # line-height: 1
+	await wait_process_frames(1)
+	var run := button.run()
+	var inner := button.size.y - PADDING * 2.0
+	assert_almost_eq(button.text_origin().y + run.baseline(), roundf(PADDING + inner * CssButton.HALF
+		+ (run.ascent() - run.descent()) * CssButton.HALF), EPS, "the UI font's unrounded ascent and descent, not the glyph's")
+
 func test_the_colour_is_the_states() -> void:
 	var button := _button("GO")
 	button.add_theme_color_override("font_color", Color.RED)

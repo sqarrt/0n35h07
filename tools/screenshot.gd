@@ -38,6 +38,9 @@ extends SceneTree
 ##   steam-<state>     the desktop Play screen on a fake Steam (web parity-capture-lobby-steam.mjs): toast (an invite over
 ##                     the menu), idle (the hosted Private lobby), picker (INVITE A FRIEND open), invited (Bob waiting on
 ##                     seat 1, the pulse held at its peak) or searching (SEARCH pressed); -bottom scrolls. Use with profile:.
+##   radio-<state>     the desktop menu with its Radio mini-player docked (web parity-capture-radio-player.mjs), the backdrop
+##                     hidden: ready (the engine up, the radio off, "—") or playing (the name from web-radio-player.json
+##                     next to the output PNG); a -s tool hosts no engine, so the player's state is set directly.
 ##   settings-<tab>    SETTINGS on player / sound / graphics, or `about`: ABOUT (web parity-capture-settings.mjs, the
 ##                     desktop build), the backdrop hidden; every visible screen control's box joins the facts.
 ##   stage-<state>     the same lobby with only its seat balls on the backdrop (web parity-capture-lobby-stage.mjs): bot
@@ -141,6 +144,10 @@ const APPEARANCE_CELL := Vector2i(8, 8) # web PAINT_CELL
 const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
 const MODE_ABOUT := "about"
 const MODE_DESKTOP_MENU := "desktop-menu"   # the desktop menu (QUIT, no F11 hint), the backdrop hidden
+const MODE_RADIO := "radio-"               # radio-ready / radio-playing: the docked mini-player (web capture fixture)
+const RADIO_PLAYING := "playing"
+const RADIO_FIXTURE := "web-radio-player%s.json"
+const FULLSCREEN_SUFFIX := "-fs"
 const MODE_WARNING := "warning"        # warning[-early|-peak]: the photosensitivity splash (every other mode skips it)
 const WARNING_EARLY := "-early"
 const WARNING_PEAK := "-peak"
@@ -464,6 +471,20 @@ func _apply_hud_fixture() -> int:
 		# web parity-capture-settings.mjs web-menu: the desktop menu, the backdrop canvases hidden
 		var desktop_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
 		(desktop_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		return SCREEN_FRAMES
+	if _mode.begins_with(MODE_RADIO):
+		# web parity-capture-radio-player.mjs: the docked player with the engine ready, off or playing the web's track
+		var radio_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(radio_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		var playing := _mode == MODE_RADIO + RADIO_PLAYING
+		var label := RadioModel.NO_TRACK
+		var radio_json := JSON.new()
+		var fullscreen_frame := _output.get_file().get_basename().ends_with(FULLSCREEN_SUFFIX)   # the web -fs capture's track
+		var radio_fixture := _output.get_base_dir().path_join(RADIO_FIXTURE % (FULLSCREEN_SUFFIX if fullscreen_frame else ""))
+		if playing and FileAccess.file_exists(radio_fixture) \
+				and radio_json.parse(FileAccess.get_file_as_string(radio_fixture)) == OK:
+			label = str(radio_json.data["playing"]["name"]["text"])
+		(radio_menu.find_child("RadioPlayer", true, false) as RadioPlayer).show_state(label, true, playing)
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_SETTINGS) or _mode == MODE_ABOUT:
 		# web parity-capture-settings.mjs: SETTINGS on a tab or ABOUT, the backdrop canvases hidden

@@ -70,5 +70,5 @@ func test_the_pressed_box_moves_down_one_pixel() -> void:
 	assert_eq(pressed.expand_margin_bottom - normal.expand_margin_bottom, float(InviteToast.BUTTON_PRESS_PX))
 	assert_eq(pressed.get_minimum_size(), normal.get_minimum_size(), "the row does not jump")
 	var surface := (toast.find_child("Surface", true, false) as ColorRect).material as ShaderMaterial
-	assert_almost_eq(float(surface.get_shader_parameter("sigma")), InviteToast.BACKDROP_SIGMA, EPS)
+	assert_almost_eq(float(surface.get_shader_parameter("sigma")), GlassCard.BACKDROP_SIGMA, EPS)
 	assert_almost_eq(float(surface.get_shader_parameter("shadow_sigma")), 20.0, EPS, "blur 40px = 2σ")

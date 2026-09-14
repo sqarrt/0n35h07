@@ -1,0 +1,1682 @@
+[
+  {
+    "mood": "acid_dark",
+    "bpm": 95,
+    "key": "C",
+    "trackSeed": "000000:t0",
+    "name": "Mutation D3"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 120,
+    "key": "C#",
+    "trackSeed": "3779B1:t1",
+    "name": "Vortex AX2"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 124,
+    "key": "D",
+    "trackSeed": "6EF362:t2",
+    "name": "Idol RS·44"
+  },
+  {
+    "mood": "deep",
+    "bpm": 128,
+    "key": "E",
+    "trackSeed": "A66D13:t3",
+    "name": "Lull-Maelstrom"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 133,
+    "key": "F#",
+    "trackSeed": "DDE6C4:t4",
+    "name": "The Eddy"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 140,
+    "key": "G",
+    "trackSeed": "156075:t5",
+    "name": "The Haze of Listless"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133.5,
+    "key": "A",
+    "trackSeed": "4CDA26:t6",
+    "name": "SYS.TURBINE"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 95,
+    "key": "Bb",
+    "trackSeed": "8453D7:t0",
+    "name": "Crucible — XX"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 120,
+    "key": "B",
+    "trackSeed": "BBCD88:t1",
+    "name": "Pi Relay"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 124,
+    "key": "C",
+    "trackSeed": "F34739:t2",
+    "name": "Flat Cycle mk.VIII"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 128,
+    "key": "C#",
+    "trackSeed": "2AC0EA:t3",
+    "name": "Petridish Tau"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 133,
+    "key": "D",
+    "trackSeed": "623A9B:t4",
+    "name": "daemon:loop"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 140,
+    "key": "E",
+    "trackSeed": "99B44C:t5",
+    "name": "Distillate — V"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133.5,
+    "key": "F#",
+    "trackSeed": "D12DFD:t6",
+    "name": "Threshold K7·36"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 95,
+    "key": "G",
+    "trackSeed": "08A7AE:t0",
+    "name": "Fractured Obelisk mk.VII"
+  },
+  {
+    "mood": "deep",
+    "bpm": 120,
+    "key": "A",
+    "trackSeed": "40215F:t1",
+    "name": "Penumbra-55"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 124,
+    "key": "Bb",
+    "trackSeed": "779B10:t2",
+    "name": "Muted Reservoir -3a"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 128,
+    "key": "B",
+    "trackSeed": "AF14C1:t3",
+    "name": "The Shoal"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133,
+    "key": "C",
+    "trackSeed": "E68E72:t4",
+    "name": "Nu Bastion"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 140,
+    "key": "C#",
+    "trackSeed": "1E0823:t5",
+    "name": "Sepulchre XS"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133.5,
+    "key": "D",
+    "trackSeed": "5581D4:t6",
+    "name": "Loop no.93"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 95,
+    "key": "E",
+    "trackSeed": "8CFB85:t0",
+    "name": "Stale Token // E"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 120,
+    "key": "F#",
+    "trackSeed": "C47536:t1",
+    "name": "The Virulent Reagent"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 124,
+    "key": "G",
+    "trackSeed": "FBEEE7:t2",
+    "name": "Plain Vector"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 128,
+    "key": "A",
+    "trackSeed": "336898:t3",
+    "name": "Filament no.45"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133,
+    "key": "Bb",
+    "trackSeed": "6AE249:t4",
+    "name": "The Echoing Limbo"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 140,
+    "key": "B",
+    "trackSeed": "A25BFA:t5",
+    "name": "The Doctrine of Riven"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133.5,
+    "key": "C",
+    "trackSeed": "D9D5AB:t6",
+    "name": "Wake GX·55"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 95,
+    "key": "C#",
+    "trackSeed": "114F5C:t0",
+    "name": "The Vapor"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 120,
+    "key": "D",
+    "trackSeed": "48C90D:t1",
+    "name": "Silt-Eddy"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 124,
+    "key": "E",
+    "trackSeed": "8042BE:t2",
+    "name": "Fractured Dominion Pi"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 128,
+    "key": "F#",
+    "trackSeed": "B7BC6F:t3",
+    "name": "Gallows no.34"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133,
+    "key": "G",
+    "trackSeed": "EF3620:t4",
+    "name": "Lapsed Packet mk.VI"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 140,
+    "key": "A",
+    "trackSeed": "26AFD1:t5",
+    "name": "The Sequence of Spent"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133.5,
+    "key": "Bb",
+    "trackSeed": "5E2982:t6",
+    "name": "Coil-Toxin"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 95,
+    "key": "B",
+    "trackSeed": "95A333:t0",
+    "name": "Fragment-13"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 120,
+    "key": "C",
+    "trackSeed": "CD1CE4:t1",
+    "name": "Festering Residue"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 124,
+    "key": "C#",
+    "trackSeed": "049695:t2",
+    "name": "Strata no.45"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 128,
+    "key": "D",
+    "trackSeed": "3C1046:t3",
+    "name": "Pyre — XIII"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133,
+    "key": "E",
+    "trackSeed": "7389F7:t4",
+    "name": "The Forlorn Threshold"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 140,
+    "key": "F#",
+    "trackSeed": "AB03A8:t5",
+    "name": "Tidal Cavern"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133.5,
+    "key": "G",
+    "trackSeed": "E27D59:t6",
+    "name": "Drowned Cinder No.56"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 95,
+    "key": "A",
+    "trackSeed": "19F70A:t0",
+    "name": "Piston-78"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 120,
+    "key": "Bb",
+    "trackSeed": "5170BB:t1",
+    "name": "Decree-60"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 124,
+    "key": "B",
+    "trackSeed": "88EA6C:t2",
+    "name": "Index no.41"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 128,
+    "key": "C",
+    "trackSeed": "C0641D:t3",
+    "name": "daemon:channel"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133,
+    "key": "C#",
+    "trackSeed": "F7DDCE:t4",
+    "name": "Reactive Serum"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 140,
+    "key": "D",
+    "trackSeed": "2F577F:t5",
+    "name": "The Strobe of Distant"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133.5,
+    "key": "E",
+    "trackSeed": "66D130:t6",
+    "name": "Toxin Zeta"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 95,
+    "key": "F#",
+    "trackSeed": "9E4AE1:t0",
+    "name": "Tideless Expanse Beta"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 120,
+    "key": "G",
+    "trackSeed": "D5C492:t1",
+    "name": "The Relic"
+  },
+  {
+    "mood": "deep",
+    "bpm": 124,
+    "key": "A",
+    "trackSeed": "0D3E43:t2",
+    "name": "Quiet Eddy // A"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 128,
+    "key": "Bb",
+    "trackSeed": "44B7F4:t3",
+    "name": "Aquifer//Undertow"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133,
+    "key": "B",
+    "trackSeed": "7C31A5:t4",
+    "name": "Driftless Void"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 140,
+    "key": "C",
+    "trackSeed": "B3AB56:t5",
+    "name": "Sermon — VIII"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133.5,
+    "key": "C#",
+    "trackSeed": "EB2507:t6",
+    "name": "Citadel//Maw"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 95,
+    "key": "D",
+    "trackSeed": "229EB8:t0",
+    "name": "Lapsed Token"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 120,
+    "key": "E",
+    "trackSeed": "5A1869:t1",
+    "name": "Vector no.72"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 124,
+    "key": "F#",
+    "trackSeed": "91921A:t2",
+    "name": "Slime MK2·26"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 128,
+    "key": "G",
+    "trackSeed": "C90BCB:t3",
+    "name": "Numb Phase"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133,
+    "key": "A",
+    "trackSeed": "00857C:t4",
+    "name": "Polymer Z9"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 140,
+    "key": "Bb",
+    "trackSeed": "37FF2D:t5",
+    "name": "Forlorn Murk · 140"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 133.5,
+    "key": "B",
+    "trackSeed": "6F78DE:t6",
+    "name": "Onyx Requiem No.98"
+  },
+  {
+    "mood": "deep",
+    "bpm": 95,
+    "key": "C",
+    "trackSeed": "A6F28F:t0",
+    "name": "The Dim Shoal"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 120,
+    "key": "C#",
+    "trackSeed": "DE6C40:t1",
+    "name": "Penumbra//Hollows"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 124,
+    "key": "D",
+    "trackSeed": "15E5F1:t2",
+    "name": "The Stagnant Basin"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 128,
+    "key": "E",
+    "trackSeed": "4D5FA2:t3",
+    "name": "The Necrotic Ordeal"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133,
+    "key": "F#",
+    "trackSeed": "84D953:t4",
+    "name": "Reckoner Mu"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 140,
+    "key": "G",
+    "trackSeed": "BC5304:t5",
+    "name": "Cipher no.55"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 133.5,
+    "key": "A",
+    "trackSeed": "F3CCB5:t6",
+    "name": "Pulse-Circuit"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 95,
+    "key": "Bb",
+    "trackSeed": "2B4666:t0",
+    "name": "PROTOCOL: PUSTULE"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 120,
+    "key": "B",
+    "trackSeed": "62C017:t1",
+    "name": "Drifting Circuit -ed"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 124,
+    "key": "C",
+    "trackSeed": "9A39C8:t2",
+    "name": "Bile MK2·57"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 128,
+    "key": "C#",
+    "trackSeed": "D1B379:t3",
+    "name": "Grey Maelstrom"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 133,
+    "key": "D",
+    "trackSeed": "092D2A:t4",
+    "name": "Scorched Verdict"
+  },
+  {
+    "mood": "deep",
+    "bpm": 140,
+    "key": "E",
+    "trackSeed": "40A6DB:t5",
+    "name": "Lull-Haze"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 133.5,
+    "key": "F#",
+    "trackSeed": "78208C:t6",
+    "name": "Basin Q4"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 95,
+    "key": "G",
+    "trackSeed": "AF9A3D:t0",
+    "name": "The Listless Limbo"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 120,
+    "key": "A",
+    "trackSeed": "E713EE:t1",
+    "name": "Ordeal-Requiem"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 124,
+    "key": "Bb",
+    "trackSeed": "1E8D9F:t2",
+    "name": "Molten Relic"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 128,
+    "key": "B",
+    "trackSeed": "560750:t3",
+    "name": "Inert Kernel · 128"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 133,
+    "key": "C",
+    "trackSeed": "8D8101:t4",
+    "name": "daemon:vector"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 140,
+    "key": "C#",
+    "trackSeed": "C4FAB2:t5",
+    "name": "Fissile Membrane mk.XXX"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 133.5,
+    "key": "D",
+    "trackSeed": "FC7463:t6",
+    "name": "Kappa Register"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 95,
+    "key": "E",
+    "trackSeed": "33EE14:t0",
+    "name": "Ichor NX·71"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 120,
+    "key": "F#",
+    "trackSeed": "6B67C5:t1",
+    "name": "Hollow Phi"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 124,
+    "key": "G",
+    "trackSeed": "A2E176:t2",
+    "name": "Cortege-44"
+  },
+  {
+    "mood": "deep",
+    "bpm": 128,
+    "key": "A",
+    "trackSeed": "DA5B27:t3",
+    "name": "Sunken Murk"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 133,
+    "key": "Bb",
+    "trackSeed": "11D4D8:t4",
+    "name": "Murmur no.71"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 140,
+    "key": "B",
+    "trackSeed": "494E89:t5",
+    "name": "The Spillway"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133.5,
+    "key": "C",
+    "trackSeed": "80C83A:t6",
+    "name": "Ironclad Ordeal /133.5"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 95,
+    "key": "C#",
+    "trackSeed": "B841EB:t0",
+    "name": "Sunless Relic Pi"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 120,
+    "key": "D",
+    "trackSeed": "EFBB9C:t1",
+    "name": "Static Register // D"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 124,
+    "key": "E",
+    "trackSeed": "27354D:t2",
+    "name": "Filter RS·39"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 128,
+    "key": "F#",
+    "trackSeed": "5EAEFE:t3",
+    "name": "Worm no.85"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 133,
+    "key": "G",
+    "trackSeed": "9628AF:t4",
+    "name": "proc/fragment"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 140,
+    "key": "A",
+    "trackSeed": "CDA260:t5",
+    "name": "Slime NX"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133.5,
+    "key": "Bb",
+    "trackSeed": "051C11:t6",
+    "name": "Nu Lull"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 95,
+    "key": "B",
+    "trackSeed": "3C95C2:t0",
+    "name": "Concrete Sanctum // B"
+  },
+  {
+    "mood": "deep",
+    "bpm": 120,
+    "key": "C",
+    "trackSeed": "740F73:t1",
+    "name": "Psi Sediment"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 124,
+    "key": "C#",
+    "trackSeed": "AB8924:t2",
+    "name": "Listless Sluice"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 128,
+    "key": "D",
+    "trackSeed": "E302D5:t3",
+    "name": "Current — XIX"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133,
+    "key": "E",
+    "trackSeed": "1A7C86:t4",
+    "name": "Husk//Catacomb"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 140,
+    "key": "F#",
+    "trackSeed": "51F637:t5",
+    "name": "The Maw of Murderous"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133.5,
+    "key": "G",
+    "trackSeed": "896FE8:t6",
+    "name": "Grey Filter"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 95,
+    "key": "A",
+    "trackSeed": "C0E999:t0",
+    "name": "Adrift Array · 95"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 120,
+    "key": "Bb",
+    "trackSeed": "F8634A:t1",
+    "name": "PROTOCOL: VECTOR"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 124,
+    "key": "B",
+    "trackSeed": "2FDCFB:t2",
+    "name": "Frame no.84"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 128,
+    "key": "C",
+    "trackSeed": "6756AC:t3",
+    "name": "Unstable Bile"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133,
+    "key": "C#",
+    "trackSeed": "9ED05D:t4",
+    "name": "Overcast Silt · 133"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 140,
+    "key": "D",
+    "trackSeed": "D64A0E:t5",
+    "name": "Dire Ossuary · 140"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133.5,
+    "key": "E",
+    "trackSeed": "0DC3BF:t6",
+    "name": "Tenebrous Eddy VIII"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 95,
+    "key": "F#",
+    "trackSeed": "453D70:t0",
+    "name": "The Quagmire of Fathomless"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 120,
+    "key": "G",
+    "trackSeed": "7CB721:t1",
+    "name": "Gulf-67"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 124,
+    "key": "A",
+    "trackSeed": "B430D2:t2",
+    "name": "Coldforged Cortege // A"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 128,
+    "key": "Bb",
+    "trackSeed": "EBAA83:t3",
+    "name": "SYS.GALLOWS"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133,
+    "key": "B",
+    "trackSeed": "232434:t4",
+    "name": "proc/routine"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 140,
+    "key": "C",
+    "trackSeed": "5A9DE5:t5",
+    "name": "Cycle — III"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133.5,
+    "key": "C#",
+    "trackSeed": "921796:t6",
+    "name": "The Noxious Contagion"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 95,
+    "key": "D",
+    "trackSeed": "C99147:t0",
+    "name": "proc/echo"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 120,
+    "key": "E",
+    "trackSeed": "010AF8:t1",
+    "name": "proc/isotope"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 124,
+    "key": "F#",
+    "trackSeed": "3884A9:t2",
+    "name": "The Vapor"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 128,
+    "key": "G",
+    "trackSeed": "6FFE5A:t3",
+    "name": "proc/pyre"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133,
+    "key": "A",
+    "trackSeed": "A7780B:t4",
+    "name": "The Tenebrous Aquifer"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 140,
+    "key": "Bb",
+    "trackSeed": "DEF1BC:t5",
+    "name": "Listless Subsidence · 140"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133.5,
+    "key": "B",
+    "trackSeed": "166B6D:t6",
+    "name": "Hush — IX"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 95,
+    "key": "C",
+    "trackSeed": "4DE51E:t0",
+    "name": "The Shattered Idol"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 120,
+    "key": "C#",
+    "trackSeed": "855ECF:t1",
+    "name": "Knell — V"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 124,
+    "key": "D",
+    "trackSeed": "BCD880:t2",
+    "name": "Circuit//Filter"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 128,
+    "key": "E",
+    "trackSeed": "F45231:t3",
+    "name": "The Drab Packet"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133,
+    "key": "F#",
+    "trackSeed": "2BCBE2:t4",
+    "name": "Acrid Spawnpool -94"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 140,
+    "key": "G",
+    "trackSeed": "634593:t5",
+    "name": "Matrix//Circuit"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133.5,
+    "key": "A",
+    "trackSeed": "9ABF44:t6",
+    "name": "Catalyzer-90"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 95,
+    "key": "Bb",
+    "trackSeed": "D238F5:t0",
+    "name": "SYS.LULL"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 120,
+    "key": "B",
+    "trackSeed": "09B2A6:t1",
+    "name": "Girder//Cell"
+  },
+  {
+    "mood": "deep",
+    "bpm": 124,
+    "key": "C",
+    "trackSeed": "412C57:t2",
+    "name": "Underlit Penumbra /124"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 128,
+    "key": "C#",
+    "trackSeed": "78A608:t3",
+    "name": "The Cavernous Gloom"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133,
+    "key": "D",
+    "trackSeed": "B01FB9:t4",
+    "name": "Tempered Quagmire XX"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 140,
+    "key": "E",
+    "trackSeed": "E7996A:t5",
+    "name": "PROTOCOL: WARDEN"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133.5,
+    "key": "F#",
+    "trackSeed": "1F131B:t6",
+    "name": "Gibbet Gauntlet"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 95,
+    "key": "G",
+    "trackSeed": "568CCC:t0",
+    "name": "Faint Routine Zeta"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 120,
+    "key": "A",
+    "trackSeed": "8E067D:t1",
+    "name": "Circuit-Pattern"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 124,
+    "key": "Bb",
+    "trackSeed": "C5802E:t2",
+    "name": "The Coil of Irradiated"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 128,
+    "key": "B",
+    "trackSeed": "FCF9DF:t3",
+    "name": "Drift K7·80"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133,
+    "key": "C",
+    "trackSeed": "347390:t4",
+    "name": "Ichor Alpha"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 140,
+    "key": "C#",
+    "trackSeed": "6BED41:t5",
+    "name": "Vacant Hollowness"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 133.5,
+    "key": "D",
+    "trackSeed": "A366F2:t6",
+    "name": "Ironbound Vault mk.XIX"
+  },
+  {
+    "mood": "deep",
+    "bpm": 95,
+    "key": "E",
+    "trackSeed": "DAE0A3:t0",
+    "name": "Subaqueous Reservoir Pi"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 120,
+    "key": "F#",
+    "trackSeed": "125A54:t1",
+    "name": "The Aquifer of Forlorn"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 124,
+    "key": "G",
+    "trackSeed": "49D405:t2",
+    "name": "Strata TR"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 128,
+    "key": "A",
+    "trackSeed": "814DB6:t3",
+    "name": "Sunless Reckoning"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133,
+    "key": "Bb",
+    "trackSeed": "B8C767:t4",
+    "name": "Girder-89"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 140,
+    "key": "B",
+    "trackSeed": "F04118:t5",
+    "name": "Hollow Stream"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 133.5,
+    "key": "C",
+    "trackSeed": "27BAC9:t6",
+    "name": "Muted Daemon"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 95,
+    "key": "C#",
+    "trackSeed": "5F347A:t0",
+    "name": "Serum-24"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 120,
+    "key": "D",
+    "trackSeed": "96AE2B:t1",
+    "name": "Lattice Q4"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 124,
+    "key": "E",
+    "trackSeed": "CE27DC:t2",
+    "name": "The Bile"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 128,
+    "key": "F#",
+    "trackSeed": "05A18D:t3",
+    "name": "Drowned Drainage [F#]"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 133,
+    "key": "G",
+    "trackSeed": "3D1B3E:t4",
+    "name": "Eta Mandate"
+  },
+  {
+    "mood": "deep",
+    "bpm": 140,
+    "key": "A",
+    "trackSeed": "7494EF:t5",
+    "name": "Submerged Fathom -ba"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 133.5,
+    "key": "Bb",
+    "trackSeed": "AC0EA0:t6",
+    "name": "Hollow HX"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 95,
+    "key": "B",
+    "trackSeed": "E38851:t0",
+    "name": "The Basin of Sleepless"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 120,
+    "key": "C",
+    "trackSeed": "1B0202:t1",
+    "name": "Relic D3"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 124,
+    "key": "C#",
+    "trackSeed": "527BB3:t2",
+    "name": "Black Pyre -3a"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 128,
+    "key": "D",
+    "trackSeed": "89F564:t3",
+    "name": "Pale Filter mk.II"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 133,
+    "key": "E",
+    "trackSeed": "C16F15:t4",
+    "name": "The Pulse of Stale"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 140,
+    "key": "F#",
+    "trackSeed": "F8E8C6:t5",
+    "name": "daemon:contagion"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 133.5,
+    "key": "G",
+    "trackSeed": "306277:t6",
+    "name": "SYS.ECHO"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 95,
+    "key": "A",
+    "trackSeed": "67DC28:t0",
+    "name": "Reagent Beta"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 120,
+    "key": "Bb",
+    "trackSeed": "9F55D9:t1",
+    "name": "Haze//Quagmire"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 124,
+    "key": "B",
+    "trackSeed": "D6CF8A:t2",
+    "name": "Static Girder"
+  },
+  {
+    "mood": "deep",
+    "bpm": 128,
+    "key": "C",
+    "trackSeed": "0E493B:t3",
+    "name": "The Aquifer"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 133,
+    "key": "C#",
+    "trackSeed": "45C2EC:t4",
+    "name": "Aquifer — XXX"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 140,
+    "key": "D",
+    "trackSeed": "7D3C9D:t5",
+    "name": "Void — XIII"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133.5,
+    "key": "E",
+    "trackSeed": "B4B64E:t6",
+    "name": "The Saint of Static"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 95,
+    "key": "F#",
+    "trackSeed": "EC2FFF:t0",
+    "name": "Crypt V2"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 120,
+    "key": "G",
+    "trackSeed": "23A9B0:t1",
+    "name": "Adrift Circuit · 120"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 124,
+    "key": "A",
+    "trackSeed": "5B2361:t2",
+    "name": "Grey Phase XIII"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 128,
+    "key": "Bb",
+    "trackSeed": "929D12:t3",
+    "name": "Writhing Loop /128"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 133,
+    "key": "B",
+    "trackSeed": "CA16C3:t4",
+    "name": "Register Sigma"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 140,
+    "key": "C",
+    "trackSeed": "019074:t5",
+    "name": "The Bile"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133.5,
+    "key": "C#",
+    "trackSeed": "390A25:t6",
+    "name": "Aquifer Lambda"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 95,
+    "key": "D",
+    "trackSeed": "7083D6:t0",
+    "name": "daemon:reliquary"
+  },
+  {
+    "mood": "deep",
+    "bpm": 120,
+    "key": "E",
+    "trackSeed": "A7FD87:t1",
+    "name": "Tideless Fathom"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 124,
+    "key": "F#",
+    "trackSeed": "DF7738:t2",
+    "name": "The Void of Faded"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 128,
+    "key": "G",
+    "trackSeed": "16F0E9:t3",
+    "name": "The Hollow"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 133,
+    "key": "A",
+    "trackSeed": "4E6A9A:t4",
+    "name": "Monolith-61"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 140,
+    "key": "Bb",
+    "trackSeed": "85E44B:t5",
+    "name": "Black Charnel"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133.5,
+    "key": "B",
+    "trackSeed": "BD5DFC:t6",
+    "name": "Conduit RT·44"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 95,
+    "key": "C",
+    "trackSeed": "F4D7AD:t0",
+    "name": "Pulse Theta"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 120,
+    "key": "C#",
+    "trackSeed": "2C515E:t1",
+    "name": "Toxoid//Catalyzer"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 124,
+    "key": "D",
+    "trackSeed": "63CB0F:t2",
+    "name": "Filter V2·78"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 128,
+    "key": "E",
+    "trackSeed": "9B44C0:t3",
+    "name": "Membrane Hive"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 133,
+    "key": "F#",
+    "trackSeed": "D2BE71:t4",
+    "name": "Basin — VIII"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 140,
+    "key": "G",
+    "trackSeed": "0A3822:t5",
+    "name": "Monolith Anvil"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133.5,
+    "key": "A",
+    "trackSeed": "41B1D3:t6",
+    "name": "Tidal Limbo XL"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 95,
+    "key": "Bb",
+    "trackSeed": "792B84:t0",
+    "name": "Chamber Alpha"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 120,
+    "key": "B",
+    "trackSeed": "B0A535:t1",
+    "name": "Brackish Fathom"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 124,
+    "key": "C",
+    "trackSeed": "E81EE6:t2",
+    "name": "Murderous Pulpit // C"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 128,
+    "key": "C#",
+    "trackSeed": "1F9897:t3",
+    "name": "SYS.KNELL"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 133,
+    "key": "D",
+    "trackSeed": "571248:t4",
+    "name": "The Idle Cycle"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 140,
+    "key": "E",
+    "trackSeed": "8E8BF9:t5",
+    "name": "Pulse FX"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133.5,
+    "key": "F#",
+    "trackSeed": "C605AA:t6",
+    "name": "Bile EX"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 95,
+    "key": "G",
+    "trackSeed": "FD7F5B:t0",
+    "name": "Register-Vapor"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 120,
+    "key": "A",
+    "trackSeed": "34F90C:t1",
+    "name": "Electric Filament Nu"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 124,
+    "key": "Bb",
+    "trackSeed": "6C72BD:t2",
+    "name": "Wraithlike Mist"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 128,
+    "key": "B",
+    "trackSeed": "A3EC6E:t3",
+    "name": "Charnel P1"
+  },
+  {
+    "mood": "deep",
+    "bpm": 133,
+    "key": "C",
+    "trackSeed": "DB661F:t4",
+    "name": "Drifting Abyss Phi"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 140,
+    "key": "C#",
+    "trackSeed": "12DFD0:t5",
+    "name": "Lagoon no.76"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133.5,
+    "key": "D",
+    "trackSeed": "4A5981:t6",
+    "name": "Wraithlike Seabed II"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 95,
+    "key": "E",
+    "trackSeed": "81D332:t0",
+    "name": "proc/furnace"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 120,
+    "key": "F#",
+    "trackSeed": "B94CE3:t1",
+    "name": "PROTOCOL: CONDUIT"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 124,
+    "key": "G",
+    "trackSeed": "F0C694:t2",
+    "name": "Hollow Drift /124"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 128,
+    "key": "A",
+    "trackSeed": "284045:t3",
+    "name": "Blank Array No.26"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 133,
+    "key": "Bb",
+    "trackSeed": "5FB9F6:t4",
+    "name": "Hive — XV"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 140,
+    "key": "B",
+    "trackSeed": "9733A7:t5",
+    "name": "Array-Node"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133.5,
+    "key": "C",
+    "trackSeed": "CEAD58:t6",
+    "name": "SYS.SLUDGE"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 95,
+    "key": "C#",
+    "trackSeed": "062709:t0",
+    "name": "Nightfall Tau"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 120,
+    "key": "D",
+    "trackSeed": "3DA0BA:t1",
+    "name": "The Profane Requiem"
+  },
+  {
+    "mood": "deep",
+    "bpm": 124,
+    "key": "E",
+    "trackSeed": "751A6B:t2",
+    "name": "Vapor XS"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 128,
+    "key": "F#",
+    "trackSeed": "AC941C:t3",
+    "name": "Hollows S7·45"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 133,
+    "key": "G",
+    "trackSeed": "E40DCD:t4",
+    "name": "The Spillway of Overcast"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 140,
+    "key": "A",
+    "trackSeed": "1B877E:t5",
+    "name": "Charred Mausoleum"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133.5,
+    "key": "Bb",
+    "trackSeed": "53012F:t6",
+    "name": "Ossuary-88"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 95,
+    "key": "B",
+    "trackSeed": "8A7AE0:t0",
+    "name": "Numb Node III"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 120,
+    "key": "C",
+    "trackSeed": "C1F491:t1",
+    "name": "The Grey Index"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 124,
+    "key": "C#",
+    "trackSeed": "F96E42:t2",
+    "name": "The Rabid Mutation"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 128,
+    "key": "D",
+    "trackSeed": "30E7F3:t3",
+    "name": "Pale Relay mk.XI"
+  },
+  {
+    "mood": "acid_dark",
+    "bpm": 133,
+    "key": "E",
+    "trackSeed": "6861A4:t4",
+    "name": "Lurid Nutrient mk.II"
+  },
+  {
+    "mood": "dub_techno",
+    "bpm": 140,
+    "key": "F#",
+    "trackSeed": "9FDB55:t5",
+    "name": "Depths Theta"
+  },
+  {
+    "mood": "dark_techno",
+    "bpm": 133.5,
+    "key": "G",
+    "trackSeed": "D75506:t6",
+    "name": "The Gibbet of Profane"
+  },
+  {
+    "mood": "deep",
+    "bpm": 95,
+    "key": "A",
+    "trackSeed": "0ECEB7:t0",
+    "name": "Moonless Shoal XL"
+  },
+  {
+    "mood": "ambient",
+    "bpm": 120,
+    "key": "Bb",
+    "trackSeed": "464868:t1",
+    "name": "Pallid Reservoir"
+  },
+  {
+    "mood": "hypnotic",
+    "bpm": 124,
+    "key": "B",
+    "trackSeed": "7DC219:t2",
+    "name": "PROTOCOL: NIGHTFALL"
+  },
+  {
+    "mood": "industrial",
+    "bpm": 128,
+    "key": "C",
+    "trackSeed": "B53BCA:t3",
+    "name": "Reliquary EX"
+  },
+  {
+    "mood": "hard_techno",
+    "bpm": 133,
+    "key": "C#",
+    "trackSeed": "ECB57B:t4",
+    "name": "proc/reckoner"
+  },
+  {
+    "mood": "melodic",
+    "bpm": 140,
+    "key": "D",
+    "trackSeed": "242F2C:t5",
+    "name": "Vacant Pattern"
+  },
+  {
+    "mood": "minimal",
+    "bpm": 133.5,
+    "key": "E",
+    "trackSeed": "5BA8DD:t6",
+    "name": "Kernel V2"
+  },
+  {
+    "mood": "ACID",
+    "bpm": 95,
+    "key": "F#",
+    "trackSeed": "93228E:t0",
+    "name": "Mu Membrane"
+  },
+  {
+    "mood": "Chill",
+    "bpm": 120,
+    "key": "G",
+    "trackSeed": "CA9C3F:t1",
+    "name": "Token-90"
+  }
+]

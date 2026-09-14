@@ -30,7 +30,9 @@ const PLAY_KEY := "menuPlay"               # web dictionary keys
 const APPEARANCE_KEY := "menuAppearance"
 const SETTINGS_KEY := "menuSettings"
 const ABOUT_KEY := "settingsSecAbout"
+const RADIO_KEY := "settingsVolRadio"         # web borrows the settings volume label, uppercased
 const QUIT_KEY := "menuExit"
+const SCREEN_RADIO := "radio"
 const HINT_KEY := "menuFullscreenHint"     # browser only
 const SMALL_FONT_SIZE := 11                # .menu-hint / .version-chip
 const SMALL_SPACING_EM := 0.16
@@ -66,6 +68,8 @@ var _settings_section := SettingsScreen.SECTION_PLAYER   # web App keeps the set
 var _backdrop: MenuBackdrop
 var _map_background: MapBackground
 var _buttons: Array[UiButton] = []
+var _radio: UiButton
+var _radio_player: RadioPlayer
 var _quit: UiButton
 var _hint: Label
 var _browser_layout := false
@@ -105,6 +109,7 @@ func _ready() -> void:
 	_build_column()
 	_version = _version_chip()
 	add_child(_version)
+	_add_radio_player()
 	resized.connect(_layout)
 	_version.minimum_size_changed.connect(_layout)
 	_layout()
@@ -490,11 +495,54 @@ func _close_toast() -> void:
 		_toast.queue_free()
 		_toast = null
 
-## The browser build's layout (parity captures): the F11 hint instead of QUIT.
+## The browser build's layout (parity captures): the F11 hint instead of RADIO and QUIT, no mini-player.
 func set_browser_layout(browser: bool) -> void:
 	_browser_layout = browser
 	_hint.visible = browser
+	_radio.visible = not browser
 	_quit.visible = not browser
+	if _radio_player != null:
+		_radio_player.visible = not browser
+
+## The docked mini-player above everything the menu draws (web: rendered last, over the panel and the version chip),
+## wired to the Radio autoload, which warms up from here (web: lazily, on a menu screen).
+func _add_radio_player() -> void:
+	_radio_player = RadioPlayer.new()
+	add_child(_radio_player)
+	_radio_player.play_pause_requested.connect(_toggle_radio)
+	_radio_player.prev_requested.connect(func() -> void: _radio_transport(Radio.prev))
+	_radio_player.next_requested.connect(func() -> void: _radio_transport(Radio.next))
+	_radio_player.open_requested.connect(_open_radio)
+	_radio_player.visible = not _browser_layout
+	Radio.changed.connect(_on_radio_changed)
+	Radio.warm_up()
+	Radio.set_screen(Radio.SCREEN_MENU)
+
+## web handleToggleRadio: flip the saved switch, then the engine follows.
+func _toggle_radio() -> void:
+	Game.profile[Radio.KEY_ENABLED] = not Radio.enabled()
+	_save_profile(Game.profile)
+	Radio.sync()
+
+## web radioPrev / radioNext: a transport action implies playing (ensureRadioOn).
+func _radio_transport(action: Callable) -> void:
+	if not Radio.enabled():
+		Game.profile[Radio.KEY_ENABLED] = true
+		_save_profile(Game.profile)
+	action.call()
+	Radio.sync()
+
+## web handleRadio → setScreen('radio'); the Radio screen comes with slice R3.
+func _open_radio() -> void:
+	screen_requested.emit(SCREEN_RADIO)
+
+## The player follows the model; the menu music gives way while the radio plays (web radioActive).
+func _on_radio_changed() -> void:
+	_radio_player.show_state(Radio.model.track_label(), Radio.model.is_ready(), Radio.enabled())
+	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):
+		Audio.play_menu_music()
+	else:
+		Audio.stop_menu_music()
 
 func _layout() -> void:
 	var width := minf(PANEL_MAX_WIDTH, size.x * PANEL_VIEWPORT_SHARE)
@@ -563,6 +611,8 @@ func _build_column() -> void:
 	_add_button("Appearance", I18n.t(APPEARANCE_KEY), UiButton.SECONDARY).pressed.connect(open_appearance)
 	_add_button("Settings", I18n.t(SETTINGS_KEY), UiButton.SECONDARY).pressed.connect(open_settings)
 	_add_button("About", I18n.t(ABOUT_KEY), UiButton.SECONDARY).pressed.connect(open_about)
+	_radio = _add_button("Radio", I18n.t(RADIO_KEY).to_upper(), UiButton.SECONDARY)   # web: desktop only
+	_radio.pressed.connect(_open_radio)
 	_quit = _add_button("Quit", I18n.t(QUIT_KEY), UiButton.GHOST)   # web: desktop only — this build always is one
 	_quit.pressed.connect(_on_quit)
 	_hint = _small_label("Hint", I18n.t(HINT_KEY))

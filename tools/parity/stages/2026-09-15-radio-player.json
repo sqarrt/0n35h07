@@ -1,0 +1,115 @@
+{
+  "id": "2026-09-15-radio-player",
+  "title": "OneShot · радио R2: кнопка RADIO и мини-плеер",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R2 подпроекта «радио». Движок из R1 подключён к меню: автозагрузка `Radio` прогревает его на входе в главное меню, кнопка RADIO встала под ABOUT, в правом нижнем углу — свёрнутый мини-плеер web (`RadioPlayer`): стеклянная карточка с именем трека и кнопками ⏮ ▶/⏸ ⏭, пока движок не готов — приглушена. Музыка меню молчит, пока играет радио. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-player.json`. Web: `web-reference/scripts/parity-capture-radio-player.mjs` (десктопная заглушка, autoplay; `PARITY_FULLSCREEN=1` — полный экран) → `test-results/parity-radio2/web-radio-{ready,playing}[-fs].png` + факты `.json` (коробки, стили, шрифты по CDP). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main.tscn - res://test-results/parity-radio2/godot-radio-{ready,playing}[-fs].png <кадр> radio-<ready|playing>` (имя трека берётся из фактов web). Разница — средняя по каналам в коробке плеера. Имена треков: `web-reference/scripts/export-radio-track-names.mjs` → `tests/fixtures/radio_track_names.json` (240 случаев). Тесты: GUT `test_radio_track_name`, `test_radio_model`, `test_radio_director`, `test_radio_player`, `test_glass_card`, `test_main_menu`, `test_css_button` — полный прогон 798/798.",
+  "pages": [
+    {
+      "slug": "radio-player",
+      "name": "Мини-плеер",
+      "verdict": "Мини-плеер совпадает с web в обоих разрешениях: коробка карточки [1022, 604, 240, 72] как в web, в окне разница 0.85/255 (готов) и 2.15/255 (играет), на весь экран 0.65 и 1.80. Остаток в кадре «играет» — растеризация имени трека (Share Tech Mono). Символы ⏮ ⏸ ⏭ рисуются Segoe UI Symbol, как у Chrome (подтверждено CDP); центр строки символов 650.33 против 649.83 в web (±0.5 px). Колонка меню с новой кнопкой RADIO — 0.69/255 в окне и 0.20/255 на весь экран.",
+      "verdict_short": "Мини-плеер 1:1 в окне и на весь экран",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["экран", "главное меню, десктопная (Steam) ветка, фон скрыт", "главное меню, фон скрыт"],
+        ["состояние «готов»", "движок готов, радио выключено (▶)", "`show_state(—, ready, not playing)`"],
+        ["состояние «играет»", "первый трек играет (⏸), имя из движка", "то же имя из фактов web, ⏸"],
+        ["шрифты", "Share Tech Mono (имя), Segoe UI Symbol (символы) — CDP", "UiFont + системный Segoe UI Symbol"]
+      ],
+      "comparisons": [
+        {
+          "title": "Готов, окно (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio2-report/web-player-ready.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio2-report/godot-player-ready.png", "note": "0.85/255"}
+          ]
+        },
+        {
+          "title": "Играет, окно (×3)",
+          "wipe": true,
+          "note": "Трек PROTOCOL: LAGOON — имя сгенерировал движок web.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio2-report/web-player-playing.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio2-report/godot-player-playing.png", "note": "2.15/255, символы ±0.5 px"}
+          ]
+        },
+        {
+          "title": "Готов, весь экран 3840×2160 (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio2-report/web-player-ready-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio2-report/godot-player-ready-fs.png", "note": "0.65/255"}
+          ]
+        },
+        {
+          "title": "Играет, весь экран 3840×2160 (×2)",
+          "wipe": true,
+          "note": "Трек PROTOCOL: STRATA.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio2-report/web-player-playing-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio2-report/godot-player-playing-fs.png", "note": "1.80/255"}
+          ]
+        },
+        {
+          "title": "Меню с кнопкой RADIO, окно",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio2-report/web-menu-radio-window.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio2-report/godot-menu-radio-window.png", "note": "0.69/255 по колонке; на весь экран 0.20/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R2-1", "severity": "fixed",
+          "title": "Символы транспорта на ~2 px ниже",
+          "web": "`line-height: 1` в `display: grid`: Chrome центрирует строку по strut основного шрифта — символ из запасного Segoe UI Symbol стоит на восхождении и нисхождении UI-шрифта.",
+          "godot": "`CssButton.css_line_height`: базовая линия = верхнее поле + половина содержимого + (ascent − descent)/2 UI-шрифта, неокруглённые (`CssTextRun.ascent()`/`descent()`). Было 2 px ниже, с округлёнными метриками 1 px, теперь ±0.5 px.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/css_button.gd", "nodes/css_text_run.gd", "tests/unit/test_css_button.gd"]
+        },
+        {
+          "id": "R2-2", "severity": "fixed",
+          "title": "Имена треков",
+          "web": "`trackName.ts`: слова по семье настроения, mulberry32 от сида трека, номер из BPM и тональности.",
+          "godot": "`RadioTrackName.of(mood, bpm, key, seed)` — 32-битная арифметика (`imul`, беззнаковые сдвиги) повторена; сверено с оракулом web на 240 случаях, совпали все.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_track_name.gd", "web-reference/scripts/export-radio-track-names.mjs", "tests/unit/test_radio_track_name.gd"]
+        },
+        {
+          "id": "R2-3", "severity": "fixed",
+          "title": "Стеклянная карточка — общий узел",
+          "web": "`glass.ts`: backdrop-blur, полупрозрачная заливка, волосяная рамка — у тоста приглашения и у плеера.",
+          "godot": "`GlassCard` вынесен из `InviteToast`; тост и плеер используют его (`set_box`), тест тоста не изменился по поведению.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/glass_card.gd", "nodes/invite_toast.gd", "tests/unit/test_glass_card.gd"]
+        },
+        {
+          "id": "R2-4", "severity": "fixed",
+          "title": "Радио и музыка меню",
+          "web": "App.tsx: на экранах game/trailer радио остановлено; меню молчит, пока радио включено и готово; переключатель хранится в профиле.",
+          "godot": "`RadioDirector.sync` и `menu_music_allowed`; `Radio` (автозагрузка) хранит `radioEnabled`, громкость — `volumeRadio` из `Audio`.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/radio/radio_director.gd", "autoloads/radio.gd", "nodes/main_menu.gd", "tests/unit/test_radio_director.gd"]
+        },
+        {
+          "id": "R2-5", "severity": "missing",
+          "title": "Пробный режим DLC, экран радио, библиотека, радио в матче",
+          "web": "Проверка DLC (Steam app 4904970) и пробная полоса; экран RADIO с развёрнутым плеером, панелью кода и визуализатором; библиотека; радио в матче и подсветка краёв.",
+          "godot": "Кнопка RADIO пока только запрашивает экран `radio` — экран и права приходят слайсами R2b–R5.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/radio/entitlement.ts", "web-reference/src/App.tsx", "web-reference/src/components/RadioPlayer.tsx"]
+        }
+      ],
+      "limitations": [
+        "Имя трека в кадре «играет» Godot получает из фактов web: оба кадра показывают одно имя, но трек в Godot в этом кадре не звучал.",
+        "Наведение и нажатие кнопок плеера не сверялись: у web нет hover-вида (`appearance: none`), кадры сняты без курсора.",
+        "Пробная полоса DLC не проверялась — её ещё нет в порте (R2b)."
+      ]
+    }
+  ]
+}
