@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+- **The interface speaks the original's ten languages.** Menus, lobby, settings, appearance, pause, match results and
+  HUD words follow the language picked in Settings (or the system language) and switch the moment a language is
+  picked. Chinese draws with Microsoft YaHei and the original's tighter button tracking, buttons grow to fit its taller
+  lines, and Russian lines no longer sit a pixel lower than the original's.
 
 - **Matches end on time.** A match now runs for a set length (3 minutes by default, the original lobby's first
   choice) with the time left shown in

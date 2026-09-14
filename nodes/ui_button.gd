@@ -86,7 +86,7 @@ class CooldownStyle extends StyleBox:
 ## A button's CSS metrics — the `.btn` rule by default; inline styles override them (the settings language tile).
 class Metrics:
 	var font_px := float(UiButton.FONT_SIZE)
-	var spacing_em := UiButton.LETTER_SPACING_EM
+	var spacing_em := UiFont.control_spacing_em(UiButton.LETTER_SPACING_EM)
 	var padding := Vector2(UiButton.PADDING_X, UiButton.PADDING_Y)
 	var min_width := UiButton.MIN_WIDTH
 	var always_bold := false

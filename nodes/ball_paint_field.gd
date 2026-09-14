@@ -16,7 +16,7 @@ const CAPTION_SPACING_EM := 0.15
 const BACKGROUND := Color("#0b1020")       # COL_BG
 const INK := Color("#000000")              # COL_INK
 const PAPER := Color("#cdd6f0")            # COL_PAPER
-const CLEAR_TEXT := "CLEAR"                # web en appearPaintClear
+const CLEAR_KEY := "appearPaintClear"      # web dictionary key
 const HALF := 0.5
 
 var grid := PackedByteArray()
@@ -44,7 +44,7 @@ func _init(caption := "", cells := PackedByteArray()) -> void:
 	_field.gui_input.connect(_on_field_input)
 	_field.mouse_exited.connect(func() -> void: _drawing = false)
 	add_child(_field)
-	_clear = SegButton.new(CLEAR_TEXT)
+	_clear = SegButton.new(I18n.t(CLEAR_KEY))
 	_clear.name = "Clear"
 	_clear.pressed.connect(func() -> void: cleared.emit())
 	add_child(_clear)

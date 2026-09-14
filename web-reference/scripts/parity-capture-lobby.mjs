@@ -1,4 +1,4 @@
-// Lobby ("Play" screen) frames: menu → PLAY with the parity identity (English), the backdrop canvases and the blurred
+// Lobby ("Play" screen) frames: menu → PLAY with the parity identity (PARITY_LOCALE, default en), the backdrop canvases and the blurred
 // map background hidden so the panel content alone is compared. Frames: the fresh Duel room, with a passive bot named
 // EX82R, the Battle and the War presets (each scrolled to the top). Saves screenshots plus element boxes, computed
 // styles and the lobby body's scroll metrics as JSON.
@@ -9,7 +9,7 @@ import { VIEWPORT, launchReferencePage, settleScene } from './parity-lib.mjs';
 
 const output = resolve(process.argv[2] ?? '../test-results/parity-lobby');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
-const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: 'en' };
+const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: process.env.PARITY_LOCALE ?? 'en' };
 const BOT_NAME = 'EX82R';
 const SETTLE_TIMEOUT_MS = 30000;
 const STATE_SETTLE_MS = 450;   // the carousel eases over 0.25 s

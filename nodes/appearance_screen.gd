@@ -4,36 +4,40 @@ class_name AppearanceScreen extends Control
 ## paint tools with the front and back fields, the shot, respawn, dash-trail and shield styles — and BACK after them.
 ## The last clicked block (`part`) moves the backdrop camera; the preview (the edited slot's colour, the other colour as
 ## the planet ring, the model and the live artwork) follows every change; each change is saved at once. Style clicks
-## also ask for their one-shot preview (`style_previewed`). Texts are the English dictionary until i18n lands.
-
+## also ask for their one-shot preview (`style_previewed`).
 signal back_requested
 signal profile_changed(profile: Dictionary)
 signal preview_changed(spec: Dictionary, part: String)
 signal style_previewed(kind: String, style: String)
 
-const TITLE_TEXT := "APPEARANCE"                  # web en appearTitle
-const ON_MODEL_TEXT := "ON MODEL: "               # appearOnModel + the inline space before the slot
+const TITLE_KEY := "appearTitle"                  # web dictionary keys
+const ON_MODEL_KEY := "appearOnModel"
+const ON_MODEL_GAP := " "                         # the inline space before the slot
 const SLOT_PRIMARY := "primary"
 const SLOT_RESERVE := "reserve"
-const SLOT_TEXTS := {SLOT_PRIMARY: "PRIMARY", SLOT_RESERVE: "RESERVE"}   # appearSlotPrimary / appearSlotReserve
-const PRIMARY_TEXT := "PRIMARY COLOR"              # appearPrimaryColor
-const RESERVE_TEXT := "RESERVE COLOR (WHEN PRIMARY IS TAKEN)"   # appearReserveColor
-const MODEL_TEXT := "SPHERE MODEL"                 # appearModel
-const MODEL_TEXTS := {"smooth": "SMOOTH", "waves": "WAVES", "planet": "PLANET"}
-const PAINT_TEXT := "PAINT"                        # appearPaint
-const BRUSH_TEXT := "BRUSH"                        # appearPaintBrush
-const ERASER_TEXT := "ERASER"                      # appearPaintEraser
-const FRONT_TEXT := "FRONT"                        # appearPaintFront
-const BACK_SIDE_TEXT := "BACK"                     # appearPaintBack
-const BACK_TEXT := "BACK"                          # appearBack
-## The style blocks in page order: [profile key, label, options with their texts, part, preview kind].
+const SLOT_KEYS := {SLOT_PRIMARY: "appearSlotPrimary", SLOT_RESERVE: "appearSlotReserve"}
+const PRIMARY_KEY := "appearPrimaryColor"
+const RESERVE_KEY := "appearReserveColor"
+const MODEL_KEY := "appearModel"
+const MODEL_KEYS := {"smooth": "styleModelSmooth", "waves": "styleModelWaves", "planet": "styleModelPlanet"}
+const PAINT_KEY := "appearPaint"
+const BRUSH_KEY := "appearPaintBrush"
+const ERASER_KEY := "appearPaintEraser"
+const FRONT_KEY := "appearPaintFront"
+const BACK_SIDE_KEY := "appearPaintBack"
+const BACK_KEY := "appearBack"
+## The style blocks in page order: [profile key, label key, options with their text keys, part].
 const STYLE_GROUPS := [
-	["windupStyle", "SHOT ANIMATION", {"classic": "IMPULSE", "rage": "RAGE", "singularity": "SINGULARITY"},
+	["windupStyle", "appearShotAnim",
+		{"classic": "styleWindupClassic", "rage": "styleWindupRage", "singularity": "styleWindupSingularity"},
 		MenuCameraRig.PART_SHOT],
-	["respawnStyle", "RESPAWN ANIMATION", {"echo": "ECHO", "chaos": "CHAOS", "swarm": "SWARM"},
+	["respawnStyle", "appearRespawnAnim",
+		{"echo": "styleRespawnEcho", "chaos": "styleRespawnChaos", "swarm": "styleRespawnSwarm"},
 		MenuCameraRig.PART_RESPAWN],
-	["dashStyle", "DASH TRAIL", {"streak": "STREAK", "wave": "WAVE", "rift": "RIFT"}, MenuCameraRig.PART_DASH],
-	["shieldStyle", "SHIELD", {"dome": "DOME", "hex": "HEX", "crystal": "CRYSTAL"}, MenuCameraRig.PART_SHIELD],
+	["dashStyle", "appearDashTrail", {"streak": "styleDashStreak", "wave": "styleDashWave", "rift": "styleDashRift"},
+		MenuCameraRig.PART_DASH],
+	["shieldStyle", "appearShield", {"dome": "styleShieldDome", "hex": "styleShieldHex", "crystal": "styleShieldCrystal"},
+		MenuCameraRig.PART_SHIELD],
 ]
 const KEY := 0
 const LABEL := 1
@@ -95,29 +99,30 @@ func _ready() -> void:
 	_content.name = "Content"
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scroll.add_child(_content)
-	_title = _add(MenuText.title("Title", TITLE_TEXT))
-	_on_model = _add(MenuText.field_label("OnModel", ON_MODEL_TEXT))
+	_title = _add(MenuText.title("Title", I18n.t(TITLE_KEY)))
+	_on_model = _add(MenuText.field_label("OnModel", I18n.t(ON_MODEL_KEY) + ON_MODEL_GAP))
 	_slot = _add(MenuText.label("Slot", "", MenuText.FIELD_PX, SLOT_SPACING_EM, Color.WHITE))
-	_primary_label = _add(MenuText.field_label("PrimaryLabel", PRIMARY_TEXT))
-	_reserve_label = _add(MenuText.field_label("ReserveLabel", RESERVE_TEXT))
+	_primary_label = _add(MenuText.field_label("PrimaryLabel", I18n.t(PRIMARY_KEY)))
+	_reserve_label = _add(MenuText.field_label("ReserveLabel", I18n.t(RESERVE_KEY)))
 	for color in AppearanceConst.PLAYER_COLORS:
 		_primary_swatches[color] = _swatch("Primary_%s" % color, color, choose_primary)
 		_reserve_swatches[color] = _swatch("Reserve_%s" % color, color, choose_reserve)
-	_model_label = _add(MenuText.field_label("ModelLabel", MODEL_TEXT))
-	for model in MODEL_TEXTS:
-		_model_segs[model] = _seg("Model_%s" % model, MODEL_TEXTS[model], choose_model.bind(model))
-	_paint_label = _add(MenuText.field_label("PaintLabel", PAINT_TEXT))
-	_brush = _seg("Brush", BRUSH_TEXT, set_erasing.bind(false))
-	_eraser = _seg("Eraser", ERASER_TEXT, set_erasing.bind(true))
-	_front = _paint_field("PaintFront", FRONT_TEXT, BallArt.FRONT, MenuCameraRig.PART_PAINT_FRONT)
-	_back_side = _paint_field("PaintBack", BACK_SIDE_TEXT, BallArt.BACK, MenuCameraRig.PART_PAINT_BACK)
+	_model_label = _add(MenuText.field_label("ModelLabel", I18n.t(MODEL_KEY)))
+	for model in MODEL_KEYS:
+		_model_segs[model] = _seg("Model_%s" % model, I18n.t(MODEL_KEYS[model]), choose_model.bind(model))
+	_paint_label = _add(MenuText.field_label("PaintLabel", I18n.t(PAINT_KEY)))
+	_brush = _seg("Brush", I18n.t(BRUSH_KEY), set_erasing.bind(false))
+	_eraser = _seg("Eraser", I18n.t(ERASER_KEY), set_erasing.bind(true))
+	_front = _paint_field("PaintFront", I18n.t(FRONT_KEY), BallArt.FRONT, MenuCameraRig.PART_PAINT_FRONT)
+	_back_side = _paint_field("PaintBack", I18n.t(BACK_SIDE_KEY), BallArt.BACK, MenuCameraRig.PART_PAINT_BACK)
 	for group in STYLE_GROUPS:
-		_style_labels.append(_add(MenuText.field_label("%sLabel" % group[KEY], group[LABEL])))
+		_style_labels.append(_add(MenuText.field_label("%sLabel" % group[KEY], I18n.t(group[LABEL]))))
 		var segs := {}
 		for option in group[OPTIONS]:
-			segs[option] = _seg("%s_%s" % [group[KEY], option], group[OPTIONS][option], choose_style.bind(group, option))
+			segs[option] = _seg("%s_%s" % [group[KEY], option], I18n.t(group[OPTIONS][option]),
+				choose_style.bind(group, option))
 		_style_segs.append(segs)
-	_back = UiButton.new(BACK_TEXT, UiButton.GHOST)
+	_back = UiButton.new(I18n.t(BACK_KEY), UiButton.GHOST)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
 	_content.add_child(_back)
@@ -225,7 +230,7 @@ func _refresh() -> void:
 		(_primary_swatches[color] as ColorSwatch).set_selected(color == primary)
 		(_reserve_swatches[color] as ColorSwatch).set_selected(color == reserve)
 		(_reserve_swatches[color] as ColorSwatch).set_dimmed(color == primary)
-	_slot.text = SLOT_TEXTS[editing]
+	_slot.text = I18n.t(SLOT_KEYS[editing])
 	_slot.add_theme_color_override("font_color", Color(preview_spec()["color"]))
 	for model in _model_segs:
 		(_model_segs[model] as SegButton).set_on(model == profile[PROFILE_MODEL])
@@ -262,10 +267,11 @@ func _layout() -> void:
 		y = _place(_style_labels[i], 0.0, y) + LABEL_MARGIN_BOTTOM
 		y = _place_row(_style_segs[i].values(), y, ROW_GAP) + ROW_MARGIN_BOTTOM
 	# BACK follows the blocks (marginTop: auto only matters when the page is shorter than the panel)
-	var back_top := maxf(y, size.y - UiButton.MARGIN_Y - UiButton.BUTTON_HEIGHT)
+	var back_height := _back.get_combined_minimum_size().y   # a Chinese label's taller line grows the button
+	var back_top := maxf(y, size.y - UiButton.MARGIN_Y - back_height)
 	_back.custom_minimum_size.x = width
-	_set_box(_back, 0.0, back_top, Vector2(width, UiButton.BUTTON_HEIGHT))
-	_content.custom_minimum_size = Vector2(width, back_top + UiButton.BUTTON_HEIGHT + UiButton.MARGIN_Y)
+	_set_box(_back, 0.0, back_top, Vector2(width, back_height))
+	_content.custom_minimum_size = Vector2(width, back_top + back_height + UiButton.MARGIN_Y)
 	_content.size = _content.custom_minimum_size
 
 func _place_row(controls: Array, top: float, gap: float) -> float:

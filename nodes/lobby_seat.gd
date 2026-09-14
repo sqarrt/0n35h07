@@ -25,19 +25,19 @@ const UNDERLINE_OFFSET := 5.0                   # text-underline-offset: 5px
 const UNDERLINE_PX := 1.0
 const NAME_FIELD_WIDTH := 120.0                 # 7.5rem
 const NAME_MAX := 16                            # web settings NAME_MAX
-const NAME_PLACEHOLDER := "bot name"            # web en lobbyBotNamePlaceholder
+const NAME_PLACEHOLDER_KEY := "lobbyBotNamePlaceholder"   # web dictionary keys
 const ZONE_FONT_SIZE := 10
 const ZONE_SPACING_EM := 0.16
 const ZONE_TEXT := Color("#6f93b3")
 const ZONE_HOVER_BACKGROUND := Color(68.0 / 255.0, 170.0 / 255.0, 1.0, 0.06)
 const ZONE_BORDER_PX := 1.0
-const ADD_BOT_TEXT := "ADD A BOT"               # web en lobbyAddBot
+const ADD_BOT_KEY := "lobbyAddBot"
 const CANCEL_GLYPH := "✕"
 const CANCEL_FONT_SIZE := 13
 const CANCEL_INSET := Vector2(8.0, 6.0)         # right: 8px; top: 6px
 const CANCEL_PADDING := 2.0
 const DIFFICULTY_GAP := 4
-const DIFFICULTIES := {"normal": "NORMAL", "passive": "PASSIVE"}   # web en roomDiffNormal / roomDiffPassive
+const DIFFICULTY_KEYS := {"normal": "roomDiffNormal", "passive": "roomDiffPassive"}
 const READY_RING_PX := 1                        # box-shadow: 0 0 0 1px <colour>
 const READY_GLOW_BLUR := 20.0                   # box-shadow: 0 0 20px -4px <colour>
 const READY_GLOW_SPREAD := -4.0
@@ -233,7 +233,7 @@ func _new_column() -> CssColumn:
 func _zone() -> Zone:
 	var zone := Zone.new()
 	zone.name = "AddBot"
-	zone.text = ADD_BOT_TEXT
+	zone.text = I18n.t(ADD_BOT_KEY)
 	zone.focus_mode = Control.FOCUS_NONE
 	var font := UiFont.with_css_line(UiFont.spaced(ZONE_SPACING_EM, ZONE_FONT_SIZE), ZONE_FONT_SIZE)
 	zone.add_theme_font_override("font", font)
@@ -274,7 +274,7 @@ func _name_field(entry: Dictionary) -> LineEdit:
 	field.name = "BotName"
 	field.text = entry["name"]
 	field.max_length = NAME_MAX
-	field.placeholder_text = NAME_PLACEHOLDER
+	field.placeholder_text = I18n.t(NAME_PLACEHOLDER_KEY)
 	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	field.custom_minimum_size.x = NAME_FIELD_WIDTH
 	var font := _nick_font()
@@ -292,8 +292,8 @@ func _difficulty(entry: Dictionary) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.name = "Difficulty"
 	row.add_theme_constant_override("separation", DIFFICULTY_GAP)
-	for difficulty in DIFFICULTIES:
-		var seg := SegButton.new(DIFFICULTIES[difficulty], SegButton.SMALL)
+	for difficulty in DIFFICULTY_KEYS:
+		var seg := SegButton.new(I18n.t(DIFFICULTY_KEYS[difficulty]), SegButton.SMALL)
 		seg.name = String(difficulty).capitalize()
 		seg.set_on(entry.get("difficulty", RoomModel.DEFAULT_DIFFICULTY) == difficulty)
 		seg.pressed.connect(func() -> void: bot_difficulty_picked.emit(slot, difficulty))

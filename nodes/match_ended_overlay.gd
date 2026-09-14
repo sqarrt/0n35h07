@@ -25,7 +25,7 @@ const RANK_ROW_GAP := 12
 const OUTCOME_SPACING_EM := 0.22   # web outcome letter-spacing
 const GLOW_BLUR := 26.0            # web text-shadow 0 0 26px <outcome colour>
 const FADE_S := 0.1             # web matchEndFade 0.1s
-const EXIT_TEXT := "EXIT"       # web dictionary matchExit
+const EXIT_KEY := "matchExit"   # web dictionary key
 const MAIN_MENU := "res://scenes/main_menu.tscn"
 
 func _ready() -> void:
@@ -62,7 +62,7 @@ func show_result(result: Dictionary, roster: Roster = null, tiers := {}) -> void
 	reason.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add(reason)
 
-	var exit := UiButton.new(EXIT_TEXT, UiButton.PRIMARY)
+	var exit := UiButton.new(I18n.t(EXIT_KEY), UiButton.PRIMARY)
 	exit.name = "Exit"
 	exit.pressed.connect(_on_exit)
 	column.add(exit, UiButton.MARGIN_Y, UiButton.MARGIN_Y)

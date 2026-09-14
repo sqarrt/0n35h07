@@ -68,8 +68,7 @@ func test_ghost_indicator_bars_shrink_with_the_remaining_phase() -> void:
 	assert_true(ghost.visible)
 	assert_almost_eq(ghost.bar_width(), SCREEN.x * HudModel.ghost_bar_width_share(HALF), EPS)
 	var label := ghost.find_child("Label", true, false) as GlowText
-	assert_eq(label.label().text, HudGhostIndicator.TEXT)
-	assert_eq(HudGhostIndicator.TEXT, "RESPAWNING", "web dictionary respawning")
+	assert_eq(label.label().text, "RESPAWNING", "web dictionary respawning")
 	assert_eq(label.label().get_theme_color("font_color"), HudGhostIndicator.COLOR)
 	assert_eq(HudGhostIndicator.COLOR, Color("#99ccff"), "web #9cf")
 	assert_eq(label.layer_count(), 1, "web text-shadow 0 0 8px")

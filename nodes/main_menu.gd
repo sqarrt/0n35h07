@@ -3,7 +3,8 @@ class_name MainMenu extends Control
 ## centred 680 px panel (the page background through 72%, hairline sides), the glowing 0N35H07 logo over the accent
 ## rule, PLAY (primary), APPEARANCE / SETTINGS / ABOUT (secondary) and, on the desktop build, QUIT (ghost), all half the
 ## panel wide, and the version chip in the corner (desktop: it opens the log folder). The 3D backdrop, the screens
-## behind the buttons, RADIO and the translations come with their own slices; the map is picked in the lobby (web).
+## behind the buttons and RADIO come with their own slices; the map is picked in the lobby (web). Texts follow the active
+## locale (I18n); a language picked in SETTINGS rebuilds the column and that screen.
 
 signal screen_requested(screen: String)   # web setScreen: appearance / settings / about
 
@@ -23,12 +24,12 @@ const LOGO_GLOW := Color(68.0 / 255.0, 170.0 / 255.0, 1.0, 0.5)
 const RULE_SIZE := Vector2(120.0, 1.0)     # .accent-rule
 const RULE_MARGIN_BOTTOM := 32.0           # 2rem
 const BUTTON_SHARE := 0.5                  # MENU_BUTTON_WIDTH 50%
-const PLAY_TEXT := "PLAY"                  # web en menuPlay
-const APPEARANCE_TEXT := "APPEARANCE"      # menuAppearance
-const SETTINGS_TEXT := "SETTINGS"          # menuSettings
-const ABOUT_TEXT := "ABOUT"                # settingsSecAbout
-const QUIT_TEXT := "QUIT"                  # menuExit
-const HINT_TEXT := "F11 — fullscreen"      # menuFullscreenHint (browser only)
+const PLAY_KEY := "menuPlay"               # web dictionary keys
+const APPEARANCE_KEY := "menuAppearance"
+const SETTINGS_KEY := "menuSettings"
+const ABOUT_KEY := "settingsSecAbout"
+const QUIT_KEY := "menuExit"
+const HINT_KEY := "menuFullscreenHint"     # browser only
 const SMALL_FONT_SIZE := 11                # .menu-hint / .version-chip
 const SMALL_SPACING_EM := 0.16
 const HINT_MARGIN_TOP := 25.6              # 1.6rem
@@ -62,6 +63,7 @@ var _backdrop: MenuBackdrop
 var _buttons: Array[UiButton] = []
 var _quit: UiButton
 var _hint: Label
+var _browser_layout := false
 var _version: Button
 
 func _ready() -> void:
@@ -82,25 +84,7 @@ func _ready() -> void:
 	_panel.name = "Panel"
 	_panel.add_theme_stylebox_override("panel", _panel_box())
 	add_child(_panel)
-	_column = CssColumn.new()
-	_column.name = "Column"
-	_panel.add_child(_column)
-	_add_logo()
-	var rule := ColorRect.new()
-	rule.name = "Rule"
-	rule.color = UiTokens.LINE
-	rule.custom_minimum_size = RULE_SIZE
-	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.add(rule, 0.0, RULE_MARGIN_BOTTOM)
-	_add_button("Play", PLAY_TEXT, UiButton.PRIMARY).pressed.connect(_on_play)
-	_add_button("Appearance", APPEARANCE_TEXT, UiButton.SECONDARY).pressed.connect(open_appearance)
-	_add_button("Settings", SETTINGS_TEXT, UiButton.SECONDARY).pressed.connect(open_settings)
-	_add_button("About", ABOUT_TEXT, UiButton.SECONDARY).pressed.connect(open_about)
-	_quit = _add_button("Quit", QUIT_TEXT, UiButton.GHOST)   # web: desktop only — this build always is one
-	_quit.pressed.connect(_on_quit)
-	_hint = _small_label("Hint", HINT_TEXT)
-	_hint.visible = false
-	_column.add(_hint, HINT_MARGIN_TOP)
+	_build_column()
 	_version = _version_chip()
 	add_child(_version)
 	resized.connect(_layout)
@@ -136,13 +120,29 @@ func close_lobby() -> void:
 ## SETTINGS (web setScreen('settings')): the settings screen in the panel, on the tab left open last time; every change
 ## is saved and the volumes applied at once.
 func open_settings() -> void:
+	_show_screen(_settings_screen(), MenuCameraRig.SCREEN_SETTINGS)
+
+func _settings_screen() -> SettingsScreen:
 	var settings := SettingsScreen.new()
 	settings.name = "Settings"
 	settings.setup(Game.profile, _settings_section)
 	settings.back_requested.connect(close_screen)
 	settings.profile_changed.connect(_save_profile)
 	settings.section_changed.connect(func(section: String) -> void: _settings_section = section)
-	_show_screen(settings, MenuCameraRig.SCREEN_SETTINGS)
+	settings.locale_changed.connect(_on_locale_changed)
+	return settings
+
+## A language tile (web setLocale: the tree re-renders in place): the menu column and the open settings are built again
+## in the new language, on the same tab; the backdrop and its camera stay as they are.
+func _on_locale_changed(locale: String) -> void:
+	I18n.use_locale(locale)
+	_build_column()
+	_panel.remove_child(_screen)
+	_screen.queue_free()
+	_screen = _settings_screen()
+	_panel.add_child(_screen)
+	_layout()
+	get_viewport().update_mouse_cursor_state()   # the new tile under the pointer takes the hover look
 
 ## ABOUT (web setScreen('about')): the developer and the trailer; WATCH asks for the trailer screen.
 func open_about() -> void:
@@ -231,6 +231,7 @@ func lobby() -> LobbyScreen:
 
 ## The browser build's layout (parity captures): the F11 hint instead of QUIT.
 func set_browser_layout(browser: bool) -> void:
+	_browser_layout = browser
 	_hint.visible = browser
 	_quit.visible = not browser
 
@@ -278,6 +279,34 @@ func _panel_box() -> StyleBoxFlat:
 	box.border_width_right = PANEL_BORDER_PX
 	box.anti_aliasing = false
 	return box
+
+## The logo, the accent rule, the buttons and the hint in the active locale; built again when the language changes.
+func _build_column() -> void:
+	if _column != null:
+		_panel.remove_child(_column)
+		_column.queue_free()
+	_buttons.clear()
+	_column = CssColumn.new()
+	_column.name = "Column"
+	_column.visible = _screen == null and _lobby == null
+	_panel.add_child(_column)
+	_panel.move_child(_column, 0)
+	_add_logo()
+	var rule := ColorRect.new()
+	rule.name = "Rule"
+	rule.color = UiTokens.LINE
+	rule.custom_minimum_size = RULE_SIZE
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_column.add(rule, 0.0, RULE_MARGIN_BOTTOM)
+	_add_button("Play", I18n.t(PLAY_KEY), UiButton.PRIMARY).pressed.connect(_on_play)
+	_add_button("Appearance", I18n.t(APPEARANCE_KEY), UiButton.SECONDARY).pressed.connect(open_appearance)
+	_add_button("Settings", I18n.t(SETTINGS_KEY), UiButton.SECONDARY).pressed.connect(open_settings)
+	_add_button("About", I18n.t(ABOUT_KEY), UiButton.SECONDARY).pressed.connect(open_about)
+	_quit = _add_button("Quit", I18n.t(QUIT_KEY), UiButton.GHOST)   # web: desktop only — this build always is one
+	_quit.pressed.connect(_on_quit)
+	_hint = _small_label("Hint", I18n.t(HINT_KEY))
+	_column.add(_hint, HINT_MARGIN_TOP)
+	set_browser_layout(_browser_layout)
 
 ## The h1: bold, spaced 0.3em (margin-left of one spacing), glowing; Chrome's trailing spacing kept in its box.
 func _add_logo() -> void:
