@@ -31,7 +31,7 @@ func _ready() -> void:
 	_label = GlowText.new()
 	_label.name = "Label"
 	add_child(_label)
-	_label.configure(UiFont.spaced(SPACING_EM, FONT_SIZE), FONT_SIZE, COLOR)
+	_label.configure_css(FONT_SIZE, SPACING_EM, COLOR)
 	_label.set_text(I18n.t(TEXT_KEY))
 	_label.set_shadows([CssShadow.make(LABEL_GLOW_BLUR, COLOR)])
 	var glow_pad := float(CssShadow.reach_px(CssShadow.make(GLOW_BLUR, COLOR)))

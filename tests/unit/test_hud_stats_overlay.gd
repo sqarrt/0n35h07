@@ -37,7 +37,7 @@ func test_corner_layout_follows_the_web_boxes() -> void:
 		"the graph 3 px under the FPS line box, at the whole pixel Chrome composites it on")
 	assert_almost_eq(overlay.graph().size.x, StatsModel.GRAPH_W, EPS)
 	var speed := overlay.speed_text()
-	var ascent := speed.label().get_theme_font("font").get_ascent(HudStatsOverlay.FONT_SIZE)
+	var ascent := float(speed.label().run().baseline())
 	var speed_box_top := floorf(graph_box_top + StatsModel.GRAPH_H + HudStatsOverlay.GAP_PX + 0.5)
 	var css_baseline := speed_box_top + (line_box - speed.size.y) * 0.5 + ascent
 	var baseline := speed.position.y + ascent

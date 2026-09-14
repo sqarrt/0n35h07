@@ -26,7 +26,7 @@ func _ready() -> void:
 	_text = EffectText.new()
 	_text.name = "Text"
 	_text.auto_advance = false   # tick() drives the effect with the banner clock
-	_text.configure(UiFont.spaced(SPACING_EM, FONT_SIZE), FONT_SIZE, Color.WHITE)
+	_text.configure_css(FONT_SIZE, SPACING_EM, Color.WHITE)
 	_row.add_child(_text)
 
 ## Start a new announcement of `kind` for a player (replaces a running one, like the web re-keying the banner).

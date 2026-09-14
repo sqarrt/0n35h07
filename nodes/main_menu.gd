@@ -569,16 +569,12 @@ func _build_column() -> void:
 	_column.add(_hint, HINT_MARGIN_TOP)
 	set_browser_layout(_browser_layout)
 
-## The h1: bold, spaced 0.3em (margin-left of one spacing), glowing; Chrome's trailing spacing kept in its box.
+## The h1: bold, spaced 0.3em (margin-left of one spacing), glowing; the run keeps Chrome's trailing spacing.
 func _add_logo() -> void:
 	var logo := GlowText.new()
 	logo.name = "Logo"
 	_column.add(logo, 0.0, LOGO_MARGIN_BOTTOM, LOGO_SPACING_EM * LOGO_FONT_SIZE)
-	var font := UiFont.with_css_line(UiFont.bold_spaced(LOGO_SPACING_EM, LOGO_FONT_SIZE), LOGO_FONT_SIZE)
-	var trailing := UiFont.trailing_spacing_style(font)
-	logo.label().add_theme_stylebox_override("normal", trailing)
-	logo.mask_label().add_theme_stylebox_override("normal", trailing)
-	logo.configure(font, LOGO_FONT_SIZE, UiTokens.ACCENT)
+	logo.configure_css(LOGO_FONT_SIZE, LOGO_SPACING_EM, UiTokens.ACCENT, true)
 	logo.set_text(LOGO_TEXT)
 	logo.set_shadows([CssShadow.make(LOGO_GLOW_BLUR, LOGO_GLOW)])
 

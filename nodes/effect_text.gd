@@ -15,7 +15,10 @@ const TICK_COLOR := Color.WHITE              # web .tick background #fff
 const MS_PER_S := 1000.0
 const TIME_EPS_MS := 0.001                   # float slack when an interval boundary lands exactly on a tick
 
-var _plain: Label
+var _plain: CssLabel
+var _css_px := 0.0                           # 0: the caller's Font (configure); otherwise Chrome's runs (configure_css)
+var _css_spacing_em := 0.0
+var _css_bold := false
 var _composite: SubViewport
 var _glow: GlowText
 var _display: TextureRect
@@ -41,7 +44,7 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_random.randomize()
 	_rng = _random.randf
-	_plain = Label.new()
+	_plain = CssLabel.new()
 	_plain.name = "Plain"
 	_plain.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_plain.minimum_size_changed.connect(_on_plain_size_changed)   # fonts reshape after the theme settles
@@ -78,6 +81,15 @@ func configure(font: Font, font_size: int, plain_color: Color) -> void:
 	_plain.add_theme_color_override("font_color", plain_color)
 	_glow.configure(font, font_size, Color.WHITE)
 
+## The CSS font instead: `css_px` spaced `spacing_em` for the plain text, the glow and the glitch copies — Chrome's runs.
+func configure_css(css_px: float, spacing_em: float, plain_color: Color, bold := false) -> void:
+	_css_px = css_px
+	_css_spacing_em = spacing_em
+	_css_bold = bold
+	_plain.setup(css_px, spacing_em, bold)
+	_plain.add_theme_color_override("font_color", plain_color)
+	_glow.configure_css(css_px, spacing_em, Color.WHITE, bold)
+
 ## Show `text` with a streak kind ("" = plain) in the player's colour; restarts the animations (web re-mounts).
 func show_text(text: String, kind: String, player_color: Color) -> void:
 	_text = text
@@ -94,7 +106,7 @@ func show_text(text: String, kind: String, player_color: Color) -> void:
 	_composite.render_target_update_mode = SubViewport.UPDATE_ALWAYS if fx else SubViewport.UPDATE_DISABLED
 	_clear_decor()
 	if not fx:
-		custom_minimum_size = _plain.get_minimum_size()
+		custom_minimum_size = _plain.get_combined_minimum_size()
 		return
 	_glow.set_color(StreakFx.text_color(kind, player_color))
 	_build_decor()
@@ -143,7 +155,7 @@ func ticks() -> Array[ColorRect]:
 
 func _on_plain_size_changed() -> void:
 	if _style.is_empty():
-		custom_minimum_size = _plain.get_minimum_size()
+		custom_minimum_size = _plain.get_combined_minimum_size()
 
 func _process(delta: float) -> void:
 	if auto_advance:
@@ -287,10 +299,13 @@ func _glitch_copy(node_name: String, color: Color, shadow_x: int) -> Control:
 	clip.name = node_name
 	clip.clip_contents = true
 	clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var copy := Label.new()
+	var copy := CssLabel.new()
 	copy.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	copy.add_theme_font_override("font", _font)
-	copy.add_theme_font_size_override("font_size", _font_size)
+	if _css_px > 0.0:
+		copy.setup(_css_px, _css_spacing_em, _css_bold)
+	else:
+		copy.add_theme_font_override("font", _font)
+		copy.add_theme_font_size_override("font_size", _font_size)
 	copy.add_theme_color_override("font_color", color)
 	copy.add_theme_color_override("font_shadow_color", color)
 	copy.add_theme_constant_override("shadow_offset_x", shadow_x)

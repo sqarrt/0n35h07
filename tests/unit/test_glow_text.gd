@@ -5,6 +5,8 @@ extends GutTest
 const SCREEN := Vector2i(1280, 720)
 const EPS := 0.001
 const FONT_SIZE := 24
+const SPACING_EM := 0.18
+const BLUR := 12.0
 
 func _glow() -> GlowText:
 	var screen := SubViewport.new()
@@ -21,13 +23,22 @@ func test_without_shadows_it_is_just_the_text() -> void:
 	assert_eq(glow.layer_count(), 0)
 	assert_eq(glow.find_children("*", "SubViewport", true, false).size(), 0, "no viewports without shadows")
 	assert_eq(glow.label().text, "YOU: CATALYST")
-	assert_eq(glow.get_combined_minimum_size(), glow.label().get_minimum_size(), "lays out like the text")
+	assert_eq(glow.get_combined_minimum_size(), glow.label().get_combined_minimum_size(), "lays out like the text")
 
 func test_size_follows_the_font_once_the_theme_settles() -> void:
 	var glow := _glow()
 	await get_tree().process_frame
-	assert_eq(glow.get_combined_minimum_size(), glow.label().get_minimum_size())
-	assert_eq(glow.label().size, glow.label().get_minimum_size())
+	assert_eq(glow.get_combined_minimum_size(), glow.label().get_combined_minimum_size())
+	assert_eq(glow.label().size, glow.label().get_combined_minimum_size())
+
+func test_a_css_font_lays_the_text_and_its_mask_out_as_runs() -> void:
+	var glow := _glow()
+	glow.configure_css(FONT_SIZE, SPACING_EM, Color.WHITE)
+	glow.set_shadows([CssShadow.make(BLUR, Color.WHITE)])
+	var run := CssTextRun.new("YOU: CATALYST", FONT_SIZE, SPACING_EM)
+	assert_almost_eq(glow.get_combined_minimum_size().x, run.width(), EPS, "Chrome's fractional width")
+	assert_true(glow.label().draws_run())
+	assert_almost_eq(glow.mask_label().run().width(), run.width(), EPS, "the glow blurs the same glyphs")
 
 func test_each_shadow_is_a_two_pass_blur_under_the_text() -> void:
 	var glow := _glow()

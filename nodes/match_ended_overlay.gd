@@ -51,8 +51,11 @@ func show_result(result: Dictionary, roster: Roster = null, tiers := {}) -> void
 	var headline := GlowText.new()
 	headline.name = "Outcome"
 	column.add(headline)
-	headline.configure(UiFont.with_css_line(UiFont.bold_spaced(OUTCOME_SPACING_EM, OUTCOME_FONT_SIZE), OUTCOME_FONT_SIZE),
-		OUTCOME_FONT_SIZE, color)   # web h1: bold; its padding-left of one spacing balances the trailing one
+	var balance := StyleBoxEmpty.new()   # web h1 padding-left of one spacing: the run's trailing one sits centred
+	balance.content_margin_left = OUTCOME_SPACING_EM * OUTCOME_FONT_SIZE
+	headline.label().add_theme_stylebox_override("normal", balance)
+	headline.mask_label().add_theme_stylebox_override("normal", balance)
+	headline.configure_css(OUTCOME_FONT_SIZE, OUTCOME_SPACING_EM, color, true)   # web h1: bold
 	headline.set_text(HudModel.outcome_label(outcome))
 	headline.set_shadows([CssShadow.make(GLOW_BLUR, color)])
 
@@ -88,8 +91,7 @@ func _ranking(scores: Array, roster: Roster, tiers: Dictionary) -> GridContainer
 		player_name.size_flags_horizontal = Control.SIZE_SHRINK_END
 		player_name.size_flags_vertical = Control.SIZE_SHRINK_END
 		grid.add_child(player_name)
-		player_name.configure(UiFont.with_css_line(UiFont.spaced(RANK_SPACING_EM, RANK_NAME_FONT_SIZE), RANK_NAME_FONT_SIZE),
-			RANK_NAME_FONT_SIZE, player_color)
+		player_name.configure_css(RANK_NAME_FONT_SIZE, RANK_SPACING_EM, player_color)
 		player_name.show_text(roster.name_of(id), tiers.get(id, ""), player_color)
 		var kills := _label("", str(row["kills"]), RANK_KILLS_FONT_SIZE, player_color, RANK_SPACING_EM)
 		kills.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
