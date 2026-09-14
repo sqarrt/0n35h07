@@ -11,6 +11,7 @@ var profile := {}                                  # the local player's PlayerPr
 var lobby_bot_name := ""                           # the host's name for the bot; "" = generated (web setBotName)
 var lobby_roster: Array = []                       # the lobby's seats at the start (web RoomSession roster); [] = tools
 var lobby_mode := GameModes.DUEL                   # the lobby preset those seats were taken under
+var warning_seen := false                          # web App showWarning: the warning splash shows once per launch
 
 func _ready() -> void:
 	random.randomize()

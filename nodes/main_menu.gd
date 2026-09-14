@@ -90,6 +90,10 @@ func _ready() -> void:
 	resized.connect(_layout)
 	_version.minimum_size_changed.connect(_layout)
 	_layout()
+	if not Game.warning_seen:   # web App: the photosensitivity warning over the menu, once per launch
+		var warning := WarningSplash.new()
+		warning.dismissed.connect(func() -> void: Game.warning_seen = true)
+		add_child(warning)
 	Audio.play_menu_music()   # web App: menu music on every non-match screen
 
 ## PLAY (web handlePlay): a fresh local room on every visit, shown in the same panel instead of the menu.
