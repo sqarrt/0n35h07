@@ -13,6 +13,10 @@ static func attach(button: BaseButton) -> void:
 		if not button.disabled:
 			_play(HOVER))
 
+## A picker's new choice (web sfx.play2D('ui_toggle') in MapPicker / TimePicker / ModeCarousel / Seats).
+static func toggle() -> void:
+	_play(TOGGLE)
+
 static func attach_picker(picker: OptionButton) -> void:
 	picker.item_selected.connect(func(_index: int) -> void: _play(TOGGLE))
 

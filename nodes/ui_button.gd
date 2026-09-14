@@ -15,6 +15,7 @@ const PADDING_X := 32.0                  # 2rem
 const PADDING_Y := 12.0                  # 0.75rem
 const BORDER_PX := 1
 const MIN_WIDTH := 220.0
+const BUTTON_HEIGHT := 44.0              # 16 px line (18) + 12 px padding and 1 px border, twice
 const MARGIN_Y := 6.4                    # margin: 0.4rem 0 — a CssColumn margin
 const DISABLED_OPACITY := 0.4
 const FOCUS_OUTLINE_PX := 2              # :focus-visible outline 2px, offset 2px (Godot hides focus a click gave)
