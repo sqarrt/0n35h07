@@ -59,9 +59,41 @@ func test_quit_only_on_the_desktop_build() -> void:
 	var lock := FakeLock.new()
 	lock.release()
 	var overlay := _overlay(lock)
-	overlay.set_quit_visible(false)
+	overlay.set_desktop(false)
 	overlay.refresh()
 	assert_false(_button(overlay, "Quit").visible)
+
+func test_settings_open_the_in_match_panel_and_back_returns() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	var overlay := _overlay(lock)
+	overlay.profile = {"volumeMaster": 1.0, "postProcessing": true}
+	overlay.refresh()
+	watch_signals(overlay)
+	_button(overlay, "Settings").pressed.emit()
+	var panel := overlay.settings()
+	assert_not_null(panel, "web setPauseView('settings')")
+	assert_false((overlay.find_child("Column", true, false) as Control).visible, "the panel replaces the menu")
+	assert_eq(panel.tab, MatchSettings.TAB_SOUND)
+	(panel.find_child("Toggle_postProcessing", true, false) as UiToggle).pressed.emit()
+	assert_signal_emitted_with_parameters(overlay, "profile_changed", [overlay.profile])
+	assert_false(overlay.profile["postProcessing"], "the live profile is edited in place")
+	(panel.find_child("Back", true, false) as UiButton).pressed.emit()
+	assert_null(overlay.settings())
+	assert_true((overlay.find_child("Column", true, false) as Control).visible)
+
+func test_closing_the_pause_resets_it_to_the_menu() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	overlay.open_settings()
+	lock.lock()
+	overlay.refresh()
+	assert_null(overlay.settings(), "web: pauseView back to 'menu' when the pause closes")
+	lock.release()
+	overlay.refresh()
+	assert_true((overlay.find_child("Column", true, false) as Control).visible)
 
 func test_no_pause_outside_the_live_phase() -> void:
 	var lock := FakeLock.new()

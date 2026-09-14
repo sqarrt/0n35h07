@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
   (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
   Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+- **Settings from the pause menu.** SETTINGS in the pause now opens the original's in-match panel: the sound volumes
+  and the graphics switches (block outlines, FPS counter, player speed) change live and are saved; leaving the pause
+  brings back its menu.
 - **Photosensitivity warning on launch.** As in the original, the game opens on a warning about flashing images over a
   dimly breathing ringed planet; the hint to continue appears once the menu has warmed up, and a left click fades the
   warning away. It shows once per launch, in the chosen language.

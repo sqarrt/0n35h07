@@ -70,6 +70,7 @@ const MODE_PAUSE := "pause-"
 const PAUSE_COOLDOWN := "cooldown"
 const PAUSE_HOVER_GHOST := "hover-ghost"
 const PAUSE_HOVER_PRIMARY := "hover-primary"
+const PAUSE_SETTINGS := "settings-"   # pause-settings-<tab>: the in-match settings panel on sound / graphics
 const PAUSE_COOLDOWN_SHARE := 0.5    # web __debugLockCooldownLeft = half of POINTERLOCK_COOLDOWN
 const PAUSE_FRAMES := 3              # the column lays out, then the frozen cooldown draws
 const MODE_MATCH_END_HOVER := "match-end-hover"
@@ -548,7 +549,7 @@ func _capture() -> void:
 			if control != null and control.is_visible_in_tree():
 				menu_boxes[box_name] = _rect(control)
 		facts["MainMenu"] = menu_boxes
-	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen", "WarningSplash"]:
+	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen", "WarningSplash", "MatchSettings"]:
 		for screen in root.find_children("*", screen_class, true, false):
 			var screen_boxes := {}
 			for control in screen.find_children("*", "Control", true, false):
@@ -597,8 +598,11 @@ func _pause_fixture(state: String) -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE   # the human controller reads the real mouse mode
 	pause.refresh()
 	clock["now"] = PauseModel.COOLDOWN_MS * (PAUSE_COOLDOWN_SHARE if state == PAUSE_COOLDOWN else 1.0)
-	pause.set_quit_visible(false)
+	pause.set_desktop(false)
 	pause.refresh()
+	if state.begins_with(PAUSE_SETTINGS):   # web parity-capture-match-settings.mjs: SETTINGS, then the tab
+		pause.open_settings()
+		pause.settings().select_tab(state.trim_prefix(PAUSE_SETTINGS))
 
 ## web parity-capture-lobby.mjs frames: PLAY opened on the main menu, then the state's room, scrolled for -bottom.
 ## Reached through call(): MainMenu / LobbyScreen use autoload names, which a -s tool can't compile against.

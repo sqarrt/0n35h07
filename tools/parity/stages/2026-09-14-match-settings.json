@@ -1,0 +1,79 @@
+{
+  "id": "2026-09-14-match-settings",
+  "title": "Сверка паритета OneShot · настройки в паузе (MatchSettings)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс настроек в паузе: web `components/MatchSettings.tsx` с общими `SoundControls` / `GraphicsControls` (`components/SettingsControls.tsx`) и подвид паузы в `App` (`pauseView`). В Godot кнопка SETTINGS паузы раньше ничего не открывала. Кадры web сняты в живом матче на os_arena с пассивным ботом, захват указателя снят, кулдаун RESUME заморожен в конце.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-match-settings.json`. Web: `web-reference/scripts/parity-capture-match-settings.mjs` (браузерная сборка; меню → лобби с ботом → матч → пауза → SETTINGS → SOUND / GRAPHICS) → `test-results/parity-match-settings/en/web-*.png` + рамки `web-match-settings.json`. Godot: `tools/screenshot.gd` на `scenes/arena_test.tscn` + `maps/os_arena.json`, кадр 300, режимы `profile:pause-idle`, `profile:pause-settings-sound`, `profile:pause-settings-graphics` → `godot-*.png` + рамки `MatchSettings` в `.png.json`. Пиксели — среднее отличие каналов (0–255) по колонке x 400–880.",
+  "pages": [
+    {
+      "slug": "match-settings",
+      "name": "SETTINGS в паузе",
+      "verdict": "Настройки в паузе перенесены: заголовок SETTINGS, вкладки SOUND / GRAPHICS (каждый раз открывается SOUND), блок шириной min(28rem, 80vw) = 448 px с общими контролами (без переключателей свечения меню и визуализации звука) и BACK; изменения сохраняются и применяются сразу, закрытие паузы возвращает её меню. Рамки совпадают до 1 px: заголовок 568 / 146 против 568.95 / 146.03, вкладки 195 против 195.42, VOLUME 416 / 246, первый слайдер 288 против 287.61, BACK 530 / 524 против 523.56; GRAPHICS — переключатели 316 / 445 против 316.2 / 444.98, BACK 495 против 494.97. Колонка отличается на 1.55/255 (SOUND) и 1.82 (GRAPHICS), пауза без настроек — 0.91.",
+      "verdict_short": "MatchSettings перенесён",
+      "conditions": [
+        ["сборка", "браузер (десктопному лобби нужен Steam)", "десктоп Godot в раскладке браузера (`set_desktop(false)`: без QUIT и слайдера радио)"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["матч", "os_arena, пассивный бот EX82R, профиль PARITY7 (громкость 100/30/30/100)", "то же"],
+        ["тесты", "—", "GUT 550/550 (`test_match_settings`, `test_pause_overlay`)"]
+      ],
+      "comparisons": [
+        {"title": "SOUND", "wipe": true,
+          "note": "Колонка по центру экрана; четыре слайдера браузерной сборки.",
+          "panels": [
+            {"kind": "web", "img": "parity-match-settings/en/crops/web-sound.png", "note": "—"},
+            {"kind": "godot", "img": "parity-match-settings/en/crops/godot-sound.png", "note": "Колонка 1.55/255."}
+          ]},
+        {"title": "Заголовок и вкладки (×3)", "wipe": true,
+          "note": "h2 24 px 0.2em, отступ 1.4rem; вкладки `.seg` через 0.6rem.",
+          "panels": [
+            {"kind": "web", "img": "parity-match-settings/en/crops/web-sound-top.png", "note": "SETTINGS 142.09 px"},
+            {"kind": "godot", "img": "parity-match-settings/en/crops/godot-sound-top.png", "note": "145 px: целая разрядка"}
+          ]},
+        {"title": "GRAPHICS", "wipe": true,
+          "note": "В матче только OUTLINE BLOCKS, SHOW FPS COUNTER и SHOW PLAYER SPEED (web `inMatch`).",
+          "panels": [
+            {"kind": "web", "img": "parity-match-settings/en/crops/web-graphics.png", "note": "—"},
+            {"kind": "godot", "img": "parity-match-settings/en/crops/godot-graphics.png", "note": "Колонка 1.82/255."}
+          ]},
+        {"title": "Пауза перед SETTINGS", "wipe": true,
+          "note": "Меню паузы той же раскладки (без QUIT).",
+          "panels": [
+            {"kind": "web", "img": "parity-match-settings/en/crops/web-pause.png", "note": "—"},
+            {"kind": "godot", "img": "parity-match-settings/en/crops/godot-pause.png", "note": "0.91/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MS1", "severity": "fixed",
+          "title": "SETTINGS в паузе ничего не открывал",
+          "web": "`setPauseView('settings')`: `MatchSettings` вместо `PauseMenu` (фон rgba(10,10,15,.85)); `SoundControls` / `GraphicsControls inMatch` пишут профиль (`saveProfile` + `setProfile`), всё применяется сразу; при закрытии паузы подвид сбрасывается на меню.",
+          "godot": "`PauseOverlay.open_settings` / `close_settings` (и при снятии паузы), `MatchSettings`; `profile_changed` → `arena_boot`: `ProfileStore.save_profile`, `Audio.apply_volumes`, `MapEdges.set_enabled`; HUD читает `showFps` / `showSpeed` каждый кадр. Группы контролов вынесены из `SettingsScreen` в общие `SoundControls` / `GraphicsControls` + `SettingsRows` (как web `SettingsControls`); рамки SETTINGS в меню не изменились (GUT). Было: сигнал `settings_requested` никто не слушал.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/match_settings.gd", "nodes/pause_overlay.gd", "nodes/sound_controls.gd", "nodes/graphics_controls.gd", "nodes/settings_rows.gd", "nodes/settings_screen.gd", "nodes/arena_boot.gd", "tests/unit/test_match_settings.gd", "tests/unit/test_pause_overlay.gd", "web-reference/src/components/MatchSettings.tsx", "web-reference/src/components/SettingsControls.tsx"]
+        },
+        {
+          "id": "MS2", "severity": "platform",
+          "title": "Эталон — браузерная сборка",
+          "web": "Десктопное лобби показывает зоны Steam-приглашений (без Steam бот не добавляется), поэтому матч для кадров открыт в браузере; в десктопной панели SOUND под EFFECTS есть слайдер радио.",
+          "godot": "Godot — десктопная сборка: панель показывает слайдер радио (тест `test_the_desktop_panel_adds_the_radio_slider`, колонка выше на половину блока слайдера); кадры сверки сняты с `set_desktop(false)`.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/pause_overlay.gd", "nodes/sound_controls.gd", "web-reference/src/screens/Lobby.tsx"]
+        },
+        {
+          "id": "MS3", "severity": "visual",
+          "title": "Ширина заголовка и вкладок",
+          "web": "SETTINGS 142.09 px, SOUND 58.11, GRAPHICS 78.56.",
+          "godot": "145, 59, 80 px: целая разрядка и шаг глифа (известный общий остаток); центр колонки тот же.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd"]
+        }
+      ],
+      "limitations": [
+        "Перетаскивание и клавиатура слайдеров — как в SETTINGS меню (без фокуса и стрелок).",
+        "Живое применение обводки блоков и оверлея проверено кодом и тестом сигнала; отдельных кадров матча с переключением нет."
+      ]
+    }
+  ]
+}
