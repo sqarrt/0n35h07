@@ -91,6 +91,9 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_MENU_BALL := "menu-ball-"   # menu-ball-<degrees>: the backdrop alone, the light pinned
+const MENU_UI := ["Panel", "Version"]
+const MENU_BALL_FRAMES := 30          # past the warm-up and most of the fade (web settles for seconds)
 const MODE_MENU := "menu-"
 const MENU_FRAMES := 3               # the column lays out in the browser layout
 const MENU_BOXES := ["Panel", "Logo", "Rule", "Play", "Appearance", "Settings", "About", "Quit", "Hint", "Version"]
@@ -291,6 +294,13 @@ func _apply_hud_fixture() -> int:
 			if node.player.id == PLATE_BOT_ID:
 				node.place_at(Vector3(target.x, node.global_position.y, target.z))
 		return PLATE_FRAMES
+	if _mode.begins_with(MODE_MENU_BALL):
+		# web parity-capture-menu-ball.mjs: only the 3D backdrop, the orbiting light pinned at the frame's angle
+		for menu in root.find_children("*", "MainMenu", true, false):
+			for ui_name in MENU_UI:
+				(menu.find_child(ui_name, true, false) as CanvasItem).visible = false
+			menu.call("backdrop").call("set_light_angle", deg_to_rad(float(_mode.trim_prefix(MODE_MENU_BALL))))
+		return MENU_BALL_FRAMES
 	if _mode.begins_with(MODE_MENU):
 		for menu in root.find_children("*", "MainMenu", true, false):
 			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's

@@ -93,7 +93,12 @@ const flying = { current: false }
 /** The light slowly orbits the balls — the highlight glides, the models read as "living" 3D. */
 function OrbitingLight() {
   const ref = useRef<THREE.Group>(null)
-  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += PREVIEW_SPIN_SPEED * dt })
+  useFrame((_, dt) => {
+    if (!ref.current) return
+    // Parity captures: __debugMenuLightAngle pins the orbit (radians) instead of advancing it.
+    const pinned = window.__debugMenuLightAngle
+    ref.current.rotation.y = pinned ?? ref.current.rotation.y + PREVIEW_SPIN_SPEED * dt
+  })
   return (
     <group ref={ref}>
       <directionalLight position={[10, 10, 5]} intensity={1} />
