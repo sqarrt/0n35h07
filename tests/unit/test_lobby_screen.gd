@@ -52,7 +52,12 @@ func test_a_fresh_room() -> void:
 	assert_true((_node(lobby, "Time3") as SegButton).is_on())
 	assert_eq(lobby.seats().size(), 2)
 	assert_not_null(lobby.seats()[1].find_child("AddBot", true, false), "the free seat offers a bot")
-	assert_true((_node(lobby, "Ready") as UiButton).disabled, "a lone host can't start")
+	assert_not_null(lobby.seats()[1].find_child("Invite", true, false), "and a friend (the Steam build)")
+	assert_eq((_node(lobby, "Ready") as UiButton).text, "SEARCH", "a lone Duel host searches for the free seat")
+	assert_false((_node(lobby, "Ready") as UiButton).disabled)
+	lobby.desktop = false
+	lobby.refresh()
+	assert_true((_node(lobby, "Ready") as UiButton).disabled, "the browser layout: a lone host can't start")
 	assert_eq((_node(lobby, "Back") as UiButton).text, "BACK")
 
 func test_a_bot_enables_ready_and_ready_starts() -> void:

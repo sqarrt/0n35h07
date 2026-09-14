@@ -660,6 +660,8 @@ func _lobby_fixture(state: String) -> void:
 	(menu.find_child("Backdrop", true, false) as CanvasItem).visible = false   # web hides the canvases
 	menu.call("open_lobby")
 	var lobby: Node = menu.call("lobby")
+	lobby.set("desktop", false)   # web parity-capture-lobby.mjs runs the browser build: READY, no invite zones
+	lobby.call("refresh")
 	var room: Object = lobby.get("room")
 	var to_end := state.ends_with(LOBBY_BOTTOM)
 	match state.trim_suffix(LOBBY_BOTTOM):

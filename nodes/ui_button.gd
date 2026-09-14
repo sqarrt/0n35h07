@@ -9,6 +9,9 @@ const GHOST := "ghost"
 const GO := "go"                         # primary + .btn--go: the lobby READY
 const GO_FILL := Color("#23b582")
 const GO_HOVER := Color("#2bcf96")
+const STOP := "stop"                     # primary + .btn--stop: the lobby STOP while searching
+const STOP_FILL := Color("#d83a44")
+const STOP_HOVER := Color("#e44a54")
 const FONT_SIZE := 16                    # 1rem
 const LETTER_SPACING_EM := 0.18
 const PADDING_X := 32.0                  # 2rem
@@ -48,6 +51,12 @@ const LOOKS := {
 		"hover": [GO_HOVER, GO_HOVER, UiTokens.INK],
 		"pressed": [GO_HOVER, GO_HOVER, UiTokens.INK],
 		"disabled": [UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL, UiTokens.INK],
+	},
+	# .btn--stop over .btn--primary: red with white text, brighter under the mouse
+	STOP: {
+		"normal": [STOP_FILL, STOP_FILL, Color.WHITE],
+		"hover": [STOP_HOVER, STOP_HOVER, Color.WHITE],
+		"pressed": [STOP_HOVER, STOP_HOVER, Color.WHITE],
 	},
 }
 ## Godot box state -> the CSS look it shows and the matching text colour key.
@@ -110,7 +119,7 @@ func _init(label := "", button_variant := SECONDARY, sounds := true, button_metr
 
 func set_variant(value: String) -> void:
 	variant = value
-	var bold := metrics.always_bold or value in [PRIMARY, GO]
+	var bold := metrics.always_bold or value in [PRIMARY, GO, STOP]
 	var font_size := UiFont.css_size(metrics.font_px)
 	var face := UiFont.bold_spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face) if bold \
 		else UiFont.spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face)

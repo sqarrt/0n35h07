@@ -7,6 +7,9 @@ class_name LobbyScreen extends Control
 
 signal back_requested
 signal match_requested(setup: Dictionary)
+signal search_requested                         # desktop Duel SEARCH: Steam quick match
+signal stop_requested                           # STOP the search
+signal invite_requested                         # a free seat's INVITE A FRIEND: the friend picker
 
 const TITLE_KEY := "menuPlay"                   # web dictionary keys
 const BODY_TOP_SHARE := 0.02                    # .lobby-body padding-top: 2vh
@@ -21,6 +24,17 @@ const MULTI_KEY := "lobbyMulti"
 const SELECT_ALL_KEY := "lobbySelectAll"
 const MINUTES_KEY := "roomDurationMin"          # "{0} MIN"
 const READY_KEY := "lobbyReady"
+## The action button's label and look per LobbyState action (web Lobby: one button, the same size in every state).
+const ACTIONS := {
+	LobbyState.ACTION_STOP: ["lobbyStop", UiButton.STOP],
+	LobbyState.ACTION_WAIT_FRIEND: ["lobbyWaitingFriend", UiButton.PRIMARY],
+	LobbyState.ACTION_SEARCH: ["lobbySearch", UiButton.PRIMARY],
+	LobbyState.ACTION_WAIT_OTHERS: ["lobbyWaitOthers", UiButton.PRIMARY],
+	LobbyState.ACTION_READY: ["lobbyReady", UiButton.GO],
+}
+const LOCKED_OPACITY := 0.5                     # .lobby-opts--locked: map / time are the host's, and frozen while searching
+const NAME_CYCLE_S := 0.3                       # web NAME_CYCLE_MS: the searching seats' spinning names
+const SPIN_DOTS := 3
 const BACK_KEY := "roomBack"
 const LEAVE_KEY := "lobbyLeave"
 const MAP_COLUMNS := 3
@@ -43,7 +57,12 @@ const BLEED := 28.0                             # .panel-fill--bleed --bleed
 const HALF := 0.5
 
 var room: RoomModel
+var desktop := true                             # the Steam build: SEARCH and invite zones (false: the browser layout)
+var searching := false                          # quick match is looking for an opponent
 
+var _invites: Array = []                        # sent Steam invites still waiting: [{id, name}]
+var _spin := {}                                 # searching: slot -> {name, dots}
+var _spin_left := 0.0
 var _scroll: ScrollContainer
 var _content: Control
 var _title: Label
@@ -66,12 +85,45 @@ var _rng: Callable
 
 ## `rng`: 0..1 rolls for rerolled bot names.
 func setup(room_model: RoomModel, rng: Callable) -> void:
-	room = room_model
 	_rng = rng
+	bind_room(room_model)
+
+## Show another room (the Steam lobby came up, quick match paired): the old one's signals go.
+func bind_room(room_model: RoomModel) -> void:
+	if room != null:
+		room.changed.disconnect(refresh)
+		room.started.disconnect(_on_started)
+	room = room_model
 	room.changed.connect(refresh)
-	room.started.connect(func(match_setup: Dictionary) -> void: match_requested.emit(match_setup))
+	room.started.connect(_on_started)
 	if is_node_ready():
 		refresh()
+
+## A sent Steam invite now waits on a free seat (web Lobby onPick).
+func add_invite(id: String, friend_name: String) -> void:
+	if not _invites.any(func(invite: Dictionary) -> bool: return invite["id"] == id):
+		_invites.append({"id": id, "name": friend_name})
+	refresh()
+
+## The friend declined or the host cancelled.
+func remove_invite(id: String) -> void:
+	_invites = _invites.filter(func(invite: Dictionary) -> bool: return invite["id"] != id)
+	refresh()
+
+func invites() -> Array:
+	return _invites
+
+func set_searching(on: bool) -> void:
+	searching = on
+	_spin.clear()
+	_spin_left = 0.0
+	refresh()
+
+func action_kind() -> String:
+	return LobbyState.action(room, searching, _invites.size(), desktop)["kind"]
+
+func _on_started(match_setup: Dictionary) -> void:
+	match_requested.emit(match_setup)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -118,7 +170,7 @@ func _ready() -> void:
 	_vs = _label("Vs", VS_TEXT, VS_FONT_SIZE, VS_SPACING_EM, VS_COLOR)
 	_ready_button = UiButton.new(I18n.t(READY_KEY), UiButton.GO)
 	_ready_button.name = "Ready"
-	_ready_button.pressed.connect(func() -> void: room.set_local_ready(true))
+	_ready_button.pressed.connect(_on_action)
 	add_child(_ready_button.grouped())                  # a disabled READY fades as one layer
 	_back = UiButton.new(I18n.t(BACK_KEY), UiButton.GHOST)
 	_back.name = "Back"
@@ -128,25 +180,74 @@ func _ready() -> void:
 	if room != null:
 		refresh()
 
-## A guest's handshake clock (HELLO retries, the connect timeout) runs with the screen.
+## A guest's handshake clock (HELLO retries, the connect timeout) runs with the screen, and searching seats spin names.
 func _process(delta: float) -> void:
 	if room is RoomSession:
 		(room as RoomSession).tick(delta)
+	if not searching:
+		return
+	_spin_left -= delta
+	if _spin_left <= 0.0:
+		_spin_left += NAME_CYCLE_S
+		_step_spin()
 
 ## Re-read the room: the mode, the map / time selection, the seats and the actions.
 func refresh() -> void:
 	if room == null or _content == null:
 		return
+	_invites = LobbyState.still_pending(_invites, room)
+	var host := room.is_host()
 	_carousel.set_mode(room.mode)
+	_carousel.set_enabled(host and not searching)
+	var locked := searching or not host
 	for tile in _map_tiles:
 		tile.set_on(tile.map_id in room.map_sel)
 	_multi.set_on(_map_multi)
 	for i in _time_segs.size():
 		_time_segs[i].set_on(MatchConst.MATCH_DURATIONS_MIN[i] in room.duration_sel)
-	_rebuild_seats()
-	_ready_button.set_enabled(room.can_start())
-	var others_seated := room.occupied().size() > 1
-	_back.text = I18n.t(LEAVE_KEY if others_seated else BACK_KEY)
+	for option in _locked_options():
+		option.modulate.a = LOCKED_OPACITY if locked else 1.0
+		if option is BaseButton:
+			(option as BaseButton).disabled = locked
+	var seat_views := LobbyState.seats(room)
+	_rebuild_seats(seat_views)
+	var action := LobbyState.action(room, searching, _invites.size(), desktop)
+	var look: Array = ACTIONS[action["kind"]]
+	_ready_button.text = I18n.t(look[0])
+	if _ready_button.variant != look[1]:
+		_ready_button.set_variant(look[1])
+	_ready_button.set_enabled(action["enabled"])
+	_back.text = I18n.t(LEAVE_KEY if LobbyState.others_seated(seat_views) else BACK_KEY)
+	_layout()
+
+func _on_action() -> void:
+	match action_kind():
+		LobbyState.ACTION_STOP:
+			stop_requested.emit()
+		LobbyState.ACTION_SEARCH:
+			search_requested.emit()
+		LobbyState.ACTION_READY:
+			room.set_local_ready(true)
+
+## web .lobby-opts: the map and time pickers with their labels.
+func _locked_options() -> Array:
+	var options: Array = [_map_label, _multi, _select_all, _time_label]
+	options.append_array(_map_tiles)
+	options.append_array(_time_segs)
+	return options
+
+## web Seats spin: each free seat shows a model name growing dots, a new name after three.
+func _step_spin() -> void:
+	for seat in _seats:
+		if room.slots[seat.slot] != null:
+			continue
+		var state: Dictionary = _spin.get(seat.slot, {"name": ModelNames.generate(_rng), "dots": 0})
+		seat.show_searching(state["name"] + ".".repeat(state["dots"]))
+		state["dots"] += 1
+		if state["dots"] > SPIN_DOTS:
+			state["dots"] = 0
+			state["name"] = ModelNames.generate(_rng)
+		_spin[seat.slot] = state
 	_layout()
 
 ## Parity captures: scroll the body to its top or its end.
@@ -156,20 +257,37 @@ func scroll_to_end(to_end: bool) -> void:
 func seats() -> Array[LobbySeat]:
 	return _seats
 
-func _rebuild_seats() -> void:
+func _rebuild_seats(seat_views: Array) -> void:
 	for seat in _seats:
 		_seats_box.remove_child(seat)            # out of the tree now, so the new seats keep their names
 		seat.queue_free()
 	_seats.clear()
 	var compact := room.mode != GameModes.DUEL
-	for slot in room.slots.size():
+	var host := room.is_host()
+	var waiting := LobbyState.invite_seats(seat_views, _invites) if desktop and host else {}
+	for view in seat_views:
+		var slot: int = view["slot"]
 		var seat := LobbySeat.new()
 		seat.name = "Seat%d" % slot
 		seat.slot = slot
 		seat.compact = compact
+		seat.invites = desktop and host
 		_seats_box.add_child(seat)
-		var entry = room.slots[slot]
-		seat.show_seat(entry, slot == RoomModel.HOST_SLOT, room.is_ready(slot), true)
+		if waiting.has(slot):
+			seat.show_waiting(waiting[slot]["name"])
+		elif searching and view["entry"] == null:
+			seat.show_searching("")
+		else:
+			seat.show_seat(view["entry"], view["mine"], view["ready"], host)
+		seat.invite_requested.connect(func(_s: int) -> void: invite_requested.emit())
+		seat.invite_cancelled.connect(func(s: int) -> void:
+			UiSounds.toggle()
+			if waiting.has(s):
+				remove_invite(waiting[s]["id"]))
+		seat.take_requested.connect(func(s: int) -> void:
+			UiSounds.toggle()
+			if room is RoomSession:
+				(room as RoomSession).request_slot(s))
 		seat.add_bot_requested.connect(func(s: int) -> void:
 			UiSounds.toggle()
 			room.add_bot(s))

@@ -26,9 +26,7 @@ const HELLO_KEYS := ["name", "primaryColor", "reserveColor", "ballModel", "windu
 var net
 var role := ROLE_HOST
 var music_seed := ""                            # web seed: shared with every peer in ASSIGN
-var local_player_id := HOST_SLOT
-var connected := true                           # guest: its ASSIGN arrived
-var found_host := true                          # guest: the transport found a peer
+var found_host := true                         # guest: the transport found a peer
 
 var _profile: Dictionary
 var _peer_by_slot := {}                         # creator: seat -> the guest's transport peer
