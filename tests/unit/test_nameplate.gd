@@ -18,6 +18,11 @@ func test_plate_size_height_and_colours() -> void:
 	assert_almost_eq(plate.pixel_size * Nameplate.PLATE_SIZE.y, Nameplate.WORLD_SIZE.y, EPS, "0.4 world units tall")
 	assert_almost_eq(plate.position.y, Nameplate.HEIGHT, EPS)
 	assert_eq(plate.billboard, BaseMaterial3D.BILLBOARD_ENABLED)
+	var material := plate.material_override as StandardMaterial3D
+	assert_eq(material.blend_mode, BaseMaterial3D.BLEND_MODE_PREMULT_ALPHA, "the viewport's premultiplied colour")
+	assert_eq(material.shading_mode, BaseMaterial3D.SHADING_MODE_UNSHADED)
+	assert_eq(Nameplate.web_canvas_color(Color("#ff5533")), Color(Color("#ff5533").linear_to_srgb(), 1.0),
+		"web reads the canvas colours as linear light")
 
 func test_the_plate_dies_with_the_body() -> void:
 	var pnode: PlayerNode = PLAYER.instantiate()

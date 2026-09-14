@@ -31,11 +31,13 @@ static func label_text(player_name: String) -> String:
 		return player_name
 	return player_name.substr(0, MAX_NAME_CHARS - 1) + ELLIPSIS
 
+## The web canvas texture carries no colour space, so three.js reads its sRGB-authored values as linear light; the
+## canvas here is authored in those displayed colours instead.
+static func web_canvas_color(color: Color) -> Color:
+	return Color(color.linear_to_srgb(), color.a)
+
 func build(player_name: String, background: Color) -> void:
 	billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	shaded = false
-	double_sided = true
-	alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED   # blended, no depth write (web depthWrite: false)
 	pixel_size = WORLD_SIZE.x / PLATE_SIZE.x
 	position.y = HEIGHT
 	_viewport = SubViewport.new()
@@ -46,7 +48,7 @@ func build(player_name: String, background: Color) -> void:
 	add_child(_viewport)
 	var panel := Panel.new()
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(background, BACKGROUND_ALPHA)
+	box.bg_color = web_canvas_color(Color(background, BACKGROUND_ALPHA))
 	box.set_corner_radius_all(PLATE_RADIUS)
 	panel.add_theme_stylebox_override("panel", box)
 	panel.size = Vector2(PLATE_SIZE)
@@ -62,9 +64,18 @@ func build(player_name: String, background: Color) -> void:
 	font.font_weight = FONT_WEIGHT_BOLD
 	label.add_theme_font_override("font", font)
 	label.add_theme_font_size_override("font_size", FONT_SIZE)
-	label.add_theme_color_override("font_color", TEXT_COLOR)
+	label.add_theme_color_override("font_color", web_canvas_color(TEXT_COLOR))
 	_viewport.add_child(label)
 	texture = _viewport.get_texture()
+	# A transparent viewport stores premultiplied colour: blend it as such, unlit, without writing depth.
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.blend_mode = BaseMaterial3D.BLEND_MODE_PREMULT_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	material.albedo_texture = texture
+	material_override = material
 
 func text() -> String:
 	return (_viewport.get_node("Text") as Label).text
