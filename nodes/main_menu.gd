@@ -40,6 +40,7 @@ const CHIP_BRIGHT_COLORS := ["font_hover_color", "font_pressed_color", "font_hov
 const SCREEN_APPEARANCE := "appearance"
 const SCREEN_SETTINGS := "settings"
 const SCREEN_ABOUT := "about"
+const SCREEN_TRAILER := "trailer"          # web About onWatchTrailer → setScreen('trailer')
 const ARENA := "res://scenes/arena_test.tscn"
 const LOGS_DIR := "user://logs"
 const HALF := 0.5
@@ -48,6 +49,8 @@ var _panel: Panel
 var _panel_blur: ColorRect
 var _column: CssColumn
 var _lobby: LobbyScreen
+var _screen: Control                          # the open SETTINGS / ABOUT screen
+var _settings_section := SettingsScreen.SECTION_PLAYER   # web App keeps the settings tab across visits
 var _backdrop: MenuBackdrop
 var _buttons: Array[UiButton] = []
 var _quit: UiButton
@@ -85,8 +88,8 @@ func _ready() -> void:
 	_add_button("Play", PLAY_TEXT, UiButton.PRIMARY).pressed.connect(_on_play)
 	_add_button("Appearance", APPEARANCE_TEXT, UiButton.SECONDARY).pressed.connect(
 		screen_requested.emit.bind(SCREEN_APPEARANCE))
-	_add_button("Settings", SETTINGS_TEXT, UiButton.SECONDARY).pressed.connect(screen_requested.emit.bind(SCREEN_SETTINGS))
-	_add_button("About", ABOUT_TEXT, UiButton.SECONDARY).pressed.connect(screen_requested.emit.bind(SCREEN_ABOUT))
+	_add_button("Settings", SETTINGS_TEXT, UiButton.SECONDARY).pressed.connect(open_settings)
+	_add_button("About", ABOUT_TEXT, UiButton.SECONDARY).pressed.connect(open_about)
 	_quit = _add_button("Quit", QUIT_TEXT, UiButton.GHOST)   # web: desktop only — this build always is one
 	_quit.pressed.connect(_on_quit)
 	_hint = _small_label("Hint", HINT_TEXT)
@@ -101,6 +104,7 @@ func _ready() -> void:
 
 ## PLAY (web handlePlay): a fresh local room on every visit, shown in the same panel instead of the menu.
 func open_lobby() -> void:
+	close_screen()
 	close_lobby()
 	var room := RoomModel.new(Game.profile, Game.random.randf)
 	_lobby = LobbyScreen.new()
@@ -122,6 +126,52 @@ func close_lobby() -> void:
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
+
+## SETTINGS (web setScreen('settings')): the settings screen in the panel, on the tab left open last time; every change
+## is saved and the volumes applied at once.
+func open_settings() -> void:
+	var settings := SettingsScreen.new()
+	settings.name = "Settings"
+	settings.setup(Game.profile, _settings_section)
+	settings.back_requested.connect(close_screen)
+	settings.profile_changed.connect(_save_profile)
+	settings.section_changed.connect(func(section: String) -> void: _settings_section = section)
+	_show_screen(settings)
+
+## ABOUT (web setScreen('about')): the developer and the trailer; WATCH asks for the trailer screen.
+func open_about() -> void:
+	var about := AboutScreen.new()
+	about.name = "About"
+	about.back_requested.connect(close_screen)
+	about.trailer_requested.connect(screen_requested.emit.bind(SCREEN_TRAILER))
+	_show_screen(about)
+
+## BACK from SETTINGS / ABOUT: the menu returns.
+func close_screen() -> void:
+	if _screen == null:
+		return
+	_panel.remove_child(_screen)
+	_screen.queue_free()
+	_screen = null
+	_column.visible = _lobby == null
+	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
+
+func screen() -> Control:
+	return _screen
+
+## web App: settings and about share the settings camera pose and the panel.
+func _show_screen(opened: Control) -> void:
+	close_screen()
+	close_lobby()
+	_screen = opened
+	_panel.add_child(opened)
+	_column.visible = false
+	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
+	_layout()
+
+func _save_profile(profile: Dictionary) -> void:
+	ProfileStore.save_profile(profile, Game.random.randf)
+	Audio.apply_volumes()
 
 func backdrop() -> MenuBackdrop:
 	return _backdrop
@@ -150,6 +200,9 @@ func _layout() -> void:
 	var inset := PANEL_PADDING + Vector2(PANEL_BORDER_PX, 0.0)
 	_column.position = inset
 	_column.size = _panel.size - inset * 2.0
+	if _screen != null:
+		_screen.position = inset
+		_screen.size = _column.size
 	if _lobby != null:
 		_lobby.position = inset
 		_lobby.size = _column.size + Vector2(LobbyScreen.BLEED, 0.0)

@@ -35,6 +35,8 @@ extends SceneTree
 ##                     the facts.
 ##   lobby-<state>     the main menu scene with PLAY opened (web parity-capture-lobby.mjs): fresh, bot (a passive
 ##                     EX82R on seat 1), 2v2 or ffa; a -bottom suffix scrolls the body to its end. Use with profile:.
+##   settings-<tab>    SETTINGS on player / sound / graphics, or `about`: ABOUT (web parity-capture-settings.mjs, the
+##                     desktop build), the backdrop hidden; every visible screen control's box joins the facts.
 ##   stage-<state>     the same lobby with only its seat balls on the backdrop (web parity-capture-lobby-stage.mjs): bot
 ##                     (Duel, EX82R on seat 1) or ffa (War, B1..B3 on seats 1..3); the light pinned. Use with profile:.
 ##   team-<mode>       a Battle (2v2) or War (ffa) match from a lobby roster: the parity human on seat 0 and passive
@@ -93,6 +95,9 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
+const MODE_ABOUT := "about"
+const SCREEN_FRAMES := 6               # the screen lays out in the panel (web waits 400 ms, nothing animates)
 const MODE_STAGE := "stage-"           # stage-bot / stage-ffa: the lobby's seat balls alone, the light pinned at 0
 const STAGE_FFA := "ffa"
 const STAGE_GLOW := "-glow-"            # stage-ffa-glow-<level>: web __debugMenuGlowLevel frames
@@ -126,7 +131,7 @@ const REBIRTH_FRAMES := 8            # ≈ 133 ms after materialising (web frame
 const MODE_PROFILE := "profile"
 const MODE_PROFILE_DOUBLE := "profile-double"
 const PROFILE_PREFIX := "profile:"
-const PARITY_PROFILE := {"name": "PARITY7", "primaryColor": "#fa4", "reserveColor": "#4af"}
+const PARITY_PROFILE := {"name": "PARITY7", "primaryColor": "#fa4", "reserveColor": "#4af", "locale": "en"}
 const PARITY_BOT_NAME := "EX82R"
 const VIEW_SETTLE_FRAMES := 2        # the controller places the camera on its next frame
 const KIND_SEPARATOR := "-"
@@ -302,6 +307,16 @@ func _apply_hud_fixture() -> int:
 			if node.player.id == PLATE_BOT_ID:
 				node.place_at(Vector3(target.x, node.global_position.y, target.z))
 		return PLATE_FRAMES
+	if _mode.begins_with(MODE_SETTINGS) or _mode == MODE_ABOUT:
+		# web parity-capture-settings.mjs: SETTINGS on a tab or ABOUT, the backdrop canvases hidden
+		var screen_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(screen_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		if _mode == MODE_ABOUT:
+			screen_menu.call("open_about")
+		else:
+			screen_menu.call("open_settings")
+			screen_menu.call("screen").call("select_section", _mode.trim_prefix(MODE_SETTINGS))
+		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_STAGE):
 		# web parity-capture-lobby-stage.mjs: the room's seats as backdrop balls, every UI layer hidden
 		var state := _mode.trim_prefix(MODE_STAGE)
@@ -452,6 +467,13 @@ func _capture() -> void:
 			if control != null and control.is_visible_in_tree():
 				menu_boxes[box_name] = _rect(control)
 		facts["MainMenu"] = menu_boxes
+	for screen_class in ["SettingsScreen", "AboutScreen"]:
+		for screen in root.find_children("*", screen_class, true, false):
+			var screen_boxes := {}
+			for control in screen.find_children("*", "Control", true, false):
+				if control.is_visible_in_tree():
+					screen_boxes[str(screen.get_path_to(control))] = _rect(control)
+			facts[screen_class] = screen_boxes
 	for overlay_class in ["PauseOverlay", "MatchEndedOverlay"]:
 		for overlay in root.find_children("*", overlay_class, true, false):
 			var column := overlay.find_child("Column", true, false) as CssColumn

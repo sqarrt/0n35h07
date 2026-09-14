@@ -37,6 +37,15 @@ func test_first_person_hides_the_body_and_v_toggles_the_view() -> void:
 	assert_eq(cam.position, Vector3.ZERO, "back to the eye")
 	assert_false(p.is_body_visible())
 
+func test_the_profile_default_view_starts_third_person() -> void:
+	var p: PlayerNode = PLAYER.instantiate()
+	add_child_autofree(p)
+	var hc := HumanController.new()
+	add_child_autofree(hc)
+	hc.setup(p, p.get_node("Camera3D"), true)
+	assert_true(hc.is_third_person(), "web defaultThirdPerson")
+	assert_true(p.is_body_visible(), "the own ball shows from behind")
+
 func test_only_the_own_shot_shakes_for_five_frames() -> void:
 	var rig := _rig()
 	var p: PlayerNode = rig[0]

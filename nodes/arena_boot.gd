@@ -33,7 +33,8 @@ func _ready() -> void:
 	human.place_at(spawns[HUMAN_SLOT])
 	var camera: Camera3D = human.get_node("Camera3D")
 	var hc: HumanController = $HumanController
-	hc.setup(human, camera)   # first person hides the player's own sphere (the camera sits inside it)
+	# the profile's default view (web defaultThirdPerson); first person hides the player's own sphere
+	hc.setup(human, camera, Game.profile.get("defaultView") == AppearanceConst.VIEW_THIRD_PERSON)
 
 	# Run the local match over every seat: teams by seat (web teamOfSlot), bots hunting the nearest enemy.
 	var match_node := MatchNode.new()

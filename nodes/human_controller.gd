@@ -22,9 +22,11 @@ func _init() -> void:
 	_random.randomize()
 	_rng = _random.randf
 
-func setup(pnode: PlayerNode, camera: Camera3D) -> void:
+## `third_person`: the profile's default view (web HumanController defaultThirdPerson).
+func setup(pnode: PlayerNode, camera: Camera3D, third_person := false) -> void:
 	_pnode = pnode
 	_camera = camera
+	_third_person = third_person
 	_pnode.controller = self
 	_raycaster = WorldRaycaster.new(pnode.get_world_3d().direct_space_state)
 	_pnode.set_body_visible(_third_person)   # web: the first-person view hides the own model

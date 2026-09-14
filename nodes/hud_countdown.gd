@@ -37,6 +37,7 @@ func _ready() -> void:
 	var bold := FontVariation.new()
 	bold.base_font = UiFont.base()
 	bold.variation_embolden = EMBOLDEN
+	UiFont.mirror_fallbacks(bold)
 	_number.configure(bold, FONT_SIZE, COLOR)
 	_number.set_shadows([CssShadow.make(GLOW_BLUR, GLOW_COLOR)])
 	_apply()

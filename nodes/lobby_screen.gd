@@ -9,9 +9,6 @@ signal back_requested
 signal match_requested(setup: Dictionary)
 
 const TITLE_TEXT := "PLAY"                      # web en menuPlay
-const TITLE_FONT_SIZE := 24                     # h2, bold
-const TITLE_SPACING_EM := 0.2
-const TITLE_MARGIN_BOTTOM := 16.0               # 1rem
 const BODY_TOP_SHARE := 0.02                    # .lobby-body padding-top: 2vh
 const SECTION_GAP := 18.0                       # .lobby-opts padding / gap, .lobby-ogrp gap
 const LABEL_FONT_SIZE := 11                     # .lobby-ol
@@ -90,7 +87,8 @@ func _ready() -> void:
 	_content.name = "Content"
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scroll.add_child(_content)
-	_title = _label("Title", TITLE_TEXT, TITLE_FONT_SIZE, TITLE_SPACING_EM, UiTokens.ACCENT, true)
+	_title = MenuText.title("Title", TITLE_TEXT)
+	_content.add_child(_title)
 	_carousel = ModeCarousel.new()
 	_carousel.name = "Modes"
 	_content.add_child(_carousel)
@@ -199,7 +197,7 @@ func _layout() -> void:
 	_back.custom_minimum_size.x = width
 	_back.size = Vector2(width, UiButton.BUTTON_HEIGHT)
 	var y := get_viewport_rect().size.y * BODY_TOP_SHARE
-	y = _place(_title, 0.0, y) + TITLE_MARGIN_BOTTOM
+	y = _place(_title, 0.0, y) + MenuText.TITLE_MARGIN_BOTTOM
 	_carousel.position = Vector2(0.0, CssPixel.snap(y))
 	_carousel.size = Vector2(width, ModeCarousel.HEIGHT)
 	y += ModeCarousel.HEIGHT + SECTION_GAP
@@ -296,16 +294,7 @@ func _place(label: Label, x: float, y: float) -> float:
 	return y + box.y
 
 func _label(node_name: String, text: String, font_size: int, spacing_em: float, color: Color, bold := false) -> Label:
-	var label := Label.new()
-	label.name = node_name
-	label.text = text
-	var face := UiFont.bold_spaced(spacing_em, font_size) if bold else UiFont.spaced(spacing_em, font_size)
-	var font := UiFont.with_css_line(face, font_size)
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label := MenuText.label(node_name, text, font_size, spacing_em, color, bold)
 	_content.add_child(label)
 	return label
 

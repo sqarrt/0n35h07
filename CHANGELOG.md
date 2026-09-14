@@ -107,6 +107,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The menu glows with the music.** As in the original, the edges of the balls and planet rings on the menu stage
   light up with a soft glow that follows the music (the menu glow setting turns it off), and the menu panel softly
   blurs the scene behind it.
+- **Settings and About.** SETTINGS opens the original's settings: your name, the default first- or third-person view
+  (a match now starts in it), the language (remembered for when translations arrive), the volume sliders and the
+  graphics switches — every change is saved and applied at once. ABOUT shows the developer's links and the trailer
+  button. Russian and Chinese text in the interface now takes the same bold and letter spacing as Latin text.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

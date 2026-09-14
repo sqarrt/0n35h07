@@ -75,6 +75,26 @@ func test_play_opens_the_lobby_in_the_panel_and_back_returns() -> void:
 	assert_true(_control(menu, "Column").visible)
 	assert_null(menu.lobby())
 
+func test_settings_and_about_open_in_the_panel() -> void:
+	var menu := await _menu()
+	(_control(menu, "Settings") as UiButton).pressed.emit()
+	await wait_process_frames(1)
+	assert_true(menu.screen() is SettingsScreen, "web App screen 'settings'")
+	assert_false(_control(menu, "Column").visible)
+	assert_eq(menu.screen().get_global_rect(), Rect2(341.0, 32.0, 598.0, 656.0), "the padded panel column")
+	assert_eq(menu.backdrop().rig.state(), MenuCameraRig.DEFAULT, "the settings pose")
+	(menu.screen() as SettingsScreen).back_requested.emit()
+	await wait_process_frames(1)
+	assert_null(menu.screen())
+	assert_true(_control(menu, "Column").visible)
+	menu.open_about()
+	await wait_process_frames(1)
+	assert_true(menu.screen() is AboutScreen)
+	menu.open_lobby()
+	await wait_process_frames(1)
+	assert_null(menu.screen(), "PLAY replaces the open screen")
+	menu.close_lobby()
+
 func test_browser_layout_for_parity_captures() -> void:
 	var menu := await _menu()
 	menu.set_browser_layout(true)
