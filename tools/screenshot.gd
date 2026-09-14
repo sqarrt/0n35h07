@@ -35,6 +35,8 @@ extends SceneTree
 ##                     the facts.
 ##   lobby-<state>     the main menu scene with PLAY opened (web parity-capture-lobby.mjs): fresh, bot (a passive
 ##                     EX82R on seat 1), 2v2 or ffa; a -bottom suffix scrolls the body to its end. Use with profile:.
+##   team-<mode>       a Battle (2v2) or War (ffa) match from a lobby roster: the parity human on seat 0 and passive
+##                     bots B1..B3 (web parity-capture-teams.mjs); the team bar boxes join the facts. Use with profile:.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -71,6 +73,10 @@ const END_SETTLE_FRAMES := 12        # the 0.1 s fade and the column layout (at 
 const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
+const MODE_TEAM := "team-"
+const TEAM_BOT_SLOTS := [1, 2, 3]
+const TEAM_BOT_NAME := "B%d"
+const TEAM_BOXES := ["TeamBar", "TeamLeft", "TeamRight", "TotalLeft", "TotalRight", "Timer", "Row0", "Row1", "Row2", "Row3"]
 const MODE_LOBBY := "lobby-"
 const LOBBY_BOTTOM := "-bottom"
 const LOBBY_BOT_SLOT := 1
@@ -172,6 +178,9 @@ func _initialize() -> void:
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
+	if _mode.begins_with(MODE_TEAM) and g != null:   # the lobby's seats for a Battle / War match
+		_team_roster(g, _mode.trim_prefix(MODE_TEAM))
+		_passive_bot = false                          # the roster's passive bots already stand still
 	if _mode == MODE_HUD_STATS and g != null:   # web profile showFps / showSpeed
 		g.profile["showFps"] = true
 		g.profile["showSpeed"] = true
@@ -183,6 +192,14 @@ func _initialize() -> void:
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
+
+## web parity-capture-teams.mjs seats: the parity human on seat 0, passive bots B1..B3 on the others.
+func _team_roster(g: Node, mode: String) -> void:
+	var roster: Array = [Roster.human_entry(HUMAN_ID, g.get("profile"))]
+	for slot in TEAM_BOT_SLOTS:
+		roster.append(Roster.bot_entry(slot, TEAM_BOT_NAME % slot, RoomModel.PASSIVE_DIFFICULTY))
+	g.set("lobby_mode", mode)
+	g.set("lobby_roster", roster)
 
 func _style_mode() -> String:
 	for prefix in STYLE_MODES:
@@ -348,6 +365,15 @@ func _capture() -> void:
 		facts["stats"] = {"visible": stats_overlay.visible, "fps_text": stats_overlay.fps_text().label().text,
 			"speed_text": stats_overlay.speed_text().label().text, "fps": _rect(stats_overlay.fps_text()),
 			"graph": _rect(stats_overlay.graph()), "speed": _rect(stats_overlay.speed_text())}
+	for team_bar in root.find_children("*", "HudTeamBar", true, false):
+		var team_boxes := {}
+		for box_name in TEAM_BOXES:
+			var control := team_bar.find_child(box_name, true, false) as Control
+			if control == null and team_bar.name == box_name:
+				control = team_bar as Control
+			if control != null and control.is_visible_in_tree():
+				team_boxes[box_name] = _rect(control)
+		facts["HudTeamBar"] = team_boxes
 	for lobby in root.find_children("*", "LobbyScreen", true, false):
 		var lobby_boxes := {}
 		for box_name in LOBBY_BOXES:

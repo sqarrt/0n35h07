@@ -46,7 +46,6 @@ const BLEED := 28.0                             # .panel-fill--bleed --bleed
 const SCROLLBAR_PX := 5.0
 const SCROLLBAR_RADIUS := 3
 const SCROLLBAR_THUMB := Color(47.0 / 255.0, 111.0 / 255.0, 158.0 / 255.0, 0.35)
-const STARTABLE_MODES := [GameModes.DUEL]      # 2v2 / FFA matches arrive with the next lobby slice (L-b)
 const HALF := 0.5
 
 var room: RoomModel
@@ -144,7 +143,7 @@ func refresh() -> void:
 	for i in _time_segs.size():
 		_time_segs[i].set_on(MatchConst.MATCH_DURATIONS_MIN[i] in room.duration_sel)
 	_rebuild_seats()
-	_ready_button.set_enabled(room.can_start() and room.mode in STARTABLE_MODES)
+	_ready_button.set_enabled(room.can_start())
 	var others_seated := room.occupied().size() > 1
 	_back.text = LEAVE_TEXT if others_seated else BACK_TEXT
 	_layout()
