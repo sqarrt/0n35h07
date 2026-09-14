@@ -1,0 +1,67 @@
+{
+  "id": "2026-09-14-nameplates",
+  "title": "Сверка паритета OneShot · неймплейты над игроками в Battle и War",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс неймплейтов: web `game/fx/nameplate.ts` — billboard-табличка с именем над каждым игроком, кроме своего, в режимах Battle (фон — цвет команды) и War (нейтральный #ccc); прячется со смертью тела. Для читаемого кадра вражеский бот B2 ставится в 4 единицах перед камерой (web-хук `__debugPlace`, в Godot — та же фикстура).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-nameplates.json`. Web: `web-reference/scripts/parity-capture-nameplate.mjs` (`PARITY_MODE=2v2 | ffa`; матч как в parity-capture-teams.mjs, затем `__debugPlace(2, камера + взгляд × 4)`) → `test-results/parity-gpu-teams/web-nameplate-<mode>.png`. Godot: `tools/screenshot.gd` режим `profile:team-<mode>-plate` на `maps/os_arena.json`, кадр 300 → `godot-nameplate-<mode>.png`. Замеры: `tools/parity/measure.py read_png` (рамка таблички по пикселям ярче 90, образцы фона и текста); вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "nameplates",
+      "name": "Табличка над врагом в 4 единицах",
+      "verdict": "Неймплейты перенесены: табличка стоит на тех же пикселях, что в web (рамка 546,178–733,224/225 в обоих режимах), фон совпадает до 1–2 уровней (Battle 237,145,115 против 238,147,116; War 215,215,215 против 216,217,218), тёмный текст — один в один (56,64,79). Среднее отличие по табличке 3.6/255 (Battle) и 4.8/255 (War; за полупрозрачным фоном разная арена — случайные точки FFA).",
+      "verdict_short": "Неймплейты перенесены",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, кадр 300"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["матч", "Battle / War, PARITY7 + пассивные B1–B3", "то же через `Game.lobby_roster`"],
+        ["фикстура", "`__debugPlace(2, x, z)`: 4 ед. по горизонтали взгляда", "`place_at` бота 2 на 4 ед. по взгляду камеры"],
+        ["тесты", "—", "GUT 447/447, 4626 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Табличка Battle (увеличение ×3)", "wipe": true,
+          "note": "Фон — цвет команды #f53 при 85%, скругление 18, имя жирным моноширинным.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-plate-2v2.png", "note": "Фон (238, 147, 116), текст (57, 64, 79)."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-plate-2v2.png", "note": "Фон (237, 145, 115), текст (56, 64, 79); табличка 3.59/255."}
+          ]},
+        {"title": "Табличка War (увеличение ×3)", "wipe": true,
+          "note": "Нейтральный #ccc: в FFA цвет ничего не кодирует.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-plate-ffa.png", "note": "Фон (216, 217, 218)."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-plate-ffa.png", "note": "Фон (215, 215, 215); табличка 4.80/255."}
+          ]},
+        {"title": "Кадр Battle целиком", "wipe": true,
+          "note": "Бот B2 в 4 единицах перед камерой; табличка 1.35 над телом.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-plate-full-2v2.png", "note": "Камера (-0.9, 1.71, 16)."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-plate-full-2v2.png", "note": "Камера (-0.9, 1.7, 16)."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "LB5", "severity": "fixed",
+          "title": "Неймплейты над игроками в 2v2 / FFA",
+          "web": "`createNameplate`: холст 256×64 (скругление 18, фон цвета команды или #ccc с `globalAlpha` .85, `bold 34px monospace` #0a0d14, до 12 символов с «…»), спрайт 1.6×0.4 на высоте 1.35 без записи глубины; только вне 1v1 и не над своей моделью; прячется в `receiveHit`, возвращается в `respawnAt`.",
+          "godot": "`Nameplate` (Sprite3D billboard, текст из SubViewport, фон и композит — шейдер `nameplate`), `PlayerNode.set_nameplate` (видна при `player.alive`), выдача в `arena_boot`. Было: табличек не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/nameplate.gd", "assets/shaders/nameplate.gdshader", "nodes/player_node.gd", "nodes/arena_boot.gd", "tests/unit/test_nameplate.gd", "tests/unit/test_arena_modes.gd", "web-reference/src/game/fx/nameplate.ts"]
+        },
+        {
+          "id": "NP1", "severity": "fixed",
+          "title": "Цвета холста без цветового пространства",
+          "web": "`CanvasTexture` без `colorSpace`: three.js читает sRGB-числа холста как линейный свет — табличка светлее, текст серее авторских цветов (проверено предсказанием: фон 237,145,115 против замера 238,147,116).",
+          "godot": "Шейдер кладёт фон числами холста в линейном свете, текст — `linear_to_srgb` авторского цвета. Промежуточные попытки: прямые цвета давали фон (202, 67, 40); прозрачный 2D-вьюпорт умножал альфу в sRGB и затемнял фон на 9% — поэтому фон рисует шейдер.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["assets/shaders/nameplate.gdshader", "nodes/nameplate.gd"]
+        }
+      ],
+      "limitations": [
+        "Шрифт: Godot берёт системный Consolas Bold (Chrome `monospace` на Windows), сглаживание глифов отличается — остаток 2.3–3.4/255 внутри таблички.",
+        "War: фон арены за полупрозрачной табличкой различается (случайные стартовые точки FFA на каждой стороне).",
+        "Сравнение выполнено на одном расстоянии (4 ед.); вид издалека и перекрытие стенами (depth test) не снимались отдельно."
+      ]
+    }
+  ]
+}

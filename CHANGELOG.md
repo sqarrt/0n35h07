@@ -98,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   normal or passive. READY starts the match on the chosen map for the chosen time: a duel, a Battle of two teams of
   two starting side by side, or a four-player War from spread-out random spots, with every bot hunting its nearest
   enemy. With more than two players the top bar lists everyone's frags on two panes around the timer, with the team
-  totals in Battle.
+  totals in Battle, and every other player carries a name plate — in their team's colour in Battle, neutral grey in
+  War — that disappears while they are dead.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
