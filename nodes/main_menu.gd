@@ -207,6 +207,7 @@ func _start_match(setup: Dictionary) -> void:
 	Game.selected_map = MapCatalog.raw_path(setup["map_id"])
 	Game.match_duration_ms = setup["duration_min"] * MatchConst.MS_PER_MIN
 	Game.lobby_roster = setup["roster"]
+	Game.lobby_mode = setup["mode"]
 	get_tree().change_scene_to_file(ARENA)
 
 func _on_quit() -> void:

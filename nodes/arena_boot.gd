@@ -19,7 +19,14 @@ func _ready() -> void:
 	edges.enabled = bool(Game.profile.get("postProcessing", true))
 	add_child(edges)
 	add_child(MapLights.build())                     # web MapLights + the page background as the sky
-	var spawns := Spawns.positions_for([HUMAN_SLOT, BOT_SLOT], Spawns.from_raw(MapFiles.read_json(raw_path)))
+	# The lobby's seats and preset (web RoomSession start); tools without a lobby get the classic human vs bot.
+	var roster := _match_roster()
+	var mode: String = Game.lobby_mode if not Game.lobby_roster.is_empty() else GameModes.DUEL
+	var ids := roster.map(func(entry: Dictionary) -> int: return entry["id"])
+	var map_spawns := Spawns.from_raw(MapFiles.read_json(raw_path))
+	var ffa_spawns := Spawns.gen_ffa_spawns(ids.size(), (map_spawns[0] as Vector3).y, Game.random.randf) \
+		if mode == GameModes.WAR else []
+	var spawns := Spawns.positions_for_mode(mode, ids, map_spawns, ffa_spawns)
 
 	var human: PlayerNode = $Player
 	human.player.id = HUMAN_SLOT
@@ -28,23 +35,19 @@ func _ready() -> void:
 	var hc: HumanController = $HumanController
 	hc.setup(human, camera)   # first person hides the player's own sphere (the camera sits inside it)
 
-	# The lobby's bot seat when the match came from the lobby; tools keep the host's bot name and the default level.
-	var seat := _lobby_bot(BOT_SLOT)
-	var bot_name := ModelNames.bot_name(seat.get("name", Game.lobby_bot_name), Game.random.randf)
-	var difficulty: String = seat.get("difficulty", BOT_DIFFICULTY)
-	var bot := _spawn_bot(human, spawns[BOT_SLOT], bot_name, difficulty == RoomModel.PASSIVE_DIFFICULTY)
-
-	# Run the local match: human (team 0) vs bot (team 1).
+	# Run the local match over every seat: teams by seat (web teamOfSlot), bots hunting the nearest enemy.
 	var match_node := MatchNode.new()
 	match_node.set_duration_ms(Game.match_duration_ms)
 	match_node.local_id = HUMAN_SLOT
-	match_node.roster.add(Roster.human_entry(HUMAN_SLOT, Game.profile))
-	match_node.roster.add(Roster.bot_entry(BOT_SLOT, bot_name, difficulty))
+	var nodes := {}
+	for entry in roster:
+		match_node.roster.add(entry)
+		var id: int = entry["id"]
+		nodes[id] = human if id == HUMAN_SLOT else _spawn_bot(entry, spawns[id], match_node)
 	add_child(match_node)
-	human.apply_appearance(match_node.roster.entry(HUMAN_SLOT))
-	bot.apply_appearance(match_node.roster.entry(BOT_SLOT))
-	match_node.add_entity(human, HUMAN_TEAM)
-	match_node.add_entity(bot, BOT_TEAM)
+	for id in nodes:
+		nodes[id].apply_appearance(match_node.roster.entry(id))
+		match_node.add_entity(nodes[id], GameModes.team_of_slot(mode, id))
 	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera
 	match_node.singularity_changed.connect(func(active: bool) -> void: MapBlocks.set_transparent(get_tree(), active))
 
@@ -56,7 +59,7 @@ func _ready() -> void:
 	# Match sound: SFX transitions, combat and announce sounds, countdown / GO and the seeded match music.
 	var match_audio := MatchAudio.new()
 	add_child(match_audio)
-	match_audio.setup(match_node, [human, bot], HUMAN_SLOT, self)
+	match_audio.setup(match_node, nodes.values(), HUMAN_SLOT, self)
 
 	# Pause menu (web App): a live match without the pointer lock; the match keeps running under it.
 	var pause := PauseOverlay.new()
@@ -69,22 +72,26 @@ func _ready() -> void:
 	match_node.match_ended.connect(func(result: Dictionary) -> void:
 		ended.show_result(result, match_node.roster, match_node.streak_tiers()))
 
-## The lobby roster's bot on `slot`, {} without one (tools, tests).
-func _lobby_bot(slot: int) -> Dictionary:
-	for entry in Game.lobby_roster:
-		if entry["id"] == slot and entry["kind"] == Roster.KIND_BOT:
-			return entry
-	return {}
+## The lobby's seats in seat order; without a lobby (tools, tests) the profile's human and a bot named by the host
+## (generated when empty) at the default level.
+func _match_roster() -> Array:
+	if not Game.lobby_roster.is_empty():
+		var seats := Game.lobby_roster.duplicate()
+		seats.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["id"] < b["id"])
+		return seats
+	var bot_name := ModelNames.bot_name(Game.lobby_bot_name, Game.random.randf)
+	return [Roster.human_entry(HUMAN_SLOT, Game.profile), Roster.bot_entry(BOT_SLOT, bot_name, BOT_DIFFICULTY)]
 
-func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String, passive: bool) -> PlayerNode:
+func _spawn_bot(entry: Dictionary, spawn: Vector3, match_node: MatchNode) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()
-	bot.player.id = BOT_SLOT
+	bot.player.id = entry["id"]
 	bot.player.body.position = spawn   # PlayerNode._ready copies it into the physics body
 	bot.get_node("Camera3D").free()   # only the human's camera stays current
 	add_child(bot)
-	var get_target := func(): return human.player
+	var get_target := func(): return NearestEnemy.of(bot.player, match_node.players())
 	var los_rc := WorldRaycaster.new(get_world_3d().direct_space_state)
-	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, passive, BotPersonality.from_name(bot_name))
+	var passive: bool = entry.get("difficulty", BOT_DIFFICULTY) == RoomModel.PASSIVE_DIFFICULTY
+	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, passive, BotPersonality.from_name(entry["name"]))
 	bot_ctrl.set_self_exclude([bot.hitbox_rid()])
 	bot.controller = bot_ctrl
 	return bot
