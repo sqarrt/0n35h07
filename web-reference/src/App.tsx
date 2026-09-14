@@ -825,7 +825,8 @@ export default function App() {
   // Any live state without mouse capture is a pause (including when the first pointer lock failed: this case
   // used to be handled by a separate live "READY?" button, now there's one path — the overlay with "RESUME").
   const paused = screen === 'game' && !locked && hud.matchPhase === 'live'
-  const lockCooldownLeft = Math.max(0, lockReadyAt - now)
+  // __debugLockCooldownLeft (parity captures) freezes the RESUME cooldown at a fixed remainder.
+  const lockCooldownLeft = window.__debugLockCooldownLeft ?? Math.max(0, lockReadyAt - now)
   const resumeDisabled = lockCooldownLeft > 0
   // Pause sub-view: the menu, or the in-match Sound/Graphics settings panel. Reset to the menu
   // whenever the pause overlay closes (resume / leave), so re-pausing always opens the menu first.

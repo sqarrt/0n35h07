@@ -110,7 +110,7 @@ func _layout() -> void:
 	if _show_fps:
 		_place_text(_fps_text, y, line_box)
 		y += line_box + GAP_PX
-		_graph.position = Vector2(LEFT, _whole_pixel(y))
+		_graph.position = Vector2(LEFT, CssPixel.snap(y))
 		y += StatsModel.GRAPH_H + GAP_PX
 	if _show_speed:
 		_place_text(_speed_text, y, line_box)
@@ -119,12 +119,8 @@ func _layout() -> void:
 ## (half-leading) and the baseline itself rounded to a pixel.
 func _place_text(text: GlowText, box_top: float, line_box: float) -> void:
 	var ascent := text.label().get_theme_font("font").get_ascent(FONT_SIZE)
-	var baseline := _whole_pixel(_whole_pixel(box_top) + (line_box - text.size.y) * HALF + ascent)
+	var baseline := CssPixel.snap(CssPixel.snap(box_top) + (line_box - text.size.y) * HALF + ascent)
 	text.position = Vector2(LEFT, baseline - ascent)
-
-## Chrome snaps fractional layout box offsets to device pixels, a half going down the page.
-static func _whole_pixel(value: float) -> float:
-	return floorf(value + HALF)
 
 func _text(node_name: String) -> GlowText:
 	var text := GlowText.new()
