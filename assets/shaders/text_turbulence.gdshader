@@ -12,6 +12,7 @@ uniform float seed = 0.0;
 uniform vec2 box_origin_px = vec2(0.0);
 uniform vec2 region_origin_px = vec2(0.0);
 uniform vec2 region_size_px = vec2(1.0);
+uniform float px_scale = 1.0;           // texture pixels per CSS px: the composite renders at the Windows scale
 
 const float NOISE_HALF = 0.5;
 const float OCTAVE_GAIN = 0.5;
@@ -61,7 +62,7 @@ vec4 faded(vec4 premultiplied) {
 }
 
 void fragment() {
-	vec2 texture_px = 1.0 / TEXTURE_PIXEL_SIZE;
+	vec2 texture_px = 1.0 / TEXTURE_PIXEL_SIZE / px_scale;   // the composite's size in CSS px
 	vec2 p = UV * texture_px;
 	if (scale_px <= 0.0) {
 		COLOR = faded(texture(TEXTURE, UV));

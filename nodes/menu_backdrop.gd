@@ -273,9 +273,9 @@ func _add_view() -> void:
 	add_child(_view)
 	_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-## web Canvas: the scene renders at the backdrop's size (the old SubViewportContainer stretch).
+## web Canvas: the scene renders at the backdrop's size in device pixels (dpr [1, 2] — the Windows scale).
 func _fit() -> void:
-	var pixels := Vector2i(maxi(roundi(size.x), 1), maxi(roundi(size.y), 1))
+	var pixels := UiScale.device_size(size, UiScale.of(self))
 	_viewport.size = pixels
 	_glow.set_size(pixels)
 

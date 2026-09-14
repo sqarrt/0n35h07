@@ -158,8 +158,15 @@ func _apply() -> void:
 	var pad := maxi(_glow.padding(), StreakFx.ARC_REACH_PX)
 	var origin := Vector2.ONE * pad
 	var composite_size := Vector2i(box.ceil()) + Vector2i.ONE * 2 * pad
-	if _composite.size != composite_size:
-		_composite.size = composite_size
+	# web draws the text at the device pixel ratio: the composite renders at the Windows scale, shown at CSS size
+	var scale := UiScale.of(self)
+	var device := UiScale.device_size(Vector2(composite_size), scale)
+	if _composite.size != device:
+		_composite.size = device
+	if _composite.is_inside_tree() and not is_equal_approx(_composite.canvas_transform.get_scale().x, scale):
+		_composite.canvas_transform = Transform2D.IDENTITY.scaled(Vector2.ONE * scale)   # needs the viewport's canvas
+		_composite.oversampling_override = scale
+	(_display.material as ShaderMaterial).set_shader_parameter("px_scale", scale)
 	_glow.position = origin
 	_apply_glitches(origin, box)
 	_apply_sparks(origin, box)

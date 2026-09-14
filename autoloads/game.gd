@@ -17,6 +17,7 @@ var room: RoomSession = null                       # the lobby's room while it's
 var match_setup := {}                              # the room's START: owners, spawns, local id, seed, peer; {} = tools
 
 const LOCAL_PEER := "local"                        # the transport id of a room nobody else has joined (web selfPeer)
+const HEADLESS_DISPLAY := "headless"               # DisplayServer.get_name() of a --headless run
 
 ## Leave the room: its transport closes and the match facts go (web leaveRoom).
 func leave_room() -> void:
@@ -26,6 +27,8 @@ func leave_room() -> void:
 	match_setup = {}
 
 func _ready() -> void:
+	DisplayStartup.start(get_tree().root, OS.get_cmdline_args(), DisplayServer.get_name() == HEADLESS_DISPLAY,
+		DisplayServer.screen_get_dpi())
 	random.randomize()
 	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
 		profile = ProfileStore.load_profile(random.randf)
