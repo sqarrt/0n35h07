@@ -12,19 +12,24 @@ var gap := 0.0:
 		queue_sort()
 
 var _margins := {}   # child -> Vector2(margin top, margin bottom)
+var _left_margins := {}   # child -> margin left (part of the centred width)
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-## Append a child with its CSS vertical margins.
-func add(child: Control, margin_top := 0.0, margin_bottom := 0.0) -> void:
+## Append a child with its CSS margins (vertical, and a left one that joins the centred width).
+func add(child: Control, margin_top := 0.0, margin_bottom := 0.0, margin_left := 0.0) -> void:
 	_margins[child] = Vector2(margin_top, margin_bottom)
+	_left_margins[child] = margin_left
 	add_child(child)
 	update_minimum_size()
 	queue_sort()
 
 func margins_of(child: Node) -> Vector2:
 	return _margins.get(child, Vector2.ZERO)
+
+func margin_left_of(child: Node) -> float:
+	return _left_margins.get(child, 0.0)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_SORT_CHILDREN:
@@ -33,7 +38,7 @@ func _notification(what: int) -> void:
 func _get_minimum_size() -> Vector2:
 	var width := 0.0
 	for child in _boxes():
-		width = maxf(width, child.get_combined_minimum_size().x)
+		width = maxf(width, margin_left_of(child) + child.get_combined_minimum_size().x)
 	return Vector2(width, _content_height())
 
 func _boxes() -> Array[Control]:
@@ -57,6 +62,7 @@ func _sort() -> void:
 	for child in _boxes():
 		var margins := margins_of(child)
 		var box := child.get_combined_minimum_size()
+		var left := margin_left_of(child)
 		y += margins.x
-		fit_child_in_rect(child, Rect2(CssPixel.snap((size.x - box.x) * HALF), CssPixel.snap(y), box.x, box.y))
+		fit_child_in_rect(child, Rect2(CssPixel.snap((size.x - box.x - left) * HALF + left), CssPixel.snap(y), box.x, box.y))
 		y += box.y + margins.y + gap

@@ -43,6 +43,14 @@ func test_margins_add_up_and_the_column_is_centred() -> void:
 		"adjacent margins add up (flex items don't collapse them)")
 	assert_eq(first.size, BUTTON, "children keep their minimum size")
 
+func test_a_left_margin_joins_the_centred_width() -> void:
+	var column := _column()
+	var logo := _box(Vector2(376.0, 72.0))
+	column.add(logo, 0.0, 16.0, 19.2)
+	await wait_process_frames(2)
+	assert_almost_eq(logo.position.x, floorf((SCREEN.x - (376.0 + 19.2)) * 0.5 + 19.2 + 0.5), EPS,
+		"web h1 margin-left 0.3em: the margin box is centred, the text sits after the margin")
+
 func test_gap_sits_between_boxes() -> void:
 	var column := _column()
 	column.gap = 26.0
