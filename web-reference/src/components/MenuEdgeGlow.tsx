@@ -161,7 +161,8 @@ export function MenuEdgeGlow({ analysis, muted = false, enabled = true, softBloo
   const fade = useRef(0)
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1)
-    const level = analysis?.level() ?? 0
+    // Parity captures: __debugMenuGlowLevel pins the audio level (the music makes the glow non-deterministic).
+    const level = window.__debugMenuGlowLevel ?? analysis?.level() ?? 0
     // Edge outline brightness — reacts to music (√x perceptual), amplified during radio.
     const tgt = muted ? 0 : Math.min(1, Math.sqrt(level * LEVEL_GAIN))
     lvl.current += (tgt - lvl.current) * GLOW_SMOOTH

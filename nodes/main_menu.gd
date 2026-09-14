@@ -45,6 +45,7 @@ const HALF := 0.5
 var _panel: Panel
 var _column: CssColumn
 var _lobby: LobbyScreen
+var _backdrop: MenuBackdrop
 var _buttons: Array[UiButton] = []
 var _quit: UiButton
 var _hint: Label
@@ -59,6 +60,9 @@ func _ready() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_backdrop = MenuBackdrop.new()                   # web App: the persistent 3D backdrop under the menu panel
+	add_child(_backdrop)
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_panel = Panel.new()
 	_panel.name = "Panel"
 	_panel.add_theme_stylebox_override("panel", _panel_box())
@@ -101,6 +105,8 @@ func open_lobby() -> void:
 	_lobby.back_requested.connect(close_lobby)
 	_lobby.match_requested.connect(_start_match)
 	_column.visible = false
+	_show_room(room)
+	room.changed.connect(_show_room.bind(room))
 	_layout()
 
 ## BACK / LEAVE: the room closes, the menu returns.
@@ -109,6 +115,17 @@ func close_lobby() -> void:
 		_lobby.queue_free()
 		_lobby = null
 	_column.visible = true
+	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
+
+func backdrop() -> MenuBackdrop:
+	return _backdrop
+
+## web App: the lobby backdrop shows the room's seats and frames the preset (Duel pair / Battle-War square).
+func _show_room(room: RoomModel) -> void:
+	_backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_LOBBY, MenuStage.profile_spec(Game.profile), room.occupied(),
+		RoomModel.HOST_SLOT))
 
 func lobby() -> LobbyScreen:
 	return _lobby

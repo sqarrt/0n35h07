@@ -1,0 +1,149 @@
+{
+  "id": "2026-09-14-menu-backdrop",
+  "title": "Сверка паритета OneShot · 3D-фон меню и шары лобби",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс 3D-фона меню: web `components/MenuBackdrop` — прозрачная 3D-сцена под панелью меню. Кадр строит только камера (позы `menuCameraPoses.json` с демпфированием). Свет — ambient 0.4 и направленный из (10, 10, 5), медленно облетающий сцену. На сцене стоят шары: в меню — свой, в лобби — каждое занятое место на своей точке (`computeBalls`, `STAGE_SPOTS`). Для детерминированных кадров добавлены web-хуки: `__debugMenuLightAngle` (угол света), `__debugMenuGlowLevel` (уровень звука для свечения краёв), `__debugMenuBallTime` (часы шейдера шаров: форма волн и полосы кольца).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-menu-backdrop.json`. Web: `web-reference/scripts/parity-capture-menu-ball.mjs` (меню целиком и без UI при свете 0° и 90°), `parity-capture-lobby-stage.mjs` (Duel с пассивным EX82R на месте 1, War с B1–B3 на местах 1–3; UI скрыт, свет 0, свечение 0, часы шаров 1 с) → `test-results/parity-gpu-menu/web-*.png`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режимы `profile:menu-ball-<deg>`, `profile:menu-full-0`, `profile:stage-bot`, `profile:stage-ffa` (90 кадров) → `godot-*.png`. Замеры: среднее отличие каналов по кадру и по рамкам (`tools/parity/measure.py read_png`), вырезки — `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "menu-ball",
+      "name": "Свой шар в меню",
+      "verdict": "Фон меню перенесён: поза камеры, свет и шар совпадают. Кадр без UI отличается в среднем на 0.04/255 при свете 0° и на 0.02/255 при 90°. Диск шара занимает одну и ту же рамку (323,28)–(960,665). Пиксели с отличием больше 16 уровней лежат только на сглаженном контуре: 276 и 252 штуки.",
+      "verdict_short": "Шар и свет совпадают",
+      "conditions": [
+        ["экран", "главное меню, профиль PARITY7 #fa4 / #4af", "`scenes/main_menu.tscn`, тот же профиль в памяти"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, 90 кадров"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["фикстура", "`.screen` и `.version-chip` скрыты, `__debugMenuLightAngle` = 0 / π/2", "`Panel` и `Version` скрыты, `set_light_angle(0 / π/2)`"],
+        ["тесты", "—", "GUT 464/464"]
+      ],
+      "comparisons": [
+        {"title": "Свет 0°", "wipe": true,
+          "note": "Камера в позе default, шар на точке (0, 1.7, 0), лицом к камере.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-menu-ball-0.png", "note": "Внутри контура (100, 64, 21)."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-menu-ball-0.png", "note": "Кадр 0.04/255."}
+          ]},
+        {"title": "Свет 90°", "wipe": true,
+          "note": "Направленный свет повернут на четверть орбиты.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-menu-ball-90.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-menu-ball-90.png", "note": "Кадр 0.02/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MB1", "severity": "fixed",
+          "title": "3D-фон меню с шаром игрока",
+          "web": "`MenuBackdrop`: Canvas (fov 45, alpha), `CameraRig` по позам экрана (демпфирование τ 0.06), ambient 0.4, `OrbitingLight` (10, 10, 5) со скоростью 0.6 рад/с, `StageBall` — игровой `Body` в полный размер: 4 кадра прогрева, проявление τ 0.13, рост за 125 мс.",
+          "godot": "`MenuBackdrop` (SubViewportContainer, свой прозрачный мир, MSAA 4×), `MenuCameraRig` (позы — байтовая копия JSON), `MenuStageBall`; свет поделён на π, как `MapLights`. Было: фона не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/menu_backdrop.gd", "sim/menu_camera_rig.gd", "sim/menu_stage_ball.gd", "assets/menu/menu_camera_poses.json", "tests/unit/test_menu_backdrop.gd", "tests/unit/test_menu_camera_rig.gd", "tests/unit/test_menu_stage_ball.gd", "web-reference/src/components/MenuBackdrop.tsx"]
+        }
+      ],
+      "limitations": [
+        "Облёт света проверен в двух углах (0° и 90°); плавность вращения и демпфирование камеры сверены юнит-тестами, а не кадрами."
+      ]
+    },
+    {
+      "slug": "lobby-stage",
+      "name": "Шары мест в лобби",
+      "verdict": "Шары лобби перенесены. Duel с ботом EX82R: кадр отличается на 0.10/255 (поза пары, волновая модель бота). War с B1–B3: 0.03/255 (поза квадрата). На кольце планеты отличие 0.08/255. До исправления композита кольцо отличалось на 11.5/255.",
+      "verdict_short": "Места лобби совпадают",
+      "conditions": [
+        ["экран", "PLAY → комната Duel / War", "`open_lobby`, `RoomModel.add_bot` / `set_mode`"],
+        ["боты", "пассивные EX82R (место 1) и B1–B3 (места 1–3)", "то же"],
+        ["фикстура", "UI, чип версии и `.map-bg` скрыты; свет 0; `__debugMenuGlowLevel` 0; `__debugMenuBallTime` 1 с", "`Panel`, `Version`, `LobbyScreen` скрыты; `set_light_angle(0)`; `pin_ball_time(1)`"],
+        ["ожидание", "1.5 с после добавления ботов", "90 кадров"]
+      ],
+      "comparisons": [
+        {"title": "Duel: вы и бот EX82R", "wipe": true,
+          "note": "Поза камеры room (пара на точках 0 и 1), бот — модель waves.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-stage-bot.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-stage-bot.png", "note": "Кадр 0.10/255."}
+          ]},
+        {"title": "War: четыре места", "wipe": true,
+          "note": "Поза lobby4, точки квадрата 1.8 м.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-stage-ffa.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-stage-ffa.png", "note": "Кадр 0.03/255."}
+          ]},
+        {"title": "Кольцо планеты (увеличение ×2)", "wipe": true,
+          "note": "Полупрозрачное кольцо над пустым фоном — проверка композита.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-ring.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-ring.png", "note": "Рамка кольца 0.08/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MB2", "severity": "fixed",
+          "title": "Шары комнаты на сцене лобби",
+          "web": "`computeBalls`: в лобби — каждое занятое место на `STAGE_SPOTS[id]`. Свой шар сохраняет ключ `player` и кольцо профиля; до ASSIGN свой — место хоста. `Scene`: новые ключи на тёплой сцене проявляются сразу, ушедшие уменьшаются и снимаются через 400 мс, цвет сглаживается (τ 0.067).",
+          "godot": "`MenuStage.balls` + `MenuBackdrop.set_balls` (записи по ключу, `MenuStageBall` с остатком прогрева), `MainMenu._show_room` на `room.changed`. Было: в лобби стоял только свой шар.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/menu_stage.gd", "nodes/menu_backdrop.gd", "nodes/main_menu.gd", "tests/unit/test_menu_stage.gd", "tests/unit/test_menu_backdrop_room.gd", "web-reference/src/components/menuBalls.ts"]
+        },
+        {
+          "id": "MB3", "severity": "fixed",
+          "title": "Полупрозрачные пиксели фона темнее",
+          "web": "Canvas `alpha: true` с `premultipliedAlpha`: кольцо поверх пустоты хранится как c·a и ложится на страницу как rgb + фон·(1 − a).",
+          "godot": "Контейнер выводит вьюпорт шейдером `premultiplied_viewport` (`blend_premul_alpha`). Было: обычное смешивание умножало на альфу второй раз — светлые полосы кольца уже, промежутки темнее (11.5/255 по кольцу).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["assets/shaders/premultiplied_viewport.gdshader", "nodes/menu_backdrop.gd", "tests/unit/test_menu_backdrop.gd"]
+        }
+      ],
+      "limitations": [
+        "Часы шейдера шаров закреплены хуком с обеих сторон: без него фаза волн и полос зависит от времени монтирования.",
+        "Смена модели и цвета на экране внешности не снималась (экран APPEARANCE ещё не перенесён). Плавность цвета и уход шара проверены юнит-тестами."
+      ]
+    },
+    {
+      "slug": "open",
+      "name": "Что ещё не перенесено",
+      "verdict": "Остались два эффекта фона: свечение краёв `MenuEdgeGlow` (зависит от музыки) и размытие под панелью (`backdrop-filter: blur(2px)`). Оба видны на кадрах ниже и вынесены в следующий слайс.",
+      "verdict_short": "Свечение и размытие открыты",
+      "conditions": [
+        ["свечение", "`__debugMenuGlowLevel` = 1 (полный уровень)", "—"],
+        ["панель", "меню целиком, свет 0°", "`profile:menu-full-0`"]
+      ],
+      "comparisons": [
+        {"title": "Свечение краёв при громкой музыке (только web)",
+          "note": "Разрыв глубины слоя моделей → яркий HDR-контур цвета модели → Bloom с порогом 1.1. В тишине свечения нет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-stage-ffa-glow-1.png", "note": "Уровень 1."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-stage-ffa.png", "note": "Свечения нет."}
+          ]},
+        {"title": "Край шара под панелью (увеличение ×3)", "wipe": true,
+          "note": "Панель меню размывает фон под собой на 2 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-menu-full-edge.png", "note": "Край мягкий."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-menu-full-edge.png", "note": "Край резкий; рамка шара 0.94/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MB4", "severity": "high",
+          "title": "Нет свечения краёв моделей",
+          "web": "`MenuEdgeGlow`: глубина слоя моделей (кольцо пишет глубину), контур по разрыву глубины (8 точек на радиусе 4 px, порог 0.05), цвет модели + 15% белого × 4, уровень √(RMS·3.2) со сглаживанием 0.18, Bloom (порог 1.1, радиус 0.55, сила 1.5).",
+          "godot": "Не перенесено.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MenuEdgeGlow.tsx"]
+        },
+        {
+          "id": "MB5", "severity": "medium",
+          "title": "Нет размытия фона под панелью",
+          "web": "`.panel-fill`: `backdrop-filter: blur(2px)` поверх 3D-фона.",
+          "godot": "Панель рисует только заливку .72 — край шара за ней резкий.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/main_menu.gd", "web-reference/src/ui/theme.css"]
+        }
+      ],
+      "limitations": [
+        "Свечение в web зависит от живого уровня музыки; для сверки его придётся закреплять хуком `__debugMenuGlowLevel` с обеих сторон."
+      ]
+    }
+  ]
+}

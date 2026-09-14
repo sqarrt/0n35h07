@@ -93,7 +93,12 @@ const flying = { current: false }
 /** The light slowly orbits the balls — the highlight glides, the models read as "living" 3D. */
 function OrbitingLight() {
   const ref = useRef<THREE.Group>(null)
-  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += PREVIEW_SPIN_SPEED * dt })
+  useFrame((_, dt) => {
+    if (!ref.current) return
+    // Parity captures: __debugMenuLightAngle pins the orbit (radians) instead of advancing it.
+    const pinned = window.__debugMenuLightAngle
+    ref.current.rotation.y = pinned ?? ref.current.rotation.y + PREVIEW_SPIN_SPEED * dt
+  })
   return (
     <group ref={ref}>
       <directionalLight position={[10, 10, 5]} intensity={1} />
@@ -325,6 +330,16 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
   const aimDirRef = useRef<THREE.Vector3 | null>(null)
   const frameRef = useRef<{ progress: number; shrink: number; baseColor: THREE.Color; aimDir: THREE.Vector3; origin: THREE.Vector3; visible: boolean } | null>(null)
   const opacityRef = useRef(0)
+  // Parity captures: __debugMenuBallTime pins the shader clock (wave shape, ring band drift) instead of advancing it.
+  // The clock belongs to the Body: a model change rebuilds it with its shader time back at 0.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const shaderTime = useMemo(() => ({ value: 0 }), [body])
+  const tickShader = (dt: number) => {
+    const pinned = window.__debugMenuBallTime
+    const step = pinned !== undefined ? pinned - shaderTime.value : dt
+    shaderTime.value += step
+    body.tickShader(step)
+  }
   const camera = useThree(s => s.camera)
 
   const targetColor = useMemo(() => new THREE.Color(spec.color), [spec.color])
@@ -344,7 +359,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       dampedColor.copy(targetColor)
       body.setOpacity(0)
       body.setRingColor(targetRingColor)
-      body.tickShader(dt)
+      tickShader(dt)
       return
     }
     const kf = 1 - Math.exp(-dt / FADE_TAU)
@@ -354,7 +369,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (!fx) body.material.color.copy(dampedColor)   // without a preview we own the color ourselves
     body.setOpacity(opacityRef.current)
     body.lerpRingColor(targetRingColor, kc)
-    body.tickShader(dt)
+    tickShader(dt)
 
     // Appear/leave scale, mirrored: fast un-shrink on arrival, fast shrink while exiting.
     if (spawnAge.current === null) spawnAge.current = 0
