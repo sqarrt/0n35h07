@@ -161,9 +161,13 @@ GUT 779/779. **R2a смержен** (`feature/godot-radio-player`): автоза
 мини-плеер `nodes/radio/radio_player.gd` на общем `GlassCard` (вынесен из `InviteToast`); `CssButton.css_line_height`
 центрирует strut неокруглёнными ascent/descent UI-шрифта (символы ⏮⏸⏭ Segoe UI Symbol). Кадры: режим
 `radio-<ready|playing>` в `tools/screenshot.gd`, web `parity-capture-radio-player.mjs`. Отчёт `2026-09-15-radio-player-*`:
-окно 0.85/2.15, весь экран 0.65/1.80 /255. GUT 798/798. **Дальше:** (1) R2b — права (`entitlement.ts`, DLC
-`SteamBridge.owns_app` 4904970, пробная полоса, магазин в оверлее); затем R3 экран радио, R4 библиотека, R5
-матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+окно 0.85/2.15, весь экран 0.65/1.80 /255. GUT 798/798. **R2b смержен** (`feature/godot-radio-entitlement`):
+`RadioEntitlement` (оракул `export-radio-entitlement.mjs`, 144 случая), `RadioRights` (кэш `radioDlcOwned`, счёт
+`radioTrial`), `Radio`: `gate` до `init`, `generated` → счёт + сохранение, открытие гейта → `resume`, перепроверка DLC
+по `SteamBridge.overlay_closed` и фокусу окна, `open_store()` (`steam://store/4904970`). Живая проба
+`tools/probes/radio_gate_probe.gd`. Отчёт `2026-09-15-radio-entitlement-*`. GUT 821/821. **Дальше:** (1) R3 экран
+радио (развёрнутый плеер + пробная полоса `RadioRights.trial_strip`, панель кода, визуализатор, takeover), R4
+библиотека (лимит сохранений `note_saved`), R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

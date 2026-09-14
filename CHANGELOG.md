@@ -41,7 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The RADIO button and the docked Radio player.** The main menu has the original's RADIO entry and, in its corner,
   the glass mini-player with the track name and prev / play-pause / next; it warms the engine up on the menu, dims until
   the engine is ready, remembers whether the Radio is on and keeps the menu music quiet while it plays. Track names are
-  the original's, seed for seed. The Radio screen, library and DLC trial come next.
+  the original's, seed for seed. The Radio screen and library come next.
+- **The Radio's free daily trial.** As in the original's Steam build, without the Radio DLC the Radio makes 10 new
+  tracks a day (the count starts over at local midnight; setting the clock back does not reset it) and then stops;
+  owning the DLC — asked of Steam when the menu opens and again when the Steam overlay closes or the game window gets
+  focus back — lifts the limit and resumes the stream. The trial strip and the store button come with the Radio screen.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

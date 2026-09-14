@@ -8,13 +8,16 @@ extends Node
 signal net_event(event: Dictionary)
 signal invite_received(inviter_name: String, inviter_id: String, lobby_id: String)
 signal invite_declined(decliner_id: String)
+signal overlay_closed                                   # web "radio-recheck-dlc": the store may have sold the DLC
 
 const DECLINE_MARKER := "__oneshot_invite_declined__"   # web DECLINE_MARKER: never a JSON match message
 const RP_CONNECT_KEY := "connect"                       # web RP_CONNECT_KEY: makes a friend "Joinable"
 const CONNECT_LOBBY_ARG := "+connect_lobby"             # web: Steam's invite-accept launch parameter
 const RADIO_DLC_APP_ID := 4904970                       # web RADIO_DLC_APPID
+const STORE_URL := "steam://store/%d"                   # web open_radio_store: the Steam client's own store window
 
 var api = SteamApi.new()                               # a fake stands in for tests (set before the node enters)
+var open_url := Callable(OS, "shell_open")              # tests record the URL instead of opening it
 var lobby_id := 0                                       # the lobby we are in (0: none)
 var pending_join := ""                                  # the last "Join game" nobody took (it came during a match)
 
@@ -35,6 +38,9 @@ func _ready() -> void:
 	api.lobby_invite.connect(func(inviter: int, id: int) -> void:
 		invite_received.emit(api.friend_name(inviter), str(inviter), str(id)))
 	api.session_requested.connect(func(steam_id: int) -> void: api.accept_session(steam_id))
+	api.overlay_toggled.connect(func(active: bool) -> void:
+		if not active:
+			overlay_closed.emit())
 
 func _process(_delta: float) -> void:
 	for message in api.receive():
@@ -134,6 +140,11 @@ func cloud_delete(file_name: String) -> bool:
 
 func radio_dlc_owned() -> bool:
 	return api.owns_app(RADIO_DLC_APP_ID)
+
+## The Radio DLC's store page in the Steam client (web open_radio_store: a steam:// URL, not the in-game overlay,
+## which cannot draw over the WebView; the OS hands it to Steam even when the SDK is not up).
+func open_radio_store() -> void:
+	open_url.call(STORE_URL % RADIO_DLC_APP_ID)
 
 ## The lobby id after "+connect_lobby" in a command line (digits only), or "".
 static func parse_connect_lobby(command_line: String) -> String:
