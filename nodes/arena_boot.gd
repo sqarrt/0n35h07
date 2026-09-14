@@ -70,6 +70,11 @@ func _ready() -> void:
 	# Pause menu (web App): a live match without the pointer lock; the match keeps running under it.
 	var pause := PauseOverlay.new()
 	pause.setup(match_node.is_live)
+	pause.profile = Game.profile
+	pause.profile_changed.connect(func(profile: Dictionary) -> void:   # web persist: saveProfile + live apply
+		ProfileStore.save_profile(profile, Game.random.randf)
+		Audio.apply_volumes()
+		edges.set_enabled(bool(profile.get("postProcessing", true))))
 	add_child(pause)
 
 	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; the match is no longer live, so no pause.
