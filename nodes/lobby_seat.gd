@@ -39,7 +39,11 @@ const CANCEL_PADDING := 2.0
 const DIFFICULTY_GAP := 4
 const DIFFICULTIES := {"normal": "NORMAL", "passive": "PASSIVE"}   # web en roomDiffNormal / roomDiffPassive
 const READY_RING_PX := 1                        # box-shadow: 0 0 0 1px <colour>
-const READY_GLOW_SIZE := 16                     # 0 0 20px -4px <colour>, as the box's soft shadow
+const READY_GLOW_BLUR := 20.0                   # box-shadow: 0 0 20px -4px <colour>
+const READY_GLOW_SPREAD := -4.0
+const GLOW_REACH_SIGMAS := 3.0                  # the glow quad reaches three sigmas past its box
+const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
+const ARC_POINTS := 8
 const HALF := 0.5
 
 ## A name with Chrome's `text-decoration: underline` 5 px under the baseline.
@@ -70,6 +74,7 @@ var _host := true
 var _nodes: Array[Control] = []
 var _column: CssColumn
 var _cancel: Button
+var _glow: ColorRect
 
 ## Show the seat: `entry` a roster entry or null (free), whose it is, readiness and whether we host.
 func show_seat(entry, mine: bool, ready: bool, host: bool) -> void:
@@ -96,9 +101,13 @@ func show_seat(entry, mine: bool, ready: bool, host: bool) -> void:
 		var nick := _nick(entry["name"], Color(entry["color"]))
 		nick.underline = mine
 		_column.add(nick)
+	_ensure_glow().visible = not is_dashed()
 	update_minimum_size()
 	_layout()
 	queue_redraw()
+
+func glow() -> ColorRect:
+	return _ensure_glow()
 
 func is_dashed() -> bool:
 	return not (_is_ready and _entry != null)
@@ -125,8 +134,6 @@ func _draw() -> void:
 	if not is_dashed():
 		card.border_color = color
 		card.set_border_width_all(int(BORDER_PX))
-		card.shadow_color = color
-		card.shadow_size = READY_GLOW_SIZE
 	draw_style_box(card, Rect2(Vector2.ZERO, size))
 	if is_dashed():
 		draw_dashes(self, Rect2(Vector2.ZERO, size), BORDER_PX, float(RADIUS), color)
@@ -147,6 +154,18 @@ static func draw_dashes(canvas: CanvasItem, rect: Rect2, width: float, radius: f
 	for dash in CssDashedBorder.dashes(rect.size.y, width, radius):
 		canvas.draw_rect(Rect2(rect.position.x, rect.position.y + dash.x, width, dash.y - dash.x), color)
 		canvas.draw_rect(Rect2(rect.end.x - width, rect.position.y + dash.x, width, dash.y - dash.x), color)
+	if radius <= 0.0:
+		return
+	# Chrome keeps the rounded corners drawn: a quarter arc along the border's middle line at each corner.
+	var arc_radius := radius - width * HALF
+	var corners := [
+		[Vector2(radius, radius), PI, PI * 1.5],
+		[Vector2(rect.size.x - radius, radius), PI * 1.5, TAU],
+		[Vector2(rect.size.x - radius, rect.size.y - radius), 0.0, PI * HALF],
+		[Vector2(radius, rect.size.y - radius), PI * HALF, PI],
+	]
+	for corner in corners:
+		canvas.draw_arc(rect.position + corner[0], arc_radius, corner[1], corner[2], ARC_POINTS, color, width, true)
 
 func _is_host_bot() -> bool:
 	return _host and _entry != null and _entry["kind"] == Roster.KIND_BOT
@@ -169,6 +188,36 @@ func _layout() -> void:
 		var box := _cancel.get_combined_minimum_size()
 		_cancel.size = box
 		_cancel.position = Vector2(size.x - CANCEL_INSET.x - box.x, CANCEL_INSET.y)
+	_layout_glow()
+
+## The ready glow (box-shadow 0 0 20px -4px): the analytic blurred box, inset by the negative spread, behind the card.
+func _layout_glow() -> void:
+	if _glow == null or not _glow.visible or _entry == null:
+		return
+	var sigma := CssShadow.sigma(READY_GLOW_BLUR)
+	var pad := sigma * GLOW_REACH_SIGMAS
+	var box := size + Vector2.ONE * 2.0 * READY_GLOW_SPREAD
+	_glow.position = Vector2.ONE * (-READY_GLOW_SPREAD - pad)
+	_glow.size = box + Vector2.ONE * 2.0 * pad
+	var material := _glow.material as ShaderMaterial
+	material.set_shader_parameter("box_px", box)
+	material.set_shader_parameter("pad_px", pad)
+	material.set_shader_parameter("sigma", sigma)
+	material.set_shader_parameter("glow_color", Color(_entry["color"]))
+
+func _ensure_glow() -> ColorRect:
+	if _glow == null:
+		_glow = ColorRect.new()
+		_glow.name = "Glow"
+		_glow.show_behind_parent = true
+		_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var material := ShaderMaterial.new()
+		material.shader = GLOW_SHADER
+		material.set_shader_parameter("core_color", Color.TRANSPARENT)
+		_glow.material = material
+		_glow.visible = false
+		add_child(_glow)
+	return _glow
 
 func _add(node: Control) -> void:
 	_nodes.append(node)
@@ -235,21 +284,9 @@ func _name_field(entry: Dictionary) -> LineEdit:
 	field.add_theme_color_override("font_placeholder_color", UiTokens.MUTED)
 	for state in ["normal", "focus", "read_only"]:
 		field.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	# web .lobby-nick--edit asks for an underline, but Chrome draws no text-decoration inside an <input>
 	field.text_changed.connect(func(value: String) -> void: bot_renamed.emit(slot, value))
-	field.draw.connect(func() -> void: _underline_field(field))
 	return field
-
-## web .lobby-nick--edit: the underline under the typed text only, accent while editing.
-func _underline_field(field: LineEdit) -> void:
-	if field.text == "":
-		return
-	var font := field.get_theme_font("font")
-	var font_size := field.get_theme_font_size("font_size")
-	var width := font.get_string_size(field.text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
-	var y := font.get_ascent(font_size) + UNDERLINE_OFFSET + UNDERLINE_PX * HALF
-	var color := UiTokens.ACCENT if field.has_focus() else field.get_theme_color("font_color")
-	var left := (field.size.x - width) * HALF
-	field.draw_line(Vector2(left, y), Vector2(left + width, y), color, UNDERLINE_PX)
 
 func _difficulty(entry: Dictionary) -> HBoxContainer:
 	var row := HBoxContainer.new()

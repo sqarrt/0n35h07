@@ -55,6 +55,18 @@ func test_the_host_bot_seat_controls() -> void:
 	(seat.find_child("BotName", true, false) as LineEdit).text_changed.emit("RA-1")
 	assert_signal_emitted_with_parameters(seat, "bot_renamed", [SLOT, "RA-1"])
 
+func test_only_a_ready_seat_glows() -> void:
+	var seat := _seat()
+	seat.show_seat(BOT, false, true, true)
+	seat.size = Vector2(263.0, 108.0)
+	var glow := seat.glow()
+	assert_true(glow.visible, "box-shadow 0 0 20px -4px once ready")
+	var material := glow.material as ShaderMaterial
+	assert_almost_eq(float(material.get_shader_parameter("sigma")), CssShadow.sigma(LobbySeat.READY_GLOW_BLUR), EPS)
+	assert_eq(material.get_shader_parameter("box_px"), Vector2(255.0, 100.0), "inset by the -4 px spread")
+	seat.show_seat(HUMAN, true, false, true)
+	assert_false(seat.glow().visible)
+
 func test_compact_cards() -> void:
 	var seat := _seat(true)
 	seat.show_seat(HUMAN, true, false, true)

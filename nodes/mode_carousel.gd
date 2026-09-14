@@ -37,12 +37,13 @@ class Tile extends Button:
 		box.border_color = UiTokens.ACCENT if center else (UiTokens.ACCENT_DIM if is_hovered() and not disabled
 			else ModeCarousel.TILE_BORDER)
 		box.set_border_width_all(1)
-		box.anti_aliasing = false
+		box.anti_aliasing = not center           # Chrome blends the 1 px border of a tile scaled to .86
 		draw_style_box(box, Rect2(Vector2.ZERO, size))
 
 var _mode := GameModes.DUEL
 var _enabled := true
 var _tiles := {}
+var _tweens := {}                              # tile -> its running switch tween
 
 func _ready() -> void:
 	custom_minimum_size.y = HEIGHT
@@ -76,9 +77,11 @@ func _ready() -> void:
 func tile(mode: String) -> Button:
 	return _tiles[mode]
 
+## Centre `mode`; only a real switch of a laid-out strip eases (a first placement or a re-read just snaps).
 func set_mode(mode: String, animate := true) -> void:
+	var switched := mode != _mode
 	_mode = mode
-	_place(animate)
+	_place(animate and switched and size.x > 0.0)
 
 func set_enabled(enabled: bool) -> void:
 	_enabled = enabled
@@ -110,11 +113,15 @@ func _place(animate: bool) -> void:
 		var target_position := centre - tile_size * HALF
 		var target_scale := Vector2.ONE * (1.0 if tile.role == ROLE_CENTER else SIDE_SCALE)
 		var target_alpha := _opacity(tile)
+		var running: Tween = _tweens.get(tile)
+		if running != null and running.is_valid():
+			running.kill()                         # a new placement wins over a switch still easing
 		if animate:
 			var tween := tile.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 			tween.tween_property(tile, "position", target_position, TRANSITION_S)
 			tween.tween_property(tile, "scale", target_scale, TRANSITION_S)
 			tween.tween_property(tile, "modulate:a", target_alpha, TRANSITION_S)
+			_tweens[tile] = tween
 		else:
 			tile.position = target_position
 			tile.scale = target_scale

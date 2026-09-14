@@ -31,6 +31,22 @@ func test_centre_and_side_tiles() -> void:
 	assert_almost_eq(right.modulate.a, ModeCarousel.SIDE_OPACITY, EPS)
 	assert_eq(carousel.role_of(GameModes.WAR), ModeCarousel.ROLE_LEFT, "cyclic: the last mode wraps to the left")
 
+func test_a_placement_before_layout_settles_on_resize() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = SCREEN
+	add_child_autofree(viewport)
+	var carousel := ModeCarousel.new()
+	viewport.add_child(carousel)
+	carousel.set_mode(GameModes.BATTLE)          # before the strip has a size (the lobby's first refresh)
+	carousel.size = Vector2(WIDTH, ModeCarousel.HEIGHT)
+	await wait_seconds(ModeCarousel.TRANSITION_S * 2.0)
+	var tile_width := WIDTH * ModeCarousel.TILE_SHARE
+	assert_almost_eq(carousel.tile(GameModes.BATTLE).position.x, (WIDTH - tile_width) * 0.5, EPS,
+		"no stale switch tween drags the tiles back to the unlaid-out strip")
+	carousel.set_mode(GameModes.WAR)
+	await wait_seconds(ModeCarousel.TRANSITION_S * 2.0)
+	assert_almost_eq(carousel.tile(GameModes.WAR).position.x, (WIDTH - tile_width) * 0.5, EPS, "a real switch eases in")
+
 func test_only_the_centre_name_glows() -> void:
 	var carousel := _carousel()
 	var centre_name := carousel.tile(GameModes.DUEL).find_child("Name", false, false) as GlowText
