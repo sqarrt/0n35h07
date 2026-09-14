@@ -16,6 +16,7 @@ var pierce_walls := false   # SINGULARITY pierce: set for everyone by the match 
 var move_scale := 1.0       # OVERHEAT movement speed multiplier
 var weapon = null   # a BeamWeapon (injected by the host); null in movement-only contexts
 var shield = null   # a Shield (injected by the host); null in movement-only contexts
+var remote: RemoteState = null   # set for players driven from outside (a peer's snapshots, a demo replay)
 var _look_dir := Vector3(0, 0, -1)
 var _aim_point := Vector3(0, MoveConst.EYE_HEIGHT, -100)
 var _aim_origin := Vector3.ZERO
@@ -84,24 +85,30 @@ func position() -> Vector3:
 	return body.position
 
 func is_dashing() -> bool:
-	return body.is_dashing()
+	return remote.dashing if remote != null else body.is_dashing()
 
 func shield_active() -> bool:
 	return is_shielded()
 
 func windup_progress() -> float:
+	if remote != null:
+		return remote.windup
 	return weapon.windup_progress() if weapon != null else 0.0
 
 # --- HUD readouts (1 = ready) ---
 
 func beam_progress() -> float:
+	if remote != null:
+		return remote.beam_progress
 	return weapon.cooldown_progress() if weapon != null else 1.0
 
 func shield_progress() -> float:
+	if remote != null:
+		return remote.shield_progress
 	return shield.progress() if shield != null else 1.0
 
 func dash_progress() -> float:
-	return body.dash_progress()
+	return remote.dash_progress if remote != null else body.dash_progress()
 
 func speed() -> float:
 	return body.horizontal_speed()
@@ -168,6 +175,8 @@ func cancel_firing() -> void:
 		weapon.interrupt()
 
 func is_winding_up() -> bool:
+	if remote != null:
+		return remote.windup > 0.0
 	return weapon != null and weapon.is_winding_up()
 
 ## Aim AT a world point; origin (the human camera) makes the hit ray camera->point.
@@ -196,6 +205,8 @@ func activate_shield() -> void:
 		shield.activate()
 
 func is_shielded() -> bool:
+	if remote != null:
+		return remote.shield
 	return shield != null and shield.is_active()
 
 func is_perfect_block() -> bool:
