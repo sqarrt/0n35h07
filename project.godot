@@ -23,6 +23,7 @@ driver/mix_rate=48000
 
 Game="*res://autoloads/game.gd"
 Audio="*res://autoloads/audio.gd"
+SteamBridge="*res://autoloads/steam_bridge.gd"
 
 [editor_plugins]
 
