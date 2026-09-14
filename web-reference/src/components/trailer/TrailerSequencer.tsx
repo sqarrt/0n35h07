@@ -77,7 +77,8 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   const playSfx = useCallback((e: SfxEvent) => sfxRef.current.play2D(e, TRAILER_SFX_GAIN), [])
 
   const [clips, setClips] = useState<Clips | null>(null)
-  const [shotIndex, setShotIndex] = useState(0)
+  // __debugTrailerShot (parity captures): start the sequence at that shot
+  const [shotIndex, setShotIndex] = useState(() => window.__debugTrailerShot ?? 0)
   const [hud, setHud] = useState<DemoHud | null>(null)
   const [countdownN, setCountdownN] = useState(3)
   const [showTitle, setShowTitle] = useState(false)   // title/CTA in the finale — once the beams freeze

@@ -34,9 +34,24 @@ func time_ms(index: int) -> float:
 ## The recording camera of a frame: position, rotation (three.js and Godot share Y-up, -Z forward) and vertical fov.
 static func camera(frame: Dictionary) -> Dictionary:
 	var cam: Dictionary = frame["cam"]
-	var p: Array = cam["p"]
 	var q: Array = cam["q"]
-	return {"position": Vector3(p[0], p[1], p[2]), "rotation": Quaternion(q[0], q[1], q[2], q[3]), "fov": float(cam["fov"])}
+	# the recording rounds to 3 decimals: normalise (three.js slerp tolerates it, Godot's requires unit quaternions)
+	return {"position": vector(cam["p"]), "rotation": Quaternion(q[0], q[1], q[2], q[3]).normalized(),
+		"fov": float(cam["fov"])}
+
+## A recorded [x, y, z].
+static func vector(values: Array) -> Vector3:
+	return Vector3(values[0], values[1], values[2])
+
+static func position(state: Dictionary) -> Vector3:
+	return vector(state["pos"])
+
+## The same player's state in another frame, or `fallback` when the frame doesn't have it.
+static func state_of(frame: Dictionary, id: int, fallback: Dictionary) -> Dictionary:
+	for state in frame["players"]:
+		if int(state["id"]) == id:
+			return state
+	return fallback
 
 ## A frame player's state as a NetProtocol snapshot with the demo's HUD fields (web toSnap + DemoPlayerState).
 static func snapshot(state: Dictionary) -> Dictionary:

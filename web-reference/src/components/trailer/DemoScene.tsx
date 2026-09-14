@@ -182,6 +182,9 @@ export function DemoScene({ demo, ranges, onHud, onSfx, onAnnounce, onReady, onN
     }
     const dt = Math.min(dtRaw, 0.05)
     clockMs.current += dt * 1000
+    // __debugTrailerHoldFrame (parity captures): the replay clock held on that recorded frame
+    const hold = window.__debugTrailerHoldFrame
+    if (hold !== undefined && demo.frames[hold]) clockMs.current = demo.frames[hold].tMs
     const tMs = clockMs.current
 
     // current frame within the active range [r.from..r.to]

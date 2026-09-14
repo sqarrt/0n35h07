@@ -29,6 +29,10 @@ var _spawn_ms := 0.0                   # the last materialisation (rebirth poof)
 var _was_respawning := false
 
 const HIT_FLASH_TIME := 0.25
+const REMOTE_FIRE_WINDUP := 0.5            # web applyNetState: a told windup above this collapsing to 0 was a shot
+
+var replay := false                        # driven from outside (a demo frame, a peer): no movement or weapon simulation
+var _remote_windup := 0.0
 
 func set_body_visible(v: bool) -> void:
 	_body_visible = v
@@ -129,6 +133,9 @@ func hitbox_rid() -> RID:
 	return _hitbox.get_rid()
 
 func _physics_process(delta: float) -> void:
+	if replay:
+		_replay_tick()
+		return
 	if controller != null:
 		controller.apply_intent(delta)
 	var b := player.body
@@ -162,6 +169,26 @@ func _physics_process(delta: float) -> void:
 			elif target != null and target.has_method("on_hit"):
 				target.on_hit()
 		w.clear_just_fired()
+
+## A replayed player: the shield bubble follows what it was told, and a told windup collapsing marks the shot for the
+## ball's deflate (web applyNetState netFireTime). Its place comes from `place_at` per frame (web setReplayPose).
+func _replay_tick() -> void:
+	_shield_fx.show_dome(player.is_shielded() and _shield_can_show())
+	var windup := player.windup_progress()
+	if _remote_windup > REMOTE_FIRE_WINDUP and windup == 0.0:
+		_fire_ms = _visual_ms
+	_remote_windup = windup
+
+## web cosmeticFire: a replayed shot — the beam from the sphere's surface toward its recorded end, sparks at the hit.
+func play_remote_beam(end: Vector3, hit_point = null) -> void:
+	var centre := global_position + Vector3(0.0, MoveConst.MUZZLE_Y, 0.0)
+	_beam_fx.play(centre + (end - centre).normalized() * MoveConst.BALL_RADIUS, end)
+	if hit_point != null:
+		_beam_fx.spawn_impact(hit_point)
+
+## When the last shot's deflate started on the visual clock (-INF before any).
+func fire_ms() -> float:
+	return _fire_ms
 
 func _muzzle_point() -> Vector3:
 	var base := global_position + Vector3(0, MoveConst.MUZZLE_Y, 0)
@@ -245,7 +272,7 @@ func update_visuals(delta: float) -> void:
 	_respawn_fx.apply(delta, _ball, _fill_respawn_frame(ghost, origin), _roll)
 	_respawn_fx.update(delta)
 	_dash_trail.visible = _body_visible   # web setBodyVisible: no own trail in first person
-	_dash_trail.update(delta, player.body.is_dashing(), global_position)
+	_dash_trail.update(delta, player.is_dashing(), global_position)
 	if _nameplate != null:
 		_nameplate.visible = player.alive   # hidden from the kill until the respawn
 	_shield_fx.update(delta)

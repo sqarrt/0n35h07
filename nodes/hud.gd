@@ -30,6 +30,7 @@ var _windup_progress := 0.0
 var _respawn_progress = null         # null while not in the ghost phase
 var _was_winding_up := false
 var _lock: PointerLock
+var replay := false                  # the trailer's replay HUD (web TrailerSequencer): no audio bar, stats or overheat
 
 ## `lock`: the pointer lock the live HUD needs (web GameOverlay live = locked && phase live); the real mouse by default.
 func setup(human: PlayerNode, match_node: MatchNode, lock: PointerLock = null) -> void:
@@ -114,16 +115,16 @@ func _process(delta: float) -> void:
 	_overlay.set_ghost(live and player.respawning)
 	_overlay.set_shield_active(live and player.is_shielded())
 	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
-	_overheat.set_tier(Streak.streak_tier(_match.streak_of(local_id)) if live else "")   # web hud.streaks[localId]
+	_overheat.set_tier(Streak.streak_tier(_match.streak_of(local_id)) if live and not replay else "")   # web hud.streaks[localId]
 	_overheat.tick(delta)
 	var show_fps := bool(Game.profile.get("showFps", false))
 	var show_speed := bool(Game.profile.get("showSpeed", false))
-	_stats.visible = live and (show_fps or show_speed)   # web: StatsOverlay renders nothing without a flag
+	_stats.visible = live and not replay and (show_fps or show_speed)   # web: StatsOverlay renders nothing without a flag
 	_stats.set_flags(show_fps, show_speed)
 	if _stats.visible:
 		_stats.tick(delta * MatchNode.MS_PER_S)
 		_stats.set_speed(_speed)
-	var audio_bar_shown := live and bool(Game.profile.get("audioViz", true))   # web {audioViz && <AudioBar />}
+	var audio_bar_shown := live and not replay and bool(Game.profile.get("audioViz", true))   # web {audioViz && <AudioBar />}
 	if audio_bar_shown and not _audio_bar.visible:
 		_audio_bar.reset()   # web remounts the component with zeroed levels
 	_audio_bar.visible = audio_bar_shown

@@ -18,6 +18,8 @@ const NO_TEAM := -1
 var rules := MatchRules.new()
 var phase := MatchPhase.new()
 var local_id := 0   # whose point of view the outcome is computed for (web localId)
+var replay := false   # a demo replay: the playback sets scores, streaks and the clock; no phase, clock or rules run
+var replay_seconds_left := 0
 var roster := Roster.new()   # names, colours and looks of the participants (web RosterEntry list)
 var _clock := MatchClock.new(MatchConst.DEFAULT_MATCH_DURATION_MS)
 var _entities := {}   # id -> PlayerNode
@@ -87,6 +89,8 @@ func countdown_label() -> String:
 
 ## Whole seconds left on the match clock, or null when the match has no time limit (HUD shows --:--).
 func seconds_left():
+	if replay:
+		return replay_seconds_left   # web hudOf: the recording's clock
 	return _clock.seconds_left() if _clock.has_timer() else null
 
 ## Milliseconds left on the match clock, INF without a time limit (web musicRemainingMs: the music outro).
@@ -98,6 +102,8 @@ func force_live() -> void:
 	_apply_freeze()
 
 func _physics_process(delta: float) -> void:
+	if replay:
+		return
 	phase.update(delta)
 	_clock.update(delta, phase.is_live())
 	if phase.is_live() and _clock.is_over():
