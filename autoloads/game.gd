@@ -4,19 +4,12 @@ extends Node
 
 const GAME_VERSION := "2.0.0"
 
-## Selectable maps: [display name, resource path]. Order is stable for the menu picker.
-const MAPS := [
-	["Pillars", "res://maps/os_pillars.json"],
-	["Arena", "res://maps/os_arena.json"],
-	["India", "res://maps/os_india.json"],
-	["Pool", "res://maps/os_pool_day.json"],
-]
-
-var selected_map := "res://maps/os_pillars.json"   # set by the main menu
+var selected_map := MapCatalog.raw_path(MapCatalog.MAP_IDS[0])   # set by the lobby (web handlePlay: MAP_IDS[0])
 var match_duration_ms := MatchConst.LOBBY_DEFAULT_DURATION_MS   # set by the lobby (3 / 5 / 10 min)
 var random := RandomNumberGenerator.new()          # names and first-run profile rolls (web Math.random)
 var profile := {}                                  # the local player's PlayerProfile (web loadProfile)
 var lobby_bot_name := ""                           # the host's name for the bot; "" = generated (web setBotName)
+var lobby_roster: Array = []                       # the lobby's seats at the start (web RoomSession roster); [] = tools
 
 func _ready() -> void:
 	random.randomize()

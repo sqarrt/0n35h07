@@ -44,6 +44,7 @@ const HALF := 0.5
 
 var _panel: Panel
 var _column: CssColumn
+var _lobby: LobbyScreen
 var _buttons: Array[UiButton] = []
 var _quit: UiButton
 var _hint: Label
@@ -89,6 +90,29 @@ func _ready() -> void:
 	_layout()
 	Audio.play_menu_music()   # web App: menu music on every non-match screen
 
+## PLAY (web handlePlay): a fresh local room on every visit, shown in the same panel instead of the menu.
+func open_lobby() -> void:
+	close_lobby()
+	var room := RoomModel.new(Game.profile, Game.random.randf)
+	_lobby = LobbyScreen.new()
+	_lobby.name = "Lobby"
+	_lobby.setup(room, Game.random.randf)
+	_panel.add_child(_lobby)
+	_lobby.back_requested.connect(close_lobby)
+	_lobby.match_requested.connect(_start_match)
+	_column.visible = false
+	_layout()
+
+## BACK / LEAVE: the room closes, the menu returns.
+func close_lobby() -> void:
+	if _lobby != null:
+		_lobby.queue_free()
+		_lobby = null
+	_column.visible = true
+
+func lobby() -> LobbyScreen:
+	return _lobby
+
 ## The browser build's layout (parity captures): the F11 hint instead of QUIT.
 func set_browser_layout(browser: bool) -> void:
 	_hint.visible = browser
@@ -101,6 +125,9 @@ func _layout() -> void:
 	var inset := PANEL_PADDING + Vector2(PANEL_BORDER_PX, 0.0)
 	_column.position = inset
 	_column.size = _panel.size - inset * 2.0
+	if _lobby != null:
+		_lobby.position = inset
+		_lobby.size = _column.size + Vector2(LobbyScreen.BLEED, 0.0)
 	for button in _buttons:
 		button.custom_minimum_size.x = _column.size.x * BUTTON_SHARE
 	var chip := _version.get_combined_minimum_size()
@@ -173,6 +200,13 @@ func _version_chip() -> Button:
 	return chip
 
 func _on_play() -> void:
+	open_lobby()
+
+## The room started: the arena runs on its map, duration and seats (web RoomSession start → App setScreen('game')).
+func _start_match(setup: Dictionary) -> void:
+	Game.selected_map = MapCatalog.raw_path(setup["map_id"])
+	Game.match_duration_ms = setup["duration_min"] * MatchConst.MS_PER_MIN
+	Game.lobby_roster = setup["roster"]
 	get_tree().change_scene_to_file(ARENA)
 
 func _on_quit() -> void:
