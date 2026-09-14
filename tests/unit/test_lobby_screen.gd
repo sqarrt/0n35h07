@@ -64,6 +64,14 @@ func test_a_bot_enables_ready_and_ready_starts() -> void:
 	(_node(lobby, "Ready") as UiButton).pressed.emit()
 	assert_eq(_requested.size(), 1, "every seat ready: the match starts")
 
+func test_team_modes_wait_for_their_matches() -> void:
+	var lobby := await _lobby()
+	lobby.room.set_mode(GameModes.BATTLE)
+	for slot in [1, 2, 3]:
+		lobby.room.add_bot(slot)
+	assert_true(lobby.room.can_start(), "the Battle gate holds")
+	assert_true((_node(lobby, "Ready") as UiButton).disabled, "but 2v2 / FFA matches come with slice L-b")
+
 func test_pickers_drive_the_room() -> void:
 	var lobby := await _lobby()
 	(_node(lobby, "Map_os_india") as MapTile).pressed.emit()

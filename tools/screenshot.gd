@@ -33,6 +33,8 @@ extends SceneTree
 ##   menu-browser      the main menu scene in the browser build's layout (web parity-capture-menu.mjs: the F11 hint,
 ##                     no QUIT); menu-hover-play / menu-hover-secondary also hover PLAY / APPEARANCE. Its boxes join
 ##                     the facts.
+##   lobby-<state>     the main menu scene with PLAY opened (web parity-capture-lobby.mjs): fresh, bot (a passive
+##                     EX82R on seat 1), 2v2 or ffa; a -bottom suffix scrolls the body to its end. Use with profile:.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -69,6 +71,16 @@ const END_SETTLE_FRAMES := 12        # the 0.1 s fade and the column layout (at 
 const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
+const MODE_LOBBY := "lobby-"
+const LOBBY_BOTTOM := "-bottom"
+const LOBBY_BOT_SLOT := 1
+const LOBBY_BOT_NAME := "EX82R"
+const LOBBY_BOT_DIFFICULTY := "passive"
+const LOBBY_FRAMES := 30             # the carousel's .25 s ease and the layout (at --fixed-fps 60)
+const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content height
+const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
+	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
+	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
 const MODE_MENU := "menu-"
 const MENU_FRAMES := 3               # the column lays out in the browser layout
 const MENU_BOXES := ["Panel", "Logo", "Rule", "Play", "Appearance", "Settings", "About", "Quit", "Hint", "Version"]
@@ -246,6 +258,9 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_PAUSE):
 		_pause_fixture(_mode.trim_prefix(MODE_PAUSE))
 		return PAUSE_FRAMES
+	if _mode.begins_with(MODE_LOBBY):
+		_lobby_fixture(_mode.trim_prefix(MODE_LOBBY))
+		return LOBBY_FRAMES
 	if _mode.begins_with(MODE_MENU):
 		for menu in root.find_children("*", "MainMenu", true, false):
 			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's
@@ -333,6 +348,14 @@ func _capture() -> void:
 		facts["stats"] = {"visible": stats_overlay.visible, "fps_text": stats_overlay.fps_text().label().text,
 			"speed_text": stats_overlay.speed_text().label().text, "fps": _rect(stats_overlay.fps_text()),
 			"graph": _rect(stats_overlay.graph()), "speed": _rect(stats_overlay.speed_text())}
+	for lobby in root.find_children("*", "LobbyScreen", true, false):
+		var lobby_boxes := {}
+		for box_name in LOBBY_BOXES:
+			var control := lobby.find_child(box_name, true, false) as Control
+			if control != null and control.is_visible_in_tree():
+				lobby_boxes[box_name] = _rect(control)
+		lobby_boxes["scroll"] = (lobby.find_child("Body", true, false) as ScrollContainer).scroll_vertical
+		facts["LobbyScreen"] = lobby_boxes
 	for menu in root.find_children("*", "MainMenu", true, false):
 		var menu_boxes := {}
 		for box_name in MENU_BOXES:
@@ -384,6 +407,22 @@ func _pause_fixture(state: String) -> void:
 	clock["now"] = PauseModel.COOLDOWN_MS * (PAUSE_COOLDOWN_SHARE if state == PAUSE_COOLDOWN else 1.0)
 	pause.set_quit_visible(false)
 	pause.refresh()
+
+## web parity-capture-lobby.mjs frames: PLAY opened on the main menu, then the state's room, scrolled for -bottom.
+## Reached through call(): MainMenu / LobbyScreen use autoload names, which a -s tool can't compile against.
+func _lobby_fixture(state: String) -> void:
+	var menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+	menu.call("open_lobby")
+	var lobby: Node = menu.call("lobby")
+	var room: Object = lobby.get("room")
+	var to_end := state.ends_with(LOBBY_BOTTOM)
+	match state.trim_suffix(LOBBY_BOTTOM):
+		"bot":
+			room.call("add_bot", LOBBY_BOT_SLOT, LOBBY_BOT_DIFFICULTY, LOBBY_BOT_NAME)
+		"2v2", "ffa":
+			room.call("set_mode", state.trim_suffix(LOBBY_BOTTOM))
+	if to_end:
+		create_timer(LOBBY_SCROLL_S).timeout.connect(func() -> void: lobby.call("scroll_to_end", true))
 
 ## web page.hover(): a mouse motion pushed onto the laid-out button (for match-end-hover, once the screen has settled).
 func _hover_fixture() -> void:

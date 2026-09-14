@@ -9,6 +9,7 @@ var match_duration_ms := MatchConst.LOBBY_DEFAULT_DURATION_MS   # set by the lob
 var random := RandomNumberGenerator.new()          # names and first-run profile rolls (web Math.random)
 var profile := {}                                  # the local player's PlayerProfile (web loadProfile)
 var lobby_bot_name := ""                           # the host's name for the bot; "" = generated (web setBotName)
+var lobby_roster: Array = []                       # the lobby's seats at the start (web RoomSession roster); [] = tools
 
 func _ready() -> void:
 	random.randomize()

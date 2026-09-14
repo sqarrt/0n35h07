@@ -51,6 +51,20 @@ func test_version_chip_sits_in_the_corner() -> void:
 	assert_almost_eq(rect.end.x, SCREEN.x - MainMenu.VERSION_RIGHT, EPS, "right: 16px")
 	assert_almost_eq(rect.end.y, SCREEN.y - MainMenu.VERSION_BOTTOM, EPS, "bottom: 14px")
 
+func test_play_opens_the_lobby_in_the_panel_and_back_returns() -> void:
+	var menu := await _menu()
+	(_control(menu, "Play") as UiButton).pressed.emit()
+	await wait_process_frames(2)
+	var lobby := _control(menu, "Lobby") as LobbyScreen
+	assert_not_null(lobby, "web App screen 'lobby'")
+	assert_false(_control(menu, "Column").visible, "the lobby replaces the menu inside the same panel")
+	assert_eq(lobby.get_global_rect().position, Vector2(341.0, 32.0))
+	assert_almost_eq(lobby.size.x, 598.0 + LobbyScreen.BLEED, EPS, "the column plus the scrollbar bleed")
+	lobby.back_requested.emit()
+	await wait_process_frames(1)
+	assert_true(_control(menu, "Column").visible)
+	assert_null(menu.lobby())
+
 func test_browser_layout_for_parity_captures() -> void:
 	var menu := await _menu()
 	menu.set_browser_layout(true)

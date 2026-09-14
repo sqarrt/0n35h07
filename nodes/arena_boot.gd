@@ -28,15 +28,18 @@ func _ready() -> void:
 	var hc: HumanController = $HumanController
 	hc.setup(human, camera)   # first person hides the player's own sphere (the camera sits inside it)
 
-	var bot_name := ModelNames.bot_name(Game.lobby_bot_name, Game.random.randf)
-	var bot := _spawn_bot(human, spawns[BOT_SLOT], bot_name)
+	# The lobby's bot seat when the match came from the lobby; tools keep the host's bot name and the default level.
+	var seat := _lobby_bot(BOT_SLOT)
+	var bot_name := ModelNames.bot_name(seat.get("name", Game.lobby_bot_name), Game.random.randf)
+	var difficulty: String = seat.get("difficulty", BOT_DIFFICULTY)
+	var bot := _spawn_bot(human, spawns[BOT_SLOT], bot_name, difficulty == RoomModel.PASSIVE_DIFFICULTY)
 
 	# Run the local match: human (team 0) vs bot (team 1).
 	var match_node := MatchNode.new()
 	match_node.set_duration_ms(Game.match_duration_ms)
 	match_node.local_id = HUMAN_SLOT
 	match_node.roster.add(Roster.human_entry(HUMAN_SLOT, Game.profile))
-	match_node.roster.add(Roster.bot_entry(BOT_SLOT, bot_name, BOT_DIFFICULTY))
+	match_node.roster.add(Roster.bot_entry(BOT_SLOT, bot_name, difficulty))
 	add_child(match_node)
 	human.apply_appearance(match_node.roster.entry(HUMAN_SLOT))
 	bot.apply_appearance(match_node.roster.entry(BOT_SLOT))
@@ -66,7 +69,14 @@ func _ready() -> void:
 	match_node.match_ended.connect(func(result: Dictionary) -> void:
 		ended.show_result(result, match_node.roster, match_node.streak_tiers()))
 
-func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String) -> PlayerNode:
+## The lobby roster's bot on `slot`, {} without one (tools, tests).
+func _lobby_bot(slot: int) -> Dictionary:
+	for entry in Game.lobby_roster:
+		if entry["id"] == slot and entry["kind"] == Roster.KIND_BOT:
+			return entry
+	return {}
+
+func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String, passive: bool) -> PlayerNode:
 	var bot: PlayerNode = PLAYER.instantiate()
 	bot.player.id = BOT_SLOT
 	bot.player.body.position = spawn   # PlayerNode._ready copies it into the physics body
@@ -74,7 +84,7 @@ func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String) -> PlayerNo
 	add_child(bot)
 	var get_target := func(): return human.player
 	var los_rc := WorldRaycaster.new(get_world_3d().direct_space_state)
-	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, false, BotPersonality.from_name(bot_name))
+	var bot_ctrl := BotController.new(bot.player, get_target, los_rc, passive, BotPersonality.from_name(bot_name))
 	bot_ctrl.set_self_exclude([bot.hitbox_rid()])
 	bot.controller = bot_ctrl
 	return bot

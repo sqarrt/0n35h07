@@ -9,6 +9,7 @@ signal started(setup: Dictionary)   # {mode, map_id, duration_min, roster, teams
 
 const HOST_SLOT := 0
 const DEFAULT_DIFFICULTY := "normal"                        # web BOT_DEFAULT_DIFFICULTY
+const PASSIVE_DIFFICULTY := "passive"                       # the bot stands still (web BotController passive)
 const DEFAULT_DURATION_MIN := MatchConst.LOBBY_DEFAULT_DURATION_MIN
 
 var mode := GameModes.DUEL
