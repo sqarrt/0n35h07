@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 431/431)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 444/444)
 
 | Слайс | Суть |
 |---|---|
@@ -60,18 +60,19 @@
 | Тема UI + пауза (UT) | `UiButton` (primary/secondary/ghost), `UiTokens`, `CssColumn`/`CssPixel`/`CssOpacity`, `UiFont.with_css_line`/`trailing_spacing_style`/`bold_spaced`; `PauseModel` + `PointerLock` (пауза не стопит матч, кулдаун RESUME 1300 мс, HUD скрыт без захвата); колонка результата (E2) |
 | Главное меню M2/M4 (MM) | `MainMenu`: панель 680 px (фон .72, боковые линии), логотип 0N35H07 (жирный, свечение 30 px), линия, PLAY/APPEARANCE/SETTINGS/ABOUT/QUIT шириной 50%, чип версии (открывает папку логов); выбор карты убран из меню (web — в лобби) |
 | Лобби L-a (L1–L5) | `GameModes`, `RoomModel` (правила хоста без сети), `MapCatalog` (+`os_test`, превью), `LobbyScreen` в панели меню: `ModeCarousel`, `MapTile`, `SegButton`, `LobbySeat` (`CssDashedBorder`, свечение `glow_rect`); READY стартует дуэль (карта, длительность, бот/пассивность) |
+| Лобби L-b: Battle / War | `Spawns.positions_for_mode` (кластеры 2v2, точки FFA) + `gen_ffa_spawns`, `NearestEnemy` (цель бота), `arena_boot` из `Game.lobby_roster`/`lobby_mode` (N участников, команды по местам), `HudTeamBar` + `TeamBarModel` (панели вокруг таймера, итоги команд), `MatchNode.players()/scores()` |
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
 Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
-раскладка главного меню и лобби (срез L-a) смержены в `release_2.0.0`. Следующий слайс — **L-b: матчи Battle / War**
-(N участников из `Game.lobby_roster`, команды `GameModes.team_of_slot`, стартовые позиции FFA web `genFfaSpawns`,
-HUD на несколько игроков web `MatchHud`), затем 3D-фон меню M1 и экраны APPEARANCE / SETTINGS / ABOUT.
+раскладка главного меню и лобби (L-a и L-b: матчи Battle / War) смержены в `release_2.0.0`. Следующий слайс —
+**неймплейты 2v2/FFA** (web `createNameplate`, цвет команды / `NAMEPLATE_NEUTRAL_COLOR`), затем 3D-фон меню M1 и
+экраны APPEARANCE / SETTINGS / ABOUT.
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
 ## 5. Что ещё осталось (бэклог паритета)
@@ -81,8 +82,9 @@ HUD на несколько игроков web `MatchHud`), затем 3D-фон
   к концу отстают на 1–2 px (отчёты hud-core, stats); общее решение для всех текстов `UiFont.spaced`.
 - Открыто после темы UI: SETTINGS в паузе (web `MatchSettings`) ничего не открывает; MENU — дробная базовая
   линия Chrome (отчёт `2026-09-14-ui-theme-*`).
-- Открыто после лобби L-a: READY только в Duel (L-b); нет сети (код комнаты, «вход по коду», Steam-приглашения,
-  SEARCH, гости), размытого превью карты и шаров комнаты в фоне (отчёт `2026-09-14-lobby-*`).
+- Открыто после лобби: нет сети (код комнаты, «вход по коду», Steam-приглашения, SEARCH, гости), размытого превью
+  карты и шаров комнаты в фоне (отчёт `2026-09-14-lobby-*`); в матчах 2v2/FFA нет неймплейтов над игроками
+  (отчёт `2026-09-14-teams-*`).
 - Открыто после главного меню: APPEARANCE / SETTINGS / ABOUT шлют `screen_requested`, экранов нет; нет 3D-фона
   (`MenuBackdrop`) и `backdrop-filter: blur(2px)` панели; RADIO скрыт до радио; нет заставки M6 и i18n M5.
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`

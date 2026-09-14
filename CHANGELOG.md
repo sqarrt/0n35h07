@@ -95,7 +95,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   The map is no longer chosen in the main menu: as in the original, that belongs to the lobby.
 - **The lobby.** PLAY opens the original's Play screen: pick Duel, Battle or War, one or several maps from their
   previews (os_test included), and 3, 5 or 10 minutes; seat bots, rename them or roll a new name, and set them to
-  normal or passive. READY starts the duel on the chosen map for the chosen time, with the bot as configured.
+  normal or passive. READY starts the match on the chosen map for the chosen time: a duel, a Battle of two teams of
+  two starting side by side, or a four-player War from spread-out random spots, with every bot hunting its nearest
+  enemy. With more than two players the top bar lists everyone's frags on two panes around the timer, with the team
+  totals in Battle.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

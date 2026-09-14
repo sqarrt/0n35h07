@@ -1,0 +1,98 @@
+{
+  "id": "2026-09-14-teams",
+  "title": "Сверка паритета OneShot · матчи Battle и War (лобби, срез L-b)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Срез L-b: матчи на четырёх участников из лобби — Battle (2v2, команды по местам) и War (FFA). Проверено: построение всех мест в арене (web `Match.buildPlayers`), стартовые позиции (web `spawnPositionsFor` / `genFfaSpawns`), цель ботов (web `nearestEnemy`) и верхняя строка HUD для трёх и более игроков (web `MatchHud`). Кадры: живой матч на os_arena с профилем PARITY7 и тремя пассивными ботами B1–B3.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-teams.json`. Web: `web-reference/scripts/parity-capture-teams.mjs` (меню → PLAY → плитка режима → боты B1–B3 PASSIVE → READY → live с поддельным pointer lock) → `test-results/parity-gpu-teams/web-match-<mode>.png` + рамки `web-teams.json`. Godot: `tools/screenshot.gd` режим `profile:team-<2v2|ffa>` на `maps/os_arena.json`, кадр 300 → `godot-match-<mode>.png` + факты. Замеры: `tools/parity/measure.py read_png`; вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "teams",
+      "name": "Верхняя строка и состав матча Battle / War",
+      "verdict": "Матчи Battle и War перенесены: в арене четыре участника с командами по местам (Battle 0-1 / 2-3, War — каждый сам за себя), боты выбирают ближайшего живого врага. Верхняя строка на несколько игроков совпадает с web по местам в пределах 1–2.6 px (строки 390 / 506 против 390.4 / 505.2, итоги 569 / 751 против 567.2 / 753.7, текст таймера 627 против 626.1; War: 420 / 536 против 420.3 / 535.1); среднее отличие строки 6.3/255 (панели 6.3–7.8, итоги со свечением 11–13). Таймер различается содержимым (02:55 в web, 02:58 в Godot — кадры сняты в разные секунды матча).",
+      "verdict_short": "Матчи Battle / War и командная строка перенесены",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, кадр 300"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["участники", "PARITY7 `#fa4` (место 0) + боты B1–B3 PASSIVE", "`Game.lobby_roster`: то же, `Game.lobby_mode` 2v2 / ffa"],
+        ["фаза", "live после отсчёта, pointer lock подделан", "live (кадр 300)"],
+        ["тесты", "—", "GUT 444/444, 4605 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Верхняя строка Battle (увеличение ×2)", "wipe": true,
+          "note": "Моя команда слева, враги справа; итоги команд у таймера в цвете команды со свечением 12 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-bar-2v2.png", "note": "Панели [376.4, 30, 216.7×36] и [739.7, 30, 163.9×36]."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-bar-2v2.png", "note": "Строки 390 / 506 / 781 / 844, итоги 569 / 751; строка 6.28/255."}
+          ]},
+        {"title": "Верхняя строка War (увеличение ×2)", "wipe": true,
+          "note": "Я первым слева, остальные по id: поздняя половина справа; итогов нет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-bar-ffa.png", "note": "Панели [406.3, 30, 186.8×30] и [739.7, 30, 134×30]."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-bar-ffa.png", "note": "Строки 420 / 536 / 751 / 814; строка 6.26/255."}
+          ]},
+        {"title": "Кадр Battle целиком", "wipe": false,
+          "note": "Камера и расстановка ботов различаются по времени кадра; сравнение — состав и HUD.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-full-2v2.png", "note": "Четыре участника."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-full-2v2.png", "note": "Четыре участника (facts: players 4, live)."}
+          ]},
+        {"title": "Кадр War целиком", "wipe": false,
+          "note": "Стартовые точки FFA случайны на обеих сторонах (генерирует создатель комнаты).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-teams/crops/web-full-ffa.png", "note": "web genFfaSpawns."},
+            {"kind": "godot", "img": "parity-gpu-teams/crops/godot-full-ffa.png", "note": "`Spawns.gen_ffa_spawns`."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "LB1", "severity": "fixed",
+          "title": "Матчи на всех местах лобби",
+          "web": "`Match.buildPlayers`: игрок на каждое занятое место, команда `teamOfSlot`, бот с `BotController(passive)` по сложности; READY стартует Battle при полных командах и War от двух игроков.",
+          "godot": "`arena_boot` строит участников из `Game.lobby_roster` и `Game.lobby_mode`; `MatchNode.players()/scores()`; READY в лобби для всех режимов. Было: только человек против одного бота.",
+          "evidence": ["test", "code", "screenshot"],
+          "sources": ["nodes/arena_boot.gd", "nodes/match_node.gd", "nodes/main_menu.gd", "tests/unit/test_arena_modes.gd", "tests/unit/test_match_node_scores.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "LB2", "severity": "fixed",
+          "title": "Стартовые позиции 2v2 и FFA",
+          "web": "`spawnPositionsFor`: кластеры команд ±0.9 по X у двух точек карты; FFA — точки создателя комнаты (`genFfaSpawns`: квадрат ±14, не ближе 6, до 200 попыток).",
+          "godot": "`Spawns.positions_for_mode` и `Spawns.gen_ffa_spawns` с теми же константами. Было: только правило 1v1.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/spawns.gd", "tests/unit/test_spawns_modes.gd", "web-reference/src/game/spawns.ts"]
+        },
+        {
+          "id": "LB3", "severity": "fixed",
+          "title": "Цель бота",
+          "web": "`nearestEnemy`: ближайший живой игрок другой команды.",
+          "godot": "`NearestEnemy.of` для каждого бота. Было: бот всегда целился в человека.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/nearest_enemy.gd", "tests/unit/test_nearest_enemy.gd"]
+        },
+        {
+          "id": "LB4", "severity": "fixed",
+          "title": "Верхняя строка на три и более игрока",
+          "web": "`MatchHud` (roster > 2): две панели вокруг таймера (`.mhud-team` padding 6/14, gap 18), строки игроков (точки серии, серое имя `.nm` с эффектом серии, фраги 15 px в цвете игрока; зеркально слева), в Battle итоги 22 px в цвете команды со свечением; стороны не переставляются по фрагам. Подчёркивание своего имени не доходит до inline-block, оттенок панели — невалидный 5-значный hex.",
+          "godot": "`HudTeamBar` + `TeamBarModel`; `Hud` переключается на неё при roster > 2. Было: строка дуэли показывала только двоих.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_team_bar.gd", "sim/team_bar_model.gd", "nodes/hud.gd", "tests/unit/test_hud_team_bar.gd", "tests/unit/test_team_bar_model.gd", "tests/unit/test_hud_team_variant.gd", "web-reference/src/components/MatchHud.tsx"]
+        },
+        {
+          "id": "LB5", "severity": "missing",
+          "title": "Неймплейты над игроками в 2v2 / FFA",
+          "web": "`createNameplate`: имя над моделью (фон — цвет команды в 2v2, нейтральный в FFA), кроме своей модели и 1v1.",
+          "godot": "Не перенесено — следующий слайс.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/Match.ts"]
+        }
+      ],
+      "limitations": [
+        "Таймер на кадрах различается значением (02:55 / 02:58): web доходит до live позже; отличие области таймера 10.5–14.1/255 — это содержимое.",
+        "Строки игроков в Godot на 1 px шире (разрядка 0.06em и 0.12em округляется до целых пикселей), итоги сдвинуты на 1.8–2.7 px.",
+        "Кадры целиком не совмещаются: камера, боты и случайные точки FFA различаются; сравнивались верхняя строка и состав матча.",
+        "Сеть (гости в Battle / War) не перенесена: все участники, кроме игрока, — локальные боты."
+      ]
+    }
+  ]
+}
