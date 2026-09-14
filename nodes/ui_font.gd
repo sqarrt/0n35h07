@@ -14,6 +14,7 @@ const CJK_FALLBACK_COUNT := 2                  # base_cjk(): the Cyrillic face, 
 const SYSTEM_FALLBACK_LOCALE := "zh_CN"
 ## web index.css: html[lang="zh-CN"] .btn, .seg { letter-spacing: 0.05em } — wide Latin tracking bloats CJK labels.
 const CJK_CONTROL_SPACING_EM := 0.05
+const MEASURE_PX := 1000                       # fractional em metrics are read at a large size
 
 ## Chrome's synthetic bold (the face has no bold weight): Skia grows the outline by the font size times a ratio
 ## interpolated from 1/24 at 9 px to 1/32 at 36 px; Godot's embolden grows it by strength x size / 16 px.
@@ -94,6 +95,14 @@ static func with_css_line(variation: FontVariation, font_size: int, css_px := 0.
 	for fallback in variation.fallbacks:   # Cyrillic lines too: Chrome sizes them by the family's Latin face
 		(fallback as FontVariation).spacing_top = variation.spacing_top
 		(fallback as FontVariation).spacing_bottom = variation.spacing_bottom
+	return variation
+
+## Chrome's `line-height: normal` box for text drawn by another face (a system symbol font): its ascent and descent,
+## measured large for their fractional em share, each rounded to a pixel where Godot rounds them up.
+static func with_face_line(variation: FontVariation, font_size: int, face: Font) -> FontVariation:
+	variation.spacing_top = roundi(face.get_ascent(MEASURE_PX) * font_size / MEASURE_PX) - roundi(face.get_ascent(font_size))
+	variation.spacing_bottom = roundi(face.get_descent(MEASURE_PX) * font_size / MEASURE_PX) \
+		- roundi(face.get_descent(font_size))
 	return variation
 
 static func _px(font_size: int, css_px: float) -> float:

@@ -12,7 +12,6 @@ const ROW_GAP := 12.8                     # 0.8rem
 const VALUE_PX := 12.0                    # 0.75rem
 const VALUE_CHARS := 4.0                  # width: 4ch
 const ZERO_GLYPH := "0"                   # a CSS ch is the advance of "0"
-const MEASURE_PX := 1000                  # the size its advance is measured at
 const TRACK_HEIGHT := 6.0
 const TRACK_BORDER := 1.0
 const THUMB_SIZE := Vector2(14.0, 18.0)
@@ -55,8 +54,8 @@ func row_top() -> float:
 ## 4ch at Chrome's fractional advance (Godot rounds a glyph's advance to a pixel: 7 px for 6.48), measured large.
 func value_width() -> float:
 	var font := _value_label.get_theme_font("font")
-	var advance := font.get_string_size(ZERO_GLYPH, HORIZONTAL_ALIGNMENT_LEFT, -1, MEASURE_PX).x
-	return VALUE_CHARS * advance * VALUE_PX / MEASURE_PX
+	var advance := font.get_string_size(ZERO_GLYPH, HORIZONTAL_ALIGNMENT_LEFT, -1, UiFont.MEASURE_PX).x
+	return VALUE_CHARS * advance * VALUE_PX / UiFont.MEASURE_PX
 
 func track_rect() -> Rect2:
 	var row_height := _value_label.get_combined_minimum_size().y

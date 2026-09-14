@@ -11,6 +11,8 @@ const KEY_EPS := 1e-6                         # a fraction this close to a keyfr
 ## cubic-bezier(x1, y1, x2, y2) evaluated at progress x (curve = [x1, y1, x2, y2]); x is solved by bisection.
 static func cubic_bezier(x: float, curve: Array) -> float:
 	var target := clampf(x, 0.0, 1.0)
+	if target == 0.0 or target == 1.0:   # every cubic-bezier runs from (0, 0) to (1, 1): exact ends, no bisection residue
+		return target
 	var lo := 0.0
 	var hi := 1.0
 	var t := target

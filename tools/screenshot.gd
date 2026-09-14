@@ -109,6 +109,14 @@ const APPEARANCE_CELL := Vector2i(8, 8) # web PAINT_CELL
 const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
 const MODE_ABOUT := "about"
 const MODE_DESKTOP_MENU := "desktop-menu"   # the desktop menu (QUIT, no F11 hint), the backdrop hidden
+const MODE_WARNING := "warning"        # warning[-early|-peak]: the photosensitivity splash (every other mode skips it)
+const WARNING_EARLY := "-early"
+const WARNING_PEAK := "-peak"
+const WARNING_EARLY_MS := 600.0        # web EARLY_MS: content in, no hint
+const WARNING_READY_MS := 2400.0       # the hint fully shown
+const WARNING_PULSE_MS := 1000.0       # web PULSE_MS / PULSE_PEAK_MS
+const WARNING_PEAK_PULSE_MS := 2000.0
+const WARNING_FRAMES := 3
 const LOCALE_PREFIX := "locale-"       # locale-<id>:<mode>: the interface in that language (web PARITY_LOCALE)
 const LOCALE_END := ":"
 const SCREEN_FRAMES := 6               # the screen lays out in the panel (web waits 400 ms, nothing animates)
@@ -220,6 +228,8 @@ func _initialize() -> void:
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
+	if g != null:
+		g.warning_seen = not _mode.begins_with(MODE_WARNING)   # web captures run on ?net=bc, which skips it
 	if _mode.begins_with(MODE_TEAM) and g != null:   # the lobby's seats for a Battle / War match
 		_team_roster(g, _mode.trim_prefix(MODE_TEAM).trim_suffix(PLATE_SUFFIX))
 		_passive_bot = false                          # the roster's passive bots already stand still
@@ -367,6 +377,12 @@ func _apply_hud_fixture() -> int:
 		if steps >= 3:
 			appearance.call("paint", BallArt.FRONT, APPEARANCE_CELL.x, APPEARANCE_CELL.y, 1)
 		return STAGE_FRAMES
+	if _mode.begins_with(MODE_WARNING):
+		# web parity-capture-warning.mjs: the splash with its clock and the planet's breathing pinned
+		var splash := root.find_child("WarningSplash", true, false) as WarningSplash
+		splash.pin_clock_ms(WARNING_EARLY_MS if _mode.ends_with(WARNING_EARLY) else WARNING_READY_MS)
+		splash.pin_pulse_ms(WARNING_PEAK_PULSE_MS if _mode.ends_with(WARNING_PEAK) else WARNING_PULSE_MS)
+		return WARNING_FRAMES
 	if _mode == MODE_DESKTOP_MENU:
 		# web parity-capture-settings.mjs web-menu: the desktop menu, the backdrop canvases hidden
 		var desktop_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
@@ -532,7 +548,7 @@ func _capture() -> void:
 			if control != null and control.is_visible_in_tree():
 				menu_boxes[box_name] = _rect(control)
 		facts["MainMenu"] = menu_boxes
-	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen"]:
+	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen", "WarningSplash"]:
 		for screen in root.find_children("*", screen_class, true, false):
 			var screen_boxes := {}
 			for control in screen.find_children("*", "Control", true, false):
