@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   React/Three.js game lives in `web-reference/` as the 1:1 parity oracle until the port catches up.
 - **Controls match the original.** The shield is on the right mouse button; a shot fires once per click instead of
   repeating while the button is held; aiming follows what the camera actually looks at.
+- **Pausing no longer freezes the match.** As in the original, the pause menu opens whenever a live match loses the
+  mouse (Esc or switching windows), the match keeps running behind it and the HUD steps aside; RESUME becomes
+  available a moment after the mouse is released.
 
 ### Added
 - **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
@@ -84,6 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **FPS and speed readouts.** With the profile's FPS / speed options on, the HUD corner under the shield bracket shows
   the frame rate with the slowest frame of the last half second, the frame-time graph with its 120 / 60 FPS guides and
   the player's speed, as in the original.
+- **The original's buttons and pause menu.** Buttons take the original's filled, outlined and dim looks that switch
+  instantly on hover and press. The pause menu shows MENU with RESUME, SETTINGS, TO MENU and QUIT over the dimmed
+  match, and the result screen gets the original's column spacing, a bold headline and the filled EXIT button.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
