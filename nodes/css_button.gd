@@ -22,6 +22,13 @@ var css_offset_x := 0.0:
 		css_offset_x = value
 		queue_redraw()
 
+## A CSS line-height in px (0: normal). With one set, Chrome centres a fixed line box on the primary face's strut, so a
+## glyph from a fallback face (the radio's ⏮ in Segoe UI Symbol) sits on the UI font's ascent and descent, not its own.
+var css_line_height := 0.0:
+	set(value):
+		css_line_height = value
+		queue_redraw()
+
 var _label := ""
 var _run := CssTextRun.new()
 var _css_px := 0.0                              # 0: no CSS font yet
@@ -57,6 +64,10 @@ func run() -> CssTextRun:
 func text_origin() -> Vector2:
 	var style := get_theme_stylebox(STYLES[get_draw_mode()])
 	var inner := size - style.get_minimum_size()
+	if css_line_height > 0.0:   # the line box centred, its baseline at the strut's (unrounded) half-leading plus the ascent
+		var strut_baseline := roundf(style.get_margin(SIDE_TOP) + inner.y * HALF + (_run.ascent() - _run.descent()) * HALF)
+		return _run.placed(Rect2(style.get_margin(SIDE_LEFT) + css_offset_x, strut_baseline - _run.baseline(), inner.x,
+			_run.line_height()), alignment)
 	var line := TextLine.new()                  # the native text's line — fallback glyphs (an em dash) size it too
 	line.add_string(_label, get_theme_font("font"), get_theme_font_size("font_size"), language)
 	var baseline := roundf(style.get_margin(SIDE_TOP) + (inner.y - line.get_size().y) * HALF + line.get_line_ascent())

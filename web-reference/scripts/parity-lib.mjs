@@ -25,10 +25,10 @@ const DEFAULT_WINDOW = FULLSCREEN_ON ? FULLSCREEN : { viewport: VIEWPORT, device
  *  native thin 10 px bar, which takes layout width inside a scrolling panel). `viewport` / `deviceScaleFactor`: the
  *  page's CSS size and pixel ratio (FULLSCREEN for the fullscreen frames). */
 export async function launchReferencePage({ showScrollbars = false, viewport = DEFAULT_WINDOW.viewport,
-  deviceScaleFactor = DEFAULT_WINDOW.deviceScaleFactor } = {}) {
+  deviceScaleFactor = DEFAULT_WINDOW.deviceScaleFactor, extraArgs = [] } = {}) {
   const browser = await chromium.launch({
     headless: true,
-    args: GL_ARGS,
+    args: [...GL_ARGS, ...extraArgs],   // extraArgs: e.g. the radio capture's autoplay policy
     ...(showScrollbars ? { ignoreDefaultArgs: ['--hide-scrollbars'] } : {}),
     // Optional override when the installed Playwright browser build differs from the package's expected one.
     ...(process.env.PARITY_CHROMIUM ? { executablePath: process.env.PARITY_CHROMIUM } : {}),

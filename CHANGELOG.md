@@ -37,7 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - **The Radio's music engine runs inside the game.** The original's generative Radio engine now runs in an embedded,
-  invisible web runtime (the system WebView2) and the game drives it; the Radio player and its menu entry come next.
+  invisible web runtime (the system WebView2) and the game drives it.
+- **The RADIO button and the docked Radio player.** The main menu has the original's RADIO entry and, in its corner,
+  the glass mini-player with the track name and prev / play-pause / next; it warms the engine up on the menu, dims until
+  the engine is ready, remembers whether the Radio is on and keeps the menu music quiet while it plays. Track names are
+  the original's, seed for seed. The Radio screen, library and DLC trial come next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

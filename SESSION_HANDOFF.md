@@ -156,9 +156,14 @@ GUT 766/766. **Третья волна FS3 смержена** (`feature/godot-fr
 `vite.radio-host.config.ts` → `localhost/radio_host/`, пересборка `npx vite build --config vite.radio-host.config.ts`),
 мост `RadioProtocol` / `RadioTransport` / `RadioHost` (`sim/radio/`), `WebViewRadioTransport` (`nodes/radio/`);
 живой прогон `tools/probes/radio_host_probe.gd`: трек играет, прогресс идёт. Отчёт `2026-09-15-radio-host-*`.
-GUT 779/779. **Дальше:** (1) R2 — автозагрузка радио и прогрев в меню, `RadioModel` + имена треков (`trackName.ts`),
-кнопка RADIO, мини-плеер, права (`entitlement.ts`, DLC `SteamBridge.owns_app`, магазин в оверлее); затем R3 экран
-радио, R4 библиотека, R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+GUT 779/779. **R2a смержен** (`feature/godot-radio-player`): автозагрузка `Radio` (прогрев в меню, `radioEnabled`,
+`RadioDirector.sync`, музыка меню молчит при радио), `RadioModel`, `RadioTrackName` (оракул web 240/240), кнопка RADIO,
+мини-плеер `nodes/radio/radio_player.gd` на общем `GlassCard` (вынесен из `InviteToast`); `CssButton.css_line_height`
+центрирует strut неокруглёнными ascent/descent UI-шрифта (символы ⏮⏸⏭ Segoe UI Symbol). Кадры: режим
+`radio-<ready|playing>` в `tools/screenshot.gd`, web `parity-capture-radio-player.mjs`. Отчёт `2026-09-15-radio-player-*`:
+окно 0.85/2.15, весь экран 0.65/1.80 /255. GUT 798/798. **Дальше:** (1) R2b — права (`entitlement.ts`, DLC
+`SteamBridge.owns_app` 4904970, пробная полоса, магазин в оверлее); затем R3 экран радио, R4 библиотека, R5
+матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

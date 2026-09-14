@@ -46,6 +46,13 @@ func baseline() -> int:
 func line_height() -> int:
 	return baseline() + roundi(_descent_em() * css_px)
 
+## The face's ascent and descent in CSS px, unrounded (Chrome's half-leading under an explicit line-height uses them).
+func ascent() -> float:
+	return _ascent_em() * css_px
+
+func descent() -> float:
+	return _descent_em() * css_px
+
 ## The face the glyphs are shaped and drawn with (no letter spacing: the run spaces them).
 func font() -> FontVariation:
 	return _font

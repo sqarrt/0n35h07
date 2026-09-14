@@ -11,6 +11,7 @@ const KEY_MASTER := "volumeMaster"
 const KEY_MUSIC := "volumeMusic"
 const KEY_SFX := "volumeSfx"
 const KEY_MENU_MUSIC := "volumeMenuMusic"
+const KEY_RADIO := "volumeRadio"
 
 var analysis := AudioAnalysisHub.new()
 var debug_bands := PackedFloat32Array()        # parity fixtures: a fixed spectrum instead of the live sound
@@ -62,6 +63,10 @@ func music_gain() -> float:
 
 func menu_music_gain() -> float:
 	return _volume(KEY_MASTER) * _volume(KEY_MENU_MUSIC)
+
+## web App: the radio plays at master × radio (the engine applies it inside its page).
+func radio_gain() -> float:
+	return _volume(KEY_MASTER) * _volume(KEY_RADIO)
 
 ## Menu music on the non-match screens (web App effect); a no-op while it already plays.
 func play_menu_music() -> void:
