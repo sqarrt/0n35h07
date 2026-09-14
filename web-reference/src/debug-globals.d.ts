@@ -29,6 +29,8 @@ declare global {
     __debugLockCooldownLeft?: number   // ms left of the pause RESUME cooldown, frozen for parity captures
     __debugPlace?: (id: number, x: number, z: number) => { x: number; y: number; z: number } | null
     __debugMenuLightAngle?: number   // pins the menu backdrop's orbiting light (radians) for parity captures
+    __debugMenuGlowLevel?: number    // pins the audio level (0..1) the menu edge glow reads, for parity captures
+    __debugMenuBallTime?: number     // pins the menu balls' shader clock (s): wave shape and ring bands, for parity captures
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void

@@ -35,6 +35,8 @@ extends SceneTree
 ##                     the facts.
 ##   lobby-<state>     the main menu scene with PLAY opened (web parity-capture-lobby.mjs): fresh, bot (a passive
 ##                     EX82R on seat 1), 2v2 or ffa; a -bottom suffix scrolls the body to its end. Use with profile:.
+##   stage-<state>     the same lobby with only its seat balls on the backdrop (web parity-capture-lobby-stage.mjs): bot
+##                     (Duel, EX82R on seat 1) or ffa (War, B1..B3 on seats 1..3); the light pinned. Use with profile:.
 ##   team-<mode>       a Battle (2v2) or War (ffa) match from a lobby roster: the parity human on seat 0 and passive
 ##                     bots B1..B3 (web parity-capture-teams.mjs); the team bar boxes join the facts. Use with profile:.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
@@ -91,9 +93,14 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_STAGE := "stage-"           # stage-bot / stage-ffa: the lobby's seat balls alone, the light pinned at 0
+const STAGE_FFA := "ffa"
+const STAGE_FRAMES := 90               # the camera damping, the fade-in and the colour easing (web settles 1.5 s)
+const STAGE_BALL_TIME_S := 1.0         # the balls' shader clock (web __debugMenuBallTime)
 const MODE_MENU_BALL := "menu-ball-"   # menu-ball-<degrees>: the backdrop alone, the light pinned
+const MODE_MENU_FULL := "menu-full-"   # menu-full-<degrees>: the browser menu over it, the light pinned
 const MENU_UI := ["Panel", "Version"]
-const MENU_BALL_FRAMES := 30          # past the warm-up and most of the fade (web settles for seconds)
+const MENU_BALL_FRAMES := 90          # past the warm-up and the whole fade (web settles for seconds)
 const MODE_MENU := "menu-"
 const MENU_FRAMES := 3               # the column lays out in the browser layout
 const MENU_BOXES := ["Panel", "Logo", "Rule", "Play", "Appearance", "Settings", "About", "Quit", "Hint", "Version"]
@@ -294,6 +301,30 @@ func _apply_hud_fixture() -> int:
 			if node.player.id == PLATE_BOT_ID:
 				node.place_at(Vector3(target.x, node.global_position.y, target.z))
 		return PLATE_FRAMES
+	if _mode.begins_with(MODE_STAGE):
+		# web parity-capture-lobby-stage.mjs: the room's seats as backdrop balls, every UI layer hidden
+		var state := _mode.trim_prefix(MODE_STAGE)
+		var menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		menu.call("open_lobby")
+		var room: Object = menu.call("lobby").get("room")
+		if state == STAGE_FFA:
+			room.call("set_mode", STAGE_FFA)
+			for slot in TEAM_BOT_SLOTS:
+				room.call("add_bot", slot, LOBBY_BOT_DIFFICULTY, TEAM_BOT_NAME % slot)
+		else:
+			room.call("add_bot", LOBBY_BOT_SLOT, LOBBY_BOT_DIFFICULTY, LOBBY_BOT_NAME)
+		for ui_name in MENU_UI:
+			(menu.find_child(ui_name, true, false) as CanvasItem).visible = false
+		(menu.call("lobby") as CanvasItem).visible = false
+		menu.call("backdrop").call("set_light_angle", 0.0)
+		menu.call("backdrop").call("pin_ball_time", STAGE_BALL_TIME_S)
+		return STAGE_FRAMES
+	if _mode.begins_with(MODE_MENU_FULL):
+		# the browser menu over the backdrop, the orbiting light pinned (web parity-capture-menu-ball.mjs full frames)
+		for menu in root.find_children("*", "MainMenu", true, false):
+			menu.call("set_browser_layout", true)
+			menu.call("backdrop").call("set_light_angle", deg_to_rad(float(_mode.trim_prefix(MODE_MENU_FULL))))
+		return MENU_BALL_FRAMES
 	if _mode.begins_with(MODE_MENU_BALL):
 		# web parity-capture-menu-ball.mjs: only the 3D backdrop, the orbiting light pinned at the frame's angle
 		for menu in root.find_children("*", "MainMenu", true, false):

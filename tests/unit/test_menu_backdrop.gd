@@ -22,8 +22,14 @@ func test_camera_lights_and_ball_spot() -> void:
 	assert_almost_eq(backdrop.light().light_energy, MenuBackdrop.LIGHT_INTENSITY / PI, EPS)
 	var toward_origin := -backdrop.light().global_basis.z
 	assert_true(toward_origin.is_equal_approx(-MenuBackdrop.LIGHT_POSITION.normalized()), "aimed at the stage centre")
-	assert_true(backdrop.ball().position.is_equal_approx(MenuBackdrop.PLAYER_SPOT + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)),
+	assert_true(backdrop.ball().position.is_equal_approx(MenuStage.STAGE_SPOTS[0] + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)),
 		"the sphere centre under the eye spot")
+
+func test_composites_premultiplied_like_the_web_canvas() -> void:
+	var backdrop := _backdrop()
+	var composite := backdrop.material as ShaderMaterial
+	assert_not_null(composite)
+	assert_eq(composite.shader, MenuBackdrop.PREMULTIPLIED_SHADER, "translucent pixels aren't multiplied by alpha twice")
 
 func test_the_ball_waits_out_the_warm_up() -> void:
 	var backdrop := _backdrop()

@@ -24,6 +24,12 @@ try {
   await page.getByTestId('menu-play').waitFor({ timeout: SETTLE_TIMEOUT_MS });
   await settleScene(page);
   await page.mouse.move(0, 0);
+  // The whole menu over the backdrop first (the panel's 72% fill and backdrop blur over the ball), then the ball alone.
+  for (const deg of ANGLES_DEG) {
+    await page.evaluate(rad => { window.__debugMenuLightAngle = rad; }, deg * Math.PI / 180);
+    await page.waitForTimeout(ANGLE_SETTLE_MS);
+    await page.screenshot({ path: resolve(output, `web-menu-full-${deg}.png`) });
+  }
   await page.evaluate(() => {
     document.querySelectorAll('.screen, .version-chip').forEach(el => { el.style.visibility = 'hidden'; });
   });

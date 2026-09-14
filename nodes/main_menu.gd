@@ -105,8 +105,8 @@ func open_lobby() -> void:
 	_lobby.back_requested.connect(close_lobby)
 	_lobby.match_requested.connect(_start_match)
 	_column.visible = false
-	_backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode)
-	room.changed.connect(func() -> void: _backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode))
+	_show_room(room)
+	room.changed.connect(_show_room.bind(room))
 	_layout()
 
 ## BACK / LEAVE: the room closes, the menu returns.
@@ -116,9 +116,16 @@ func close_lobby() -> void:
 		_lobby = null
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
 
 func backdrop() -> MenuBackdrop:
 	return _backdrop
+
+## web App: the lobby backdrop shows the room's seats and frames the preset (Duel pair / Battle-War square).
+func _show_room(room: RoomModel) -> void:
+	_backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_LOBBY, MenuStage.profile_spec(Game.profile), room.occupied(),
+		RoomModel.HOST_SLOT))
 
 func lobby() -> LobbyScreen:
 	return _lobby

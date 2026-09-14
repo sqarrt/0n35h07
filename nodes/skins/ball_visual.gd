@@ -86,7 +86,11 @@ func face_dir(direction: Vector3) -> void:
 	_mesh.rotation.y = atan2(-flat.x, -flat.z)
 
 func tick(dt: float) -> void:
-	_time += dt
+	set_time(_time + dt)
+
+## The shader clock (s): the waves' shape and the ring bands' drift.
+func set_time(seconds: float) -> void:
+	_time = seconds
 	_material.set_shader_parameter("time", _time)
 	if _ring != null:
 		_ring_material.set_shader_parameter("time", _time)

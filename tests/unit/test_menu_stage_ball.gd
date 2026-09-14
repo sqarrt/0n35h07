@@ -28,6 +28,11 @@ func test_fade_and_spawn_after_warm_up() -> void:
 	assert_almost_eq(ball.scale, 1.0, EPS)
 	assert_gt(ball.opacity, 0.99, "about eight fade taus later")
 
+func test_a_ball_joining_a_warm_stage_fades_in_at_once() -> void:
+	var ball := MenuStageBall.new(0)
+	ball.step(DT, false)
+	assert_gt(ball.opacity, 0.0, "no warm-up hold once the scene is warm")
+
 func test_leaving_shrinks_out() -> void:
 	var ball := MenuStageBall.new()
 	for i in 60:
@@ -35,3 +40,7 @@ func test_leaving_shrinks_out() -> void:
 	ball.step(0.1, true)
 	assert_almost_eq(ball.scale, 1.0 - 100.0 / MenuStageBall.EXIT_SHRINK_MS, EPS)
 	assert_lt(ball.opacity, 1.0)
+	assert_false(ball.is_gone())
+	for i in 3:
+		ball.step(0.1, true)
+	assert_true(ball.is_gone(), "fully shrunk after 250 ms")
