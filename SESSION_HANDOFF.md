@@ -144,9 +144,16 @@ GUT 766/766. **Третья волна FS3 смержена** (`feature/godot-fr
 центр по вертикали, `justify` в `css_width`, доля пикселя — текстам и вложенным строкам, `centre_in` для
 `translateX(-50%)`); `BoxContainer` округлял ширины вверх (`box_container.cpp` `.ceil()`). Сверка нашла: рамка
 таймера без бордюра (109 вместо 111 px) и 1 px у пустого `Label` (точки серии) → `CssLabel.css_size()`,
-`CssColumn.box_size`. Отчёт `2026-09-15-css-row-*`: глифы панели ±0.7 px. GUT 774/774. **Дальше:** (1) радио
-(кнопка RADIO, мини-плеер, DLC; веб-рантайм для Strudel); (2) хвост разрядки — трейлер, заставка, тост
-(`RichTextLabel`), поля ввода; `line-height: 1` точек серии. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`CssColumn.box_size`. Отчёт `2026-09-15-css-row-*`: глифы панели ±0.7 px. GUT 774/774.
+**Эксперимент радио смержен** (`feature/godot-radio-spike`): аддон godot_wry v1.0.2 (`addons/godot_wry`, WebView2),
+пробы `tools/probes/webview_audio_probe.gd|.html`, `webview_api_probe.gd` → `test-results/probes/webview/`.
+Итог: `autoplay = true` запускает `AudioContext` без жеста (env `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` не действует);
+скрытый WebView душит таймеры (~1/с), коробка 1×1 за экраном — полный темп; IPC `window.ipc.postMessage` ↔
+событие `message` на `document`, нужно рукопожатие. Регистрация расширения — импорт Windows-сборкой. Спека подпроекта:
+`docs/superpowers/specs/2026-09-15-godot-radio-design.md`. **Дальше:** (1) R1 — хост движка (сборка Vite модулей
+web + `radioHost.ts`), автозагрузка `RadioHost` (WebView 1×1), `RadioModel`, протокол IPC с тестом, живой прогон;
+затем R2 мини-плеер + DLC, R3 экран радио, R4 библиотека, R5 матч/свечение; (2) хвост разрядки — трейлер,
+заставка, тост (`RichTextLabel`), поля ввода; `line-height: 1` точек серии. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
