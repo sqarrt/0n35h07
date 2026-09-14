@@ -6,7 +6,6 @@ class_name HudCountdown extends Control
 const FONT_SIZE := 144                                         # web 9rem
 const COLOR := Color("#44aaff")                                # web #4af
 const DIM_COLOR := Color(10.0 / 255.0, 10.0 / 255.0, 15.0 / 255.0, 0.35)   # web rgba(10,10,15,0.35)
-const EMBOLDEN := 0.8                                          # web fontWeight: bold (synthesised like the browser)
 const GLOW_COLOR := Color(68.0 / 255.0, 170.0 / 255.0, 1.0, 0.6)          # web text-shadow rgba(68,170,255,0.6)
 const GLOW_BLUR := 40.0                                        # web text-shadow 0 0 40px
 const POP_DURATION_S := 1.0                                    # web cdPop 1s
@@ -34,11 +33,8 @@ func _ready() -> void:
 	_number = GlowText.new()
 	_number.name = "Number"
 	center.add_child(_number)
-	var bold := FontVariation.new()
-	bold.base_font = UiFont.base()
-	bold.variation_embolden = EMBOLDEN
-	UiFont.mirror_fallbacks(bold)
-	_number.configure(bold, FONT_SIZE, COLOR)
+	# fontWeight bold as Chrome synthesises it, in the CSS line box (the pop scales about its middle)
+	_number.configure(UiFont.with_css_line(UiFont.bold_spaced(0.0, FONT_SIZE), FONT_SIZE), FONT_SIZE, COLOR)
 	_number.set_shadows([CssShadow.make(GLOW_BLUR, GLOW_COLOR)])
 	_apply()
 

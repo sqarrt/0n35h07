@@ -26,7 +26,7 @@ const ASCENT_EM := 0.885
 const DESCENT_EM := 0.242
 
 static var _base: FontFile
-static var _base_cjk: FontFile
+static var _bases_with := {}                  # "family,family" -> the base face with those system fallbacks
 static var _measure_fonts := {}                # face -> its unspaced variation at MEASURE_PX
 
 ## The shared base face (Latin + Cyrillic fallback).
@@ -40,14 +40,21 @@ static func base() -> FontFile:
 
 ## The base face that can also show Chinese (the settings language grid's 简体中文).
 static func base_cjk() -> FontFile:
-	if _base_cjk == null:
+	return base_with(CJK_FAMILIES)
+
+## The base face with system `families` after the Cyrillic fallback — the --ui-font stack's later faces, for text only
+## they can show (Chinese, or a symbol Chrome takes from `monospace`). One face per family list.
+static func base_with(families: Array) -> FontFile:
+	var key := ",".join(families)
+	if not _bases_with.has(key):
 		TranslationServer.set_locale(SYSTEM_FALLBACK_LOCALE)
-		_base_cjk =(load(LATIN) as FontFile).duplicate() as FontFile
-		var cjk := SystemFont.new()
-		cjk.font_names = PackedStringArray(CJK_FAMILIES)
-		var fallbacks: Array[Font] = [load(CYRILLIC) as Font, cjk]
-		_base_cjk.fallbacks = fallbacks
-	return _base_cjk
+		var face := (load(LATIN) as FontFile).duplicate() as FontFile
+		var system := SystemFont.new()
+		system.font_names = PackedStringArray(families)
+		var fallbacks: Array[Font] = [load(CYRILLIC) as Font, system]
+		face.fallbacks = fallbacks
+		_bases_with[key] = face
+	return _bases_with[key]
 
 ## The letter spacing of a `.btn` / `.seg` label in the active locale (an inline letter spacing keeps its own).
 static func control_spacing_em(latin_em: float) -> float:
@@ -114,6 +121,13 @@ static func with_face_line(variation: FontVariation, font_size: int, face: Font)
 	variation.spacing_bottom = roundi(face.get_descent(MEASURE_PX) * font_size / MEASURE_PX) \
 		- roundi(face.get_descent(font_size))
 	return variation
+
+## Chrome's `line-height: normal` box for a line that also draws glyphs from `face` (a system fallback such as the ▸ in
+## Consolas): the larger of the two faces' ascents and of their descents, each rounded to a pixel.
+static func mixed_line_px(css_px: float, face: Font) -> int:
+	var ascent := maxi(roundi(ASCENT_EM * css_px), roundi(face.get_ascent(MEASURE_PX) * css_px / MEASURE_PX))
+	var descent := maxi(roundi(DESCENT_EM * css_px), roundi(face.get_descent(MEASURE_PX) * css_px / MEASURE_PX))
+	return ascent + descent
 
 static func _px(font_size: int, css_px: float) -> float:
 	return css_px if css_px > 0.0 else float(font_size)

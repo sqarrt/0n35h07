@@ -75,9 +75,10 @@
 | Фон карты в лобби (LM) | `MapBackground` за `MenuBackdrop`: два слоя (текущий и гаснущий 320 мс), превью cover в SubViewport, горизонтальное размытие во вложенном SubViewport один раз на карту, вертикальное на экране (`image_blur`, предумноженный цвет, brightness 0.7), проявление 0.7 s; web `parity-capture-lobby-map.mjs`, режим `lobby-map-<id>` |
 | Трейлер T1a: данные повтора | `RemoteState` + `Player.remote` (геттеры замаха/рывка/щита/готовности берут состояние снаружи; `NetProtocol.apply_player_snapshot` его заполняет — пригодится и сети), `DemoClip` (записи `assets/demos/*.demo.json`, камера, снимки игроков), `DemoTimeline` (часы по фрагментам, смесь кадров, события, склейки, сигнал перед концом). Визуала пока нет — отчёта нет; спека `docs/superpowers/specs/2026-09-14-godot-trailer-design.md` |
 | Трейлер T1b: воспроизведение | `PlayerNode.replay` (без симуляции, купол щита и сдутие замаха по `remote`, `play_remote_beam`), `MatchNode.replay` (часы записи), `Hud.replay` (без полосы звука/статистики/перегрева), `DemoPlayback` (карта, игроки, камера записи, события, сигнал `sound`; фон `#05070d`, без теней — как холст плана трейлера); web-хуки `__debugTrailerShot`/`__debugTrailerHoldFrame`, `parity-capture-trailer-frame.mjs`, режим `trailer-frame-<clip>-<frame>` на `scenes/trailer_frame.tscn` |
+| Трейлер T2: секвенсор | `TrailerScreen` (`scenes/trailer.tscn`, `exit_scene` → меню, `Game.menu_screen` = about) по `TrailerEdl`: `HudCountdown` (тики, GO → `Audio.play_trailer_music`), `TrailerCutView` + `TrailerCut` (ключи CSS по свойствам, `GlowText` в `CssOpacity` под скошенным `Node2D`, шейдер полосы `trailer_cut_bar`, общий `css_box.gdshaderinc`), `DemoPlayback` под покрышкой (`CssTransition` с кривой), `DemoPlayback.announced` → свой `HudStreakBanner`, `TrailerSkipButton` (▸ на Consolas: `UiFont.base_with`, `mixed_line_px`), `TrailerTitleCard`, `hold_at`/`wake`; `Hud.replay` без вспышек/щитового свечения/баннера; `HudCountdown` — жирность Chrome и CSS-строка; web-хук `__debugTrailerHoldClock`, `parity-capture-trailer-cut.mjs` (анимации композитора → встроенный стиль), режим `trailer-shot-<план>-<ms>[-awake]` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map, trailer-replay, trailer-sequencer).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
@@ -86,10 +87,10 @@
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
 шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT и APPEARANCE с превью
 стилей, переводы интерфейса i18n (10 языков), заставка-предупреждение M6, настройки в паузе, ритуал готовности матча и
-размытый фон карты в лобби (GUT 577/577) смержены в `release_2.0.0`. Трейлер: T1 (данные и воспроизведение записи,
-кадр 1.24/255, отчёт `2026-09-14-trailer-replay-*`) готов; дальше T2 — `TrailerScreen` по EDL (отсчёт, перебивки
-`.trailer-cut`, покрышка, HUD повтора, SKIP/Esc, скрытие курсора, звуки `DemoPlayback.sound` ×0.45, музыка трейлера на
-движке меню, английские тексты, `MainMenu` открывает трейлер по `screen_requested('trailer')`), затем T3 финал. Следующие слайсы: сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
+размытый фон карты в лобби смержены в `release_2.0.0`. Трейлер: T1 (воспроизведение записи, кадр 1.24/255, отчёт
+`2026-09-14-trailer-replay-*`) и T2 (секвенсор: отсчёт 0.64, перебивка 0.20–4.36, отчёт `2026-09-14-trailer-sequencer-*`,
+GUT 601/601) готовы; дальше T3 — `FinaleScene` (замедленная встречная дуэль под титром; титр `TrailerTitleCard` и
+тайминги 3.6 / 9 s уже есть, сейчас под ним однотонный #04050a), кадр титра сверить вместе со сценой. Следующие слайсы: дробная разрядка букв (перебивка трейлера шире на 17 px), сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
 вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
@@ -102,8 +103,9 @@
 - Открыто после темы UI: MENU — дробная базовая линия Chrome (отчёт `2026-09-14-ui-theme-*`).
 - Открыто после лобби: нет сети (Steam-приглашения, SEARCH, гости; в проекте нет аддона GodotSteam) (отчёты
   `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
-- Открыто после главного меню: WATCH в ABOUT шлёт
-  `screen_requested('trailer')` — трейлера нет; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
+- Открыто после трейлера T2: нет финальной сцены `FinaleScene` (T3); текст перебивки шире на 17 px (целая разрядка),
+  цифра отсчёта на 2 px правее/выше (отчёт `2026-09-14-trailer-sequencer-*`).
+- Открыто после главного меню: мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
   RADIO скрыт до радио (отчёт `2026-09-14-settings-about-*`).
 - Открыто после i18n: высота CJK-строки на 12 / 14 / 24 px (Chrome 16 / 19 / 31, Godot 17 / 17 / 32) — поправки
   спуска на запасной вариации не влияют, нужен свой расчёт строки для CJK-текста (отчёт `2026-09-14-i18n-*`).
