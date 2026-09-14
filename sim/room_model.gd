@@ -79,6 +79,7 @@ func set_mode(value: String) -> void:
 		return
 	var entries := occupied()
 	if entries.size() > GameModes.slot_count(value):
+		GameLog.warn("room", "mode_blocked", {"mode": value, "occupied": entries.size()})
 		return
 	var next: Array = []
 	next.resize(GameModes.slot_count(value))
@@ -92,6 +93,7 @@ func set_mode(value: String) -> void:
 		entry["id"] = i
 		next[i] = entry
 	mode = value
+	GameLog.log("room", "mode_set", {"mode": value})
 	slots = next
 	_ready_ids = ready
 	_seats_compacted(old_ids)
@@ -183,6 +185,7 @@ func set_map(ids: Array) -> void:
 		return
 	map_sel = ids.duplicate()
 	map_id = map_sel[0]
+	GameLog.log("nego", "set_map", {"sel": map_sel, "mapId": map_id})
 	_sync()
 
 func set_duration(minutes: Array) -> void:
@@ -190,6 +193,7 @@ func set_duration(minutes: Array) -> void:
 		return
 	duration_sel = minutes.duplicate()
 	duration_min = duration_sel[0]
+	GameLog.log("nego", "set_duration", {"sel": duration_sel, "durationMin": duration_min})
 	_sync()
 
 ## web resolveMatchParams: a random pick from what both sides accept (the creator's selection when nothing overlaps),
@@ -199,8 +203,13 @@ func resolve_against(maps: Array, durations: Array) -> void:
 	var common_durations := duration_sel.filter(func(minutes) -> bool: return durations.has(minutes))
 	map_id = _pick(common_maps if not common_maps.is_empty() else map_sel)
 	duration_min = _pick(common_durations if not common_durations.is_empty() else duration_sel)
+	if common_maps.is_empty():
+		GameLog.warn("nego", "map_no_overlap", {"host": map_sel, "client": maps, "using": map_id})
+	if common_durations.is_empty():
+		GameLog.warn("nego", "duration_no_overlap", {"host": duration_sel, "client": durations, "using": duration_min})
 	map_sel = [map_id]
 	duration_sel = [duration_min]
+	GameLog.log("nego", "resolved", {"mapId": map_id, "durationMin": duration_min})
 
 ## Take the whole room as the creator published it (a guest's view): no rules run, no start.
 func apply_room(room_mode: String, entries: Array, room_map_id: String, room_duration_min: int, ready: Array) -> void:

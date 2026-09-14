@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   on seats and in the friend picker keep their small line height.
 
 ### Added
+- **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
+  kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
+  errors; the version chip in the menu opens it in its folder.
 - **Steam profile, cloud, achievements and status.** As in the original's Steam build, a first run takes the Steam
   name; the profile follows the Steam account through Steam Cloud (the newest save wins, a different account on the
   same machine gets its own profile); the seven achievements unlock for first blood, double / triple kill,

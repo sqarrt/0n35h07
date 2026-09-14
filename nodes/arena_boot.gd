@@ -40,6 +40,11 @@ func _ready() -> void:
 	var match_node := MatchNode.new()
 	match_node.set_duration_ms(Game.match_duration_ms)
 	match_node.local_id = local_id
+	# web App match boot: the lobby role is the context; the match itself is a symmetric mesh
+	GameLog.set_context({"role": ("creator" if Game.room == null or Game.room.is_host() else "joiner"), "localId": local_id,
+		"code": String(setup.get("code", ""))})
+	GameLog.log("room", "match_boot", {"mapId": raw_path.get_file().get_basename(), "durationMs": Game.match_duration_ms,
+		"durationMin": Game.match_duration_ms / MatchConst.MS_PER_MIN, "mode": mode})
 	if not setup.is_empty():
 		match_node.configure_mesh(setup["owners"], setup["self_peer"])
 	var nodes := {}

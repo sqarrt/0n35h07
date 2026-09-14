@@ -144,6 +144,7 @@ static func parse_connect_lobby(command_line: String) -> String:
 	return tokens[at + 1]
 
 func _on_lobby_created(ok: bool, id: int) -> void:
+	GameLog.log("steam", "lobby_created", {"ok": ok, "lobby": str(id)})   # web: the Rust side's "diag" lines
 	if not ok:
 		return
 	api.set_lobby_joinable(id, true)
@@ -151,6 +152,7 @@ func _on_lobby_created(ok: bool, id: int) -> void:
 	_enter(id)
 
 func _on_lobby_joined(ok: bool, id: int) -> void:
+	GameLog.log("steam", "lobby_joined", {"ok": ok, "lobby": str(id)})
 	if ok:
 		_enter(id)
 
@@ -163,6 +165,7 @@ func _enter(id: int) -> void:
 	net_event.emit({"kind": "lobbyEntered", "lobbyId": str(id), "self": self_id(), "members": members()})
 
 func _on_member_changed(id: int, steam_id: int, entered: bool) -> void:
+	GameLog.log("steam", "member_changed", {"lobby": str(id), "member": str(steam_id), "entered": entered})
 	if id != lobby_id:
 		return
 	net_event.emit({"kind": "peerJoin" if entered else "peerLeave", "steamId": str(steam_id)})

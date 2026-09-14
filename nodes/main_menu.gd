@@ -126,6 +126,7 @@ func open_lobby() -> void:
 	close_lobby()
 	_draft_maps = [MapCatalog.MAP_IDS[0]]
 	_draft_durations = [RoomModel.DEFAULT_DURATION_MIN]
+	GameLog.log("nego", "play_reset", {"map": _draft_maps, "durationMin": _draft_durations})   # web handlePlay
 	_open_lobby_screen()
 	_enter_play_idle()
 	SteamPresence.apply(SteamBridge, SteamPresence.SCREEN_LOBBY)
@@ -639,5 +640,7 @@ func _start_match(setup: Dictionary) -> void:
 func _on_quit() -> void:
 	get_tree().quit()
 
+## web logSink.reveal: the session's file in its folder (the folder alone without a session log).
 func _on_version() -> void:
-	OS.shell_show_in_file_manager(ProjectSettings.globalize_path(LOGS_DIR))
+	var target: String = Game.log_sink.session_path() if Game.log_sink != null else LOGS_DIR
+	OS.shell_show_in_file_manager(ProjectSettings.globalize_path(target))

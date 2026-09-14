@@ -1,0 +1,54 @@
+{
+  "id": "2026-09-14-game-log",
+  "title": "Сверка паритета OneShot · журнал сессии Steam-сборки",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс D1 — невизуальная часть Steam-сборки: диагностический журнал сессии. Эталон — web `src/diag/gameLog.ts`, `logSink.ts`, `logFormat.ts`, `logRetention.ts`, `constants.ts`, `steamDiagBridge.ts` и точки вызова в `Match.ts`, `RoomSession.ts`, `NetSession.ts`, `matchmaking.ts`, `App.tsx`. Сверка поведенческая: формат и ротация перенесены вместе с web-тестами, события комнаты и согласования проверены на записывающем стоке, живой запуск игры со Steam создал файл сессии.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-game-log.json`. Web-тесты: `web-reference/tests/unit/logFormat.test.ts`, `logRetention.test.ts`. GUT: `tests/unit/test_game_log_format.gd`, `test_log_retention.gd`, `test_game_log.gd`, `test_game_log_events.gd`. Живой запуск: `Godot_v4.7.1-stable_win64.exe --path . --quit-after 400` при запущенном Steam → `%APPDATA%/Godot/app_userdata/OneShot/logs/oneshot-20260914-234309.log`.",
+  "pages": [
+    {
+      "slug": "game-log",
+      "name": "Журнал сессии",
+      "verdict": "Перенесено: журнал активен только в Steam-сборке (Steam доступен, не `-s`-инструмент), строка `ISO +мс I|W|E cat event k=v` по правилам web, файл `oneshot-YYYYMMDD-HHMMSS.log` на сессию в `user://logs`, сброс раз в секунду или при 400 строках, 15 новейших сессий, сброс при выходе, необработанные ошибки движка как `life uncaught`, чип версии открывает файл сессии. События web с теми же именами и полями: комната, согласование, фазы и сторож, пульс, выстрелы, блоки, убийства, вердикты, отброс событий и заявок, уход пира и хоста, конец матча, лобби Steam. Живой запуск записал заголовок `session_start` и сбросил его при выходе.",
+      "verdict_short": "Журнал сессии перенесён",
+      "conditions": [
+        ["сборка", "десктоп (Tauri, `src/diag/*`)", "десктоп Godot, `GameLog` + `GameLogSink`"],
+        ["каталог", "`$APPDATA/logs`", "`user://logs` (`%APPDATA%/Godot/app_userdata/OneShot/logs`)"],
+        ["живой запуск", "—", "`life session_start version=2.0.0 appId=4881310 platform=desktop engine=\"4.7.1-stable (official)\"`"],
+        ["тесты", "vitest: logFormat, logRetention", "GUT 740/740 (из них журнал 17)"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "D1-1", "severity": "fixed",
+          "title": "Журнал сессии, формат и ротация",
+          "web": "`installGameLog`: только Steam-сборка при доступном Steam; `logSink` — файл на сессию, сброс 1000 мс / 400 строк, 15 файлов; `formatLine` / `fmtFields`; `uncaught` / `unhandled_rejection`; `revealDir` из чипа версии.",
+          "godot": "`GameLogFormat`, `LogRetention`, `GameLog` (статический, неактивен без `install`), `GameLogSink` (буфер под мьютексом, сброс при выходе), `GameLogErrors` (`OS.add_logger`), установка в `Game._ready`, чип версии открывает файл сессии. Было: только собственный `godot.log` движка.",
+          "evidence": ["test", "code", "runtime"],
+          "sources": ["sim/diag/game_log_format.gd", "sim/diag/log_retention.gd", "sim/diag/game_log.gd", "nodes/game_log_sink.gd", "nodes/game_log_errors.gd", "autoloads/game.gd", "nodes/main_menu.gd", "tests/unit/test_game_log_format.gd", "tests/unit/test_log_retention.gd", "tests/unit/test_game_log.gd"]
+        },
+        {
+          "id": "D1-2", "severity": "fixed",
+          "title": "События комнаты, согласования и матча",
+          "web": "`room mode_set / mode_blocked / hello_reject_full / slot_move / assign_send / assign_recv / start_send / start_recv / connect_timeout / match_boot`, `transport host_gone / peer_left`, `nego set_map / set_duration / resolved / map_no_overlap / duration_no_overlap / play_reset`, `phase <фаза> / stuck / match_end / phase_drop`, `health tick`, `act fire / block / kill / respawn / shield / dash / claim_judge / claim_drop / event_drop`.",
+          "godot": "Те же события в `RoomModel`, `RoomSession`, `MainMenu.open_lobby`, `arena_boot` (контекст роли и `match_boot`), `MatchNode` (фазы, сторож 8 с, пульс 2 с, кромки щита и рывка, конец), `MatchRules` (выстрел, блок, убийство, респаун), `NetSync` (вердикты, отброс, удалённые события), `NetSession`; Steam — `steam lobby_created / lobby_joined / member_changed` вместо Rust-строк `diag`.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/room_model.gd", "sim/net/room_session.gd", "sim/net/net_sync.gd", "sim/net/net_session.gd", "sim/match_rules.gd", "nodes/match_node.gd", "nodes/arena_boot.gd", "autoloads/steam_bridge.gd", "tests/unit/test_game_log_events.gd"]
+        },
+        {
+          "id": "D1-3", "severity": "behavior",
+          "title": "Нет предсказания убийства — нет событий predict_*",
+          "web": "`predictOpponentDeath`: стрелок заранее показывает смерть чужого игрока (`predict_death / predict_skip / predict_revert / predict_confirm`) до вердикта владельца жертвы.",
+          "godot": "Сетевой бой ждёт вердикт владельца жертвы без локального предсказания; событий predict_* нет. Кандидат в следующий сетевой слайс.",
+          "evidence": ["code"],
+          "sources": ["sim/net/net_sync.gd", "web-reference/src/game/Match.ts"]
+        }
+      ],
+      "limitations": [
+        "Живой запуск ограничен меню (400 кадров): события комнаты и матча проверены тестами, а не живым матчем со Steam-другом.",
+        "Строки Rust-транспорта web (`steam raw`) заменены событиями лобби GodotSteam — у Godot нет Rust-стороны.",
+        "Браузерные события Trystero / ICE не переносятся (только Steam-сборка)."
+      ]
+    }
+  ]
+}
