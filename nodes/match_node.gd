@@ -28,6 +28,7 @@ var replay := false   # a demo replay: the playback sets scores, streaks and the
 var replay_seconds_left := 0
 var roster := Roster.new()   # names, colours and looks of the participants (web RosterEntry list)
 var mesh: NetSync = null     # a networked match: who simulates and judges each player (null: a local match)
+var net_session: NetSession = null   # ships this peer's facts after every tick (web session.afterUpdate)
 var self_peer := ""          # this peer's transport id on a mesh
 var clock_ms := Callable(Time, "get_ticks_msec")   # the wall clock remote interpolation runs on (tests pin it)
 var _clock := MatchClock.new(MatchConst.DEFAULT_MATCH_DURATION_MS)
@@ -157,6 +158,8 @@ func _physics_process(delta: float) -> void:
 	if rules.apply_comeback():   # web: at the top of the next tick, before anyone moves or fires
 		singularity_changed.emit(rules.singularity_active)
 	_tick_result(delta)
+	if net_session != null:
+		net_session.after_update(float(clock_ms.call()))
 
 ## Re-emit rule events as signals (web Match dispatches BEAM_FLASH / SHIELD_BLOCK / PLAYER_HIT from these facts).
 func emit_events(events: Array) -> void:

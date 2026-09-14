@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   closing slow-motion duel — two fighters charge and fire, their beams freeze mid-flight as the camera pulls back and
   the title surfaces. It is always in English; the cursor and SKIP hide after a moment without mouse movement, and SKIP
   or Esc returns to ABOUT.
+- **Rooms and matches run on the peer mesh.** As in the original, the Play screen is a room its creator hosts:
+  guests take free seats, follow the room and ready up, and the match starts on every peer at once with the same
+  seats, map and music. In the match each peer runs its own player and bots, shows the others as their owners send
+  them, and a player who leaves drops out (the match ends when one team is left). Joining over Steam comes next.
 - **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
   victim's owner against the victim's real local state — the shield on the victim's screen always wins — and every
   peer derives the same score, streak, bounty and perfect-block reward from the verdict. Claims, verdicts and

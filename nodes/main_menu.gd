@@ -103,11 +103,12 @@ func _ready() -> void:
 		Game.menu_screen = ""
 		open_about()
 
-## PLAY (web handlePlay): a fresh local room on every visit, shown in the same panel instead of the menu.
+## PLAY (web handlePlay): a fresh room hosted on every visit, shown in the same panel instead of the menu.
 func open_lobby() -> void:
 	close_screen()
 	close_lobby()
-	var room := RoomModel.new(Game.profile, Game.random.randf)
+	var room := RoomSession.new(LoopbackNet.new(Game.LOCAL_PEER), RoomSession.ROLE_HOST, Game.profile, Game.random.randf)
+	Game.room = room
 	_lobby = LobbyScreen.new()
 	_lobby.name = "Lobby"
 	_lobby.setup(room, Game.random.randf)
@@ -125,6 +126,7 @@ func close_lobby() -> void:
 	if _lobby != null:
 		_lobby.queue_free()
 		_lobby = null
+		Game.leave_room()
 	_map_background.set_shown(false)
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
@@ -394,6 +396,7 @@ func _start_match(setup: Dictionary) -> void:
 	Game.match_duration_ms = setup["duration_min"] * MatchConst.MS_PER_MIN
 	Game.lobby_roster = setup["roster"]
 	Game.lobby_mode = setup["mode"]
+	Game.match_setup = setup                            # the room (Game.room) stays open through the match
 	get_tree().change_scene_to_file(ARENA)
 
 func _on_quit() -> void:
