@@ -44,6 +44,16 @@ func test_panel_column_and_buttons_follow_the_web_boxes() -> void:
 	assert_almost_eq(rule.global_position.x, 580.0, EPS)
 	assert_almost_eq(_control(menu, "Logo").size.y, 72.0, EPS, "64 px line-height normal: 57 + 15")
 
+func test_the_panel_blurs_the_backdrop_behind_it() -> void:
+	var menu := await _menu()
+	var blur := _control(menu, "PanelBlur")
+	var panel := _control(menu, "Panel")
+	assert_eq(blur.get_global_rect(), panel.get_global_rect(), "backdrop-filter reads the panel's border box")
+	var composite := blur.material as ShaderMaterial
+	assert_almost_eq(float(composite.get_shader_parameter("sigma")), MainMenu.PANEL_BLUR_PX, EPS, "blur(2px): σ 2 px")
+	assert_eq(composite.get_shader_parameter("box_px"), panel.size)
+	assert_lt(blur.get_index(), panel.get_index(), "blurred first, the 72% fill on top")
+
 func test_version_chip_sits_in_the_corner() -> void:
 	var menu := await _menu()
 	var version := _control(menu, "Version")

@@ -1,9 +1,11 @@
-class_name MenuBackdrop extends SubViewportContainer
+class_name MenuBackdrop extends Control
 ## Persistent 3D backdrop of the menu screens — port of web components/MenuBackdrop: its own transparent 3D world under
 ## the menu panel, framed only by the camera (MenuCameraRig poses, damped), lit by a 0.4 ambient and a directional
 ## light slowly orbiting the stage, with the stage's balls (MenuStage: you, or every lobby seat on its spot) as the
 ## in-game BallVisual at full size, facing the camera: held through the warm-up and fading in, leaving balls
 ## shrinking out (MenuStageBall), colours easing (web COLOR_TAU). three.js lights are divided by π like MapLights.
+## While there is sound the model edges glow (MenuEdgeGlow, brightness from MenuGlowLevel). The `View` shows it all,
+## composited premultiplied like the web canvas.
 
 const FOV := 45.0                                   # web Canvas camera fov (vertical)
 const AMBIENT_INTENSITY := 0.4                      # web <ambientLight intensity={0.4} />
@@ -12,7 +14,8 @@ const LIGHT_INTENSITY := 1.0
 const SPIN_SPEED := 0.6                             # web PREVIEW_SPIN_SPEED (rad/s): the light's orbit
 const COLOR_TAU := 0.067                            # web COLOR_TAU: a ball's colour change eases in ~0.2 s
 const EXIT_MS := 400.0                              # web EXIT_MS: a leaving ball stays mounted while it fades
-const PREMULTIPLIED_SHADER := preload("res://assets/shaders/premultiplied_viewport.gdshader")   # web canvas alpha
+const COMPOSITE_SHADER := preload("res://assets/shaders/menu_backdrop_composite.gdshader")
+const PROFILE_MENU_GLOW := "menuGlow"
 
 ## One ball on the stage: its visual, its appearance state and where it stands.
 class StageEntry:
@@ -29,26 +32,31 @@ var _viewport: SubViewport
 var _camera: Camera3D
 var _light_pivot: Node3D
 var _light: DirectionalLight3D
+var _view: TextureRect
+var _composite: ShaderMaterial
+var _glow: MenuEdgeGlow
+var _glow_level := MenuGlowLevel.new()
 var _entries := {}                                  # key -> StageEntry
 var _warm_frames := 0
 var _light_angle := 0.0
 var _light_pinned := false
 var _ball_time := 0.0
 var _ball_time_pinned := false
+var _glow_input := 0.0
+var _glow_input_pinned := false
 
 func _ready() -> void:
 	name = "Backdrop"
-	stretch = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var composite := ShaderMaterial.new()
-	composite.shader = PREMULTIPLIED_SHADER
-	material = composite
+	_glow = MenuEdgeGlow.new()
+	add_child(_glow)
 	_viewport = SubViewport.new()
 	_viewport.name = "World"
 	_viewport.transparent_bg = true
 	_viewport.own_world_3d = true
 	_viewport.msaa_3d = Viewport.MSAA_4X
-	add_child(_viewport)
+	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_glow.adopt_world(_viewport)
 	var environment := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
@@ -62,6 +70,7 @@ func _ready() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "Camera"
 	_camera.fov = FOV
+	_camera.cull_mask &= ~MenuEdgeGlow.GLOW_LAYERS
 	_viewport.add_child(_camera)
 	_place_camera()
 	_light_pivot = Node3D.new()
@@ -72,6 +81,9 @@ func _ready() -> void:
 	_light.light_energy = LIGHT_INTENSITY / PI
 	_light_pivot.add_child(_light)
 	_light.look_at_from_position(LIGHT_POSITION, Vector3.ZERO)
+	_add_view()
+	resized.connect(_fit)
+	_fit()
 	set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
 
 ## The camera pose for a screen (web cameraStateFor): menu / settings — default; lobby — the Duel pair or the square.
@@ -90,6 +102,7 @@ func set_balls(balls: Array) -> void:
 			_entries[key] = entry
 		elif entry.spec.get("model") != ball["spec"]["model"] or entry.spec.get("art") != ball["spec"]["art"]:
 			entry.visual.setup(entry.color, ball["spec"]["model"], Color(ball["spec"]["ring"]), ball["spec"]["art"])
+			_glow.add_model(entry.visual)
 		entry.spec = ball["spec"]
 		entry.exiting = false
 		entry.exit_ms = 0.0
@@ -108,6 +121,11 @@ func set_light_angle(angle: float) -> void:
 func pin_ball_time(seconds: float) -> void:
 	_ball_time = seconds
 	_ball_time_pinned = true
+
+## Parity captures: pin the audio level the edge glow reads (web __debugMenuGlowLevel).
+func pin_glow_level(level: float) -> void:
+	_glow_input = level
+	_glow_input_pinned = true
 
 ## Your own ball (the "player" key).
 func ball() -> BallVisual:
@@ -130,10 +148,20 @@ func camera() -> Camera3D:
 func light() -> DirectionalLight3D:
 	return _light
 
+func world() -> SubViewport:
+	return _viewport
+
+func view() -> TextureRect:
+	return _view
+
+func glow() -> MenuEdgeGlow:
+	return _glow
+
 func _process(delta: float) -> void:
 	_warm_frames += 1
 	rig.step(delta)
 	_place_camera()
+	_glow.sync_camera(_camera)
 	if not _light_pinned:
 		_light_angle += SPIN_SPEED * minf(delta, MenuCameraRig.MAX_DT)
 	_light_pivot.rotation.y = _light_angle
@@ -156,6 +184,42 @@ func _process(delta: float) -> void:
 			entry.visual.set_time(_ball_time)
 		else:
 			entry.visual.tick(delta)
+	_step_glow(delta)
+
+## web MenuEdgeGlow useFrame: the level from the sound (muted with the profile's menu glow off) drives the edge
+## intensity; the post chain renders only while that is visible.
+func _step_glow(delta: float) -> void:
+	var level := _glow_input if _glow_input_pinned else Audio.analysis.level()
+	_glow_level.step(delta, level, not bool(Game.profile.get(PROFILE_MENU_GLOW, true)))
+	var lit := _glow_level.is_lit()
+	if lit != _glow.is_lit():
+		_glow.set_lit(lit)
+		_composite.set_shader_parameter("lit", lit)
+	if lit:
+		_glow.sync_models()
+	_glow.set_intensity(_glow_level.intensity())
+
+func _add_view() -> void:
+	_view = TextureRect.new()
+	_view.name = "View"
+	_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_view.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_view.stretch_mode = TextureRect.STRETCH_SCALE
+	_view.texture = _viewport.get_texture()
+	_composite = ShaderMaterial.new()
+	_composite.shader = COMPOSITE_SHADER
+	_composite.set_shader_parameter("edge", _glow.edge_texture())
+	_composite.set_shader_parameter("bloom", _glow.bloom_texture())
+	_composite.set_shader_parameter("bloom_intensity", MenuEdgeGlow.BLOOM_INTENSITY)
+	_view.material = _composite
+	add_child(_view)
+	_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+## web Canvas: the scene renders at the backdrop's size (the old SubViewportContainer stretch).
+func _fit() -> void:
+	var pixels := Vector2i(maxi(roundi(size.x), 1), maxi(roundi(size.y), 1))
+	_viewport.size = pixels
+	_glow.set_size(pixels)
 
 func _new_entry(key: String, spec: Dictionary) -> StageEntry:
 	var entry := StageEntry.new()
@@ -167,6 +231,7 @@ func _new_entry(key: String, spec: Dictionary) -> StageEntry:
 	_viewport.add_child(entry.visual)
 	entry.visual.setup(entry.color, spec["model"], Color(spec["ring"]), spec["art"])
 	entry.visual.set_opacity(0.0)
+	_glow.add_model(entry.visual)
 	return entry
 
 func _place_camera() -> void:

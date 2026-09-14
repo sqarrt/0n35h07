@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 464/464)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 474/474)
 
 | Слайс | Суть |
 |---|---|
@@ -64,19 +64,19 @@
 | Неймплейты 2v2/FFA | `Nameplate` (Sprite3D billboard; текст из SubViewport, фон и композит — шейдер `nameplate` в числах холста как линейном свете), `PlayerNode.set_nameplate` (видна при `alive`), выдача в `arena_boot`; web-хук `__debugPlace` |
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | 3D-фон меню (MB) | `MenuBackdrop` (прозрачный мир, композит `premultiplied_viewport`), `MenuCameraRig` (позы web JSON), `MenuStageBall` (прогрев/проявление/уход), `MenuStage.balls` (свой шар в меню, все места лобби на `STAGE_SPOTS`); web-хуки `__debugMenuLightAngle`/`__debugMenuGlowLevel`/`__debugMenuBallTime` |
+| Свечение краёв + размытие панели (MG) | `MenuEdgeGlow` (вложенные float-вьюпорты: двойники моделей → глубина/цвет → контур → Bloom postprocessing: яркость, 8 mip вниз, 7 вверх; композит SCREEN), `MenuGlowLevel` (√уровня звука, сглаживание, монтирование 600 мс, `menuGlow`), `PanelBlur` (`backdrop_blur` σ 2 px); `MenuBackdrop` теперь Control с `View` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
 Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
-шары мест лобби; GUT 464/464) смержены в `release_2.0.0`. Следующий слайс — **свечение краёв `MenuEdgeGlow`**
-(глубина слоя моделей → HDR-контур → Bloom; уровень от звука, в сверке — хук `__debugMenuGlowLevel`, кадры
-`web-stage-ffa-glow-0.1/1.png` уже сняты) и **размытие под панелью** (`backdrop-filter: blur(2px)`), затем экраны
-APPEARANCE / SETTINGS / ABOUT.
+шары мест лобби), свечение краёв со звуком и размытие под панелью (GUT 474/474) смержены в `release_2.0.0`.
+Следующий слайс — **экраны APPEARANCE / SETTINGS / ABOUT** (web `screens/Appearance`, `Settings`, `About`; позы камеры
+`appearance*` уже лежат в `menu_camera_poses.json`, свечение на экране внешности приглушается).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
 ## 5. Что ещё осталось (бэклог паритета)
@@ -88,9 +88,9 @@ APPEARANCE / SETTINGS / ABOUT.
   линия Chrome (отчёт `2026-09-14-ui-theme-*`).
 - Открыто после лобби: нет сети (код комнаты, «вход по коду», Steam-приглашения, SEARCH, гости) и размытого превью
   карты в фоне (отчёты `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
-- Открыто после главного меню: APPEARANCE / SETTINGS / ABOUT шлют `screen_requested`, экранов нет; нет свечения
-  краёв `MenuEdgeGlow` и `backdrop-filter: blur(2px)` панели (отчёт `2026-09-14-menu-backdrop-*`); позы камеры экрана
-  внешности не перенесены; RADIO скрыт до радио; нет заставки M6 и i18n M5.
+- Открыто после главного меню: APPEARANCE / SETTINGS / ABOUT шлют `screen_requested`, экранов нет; позы камеры
+  экрана внешности не подключены; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`); RADIO скрыт до
+  радио; нет заставки M6 и i18n M5.
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
   в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
 - **Лобби L1–L6**: режимы DUEL/BATTLE/WAR, места, боты (ник/сложность), карты мультивыбор, длительность 3/5/10,
@@ -134,6 +134,12 @@ APPEARANCE / SETTINGS / ABOUT.
 - Прозрачный SubViewport хранит premultiplied-цвет; выводить его `render_mode blend_premul_alpha` (3D-фон меню:
   без этого полупрозрачное кольцо планеты темнее на 11.5/255). Часы шейдера web-шара живут в `Body` — при смене
   модели Body пересоздаётся с нулём, хук времени должен сбрасываться вместе с ним.
+- three.js фильтрует и источники света слоями камеры: проход по слою моделей (web `MenuEdgeGlow`) рисует шары
+  чёрными — цвет контура серый, не цвет шара. Godot рисует дочерний SubViewport раньше родителя → цепочку
+  постобработки вкладывать «читатель снаружи». SubViewportContainer рисует все дочерние SubViewport — цепочку и мир
+  держать под обычным узлом, показывать через `TextureRect`. Кадры фона без UI должны прятать и `PanelBlur`.
+- «N resources still in use at exit» в GUT/съёмке — музыкальные потоки автозагрузки `Audio` и скрипты сетевых
+  тестов (`--verbose`: ни одного ресурса свечения); к слайсам меню не относится.
 - Область SVG-фильтра серий в Chrome не обрезает свечение `text-shadow` (замерено пробником) → `StreakFx.filter_region`.
 - `JSON.parse_string` на мусоре пишет ошибку движка (GUT валит тест) → `JSON.new().parse()`.
 - Автозагрузки получают `_ready` после `_initialize` инструмента `-s` → не перетирать заданное инструментом.
