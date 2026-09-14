@@ -125,7 +125,7 @@
       ],
       "discrepancies": [
         {
-          "id": "MB4", "severity": "high",
+          "id": "MB4", "severity": "missing",
           "title": "Нет свечения краёв моделей",
           "web": "`MenuEdgeGlow`: глубина слоя моделей (кольцо пишет глубину), контур по разрыву глубины (8 точек на радиусе 4 px, порог 0.05), цвет модели + 15% белого × 4, уровень √(RMS·3.2) со сглаживанием 0.18, Bloom (порог 1.1, радиус 0.55, сила 1.5).",
           "godot": "Не перенесено.",
@@ -133,7 +133,7 @@
           "sources": ["web-reference/src/components/MenuEdgeGlow.tsx"]
         },
         {
-          "id": "MB5", "severity": "medium",
+          "id": "MB5", "severity": "visual",
           "title": "Нет размытия фона под панелью",
           "web": "`.panel-fill`: `backdrop-filter: blur(2px)` поверх 3D-фона.",
           "godot": "Панель рисует только заливку .72 — край шара за ней резкий.",
