@@ -38,6 +38,18 @@ func add_entity(pnode: PlayerNode, team: int) -> void:
 	_entities[pnode.player.id] = pnode
 	rules.add_player(pnode.player)
 
+## Every participant's Player (bots pick their target among them).
+func players() -> Array:
+	return _entities.values().map(func(pnode: PlayerNode) -> Player: return pnode.player)
+
+## web hud.scores: {id, team, kills, deaths} per participant, in the order they joined.
+func scores() -> Array:
+	var out: Array = []
+	for id in _entities:
+		var player: Player = _entities[id].player
+		out.append({"id": id, "team": player.team, "kills": player.kills, "deaths": player.deaths})
+	return out
+
 func score_of(id: int) -> int:
 	return _entities[id].player.kills if _entities.has(id) else 0
 
