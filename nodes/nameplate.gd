@@ -1,10 +1,12 @@
 class_name Nameplate extends Sprite3D
-## Billboard name plate over another player — port of web game/fx/nameplate.ts: a 256 x 64 texture drawn once (a
-## rounded background in the team colour for 2v2 or a neutral grey for FFA at 85% opacity, the name in bold 34 px
-## monospace, dark), shown 1.6 x 0.4 world units big 1.35 above the body; it never writes depth and dies with the body.
+## Billboard name plate over another player — port of web game/fx/nameplate.ts: a 256 x 64 plate (a rounded background
+## in the team colour for 2v2 or a neutral grey for FFA at 85% opacity, the name in bold 34 px monospace, dark), shown
+## 1.6 x 0.4 world units big 1.35 above the body; it never writes depth and dies with the body. The web canvas has no
+## colour space, so three.js shows its colours as linear light: the plate shader composites them that way.
 
+const SHADER := preload("res://assets/shaders/nameplate.gdshader")
 const PLATE_SIZE := Vector2i(256, 64)
-const PLATE_RADIUS := 18
+const PLATE_RADIUS := 18.0
 const FONT_SIZE := 34
 const FONT_NAMES := ["Consolas", "DejaVu Sans Mono", "monospace"]   # Chrome's `monospace` on Windows is Consolas
 const FONT_WEIGHT_BOLD := 700
@@ -31,8 +33,7 @@ static func label_text(player_name: String) -> String:
 		return player_name
 	return player_name.substr(0, MAX_NAME_CHARS - 1) + ELLIPSIS
 
-## The web canvas texture carries no colour space, so three.js reads its sRGB-authored values as linear light; the
-## canvas here is authored in those displayed colours instead.
+## A canvas colour as three.js shows it (the canvas numbers read as linear light), for 2D drawing in sRGB.
 static func web_canvas_color(color: Color) -> Color:
 	return Color(color.linear_to_srgb(), color.a)
 
@@ -46,13 +47,6 @@ func build(player_name: String, background: Color) -> void:
 	_viewport.transparent_bg = true
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE   # the plate is static
 	add_child(_viewport)
-	var panel := Panel.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = web_canvas_color(Color(background, BACKGROUND_ALPHA))
-	box.set_corner_radius_all(PLATE_RADIUS)
-	panel.add_theme_stylebox_override("panel", box)
-	panel.size = Vector2(PLATE_SIZE)
-	_viewport.add_child(panel)
 	var label := Label.new()
 	label.name = "Text"
 	label.text = label_text(player_name)
@@ -66,15 +60,14 @@ func build(player_name: String, background: Color) -> void:
 	label.add_theme_font_size_override("font_size", FONT_SIZE)
 	label.add_theme_color_override("font_color", web_canvas_color(TEXT_COLOR))
 	_viewport.add_child(label)
-	texture = _viewport.get_texture()
-	# A transparent viewport stores premultiplied colour: blend it as such, unlit, without writing depth.
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.blend_mode = BaseMaterial3D.BLEND_MODE_PREMULT_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	material.albedo_texture = texture
+	texture = _viewport.get_texture()             # also sizes the quad (pixel_size x the plate)
+	var material := ShaderMaterial.new()
+	material.shader = SHADER
+	material.set_shader_parameter("text_texture", texture)
+	material.set_shader_parameter("background_linear", Vector3(background.r, background.g, background.b))
+	material.set_shader_parameter("background_alpha", BACKGROUND_ALPHA)
+	material.set_shader_parameter("plate_px", Vector2(PLATE_SIZE))
+	material.set_shader_parameter("radius_px", PLATE_RADIUS)
 	material_override = material
 
 func text() -> String:
