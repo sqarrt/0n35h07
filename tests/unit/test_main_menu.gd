@@ -95,6 +95,24 @@ func test_settings_and_about_open_in_the_panel() -> void:
 	assert_null(menu.screen(), "PLAY replaces the open screen")
 	menu.close_lobby()
 
+func test_appearance_slides_the_panel_and_mutes_the_glow() -> void:
+	var menu := await _menu()
+	menu.profile_saving = false
+	(_control(menu, "Appearance") as UiButton).pressed.emit()
+	assert_true(menu.screen() is AppearanceScreen)
+	assert_true(menu.backdrop().glow_muted, "web glowMuted on appearance")
+	assert_eq(menu.backdrop().rig.state(), MenuCameraRig.APPEARANCE)
+	for i in 60:
+		menu._process(1.0 / 60.0)
+	assert_eq(menu.panel_slide(), 276.0, "(1280 − 680) / 2 − 24")
+	assert_eq(_control(menu, "Panel").position.x, 576.0)
+	assert_eq(_control(menu, "PanelBlur").position.x, 576.0, "the blur travels with the panel")
+	menu.close_screen()
+	assert_false(menu.backdrop().glow_muted)
+	for i in 60:
+		menu._process(1.0 / 60.0)
+	assert_eq(menu.panel_slide(), 0.0)
+
 func test_browser_layout_for_parity_captures() -> void:
 	var menu := await _menu()
 	menu.set_browser_layout(true)

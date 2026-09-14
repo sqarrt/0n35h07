@@ -1,0 +1,107 @@
+{
+  "id": "2026-09-14-appearance",
+  "title": "Сверка паритета OneShot · экран APPEARANCE",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс экрана внешности: web `screens/Appearance` с `ui/BallPaintField`, `.swatch`, сдвигом панели вправо (`useDampedTranslateX`) и превью шара на 3D-фоне (цвет редактируемого слота, модель, рисунок, поза камеры по последнему блоку, свечение заглушено). Эталон — десктопная Steam-сборка (заглушка `__TAURI_INTERNALS__`), со включёнными полосами прокрутки: страница выше панели и прокручивается. Анимированные превью стилей (замах, респавн, рывок, щит) — следующий слайс.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-appearance.json`. Web: `web-reference/scripts/parity-capture-appearance.mjs` (PARITY7, en; свет 0, часы шара 1 с, свечение 0; состояния по очереди: свежий экран → резервный #4fa → модель planet → клетка (8, 8) спереди; каждое — кадр с фоном `web-appearance*-full.png` и панель без холстов `web-appearance*.png`, рамки в `web-appearance.json`) → `test-results/parity-gpu-appearance/`. Godot: `tools/screenshot.gd`, режимы `profile:appearance[-reserve|-planet|-paint][-panel]` (те же действия через `AppearanceScreen`, профиль не сохраняется, 90 кадров). Замеры: рамки по testid/тексту, среднее отличие каналов по панели (x 576–1256, без плеера радио) и по кадру.",
+  "pages": [
+    {
+      "slug": "panel",
+      "name": "Страница внешности",
+      "verdict": "Страница перенесена. 49 элементов стоят по вертикали в пределах 0.52 px: заголовок 75.19, ON MODEL 118.19, свотчи 182.58 / 262.77 (шаг 41.59), модели 342.95, кисть 416.14, поля рисования 466.73 (x 695.59 и 994.39 при ширине колонки 588 рядом с полосой прокрутки), стили 694.7…914.27, BACK 964.86 (прокрутка 983 px). Панель отличается на 1.10–1.12/255; остаток — ширины текста (сегменты на 1–2 px шире) и полоса прокрутки.",
+      "verdict_short": "Страница совпадает",
+      "conditions": [
+        ["сборка", "браузер + заглушка `__TAURI_INTERNALS__`, полосы прокрутки видимы", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, 90 кадров"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["профиль", "PARITY7 #fa4 / #4af, smooth, classic / echo / streak / dome", "то же, в памяти"],
+        ["тесты", "—", "GUT 512/512"]
+      ],
+      "comparisons": [
+        {"title": "Панель, свежий экран", "wipe": true,
+          "note": "Панель сдвинута к правому краю: x 576 = (1280 − 680) / 2 − 24.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-appearance-panel.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-appearance-panel.png", "note": "Панель 1.10/255."}
+          ]},
+        {"title": "Свотчи со свечением (×3)", "wipe": true,
+          "note": "Выбранный: кольцо 3 px цвета текста и `box-shadow: 0 0 10px currentColor`; основной цвет в резервном ряду приглушён до 25%.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-swatches.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-swatches.png", "note": "—"}
+          ]},
+        {"title": "Поле рисования (×3)", "wipe": true,
+          "note": "Холст 132 px, клетки с шагом 8.25 px и частичным покрытием, круговая обрезка; клетка (8, 8) закрашена.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-paint.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-paint.png", "note": "—"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "AP1", "severity": "fixed",
+          "title": "Экран внешности",
+          "web": "`Appearance`: ON MODEL со слотом в его цвете, основной и резервный цвета (основной, равный резерву, сдвигает резерв на первый другой цвет; основной цвет в резервном ряду только переключает показываемый слот), модель, кисть / ластик, поля FRONT / BACK, стили SHOT / RESPAWN / DASH / SHIELD, BACK. Каждое изменение — `saveProfile`; пустой рисунок удаляет `ballArt`.",
+          "godot": "`AppearanceScreen` (`MainMenu.open_appearance`), `ColorSwatch` (шейдер `color_swatch`: кольцо и размытое свечение круга), `BallPaintField` (растр холста на CPU), `BallArt.encode/decode/cell_in_disc`, `UiScroll`. Было: кнопка APPEARANCE ничего не открывала.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/appearance_screen.gd", "nodes/color_swatch.gd", "assets/shaders/color_swatch.gdshader", "nodes/ball_paint_field.gd", "sim/ball_art.gd", "nodes/ui_scroll.gd", "tests/unit/test_appearance_screen.gd", "tests/unit/test_appearance_controls.gd", "tests/unit/test_ball_art_codec.gd", "web-reference/src/screens/Appearance.tsx", "web-reference/src/ui/BallPaintField.tsx"]
+        },
+        {
+          "id": "AP3", "severity": "visual",
+          "title": "Полоса прокрутки без стрелок",
+          "web": "Chrome ≥ 121: `scrollbar-width: thin` отменяет `::-webkit-scrollbar` — нативная тонкая полоса 10 px со стрелками, бегунок цвета rgba(47,111,158,.35).",
+          "godot": "`UiScroll`: полоса занимает те же 10 px (колонка 588), но бегунок 5 px без стрелок и другой длины.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_scroll.gd", "web-reference/src/ui/theme.css"]
+        }
+      ],
+      "limitations": [
+        "Анимированные превью стилей (замах с лучом, пробежка призрака, рывок туда и обратно, щит) — следующий слайс; сейчас клик по стилю только сохраняет его и переводит камеру.",
+        "Наведение на свотч (scale 1.08) и перетаскивание кистью сверены юнит-тестами, а не кадрами."
+      ]
+    },
+    {
+      "slug": "preview",
+      "name": "Превью на фоне",
+      "verdict": "Превью перенесено. Кадр целиком отличается на 0.58–0.60/255, левая часть с шаром — на 0.01–0.03/255 во всех четырёх состояниях: оранжевый шар основного слота, зелёный при редактировании резерва (кольцо — основной цвет), планета с кольцом, чёрная клетка рисунка на передней стороне в позе рисования.",
+      "verdict_short": "Превью совпадает",
+      "conditions": [
+        ["свет / часы / свечение", "`__debugMenuLightAngle` 0, `__debugMenuBallTime` 1 с, `__debugMenuGlowLevel` 0", "`set_light_angle(0)`, `pin_ball_time(1)`, `pin_glow_level(0)`"]
+      ],
+      "comparisons": [
+        {"title": "Свежий экран", "wipe": true,
+          "note": "Поза `appearance`, шар основного цвета смотрит в камеру.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-appearance-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-appearance-full.png", "note": "Шар 0.01/255."}
+          ]},
+        {"title": "Planet, резервный слот", "wipe": true,
+          "note": "Цвет резерва #4fa на шаре, кольцо — основной #fa4.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-appearance-planet-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-appearance-planet-full.png", "note": "Шар 0.01/255."}
+          ]},
+        {"title": "Рисование спереди", "wipe": true,
+          "note": "Поза `appearancePaintFront`, передняя полусфера к +Z.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-appearance-paint-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-appearance-paint-full.png", "note": "Шар 0.03/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "AP2", "severity": "fixed",
+          "title": "Сдвиг панели, позы и живое превью",
+          "web": "App: панель `translateX` к правому краю с демпфированием τ 0.06; `menuPlayer` = превью (цвет слота, кольцо — другой цвет, модель, рисунок); `cameraStateFor('appearance', part)`; `StageBall` смотрит на +Z при рисовании и по диагонали SHOT; `glowMuted`.",
+          "godot": "`MainMenu`: `panel_slide` с тем же демпфированием (размытие едет с панелью), `_show_preview` → `MenuBackdrop.set_screen(appearance, part)` + шар превью; `MenuCameraRig.state_for(..., part)`; `MenuBackdrop.facing_of`, `glow_muted`.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/main_menu.gd", "nodes/menu_backdrop.gd", "sim/menu_camera_rig.gd", "tests/unit/test_main_menu.gd", "tests/unit/test_menu_camera_rig_appearance.gd", "web-reference/src/App.tsx", "web-reference/src/components/menuStage.ts"]
+        }
+      ],
+      "limitations": [
+        "Кадры сняты в покое (1.5 с после действий); сама анимация сдвига панели и перелёта камеры сверена тестом формулы демпфирования."
+      ]
+    }
+  ]
+}

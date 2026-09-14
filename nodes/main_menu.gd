@@ -41,6 +41,9 @@ const SCREEN_APPEARANCE := "appearance"
 const SCREEN_SETTINGS := "settings"
 const SCREEN_ABOUT := "about"
 const SCREEN_TRAILER := "trailer"          # web About onWatchTrailer → setScreen('trailer')
+const APPEARANCE_PANEL_MARGIN := 24.0      # web APPEARANCE_PANEL_MARGIN_PX: the panel's gap to the right edge
+const PANEL_SLIDE_TAU := MenuCameraRig.DAMP_TAU   # web useDampedTranslateX (MENU_ANIM_TAU)
+const PANEL_SLIDE_SNAP := 0.5              # the travel ends within half a pixel
 const ARENA := "res://scenes/arena_test.tscn"
 const LOGS_DIR := "user://logs"
 const HALF := 0.5
@@ -49,7 +52,11 @@ var _panel: Panel
 var _panel_blur: ColorRect
 var _column: CssColumn
 var _lobby: LobbyScreen
-var _screen: Control                          # the open SETTINGS / ABOUT screen
+var profile_saving := true                    # parity captures edit an in-memory profile without saving it
+var _screen: Control                          # the open SETTINGS / ABOUT / APPEARANCE screen
+var _panel_base_x := 0.0
+var _panel_slide := 0.0
+var _panel_slide_target := 0.0
 var _settings_section := SettingsScreen.SECTION_PLAYER   # web App keeps the settings tab across visits
 var _backdrop: MenuBackdrop
 var _buttons: Array[UiButton] = []
@@ -86,8 +93,7 @@ func _ready() -> void:
 	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add(rule, 0.0, RULE_MARGIN_BOTTOM)
 	_add_button("Play", PLAY_TEXT, UiButton.PRIMARY).pressed.connect(_on_play)
-	_add_button("Appearance", APPEARANCE_TEXT, UiButton.SECONDARY).pressed.connect(
-		screen_requested.emit.bind(SCREEN_APPEARANCE))
+	_add_button("Appearance", APPEARANCE_TEXT, UiButton.SECONDARY).pressed.connect(open_appearance)
 	_add_button("Settings", SETTINGS_TEXT, UiButton.SECONDARY).pressed.connect(open_settings)
 	_add_button("About", ABOUT_TEXT, UiButton.SECONDARY).pressed.connect(open_about)
 	_quit = _add_button("Quit", QUIT_TEXT, UiButton.GHOST)   # web: desktop only — this build always is one
@@ -136,7 +142,7 @@ func open_settings() -> void:
 	settings.back_requested.connect(close_screen)
 	settings.profile_changed.connect(_save_profile)
 	settings.section_changed.connect(func(section: String) -> void: _settings_section = section)
-	_show_screen(settings)
+	_show_screen(settings, MenuCameraRig.SCREEN_SETTINGS)
 
 ## ABOUT (web setScreen('about')): the developer and the trailer; WATCH asks for the trailer screen.
 func open_about() -> void:
@@ -144,9 +150,20 @@ func open_about() -> void:
 	about.name = "About"
 	about.back_requested.connect(close_screen)
 	about.trailer_requested.connect(screen_requested.emit.bind(SCREEN_TRAILER))
-	_show_screen(about)
+	_show_screen(about, MenuCameraRig.SCREEN_SETTINGS)
 
-## BACK from SETTINGS / ABOUT: the menu returns.
+## APPEARANCE (web setScreen('appearance')): the cosmetics page; the panel slides right, the backdrop shows the live
+## preview from the angle of the last clicked block, the edge glow stays silent.
+func open_appearance() -> void:
+	var appearance := AppearanceScreen.new()
+	appearance.name = "AppearanceScreen"
+	appearance.setup(Game.profile)
+	appearance.back_requested.connect(close_screen)
+	appearance.profile_changed.connect(_save_profile)
+	appearance.preview_changed.connect(_show_preview)
+	_show_screen(appearance, MenuCameraRig.SCREEN_APPEARANCE)
+
+## BACK from SETTINGS / ABOUT / APPEARANCE: the menu returns.
 func close_screen() -> void:
 	if _screen == null:
 		return
@@ -154,24 +171,50 @@ func close_screen() -> void:
 	_screen.queue_free()
 	_screen = null
 	_column.visible = _lobby == null
+	_backdrop.glow_muted = false
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
+	_layout()
 
 func screen() -> Control:
 	return _screen
 
-## web App: settings and about share the settings camera pose and the panel.
-func _show_screen(opened: Control) -> void:
+## The panel's slide right of its centred place (web translateX), damped toward its target.
+func panel_slide() -> float:
+	return _panel_slide
+
+## web App: settings and about share the settings camera pose; appearance takes its own and mutes the glow.
+func _show_screen(opened: Control, backdrop_screen: String) -> void:
 	close_screen()
 	close_lobby()
 	_screen = opened
+	_backdrop.glow_muted = opened is AppearanceScreen
+	_backdrop.set_screen(backdrop_screen)
 	_panel.add_child(opened)
 	_column.visible = false
-	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
 	_layout()
 
+## web App menuPlayer on the appearance screen: your ball with the preview's look, the camera on the clicked block.
+func _show_preview(spec: Dictionary, part: String) -> void:
+	_backdrop.set_screen(MenuCameraRig.SCREEN_APPEARANCE, GameModes.DUEL, false, part)
+	_backdrop.set_balls([{"key": MenuStage.PLAYER_KEY, "spec": spec, "spot": MenuStage.STAGE_SPOTS[0]}])
+
 func _save_profile(profile: Dictionary) -> void:
-	ProfileStore.save_profile(profile, Game.random.randf)
+	if profile_saving:
+		ProfileStore.save_profile(profile, Game.random.randf)
 	Audio.apply_volumes()
+
+func _process(delta: float) -> void:
+	if _panel_slide == _panel_slide_target:
+		return
+	_panel_slide += (_panel_slide_target - _panel_slide) * (1.0 - exp(-minf(delta, MenuCameraRig.MAX_DT) / PANEL_SLIDE_TAU))
+	if absf(_panel_slide_target - _panel_slide) < PANEL_SLIDE_SNAP:
+		_panel_slide = _panel_slide_target
+	_place_panel()
+
+func _place_panel() -> void:
+	_panel.position = Vector2(_panel_base_x + _panel_slide, 0.0)
+	_panel_blur.position = _panel.position
 
 func backdrop() -> MenuBackdrop:
 	return _backdrop
@@ -192,10 +235,13 @@ func set_browser_layout(browser: bool) -> void:
 
 func _layout() -> void:
 	var width := minf(PANEL_MAX_WIDTH, size.x * PANEL_VIEWPORT_SHARE)
-	_panel.position = Vector2(CssPixel.snap((size.x - width) * HALF), 0.0)
+	_panel_base_x = CssPixel.snap((size.x - width) * HALF)
+	# web App: on appearance the panel sits APPEARANCE_PANEL_MARGIN from the right edge (Math.round of the offset)
+	_panel_slide_target = maxf(0.0, roundf((size.x - width) * HALF - APPEARANCE_PANEL_MARGIN)) \
+		if _screen is AppearanceScreen else 0.0
 	_panel.size = Vector2(width, size.y)
-	_panel_blur.position = _panel.position
 	_panel_blur.size = _panel.size
+	_place_panel()
 	(_panel_blur.material as ShaderMaterial).set_shader_parameter("box_px", _panel.size)
 	var inset := PANEL_PADDING + Vector2(PANEL_BORDER_PX, 0.0)
 	_column.position = inset

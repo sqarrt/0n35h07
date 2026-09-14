@@ -12,6 +12,18 @@ const SCREEN_MENU := "menu"
 const SCREEN_LOBBY := "lobby"
 const SCREEN_SETTINGS := "settings"
 const SCREEN_APPEARANCE := "appearance"
+## The appearance screen's last clicked block (web AppearancePart) and the pose it asks for.
+const PART_COLOR := "color"
+const PART_MODEL := "model"
+const PART_SHOT := "shot"
+const PART_RESPAWN := "respawn"
+const PART_DASH := "dash"
+const PART_SHIELD := "shield"
+const PART_PAINT_FRONT := "paintFront"
+const PART_PAINT_BACK := "paintBack"
+const APPEARANCE := "appearance"
+const APPEARANCE_POSES := {PART_SHOT: "appearanceShot", PART_RESPAWN: "appearanceRespawn", PART_DASH: "appearanceDash",
+	PART_SHIELD: "appearanceShield", PART_PAINT_FRONT: "appearancePaintFront", PART_PAINT_BACK: "appearancePaintBack"}
 const DAMP_TAU := 0.06                  # web MENU_ANIM_TAU
 const MAX_DT := 0.1                     # web Math.min(dtRaw, 0.1)
 const POSITION := "position"
@@ -39,7 +51,9 @@ static func load_poses(path: String) -> Dictionary:
 	return out
 
 ## web cameraStateFor (menu / lobby / settings; the appearance angles come with that screen).
-static func state_for(screen: String, game_mode: String, is_client: bool) -> String:
+static func state_for(screen: String, game_mode: String, is_client: bool, part := PART_COLOR) -> String:
+	if screen == SCREEN_APPEARANCE:
+		return APPEARANCE_POSES.get(part, APPEARANCE)
 	if screen == SCREEN_LOBBY:
 		if game_mode != GameModes.DUEL:
 			return LOBBY4

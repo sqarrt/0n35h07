@@ -111,6 +111,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (a match now starts in it), the language (remembered for when translations arrive), the volume sliders and the
   graphics switches — every change is saved and applied at once. ABOUT shows the developer's links and the trailer
   button. Russian and Chinese text in the interface now takes the same bold and letter spacing as Latin text.
+- **Appearance.** APPEARANCE opens the original's cosmetics page: the panel slides to the right and your ball previews
+  every change behind it — the primary and reserve colours, the sphere model, artwork painted on its front and back,
+  and the shot, respawn, dash-trail and shield styles — with the camera turning to the block you last touched.
+  Everything is saved as you go.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
