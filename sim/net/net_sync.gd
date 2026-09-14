@@ -10,6 +10,8 @@ var _out_events := []   # events about our owned players, drained by NetSession 
 var _out_claims := []   # hit claims addressed to victims' owners, drained each tick
 var owner_of := {}      # id -> peer id; configured for mesh play, empty for local-only fixtures
 var rules: MatchRules
+var clock_ms := Callable(Time, "get_ticks_msec")   # the kill prediction's grace runs on it (tests pin it)
+var predicted_kill := {}   # {id, until}: a remote victim the local player's shot predicted dead (web predictedKill)
 
 ## `match_rules`: the rules the verdicts score in (a MatchNode's own); a fresh set when omitted.
 func _init(match_rules: MatchRules = null) -> void:
@@ -38,7 +40,42 @@ func apply_peer_snapshot(from: String, snap: Dictionary) -> void:
 		if not _sender_owns(from, id):
 			continue
 		if players.has(id):
-			NetProtocol.apply_player_snapshot(players[id], s)
+			NetProtocol.apply_player_snapshot(players[id], _predicted_state(id, s))
+
+## web applyPeerSnapshot with a latched prediction: an alive snapshot sent before our claim arrived keeps the ghost
+## until the grace runs out (then the claim was rejected or lost: revive); a dead one means the owner confirmed it.
+func _predicted_state(id: int, s: Dictionary) -> Dictionary:
+	if predicted_kill.get("id") != id:
+		return s
+	if not bool(s["alive"]):
+		predicted_kill = {}
+		return s
+	if float(clock_ms.call()) < float(predicted_kill["until"]):
+		var held := s.duplicate()
+		held["alive"] = false
+		held["respawning"] = true
+		return held
+	_revert_prediction(id, "grace")
+	return s
+
+## web predictOpponentDeath: our shot hit a remote victim — show its death now, before its owner's verdict. A visibly
+## shielded victim is left to its owner (the verdict will be a block).
+func predict_death(victim_id: int) -> void:
+	var victim = players.get(victim_id)
+	if victim == null or not victim.alive:
+		return
+	if victim.is_shielded():
+		GameLog.log("act", "predict_skip", {"victim": victim_id, "reason": "shield"})
+		return
+	victim.apply_death()
+	predicted_kill = {"id": victim_id, "until": float(clock_ms.call()) + NetConst.NET_PREDICT_KILL_MS}
+	GameLog.log("act", "predict_death", {"victim": victim_id})
+
+## web revertPredictedKill: the owner blocked our shot or the claim never landed — undo the local death, hitbox included.
+func _revert_prediction(victim_id: int, reason: String) -> void:
+	predicted_kill = {}
+	players[victim_id].revive_from_false_prediction()
+	GameLog.warn("act", "predict_revert", {"victim": victim_id, "reason": reason})
 
 ## Queue an event about our owned players (fired/kill/block/respawn) for broadcast.
 func emit_event(e: Dictionary) -> void:
@@ -142,6 +179,12 @@ func apply_peer_event(from: String, e: Dictionary) -> Dictionary:
 			if e["t"] == "block":
 				fields["perfect"] = bool(e.get("perfect", false))
 			GameLog.log("act", e["t"], fields)
+			if predicted_kill.get("id") == v:
+				if e["t"] == "kill":                    # web applyKill: the owner confirmed our predicted death
+					predicted_kill = {}
+					GameLog.log("act", "predict_confirm", {"victim": v})
+				else:                                   # web applyBlock: the owner's shield won
+					_revert_prediction(v, "block")
 			return rules.apply_combat_event(e)
 		"respawn":
 			var id := int(e["id"])

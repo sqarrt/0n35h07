@@ -140,6 +140,58 @@ func test_forged_snapshot_cannot_revive_a_victim() -> void:
 	_nets[OBSERVER].broadcast("snapshot", snapshot)
 	assert_false(_syncs[SHOOTER].players[VICTIM].alive)
 
+# --- kill prediction (web Match.predictOpponentDeath, tests/unit/Match.predictedKill + mesh.deathProtocol) ---
+
+const PREDICT_AT_MS := 1000.0
+const WITHIN_GRACE_MS := PREDICT_AT_MS + NetConst.NET_PREDICT_KILL_MS * 0.5
+const AFTER_GRACE_MS := PREDICT_AT_MS + NetConst.NET_PREDICT_KILL_MS * 2.0
+
+var _now := PREDICT_AT_MS
+
+func _predict() -> Player:
+	_now = PREDICT_AT_MS
+	_syncs[SHOOTER].clock_ms = func() -> float: return _now
+	_syncs[SHOOTER].predict_death(VICTIM)
+	return _syncs[SHOOTER].players[VICTIM]
+
+func test_a_predicted_death_shows_at_once() -> void:
+	var victim := _predict()
+	assert_false(victim.alive)
+	assert_true(victim.respawning, "a ghost: its hitbox is off")
+
+func test_the_owners_kill_confirms_the_prediction() -> void:
+	_predict()
+	_deliver_shot()
+	for sync in _syncs:
+		assert_eq(sync.players[VICTIM].deaths, 1, "one death, not two")
+		assert_eq(sync.players[SHOOTER].kills, 1)
+	assert_eq(_syncs[SHOOTER].predicted_kill, {})
+
+func test_a_block_reverts_the_prediction() -> void:
+	_syncs[VICTIM].players[VICTIM].activate_shield()
+	var victim := _predict()
+	_deliver_shot()
+	assert_true(victim.alive, "the owner's shield won: the victim is back and hittable")
+	assert_false(victim.respawning)
+	assert_eq(victim.deaths, 0)
+
+func test_alive_snapshots_wait_out_the_grace_then_revive() -> void:
+	var victim := _predict()
+	_now = WITHIN_GRACE_MS
+	_sessions[VICTIM].after_update(SEND_TIME_MS)
+	assert_false(victim.alive, "a snapshot sent before the claim arrived doesn't revive it")
+	_now = AFTER_GRACE_MS
+	_sessions[VICTIM].after_update(SEND_TIME_MS * 2.0)
+	assert_true(victim.alive, "no verdict within the grace: the claim was lost")
+	assert_eq(victim.deaths, 0)
+
+func test_a_visibly_shielded_victim_is_not_predicted() -> void:
+	var copy: Player = _syncs[SHOOTER].players[VICTIM]
+	copy.remote = RemoteState.new()
+	copy.remote.shield = true
+	_syncs[SHOOTER].predict_death(VICTIM)
+	assert_true(copy.alive, "its owner will judge a block")
+
 func test_local_bot_victim_is_judged_without_network() -> void:
 	var sync := NetSync.new()
 	for id in [SHOOTER, VICTIM]:

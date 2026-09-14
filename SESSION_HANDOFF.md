@@ -118,9 +118,12 @@ UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144
 `gameLog`), `GameLogFormat`, `LogRetention`, `GameLogSink` (`user://logs/oneshot-*.log`, 1 с / 400 строк, 15 файлов),
 `GameLogErrors` (`OS.add_logger`), установка в `Game._ready` только при Steam и не `-s`; события web в комнате,
 согласовании, матче, сети и лобби Steam. Живой запуск (`--quit-after 400`) записал `session_start`. Отчёт
-`2026-09-14-game-log-*`. Найдено: в порте нет предсказания убийства (web `predictOpponentDeath`). **Дальше:**
-(1) предсказание убийства в сетевом бою; (2) дробная разрядка букв (целый `spacing_glyph`, в 4.7 разрядка только
-целая — нужен свой рисующий контрол); (3) радио (кнопка RADIO, мини-плеер, DLC; нужен веб-рантайм для Strudel). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`2026-09-14-game-log-*`. **Предсказание убийства N4 смержено** (`feature/godot-kill-prediction`): `NetSync.predict_death`
+(из `MatchNode` после заявки своего игрока, пропуск при щите), `predicted_kill` с окном `NetConst.NET_PREDICT_KILL_MS`
+250, подтверждение `kill`, откат `block` / по окну в `apply_peer_snapshot`, `Player.revive_from_false_prediction`;
+тесты — перенос web `Match.predictedKill` и `mesh.deathProtocol`. Отчёт `2026-09-15-kill-prediction-*`. **Дальше:**
+(1) дробная разрядка букв (целый `spacing_glyph`, в 4.7 разрядка только целая — нужен свой рисующий контрол);
+(2) радио (кнопка RADIO, мини-плеер, DLC; нужен веб-рантайм для Strudel). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

@@ -56,6 +56,7 @@ func configure_mesh(owners: Dictionary, peer: String) -> void:
 	self_peer = peer
 	mesh = NetSync.new(rules)
 	mesh.local_id = local_id
+	mesh.clock_ms = func() -> float: return float(clock_ms.call())   # the node's clock, pinned in tests
 	for id in owners:
 		mesh.owner_of[int(id)] = owners[id]
 	rules.owns = owns
@@ -159,6 +160,8 @@ func _physics_process(delta: float) -> void:
 		_share(rules.events)
 		for claim in rules.claims:
 			mesh.queue_or_judge(claim)
+			if int(claim["shooter"]) == local_id:   # web resolveCombat: only the local player's own shots predict
+				mesh.predict_death(int(claim["hit_id"]))
 		_place_remotes()
 	if rules.apply_comeback():   # web: at the top of the next tick, before anyone moves or fires
 		singularity_changed.emit(rules.singularity_active)

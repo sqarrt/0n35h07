@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   guests take free seats, follow the room and ready up, and the match starts on every peer at once with the same
   seats, map and music. In the match each peer runs its own player and bots, shows the others as their owners send
   them, and a player who leaves drops out (the match ends when one team is left). Joining over Steam comes next.
+- **Your own hits land at once in networked matches.** As in the original, a shot that hits an opponent shows their
+  death immediately instead of waiting for the opponent's machine to confirm it; if their shield blocked it or the
+  hit never arrived, they come back within a quarter of a second and can be hit again.
 - **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
   victim's owner against the victim's real local state — the shield on the victim's screen always wins — and every
   peer derives the same score, streak, bounty and perfect-block reward from the verdict. Claims, verdicts and
