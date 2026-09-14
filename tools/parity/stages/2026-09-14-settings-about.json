@@ -1,0 +1,188 @@
+{
+  "id": "2026-09-14-settings-about",
+  "title": "Сверка паритета OneShot · экраны SETTINGS и ABOUT",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс экранов настроек и «Об игре»: web `screens/Settings` с `components/SettingsControls`, `ui/Toggle`, `ui/Slider` и `screens/About`. Эталон — десктопная сборка: заглушка `__TAURI_INTERNALS__` включает `IS_DESKTOP` в браузере (без вкладки NETWORK, со слайдером радио, как в Godot). Сверены рамки всех элементов панели (web — `getBoundingClientRect`, Godot — `get_global_rect`) и пиксели колонки панели.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-settings-about.json`. Web: `web-reference/scripts/parity-capture-settings.mjs` (профиль PARITY7, en; холсты фона скрыты; вкладки PLAYER / SOUND / GRAPHICS, затем ABOUT) → `test-results/parity-gpu-settings/web-*.png` + `web-settings.json`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режимы `profile:settings-<tab>` и `profile:about` (фон скрыт, рамки всех контролов экрана — в `*.png.json`) → `godot-*.png`. Замеры: рамки сопоставлены по testid, тексту и классу; пиксели — среднее отличие каналов по колонке панели x 300–980 (вне её web рисует плеер радио, которого в Godot ещё нет).",
+  "pages": [
+    {
+      "slug": "settings-player",
+      "name": "SETTINGS · PLAYER",
+      "verdict": "Вкладка PLAYER перенесена. Все рамки по вертикали совпадают до ±0.5 px: заголовок 75.19, вкладки 118.19, поле имени 194.58 (256×41), сегменты вида 283.77, сетка языков 356.95 / 395.34 (плитки 114×32 и 114×34), BACK 637.61. Колонка панели отличается на 1.05/255. Остаток — ширины текста: разрядка и шаг глифов в Godot целые (FIRST PERSON 108 px против 105.84, заголовок шире на ~2 px).",
+      "verdict_short": "PLAYER совпадает",
+      "conditions": [
+        ["сборка", "браузер с заглушкой `__TAURI_INTERNALS__` (`IS_DESKTOP` = true)", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["профиль", "PARITY7, locale en, громкость 100/30/30/100/80", "то же в памяти"],
+        ["тесты", "—", "GUT 499/499"]
+      ],
+      "comparisons": [
+        {"title": "Панель целиком", "wipe": true,
+          "note": "Колонка 598 px от x 341; фон скрыт, размытие под панелью на месте.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-settings-player.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-settings-player.png", "note": "Колонка 1.05/255."}
+          ]},
+        {"title": "Заголовок, вкладки и имя (×2)", "wipe": true,
+          "note": "h2 24 px жирным, разрядка 0.2em; поле `.input` 1.3rem.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-top.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-top.png", "note": "Вкладки шире на 1–1.4 px каждая."}
+          ]},
+        {"title": "Сетка языков (×2)", "wipe": true,
+          "note": "1fr-колонки, промежуток 0.4rem, плитка 0.78rem жирным; ряд с китайским выше (34 px).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-lang.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-lang.png", "note": "Кириллица и CJK жирные, ряды 32 / 34 px."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SA1", "severity": "fixed",
+          "title": "Экран настроек",
+          "web": "`Settings`: h2, вкладки `.seg` (desktop: PLAYER / SOUND / GRAPHICS), имя (`.input`, до 16 символов), вид по умолчанию (FIRST / THIRD PERSON), сетка 10 языков, BACK внизу (`marginTop: auto`). Каждое изменение — `saveProfile` + `onChange`; вкладка переживает уход с экрана.",
+          "godot": "`SettingsScreen` в панели меню (`MainMenu.open_settings`), профиль пишется сразу (`ProfileStore` + `Audio.apply_volumes`), вкладка запоминается. Контролы: `UiTextField`, `SegButton`, `UiButton.Metrics` (плитка языка), `MenuText` (заголовок, подпись, подзаголовок). Было: кнопка SETTINGS ничего не открывала.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/settings_screen.gd", "nodes/menu_text.gd", "nodes/ui_text_field.gd", "nodes/ui_button.gd", "nodes/main_menu.gd", "sim/locales.gd", "tests/unit/test_settings_screen.gd", "tests/unit/test_locales.gd", "web-reference/src/screens/Settings.tsx"]
+        },
+        {
+          "id": "SA3", "severity": "fixed",
+          "title": "Кириллица и CJK без жирного и разрядки",
+          "web": "Chrome применяет синтетический жирный и `letter-spacing` к каждому глифу семейства, включая запасные начертания (Share Tech Mono Cyrillic, Microsoft YaHei).",
+          "godot": "`UiFont.mirror_fallbacks`: у каждой `FontVariation` свои запасные вариации с той же разрядкой и жирностью. Было: при пустых `fallbacks` Godot брал простые шрифты базового начертания — «Русский» и «简体中文» рисовались тонко и без разрядки.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/ui_font.gd", "tests/unit/test_ui_font_fallbacks.gd"]
+        },
+        {
+          "id": "SA5", "severity": "visual",
+          "title": "Ширина текста на целых пикселях",
+          "web": "Шаг глифа и разрядка дробные: 11 px `.seg` — 0.54em + 0.88 px на символ.",
+          "godot": "`spacing_glyph` и шаг глифа округляются до пикселя: сегменты шире на 1–2 px, подписи переключателей — на 3–4 px, разрядка заголовка 5 px против 4.8.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd", "nodes/seg_button.gd"]
+        }
+      ],
+      "limitations": [
+        "Выбор языка сохраняется в профиль, но тексты остаются английскими: i18n (10 словарей) — отдельный слайс.",
+        "Высота строки китайской плитки подогнана на −1 px по замеру с Microsoft YaHei (Windows); на других системах запасной шрифт CJK другой."
+      ]
+    },
+    {
+      "slug": "settings-sound",
+      "name": "SETTINGS · SOUND",
+      "verdict": "Вкладка SOUND перенесена. Подзаголовок VOLUME и пять слайдеров стоят на тех же пикселях (блоки 213.58 + 57.39 × n, проценты в рамке 4ch = 25.91 px у x 603.09). Дорожка 249.3 px, бегунок 14×18 внутри рамки дорожки. Колонка отличается на 0.59/255.",
+      "verdict_short": "SOUND совпадает",
+      "conditions": [
+        ["громкость", "100 / 30 / 30 / 100 / 80 %", "то же"]
+      ],
+      "comparisons": [
+        {"title": "Панель целиком", "wipe": true,
+          "note": "Слайдер радио есть только в десктопной сборке.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-settings-sound.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-settings-sound.png", "note": "Колонка 0.59/255."}
+          ]},
+        {"title": "Слайдер MASTER VOLUME (×3)", "wipe": true,
+          "note": "Бегунок на 100%: левый край 575.3 = 342 + (247.3 − 14).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-slider.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-slider.png", "note": "—"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SA2", "severity": "fixed",
+          "title": "Слайдеры громкости",
+          "web": "`ui/Slider`: подпись, ряд 18rem: `input.slider` (6 px, рамка 1 px, бегунок 14×18, при наведении accent-bright) и процент шириной 4ch справа. Шаг 1%; значение применяется сразу.",
+          "godot": "`UiSlider`: та же геометрия; ширина 4ch берётся по дробному шагу «0», измеренному в крупном кегле (Godot округляет шаг: 7 px вместо 6.48). Перетаскивание целыми процентами, `Audio.apply_volumes` на каждое изменение.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/ui_slider.gd", "tests/unit/test_ui_controls.gd", "web-reference/src/ui/Slider.tsx"]
+        }
+      ],
+      "limitations": [
+        "Клавиатурное управление слайдером (стрелки) не перенесено: у контролов Godot нет фокуса, как у сегментов лобби."
+      ]
+    },
+    {
+      "slug": "settings-graphics",
+      "name": "SETTINGS · GRAPHICS",
+      "verdict": "Вкладка GRAPHICS перенесена. Переключатели 34×18 стоят на тех же местах (213.58, 257.17, 300.77, 385.95, 429.55), ручка в 3 px от края (19 px во включённом), подпись в 14.4 px справа по центру ряда. Колонка отличается на 0.73/255; подписи шире на 2.4–4.2 px из-за целочисленной разрядки.",
+      "verdict_short": "GRAPHICS совпадает",
+      "conditions": [
+        ["переключатели", "обводка, свечение меню, визуализация — вкл.; FPS, скорость — выкл.", "то же"]
+      ],
+      "comparisons": [
+        {"title": "Панель целиком", "wipe": true,
+          "note": "POST-PROCESSING и OVERLAY.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-settings-graphics.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-settings-graphics.png", "note": "Колонка 0.73/255."}
+          ]},
+        {"title": "Переключатели (×3)", "wipe": true,
+          "note": "Включён: заливка accent-fill, ручка ink справа.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-toggle.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-toggle.png", "note": "—"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SA4", "severity": "fixed",
+          "title": "Переключатели и вид по умолчанию в матче",
+          "web": "`ui/Toggle` (`.toggle`, звук `ui_toggle`); `defaultView` передаётся в `HumanController` как `defaultThirdPerson`.",
+          "godot": "`UiToggle`; `HumanController.setup(..., third_person)` из `arena_boot` по `defaultView`. Было: переключателей не было, матч всегда начинался от первого лица.",
+          "evidence": ["test", "code", "screenshot"],
+          "sources": ["nodes/ui_toggle.gd", "nodes/human_controller.gd", "nodes/arena_boot.gd", "tests/unit/test_human_controller_view.gd", "web-reference/src/ui/Toggle.tsx"]
+        }
+      ],
+      "limitations": []
+    },
+    {
+      "slug": "about",
+      "name": "ABOUT",
+      "verdict": "Экран ABOUT перенесён. Заголовок, DEVELOPER (118.19), имя (159.78), три ссылки с шагом 26 px (ширины 155 / 182 / 182), TRAILER (293.58), WATCH на всю ширину (341.56) и BACK (637.61) совпадают до ±0.5 px. Колонка отличается на 0.66/255.",
+      "verdict_short": "ABOUT совпадает",
+      "conditions": [
+        ["экран", "меню → ABOUT", "`MainMenu.open_about`"]
+      ],
+      "comparisons": [
+        {"title": "Панель целиком", "wipe": true,
+          "note": "WATCH — primary на всю ширину колонки.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-about.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-about.png", "note": "Колонка 0.66/255."}
+          ]},
+        {"title": "Имя и ссылки (×2)", "wipe": true,
+          "note": "`.about-link`: 0.95rem, прозрачная нижняя граница 1 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-settings/crops/web-links.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-settings/crops/godot-links.png", "note": "—"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SA6", "severity": "fixed",
+          "title": "Экран «Об игре»",
+          "web": "`About`: DEVELOPER (имя, YouTube / Twitch / почта в новой вкладке), TRAILER с WATCH, BACK.",
+          "godot": "`AboutScreen` (`UiLink` открывает адрес через `OS.shell_open`, WATCH шлёт `screen_requested('trailer')`). Было: кнопка ABOUT ничего не открывала.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/about_screen.gd", "nodes/ui_link.gd", "tests/unit/test_about_screen.gd", "web-reference/src/screens/About.tsx"]
+        },
+        {
+          "id": "SA7", "severity": "missing",
+          "title": "Трейлер",
+          "web": "WATCH открывает встроенный трейлер (`screen = 'trailer'`).",
+          "godot": "Экрана трейлера нет: сигнал уходит, но его никто не обрабатывает.",
+          "evidence": ["code"],
+          "sources": ["nodes/about_screen.gd", "web-reference/src/components/trailer"]
+        }
+      ],
+      "limitations": [
+        "Плавный переход цвета ссылки при наведении (0.12 s) не перенесён: цвет меняется сразу.",
+        "Плеер радио в правом нижнем углу десктопной web-сборки в Godot отсутствует (радио не перенесено); сравнение ограничено колонкой панели."
+      ]
+    }
+  ]
+}

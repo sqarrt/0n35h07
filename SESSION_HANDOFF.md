@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 474/474)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 499/499)
 
 | Слайс | Суть |
 |---|---|
@@ -65,18 +65,21 @@
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | 3D-фон меню (MB) | `MenuBackdrop` (прозрачный мир, композит `premultiplied_viewport`), `MenuCameraRig` (позы web JSON), `MenuStageBall` (прогрев/проявление/уход), `MenuStage.balls` (свой шар в меню, все места лобби на `STAGE_SPOTS`); web-хуки `__debugMenuLightAngle`/`__debugMenuGlowLevel`/`__debugMenuBallTime` |
 | Свечение краёв + размытие панели (MG) | `MenuEdgeGlow` (вложенные float-вьюпорты: двойники моделей → глубина/цвет → контур → Bloom postprocessing: яркость, 8 mip вниз, 7 вверх; композит SCREEN), `MenuGlowLevel` (√уровня звука, сглаживание, монтирование 600 мс, `menuGlow`), `PanelBlur` (`backdrop_blur` σ 2 px); `MenuBackdrop` теперь Control с `View` |
+| Экраны SETTINGS / ABOUT (SA) | `SettingsScreen` (desktop-вкладки PLAYER/SOUND/GRAPHICS, запись профиля сразу + `Audio.apply_volumes`), `AboutScreen`; контролы `UiToggle`, `UiSlider`, `UiTextField`, `UiLink`, `UiButton.Metrics`; `MenuText` (h2, подпись, подзаголовок — и в лобби); `Locales` (id, родные имена, detectLocale); `UiFont.mirror_fallbacks` (жирный/разрядка у кириллицы и CJK), дробные CSS-кегли; `defaultView` → `HumanController` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
 Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
-шары мест лобби), свечение краёв со звуком и размытие под панелью (GUT 474/474) смержены в `release_2.0.0`.
-Следующий слайс — **экраны APPEARANCE / SETTINGS / ABOUT** (web `screens/Appearance`, `Settings`, `About`; позы камеры
-`appearance*` уже лежат в `menu_camera_poses.json`, свечение на экране внешности приглушается).
+шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT (GUT 499/499) смержены в
+`release_2.0.0`. Следующий слайс — **экран APPEARANCE** (web `screens/Appearance` + `ui/BallPaintField`: цвета, модели,
+стили замаха/респавна/рывка/щита с превью на фоне; позы `appearance*` уже в `menu_camera_poses.json`, панель
+сдвигается вправо, свечение приглушается), затем **i18n** (10 словарей; выбор языка уже пишется в профиль).
+Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
 ## 5. Что ещё осталось (бэклог паритета)
@@ -88,9 +91,9 @@
   линия Chrome (отчёт `2026-09-14-ui-theme-*`).
 - Открыто после лобби: нет сети (код комнаты, «вход по коду», Steam-приглашения, SEARCH, гости) и размытого превью
   карты в фоне (отчёты `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
-- Открыто после главного меню: APPEARANCE / SETTINGS / ABOUT шлют `screen_requested`, экранов нет; позы камеры
-  экрана внешности не подключены; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`); RADIO скрыт до
-  радио; нет заставки M6 и i18n M5.
+- Открыто после главного меню: APPEARANCE шлёт `screen_requested`, экрана нет; WATCH в ABOUT шлёт
+  `screen_requested('trailer')` — трейлера нет; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
+  RADIO скрыт до радио; нет заставки M6 и i18n M5 (тексты английские, отчёт `2026-09-14-settings-about-*`).
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
   в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
 - **Лобби L1–L6**: режимы DUEL/BATTLE/WAR, места, боты (ник/сложность), карты мультивыбор, длительность 3/5/10,
@@ -140,6 +143,11 @@
   держать под обычным узлом, показывать через `TextureRect`. Кадры фона без UI должны прятать и `PanelBlur`.
 - «N resources still in use at exit» в GUT/съёмке — музыкальные потоки автозагрузки `Audio` и скрипты сетевых
   тестов (`--verbose`: ни одного ресурса свечения); к слайсам меню не относится.
+- Шрифты: у `FontVariation` с пустыми `fallbacks` запасные начертания (кириллица, CJK) идут без `spacing_glyph` и
+  `variation_embolden` → `UiFont.mirror_fallbacks`. Запасной системный CJK поднимает высоту ВСЕХ строк варианта —
+  давать его только тексту с китайским (`UiFont.base_cjk`). Godot округляет шаг глифа до пикселя (0.54em × 12 = 7,
+  а не 6.48) → CSS `ch` мерить в крупном кегле. Кегли rem дробные (11.2, 13.6, 20.8) → ближайший целый размер, а
+  разрядка и строка — от CSS-размера (`css_px`).
 - Область SVG-фильтра серий в Chrome не обрезает свечение `text-shadow` (замерено пробником) → `StreakFx.filter_region`.
 - `JSON.parse_string` на мусоре пишет ошибку движка (GUT валит тест) → `JSON.new().parse()`.
 - Автозагрузки получают `_ready` после `_initialize` инструмента `-s` → не перетирать заданное инструментом.

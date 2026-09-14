@@ -83,25 +83,43 @@ class CooldownStyle extends StyleBox:
 			base.draw(to_canvas_item, rect)
 		RenderingServer.canvas_item_add_rect(to_canvas_item, fill_rect(rect), fill_color)
 
+## A button's CSS metrics — the `.btn` rule by default; inline styles override them (the settings language tile).
+class Metrics:
+	var font_px := float(UiButton.FONT_SIZE)
+	var spacing_em := UiButton.LETTER_SPACING_EM
+	var padding := Vector2(UiButton.PADDING_X, UiButton.PADDING_Y)
+	var min_width := UiButton.MIN_WIDTH
+	var always_bold := false
+	var face: Font = null                  # null: UiFont.base()
+	var line_adjust := 0                   # px added to the line box's bottom (a fallback face's metrics differ)
+
 var variant := SECONDARY
 var disabled_opacity := DISABLED_OPACITY
+var metrics: Metrics
 var fade: CssOpacity                     # set by grouped(): the disabled fade composites the button first
 
 var _opacity := 1.0
 
-func _init(label := "", button_variant := SECONDARY, sounds := true) -> void:
+func _init(label := "", button_variant := SECONDARY, sounds := true, button_metrics: Metrics = null) -> void:
+	metrics = button_metrics if button_metrics != null else Metrics.new()
 	text = label
-	custom_minimum_size.x = MIN_WIDTH
+	custom_minimum_size.x = metrics.min_width
 	set_variant(button_variant)
 	if sounds:
 		UiSounds.attach(self)
 
 func set_variant(value: String) -> void:
 	variant = value
-	var bold := value in [PRIMARY, GO]
-	var face := UiFont.bold_spaced(LETTER_SPACING_EM, FONT_SIZE) if bold else UiFont.spaced(LETTER_SPACING_EM, FONT_SIZE)
-	add_theme_font_override("font", UiFont.with_css_line(face, FONT_SIZE))
-	add_theme_font_size_override("font_size", FONT_SIZE)
+	var bold := metrics.always_bold or value in [PRIMARY, GO]
+	var font_size := UiFont.css_size(metrics.font_px)
+	var face := UiFont.bold_spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face) if bold \
+		else UiFont.spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face)
+	var font := UiFont.with_css_line(face, font_size, metrics.font_px)
+	font.spacing_bottom += metrics.line_adjust
+	for fallback in font.fallbacks:   # the fallback glyphs size the line when they are the taller face
+		(fallback as FontVariation).spacing_bottom += metrics.line_adjust
+	add_theme_font_override("font", font)
+	add_theme_font_size_override("font_size", font_size)
 	var looks: Dictionary = LOOKS[value]
 	for state in STATES:
 		var look: Array = looks[state] if looks.has(state) else looks[STATES[state][0]]
@@ -150,10 +168,10 @@ func _box(background: Color, border: Color, trailing_spacing: int) -> StyleBoxFl
 	box.border_color = border
 	box.set_border_width_all(BORDER_PX)
 	box.anti_aliasing = false            # square CSS box edges
-	box.content_margin_left = PADDING_X + BORDER_PX
-	box.content_margin_right = PADDING_X + BORDER_PX + trailing_spacing
-	box.content_margin_top = PADDING_Y + BORDER_PX
-	box.content_margin_bottom = PADDING_Y + BORDER_PX
+	box.content_margin_left = metrics.padding.x + BORDER_PX
+	box.content_margin_right = metrics.padding.x + BORDER_PX + trailing_spacing
+	box.content_margin_top = metrics.padding.y + BORDER_PX
+	box.content_margin_bottom = metrics.padding.y + BORDER_PX
 	return box
 
 func _focus_box() -> StyleBoxFlat:
