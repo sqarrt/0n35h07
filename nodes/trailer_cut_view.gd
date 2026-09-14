@@ -80,7 +80,8 @@ func _apply() -> void:
 		return
 	var fraction := _elapsed / _duration_s
 	var state := TrailerCut.text(fraction)
-	_set_spacing(roundi(float(state["spacing"]) * TrailerCut.TEXT_PX))
+	_set_spacing(UiFont.bold_spacing_px(float(state["spacing"]) * TrailerCut.TEXT_PX, _font.variation_embolden,
+		TrailerCut.TEXT_PX))
 	_text.set_shadows(TrailerCut.shadows(fraction))
 	var box := _text.get_combined_minimum_size()
 	_fade.size = box

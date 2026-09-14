@@ -1,0 +1,107 @@
+{
+  "id": "2026-09-14-trailer-finale",
+  "title": "Сверка паритета OneShot · трейлер: финал",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Третий слайс трейлера: web `components/trailer/FinaleScene.tsx` — замедленная встречная дуэль в конце трейлера. Два бойца с разными обликами (голубая планета с замахом rage, розовые волны с замахом singularity) стоят по бокам, заряжаются в замедлении 0.35×, стреляют — и время почти останавливается (0.05×): оба луча висят в полёте, камера отъезжает, под титром 0N35H07. Сцена — свой холст с композитором HalfFloat и Bloom. В web добавлены хуки `__debugFinaleHoldS` (шагать финал по 60 Гц до момента и держать) и `__debugFinaleAt`; `__debugTrailerHoldClock` снимает запасной выход на 9 s. Попутно найдено и исправлено: жирный текст в Godot шире, чем в Chrome.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-trailer-finale.json`. Web: `web-reference/scripts/parity-capture-trailer-finale.mjs` (меню → ABOUT → WATCH; `__debugTrailerShot` = 11, `__debugTrailerHoldClock`, `__debugFinaleHoldS` = 5.2; снимок, когда финал дошёл до 5.2 s и титр полностью проявился) → `test-results/parity-trailer-finale/web-trailer-shot-11-5200.png`. Godot: `tools/screenshot.gd` на `scenes/trailer_frame.tscn`, режим `trailer-shot-11-5200` (`TrailerScreen.hold_at` → `FinaleScene.hold_at`, 30 кадров) → `godot-trailer-shot-11-5200.png`. Кадры перебивки после правки жирности — повторный захват Godot тем же режимом, что в отчёте `2026-09-14-trailer-sequencer`. Пиксели — среднее отличие каналов (0–255) по областям.",
+  "pages": [
+    {
+      "slug": "finale",
+      "name": "Финальная дуэль",
+      "verdict": "Финал перенесён: бойцы с разными скинами, замах rage / singularity на шаре и в мире, выстрел со звуками, лучи висят в полёте, камера отъезжает с замедлением, Bloom композитора, титр поверх, конец трейлера на 7.5 s. Кадр на 5.2 s совпадает на 1.75/255; область титра 8.51, бойцы 7.78–10.73 — там случайные рывки сегментов rage и частицы singularity (Math.random / randf). Найденная по титру ошибка жирного текста (Godot расширял каждую букву) исправлена для всего интерфейса: перебивка трейлера 4.29 → 1.82, левый край текста 37.46 → 8.30.",
+      "verdict_short": "Финал совпадает",
+      "conditions": [
+        ["сборка", "браузер, трейлер с хуками `__debugTrailerShot` / `__debugTrailerHoldClock` / `__debugFinaleHoldS`", "десктоп Godot, `TrailerScreen.hold_at` → `FinaleScene.hold_at`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080, композитор HalfFloat + Bloom (mipmap)", "Vulkan Forward+, RTX 4080, float-вьюпорт + `BloomChain`"],
+        ["момент", "финал шагами 1/60 s до 5.2 s (выстрел на ≈ 2.87 s, лучи висят), титр проявлен", "то же: 312 шагов `FinaleScene.advance(1/60)`, титр продвинут на 1.6 s"],
+        ["тесты", "—", "GUT 614/614 (`test_finale_timeline`, `test_finale_scene`, `test_bloom_chain`, `test_menu_edge_glow`, `test_trailer_screen`, `test_ui_font`)"]
+      ],
+      "comparisons": [
+        {"title": "Финал на 5.2 s", "wipe": true,
+          "note": "Сбоку: слева планета с замахом rage (тёмное тело, красное свечение, челюсти), справа волны с вихрем singularity; лучи прошли 46% пути и висят.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/web-finale-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/godot-finale-full.png", "note": "1.75/255"}
+          ]},
+        {"title": "Титр", "wipe": true,
+          "note": "0N35H07 8rem, слоган и CTA с внешней тенью; буквы титра у x 328 / 418 / 520 / 609 / 695 / 788 / 904 (Godot +1 px).",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/web-finale-title.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/godot-finale-title.png", "note": "8.51/255"}
+          ]},
+        {"title": "Левый боец и луч rage (×2)", "wipe": true,
+          "note": "Сегменты луча rage дрожат со случайным смещением — их положение в кадрах разное.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/web-finale-left.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/godot-finale-left.png", "note": "10.73/255"}
+          ]},
+        {"title": "Луч singularity (×3)", "wipe": true,
+          "note": "Нить с оболочкой и спираль частиц — частицы случайные.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/web-finale-right.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/godot-finale-right.png", "note": "7.78/255"}
+          ]},
+        {"title": "Перебивка после правки жирности: удар, 117 ms", "wipe": true,
+          "note": "Тот же кадр, что в отчёте секвенсора: строка теперь 59–1205 px (web 59–1203), было на 17 px шире.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/after-web-slam-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/after-godot-slam-full.png", "note": "1.82/255 (было 4.29)"}
+          ]},
+        {"title": "Левый край текста после правки (×3)", "wipe": true,
+          "note": "Левые края букв совпали; остаток — буквы на 2 px выше.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/after-web-slam-left.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/after-godot-slam-left.png", "note": "8.30/255 (было 37.46)"}
+          ]},
+        {"title": "Пауза с SKIP после правки, 450 ms", "wipe": true,
+          "note": "Уход текста (800 ms) — 0.08/255 (было 0.20).",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-finale/crops/after-web-hold-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-finale/crops/after-godot-hold-full.png", "note": "1.79/255 (было 4.36)"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "TF1", "severity": "fixed",
+          "title": "Не было финальной сцены",
+          "web": "`FinaleScene`: бойцы A (#4ff, кольцо #fa4, planet, rage, x −6.5) и B (#f4a, кольцо #4ff, waves, singularity, x 6.5) лицом друг к другу; замах 1 s в замедлении 0.35× (`createWindupFx.apply` на шаре и в мире), выстрел `BeamWeapon.playBeam` на 46% пути со звуками beam_fire_rage / beam_fire_singularity, затем 0.05×; камера fov 55 от z 10.5 до 18 за 7 s (ease-out) на центр шаров; ambient 0.5, directional 1.1 из (4, 8, 6), без теней; очистка #04050a; Bloom 1.2 / 0.2 / 0.6 / 0.7 mipmap на HalfFloat; onEnd на 7.5 s.",
+          "godot": "`FinaleTimeline` (часы: камера, замах, выстрел, замедление, конец), `FinaleScene` (два `BallVisual` + `WindupWorldView` + `BeamFx`, `SkinCurves.windup_ball`, свет ÷ π, float-вьюпорт внутри `BloomChain`, композит «сцена SCREEN bloom»); `TrailerScreen` ставит сцену под титр, её конец завершает трейлер. Цепочка Bloom вынесена из `MenuEdgeGlow` в `BloomChain` — меню использует её же.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/finale_scene.gd", "sim/finale_timeline.gd", "nodes/bloom_chain.gd", "nodes/menu_edge_glow.gd", "nodes/trailer_screen.gd", "tests/unit/test_finale_scene.gd", "tests/unit/test_finale_timeline.gd", "tests/unit/test_bloom_chain.gd", "web-reference/src/components/trailer/FinaleScene.tsx"]
+        },
+        {
+          "id": "TF2", "severity": "fixed",
+          "title": "Жирный текст шире, чем в Chrome",
+          "web": "Синтетический жирный Chrome утолщает контур, не меняя ширину букв: титр 0N35H07 — бокс 645.1 px, буквы через 96 px.",
+          "godot": "Было: `variation_embolden` в Godot добавляет к ширине каждой буквы embolden × size / 64 (1 px на 128 px, 0.69 px на 88 px) — титр сползал на 1 px на букву, перебивка была шире на 17 px. Стало: `UiFont.bold_spaced` / `bold_spacing_px` вычитают эту долю из разрядки; бокс титра 645 px, буквы через 96 px. Правка общая для всего жирного текста интерфейса.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/ui_font.gd", "nodes/trailer_cut_view.gd", "tests/unit/test_ui_font.gd"]
+        },
+        {
+          "id": "TF3", "severity": "visual",
+          "title": "Жирные буквы на 2 px выше",
+          "web": "Титр: верх букв y 256; перебивка: y 326–390.",
+          "godot": "Титр: y 254; перебивка: y 324–387 — утолщение контура в Godot растёт иначе по вертикали.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd", "nodes/trailer_title_card.gd", "nodes/trailer_cut_view.gd"]
+        },
+        {
+          "id": "TF4", "severity": "visual",
+          "title": "CTA: рамка и текст на 1 px",
+          "web": "Бокс CTA 442.9–485.9 по вертикали, текст с x 462.",
+          "godot": "Рамка у y 444–484, текст с x 463 (дробное положение рамки StyleBoxFlat).",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/trailer_title_card.gd"]
+        }
+      ],
+      "limitations": [
+        "Рывки сегментов rage и частицы singularity случайны в обеих версиях (Math.random / randf): области бойцов сравнимы только по форме и положению.",
+        "Правка жирного текста меняет разрядку крупного жирного текста во всём интерфейсе; другие экраны в этом этапе не пересняты (тесты GUT проходят).",
+        "Затухание музыки под титром и звуки выстрелов проверены тестами, не на слух.",
+        "Финал снят на удержанном моменте: web шагает useFrame по 1/60 s до 5.2 s, Godot — тем же шагом."
+      ]
+    }
+  ]
+}

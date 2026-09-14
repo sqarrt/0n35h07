@@ -32,6 +32,8 @@ const CAM_Z0 = 10.5, CAM_Z1 = 18 // camera pull-back (players are spread Â±6.5 â
 const CAM_DUR = 7.0             // seconds of real time for the pull-back (ease-out)
 const FINALE_DUR = 7.5          // when the finale ends (onEnd)
 const BEAM_REACH = 0.46         // beams travel up to 46% (haven't met yet)
+const HOLD_STEP = 1 / 60        // parity captures: the held finale's fixed step
+const HOLD_EPS = 1e-9
 
 const beamCtx = (): WeaponContext => ({
   world: { raycast: () => null } as unknown as World,
@@ -73,8 +75,12 @@ export function FinaleScene({ onSfx, onEnd }: { onSfx: (e: SfxEvent) => void; on
 
   useFrame((_, dtRaw) => {
     if (!sides.length || ended.current) return
-    const dt = Math.min(dtRaw, 0.05)
+    // __debugFinaleHoldS (parity captures): the finale steps at 60 Hz up to that moment, then stays on it
+    const hold = window.__debugFinaleHoldS
+    if (hold !== undefined && realT.current >= hold - HOLD_EPS) return
+    const dt = hold !== undefined ? HOLD_STEP : Math.min(dtRaw, 0.05)
     realT.current += dt
+    if (hold !== undefined) window.__debugFinaleAt = realT.current
     localT.current += dt * (fired.current ? SLOWMO_HOLD : SLOWMO_CHARGE)
 
     // Side camera, slow pull-back with deceleration (ease-out).

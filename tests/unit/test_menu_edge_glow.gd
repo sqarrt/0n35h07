@@ -35,7 +35,8 @@ func test_every_stage_renders_before_its_reader() -> void:
 	var backdrop := _backdrop()
 	var glow := backdrop.glow()
 	var last := MenuEdgeGlow.BLOOM_LEVELS - 1
-	assert_eq(glow.up(0).get_parent(), glow)
+	assert_eq(glow.bloom().get_parent(), glow)
+	assert_eq(glow.up(0).get_parent(), glow.bloom())
 	for i in range(1, last):
 		assert_eq(glow.up(i).get_parent(), glow.up(i - 1))
 	assert_eq(glow.down(last).get_parent(), glow.up(last - 1))

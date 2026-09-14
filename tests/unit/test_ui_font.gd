@@ -8,6 +8,9 @@ const TITLE_SIZE := 24           # web pause h2 1.5em: a 27 px box
 const BUTTON_LINE_PX := 18
 const TALL_SPACING_PX := 1000    # a face far taller than the UI font
 const SYMBOL_FAMILIES := ["Consolas"]
+const BIG_SIZE := 128            # web .trailer-title 8rem: a whole-pixel embolden advance (0.5 × 128 / 64)
+const BIG_SPACING_EM := 0.18
+const SAMPLE := "0N35H07"
 
 func test_css_line_box_matches_chrome() -> void:
 	for case in [[BUTTON_SIZE, 14.0, 18.0], [TITLE_SIZE, 21.0, 27.0]]:
@@ -27,6 +30,14 @@ func test_faces_with_system_fallbacks_are_shared() -> void:
 	assert_same(UiFont.base_with(SYMBOL_FAMILIES), UiFont.base_with(SYMBOL_FAMILIES))
 	assert_same(UiFont.base_cjk(), UiFont.base_with(UiFont.CJK_FAMILIES))
 	assert_eq(UiFont.base_with(SYMBOL_FAMILIES).fallbacks.size(), UiFont.CJK_FALLBACK_COUNT, "Cyrillic, then the system face")
+
+func test_synthetic_bold_keeps_the_advances() -> void:
+	var plain := UiFont.spaced(BIG_SPACING_EM, BIG_SIZE)
+	var bold := UiFont.bold_spaced(BIG_SPACING_EM, BIG_SIZE)
+	# the CSS box: glyphs, the gaps and the trailing spacing (trailing_spacing_style) — web .trailer-title is 645.1 px
+	assert_eq(bold.get_string_size(SAMPLE, HORIZONTAL_ALIGNMENT_LEFT, -1, BIG_SIZE).x + bold.spacing_glyph,
+		plain.get_string_size(SAMPLE, HORIZONTAL_ALIGNMENT_LEFT, -1, BIG_SIZE).x + plain.spacing_glyph,
+		"Chrome's synthetic bold widens no glyph: Godot's embolden advance comes out of the spacing")
 
 func test_synthetic_bold_follows_the_skia_ratio() -> void:
 	assert_almost_eq(UiFont.fake_bold_embolden(9), UiFont.EMBOLDEN_UNIT_SIZE / 24.0, EPS)

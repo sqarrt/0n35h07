@@ -2,8 +2,8 @@ class_name TrailerScreen extends Node
 ## The built-in trailer — port of web components/trailer/TrailerScreen + TrailerSequencer: the TrailerEdl shots in order
 ## over #05070d — the 3-2-1 countdown over emptiness (full-volume ticks, GO starting the trailer's music), text cuts, play
 ## shots (a DemoPlayback each under an opaque cover that fades once the scene has warmed up, its sounds at 0.45, GO just
-## ahead of every later cut, the streak banner outliving the shot) and the finale's title card, the music ringing out
-## under it. Always in English; the cursor and SKIP hide after 2.5 s without mouse movement; SKIP or Esc leaves early.
+## ahead of every later cut, the streak banner outliving the shot) and the finale — the slow-motion duel (FinaleScene)
+## with the title card surfacing over it and the music ringing out under it. Always in English; the cursor and SKIP hide after 2.5 s without mouse movement; SKIP or Esc leaves early.
 
 signal done
 
@@ -20,7 +20,6 @@ const LAYER := 20                              # over the replay HUD (web: the .
 const MS_PER_S := 1000.0
 const BACKGROUND := Color("#05070d")           # .trailer-root
 const COVER_COLOR := Color("#04060c")          # .trailer-cover
-const FINALE_BACKGROUND := Color("#04050a")    # web FinaleView clear colour
 const PAUSE_ACTION := "pause"                  # Esc
 
 @export_file("*.tscn") var exit_scene := ""    # where the trailer leads when it is done ("" = nowhere: tests, tools)
@@ -36,6 +35,7 @@ var _hold_s := 0.0
 var _finished := false
 var _count := COUNTDOWN_STEPS
 var _playback: DemoPlayback
+var _finale: FinaleScene
 var _cover_fade := CssTransition.new(COVER_FADE_S, EASE)
 var _idle := true
 var _idle_left := 0.0
@@ -112,6 +112,9 @@ func shot_index() -> int:
 func playback() -> DemoPlayback:
 	return _playback
 
+func finale() -> FinaleScene:
+	return _finale
+
 func countdown() -> HudCountdown:
 	return _countdown
 
@@ -177,7 +180,7 @@ func _shot() -> Dictionary:
 	return TrailerEdl.SHOTS[_index]
 
 func _enter(index: int) -> void:
-	_leave_play()
+	_leave_shot()
 	_index = index
 	_elapsed = 0.0
 	if index >= TrailerEdl.SHOTS.size():
@@ -185,8 +188,7 @@ func _enter(index: int) -> void:
 		return
 	var shot := _shot()
 	var type := String(shot["type"])
-	_background.visible = type != TrailerEdl.PLAY   # a play shot's canvas clears the screen itself
-	_background.color = FINALE_BACKGROUND if type == TrailerEdl.FINALE else BACKGROUND
+	_background.visible = type in [TrailerEdl.COUNTDOWN, TrailerEdl.TEXT]   # play shots and the finale clear it themselves
 	_countdown.visible = type == TrailerEdl.COUNTDOWN
 	_cut.visible = type == TrailerEdl.TEXT
 	_cover.visible = type == TrailerEdl.PLAY
@@ -200,6 +202,16 @@ func _enter(index: int) -> void:
 			_cut.start(shot["text"], shot["duration_ms"])
 		TrailerEdl.PLAY:
 			_start_play(shot)
+		TrailerEdl.FINALE:
+			_start_finale()
+
+## The finale's slow-motion duel (web FinaleView) under the title card; its end ends the trailer (web onEnd = finish).
+func _start_finale() -> void:
+	_finale = FinaleScene.new()
+	_finale.sound.connect(func(event: String) -> void: play_sound.call(event, SFX_GAIN))
+	_finale.ended.connect(finish)
+	_layer.add_child(_finale)
+	_layer.move_child(_finale, _background.get_index() + 1)
 
 ## Each play shot builds its own scene behind the opaque cover (web ShotView keyed by the shot index).
 func _start_play(shot: Dictionary) -> void:
@@ -216,12 +228,13 @@ func _start_play(shot: Dictionary) -> void:
 	if _held:
 		_playback.hold()
 
-func _leave_play() -> void:
-	if _playback == null:
-		return
-	_playback.process_mode = Node.PROCESS_MODE_DISABLED   # no late signals from a shot on its way out
-	_playback.queue_free()
+func _leave_shot() -> void:
+	for scene: Node in [_playback, _finale]:
+		if scene != null:
+			scene.process_mode = Node.PROCESS_MODE_DISABLED   # no late signals from a shot on its way out
+			scene.queue_free()
 	_playback = null
+	_finale = null
 
 ## web onSceneNearEnd: GO slightly ahead of a cut, so its peak lands on the text slam (not before the first cut).
 func _on_near_end() -> void:
@@ -249,6 +262,11 @@ func _seek(elapsed_s: float) -> void:
 			_countdown.tick(elapsed_s - (COUNTDOWN_STEPS - _count) * per)
 		TrailerEdl.TEXT:
 			_cut.advance(elapsed_s)
+		TrailerEdl.FINALE:
+			_finale.hold_at(elapsed_s)
+			if elapsed_s >= TITLE_AT_S:
+				_title.show_card()
+				_title.advance(elapsed_s - TITLE_AT_S)
 
 func _tick_idle(delta: float) -> void:
 	if _idle:
