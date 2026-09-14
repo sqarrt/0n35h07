@@ -1,0 +1,112 @@
+{
+  "id": "2026-09-14-main-menu",
+  "title": "Сверка паритета OneShot · раскладка главного меню",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс главного меню (пункты M2 и M4 базового отчёта): панель `.menu-panel`, логотип 0N35H07, разделительная линия, кнопки `screens/MainMenu` и чип версии `VersionChip`. 3D-фон меню (M1) сверяется отдельным слайсом, поэтому в web-кадрах раскладки canvas фона скрыт; кадр с фоном сохранён рядом (`web-menu-backdrop.png`). Английская локаль, 1280×720.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-main-menu.json`. Web: `web-reference/scripts/parity-capture-menu.mjs` (профиль PARITY7, `locale: en`; canvas фона `visibility: hidden`) → `test-results/parity-gpu-menu/web-menu*.png` + рамки и стили `web-menu.json`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, кадр 60, режимы `menu-browser`, `menu-hover-play`, `menu-hover-secondary` → `godot-menu-*.png` + факты `.png.json`. Замеры: `tools/parity/measure.py read_png`; вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "main-menu",
+      "name": "Главное меню без 3D-фона",
+      "verdict": "Раскладка меню перенесена: рамки совпадают с web в пределах 0.5 px (панель [300, 0, 680×720]; логотип [461, 167] против [461.4, 166.6]; линия 255 против 254.6; кнопки 299×44 на 294 / 351 / 408 / 464 против 294.0 / 350.8 / 407.6 / 464.4; правый край чипа версии 1264 в обоих). Фон, края и заливка панели совпадают точно (0.00/255), линия 0.16/255, кнопки 0.5–1.5/255 (при наведении 0.6–1.0). Логотип 4.5/255 (синтетический жирный), подсказка и чип версии 4.5–4.8/255 (разрядка 1.76 → 2 px).",
+      "verdict_short": "Раскладка главного меню перенесена",
+      "conditions": [
+        ["экран", "главное меню, `locale: en`", "`scenes/main_menu.tscn`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, кадр 60"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["3D-фон", "canvas `MenuBackdrop` скрыт (`visibility: hidden`)", "не перенесён (слайс M1): фон `--bg`"],
+        ["сборка", "браузер: подсказка F11, без RADIO / QUIT", "фикстура `menu-browser`: подсказка показана, QUIT скрыт (в игре — наоборот)"],
+        ["наведение", "`page.hover` на PLAY / APPEARANCE", "`InputEventMouseMotion` в центр кнопки"],
+        ["тесты", "—", "GUT 398/398, 4307 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Колонка меню (увеличение ×2)", "wipe": true,
+          "note": "Логотип со свечением, линия 120×1, PLAY (primary), APPEARANCE / SETTINGS / ABOUT (secondary), подсказка.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-menu.png", "note": "Логотип [461.4, 166.6, 376.3×72]; кнопки на x 490.5, шаг 56.8."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-menu.png", "note": "Логотип [461, 167, 378×72]; кнопки на x 491, y 294 / 351 / 408 / 464."}
+          ]},
+        {"title": "Кадр целиком", "wipe": true,
+          "note": "Панель 680 px с фоном .72 и линиями #1a2433 по бокам, чип версии в углу.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-full.png", "note": "Фон и края панели."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-full.png", "note": "Фон вне панели, фон и края панели 0.00/255."}
+          ]},
+        {"title": "Логотип 0N35H07 (увеличение ×2)", "wipe": true,
+          "note": "64 px, жирный, разрядка 0.3em (и такой же отступ слева), свечение 30 px rgba(68,170,255,.5).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-logo.png", "note": "Буквы чуть плотнее (жирный Chrome)."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-logo.png", "note": "Область логотипа 4.53/255."}
+          ]},
+        {"title": "Наведение на PLAY (увеличение ×3)", "wipe": true,
+          "note": "`.btn--primary:hover` #4fb4ff.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-hover-play.png", "note": "299×44."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-hover-play.png", "note": "Область 0.55/255."}
+          ]},
+        {"title": "Наведение на secondary APPEARANCE (увеличение ×3)", "wipe": true,
+          "note": "`.btn:hover`: заливка #2b9ff0, тёмный текст — первая пиксельная проверка варианта secondary.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-hover-secondary.png", "note": "Заливка rgb(43, 159, 240)."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-hover-secondary.png", "note": "Область 0.95/255."}
+          ]},
+        {"title": "Чип версии (увеличение ×5)", "wipe": true,
+          "note": "11 px, разрядка .16em, #778; right 16, bottom 14.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-version.png", "note": "[1217.8, 693, 46.2×13]."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-version.png", "note": "[1216, 693, 48×13]; 4.77/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MM1", "severity": "fixed",
+          "title": "Панель, логотип, линия и кнопки главного меню (M2, M4)",
+          "web": "`.menu-panel`: min(680px, 92vw), высота экрана, padding 32 / 40, фон rgba(10,12,17,.72), линии 1 px `--surface-line`; `MainMenu`: h1 4rem жирный, разрядка и margin-left 0.3em, свечение 30 px; `.accent-rule` 120×1; кнопки шириной 50% (PLAY primary, остальные secondary, QUIT ghost на desktop).",
+          "godot": "`MainMenu` на `CssColumn` (отступ слева участвует в центрировании), `UiButton`, `GlowText`, `UiFont.with_css_line`. Было: заголовок «ONESHOT» шрифтом Godot, выпадающий список карт, кнопки PLAY / QUIT темы Godot.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/main_menu.gd", "scenes/main_menu.tscn", "nodes/css_column.gd", "tests/unit/test_main_menu.gd", "web-reference/src/screens/MainMenu.tsx", "web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "MM2", "severity": "fixed",
+          "title": "Чип версии",
+          "web": "`VersionChip`: `v2.0.0` 11 px в правом нижнем углу; на desktop — кнопка того же вида, открывает папку логов, при наведении `brightness(1.7)`.",
+          "godot": "Плоская кнопка `Version` (`v` + `Game.GAME_VERSION`), `OS.shell_show_in_file_manager(user://logs)`, цвет при наведении ×1.7. Было: версии не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/main_menu.gd", "web-reference/src/components/VersionChip.tsx"]
+        },
+        {
+          "id": "M7", "severity": "fixed",
+          "title": "Выбор карты убран из главного меню",
+          "web": "Карты выбираются в лобби (сетка превью).",
+          "godot": "Выпадающий список убран; PLAY запускает арену на `Game.selected_map`. Выбор карты вернётся со слайсом лобби.",
+          "evidence": ["code"],
+          "sources": ["nodes/main_menu.gd", "autoloads/game.gd"]
+        },
+        {
+          "id": "M1", "severity": "missing",
+          "title": "3D-фон меню",
+          "web": "`MenuBackdrop`: сцена с шаром игрока, свечение краёв, позы камеры по экрану; панель размывает фон (`backdrop-filter: blur(2px)`).",
+          "godot": "Однотонный `--bg`. Отдельный слайс.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/MenuBackdrop.tsx", "web-reference/src/components/MenuEdgeGlow.tsx"]
+        },
+        {
+          "id": "M3", "severity": "missing",
+          "title": "Экраны за кнопками",
+          "web": "APPEARANCE, SETTINGS, ABOUT открывают свои экраны в той же панели; RADIO (desktop) — радио.",
+          "godot": "Кнопки есть и шлют `screen_requested`, экранов пока нет; RADIO скрыт до переноса радио.",
+          "evidence": ["code"],
+          "sources": ["nodes/main_menu.gd", "web-reference/src/screens/Appearance.tsx", "web-reference/src/screens/Settings.tsx", "web-reference/src/screens/About.tsx"]
+        }
+      ],
+      "limitations": [
+        "Web-кадры раскладки сняты со скрытым canvas 3D-фона: сравнивается панель над `--bg`, а не над сценой; `backdrop-filter: blur(2px)` на однотонном фоне не виден.",
+        "Разрядка подсказки и чипа версии: 1.76 px округляется до 2, строки шире на 3–4 px (известное ограничение `spacing_glyph`).",
+        "Логотип: синтетический жирный Godot тоньше Chrome (4.5/255 по области).",
+        "Кадры Godot в браузерной раскладке (подсказка F11, без QUIT) — фикстура инструмента; в игре показывается QUIT, подсказки нет, как в desktop-сборке web.",
+        "Локаль только английская (i18n — пункт M5); заставка-предупреждение (M6) не перенесена."
+      ]
+    }
+  ]
+}

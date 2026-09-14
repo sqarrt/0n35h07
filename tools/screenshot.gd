@@ -30,6 +30,9 @@ extends SceneTree
 ##                     browser build and the RESUME cooldown frozen — state cooldown (halfway), idle (over),
 ##                     hover-ghost (TO MENU hovered) or hover-primary (RESUME hovered); its boxes join the facts.
 ##   match-end-hover   the match-end screen (pass <match ms>) with EXIT hovered once the column has settled.
+##   menu-browser      the main menu scene in the browser build's layout (web parity-capture-menu.mjs: the F11 hint,
+##                     no QUIT); menu-hover-play / menu-hover-secondary also hover PLAY / APPEARANCE. Its boxes join
+##                     the facts.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -64,7 +67,11 @@ const PAUSE_FRAMES := 3              # the column lays out, then the frozen cool
 const MODE_MATCH_END_HOVER := "match-end-hover"
 const END_SETTLE_FRAMES := 12        # the 0.1 s fade and the column layout (at --fixed-fps 60)
 const HOVER_FRAMES := 2              # the button takes the hover look
-const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit"}
+const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
+	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
+const MODE_MENU := "menu-"
+const MENU_FRAMES := 3               # the column lays out in the browser layout
+const MENU_BOXES := ["Panel", "Logo", "Rule", "Play", "Appearance", "Settings", "About", "Quit", "Hint", "Version"]
 const MODE_THIRD_PERSON := "third-person"
 const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
@@ -239,6 +246,12 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_PAUSE):
 		_pause_fixture(_mode.trim_prefix(MODE_PAUSE))
 		return PAUSE_FRAMES
+	if _mode.begins_with(MODE_MENU):
+		for menu in root.find_children("*", "MainMenu", true, false):
+			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's
+			# compile-time dependencies — autoloads aren't globals in a -s script
+			menu.call("set_browser_layout", true)
+		return MENU_FRAMES
 	if _mode == MODE_HUD_STATS:
 		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)
 		var stats_json := JSON.new()
@@ -320,6 +333,13 @@ func _capture() -> void:
 		facts["stats"] = {"visible": stats_overlay.visible, "fps_text": stats_overlay.fps_text().label().text,
 			"speed_text": stats_overlay.speed_text().label().text, "fps": _rect(stats_overlay.fps_text()),
 			"graph": _rect(stats_overlay.graph()), "speed": _rect(stats_overlay.speed_text())}
+	for menu in root.find_children("*", "MainMenu", true, false):
+		var menu_boxes := {}
+		for box_name in MENU_BOXES:
+			var control := menu.find_child(box_name, true, false) as Control
+			if control != null and control.is_visible_in_tree():
+				menu_boxes[box_name] = _rect(control)
+		facts["MainMenu"] = menu_boxes
 	for overlay_class in ["PauseOverlay", "MatchEndedOverlay"]:
 		for overlay in root.find_children("*", overlay_class, true, false):
 			var column := overlay.find_child("Column", true, false) as CssColumn
