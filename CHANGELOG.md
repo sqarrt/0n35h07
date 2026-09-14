@@ -36,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   on seats and in the friend picker keep their small line height.
 
 ### Added
-- **Groundwork for the in-game Radio.** The game can now host an embedded web runtime (the system WebView2), which will
-  run the original's generative music engine behind the Radio player; nothing is shown or played yet.
+- **The Radio's music engine runs inside the game.** The original's generative Radio engine now runs in an embedded,
+  invisible web runtime (the system WebView2) and the game drives it; the Radio player and its menu entry come next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.
