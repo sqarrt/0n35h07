@@ -248,7 +248,9 @@ func _apply_hud_fixture() -> int:
 		return PAUSE_FRAMES
 	if _mode.begins_with(MODE_MENU):
 		for menu in root.find_children("*", "MainMenu", true, false):
-			(menu as MainMenu).set_browser_layout(true)   # the web capture runs in a browser tab
+			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's
+			# compile-time dependencies — autoloads aren't globals in a -s script
+			menu.call("set_browser_layout", true)
 		return MENU_FRAMES
 	if _mode == MODE_HUD_STATS:
 		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)
