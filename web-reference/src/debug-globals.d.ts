@@ -32,6 +32,8 @@ declare global {
     __debugMenuGlowLevel?: number    // pins the audio level (0..1) the menu edge glow reads, for parity captures
     __debugMenuBallTime?: number     // pins the menu balls' shader clock (s): wave shape and ring bands, for parity captures
     __debugPreviewHoldMs?: number    // freezes the appearance style previews this long after the last style click
+    __debugTrailerShot?: number      // starts the trailer sequence at this shot index, for parity captures
+    __debugTrailerHoldFrame?: number // holds the trailer replay clock on this recorded frame, for parity captures
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void

@@ -1,0 +1,87 @@
+{
+  "id": "2026-09-14-trailer-replay",
+  "title": "Сверка паритета OneShot · трейлер: воспроизведение записи",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Первый слайс трейлера (ABOUT → WATCH): web `components/trailer/DemoScene.tsx` — воспроизведение записанного матча на классах игры (игроки по кадрам записи, камера записи, HUD повтора, события кадра). В web добавлены отладочные хуки `__debugTrailerShot` (начать с кадра плана) и `__debugTrailerHoldFrame` (держать часы повтора на кадре записи). Сравнивается кадр 160 записи os_arena — первый план трейлера (от первого лица, бот впереди).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-trailer-replay.json`. Web: `web-reference/scripts/parity-capture-trailer-frame.mjs` (меню → ABOUT → WATCH; `__debugTrailerShot` = 2, `__debugTrailerHoldFrame` = 160; снимок через 5 s — клипы загружены, прогрев, курсор скрыт) → `test-results/parity-trailer/web-trailer-os_arena-160.png`. Godot: `tools/screenshot.gd` на `scenes/trailer_frame.tscn`, режим `profile:trailer-frame-os_arena-160` (`DemoPlayback` с фрагментом [160, 161], часы удержаны, 60 кадров) → `godot-trailer-os_arena-160.png`. Пиксели — среднее отличие каналов (0–255) по областям.",
+  "pages": [
+    {
+      "slug": "replay",
+      "name": "Кадр повтора",
+      "verdict": "Воспроизведение записи перенесено: карта с обводкой блоков и светом, игроки по кадру записи (позиция между кадрами, прицел, флаги замаха / рывка / щита, видимость своего шара), камера записи, HUD повтора (счёт, таймер записи, скобки щита, полосы рывка, кольцо прицела). Кадр совпадает с web на 1.24/255: небо 0.00, пол 0.76, скобки 0.05, стены 1.80. Остаток — HUD: кольцо прицела ниже на 2.5 px (область шара 3.46), текст верхней строки сдвинут на 3 px (9.64).",
+      "verdict_short": "Повтор совпадает",
+      "conditions": [
+        ["сборка", "браузер, трейлер с отладочными хуками", "десктоп Godot, `DemoPlayback`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["кадр", "os_arena.demo.json, кадр 160 (план 2), часы удержаны", "то же, фрагмент [160, 161], `hold()`"],
+        ["тесты", "—", "GUT 577/577 (`test_player_remote`, `test_demo_clip`, `test_demo_timeline`, `test_player_node_replay`, `test_match_node_replay`, `test_demo_playback`)"]
+      ],
+      "comparisons": [
+        {"title": "Кадр 160 целиком", "wipe": true,
+          "note": "Первое лицо: свой шар скрыт, бот RX39S впереди; HUD повтора.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer/crops/web-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer/crops/godot-full.png", "note": "1.24/255"}
+          ]},
+        {"title": "Бот и прицел (×4)", "wipe": true,
+          "note": "Шар бота по позиции записи; в трейлере нет теней (у холста плана нет `shadows`).",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer/crops/web-ball.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer/crops/godot-ball.png", "note": "кольцо прицела ниже на 2.5 px"}
+          ]},
+        {"title": "Верхняя строка (×2)", "wipe": true,
+          "note": "Имена и счёт из записи, таймер 02:55 из remainingMs кадра.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer/crops/web-topbar.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer/crops/godot-topbar.png", "note": "текст на 3 px правее"}
+          ]},
+        {"title": "Угол стены (×4)", "wipe": true,
+          "note": "Обводка рёбер блоков (MapEdges) и свет карты.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer/crops/web-wall.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer/crops/godot-wall.png", "note": "стены 1.80/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "TR1", "severity": "fixed",
+          "title": "Не было воспроизведения записанных матчей",
+          "web": "`DemoScene`: игроки из ростера записи, `applyNetState` + `setReplayPose` (позиция между кадрами 30 fps), `updateRemote` (луч, взгляд, след, щит, возрождение, сдутие замаха), камера lerp / slerp / fov, фрагменты подряд со склейками, события кадра (выстрел, смерть с баннером серии, блок, возрождение) и звуки на переходах флагов.",
+          "godot": "`RemoteState` / `Player.remote` (геттеры берут состояние снаружи, `NetProtocol.apply_player_snapshot` его заполняет — тот же путь нужен сети), `DemoClip` (записи в `assets/demos`), `DemoTimeline` (часы по фрагментам), `PlayerNode.replay` (без симуляции; купол щита и сдутие замаха по сказанному, `play_remote_beam`), `MatchNode.replay` (без фаз и правил, часы записи), `Hud.replay`, `DemoPlayback` (карта, игроки, камера, события, сигнал `sound`).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/demo_playback.gd", "sim/demo_clip.gd", "sim/demo_timeline.gd", "sim/remote_state.gd", "sim/player.gd", "sim/net/net_protocol.gd", "nodes/player_node.gd", "nodes/match_node.gd", "nodes/hud.gd", "tests/unit/test_demo_playback.gd", "web-reference/src/components/trailer/DemoScene.tsx"]
+        },
+        {
+          "id": "TR2", "severity": "fixed",
+          "title": "Отличия холста трейлера от матча",
+          "web": "План трейлера — свой `<Canvas>`: очистка `#05070d` вместо фона страницы, без `shadows` (в игре `shadows=\"percentage\"`); HUD повтора — только MatchHud, прицел, замах, рывок, скобки, возрождение (без полосы звука, статистики и перегрева).",
+          "godot": "`DemoPlayback`: фон окружения `#05070d`, солнце без теней, `Hud.replay` прячет полосу звука, статистику и перегрев. Найдено на первом кадре: небо 4.67 → 0.00/255, тень под ботом и полоса звука снизу.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/demo_playback.gd", "nodes/hud.gd", "web-reference/src/components/trailer/TrailerSequencer.tsx"]
+        },
+        {
+          "id": "TR3", "severity": "visual",
+          "title": "HUD повтора: прицел и верхняя строка",
+          "web": "Кольцо прицела с центром у (640, 357.5); текст верхней строки с дробной разрядкой.",
+          "godot": "Кольцо у (640, 360) — на 2.5 px ниже (в матче совпадало, причина в раскладке страницы трейлера не найдена); текст строки на 3 px правее (целая разрядка).",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_crosshair.gd", "nodes/hud_top_bar.gd"]
+        },
+        {
+          "id": "TR4", "severity": "missing",
+          "title": "Секвенсор и финал трейлера",
+          "web": "Отсчёт 3-2-1, перебивки с текстом, покрышка между планами, SKIP / Esc, музыка трейлера, финал с титром.",
+          "godot": "Пока нет: WATCH в ABOUT ничего не открывает. Следующие слайсы T2 (секвенсор, музыка) и T3 (финал).",
+          "evidence": ["code"],
+          "sources": ["docs/superpowers/specs/2026-09-14-godot-trailer-design.md", "web-reference/src/components/trailer/TrailerSequencer.tsx", "web-reference/src/components/trailer/FinaleScene.tsx"]
+        }
+      ],
+      "limitations": [
+        "Сравнён удержанный кадр без луча в полёте: выстрелы, смерти и склейки проверены тестами, без кадров.",
+        "Кватернионы камеры в записи округлены до 3 знаков — Godot нормирует их перед slerp (three.js допускает ненормированные)."
+      ]
+    }
+  ]
+}

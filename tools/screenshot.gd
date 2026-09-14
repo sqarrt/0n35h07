@@ -79,6 +79,9 @@ const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
 const MODE_TEAM := "team-"
+const MODE_TRAILER_FRAME := "trailer-frame-"   # trailer-frame-<clip>-<frame> on scenes/trailer_frame.tscn: a held replay
+const TRAILER_FRAMES := 60             # past the warm-up and the shaders' first frames (web waits 3 s)
+const DEMO_PLAYBACK_SCRIPT := "res://nodes/demo_playback.gd"
 const MODE_LOBBY_MAP := "lobby-map-"   # lobby-map-<id>: the lobby's blurred map background alone
 const LOBBY_MAP_FRAMES := 90           # past the 0.7 s fade-in (web waits 1.5 s)
 const MODE_READY := "ready-"          # ready-duel / ready-2v2: the ready ritual before the local player confirms
@@ -253,6 +256,16 @@ func _initialize() -> void:
 		_setup_fixture.call_deferred()
 	if not _mode.begins_with(MODE_READY):
 		_ready_human.call_deferred()   # web captures call __debugReady as the match mounts
+	if _mode.begins_with(MODE_TRAILER_FRAME):
+		# web parity-capture-trailer-frame.mjs: the play shot of that clip held on the recorded frame
+		var parts := _mode.trim_prefix(MODE_TRAILER_FRAME).rsplit(KIND_SEPARATOR, true, 1)
+		# loaded, not typed: DemoPlayback's HUD uses autoload names, which a -s tool can't compile against
+		var playback: Node = (load(DEMO_PLAYBACK_SCRIPT) as GDScript).new()
+		playback.call("setup", DemoClip.load_clip(parts[0]), [[int(parts[1]), int(parts[1]) + 1]],
+			PARITY_PROFILE["reserveColor"])
+		playback.call("hold")
+		root.add_child(playback)
+		_capture_frame = maxi(_capture_frame, TRAILER_FRAMES)
 
 ## web __debugReady: the local player confirms the ready ritual (the bots already have).
 func _ready_human() -> void:

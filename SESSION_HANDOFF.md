@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 570/570)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 577/577)
 
 | Слайс | Суть |
 |---|---|
@@ -74,6 +74,7 @@
 | Ритуал готовности (R) | `MatchPhase` READY→COUNTDOWN→LIVE→ENDED (`add_participant`/`mark_ready`), боты готовы сразу; `ReadyOverlay` (подсветки, углы/список, подсказка, `ControlsLegend` на Consolas), клик → захват мыши + `mark_ready` + звук; `UnderlinedLabel`, `UiFont.css_width`; инструмент подтверждает готовность при монтировании (режимы `ready-duel`/`ready-2v2` — без); web `parity-capture-ready.mjs` |
 | Фон карты в лобби (LM) | `MapBackground` за `MenuBackdrop`: два слоя (текущий и гаснущий 320 мс), превью cover в SubViewport, горизонтальное размытие во вложенном SubViewport один раз на карту, вертикальное на экране (`image_blur`, предумноженный цвет, brightness 0.7), проявление 0.7 s; web `parity-capture-lobby-map.mjs`, режим `lobby-map-<id>` |
 | Трейлер T1a: данные повтора | `RemoteState` + `Player.remote` (геттеры замаха/рывка/щита/готовности берут состояние снаружи; `NetProtocol.apply_player_snapshot` его заполняет — пригодится и сети), `DemoClip` (записи `assets/demos/*.demo.json`, камера, снимки игроков), `DemoTimeline` (часы по фрагментам, смесь кадров, события, склейки, сигнал перед концом). Визуала пока нет — отчёта нет; спека `docs/superpowers/specs/2026-09-14-godot-trailer-design.md` |
+| Трейлер T1b: воспроизведение | `PlayerNode.replay` (без симуляции, купол щита и сдутие замаха по `remote`, `play_remote_beam`), `MatchNode.replay` (часы записи), `Hud.replay` (без полосы звука/статистики/перегрева), `DemoPlayback` (карта, игроки, камера записи, события, сигнал `sound`; фон `#05070d`, без теней — как холст плана трейлера); web-хуки `__debugTrailerShot`/`__debugTrailerHoldFrame`, `parity-capture-trailer-frame.mjs`, режим `trailer-frame-<clip>-<frame>` на `scenes/trailer_frame.tscn` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
 Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map).
@@ -85,10 +86,10 @@
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
 шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT и APPEARANCE с превью
 стилей, переводы интерфейса i18n (10 языков), заставка-предупреждение M6, настройки в паузе, ритуал готовности матча и
-размытый фон карты в лобби (GUT 570/570) смержены в `release_2.0.0`. Трейлер начат (T1a — данные повтора); дальше
-T1b: режим повтора в `PlayerNode` (без симуляции, позиция из кадра, косметический луч по `fired`, купол щита из
-`remote`, сдутие замаха при падении windup), общий источник данных HUD (`MatchNode` / `DemoPlayback`), узел
-`DemoPlayback` (камера, события, звуки), web-хук заморозки кадра трейлера и отчёт; затем T2 секвенсор, T3 финал. Следующие слайсы: сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
+размытый фон карты в лобби (GUT 577/577) смержены в `release_2.0.0`. Трейлер: T1 (данные и воспроизведение записи,
+кадр 1.24/255, отчёт `2026-09-14-trailer-replay-*`) готов; дальше T2 — `TrailerScreen` по EDL (отсчёт, перебивки
+`.trailer-cut`, покрышка, HUD повтора, SKIP/Esc, скрытие курсора, звуки `DemoPlayback.sound` ×0.45, музыка трейлера на
+движке меню, английские тексты, `MainMenu` открывает трейлер по `screen_requested('trailer')`), затем T3 финал. Следующие слайсы: сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
 вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
