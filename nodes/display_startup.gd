@@ -7,8 +7,13 @@ class_name DisplayStartup
 const TOOL_FLAG := "-s"
 
 static func start(window: Window, args: PackedStringArray, headless: bool, dpi: int) -> void:
-	if args.has(TOOL_FLAG):
+	if is_tool_run(args):
 		return
 	window.content_scale_factor = UiScale.for_dpi(dpi)
 	if not headless:
 		window.mode = Window.MODE_FULLSCREEN
+
+## A -s tool run (captures, tests): it owns the window and must not touch the player's Steam state. (Not `is_tool`:
+## called on the class, that name resolves to Script.is_tool().)
+static func is_tool_run(args: PackedStringArray) -> bool:
+	return args.has(TOOL_FLAG)

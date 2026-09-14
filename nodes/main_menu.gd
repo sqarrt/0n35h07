@@ -117,6 +117,7 @@ func _ready() -> void:
 		Game.menu_screen = ""
 		open_about()
 	_listen_to_steam()
+	SteamPresence.apply(SteamBridge, SteamPresence.SCREEN_MENU)   # web App: Rich Presence follows the screen
 
 ## PLAY (web handlePlay): the selection back to the first map and time, and a fresh room hosted on every visit — a Private
 ## Steam lobby friends are invited into, or without Steam a room of our own — shown in the panel instead of the menu.
@@ -127,6 +128,7 @@ func open_lobby() -> void:
 	_draft_durations = [RoomModel.DEFAULT_DURATION_MIN]
 	_open_lobby_screen()
 	_enter_play_idle()
+	SteamPresence.apply(SteamBridge, SteamPresence.SCREEN_LOBBY)
 
 ## BACK / LEAVE (web handleBack): the room closes, the menu returns.
 func close_lobby() -> void:
@@ -140,6 +142,7 @@ func close_lobby() -> void:
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
+	SteamPresence.apply(SteamBridge, SteamPresence.SCREEN_MENU)
 
 ## SETTINGS (web setScreen('settings')): the settings screen in the panel, on the tab left open last time; every change
 ## is saved and the volumes applied at once.

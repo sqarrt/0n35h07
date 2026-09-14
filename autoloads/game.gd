@@ -30,7 +30,16 @@ func _ready() -> void:
 	DisplayStartup.start(get_tree().root, OS.get_cmdline_args(), DisplayServer.get_name() == HEADLESS_DISPLAY,
 		DisplayServer.screen_get_dpi())
 	random.randomize()
+	var cloud := SteamBridge.available() and not DisplayStartup.is_tool_run(OS.get_cmdline_args())
 	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
+		if cloud:   # web main.tsx: reconcile with Steam Cloud before the profile is read
+			ProfileCloud.sync_on_startup(SteamBridge, random.randf)
 		profile = ProfileStore.load_profile(random.randf)
+	if cloud:   # web installProfileCloudSync, after the reconcile so an adopted profile doesn't echo back
+		var pusher := ProfileCloudPusher.new()
+		pusher.name = "ProfileCloudPusher"
+		pusher.setup(SteamBridge)
+		add_child(pusher)
+		ProfileStore.save_hook = pusher.queue
 	I18n.use_locale(Locales.of_profile(profile))   # web App: profile.locale ?? detectLocale()
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

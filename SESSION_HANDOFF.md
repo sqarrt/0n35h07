@@ -108,8 +108,14 @@ UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144
 физических px через `UiScale`. Отчёт `2026-09-14-display-scale-*`: весь экран совпал (панели 0.00–1.02/255), окно не
 изменилось (0.00). GUT 692/692. **Съёмка на весь экран:** web `set PARITY_FULLSCREEN=1&& node scripts\<скрипт>.mjs
 <папка>` (`parity-lib.mjs` `FULLSCREEN` 2560×1440 CSS × 1.5, для всех скриптов), Godot `--fullscreen` вместо
-`--resolution` (`ui_scale` в фактах кадра). **Дальше:** (1) N3 (имя из Steam, облако, ачивки, Rich Presence);
-(2) дробная разрядка букв (целый `spacing_glyph`); (3) радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`--resolution` (`ui_scale` в фактах кадра). **Сеть N3 (Steam-профиль) смержена** (`feature/godot-steam-profile`):
+`SteamAchievements` + `MatchAchievements` (локальный игрок, не против пассивного бота), `CloudProfileSync` +
+`ProfileCloud` (старт до `load_profile`, метка/владелец в `user://profile_sync.json`) + `ProfileCloudPusher` (1 с через
+`ProfileStore.save_hook`), `SteamPresence` (меню/лобби/матч); автозагрузка `SteamBridge` первой. Живой прогон
+`tools/steam_smoke.gd` (`--log-file`, т. к. GUI-exe не пишет в консоль): имя, облачный блоб web-сборки читается, RP
+ставится. Грабля: статическая функция `is_tool` на классе уходит во встроенный `Script.is_tool()`. Отчёт
+`2026-09-14-steam-profile-*`. **Дальше:** (1) дробная разрядка букв (целый `spacing_glyph`); (2) радио (кнопка RADIO и
+мини-плеер в меню десктопа, DLC). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

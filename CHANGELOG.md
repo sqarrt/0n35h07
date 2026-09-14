@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   on seats and in the friend picker keep their small line height.
 
 ### Added
+- **Steam profile, cloud, achievements and status.** As in the original's Steam build, a first run takes the Steam
+  name; the profile follows the Steam account through Steam Cloud (the newest save wins, a different account on the
+  same machine gets its own profile); the seven achievements unlock for first blood, double / triple kill,
+  singularity, a perfect block, a win and a win without dying (never against a passive bot); and friends see whether
+  the player is in the menu, the lobby or a match.
 - **Friends and quick match over Steam.** As in the original's desktop build, PLAY hosts a private Steam lobby: a free
   seat offers INVITE A FRIEND next to ADD A BOT, the friend picker lists online friends with a search, and an invited
   friend waits on the seat with a pulsing tag until they sit down or decline. SEARCH looks for a quick match (STOP
