@@ -35,6 +35,15 @@ func _init(profile: Dictionary, rng: Callable) -> void:
 	slots.resize(GameModes.slot_count(mode))
 	slots[HOST_SLOT] = Roster.human_entry(HOST_SLOT, profile)
 
+## Take a map / duration selection as given (an empty list keeps the current one), the first of each as the pick.
+func _take_selection(maps: Array, durations: Array) -> void:
+	if not maps.is_empty():
+		map_sel = maps.duplicate()
+		map_id = map_sel[0]
+	if not durations.is_empty():
+		duration_sel = durations.duplicate()
+		duration_min = duration_sel[0]
+
 ## This side created the room (a local room always did).
 func is_host() -> bool:
 	return true

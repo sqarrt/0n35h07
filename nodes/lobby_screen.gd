@@ -10,6 +10,8 @@ signal match_requested(setup: Dictionary)
 signal search_requested                         # desktop Duel SEARCH: Steam quick match
 signal stop_requested                           # STOP the search
 signal invite_requested                         # a free seat's INVITE A FRIEND: the friend picker
+signal map_wished(ids: Array)                   # this side picked maps (web onSetMap also keeps draftSel)
+signal duration_wished(minutes: Array)          # this side picked a time (web onSetDuration)
 
 const TITLE_KEY := "menuPlay"                   # web dictionary keys
 const BODY_TOP_SHARE := 0.02                    # .lobby-body padding-top: 2vh
@@ -434,27 +436,35 @@ func _on_mode_picked(mode: String) -> void:
 func _on_map_tile(id: String) -> void:
 	UiSounds.toggle()
 	if not _map_multi:
-		room.set_map([id])
+		_wish_map([id])
 		return
 	var next := room.map_sel.duplicate()
 	if id in next:
 		next.erase(id)
 	else:
 		next.append(id)
-	room.set_map(next)                             # the room ignores an empty selection: the last map stays
+	_wish_map(next)
 
 func _set_multi(on: bool) -> void:
 	UiSounds.toggle()
 	_map_multi = on
 	if not on and room.map_sel.size() > 1:
-		room.set_map([room.map_sel[0]])
+		_wish_map([room.map_sel[0]])
 	refresh()
 
 func _on_select_all() -> void:
 	UiSounds.toggle()
 	_map_multi = true
-	room.set_map(MapCatalog.MAP_IDS)
+	_wish_map(MapCatalog.MAP_IDS)
 
 func _on_time(minutes: int) -> void:
 	UiSounds.toggle()
+	duration_wished.emit([minutes])
 	room.set_duration([minutes])
+
+## The room ignores an empty selection (the last map stays), and so does the wish.
+func _wish_map(ids: Array) -> void:
+	if ids.is_empty():
+		return
+	map_wished.emit(ids)
+	room.set_map(ids)

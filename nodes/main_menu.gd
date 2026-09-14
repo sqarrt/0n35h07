@@ -4,7 +4,9 @@ class_name MainMenu extends Control
 ## rule, PLAY (primary), APPEARANCE / SETTINGS / ABOUT (secondary) and, on the desktop build, QUIT (ghost), all half the
 ## panel wide, and the version chip in the corner (desktop: it opens the log folder). The 3D backdrop, the screens
 ## behind the buttons and RADIO come with their own slices; the map is picked in the lobby (web). Texts follow the active
-## locale (I18n); a language picked in SETTINGS rebuilds the column and that screen.
+## locale (I18n); a language picked in SETTINGS rebuilds the column and that screen. The Play screen's Steam flows are the
+## web App's too: a Private Steam lobby hosted on PLAY, SEARCH / STOP quick match, joining a friend (invite toast,
+## "Join game", the launch parameter), the friend picker and a guest falling back to hosting when its room closes.
 
 signal screen_requested(screen: String)   # web setScreen: appearance / settings / about
 
@@ -49,6 +51,7 @@ const ARENA := "res://scenes/arena_test.tscn"
 const TRAILER_SCENE := "res://scenes/trailer.tscn"
 const LOGS_DIR := "user://logs"
 const HALF := 0.5
+const JOIN_REQUESTED := "joinRequested"   # web steam-net event: "Join game" from the friends list
 
 var _panel: Panel
 var _panel_blur: ColorRect
@@ -67,6 +70,17 @@ var _quit: UiButton
 var _hint: Label
 var _browser_layout := false
 var _version: Button
+var steam = null                              # the Steam bridge: SteamBridge, or one over a fake Steam in tests
+var _steam_token := 0                         # bumped on every room change: a lobby resolved later is left (web steamEnterToken)
+var _steam_lobby: SteamLobby                  # the friend lobby being created or joined
+var _late_lobbies: Array[SteamLobby] = []     # superseded lobbies still coming up: left once they arrive
+var _quick: SteamQuickMatch
+var _forming := false                         # web steamFriendForming
+var _draft_maps: Array = [MapCatalog.MAP_IDS[0]]                  # web draftSel: this side's wishes across rooms
+var _draft_durations: Array = [RoomModel.DEFAULT_DURATION_MIN]
+var _shown_room: RoomModel
+var _picker: SteamFriendPicker
+var _toast: InviteToast
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -102,31 +116,26 @@ func _ready() -> void:
 	if Game.menu_screen == SCREEN_ABOUT:   # back from the trailer (web onDone → setScreen('about'))
 		Game.menu_screen = ""
 		open_about()
+	_listen_to_steam()
 
-## PLAY (web handlePlay): a fresh room hosted on every visit, shown in the same panel instead of the menu.
+## PLAY (web handlePlay): the selection back to the first map and time, and a fresh room hosted on every visit — a Private
+## Steam lobby friends are invited into, or without Steam a room of our own — shown in the panel instead of the menu.
 func open_lobby() -> void:
 	close_screen()
 	close_lobby()
-	var room := RoomSession.new(LoopbackNet.new(Game.LOCAL_PEER), RoomSession.ROLE_HOST, Game.profile, Game.random.randf)
-	Game.room = room
-	_lobby = LobbyScreen.new()
-	_lobby.name = "Lobby"
-	_lobby.setup(room, Game.random.randf)
-	_panel.add_child(_lobby)
-	_lobby.back_requested.connect(close_lobby)
-	_lobby.match_requested.connect(_start_match)
-	_column.visible = false
-	_show_room(room)
-	room.changed.connect(_show_room.bind(room))
-	_map_background.set_shown(true)
-	_layout()
+	_draft_maps = [MapCatalog.MAP_IDS[0]]
+	_draft_durations = [RoomModel.DEFAULT_DURATION_MIN]
+	_open_lobby_screen()
+	_enter_play_idle()
 
-## BACK / LEAVE: the room closes, the menu returns.
+## BACK / LEAVE (web handleBack): the room closes, the menu returns.
 func close_lobby() -> void:
+	_close_picker()
 	if _lobby != null:
 		_lobby.queue_free()
 		_lobby = null
-		Game.leave_room()
+		_leave_room()
+		_unwatch_room()
 	_map_background.set_shown(false)
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
@@ -227,6 +236,7 @@ func _save_profile(profile: Dictionary) -> void:
 	Audio.apply_volumes()
 
 func _process(delta: float) -> void:
+	_tick_steam(delta)
 	if _panel_slide == _panel_slide_target:
 		return
 	_panel_slide += (_panel_slide_target - _panel_slide) * (1.0 - exp(-minf(delta, MenuCameraRig.MAX_DT) / PANEL_SLIDE_TAU))
@@ -247,10 +257,234 @@ func _show_room(room: RoomModel) -> void:
 		_map_background.show_map(room.map_sel[0])   # web lastMapId: roomView.mapId ?? draftSel.map[0]
 	_backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_LOBBY, MenuStage.profile_spec(Game.profile), room.occupied(),
-		RoomModel.HOST_SLOT))
+		room.local_player_id))
 
 func lobby() -> LobbyScreen:
 	return _lobby
+
+# --- the Play screen's rooms (web App enterPlayIdle / bindSession / leaveRoom and the Steam flows) ---
+
+func _open_lobby_screen() -> void:
+	_lobby = LobbyScreen.new()
+	_lobby.name = "Lobby"
+	var draft := _draft_room(true)
+	_lobby.setup(draft, Game.random.randf)
+	_panel.add_child(_lobby)
+	_lobby.back_requested.connect(close_lobby)
+	_lobby.match_requested.connect(_start_match)
+	_lobby.search_requested.connect(_start_quick_match)
+	_lobby.stop_requested.connect(_stop_quick_match)
+	_lobby.invite_requested.connect(_open_picker)
+	_lobby.map_wished.connect(func(ids: Array) -> void: _draft_maps = ids.duplicate())
+	_lobby.duration_wished.connect(func(minutes: Array) -> void: _draft_durations = minutes.duplicate())
+	_column.visible = false
+	_show_in_lobby(draft)
+	_map_background.set_shown(true)
+	_layout()
+
+## web enterPlayIdle: the idle Play screen always hosts a room.
+func _enter_play_idle() -> void:
+	if steam.available():
+		_enter_steam_host()
+		return
+	_leave_room()
+	_bind_session(LoopbackNet.new(Game.LOCAL_PEER), RoomSession.ROLE_HOST)
+
+## web enterSteamFriendHost: a Private lobby comes up (me on the host side meanwhile), then a host session on its SteamNet.
+func _enter_steam_host() -> void:
+	_leave_room()
+	_set_forming(true, true)
+	_await_lobby(SteamLobby.host(steam), RoomSession.ROLE_HOST)
+
+## web enterSteamFriendClient: a friend's invite, "Join game" or the launch parameter opens the Play screen on the guest
+## side while the lobby is joined, then a guest session binds to it.
+func _enter_steam_client(lobby_id: String) -> void:
+	_leave_room()
+	if _lobby == null:
+		close_screen()
+		_open_lobby_screen()
+	_set_forming(true, false)
+	_await_lobby(SteamLobby.join(steam, lobby_id), RoomSession.ROLE_CLIENT)
+
+func _await_lobby(lobby: SteamLobby, role: String) -> void:
+	if lobby == null:                          # no Steam after all: the draft stays (web: no session)
+		_set_forming(false)
+		return
+	var token := _steam_token
+	_steam_lobby = lobby
+	lobby.entered.connect(_on_lobby_entered.bind(lobby, token, role))
+	if not lobby.is_waiting():                 # Steam answered while the lobby was asked for
+		_on_lobby_entered(lobby.net, lobby, token, role)
+
+func _on_lobby_entered(net: SteamNet, lobby: SteamLobby, token: int, role: String) -> void:
+	_late_lobbies.erase(lobby)
+	if token != _steam_token:
+		net.leave()                            # superseded while it came up
+		return
+	_steam_lobby = null
+	_set_forming(false)
+	_bind_session(net, role)
+
+## web bindSession: a room session on the transport with this side's selection.
+func _bind_session(net, role: String) -> void:
+	var room := RoomSession.new(net, role, Game.profile, Game.random.randf, "", _draft_maps, _draft_durations)
+	room.closed.connect(_on_room_closed.bind(room))
+	Game.room = room
+	_show_in_lobby(room)
+
+## web onClosed: a guest whose creator left (or whose handshake timed out) hosts an idle room again.
+func _on_room_closed(room: RoomSession) -> void:
+	if room != Game.room or _lobby == null:
+		return
+	_lobby.set_searching(false)
+	_enter_play_idle()
+
+## web leaveRoom: the room's transport closes, a lobby still coming up is left once it arrives, the search stops.
+func _leave_room() -> void:
+	_steam_token += 1
+	_set_forming(false)
+	if _steam_lobby != null:
+		_late_lobbies.append(_steam_lobby)
+		_steam_lobby = null
+	if _quick != null:
+		_quick.stop()
+		_quick = null
+	Game.leave_room()
+
+func _set_forming(on: bool, hosting := true) -> void:
+	_forming = on
+	if on:
+		_show_in_lobby(_draft_room(hosting))
+	if _picker != null:
+		_picker.set_forming(on)
+
+func _draft_room(hosting: bool) -> DraftRoom:
+	return DraftRoom.new(Game.profile, Game.random.randf, hosting, _draft_maps, _draft_durations)
+
+## The lobby and the backdrop follow this room.
+func _show_in_lobby(room: RoomModel) -> void:
+	_unwatch_room()
+	_shown_room = room
+	room.changed.connect(_on_shown_room_changed)
+	if _lobby != null:
+		_lobby.bind_room(room)
+	_show_room(room)
+
+func _unwatch_room() -> void:
+	if _shown_room != null and _shown_room.changed.is_connected(_on_shown_room_changed):
+		_shown_room.changed.disconnect(_on_shown_room_changed)
+	_shown_room = null
+
+func _on_shown_room_changed() -> void:
+	_show_room(_shown_room)
+
+## SEARCH (web startSteamQuickMatch): the idle room goes, the seats spin, and the paired lobby's SteamNet becomes the room.
+func _start_quick_match() -> void:
+	_leave_room()
+	_show_in_lobby(_draft_room(true))
+	_lobby.set_searching(true)
+	var token := _steam_token
+	var quick := SteamQuickMatch.new()
+	_quick = quick
+	quick.matched.connect(_on_quick_matched.bind(token))
+	if not quick.start(steam) and token == _steam_token:
+		_quick = null
+		_lobby.set_searching(false)
+		_enter_play_idle()                     # no Steam: a room of our own again
+
+func _on_quick_matched(net: SteamNet, role: String, token: int) -> void:
+	if token != _steam_token:
+		net.leave()
+		return
+	_quick = null
+	_lobby.set_searching(false)
+	_bind_session(net, role)
+
+## STOP (web onLobbyStopSearch): the search ends (its lobby is left) and the idle room is built again.
+func _stop_quick_match() -> void:
+	_lobby.set_searching(false)
+	_enter_play_idle()
+
+func _tick_steam(delta: float) -> void:
+	if _steam_lobby != null:
+		_steam_lobby.tick(delta)
+	for lobby in _late_lobbies.duplicate():
+		lobby.tick(delta)
+	if _quick != null:
+		_quick.tick(delta)
+
+# --- Steam friends (web App invite listeners, Lobby picker and invites) ---
+
+func _listen_to_steam() -> void:
+	if steam == null:
+		steam = SteamBridge
+	steam.net_event.connect(_on_steam_event)
+	steam.invite_received.connect(_on_invite_received)
+	steam.invite_declined.connect(_on_invite_declined)
+	var join_id: String = steam.take_launch_connect()   # web: Steam launched us with "+connect_lobby <id>"
+	if join_id == "":
+		join_id = steam.take_pending_join()             # a "Join game" that came during a match
+	if join_id != "":
+		_enter_steam_client(join_id)
+
+func _on_steam_event(event: Dictionary) -> void:
+	if String(event.get("kind", "")) == JOIN_REQUESTED:
+		steam.take_pending_join()
+		_enter_steam_client(String(event["lobbyId"]))
+
+## A free seat's INVITE A FRIEND (web Lobby pickerOpen): the picker over the whole menu, under the invite toast.
+func _open_picker() -> void:
+	if _picker != null:
+		return
+	_picker = SteamFriendPicker.new()
+	_picker.friends_source = steam.friends
+	_picker.forming = _forming
+	_picker.picked.connect(_on_friend_picked)
+	_picker.closed.connect(_close_picker)
+	add_child(_picker)
+	if _toast != null:
+		move_child(_toast, -1)
+
+## web onPick: the invite goes out and waits on a free seat.
+func _on_friend_picked(friend_id: String, friend_name: String) -> void:
+	steam.invite_to_lobby(friend_id)
+	if _lobby != null:
+		_lobby.add_invite(friend_id, friend_name)
+	_close_picker()
+
+func _close_picker() -> void:
+	if _picker != null:
+		_picker.queue_free()
+		_picker = null
+
+## web onSteamInviteDeclined: that friend's waiting seat frees.
+func _on_invite_declined(decliner_id: String) -> void:
+	if _lobby != null:
+		_lobby.remove_invite(decliner_id)
+
+## web pendingInvite: an invite received outside a match shows the toast; the newest replaces the shown one.
+func _on_invite_received(inviter_name: String, inviter_id: String, lobby_id: String) -> void:
+	if _toast != null:
+		_toast.show_invite(inviter_name, inviter_id, lobby_id)
+		return
+	_toast = InviteToast.new()
+	_toast.show_invite(inviter_name, inviter_id, lobby_id)
+	_toast.accepted.connect(_on_invite_accepted)
+	_toast.declined.connect(_on_invite_dismissed)
+	add_child(_toast)
+
+func _on_invite_accepted(lobby_id: String) -> void:
+	_close_toast()
+	_enter_steam_client(lobby_id)
+
+func _on_invite_dismissed(inviter_id: String) -> void:
+	steam.decline_invite(inviter_id)
+	_close_toast()
+
+func _close_toast() -> void:
+	if _toast != null:
+		_toast.queue_free()
+		_toast = null
 
 ## The browser build's layout (parity captures): the F11 hint instead of QUIT.
 func set_browser_layout(browser: bool) -> void:

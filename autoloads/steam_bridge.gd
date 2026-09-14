@@ -16,8 +16,10 @@ const RADIO_DLC_APP_ID := 4904970                       # web RADIO_DLC_APPID
 
 var api = SteamApi.new()                               # a fake stands in for tests (set before the node enters)
 var lobby_id := 0                                       # the lobby we are in (0: none)
+var pending_join := ""                                  # the last "Join game" nobody took (it came during a match)
 
 var _entered := 0                                       # the lobby lobbyEntered went out for (Steam may report twice)
+var _launch_taken := false
 
 func _ready() -> void:
 	if not api.init():
@@ -27,7 +29,9 @@ func _ready() -> void:
 	api.lobby_member_changed.connect(_on_member_changed)
 	api.lobby_list.connect(func(ids: Array) -> void:
 		net_event.emit({"kind": "mmResult", "lobbies": ids.map(func(id) -> String: return str(id))}))
-	api.join_requested.connect(func(id: int) -> void: net_event.emit({"kind": "joinRequested", "lobbyId": str(id)}))
+	api.join_requested.connect(func(id: int) -> void:
+		pending_join = str(id)
+		net_event.emit({"kind": "joinRequested", "lobbyId": str(id)}))
 	api.lobby_invite.connect(func(inviter: int, id: int) -> void:
 		invite_received.emit(api.friend_name(inviter), str(inviter), str(id)))
 	api.session_requested.connect(func(steam_id: int) -> void: api.accept_session(steam_id))
@@ -98,10 +102,20 @@ func friends() -> Array:
 func invite_to_lobby(friend_id: String) -> bool:
 	return lobby_id != 0 and friend_id.is_valid_int() and api.invite_to_lobby(lobby_id, int(friend_id))
 
-## The lobby a Steam invite launched us into (web steam_take_launch_connect), or "".
+## The lobby a Steam invite launched us into (web steam_take_launch_connect, asked once per launch), or "". The menu
+## scene comes back after every match, so only the first ask answers.
 func take_launch_connect() -> String:
+	if _launch_taken:
+		return ""
+	_launch_taken = true
 	var found := parse_connect_lobby(api.launch_command_line())
 	return found if found != "" else parse_connect_lobby(" ".join(OS.get_cmdline_args()))
+
+## The last "Join game" not taken yet (web joins from any screen; here the menu takes it when it is back), or "".
+func take_pending_join() -> String:
+	var id := pending_join
+	pending_join = ""
+	return id
 
 func set_rich_presence(key: String, value: String) -> bool:
 	return api.set_rich_presence(key, value)

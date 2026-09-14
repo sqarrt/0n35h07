@@ -24,6 +24,7 @@ var joinable := {}                              # lobby -> bool
 var left: Array = []
 var created_public: Array = []                  # the visibility of every lobby asked for
 var joined: Array = []                          # every lobby asked to join
+var invited: Array = []                         # [[lobby, friend]] per invite sent
 var friend_list: Array = []
 var names := {}
 var command_line := ""
@@ -75,7 +76,8 @@ func lobby_members(id: int) -> Array:
 func request_lobby_list() -> void:
 	lobby_list.emit(lobbies_found)
 
-func invite_to_lobby(_id: int, _friend: int) -> bool:
+func invite_to_lobby(id: int, friend: int) -> bool:
+	invited.append([id, friend])
 	return up
 
 func open_invite_dialog(_id: int) -> void:

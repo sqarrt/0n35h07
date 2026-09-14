@@ -16,7 +16,7 @@ func _init(profile: Dictionary, rng: Callable, hosting: bool, maps: Array, durat
 		slots[GUEST_SLOT] = Roster.human_entry(GUEST_SLOT, profile)
 		slots[HOST_SLOT] = null
 		local_player_id = GUEST_SLOT
-	_keep_wish(maps, durations)
+	_take_selection(maps, durations)
 
 func is_host() -> bool:
 	return _hosting
@@ -47,16 +47,10 @@ func set_local_ready(_is_ready: bool) -> void:
 
 func set_map(ids: Array) -> void:
 	if not ids.is_empty():
-		_keep_wish(ids, duration_sel)
+		_take_selection(ids, [])
 		changed.emit()
 
 func set_duration(minutes: Array) -> void:
 	if not minutes.is_empty():
-		_keep_wish(map_sel, minutes)
+		_take_selection([], minutes)
 		changed.emit()
-
-func _keep_wish(maps: Array, durations: Array) -> void:
-	map_sel = maps.duplicate()
-	duration_sel = durations.duplicate()
-	map_id = map_sel[0]
-	duration_min = duration_sel[0]
