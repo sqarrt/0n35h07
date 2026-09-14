@@ -81,6 +81,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   shields, dashes, landings, blocks, kills, respawns, the countdown and streak announces sound as in the original,
   positionally for the opponent. Buttons click and blip on hover. The HUD shows the original's sound visualiser line,
   and every level follows the master / music / effects / menu music volumes of the profile.
+- **FPS and speed readouts.** With the profile's FPS / speed options on, the HUD corner under the shield bracket shows
+  the frame rate with the slowest frame of the last half second, the frame-time graph with its 120 / 60 FPS guides and
+  the player's speed, as in the original.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
