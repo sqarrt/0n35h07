@@ -52,13 +52,16 @@ func keep_minimum_size(value: Vector2) -> void:
 func run() -> CssTextRun:
 	return _run
 
-## The run's top-left corner: across by the alignment, down on the font's line centred like the native text.
+## The run's top-left corner: across by the alignment, down so its baseline lands where the native Button puts its text's
+## (button.cpp: the text line centred in the content box, unrounded; its ascent holds the baseline, on a whole pixel).
 func text_origin() -> Vector2:
 	var style := get_theme_stylebox(STYLES[get_draw_mode()])
-	var line := get_theme_font("font").get_height(get_theme_font_size("font_size"))
 	var inner := size - style.get_minimum_size()
-	var top := style.get_margin(SIDE_TOP) + floorf((inner.y - line) * HALF)
-	return _run.placed(Rect2(style.get_margin(SIDE_LEFT) + css_offset_x, top, inner.x, line), alignment)
+	var line := TextLine.new()                  # the native text's line — fallback glyphs (an em dash) size it too
+	line.add_string(_label, get_theme_font("font"), get_theme_font_size("font_size"), language)
+	var baseline := roundf(style.get_margin(SIDE_TOP) + (inner.y - line.get_size().y) * HALF + line.get_line_ascent())
+	var content := Rect2(style.get_margin(SIDE_LEFT) + css_offset_x, baseline - _run.baseline(), inner.x, _run.line_height())
+	return _run.placed(content, alignment)
 
 func text_color() -> Color:
 	var mode := get_draw_mode()

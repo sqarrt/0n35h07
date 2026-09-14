@@ -45,8 +45,9 @@ func test_shows_the_web_menu_without_the_lock() -> void:
 	var title := overlay.find_child("Title", true, false) as Label
 	assert_eq(title.text, "MENU")
 	assert_almost_eq(title.get_combined_minimum_size().y, 27.0, EPS, "h2 24 px line-height normal: 21 + 6")
-	assert_almost_eq(title.get_theme_stylebox("normal").content_margin_right,
-		float((title.get_theme_font("font") as FontVariation).spacing_glyph), EPS, "the trailing letter spacing")
+	assert_almost_eq(title.get_combined_minimum_size().x,
+		CssTextRun.new("MENU", PauseOverlay.TITLE_FONT_SIZE, PauseOverlay.TITLE_SPACING_EM, true).width(), EPS,
+		"Chrome's bold run, the trailing letter spacing included")
 	var expected := {"Resume": ["RESUME", UiButton.PRIMARY], "Settings": ["SETTINGS", UiButton.GHOST],
 		"ToMenu": ["TO MENU", UiButton.GHOST], "Quit": ["QUIT", UiButton.GHOST]}
 	for node_name in expected:

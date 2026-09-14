@@ -52,14 +52,7 @@ func _ready() -> void:
 	_column.name = "Column"
 	add_child(_column)
 	_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var title := Label.new()
-	title.name = "Title"
-	title.text = I18n.t(TITLE_KEY)
-	var title_font := UiFont.with_css_line(UiFont.bold_spaced(TITLE_SPACING_EM, TITLE_FONT_SIZE), TITLE_FONT_SIZE)
-	title.add_theme_font_override("font", title_font)
-	title.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(title_font))
-	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
-	title.add_theme_color_override("font_color", UiTokens.ACCENT)
+	var title := MenuText.label("Title", I18n.t(TITLE_KEY), TITLE_FONT_SIZE, TITLE_SPACING_EM, UiTokens.ACCENT, true)
 	_column.add(title, 0.0, TITLE_MARGIN_BOTTOM)
 	_resume = UiButton.new(I18n.t(RESUME_KEY), UiButton.PRIMARY, false)   # web: a plain <button>, silent
 	_resume.name = "Resume"

@@ -22,12 +22,7 @@ static func label(node_name: String, text: String, css_px: float, spacing_em: fl
 		bold := false) -> CssLabel:
 	var label := CssLabel.new()
 	label.name = node_name
-	label.text = text
-	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	label.setup(css_px, spacing_em, bold)
-	label.add_theme_color_override("font_color", color)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return label
+	return label.styled(text, css_px, spacing_em, color, bold)
 
 ## The screen's h2.
 static func title(node_name: String, text: String) -> Label:

@@ -41,10 +41,14 @@ func bold_ink_shift() -> float:
 	return _bold_ink_shift
 
 func baseline() -> int:
-	return roundi(UiFont.ASCENT_EM * css_px)
+	return roundi(_ascent_em() * css_px)
 
 func line_height() -> int:
-	return baseline() + roundi(UiFont.DESCENT_EM * css_px)
+	return baseline() + roundi(_descent_em() * css_px)
+
+## The face the glyphs are shaped and drawn with (no letter spacing: the run spaces them).
+func font() -> FontVariation:
+	return _font
 
 ## Where the run's line box sits in `content`, aligned like a Label: fractional across (Chrome's inline box), the native
 ## controls' whole-pixel centring down.
@@ -70,13 +74,16 @@ func draw(item: CanvasItem, origin: Vector2, color: Color) -> void:
 	var server := TextServerManager.get_primary_interface()
 	var scale := css_px / UiFont.css_size(css_px)
 	var oversampling := scale * UiScale.of(item)
-	item.draw_set_transform(origin, 0.0, Vector2.ONE * scale)
-	var baseline_y := baseline() / scale
+	# the baseline on a whole pixel; the fraction across goes to the pen, so TextServer picks the subpixel glyph
+	var anchor := Vector2(floorf(origin.x), roundf(origin.y) + baseline())
+	var fraction := origin.x - anchor.x
+	item.draw_set_transform(anchor, 0.0, Vector2.ONE * scale)
 	var canvas := item.get_canvas_item()
 	for i in _glyphs.size():
 		var glyph: Dictionary = _glyphs[i]
 		server.font_draw_glyph(glyph["font_rid"], canvas, glyph["font_size"],
-			Vector2(_pens[i] / scale + _bold_ink_shift, baseline_y) + glyph["offset"], glyph["index"], color, oversampling)
+			Vector2((_pens[i] + fraction) / scale + _bold_ink_shift, 0.0) + glyph["offset"], glyph["index"], color,
+			oversampling)
 	item.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 func _layout() -> void:
@@ -99,9 +106,23 @@ func _layout() -> void:
 		pen += advance * css_px / UiFont.MEASURE_PX + spacing_px
 	_width = pen
 
-## The face shaping this run: no letter spacing (the run spaces itself), synthetic bold when asked.
+## The face shaping this run: no letter spacing (the run spaces itself), synthetic bold when asked. A styled face (the
+## lobby spin's oblique FontVariation) is copied rather than wrapped, so its transform stays.
 func _face_at(font_size: int, is_bold: bool) -> FontVariation:
-	var variation := UiFont.bold_spaced(0.0, font_size, 0.0, face) if is_bold else UiFont.spaced(0.0, font_size, 0.0, face)
+	var variation: FontVariation
+	if face is FontVariation:
+		variation = (face as FontVariation).duplicate()
+		variation.variation_embolden = UiFont.fake_bold_embolden(font_size) if is_bold else 0.0
+	else:
+		variation = UiFont.bold_spaced(0.0, font_size, 0.0, face) if is_bold else UiFont.spaced(0.0, font_size, 0.0, face)
 	variation.spacing_glyph = 0
 	UiFont.mirror_fallbacks(variation)
 	return variation
+
+## A system face (the legend's Consolas) sizes the line by its own metrics, as UiFont.with_face_line; the UI font's faces
+## share its Latin ascent and descent.
+func _ascent_em() -> float:
+	return face.get_ascent(UiFont.MEASURE_PX) / UiFont.MEASURE_PX if face is SystemFont else UiFont.ASCENT_EM
+
+func _descent_em() -> float:
+	return face.get_descent(UiFont.MEASURE_PX) / UiFont.MEASURE_PX if face is SystemFont else UiFont.DESCENT_EM

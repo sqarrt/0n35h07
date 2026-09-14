@@ -424,6 +424,7 @@ func _place(label: Label, x: float, y: float) -> float:
 	var box := label.get_combined_minimum_size()
 	label.position = Vector2(CssPixel.snap(x), CssPixel.snap(y))
 	label.size = box
+	CssOffset.keep(label, x)
 	return y + box.y
 
 func _label(node_name: String, text: String, font_size: int, spacing_em: float, color: Color, bold := false) -> Label:

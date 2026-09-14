@@ -566,7 +566,8 @@ func _capture() -> void:
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
 	if not _mode.begins_with(MODE_PAUSE):
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED   # the HUD shows under the pointer lock; a fullscreen tool window loses it
+		if not _mode.begins_with(MODE_READY):   # web: the ritual shows before the pointer lock, the HUD hidden
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED   # the HUD shows under the lock; a fullscreen tool window loses it
 		for pause in root.find_children("*", "PauseOverlay", true, false):
 			(pause as PauseOverlay).setup(func() -> bool: return false)   # an unfocused capture window never pauses
 			(pause as PauseOverlay).refresh()

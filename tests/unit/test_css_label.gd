@@ -39,6 +39,19 @@ func test_a_new_text_lays_the_run_out_again() -> void:
 		EPS)
 	assert_gt(label.get_combined_minimum_size().x, short)
 
+func test_styled_sets_text_font_and_colour_at_once() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = SCREEN
+	add_child_autofree(viewport)
+	var label := CssLabel.new().styled("NAME", FIELD_PX, FIELD_SPACING_EM, Color.RED, true)
+	viewport.add_child(label)
+	assert_eq(label.text, "NAME")
+	assert_eq(label.get_theme_color("font_color"), Color.RED)
+	assert_true(label.run().bold)
+	assert_almost_eq(label.get_combined_minimum_size().x, CssTextRun.new("NAME", FIELD_PX, FIELD_SPACING_EM, true).width(),
+		EPS)
+	assert_eq(label.mouse_filter, Control.MOUSE_FILTER_IGNORE, "a caption lets clicks through")
+
 func test_alignment_places_the_run() -> void:
 	var label := _label("NAME")
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

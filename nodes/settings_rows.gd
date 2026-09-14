@@ -13,6 +13,7 @@ const HALF := 0.5
 static func place(control: Control, x: float, y: float, box: Vector2) -> void:
 	control.position = Vector2(CssPixel.snap(x), CssPixel.snap(y))
 	control.size = box
+	CssOffset.keep(control, x)
 
 ## A sub-header across the column; returns the top of what follows its margin.
 static func header(label: Label, top: float, width: float) -> float:

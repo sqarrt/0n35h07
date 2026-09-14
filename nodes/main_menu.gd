@@ -593,29 +593,20 @@ func _small_font() -> FontVariation:
 	return UiFont.with_css_line(UiFont.spaced(SMALL_SPACING_EM, SMALL_FONT_SIZE), SMALL_FONT_SIZE)
 
 func _small_label(node_name: String, text: String) -> Label:
-	var label := Label.new()
-	label.name = node_name
-	label.text = text
-	var font := _small_font()
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", SMALL_FONT_SIZE)
-	label.add_theme_color_override("font_color", UiTokens.MUTED)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return label
+	return MenuText.label(node_name, text, SMALL_FONT_SIZE, SMALL_SPACING_EM, UiTokens.MUTED)
 
 ## The desktop version chip: the plain muted label that opens the log folder, brighter under the mouse.
 func _version_chip() -> Button:
-	var chip := Button.new()
+	var chip := CssButton.new()
 	chip.name = "Version"
 	chip.text = "v%s" % Game.GAME_VERSION
 	chip.focus_mode = Control.FOCUS_NONE
-	var font := _small_font()
-	chip.add_theme_font_override("font", font)
+	chip.add_theme_font_override("font", _small_font())
 	chip.add_theme_font_size_override("font_size", SMALL_FONT_SIZE)
-	var box := UiFont.trailing_spacing_style(font)
+	var box := StyleBoxEmpty.new()
 	for state in CHIP_STATES:
 		chip.add_theme_stylebox_override(state, box)
+	chip.set_css_font(SMALL_FONT_SIZE, SMALL_SPACING_EM)
 	chip.add_theme_color_override("font_color", UiTokens.MUTED)
 	chip.add_theme_color_override("font_focus_color", UiTokens.MUTED)
 	var bright := Color(minf(UiTokens.MUTED.r * VERSION_HOVER_BRIGHTNESS, 1.0),
