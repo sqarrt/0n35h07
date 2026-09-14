@@ -38,30 +38,38 @@ func _notification(what: int) -> void:
 func _get_minimum_size() -> Vector2:
 	var width := 0.0
 	for child in _boxes():
-		width = maxf(width, margin_left_of(child) + child.get_combined_minimum_size().x)
+		width = maxf(width, margin_left_of(child) + box_size(child).x)
 	return Vector2(width, _content_height())
 
-func _boxes() -> Array[Control]:
+## A child's CSS box: a CssLabel's own (an empty text takes no width), any other Control's minimum size.
+static func box_size(control: Control) -> Vector2:
+	return (control as CssLabel).css_size() if control is CssLabel else control.get_combined_minimum_size()
+
+## The children a CSS flex box lays out: visible Controls that are not top level (display: none takes no room).
+static func boxes_of(container: Node) -> Array[Control]:
 	var boxes: Array[Control] = []
-	for child in get_children():
+	for child in container.get_children():
 		var control := child as Control
 		if control != null and control.visible and not control.top_level:
 			boxes.append(control)
 	return boxes
+
+func _boxes() -> Array[Control]:
+	return boxes_of(self)
 
 func _content_height() -> float:
 	var boxes := _boxes()
 	var total := gap * maxi(boxes.size() - 1, 0)
 	for child in boxes:
 		var margins := margins_of(child)
-		total += margins.x + child.get_combined_minimum_size().y + margins.y
+		total += margins.x + box_size(child).y + margins.y
 	return total
 
 func _sort() -> void:
 	var y := (size.y - _content_height()) * HALF
 	for child in _boxes():
 		var margins := margins_of(child)
-		var box := child.get_combined_minimum_size()
+		var box := box_size(child)
 		var left := margin_left_of(child)
 		y += margins.x
 		var x := (size.x - box.x - left) * HALF + left

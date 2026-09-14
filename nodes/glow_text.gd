@@ -9,6 +9,13 @@ const BLUR_SHADER := preload("res://assets/shaders/glow_blur.gdshader")
 const HORIZONTAL := Vector2(1.0, 0.0)
 const VERTICAL := Vector2(0.0, 1.0)
 
+## What the box lost to whole pixels across (set by the layout): the text and its glyph mask keep the CSS place.
+var css_offset_x := 0.0:
+	set(value):
+		css_offset_x = value
+		_label.css_offset_x = value
+		_mask_label.css_offset_x = value
+
 var _label: CssLabel
 var _mask_label: CssLabel
 var _mask: SubViewport

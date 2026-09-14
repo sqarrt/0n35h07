@@ -102,6 +102,12 @@ func _relayout() -> void:
 		set_custom_minimum_size(_own_minimum)
 		return
 	visible_characters = 0
-	var box := Vector2(_run.width(), _run.line_height()) + get_theme_stylebox("normal").get_minimum_size()
-	set_custom_minimum_size(_own_minimum.max(box))
+	set_custom_minimum_size(css_size())
 	queue_redraw()
+
+## The CSS box: the run over its line box inside the stylebox margins, at least the caller's minimum. An empty text is
+## no wider than its margins, where the native Label keeps 1 px (web: an empty span takes no room).
+func css_size() -> Vector2:
+	if not draws_run():
+		return get_combined_minimum_size()
+	return _own_minimum.max(Vector2(_run.width(), _run.line_height()) + get_theme_stylebox("normal").get_minimum_size())

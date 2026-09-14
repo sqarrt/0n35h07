@@ -16,15 +16,15 @@ const TOTAL_FONT_SIZE := 22             # .mhud-total
 const TOTAL_GLOW_BLUR := 12.0           # text-shadow: 0 0 12px currentColor
 
 ## One player: dots + name + frags (mirrored on the right pane).
-class Row extends HBoxContainer:
+class Row extends CssRow:
 	var player_id := 0
 	var name_text: EffectText
 	var frag: Label
 	var dots: Label
 
-var _row: HBoxContainer
-var _left: HBoxContainer                 # the panes' content, inside their padded frames
-var _right: HBoxContainer
+var _row: CssRow
+var _left: CssRow                        # the panes' content, inside their padded frames
+var _right: CssRow
 var _timer: Label
 var _rows := {}                          # id -> Row
 var _totals := {}                        # "left" / "right" -> GlowText
@@ -40,12 +40,12 @@ func _ready() -> void:
 	spacer.custom_minimum_size.y = HudTopBar.TOP
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(spacer)
-	_row = HBoxContainer.new()
+	_row = CssRow.new()
 	_row.name = "Row"
 	_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_row.add_theme_constant_override("separation", HudTopBar.GAP)
+	_row.gap = HudTopBar.GAP
 	add_child(_row)
+	sort_children.connect(func() -> void: CssRow.centre_in(_row, size.x))
 	_left = _pane("TeamLeft")
 	_row.add_child(_left.get_parent())
 	_row.add_child(_timer_frame())
@@ -95,7 +95,7 @@ func rows() -> Dictionary:
 	return _rows
 
 ## A pane's content row inside its padded frame (.mhud-team padding; its team tint is an invalid hex in web: no fill).
-func _pane(node_name: String) -> HBoxContainer:
+func _pane(node_name: String) -> CssRow:
 	var frame := PanelContainer.new()
 	frame.name = "%sFrame" % node_name
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -106,10 +106,9 @@ func _pane(node_name: String) -> HBoxContainer:
 	padding.content_margin_top = PANE_PADDING.y
 	padding.content_margin_bottom = PANE_PADDING.y
 	frame.add_theme_stylebox_override("panel", padding)
-	var pane := HBoxContainer.new()
+	var pane := CssRow.new()
 	pane.name = node_name
-	pane.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pane.add_theme_constant_override("separation", PANE_GAP)
+	pane.gap = PANE_GAP
 	frame.add_child(pane)
 	return pane
 
@@ -120,8 +119,8 @@ func _timer_frame() -> PanelContainer:
 	box.border_width_left = HudTopBar.TIMER_BORDER
 	box.border_width_right = HudTopBar.TIMER_BORDER
 	box.border_color = HudTopBar.TIMER_BORDER_COLOR
-	box.content_margin_left = HudTopBar.TIMER_PADDING
-	box.content_margin_right = HudTopBar.TIMER_PADDING
+	box.content_margin_left = HudTopBar.TIMER_PADDING + HudTopBar.TIMER_BORDER   # padding and border, as CSS sizes it
+	box.content_margin_right = HudTopBar.TIMER_PADDING + HudTopBar.TIMER_BORDER
 	frame.add_theme_stylebox_override("panel", box)
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -136,16 +135,11 @@ func _player_row(entry: Dictionary, mirror: bool) -> Row:
 	var id: int = entry["id"]
 	row.name = "Row%d" % id
 	row.player_id = id
-	row.alignment = BoxContainer.ALIGNMENT_END if mirror else BoxContainer.ALIGNMENT_BEGIN
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", ROW_GAP)
+	row.gap = ROW_GAP
 	var color := Color(entry.get("color", AppearanceConst.FALLBACK_TEXT_COLOR))
-	row.dots = Label.new()
-	row.dots.name = "Dots%d" % id
-	row.dots.add_theme_font_override("font", UiFont.spaced(float(HudTopBar.DOT_SPACING_PX) / HudTopBar.DOT_FONT_SIZE,
-		HudTopBar.DOT_FONT_SIZE))
-	row.dots.add_theme_font_size_override("font_size", HudTopBar.DOT_FONT_SIZE)
-	row.dots.add_theme_color_override("font_color", color)
+	var dots := CssLabel.new()   # web .streak-dots: an empty span keeps its gap but takes no width
+	dots.name = "Dots%d" % id
+	row.dots = dots.styled("", HudTopBar.DOT_FONT_SIZE, float(HudTopBar.DOT_SPACING_PX) / HudTopBar.DOT_FONT_SIZE, color)
 	row.name_text = EffectText.new()
 	row.name_text.name = "Name%d" % id
 	row.name_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER

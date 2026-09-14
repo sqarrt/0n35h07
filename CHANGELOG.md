@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   with whole-pixel letter spacing and font sizes, so words came out a few pixels too wide or narrow; every letter now
   lands at the original's fractional position, bold text thickens evenly and centred text keeps its exact place, in a
   window and fullscreen.
+- **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
+  original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
+  slot no longer takes a pixel, so names, frags and totals sit where the original has them.
 - **Scroll bars match the original's desktop build.** Scrolling screens keep the room of its thin native scroll bar,
   with arrow buttons and a narrow round-ended thumb, so the lobby's column lines up with the original; the ✕ buttons
   on seats and in the friend picker keep their small line height.
