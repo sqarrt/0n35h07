@@ -7,6 +7,7 @@ const EPS := 0.001
 const HALF := 0.5
 const EARLY := 0.1
 const LATE := 0.9
+const COUNTDOWN_LINE_PX := 162.0
 
 func _on_screen(node: Control) -> Control:
 	var screen := SubViewport.new()
@@ -24,6 +25,11 @@ func test_countdown_number_uses_the_web_look() -> void:
 	assert_eq(number.label().get_theme_font_size("font_size"), HudCountdown.FONT_SIZE)
 	assert_eq(number.label().get_theme_color("font_color"), HudCountdown.COLOR)
 	assert_eq(HudCountdown.COLOR, Color("#44aaff"), "web #4af")
+	var font := number.label().get_theme_font("font") as FontVariation
+	assert_almost_eq(font.variation_embolden, UiFont.fake_bold_embolden(HudCountdown.FONT_SIZE), EPS,
+		"bold synthesised as Chrome does at 144 px")
+	assert_almost_eq(font.get_height(HudCountdown.FONT_SIZE), COUNTDOWN_LINE_PX, EPS,
+		"the 9rem line box (127 + 35): the pop scales about its middle")
 	assert_eq(number.layer_count(), 1, "web text-shadow: 0 0 40px rgba(68,170,255,0.6)")
 	var glow := number.layers()[0].material as ShaderMaterial
 	assert_almost_eq(glow.get_shader_parameter("sigma"), 20.0, EPS, "a 40px blur is a real Gaussian, not an outline")

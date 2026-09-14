@@ -156,6 +156,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
     if (!clips || shot?.type !== 'countdown') return   // wait for clips to load so sound aligns with the overlay
     const tick = () => sfxRef.current.play2D('count_tick', COUNTDOWN_SFX_GAIN)
     setCountdownN(3); tick()
+    if (window.__debugTrailerHoldClock) return   // parity captures: the countdown stays on its first number
     const per = shot.durationMs / 3
     const t1 = setTimeout(() => { setCountdownN(2); tick() }, per)
     const t2 = setTimeout(() => { setCountdownN(1); tick() }, per * 2)
@@ -175,7 +176,7 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   // cut: hold on screen for durationMs (in/out animation inside), then advance.
   // The "go" sound plays ahead of time on the previous play shot's lead signal (see onSceneNearEnd).
   useEffect(() => {
-    if (shot?.type !== 'text') return
+    if (shot?.type !== 'text' || window.__debugTrailerHoldClock) return   // parity captures: the cut stays up
     const t = setTimeout(advance, shot.durationMs)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -113,7 +113,7 @@ func _process(delta: float) -> void:
 	_brackets.set_state(_shield_progress, player.is_shielded())   # shield visibility is immediate in the web
 	_dash.set_progress(_dash_progress)
 	_overlay.set_ghost(live and player.respawning)
-	_overlay.set_shield_active(live and player.is_shielded())
+	_overlay.set_shield_active(live and not replay and player.is_shielded())   # web ScreenFlashes, not in the trailer
 	_overlay.set_windup(_windup_progress if live else 0.0)   # the overlay advances its own fade and flashes
 	_overheat.set_tier(Streak.streak_tier(_match.streak_of(local_id)) if live and not replay else "")   # web hud.streaks[localId]
 	_overheat.tick(delta)
@@ -153,17 +153,19 @@ func _sync_progress(player: Player, delta: float) -> void:
 	_speed = player.speed()
 	_respawn_progress = player.respawn_timer / MatchConst.RESPAWN_GHOST_MS if player.respawning else null   # 1 -> 0
 
-## web BEAM_FLASH: only the local player's own shot tints the screen.
+## web BEAM_FLASH: only the local player's own shot tints the screen (the trailer's HUD has no ScreenFlashes).
 func _on_fired(shooter_id: int) -> void:
-	if shooter_id == _match.local_id:
+	if shooter_id == _match.local_id and not replay:
 		_overlay.flash_beam()
 
 ## web SHIELD_BLOCK: the local player blocked a shot.
 func _on_blocked(_shooter_id: int, victim_id: int, _perfect: bool) -> void:
-	if victim_id == _match.local_id:
+	if victim_id == _match.local_id and not replay:
 		_overlay.flash_block()
 
 func _on_frag(shooter_id: int, victim_id: int, streak: int, first_blood: bool) -> void:
+	if replay:   # web TrailerSequencer: no flashes; its own banner outlives the shot (DemoPlayback.announced)
+		return
 	if victim_id == _match.local_id:
 		_overlay.flash_hit()   # web PLAYER_HIT: the local player was killed
 	var kind := Streak.announce_kind(streak, first_blood)

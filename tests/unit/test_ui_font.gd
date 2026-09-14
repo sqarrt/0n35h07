@@ -5,12 +5,28 @@ extends GutTest
 const EPS := 0.001
 const BUTTON_SIZE := 16          # web .btn 1rem: an 18 px line (44 - 24 padding - 2 border)
 const TITLE_SIZE := 24           # web pause h2 1.5em: a 27 px box
+const BUTTON_LINE_PX := 18
+const TALL_SPACING_PX := 1000    # a face far taller than the UI font
+const SYMBOL_FAMILIES := ["Consolas"]
 
 func test_css_line_box_matches_chrome() -> void:
 	for case in [[BUTTON_SIZE, 14.0, 18.0], [TITLE_SIZE, 21.0, 27.0]]:
 		var font := UiFont.with_css_line(UiFont.spaced(0.0, case[0]), case[0])
 		assert_almost_eq(font.get_ascent(case[0]), case[1], EPS, "%d px baseline" % case[0])
 		assert_almost_eq(font.get_height(case[0]), case[2], EPS, "%d px line box" % case[0])
+
+func test_a_line_with_a_taller_face_takes_its_ascent() -> void:
+	assert_eq(UiFont.mixed_line_px(BUTTON_SIZE, UiFont.base()), BUTTON_LINE_PX, "a face no taller keeps the line box")
+	var tall := FontVariation.new()
+	tall.base_font = UiFont.base()
+	tall.spacing_top = TALL_SPACING_PX
+	var ascent := roundi((UiFont.ASCENT_EM * UiFont.MEASURE_PX + TALL_SPACING_PX) * BUTTON_SIZE / UiFont.MEASURE_PX)
+	assert_eq(UiFont.mixed_line_px(BUTTON_SIZE, tall), ascent + roundi(UiFont.DESCENT_EM * BUTTON_SIZE))
+
+func test_faces_with_system_fallbacks_are_shared() -> void:
+	assert_same(UiFont.base_with(SYMBOL_FAMILIES), UiFont.base_with(SYMBOL_FAMILIES))
+	assert_same(UiFont.base_cjk(), UiFont.base_with(UiFont.CJK_FAMILIES))
+	assert_eq(UiFont.base_with(SYMBOL_FAMILIES).fallbacks.size(), UiFont.CJK_FALLBACK_COUNT, "Cyrillic, then the system face")
 
 func test_synthetic_bold_follows_the_skia_ratio() -> void:
 	assert_almost_eq(UiFont.fake_bold_embolden(9), UiFont.EMBOLDEN_UNIT_SIZE / 24.0, EPS)

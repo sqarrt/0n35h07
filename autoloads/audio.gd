@@ -5,6 +5,8 @@ extends Node
 
 const SFX_BUS := "Sfx"
 const MENU_MUSIC_BUS := "MenuMusic%d"          # a fresh prefix per session: a fading session keeps its own buses
+const TRAILER_MUSIC_BUS := "TrailerMusic%d"
+const TRAILER_ECHO_TAIL_SEC := 2.6             # web ECHO_TAIL_MS: the echo rings out before the session goes
 const CODE_ALPHABET := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"   # web randomRoomCode: base-36, upper case
 const CODE_LENGTH := 4                                           # web CODE_LEN
 const KEY_MASTER := "volumeMaster"
@@ -19,7 +21,9 @@ var _sfx: SfxEngine
 var _menu_rng := RandomNumberGenerator.new()   # web Math.random for the menu layers
 var _menu_arranger: MenuMusicArranger
 var _menu_music: MusicEngine
-var _menu_sessions := 0
+var _trailer_arranger := TrailerMusicArranger.new()
+var _trailer_music: MusicEngine
+var _music_sessions := 0
 
 func _ready() -> void:
 	_menu_rng.randomize()
@@ -52,6 +56,8 @@ func apply_volumes() -> void:
 	_sfx.set_user_gain(_volume(KEY_MASTER) * _volume(KEY_SFX))
 	if _menu_music != null:
 		_menu_music.set_user_gain(menu_music_gain())
+	if _trailer_music != null:
+		_trailer_music.set_user_gain(master_gain())
 
 func music_gain() -> float:
 	return _volume(KEY_MASTER) * _volume(KEY_MUSIC)
@@ -63,15 +69,42 @@ func menu_music_gain() -> float:
 func play_menu_music() -> void:
 	if _menu_music != null:
 		return
-	_menu_sessions += 1
-	_menu_music = MusicEngine.new()
-	_menu_music.name = "MenuMusic%d" % _menu_sessions
-	_menu_music.bus_prefix = MENU_MUSIC_BUS % _menu_sessions
-	_menu_music.setup(_menu_arranger.arrange, MenuMusicArranger.FADE_IN_SEC)
-	add_child(_menu_music)
-	_menu_music.set_user_gain(menu_music_gain())
-	_menu_music.start()
+	_menu_music = _start_music(MENU_MUSIC_BUS, _menu_arranger.arrange, MenuMusicArranger.FADE_IN_SEC, menu_music_gain())
 	analysis.add_capture(_menu_music.capture())
+
+func trailer_music() -> MusicEngine:
+	return _trailer_music
+
+## The trailer's own music (web TrailerMusic.start on the countdown's GO): straight in at the master volume alone
+## (web TrailerScreen masterVolume); a no-op while it already plays.
+func play_trailer_music() -> void:
+	if _trailer_music != null:
+		return
+	_trailer_music = _start_music(TRAILER_MUSIC_BUS, _trailer_arranger.arrange, TrailerMusicArranger.FADE_IN_SEC,
+		master_gain())
+
+## web TrailerMusic.stop: the default fade with the echo ringing out, the session disposed after the tail.
+func stop_trailer_music() -> void:
+	if _trailer_music == null:
+		return
+	var engine := _trailer_music
+	_trailer_music = null
+	engine.fade_out()
+	get_tree().create_timer(TRAILER_ECHO_TAIL_SEC).timeout.connect(engine.queue_free)
+
+func master_gain() -> float:
+	return _volume(KEY_MASTER)
+
+func _start_music(bus_format: String, provider: Callable, fade_in_sec: float, gain: float) -> MusicEngine:
+	_music_sessions += 1
+	var engine := MusicEngine.new()
+	engine.name = bus_format % _music_sessions
+	engine.bus_prefix = bus_format % _music_sessions
+	engine.setup(provider, fade_in_sec)
+	add_child(engine)
+	engine.set_user_gain(gain)
+	engine.start()
+	return engine
 
 ## Entering a match: a quick fade with no ring-out, then the session goes away (web MenuMusic.stop).
 func stop_menu_music() -> void:

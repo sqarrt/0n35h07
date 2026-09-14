@@ -1,0 +1,139 @@
+{
+  "id": "2026-09-14-trailer-sequencer",
+  "title": "Сверка паритета OneShot · трейлер: секвенсор",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Второй слайс трейлера (ABOUT → WATCH): web `components/trailer/TrailerSequencer.tsx` — планы раскадровки по порядку: отсчёт 3-2-1 над пустотой, текстовые перебивки `.trailer-cut`, планы повтора под покрышкой, SKIP / Esc, скрытие курсора, звуки ×0.45, GO перед перебивками, баннер серии поверх планов, музыка трейлера и титр финала. В web добавлен отладочный хук `__debugTrailerHoldClock` (держать отсчёт / перебивку на плане). Сравниваются удержанные моменты отсчёта и первой перебивки READ YOUR OPPONENT.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-trailer-sequencer.json`. Web: `web-reference/scripts/parity-capture-trailer-cut.mjs` (меню → ABOUT → WATCH; `__debugTrailerShot`, `__debugTrailerHoldClock`; анимации плана остановлены на заданном моменте — анимация transform / opacity на композиторе переводится во встроенный стиль, иначе снимок показывает её старый кадр; `PARITY_TRAILER_AWAKE=1` двигает мышь для SKIP) → `test-results/parity-trailer-cut/web-trailer-shot-<план>-<ms>[-awake].png`. Godot: `tools/screenshot.gd` на `scenes/trailer_frame.tscn`, режим `trailer-shot-<план>-<ms>[-awake]` (`TrailerScreen.hold_at`, 30 кадров) → `godot-trailer-shot-….png`. Пиксели — среднее отличие каналов (0–255) по областям.",
+  "pages": [
+    {
+      "slug": "sequencer",
+      "name": "Отсчёт и перебивка",
+      "verdict": "Секвенсор трейлера перенесён: раскадровка `TrailerEdl`, отсчёт с тиками и GO, запускающим музыку, перебивки с ударом, рывками и уходом текста и неоновой полосой, планы повтора под покрышкой, баннер серии поверх смены планов, SKIP / Esc и скрытие курсора, титр финала, английский язык, возврат в ABOUT. Кадры: отсчёт 0.64/255 (цифра 3.74), уход текста 0.20, удар 4.29 и пауза с SKIP 4.36 — там остаток в тексте перебивки: целая разрядка 18 px вместо 17.6 делает строку на 17 px шире (левый край 37.46).",
+      "verdict_short": "Секвенсор перенесён",
+      "conditions": [
+        ["сборка", "браузер, трейлер с хуками `__debugTrailerShot` / `__debugTrailerHoldClock`", "десктоп Godot, `TrailerScreen.hold_at`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["кадры", "план 0 (отсчёт) на 400 ms; план 1 (перебивка) на 117, 450 (после движения мыши) и 800 ms", "те же планы и моменты, 30 кадров; `-awake` вызывает `wake()`"],
+        ["тесты", "—", "GUT 601/601 (`test_trailer_screen`, `test_trailer_cut`, `test_trailer_cut_view`, `test_trailer_edl`, `test_css_transition`, `test_ui_font`, `test_hud_text_effects`)"]
+      ],
+      "comparisons": [
+        {"title": "Отсчёт: 3 на 400 ms", "wipe": true,
+          "note": "Затемнение rgba(10,10,15,.35) над #05070d и цифра в прыжке cdPop (scale 1.257, opacity 0.969).",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-countdown-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-countdown-full.png", "note": "0.64/255"}
+          ]},
+        {"title": "Цифра отсчёта (×2)", "wipe": true,
+          "note": "Жирность синтезирована как в Chrome, строка в размер CSS: глиф 59×133 (web 59×132).",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-countdown-number.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-countdown-number.png", "note": "3.74/255, на 2 px правее и выше"}
+          ]},
+        {"title": "Перебивка: удар, 117 ms", "wipe": true,
+          "note": "13%: текст встал, разрядка сжалась до 0.2em, красно-голубое расслоение, полоса раскрывается.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-slam-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-slam-full.png", "note": "4.29/255"}
+          ]},
+        {"title": "Левый край текста (×3)", "wipe": true,
+          "note": "Строка по центру: целая разрядка удлиняет её на 17 px, левый край уходит на 7 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-slam-left.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-slam-left.png", "note": "37.46/255"}
+          ]},
+        {"title": "Перебивка: пауза с SKIP, 450 ms", "wipe": true,
+          "note": "Мышь сдвинута: SKIP проявился за 0.3 s; расслоение возвращается к 88% — между 22% и 88% тень не задана.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-hold-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-hold-full.png", "note": "4.36/255"}
+          ]},
+        {"title": "SKIP (×4)", "wipe": true,
+          "note": "▸ нет в Share Tech Mono: Chrome берёт его из Consolas (конец стека `monospace`), и строка кнопки растёт до 15 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-skip.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-skip.png", "note": "4.97/255"}
+          ]},
+        {"title": "Перебивка: уход, 800 ms", "wipe": true,
+          "note": "Текст гаснет перед рывком вправо.",
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-cut/crops/web-flyoff-full.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-cut/crops/godot-flyoff-full.png", "note": "0.20/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "TS1", "severity": "fixed",
+          "title": "WATCH не открывал трейлер",
+          "web": "`TrailerScreen` (всегда английский) → `TrailerSequencer`: планы `TRAILER_SHOTS` по порядку — отсчёт (тики на полной громкости, GO и старт музыки), перебивки на `durationMs`, планы повтора (свой холст под покрышкой, снимаемой за 0.25 s после прогрева; звуки ×0.45; GO перед перебивкой, кроме первой), финал (титр и затухание музыки на 3.6 s, выход на 9 s); SKIP и Esc; курсор и SKIP скрываются через 2.5 s без мыши; конец → ABOUT.",
+          "godot": "`TrailerScreen` (`scenes/trailer.tscn`) по `TrailerEdl`: `HudCountdown`, `TrailerCutView`, `DemoPlayback` под покрышкой (`CssTransition` с кривой ease), `TrailerTitleCard`, `TrailerSkipButton`, звуки через `play_sound`, `Audio.play_trailer_music` / `stop_trailer_music` (`TrailerMusicArranger`, без нарастания, громкость — только общая, хвост эха 2.6 s); `MainMenu.open_trailer` → сцена трейлера → меню с открытым ABOUT (`Game.menu_screen`).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/trailer_screen.gd", "sim/trailer_edl.gd", "sim/trailer_music_arranger.gd", "autoloads/audio.gd", "nodes/main_menu.gd", "tests/unit/test_trailer_screen.gd", "web-reference/src/components/trailer/TrailerSequencer.tsx"]
+        },
+        {
+          "id": "TS2", "severity": "fixed",
+          "title": "Перебивка `.trailer-cut`",
+          "web": "Фон #04060c; текст 5.5rem bold, разрядка .2em, свечение 26px: ключи trailer-cut-text (влёт слева со скосом −20° и разрядкой .5em, рывки на 17% и 88%, расслоение 3px на 13% и 88%, уход вправо со скосом 14°), каждый отрезок — cubic-bezier(.2,1,.3,1); полоса 3px с градиентом и box-shadow 22px, scaleX 0→1 за 60% из 0.45 s и угасание.",
+          "godot": "`TrailerCut` — ключи по свойствам, как их интерполирует CSS (0% / 100% берут стиль элемента; списки теней дополняются прозрачными); `TrailerCutView` — `GlowText` в `CssOpacity` под `Node2D` с переносом и скосом вокруг центра; полоса — шейдер `trailer_cut_bar` (градиент, внешняя тень без заливки под боксом, сигма по X сужается вместе с scaleX). Общие функции теней вынесены в `css_box.gdshaderinc`.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/trailer_cut.gd", "nodes/trailer_cut_view.gd", "assets/shaders/trailer_cut_bar.gdshader", "assets/shaders/css_box.gdshaderinc", "tests/unit/test_trailer_cut.gd", "web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "TS3", "severity": "fixed",
+          "title": "HUD повтора: вспышки, щитовое свечение и баннер",
+          "web": "В планах трейлера нет `ScreenFlashes` (вспышки выстрела, попадания, блока и свечение щита); баннер серии живёт на уровне секвенсора и переживает смену плана.",
+          "godot": "`Hud.replay` больше не вспыхивает и не показывает щитовое свечение и свой баннер; `DemoPlayback.announced` отдаёт объявление, `TrailerScreen` показывает его своим `HudStreakBanner`. Цвет кольца своего игрока — сначала из записи, затем из профиля (web `demo.reserveColor ?? profile`).",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/hud.gd", "nodes/demo_playback.gd", "web-reference/src/components/trailer/DemoScene.tsx"]
+        },
+        {
+          "id": "TS4", "severity": "fixed",
+          "title": "Цифра отсчёта крупнее и выше",
+          "web": "CountdownOverlay: 9rem bold (синтезированный Chrome), строка `line-height: normal` 162px, прыжок масштабируется вокруг её середины.",
+          "godot": "Было: `variation_embolden` 0.8 и строка Godot — глиф 63×136 и на 4 px выше. Стало: `UiFont.bold_spaced` (коэффициент Skia, 0.5 на 144px) и `with_css_line` — глиф 59×133, цифра 3.74/255. Правка общая с отсчётом матча.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_countdown.gd", "tests/unit/test_hud_text_effects.gd"]
+        },
+        {
+          "id": "TS5", "severity": "fixed",
+          "title": "SKIP шире и ниже",
+          "web": "`.trailer-skip` 0.8rem, разрядка .16em, отступы .5rem .9rem: ▸ рисуется Consolas (CDP `getPlatformFontsForNode`), бокс 84.67×33 у (1175.3, 669).",
+          "godot": "Было: ▸ из системного запасного шрифта — бокс 88×30. Стало: `UiFont.base_with([\"Consolas\"])` и `UiFont.mixed_line_px` (большие из округлённых подъёма и спуска двух шрифтов) — бокс от x 1175, текст по вертикали совпадает (680–689).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/trailer_skip_button.gd", "nodes/ui_font.gd", "tests/unit/test_ui_font.gd"]
+        },
+        {
+          "id": "TS6", "severity": "visual",
+          "title": "Текст перебивки шире на 17 px",
+          "web": "Разрядка 0.2em × 88px = 17.6px (дробная).",
+          "godot": "`FontVariation.spacing_glyph` целый: 18px — строка 1188 px вместо 1171, левый край на 7 px левее (область 37.46/255, полоса текста ~21). Та же причина, что у сдвига текста верхней строки HUD (TR3): нужна дробная разрядка во всём интерфейсе — отдельный слайс.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/trailer_cut_view.gd", "nodes/ui_font.gd"]
+        },
+        {
+          "id": "TS7", "severity": "visual",
+          "title": "Мелкие сдвиги цифры и SKIP",
+          "web": "Глиф цифры 610–668 × 288–419; верхняя граница SKIP y 669.",
+          "godot": "Глиф 612–670 × 285–417 (на 2 px правее и на 2–3 px выше); верхняя граница SKIP y 670, текст SKIP на 1 px левее.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_countdown.gd", "nodes/trailer_skip_button.gd"]
+        },
+        {
+          "id": "TS8", "severity": "missing",
+          "title": "Финальная сцена трейлера",
+          "web": "`FinaleScene`: замедленная встречная дуэль с замершими лучами, под которыми появляется титр.",
+          "godot": "Титр (`TrailerTitleCard`, появление по строкам) и тайминги финала есть, но под ним однотонный #04050a вместо сцены — слайс T3.",
+          "evidence": ["code"],
+          "sources": ["nodes/trailer_title_card.gd", "web-reference/src/components/trailer/FinaleScene.tsx"]
+        }
+      ],
+      "limitations": [
+        "Планы повтора, покрышка, звуки, GO, баннер, музыка, SKIP / Esc, скрытие курсора и конец последовательности проверены тестами `test_trailer_screen`, не кадрами (кадр повтора сверен в слайсе T1).",
+        "Титр финала не сравнивался: в web под ним сцена FinaleScene, которой пока нет (T3).",
+        "Музыка трейлера не сравнивалась на слух / по спектру: проверены раскладка стемов и отсутствие нарастания.",
+        "Кадры web сняты с остановленными CSS-анимациями; первый снимок отсчёта показывал старый кадр композитора — скрипт теперь переводит анимацию во встроенный стиль."
+      ]
+    }
+  ]
+}

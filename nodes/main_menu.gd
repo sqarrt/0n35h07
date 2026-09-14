@@ -46,6 +46,7 @@ const APPEARANCE_PANEL_MARGIN := 24.0      # web APPEARANCE_PANEL_MARGIN_PX: the
 const PANEL_SLIDE_TAU := MenuCameraRig.DAMP_TAU   # web useDampedTranslateX (MENU_ANIM_TAU)
 const PANEL_SLIDE_SNAP := 0.5              # the travel ends within half a pixel
 const ARENA := "res://scenes/arena_test.tscn"
+const TRAILER_SCENE := "res://scenes/trailer.tscn"
 const LOGS_DIR := "user://logs"
 const HALF := 0.5
 
@@ -98,6 +99,9 @@ func _ready() -> void:
 		warning.dismissed.connect(func() -> void: Game.warning_seen = true)
 		add_child(warning)
 	Audio.play_menu_music()   # web App: menu music on every non-match screen
+	if Game.menu_screen == SCREEN_ABOUT:   # back from the trailer (web onDone → setScreen('about'))
+		Game.menu_screen = ""
+		open_about()
 
 ## PLAY (web handlePlay): a fresh local room on every visit, shown in the same panel instead of the menu.
 func open_lobby() -> void:
@@ -158,8 +162,14 @@ func open_about() -> void:
 	var about := AboutScreen.new()
 	about.name = "About"
 	about.back_requested.connect(close_screen)
-	about.trailer_requested.connect(screen_requested.emit.bind(SCREEN_TRAILER))
+	about.trailer_requested.connect(open_trailer)
 	_show_screen(about, MenuCameraRig.SCREEN_SETTINGS)
+
+## WATCH (web setScreen('trailer')): the trailer takes the whole window; it returns to ABOUT (web onDone).
+func open_trailer() -> void:
+	screen_requested.emit(SCREEN_TRAILER)
+	Game.menu_screen = SCREEN_ABOUT
+	get_tree().change_scene_to_file(TRAILER_SCENE)
 
 ## APPEARANCE (web setScreen('appearance')): the cosmetics page; the panel slides right, the backdrop shows the live
 ## preview from the angle of the last clicked block, the edge glow stays silent.

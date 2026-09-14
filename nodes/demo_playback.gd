@@ -9,6 +9,7 @@ signal sound(event: String)
 signal ready_to_show                           # web onReady: warmed up, lift the cover
 signal near_end                                # web onNearEnd: just before the last fragment ends
 signal ended
+signal announced(player_name: String, kind: String, color: Color)   # web onAnnounce: the sequencer's streak banner
 
 const PLAYER := preload("res://scenes/player.tscn")
 const CLEAR_COLOR := Color("#05070d")          # web ShotView: the trailer canvas clears to #05070d, not the page bg
@@ -43,11 +44,12 @@ var _hud: Hud
 var _warm := 0
 var _held := false
 
-## The clip, its fragments ([[from, to], ...]) and the local player's ring colour ("" = the recording's).
+## The clip, its fragments ([[from, to], ...]) and the profile's ring colour for the local player, used when the
+## recording carries none.
 func setup(clip: DemoClip, ranges: Array, reserve_color := "") -> void:
 	_clip = clip
 	_ranges = ranges
-	_reserve_color = reserve_color if reserve_color != "" else clip.reserve_color
+	_reserve_color = clip.reserve_color if clip.reserve_color != "" else reserve_color   # web demo.reserveColor ?? profile
 
 func _ready() -> void:
 	add_child(GeoLoader.build(MapCatalog.raw_path(_clip.map_id), MapCatalog.geo_path(_clip.map_id)))
@@ -185,6 +187,9 @@ func _apply_events(frame: Dictionary) -> void:
 				var kind := Streak.announce_kind(streak, first_blood)
 				if kind != "":
 					sound.emit(MatchAudioCues.announce_event(kind))
+					var shooter_id := int(event["shooter"])   # web: the roster name, its colour or #4af
+					announced.emit(_match.roster.name_of(shooter_id), kind, _match.roster.color_of(shooter_id,
+						UiTokens.ACCENT.to_html(false)))
 				_match.frag.emit(int(event["shooter"]), victim, streak, first_blood)   # the HUD's banner and flashes
 			"block":
 				sound.emit(BLOCK_SOUND)

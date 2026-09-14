@@ -41,6 +41,8 @@ extends SceneTree
 ##                     (Duel, EX82R on seat 1) or ffa (War, B1..B3 on seats 1..3); the light pinned. Use with profile:.
 ##   team-<mode>       a Battle (2v2) or War (ffa) match from a lobby roster: the parity human on seat 0 and passive
 ##                     bots B1..B3 (web parity-capture-teams.mjs); the team bar boxes join the facts. Use with profile:.
+##   trailer-shot-<index>-<ms>[-awake]  the trailer sequence started at that shot (scenes/trailer_frame.tscn) with its
+##                     clock held <ms> in (web parity-capture-trailer-cut.mjs); -awake also wakes the cursor, so SKIP shows.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -82,6 +84,10 @@ const MODE_TEAM := "team-"
 const MODE_TRAILER_FRAME := "trailer-frame-"   # trailer-frame-<clip>-<frame> on scenes/trailer_frame.tscn: a held replay
 const TRAILER_FRAMES := 60             # past the warm-up and the shaders' first frames (web waits 3 s)
 const DEMO_PLAYBACK_SCRIPT := "res://nodes/demo_playback.gd"
+const MODE_TRAILER_SHOT := "trailer-shot-"     # trailer-shot-<index>-<ms>[-awake]: a held countdown / text cut
+const TRAILER_AWAKE := "-awake"
+const TRAILER_SHOT_FRAMES := 30                # SKIP's 0.3 s fade has settled (web waits 0.5 s)
+const TRAILER_SCREEN_SCRIPT := "res://nodes/trailer_screen.gd"
 const MODE_LOBBY_MAP := "lobby-map-"   # lobby-map-<id>: the lobby's blurred map background alone
 const LOBBY_MAP_FRAMES := 90           # past the 0.7 s fade-in (web waits 1.5 s)
 const MODE_READY := "ready-"          # ready-duel / ready-2v2: the ready ritual before the local player confirms
@@ -266,6 +272,15 @@ func _initialize() -> void:
 		playback.call("hold")
 		root.add_child(playback)
 		_capture_frame = maxi(_capture_frame, TRAILER_FRAMES)
+	if _mode.begins_with(MODE_TRAILER_SHOT):
+		# web parity-capture-trailer-cut.mjs: the sequence at that shot, its clock held (loaded: it uses autoload names)
+		var shot := _mode.trim_prefix(MODE_TRAILER_SHOT).trim_suffix(TRAILER_AWAKE).split(KIND_SEPARATOR)
+		var trailer: Node = (load(TRAILER_SCREEN_SCRIPT) as GDScript).new()
+		trailer.call("hold_at", int(shot[0]), float(shot[1]))
+		root.add_child(trailer)
+		if _mode.ends_with(TRAILER_AWAKE):
+			trailer.call_deferred("wake")   # after its _ready: the tree adds it once initialisation is over
+		_capture_frame = maxi(_capture_frame, TRAILER_SHOT_FRAMES)
 
 ## web __debugReady: the local player confirms the ready ritual (the bots already have).
 func _ready_human() -> void:
