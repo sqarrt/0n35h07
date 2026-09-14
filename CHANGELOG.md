@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   every change behind it — the primary and reserve colours, the sphere model, artwork painted on its front and back,
   and the shot, respawn, dash-trail and shield styles — with the camera turning to the block you last touched.
   Everything is saved as you go.
+- **Style previews.** Clicking a shot, respawn, dash-trail or shield style on the appearance page plays it on your
+  ball as in a match — the charge and the beam, a ghost lap and the reassembly, a dash out and back, the shield
+  raised — with its sounds and the beam's glow.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

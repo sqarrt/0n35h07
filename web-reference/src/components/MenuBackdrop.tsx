@@ -237,6 +237,9 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     [isPreview, spec.color, spec.windupStyle])
   useEffect(() => () => beam?.dispose(), [beam])
   const cycle = useRef({ phase: 'idle' as 'charge' | 'fire' | 'idle', elapsed: 0 })
+  // Parity captures: __debugPreviewHoldMs stops the preview clock that long after the last style click — every preview
+  // cycle and its effects freeze there.
+  const previewClock = useRef(0)
   // Preview click counters are monotonic and live in App: we react only to their CHANGES after mount.
   const lastSeqRef = useRef(spec.windupSeq ?? 0)
   useEffect(() => {
@@ -245,6 +248,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (seq !== 0 && seq !== lastSeqRef.current) {
       lastSeqRef.current = seq
       cycle.current = { phase: 'charge', elapsed: 0 }   // one-shot run: charge → fire → idle
+      previewClock.current = 0
       sfx?.play2D(windupSfxEvent(spec.windupStyle, sfx))   // style sound — once at the start of the charge
     } else {
       cycle.current = { phase: 'idle', elapsed: 0 }
@@ -276,6 +280,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (seq !== 0 && seq !== lastRespawnSeqRef.current) {
       lastRespawnSeqRef.current = seq
       respawnCycle.current = { phase: 'ghost', elapsed: 0 }
+      previewClock.current = 0
       _meshCenter.copy(spot).y += BODY_MESH_Y
       rfx.onDeath(_meshCenter)                           // scatter/burst from the ball's center
       sfx?.play2D('death')
@@ -298,6 +303,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (seq !== 0 && seq !== lastDashSeqRef.current) {
       lastDashSeqRef.current = seq
       dashCycle.current = { phase: 'out', elapsed: 0 }
+      previewClock.current = 0
       sfx?.play2D('dash')   // dash sound — at the start of each dash (the second one on "back")
     } else {
       dashCycle.current = { phase: 'idle', elapsed: 0 }
@@ -320,6 +326,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (seq !== 0 && seq !== lastShieldSeqRef.current) {
       lastShieldSeqRef.current = seq
       shieldCycle.current = { active: true, elapsed: 0 }
+      previewClock.current = 0
       sfx?.play2D('shield_up')
     } else {
       shieldCycle.current = { active: false, elapsed: 0 }
@@ -381,6 +388,9 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     // Position: the model stands on the spot; in the preview ghost — a run around a circle ("playing as the bot").
     // SANCTIONED manual action: when the run ends the ball is PLACED on the default spot
     // (copy(spot) every frame) — the run need not perfectly close the circle, rebirth is always in place.
+    const previewHoldMs = window.__debugPreviewHoldMs
+    const pdt = previewHoldMs === undefined ? dt : Math.max(0, Math.min(dt, (previewHoldMs - previewClock.current) / 1000))
+    previewClock.current += pdt * 1000
     const rc = respawnCycle.current
     body.object3d.position.copy(spot)
     let ghostRun = false
@@ -400,7 +410,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     const dc = dashCycle.current
     let dashMove = false
     if (!ghostRun && dc.phase !== 'idle') {
-      dc.elapsed += dt * 1000
+      dc.elapsed += pdt * 1000
       if (dc.phase === 'out' && dc.elapsed >= DASH_PREVIEW_MS) { dc.phase = 'pause'; dc.elapsed = 0 }
       else if (dc.phase === 'pause' && dc.elapsed >= DASH_PREVIEW_PAUSE_MS) {
         dc.phase = 'back'; dc.elapsed = 0
@@ -434,7 +444,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
     if (shieldFx) {
       const sc = shieldCycle.current
       if (sc.active) {
-        sc.elapsed += dt * 1000
+        sc.elapsed += pdt * 1000
         if (sc.elapsed >= SHIELD_PREVIEW_MS) {
           sc.active = false
           shieldFx.object3d.visible = false
@@ -442,7 +452,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         } else {
           shieldFx.object3d.visible = true
           shieldFx.object3d.position.copy(_meshCenter)
-          shieldFx.update(dt, true)
+          shieldFx.update(pdt, true)
         }
       } else {
         shieldFx.object3d.visible = false
@@ -455,7 +465,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         frameRef.current = { progress: 0, shrink: 1, baseColor: dampedColor, aimDir, origin: new THREE.Vector3(), visible: true }
       }
       const cy = cycle.current
-      cy.elapsed += dt * 1000
+      cy.elapsed += pdt * 1000
       if (cy.phase === 'charge' && cy.elapsed >= PREVIEW_CHARGE_MS) {
         cy.phase = 'fire'; cy.elapsed = 0
         // Shot moment: a beam from the ball's center along the aim (BeamWeapon visual — as in a match).
@@ -468,8 +478,8 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
       f.shrink = cy.phase === 'fire' ? Math.min(cy.elapsed / PREVIEW_FIRE_MS, 1) : 1
       f.aimDir.copy(aimDir)
       f.origin.copy(_meshCenter)
-      fx.apply(dt, { mesh: body.mesh, material: body.material }, f)
-      beam?.update(dt, PREVIEW_BEAM_CTX)   // weapon phase idle → only beam/afterglow render
+      fx.apply(pdt, { mesh: body.mesh, material: body.material }, f)
+      beam?.update(pdt, PREVIEW_BEAM_CTX)   // weapon phase idle → only beam/afterglow render
     }
 
     // Respawn preview: ghost (run) → rebirth → idle. The respawn sound — at the start of reassembly.
@@ -478,7 +488,7 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         respawnFrameRef.current = { ghost: null, sinceRebirthMs: Number.MAX_SAFE_INTEGER, baseColor: dampedColor, origin: new THREE.Vector3(), visible: true }
       }
       const rf = respawnFrameRef.current
-      rc.elapsed += dt * 1000
+      rc.elapsed += pdt * 1000
       if (rc.phase === 'ghost' && rc.elapsed >= RESPAWN_PREVIEW_GHOST_MS) {
         rc.phase = 'rebirth'; rc.elapsed = 0
         sfx?.play2D('respawn')
@@ -493,15 +503,15 @@ function StageBall({ spec, spot, exiting = false, hold = false, sfx, part = 'col
         rf.sinceRebirthMs = rc.phase === 'rebirth' ? rc.elapsed : Number.MAX_SAFE_INTEGER
       }
       rf.origin.copy(_meshCenter)   // the swarm circles around the running ball
-      rfx.apply(dt, {
+      rfx.apply(pdt, {
         mesh: body.mesh, material: body.material,
         setOpacity: (o: number) => body.setOpacity(o),
       }, rf)
-      rfx.update(dt)
+      rfx.update(pdt)
     }
 
     // As in a match: the style trail is dash-only; the ghost trail is drawn by rfx inside apply.
-    trail?.update(dt, { position: body.object3d.position, dashing: dashMove })
+    trail?.update(pdt, { position: body.object3d.position, dashing: dashMove })
   })
 
   return (

@@ -131,7 +131,9 @@ func preview_spec() -> Dictionary:
 	var primary: String = profile[PROFILE_PRIMARY]
 	var reserve: String = profile[PROFILE_RESERVE]
 	return {"color": primary if editing == SLOT_PRIMARY else reserve, "model": profile[PROFILE_MODEL],
-		"ring": reserve if editing == SLOT_PRIMARY else primary, "art": BallArt.encode(_art)}
+		"ring": reserve if editing == SLOT_PRIMARY else primary, "art": BallArt.encode(_art),
+		"windup": profile[STYLE_GROUPS[0][KEY]], "respawn": profile[STYLE_GROUPS[1][KEY]],
+		"dash": profile[STYLE_GROUPS[2][KEY]], "shield": profile[STYLE_GROUPS[3][KEY]]}
 
 ## web handlePrimary: a primary colour equal to the reserve pushes the reserve to the first other palette colour.
 func choose_primary(color: String) -> void:
@@ -170,8 +172,8 @@ func choose_style(group: Array, option: String) -> void:
 		UiSounds.toggle()
 	profile[group[KEY]] = option
 	part = group[PART]
-	style_previewed.emit(group[PART], option)
 	_commit()
+	style_previewed.emit(group[PART], option)   # after the new style reached the preview (web: atomically)
 
 func set_erasing(on: bool) -> void:
 	if on != erasing:

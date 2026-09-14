@@ -95,6 +95,11 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_APPEARANCE_PREVIEW := "appearance-preview-"   # appearance-preview-<kind>-<style>-<ms after the click>
+const PREVIEW_SEPARATOR := "-"
+const PREVIEW_KIND := 0
+const PREVIEW_STYLE := 1
+const PREVIEW_MS := 2
 const MODE_APPEARANCE := "appearance"   # appearance[-reserve|-planet|-paint][-panel]
 const APPEARANCE_STATES := ["", "-reserve", "-planet", "-paint"]
 const APPEARANCE_PANEL := "-panel"
@@ -313,6 +318,21 @@ func _apply_hud_fixture() -> int:
 			if node.player.id == PLATE_BOT_ID:
 				node.place_at(Vector3(target.x, node.global_position.y, target.z))
 		return PLATE_FRAMES
+	if _mode.begins_with(MODE_APPEARANCE_PREVIEW):
+		# web parity-capture-appearance-preview.mjs: one style click with the preview frozen <ms> after it
+		var parts := _mode.trim_prefix(MODE_APPEARANCE_PREVIEW).split(PREVIEW_SEPARATOR)
+		var preview_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		preview_menu.set("profile_saving", false)
+		var preview_backdrop: Node = preview_menu.call("backdrop")
+		preview_backdrop.call("set_light_angle", 0.0)
+		preview_backdrop.call("pin_ball_time", STAGE_BALL_TIME_S)
+		preview_backdrop.call("pin_glow_level", 0.0)
+		preview_backdrop.call("pin_preview_hold_ms", float(parts[PREVIEW_MS]))
+		preview_menu.call("open_appearance")
+		for group in AppearanceScreen.STYLE_GROUPS:
+			if group[AppearanceScreen.PART] == parts[PREVIEW_KIND]:
+				preview_menu.call("screen").call("choose_style", group, parts[PREVIEW_STYLE])
+		return STAGE_FRAMES
 	if _mode.begins_with(MODE_APPEARANCE):
 		# web parity-capture-appearance.mjs: APPEARANCE after the state's clicks (cumulative, as the web script runs
 		# them), the light, ball clock and glow pinned; -panel hides the backdrop

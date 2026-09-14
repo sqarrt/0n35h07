@@ -161,6 +161,7 @@ func open_appearance() -> void:
 	appearance.back_requested.connect(close_screen)
 	appearance.profile_changed.connect(_save_profile)
 	appearance.preview_changed.connect(_show_preview)
+	appearance.style_previewed.connect(_backdrop.preview_style)
 	_show_screen(appearance, MenuCameraRig.SCREEN_APPEARANCE)
 
 ## BACK from SETTINGS / ABOUT / APPEARANCE: the menu returns.

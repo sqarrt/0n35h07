@@ -31,6 +31,7 @@ declare global {
     __debugMenuLightAngle?: number   // pins the menu backdrop's orbiting light (radians) for parity captures
     __debugMenuGlowLevel?: number    // pins the audio level (0..1) the menu edge glow reads, for parity captures
     __debugMenuBallTime?: number     // pins the menu balls' shader clock (s): wave shape and ring bands, for parity captures
+    __debugPreviewHoldMs?: number    // freezes the appearance style previews this long after the last style click
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
