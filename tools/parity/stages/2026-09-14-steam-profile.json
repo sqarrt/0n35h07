@@ -1,0 +1,71 @@
+{
+  "id": "2026-09-14-steam-profile",
+  "title": "Сверка паритета OneShot · Steam: имя, облако профиля, достижения, Rich Presence",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс сети N3 — невизуальная часть Steam-сборки: имя первого запуска из Steam, профиль в Steam Cloud, семь достижений и статус в списке друзей. Эталон — web `src/steam/achievements.ts`, `cloudProfile.ts`, `richPresence.ts`, `settings.ts` (chooseFirstRunName) и точки вызова в `Match.ts` / `App.tsx` / `main.tsx`. Сверка поведенческая: каждый случай web-тестов перенесён в GUT на тех же входах, а мост проверен вживую на этой машине (Steam-клиент запущен).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-steam-profile.json`. Web-тесты: `web-reference/tests/unit/{achievements,Match.achievements,cloudProfile,firstRunName,richPresence}.test.ts`. GUT: `tests/unit/test_{steam_achievements,match_achievements,cloud_profile_sync,profile_cloud,steam_presence,display_startup}.gd`. Живой прогон: `Godot_v4.7.1-stable_win64.exe --path . --log-file test-results/probes/steam/steam_smoke.log -s tools/steam_smoke.gd` (Steam-клиент запущен; облако только читается, достижения не разблокируются — это необратимо на реальном аккаунте).",
+  "pages": [
+    {
+      "slug": "steam-profile",
+      "name": "Steam N3",
+      "verdict": "Перенесено: имя первого запуска из Steam, синхронизация профиля с Steam Cloud (формат блоба web: Godot прочитал профиль, записанный web-сборкой), достижения только локального игрока и не против пассивного бота, Rich Presence меню / лобби / матч. Все случаи web-тестов проходят в GUT на тех же входах (N3 34/34, полный GUT — см. условия). Живой прогон нашёл и исправил дефект: при запущенном Steam вызов `DisplayStartup.is_tool` уходил во встроенный `Script.is_tool()` и обрывал `Game._ready` до загрузки профиля.",
+      "verdict_short": "Steam N3 перенесён",
+      "conditions": [
+        ["сборка", "десктоп (Tauri, `src/steam/*`)", "десктоп Godot, GodotSteam 4.22.1 за `SteamBridge`"],
+        ["Steam", "—", "клиент запущен: SteamID 76561198179519318, 37 друзей"],
+        ["облако", "`profile.json` = {v: 1, updatedAt, profile}", "тот же файл прочитан: updatedAt 1789311460097 (записан web-сборкой)"],
+        ["Rich Presence", "`steam_display` → `#Status_InMenu`", "`set_rich_presence` → true"],
+        ["тесты", "vitest: achievements, Match.achievements, cloudProfile, firstRunName, richPresence", "GUT 723/723 (из них N3 34)"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "S3-1", "severity": "fixed",
+          "title": "Имя первого запуска из Steam",
+          "web": "`syncProfileOnStartup` при решении fresh: `randomProfile()` с именем `chooseFirstRunName(true, personaName, fallback)` — обрезанное имя Steam, пустое — сгенерированное.",
+          "godot": "`ProfileCloud.sync_on_startup` → `CloudProfileSync.first_run_name`; было: всегда сгенерированное имя.",
+          "evidence": ["test", "code", "runtime"],
+          "sources": ["nodes/profile_cloud.gd", "sim/steam/cloud_profile_sync.gd", "tests/unit/test_cloud_profile_sync.gd", "tests/unit/test_profile_cloud.gd"]
+        },
+        {
+          "id": "S3-2", "severity": "fixed",
+          "title": "Профиль в Steam Cloud",
+          "web": "Старт до чтения профиля: LWW по `updatedAt` против локальной метки, привязка к SteamID (без Steam / профиль до метки владельца / свой аккаунт — LWW; первый запуск или смена аккаунта — облако или fresh), максимум триала радио за тот же день; каждое сохранение — отправка через 1 с.",
+          "godot": "`ProfileCloud.sync_on_startup` в `Game._ready` до `ProfileStore.load_profile` (автозагрузка `SteamBridge` поднимается раньше `Game`), метка и владелец в `user://profile_sync.json`, `ProfileStore.save_hook` → `ProfileCloudPusher` (1 с). Инструменты `-s` облако не трогают. Было: профиль только локальный.",
+          "evidence": ["test", "code", "runtime"],
+          "sources": ["nodes/profile_cloud.gd", "nodes/profile_cloud_pusher.gd", "nodes/profile_store.gd", "autoloads/game.gd", "project.godot", "tests/unit/test_profile_cloud.gd"]
+        },
+        {
+          "id": "S3-3", "severity": "fixed",
+          "title": "Достижения",
+          "web": "`SteamAchievements`: первая кровь ACH_CATALYST, серии ACH_DOUBLE_KILL / ACH_TRIPLE_KILL / ACH_SINGULARITY по `announceKind`, идеальный блок ACH_DEFLECTOR, победа ACH_FIRST_WIN, победа без смертей ACH_UNTOUCHABLE; дедуп на матч; только локальный игрок; `NoopAchievements` против пассивного бота.",
+          "godot": "`SteamAchievements` (тот же каталог, unlock — `SteamBridge.unlock_achievement`), `MatchAchievements` фильтрует сигналы `MatchNode` frag / blocked / match_ended по `local_id`; `arena_boot` не создаёт его при пассивном боте. Было: достижений не было.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/steam/steam_achievements.gd", "nodes/match_achievements.gd", "nodes/arena_boot.gd", "tests/unit/test_steam_achievements.gd", "tests/unit/test_match_achievements.gd"]
+        },
+        {
+          "id": "S3-4", "severity": "fixed",
+          "title": "Rich Presence по экрану",
+          "web": "`applyScreenPresence(screen)` на каждой смене экрана: лобби `#Status_InLobby`, матч `#Status_InMatch`, остальное `#Status_InMenu`.",
+          "godot": "`SteamPresence.apply` в `MainMenu._ready` и `close_lobby` (меню), `open_lobby` (лобби), `arena_boot._ready` (матч). Было: только ключ `connect` лобби.",
+          "evidence": ["test", "code", "runtime"],
+          "sources": ["sim/steam/steam_presence.gd", "nodes/main_menu.gd", "nodes/arena_boot.gd", "tests/unit/test_steam_presence.gd"]
+        },
+        {
+          "id": "S3-5", "severity": "fixed",
+          "title": "Живой прогон: `is_tool` ломал старт при запущенном Steam",
+          "web": "—",
+          "godot": "`SCRIPT ERROR: Invalid call to function 'is_tool' in base 'GDScript'` — вызов на классе попадал во встроенный `Script.is_tool()`; в GUT Steam недоступен и вызов не доходил. Переименовано в `DisplayStartup.is_tool_run`, тест вызывает его снаружи; повторный прогон — 0 ошибок.",
+          "evidence": ["runtime", "test", "code"],
+          "sources": ["nodes/display_startup.gd", "autoloads/game.gd", "tests/unit/test_display_startup.gd", "tools/steam_smoke.gd"]
+        }
+      ],
+      "limitations": [
+        "Достижения вживую не разблокировались: разблокировка необратима на реальном аккаунте; API-имена, как и токены Rich Presence, должны быть заведены в партнёрке (как у web).",
+        "Облако вживую только читалось: запись поверх профиля игрока из web-сборки не выполнялась; запись и отправка проверены на поддельном мосте.",
+        "Владение DLC радио — слайс радио."
+      ]
+    }
+  ]
+}

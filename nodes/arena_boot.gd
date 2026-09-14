@@ -61,6 +61,15 @@ func _ready() -> void:
 		match_node.net_session = NetSession.new(Game.room.net, match_node)   # web session on the room's transport
 	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera
 	match_node.singularity_changed.connect(func(active: bool) -> void: MapBlocks.set_transparent(get_tree(), active))
+	SteamPresence.apply(SteamBridge, SteamPresence.SCREEN_GAME)   # web App: Rich Presence follows the screen
+
+	# Steam achievements for the local player (web Game): none against a passive bot, a punching bag.
+	var passive_bot := roster.any(func(entry: Dictionary) -> bool:
+		return entry["kind"] == Roster.KIND_BOT and entry.get("difficulty", BOT_DIFFICULTY) == RoomModel.PASSIVE_DIFFICULTY)
+	if not passive_bot:
+		var achievements := MatchAchievements.new()
+		achievements.setup(match_node, SteamAchievements.new(SteamBridge.unlock_achievement))
+		add_child(achievements)
 
 	# HUD: crosshair + score + streak banner + respawn indicator.
 	var hud := Hud.new()

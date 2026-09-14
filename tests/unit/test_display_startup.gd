@@ -24,6 +24,10 @@ func test_a_tool_keeps_its_window_and_scale() -> void:
 	assert_almost_eq(window.content_scale_factor, 1.0, EPS, "the capture tool sets its own scale")
 	assert_eq(window.mode, Window.MODE_WINDOWED)
 
+func test_a_tool_run_is_recognized_from_outside() -> void:
+	assert_true(DisplayStartup.is_tool_run(PackedStringArray(TOOL_ARGS)), "the autoload asks before touching Steam")
+	assert_false(DisplayStartup.is_tool_run(PackedStringArray()))
+
 func test_a_headless_run_keeps_its_window() -> void:
 	var window := _window()
 	DisplayStartup.start(window, PackedStringArray(), true, SCALED_DPI)

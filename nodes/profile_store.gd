@@ -4,6 +4,9 @@ class_name ProfileStore
 
 const DEFAULT_PATH := "user://profile.json"
 
+## Called with the saved profile after every save (web setProfileSaveHook): the Steam Cloud push; unset in tests.
+static var save_hook := Callable()
+
 static func load_profile(rng: Callable, path := DEFAULT_PATH) -> Dictionary:
 	if FileAccess.file_exists(path):
 		var json := JSON.new()   # parse() reports corrupt data by code, without an engine error
@@ -18,4 +21,8 @@ static func save_profile(profile: Dictionary, rng: Callable, path := DEFAULT_PAT
 	if file == null:
 		push_error("Profile save failed: %s" % error_string(FileAccess.get_open_error()))
 		return
-	file.store_string(JSON.stringify(PlayerProfile.sanitize(profile, rng)))
+	var clean := PlayerProfile.sanitize(profile, rng)
+	file.store_string(JSON.stringify(clean))
+	file.close()
+	if save_hook.is_valid():
+		save_hook.call(clean)
