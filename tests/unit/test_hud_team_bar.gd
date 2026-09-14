@@ -35,18 +35,21 @@ func test_battle_panes_and_team_totals() -> void:
 		GameModes.TEAM_COLORS[1], "in the team colour")
 	assert_eq((bar.find_child("Timer", true, false) as Label).text, "02:59")
 
-func test_rows_mirror_and_underline_the_local_player() -> void:
+func test_rows_mirror_and_take_the_player_colours() -> void:
 	var bar := _bar()
 	var roster := [_entry(0, "#ffaa44"), _entry(1, "#44ffaa"), _entry(2, "#ff6666"), _entry(3, "#ffdd44")]
 	var scores := [_score(0, 0, 0), _score(1, 1, 5), _score(2, 2, 0), _score(3, 3, 0)]
 	bar.set_roster(roster, scores, 0)
 	bar.set_state(scores, "03:00", {1: 2})
 	var mine := bar.rows()[0] as HudTeamBar.Row
-	assert_true(mine.underline)
+	assert_eq(mine.frag.get_theme_color("font_color"), Color("#ffaa44"), "frags in the player's colour")
 	assert_eq(mine.get_child(0), mine.dots, "left pane: dots, name, frags")
 	var theirs := bar.rows()[2] as HudTeamBar.Row
-	assert_false(theirs.underline)
 	assert_eq(theirs.get_child(0), theirs.frag, "right pane mirrored: frags first")
 	assert_null(bar.find_child("TotalLeft", true, false), "War has no team totals")
 	assert_eq((bar.rows()[1] as HudTeamBar.Row).frag.text, "5")
-	assert_true((bar.rows()[1] as HudTeamBar.Row).dots.visible, "a streak shows its dots")
+	assert_ne((bar.rows()[1] as HudTeamBar.Row).dots.text, "", "a streak shows its dots")
+	assert_eq((bar.rows()[2] as HudTeamBar.Row).dots.text, "", "no streak: an empty span that still keeps its gap")
+	var frame := bar.find_child("TeamLeftFrame", true, false) as PanelContainer
+	assert_almost_eq(frame.get_theme_stylebox("panel").content_margin_left, HudTeamBar.PANE_PADDING.x, 0.01,
+		".mhud-team padding: 6px 14px")
