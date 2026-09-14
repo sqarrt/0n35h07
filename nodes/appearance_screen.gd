@@ -53,7 +53,7 @@ const LABEL_MARGIN_BOTTOM := 9.6                   # label: marginBottom 0.6rem
 const ON_MODEL_MARGIN_BOTTOM := 28.8               # 1.8rem
 const SLOT_SPACING_EM := 0.2
 const PAINT_TOOLS_GAP := 6.4                       # the brush / eraser row: gap 0.4rem
-const SCROLLBAR_PX := 10.0                         # Chrome's native thin scrollbar (scrollbar-width: thin)
+const SCROLLBAR_PX := UiScroll.WIDTH_PX            # Chrome's native thin scrollbar (scrollbar-width: thin)
 const HALF := 0.5
 const SPACE_AROUND_SHARES := 4.0                   # justify-content: space-around, two items: four half-margins
 

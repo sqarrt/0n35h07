@@ -46,6 +46,7 @@ const WAIT_FONT_SIZE := 8                       # .lobby-seat-wait
 const WAIT_SPACING_EM := 0.18
 const WAIT_DOT_PX := 5.0                        # .lobby-seat-waitdot
 const WAIT_DOT_GAP := 5
+const WAIT_DOT_GLOW_BLUR := 6.0                 # box-shadow: 0 0 6px var(--accent)
 const PULSE_S := 1.1                            # invitePulse 1.1s ease-in-out infinite
 const PULSE_KEYS := [[0.0, 0.35], [0.5, 1.0], [1.0, 0.35]]
 const EASE_IN_OUT := [0.42, 0.0, 0.58, 1.0]
@@ -84,6 +85,12 @@ class Zone extends Button:
 
 ## The pulsing dot of a waiting seat (web .lobby-seat-waitdot).
 class WaitDot extends Control:
+	func _ready() -> void:
+		var glow := CssBoxShadow.make(UiTokens.ACCENT, LobbySeat.WAIT_DOT_GLOW_BLUR, Vector2.ZERO, 0.0,
+			LobbySeat.WAIT_DOT_PX * LobbySeat.HALF)
+		add_child(glow)
+		CssBoxShadow.place(glow, Vector2.ZERO, Vector2.ONE * LobbySeat.WAIT_DOT_PX)
+
 	func _get_minimum_size() -> Vector2:
 		return Vector2.ONE * LobbySeat.WAIT_DOT_PX
 
@@ -101,10 +108,11 @@ var _host := true
 var _waiting := false
 var _searching := false
 var _pulse_s := 0.0
+var _pulse_pin := -1.0                          # parity captures: the pulse held at this time (negative: running)
 var _nodes: Array[Control] = []
 var _zones: Array[Zone] = []
 var _column: CssColumn
-var _cancel: Button
+var _cancel: GlyphButton
 var _glow: ColorRect
 var _dot: WaitDot
 var _spin: Label
@@ -168,7 +176,8 @@ func show_searching(text: String) -> void:
 		_column = _new_column()
 		_spin = _nick(text, UiTokens.MUTED)
 		var oblique := _spin.get_theme_font("font").duplicate() as FontVariation
-		oblique.variation_transform = Transform2D(Vector2.RIGHT, Vector2(OBLIQUE_SKEW, 1.0), Vector2.ZERO)
+		# Godot slants through the x axis' y component (docs: Transform2D(1.0, slant, 0.0, 1.0, 0.0, 0.0))
+		oblique.variation_transform = Transform2D(Vector2(1.0, OBLIQUE_SKEW), Vector2(0.0, 1.0), Vector2.ZERO)
 		_spin.add_theme_font_override("font", oblique)
 		_column.add(_spin)
 		_finish()
@@ -193,13 +202,17 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _dot == null:
 		return
-	_pulse_s += delta
+	_pulse_s = _pulse_pin if _pulse_pin >= 0.0 else _pulse_s + delta
 	_dot.modulate.a = CssTiming.sample(PULSE_KEYS, fposmod(_pulse_s, PULSE_S) / PULSE_S, EASE_IN_OUT)
+
+## Parity captures: hold the waiting dot's pulse `seconds` into its cycle (web pauses invitePulse there).
+func pin_pulse(seconds: float) -> void:
+	_pulse_pin = seconds
 
 func _get_minimum_size() -> Vector2:
 	var padding := _padding()
 	var content := _column.get_combined_minimum_size().y if _column != null else 0.0
-	return Vector2(0.0, maxf(COMPACT_MIN_HEIGHT if compact else MIN_HEIGHT, content + padding.y * 2.0))
+	return Vector2(0.0, maxf(COMPACT_MIN_HEIGHT if compact else MIN_HEIGHT, content + (padding.y + BORDER_PX) * 2.0))
 
 func _gui_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
@@ -257,7 +270,7 @@ func _padding() -> Vector2:
 	return COMPACT_PADDING if compact else PADDING
 
 func _layout() -> void:
-	var padding := _padding()
+	var padding := _padding() + Vector2.ONE * BORDER_PX   # the CSS padding box sits inside the 2 px border
 	var inner := size - padding * 2.0
 	if not _zones.is_empty():
 		var height := (inner.y - GAP * (_zones.size() - 1)) / _zones.size()   # .seat-zone flex: 1 1 0
@@ -271,7 +284,7 @@ func _layout() -> void:
 	if _cancel != null:
 		var box := _cancel.get_combined_minimum_size()
 		_cancel.size = box
-		_cancel.position = Vector2(size.x - CANCEL_INSET.x - box.x, CANCEL_INSET.y)
+		_cancel.position = Vector2(size.x - BORDER_PX - CANCEL_INSET.x - box.x, BORDER_PX + CANCEL_INSET.y)   # absolute in the padding box
 	_layout_glow()
 
 ## The ready glow (box-shadow 0 0 20px -4px): the analytic blurred box, inset by the negative spread, behind the card.
@@ -416,19 +429,8 @@ func _difficulty(entry: Dictionary) -> HBoxContainer:
 		row.add_child(seg)
 	return row
 
-func _cancel_button(action: Signal) -> Button:
-	var cancel := Button.new()
+func _cancel_button(action: Signal) -> GlyphButton:
+	var cancel := GlyphButton.new(CANCEL_GLYPH, CANCEL_FONT_SIZE, Vector2.ONE * CANCEL_PADDING)
 	cancel.name = "Remove"
-	cancel.text = CANCEL_GLYPH
-	cancel.focus_mode = Control.FOCUS_NONE
-	cancel.add_theme_font_override("font", UiFont.base())
-	cancel.add_theme_font_size_override("font_size", CANCEL_FONT_SIZE)
-	var box := StyleBoxEmpty.new()
-	box.set_content_margin_all(CANCEL_PADDING)
-	for state in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
-		cancel.add_theme_stylebox_override(state, box)
-	cancel.add_theme_color_override("font_color", UiTokens.MUTED)
-	for key in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		cancel.add_theme_color_override(key, UiTokens.TEXT)
 	cancel.pressed.connect(func() -> void: action.emit(slot))
 	return cancel

@@ -13,10 +13,15 @@ const ANGLE_BACKEND = process.platform === 'win32' ? 'd3d11' : 'gl';
 const GL_ARGS = ['--ignore-gpu-blocklist', '--enable-gpu', `--use-angle=${ANGLE_BACKEND}`];
 const FORBIDDEN_RENDERER = /SwiftShader/i;
 
+/** The desktop window fullscreen on the parity machine's 3840×2160 display at the Windows 150% scale: the WebView's CSS
+ *  viewport is the screen divided by the scale (2560×1440 CSS px) at a 1.5 pixel ratio. */
+export const FULLSCREEN = { viewport: { width: 2560, height: 1440 }, deviceScaleFactor: 1.5 };
+
 /** Launch the browser and a page; throws when WebGL runs on a line-dropping renderer. */
-/** `showScrollbars`: keep classic scrollbars (headless Chromium hides them by default; the desktop WebView draws the
- *  themed 5 px bar, which takes layout width inside a scrolling panel). */
-export async function launchReferencePage({ showScrollbars = false } = {}) {
+/** `showScrollbars`: keep classic scrollbars (headless Chromium hides them by default; the desktop WebView draws its
+ *  native thin 10 px bar, which takes layout width inside a scrolling panel). `viewport` / `deviceScaleFactor`: the
+ *  page's CSS size and pixel ratio (FULLSCREEN for the fullscreen frames). */
+export async function launchReferencePage({ showScrollbars = false, viewport = VIEWPORT, deviceScaleFactor = 1 } = {}) {
   const browser = await chromium.launch({
     headless: true,
     args: GL_ARGS,
@@ -24,7 +29,7 @@ export async function launchReferencePage({ showScrollbars = false } = {}) {
     // Optional override when the installed Playwright browser build differs from the package's expected one.
     ...(process.env.PARITY_CHROMIUM ? { executablePath: process.env.PARITY_CHROMIUM } : {}),
   });
-  const page = await browser.newPage({ viewport: VIEWPORT });
+  const page = await browser.newPage({ viewport, deviceScaleFactor });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   return { browser, page, errors };

@@ -190,11 +190,14 @@ func _shader_rect(node_name: String, shader: Shader) -> ColorRect:
 	add_child(rect)
 	return rect
 
-## 12.5 px spaced 0.04em on a 1.5 line box: Chrome's normal line with the half-leading over and under it.
+## 12.5 px spaced 0.04em on a 1.5 line box: Chrome's normal line with the half-leading over and under it; the spacing is
+## fitted to Chrome's run width, so the title breaks where web's does.
 func _title_font(bold: bool) -> FontVariation:
 	var font_size := UiFont.css_size(TITLE_PX)
-	var face := UiFont.bold_spaced(TITLE_SPACING_EM, font_size, TITLE_PX) if bold \
-		else UiFont.spaced(TITLE_SPACING_EM, font_size, TITLE_PX)
+	var face := UiFont.bold_spaced(0.0, font_size, TITLE_PX) if bold else UiFont.spaced(0.0, font_size, TITLE_PX)
+	var embolden := UiFont.embolden_advance(face.variation_embolden, font_size)
+	face.spacing_glyph = roundi(UiFont.fitted_spacing(TITLE_PX, TITLE_SPACING_EM, font_size) - embolden)
+	UiFont.mirror_fallbacks(face)
 	var font := UiFont.with_css_line(face, font_size, TITLE_PX)
 	var leading := TITLE_PX * TITLE_LINE_EM - font.get_height(font_size)
 	for variation in [font] + font.fallbacks:

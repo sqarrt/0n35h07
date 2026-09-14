@@ -17,8 +17,14 @@ const INVITE_KEY := "lobbyInvite"
 const REFRESH_S := 5.0                          # web FRIENDS_REFRESH_MS
 const BACKDROP := Color(4.0 / 255.0, 7.0 / 255.0, 11.0 / 255.0, 0.72)   # rgba(4,7,11,.72)
 const BACKDROP_PADDING := 16.0
+const BACKDROP_BLUR_PX := 2.0                   # backdrop-filter: blur(2px) — σ in pixels
+const BACKDROP_BLUR_SHADER := preload("res://assets/shaders/backdrop_blur.gdshader")
 const CARD_MAX_WIDTH := 360.0
 const CARD_BORDER_PX := 1
+const CARD_SHADOW := Color.BLACK                # box-shadow: 0 24px 70px -16px #000
+const CARD_SHADOW_OFFSET := Vector2(0.0, 24.0)
+const CARD_SHADOW_BLUR := 70.0
+const CARD_SHADOW_SPREAD := -16.0
 const HEAD_PADDING := [16.0, 16.0, 14.0]       # top, sides, bottom
 const TITLE_FONT := 13
 const TITLE_SPACING_EM := 0.18
@@ -30,6 +36,7 @@ const SIDE_PADDING := 16.0
 const INPUT_FONT := 14
 const INPUT_SPACING_EM := 0.04
 const INPUT_PADDING := Vector2(12.0, 9.0)
+const INPUT_BORDER_PX := 1                      # the focus ring is an inset shadow: the box keeps this border
 const COUNT_FONT := 11
 const COUNT_SPACING_EM := 0.18
 const COUNT_BOTTOM := 10.0
@@ -44,11 +51,14 @@ const ROW_GAP := 12
 const ROW_HOVER := Color(40.0 / 255.0, 90.0 / 255.0, 140.0 / 255.0, 0.18)
 const DOT_PX := 7.0
 const DOT_COLOR := Color("#23b582")
+const DOT_GLOW_BLUR := 6.0                      # box-shadow: 0 0 6px -1px #23b582
+const DOT_GLOW_SPREAD := -1.0
 const NAME_FONT := 14
 const NAME_SPACING_EM := 0.04
 const CHIP_FONT := 11
 const CHIP_SPACING_EM := 0.14
 const CHIP_PADDING := Vector2(12.0, 5.0)
+const CHIP_BORDER_PX := 1
 const HALF := 0.5
 
 ## A friend row: the whole row is the button; the chip fills while the row is hovered.
@@ -65,17 +75,24 @@ class Row extends Button:
 		var box := StyleBoxFlat.new()
 		box.bg_color = UiTokens.ACCENT_FILL if hot else Color.TRANSPARENT
 		box.border_color = UiTokens.ACCENT_FILL if hot else UiTokens.LINE
-		box.set_border_width_all(1)
-		box.content_margin_left = SteamFriendPicker.CHIP_PADDING.x
-		box.content_margin_right = SteamFriendPicker.CHIP_PADDING.x
-		box.content_margin_top = SteamFriendPicker.CHIP_PADDING.y
-		box.content_margin_bottom = SteamFriendPicker.CHIP_PADDING.y
+		box.set_border_width_all(SteamFriendPicker.CHIP_BORDER_PX)
+		var inset := SteamFriendPicker.CHIP_PADDING + Vector2.ONE * SteamFriendPicker.CHIP_BORDER_PX
+		box.content_margin_left = inset.x
+		box.content_margin_right = inset.x
+		box.content_margin_top = inset.y
+		box.content_margin_bottom = inset.y
 		chip.add_theme_stylebox_override("panel", box)
 		chip_label.add_theme_color_override("font_color", UiTokens.INK if hot else UiTokens.ACCENT_DIM)
 		queue_redraw()
 
 ## A dot with its 6 px green glow (web .lobby-picker-dot).
 class Dot extends Control:
+	func _ready() -> void:
+		var glow := CssBoxShadow.make(SteamFriendPicker.DOT_COLOR, SteamFriendPicker.DOT_GLOW_BLUR, Vector2.ZERO,
+			SteamFriendPicker.DOT_GLOW_SPREAD, SteamFriendPicker.DOT_PX * SteamFriendPicker.HALF)
+		add_child(glow)
+		CssBoxShadow.place(glow, Vector2.ZERO, Vector2.ONE * SteamFriendPicker.DOT_PX)
+
 	func _get_minimum_size() -> Vector2:
 		return Vector2.ONE * SteamFriendPicker.DOT_PX
 
@@ -87,6 +104,8 @@ var forming := false                            # the lobby is still being creat
 
 var _friends: Array = []
 var _refresh_left := 0.0
+var _blur: ColorRect
+var _card_shadow: ColorRect
 var _card: PanelContainer
 var _search: LineEdit
 var _count: Label
@@ -97,12 +116,27 @@ func _ready() -> void:
 	name = "FriendPicker"
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var fresh := BackBufferCopy.new()               # the menu under the picker, not the copy an earlier blur took
+	fresh.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	add_child(fresh)
+	_blur = ColorRect.new()
+	_blur.name = "BackdropBlur"
+	_blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var blur_material := ShaderMaterial.new()
+	blur_material.shader = BACKDROP_BLUR_SHADER
+	blur_material.set_shader_parameter("sigma", BACKDROP_BLUR_PX)
+	_blur.material = blur_material
+	_blur.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_blur)
 	var backdrop := ColorRect.new()
 	backdrop.name = "Backdrop"
 	backdrop.color = BACKDROP
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.gui_input.connect(_on_backdrop_input)
 	add_child(backdrop)
+	_card_shadow = CssBoxShadow.make(CARD_SHADOW, CARD_SHADOW_BLUR, CARD_SHADOW_OFFSET, CARD_SHADOW_SPREAD)
+	_card_shadow.name = "CardShadow"
+	add_child(_card_shadow)
 	_card = PanelContainer.new()
 	_card.name = "Card"
 	var card_box := StyleBoxFlat.new()
@@ -132,13 +166,15 @@ func _ready() -> void:
 	_card.minimum_size_changed.connect(_place_card)
 	_refresh()
 	_place_card()
+	_search.call_deferred("grab_focus")             # web autoFocus
 
 func _process(delta: float) -> void:
 	_refresh_left -= delta
 	if _refresh_left <= 0.0:
 		_refresh()
 
-func _unhandled_input(event: InputEvent) -> void:
+## Esc closes even while the search box has the focus (web: a window keydown listener).
+func _input(event: InputEvent) -> void:
 	var key := event as InputEventKey
 	if key != null and key.pressed and key.keycode == KEY_ESCAPE:
 		get_viewport().set_input_as_handled()
@@ -187,22 +223,9 @@ func _head() -> Control:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
-	var close_button := Button.new()
+	var close_button := GlyphButton.new(CLOSE_GLYPH, CLOSE_FONT, CLOSE_PADDING)
 	close_button.name = "Close"
-	close_button.text = CLOSE_GLYPH
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_font_override("font", UiFont.base())
-	close_button.add_theme_font_size_override("font_size", CLOSE_FONT)
-	var box := StyleBoxEmpty.new()
-	box.content_margin_left = CLOSE_PADDING.x
-	box.content_margin_right = CLOSE_PADDING.x
-	box.content_margin_top = CLOSE_PADDING.y
-	box.content_margin_bottom = CLOSE_PADDING.y
-	for state in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
-		close_button.add_theme_stylebox_override(state, box)
-	close_button.add_theme_color_override("font_color", UiTokens.MUTED)
-	for key in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		close_button.add_theme_color_override(key, UiTokens.TEXT)
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # align-items: center
 	close_button.pressed.connect(_close)
 	row.add_child(close_button)
 	return _padded(row, SIDE_PADDING, HEAD_PADDING[0], HEAD_PADDING[2])
@@ -226,10 +249,10 @@ func _input_box(border: Color, width: int) -> StyleBoxFlat:
 	box.bg_color = Color.TRANSPARENT
 	box.border_color = border
 	box.set_border_width_all(width)
-	box.content_margin_left = INPUT_PADDING.x
-	box.content_margin_right = INPUT_PADDING.x
-	box.content_margin_top = INPUT_PADDING.y
-	box.content_margin_bottom = INPUT_PADDING.y
+	box.content_margin_left = INPUT_PADDING.x + INPUT_BORDER_PX
+	box.content_margin_right = INPUT_PADDING.x + INPUT_BORDER_PX
+	box.content_margin_top = INPUT_PADDING.y + INPUT_BORDER_PX
+	box.content_margin_bottom = INPUT_PADDING.y + INPUT_BORDER_PX
 	return box
 
 func _row(friend: Dictionary) -> Row:
@@ -285,6 +308,8 @@ func _place_card() -> void:
 	_card.reset_size()
 	_card.size.x = width
 	_card.position = ((size - _card.size) * HALF).round()
+	(_blur.material as ShaderMaterial).set_shader_parameter("box_px", size)
+	CssBoxShadow.place(_card_shadow, _card.position, _card.size)
 
 func _on_backdrop_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton

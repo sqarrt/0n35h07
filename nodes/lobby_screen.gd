@@ -321,6 +321,16 @@ func _layout() -> void:
 	_back.position = Vector2(0.0, CssPixel.snap(body_height + ready_height + 3.0 * UiButton.MARGIN_Y))
 	_back.custom_minimum_size.x = width
 	_back.size = Vector2(width, back_height)
+	var column := width
+	var bottom := _layout_body(column)
+	if bottom > body_height:   # overflow-y: auto — the scrollbar's gutter narrows the column, which lays out again
+		column -= UiScroll.WIDTH_PX
+		bottom = _layout_body(column)
+	_content.custom_minimum_size = Vector2(column, bottom)
+	_content.size = _content.custom_minimum_size
+
+## The scrolling body's rows in a column `width` wide; returns the body's height.
+func _layout_body(width: float) -> float:
 	var y := get_viewport_rect().size.y * BODY_TOP_SHARE
 	y = _place(_title, 0.0, y) + MenuText.TITLE_MARGIN_BOTTOM
 	_carousel.position = Vector2(0.0, CssPixel.snap(y))
@@ -336,9 +346,7 @@ func _layout() -> void:
 		x += box.x + TIME_GAP
 	y += _time_segs[0].get_combined_minimum_size().y + SECTION_GAP
 	y = _place(_players_label, 0.0, y) + SECTION_GAP
-	y = _layout_seats(y, width) + SEATS_MARGIN_BOTTOM
-	_content.custom_minimum_size = Vector2(width, y)
-	_content.size = _content.custom_minimum_size
+	return _layout_seats(y, width) + SEATS_MARGIN_BOTTOM
 
 func _layout_maps(top: float, width: float) -> float:
 	var label_box := _map_label.get_combined_minimum_size()

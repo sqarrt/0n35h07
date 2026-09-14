@@ -9,6 +9,8 @@ const SLOT := 1
 const FRIEND := "FRIEND"
 const SPIN := "RA9.."
 const EPS := 0.01
+const CANCEL_HEIGHT := 17.0     # web frame: .lobby-seat-cancel 14.62 × 17
+const BOX_EPS := 0.6
 
 func _seat() -> LobbySeat:
 	var viewport := SubViewport.new()
@@ -51,8 +53,12 @@ func test_a_sent_invite_waits_and_pulses() -> void:
 	assert_almost_eq(dot.modulate.a, 1.0, EPS, "invitePulse peaks halfway")
 	seat._process(LobbySeat.PULSE_S * 0.5)
 	assert_almost_eq(dot.modulate.a, 0.35, EPS)
+	var remove := seat.find_child("Remove", true, false) as BaseButton
+	await wait_process_frames(1)
+	assert_almost_eq(remove.size.y, CANCEL_HEIGHT, BOX_EPS, "✕ 13px, line-height 1, padding 2px")
+	assert_almost_eq(remove.position.y, LobbySeat.BORDER_PX + LobbySeat.CANCEL_INSET.y, BOX_EPS, "top: 6px in the border")
 	watch_signals(seat)
-	(seat.find_child("Remove", true, false) as Button).pressed.emit()
+	remove.pressed.emit()
 	assert_signal_emitted_with_parameters(seat, "invite_cancelled", [SLOT])
 
 func test_a_searching_seat_spins_names() -> void:

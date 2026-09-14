@@ -35,6 +35,9 @@ extends SceneTree
 ##                     the facts.
 ##   lobby-<state>     the main menu scene with PLAY opened (web parity-capture-lobby.mjs): fresh, bot (a passive
 ##                     EX82R on seat 1), 2v2 or ffa; a -bottom suffix scrolls the body to its end. Use with profile:.
+##   steam-<state>     the desktop Play screen on a fake Steam (web parity-capture-lobby-steam.mjs): toast (an invite over
+##                     the menu), idle (the hosted Private lobby), picker (INVITE A FRIEND open), invited (Bob waiting on
+##                     seat 1, the pulse held at its peak) or searching (SEARCH pressed); -bottom scrolls. Use with profile:.
 ##   settings-<tab>    SETTINGS on player / sound / graphics, or `about`: ABOUT (web parity-capture-settings.mjs, the
 ##                     desktop build), the backdrop hidden; every visible screen control's box joins the facts.
 ##   stage-<state>     the same lobby with only its seat balls on the backdrop (web parity-capture-lobby-stage.mjs): bot
@@ -109,6 +112,21 @@ const LOBBY_SCROLL_S := 0.2          # scroll once the body knows its content he
 const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeLabel", "Time3", "Time5", "Time10",
 	"PlayersLabel", "Seats", "Seat0", "Seat1", "Seat2", "Seat3", "Vs", "Ready", "Back", "Map_os_arena", "Map_os_india",
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
+const MODE_STEAM := "steam-"
+const STEAM_BRIDGE_SCRIPT := "res://autoloads/steam_bridge.gd"
+const STEAM_FAKE_SCRIPT := "res://tests/unit/fake_steam_api.gd"
+const STEAM_FRIENDS := [{"id": 11, "name": "alice", "online": true}, {"id": 22, "name": "Bob", "online": true},
+	{"id": 33, "name": "zed", "online": false}]     # web parity-capture-lobby-steam.mjs STEAM
+const STEAM_INVITER := 300
+const STEAM_INVITER_NAME := "alice"
+const STEAM_INVITE_LOBBY := 555
+const STEAM_PICKED := ["22", "Bob"]
+const STEAM_TOAST := "toast"
+const STEAM_PICKER := "picker"
+const STEAM_INVITED := "invited"
+const STEAM_SEARCHING := "searching"
+const STEAM_PULSE_S := 0.55            # invitePulse at its peak (web pauses the animation 550 ms in)
+const STEAM_FRAMES := 36               # the toast's .24 s entrance and the lobby layout (web waits 600 ms)
 const MODE_APPEARANCE_PREVIEW := "appearance-preview-"   # appearance-preview-<kind>-<style>-<ms after the click>
 const PREVIEW_SEPARATOR := "-"
 const PREVIEW_KIND := 0
@@ -257,7 +275,10 @@ func _initialize() -> void:
 		_passive_bot = true
 		if g != null:
 			g.profile[STYLE_MODES[style_mode]] = _mode.trim_prefix(style_mode)
-	root.add_child(load(scene_path).instantiate())
+	var scene := (load(scene_path) as PackedScene).instantiate()
+	if _mode.begins_with(MODE_STEAM):
+		scene.set("steam", _fake_steam())
+	root.add_child(scene)
 	if _passive_bot:
 		_setup_fixture.call_deferred()
 	if not _mode.begins_with(MODE_READY):
@@ -380,6 +401,9 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_LOBBY):
 		_lobby_fixture(_mode.trim_prefix(MODE_LOBBY))
 		return LOBBY_FRAMES
+	if _mode.begins_with(MODE_STEAM):
+		_steam_fixture(_mode.trim_prefix(MODE_STEAM))
+		return STEAM_FRAMES
 	if _mode.begins_with(MODE_TEAM) and _mode.ends_with(PLATE_SUFFIX):
 		# web __debugPlace(2, camera + look * 4): an enemy close enough to read its plate
 		var camera := root.get_camera_3d()
@@ -547,6 +571,12 @@ func _capture() -> void:
 			await process_frame
 	for i in fixture_frames:
 		await process_frame   # let the HUD pick the fixture up (and play its animation) before drawing
+	if _mode.begins_with(MODE_STEAM):
+		for seat in root.find_children("*", "LobbySeat", true, false):
+			seat.call("pin_pulse", STEAM_PULSE_S)   # the seats are rebuilt on every refresh: pin the ones on screen
+		for map_background in root.find_children("*", "MapBackground", true, false):
+			map_background.process_mode = Node.PROCESS_MODE_DISABLED   # its fade would show it again (web hides .map-bg)
+			(map_background as CanvasItem).visible = false
 	await _hover_fixture()
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(_output)
@@ -598,7 +628,14 @@ func _capture() -> void:
 			if control != null and control.is_visible_in_tree():
 				menu_boxes[box_name] = _rect(control)
 		facts["MainMenu"] = menu_boxes
-	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen", "WarningSplash", "MatchSettings"]:
+	for seat in root.find_children("*", "LobbySeat", true, false):
+		var seat_boxes := {}
+		for control in seat.find_children("*", "Control", true, false):
+			if control.is_visible_in_tree():
+				seat_boxes[str(seat.get_path_to(control))] = _rect(control)
+		facts["LobbySeat:%s" % seat.name] = seat_boxes
+	for screen_class in ["SettingsScreen", "AboutScreen", "AppearanceScreen", "WarningSplash", "MatchSettings",
+			"SteamFriendPicker", "InviteToast"]:
 		for screen in root.find_children("*", screen_class, true, false):
 			var screen_boxes := {}
 			for control in screen.find_children("*", "Control", true, false):
@@ -669,6 +706,40 @@ func _lobby_fixture(state: String) -> void:
 			room.call("add_bot", LOBBY_BOT_SLOT, LOBBY_BOT_DIFFICULTY, LOBBY_BOT_NAME)
 		"2v2", "ffa":
 			room.call("set_mode", state.trim_suffix(LOBBY_BOTTOM))
+	if to_end:
+		create_timer(LOBBY_SCROLL_S).timeout.connect(func() -> void: lobby.call("scroll_to_end", true))
+
+## A Steam bridge over the tests' fake Steam for the steam-<state> frames (web: the stubbed Tauri bridge): our id, the
+## parity friends and the inviter's name; lobbies are entered at once and quick match finds nothing.
+func _fake_steam() -> Node:
+	var fake: Object = (load(STEAM_FAKE_SCRIPT) as GDScript).new()
+	fake.set("friend_list", STEAM_FRIENDS)
+	fake.set("names", {STEAM_INVITER: STEAM_INVITER_NAME})
+	var bridge: Node = (load(STEAM_BRIDGE_SCRIPT) as GDScript).new()
+	bridge.set("api", fake)
+	root.add_child(bridge)   # before the menu: its _ready runs first
+	return bridge
+
+## web parity-capture-lobby-steam.mjs frames on the fake Steam. Reached through call() / emit_signal(): the menu and the
+## lobby use autoload names, which a -s tool can't compile against.
+func _steam_fixture(state: String) -> void:
+	var menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+	(menu.find_child("Backdrop", true, false) as CanvasItem).visible = false   # web hides the canvases
+	var to_end := state.ends_with(LOBBY_BOTTOM)
+	state = state.trim_suffix(LOBBY_BOTTOM)
+	if state == STEAM_TOAST:
+		menu.get("steam").get("api").emit_signal("lobby_invite", STEAM_INVITER, STEAM_INVITE_LOBBY)
+		return
+	menu.call("open_lobby")
+	var lobby: Node = menu.call("lobby")
+	match state:
+		STEAM_PICKER:
+			lobby.emit_signal("invite_requested")
+		STEAM_INVITED:
+			lobby.emit_signal("invite_requested")
+			menu.find_child("FriendPicker", true, false).emit_signal("picked", STEAM_PICKED[0], STEAM_PICKED[1])
+		STEAM_SEARCHING:
+			lobby.emit_signal("search_requested")
 	if to_end:
 		create_timer(LOBBY_SCROLL_S).timeout.connect(func() -> void: lobby.call("scroll_to_end", true))
 

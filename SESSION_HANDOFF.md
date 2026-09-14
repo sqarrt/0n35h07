@@ -92,10 +92,21 @@
 размытый фон карты в лобби и **трейлер целиком** смержены в `release_2.0.0`: T1 (воспроизведение записи, 1.24/255,
 отчёт `2026-09-14-trailer-replay-*`), T2 (секвенсор: отсчёт 0.64, перебивка 0.08–1.82 после правки жирности, отчёт
 `2026-09-14-trailer-sequencer-*`), T3 (финал 1.75/255, отчёт `2026-09-14-trailer-finale-*`). Сеть N1 (комната на
-транспорте + меш-матч, без Steam; GUT 631/631) смержена. Дальше N2 — GodotSteam 4.22.1 GDExtension (Codeberg,
-`godotsteam-4.22.1-gdextension-plugin-4.4.zip`) → `SteamNet`/`SteamLobby`/`SteamQuickMatch`, SEARCH, приглашения;
-затем N3 (имя из Steam, облако, ачивки, Rich Presence). Следующие слайсы: дробная разрядка букв (целый `spacing_glyph`), сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
-вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+транспорте + меш-матч, без Steam; GUT 631/631) смержена. **Сеть N2 (Steam) смержена** (`feature/godot-steam`): аддон GodotSteam 4.22.1 (win64 + linux64),
+`SteamApi` / автозагрузка `SteamBridge` / `SteamNet` / `SteamLobby` / `SteamQuickMatch` / `SteamNetWiring`, `LobbyState`
++ `DraftRoom`, зоны мест (INVITE A FRIEND, ADD A BOT, TAKE THIS SEAT, ожидание с пульсом, спин поиска),
+`SteamFriendPicker`, `InviteToast` на стекле, потоки `MainMenu` (PLAY хостит Private-лобби, SEARCH/STOP, приглашение /
+Join game / `+connect_lobby` → гость, закрытая комната гостя → снова хост), `tools/steam_smoke.gd` (живой Steam на этой
+машине поднимается). Сверка — отчёт `2026-09-14-steam-lobby-*` (первый из двух с опечаткой в пути источника, верный —
+последний): нативная полоса прокрутки десктопного WebView (`UiScroll`: жёлоб 10 px, стрелки 12 px, ползунок 6 px;
+`LobbyScreen` сужает колонку при переполнении; полоса 0.02/255), `GlyphButton` (✕ с line-height 1), подгонка разрядки
+`UiFont.fitted_spacing` по 100 глифам, `CssBoxShadow`; остаток — целая разрядка. GUT 685/685.
+**Найдено на весь экран:** монитор 3840×2160 при масштабе Windows 150%; в `project.godot` нет масштаба содержимого →
+интерфейс Godot в 1.5 раза мельче web (панель 680 физических px против 1020). Съёмка на весь экран: web
+`set PARITY_FULLSCREEN=1&& node scripts\parity-capture-lobby-steam.mjs …` (`parity-lib.mjs` `FULLSCREEN` 2560×1440 CSS ×
+1.5), Godot `--fullscreen` вместо `--resolution`. **Дальше:** (1) слайс DPI-масштаба: масштаб интерфейса по DPI Windows
+для всех экранов и HUD, сверка в окне и на весь экран; (2) N3 (имя из Steam, облако, ачивки, Rich Presence);
+(3) дробная разрядка букв (целый `spacing_glyph`); (4) радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

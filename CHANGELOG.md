@@ -19,8 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   uses the browser's synthetic bold and line box.
 - **Bold text keeps the original's letter widths.** Large bold lines (titles, the trailer's text cuts) came out wider
   than in the original; the extra width is now taken out of the letter spacing.
+- **Scroll bars match the original's desktop build.** Scrolling screens keep the room of its thin native scroll bar,
+  with arrow buttons and a narrow round-ended thumb, so the lobby's column lines up with the original; the ✕ buttons
+  on seats and in the friend picker keep their small line height.
 
 ### Added
+- **Friends and quick match over Steam.** As in the original's desktop build, PLAY hosts a private Steam lobby: a free
+  seat offers INVITE A FRIEND next to ADD A BOT, the friend picker lists online friends with a search, and an invited
+  friend waits on the seat with a pulsing tag until they sit down or decline. SEARCH looks for a quick match (STOP
+  cancels it), a friend's invite slides into the corner with Accept / Decline, and "Join game" from Steam or a launch
+  link joins the lobby as a guest; a guest whose lobby closes hosts their own again.
 - **The built-in trailer plays from ABOUT → WATCH.** As in the original: a 3-2-1 countdown, text cuts slamming in
   with a neon sweep and a glitch split, recorded matches replayed shot by shot under a cover that lifts once each scene
   is ready, the streak banner carrying across shots, dimmed game sounds, the trailer's own music starting on GO, and the

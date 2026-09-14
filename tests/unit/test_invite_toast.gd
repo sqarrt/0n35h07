@@ -42,6 +42,7 @@ func test_texts_and_answers() -> void:
 	var toast := await _toast()
 	var title := toast.find_child("Title", true, false) as RichTextLabel
 	assert_eq(title.get_parsed_text(), "PARITY7 invites you to a game")
+	assert_eq(title.get_line_count(), 1, "one line in 208 px, like Chrome")
 	var accept := toast.find_child("Accept", true, false) as UiButton
 	var decline := toast.find_child("Decline", true, false) as UiButton
 	assert_eq([accept.text, decline.text], ["Accept", "Decline"])
