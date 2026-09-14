@@ -6,6 +6,9 @@ class_name UiButton extends Button
 const PRIMARY := "primary"
 const SECONDARY := "secondary"
 const GHOST := "ghost"
+const GO := "go"                         # primary + .btn--go: the lobby READY
+const GO_FILL := Color("#23b582")
+const GO_HOVER := Color("#2bcf96")
 const FONT_SIZE := 16                    # 1rem
 const LETTER_SPACING_EM := 0.18
 const PADDING_X := 32.0                  # 2rem
@@ -37,6 +40,13 @@ const LOOKS := {
 		"normal": [Color.TRANSPARENT, UiTokens.GHOST_LINE, UiTokens.MUTED],
 		"hover": [Color.TRANSPARENT, UiTokens.GHOST_LINE_HOVER, UiTokens.TEXT],
 		"pressed": [Color.TRANSPARENT, UiTokens.GHOST_LINE_HOVER, UiTokens.TEXT],
+	},
+	# .btn--go over .btn--primary; `.btn--primary:disabled` outranks it, so a disabled READY keeps the primary fill
+	GO: {
+		"normal": [GO_FILL, GO_FILL, UiTokens.INK],
+		"hover": [GO_HOVER, GO_HOVER, UiTokens.INK],
+		"pressed": [GO_HOVER, GO_HOVER, UiTokens.INK],
+		"disabled": [UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL, UiTokens.INK],
 	},
 }
 ## Godot box state -> the CSS look it shows and the matching text colour key.
@@ -87,13 +97,13 @@ func _init(label := "", button_variant := SECONDARY, sounds := true) -> void:
 
 func set_variant(value: String) -> void:
 	variant = value
-	var bold := value == PRIMARY
+	var bold := value in [PRIMARY, GO]
 	var face := UiFont.bold_spaced(LETTER_SPACING_EM, FONT_SIZE) if bold else UiFont.spaced(LETTER_SPACING_EM, FONT_SIZE)
 	add_theme_font_override("font", UiFont.with_css_line(face, FONT_SIZE))
 	add_theme_font_size_override("font_size", FONT_SIZE)
 	var looks: Dictionary = LOOKS[value]
 	for state in STATES:
-		var look: Array = looks[STATES[state][0]]
+		var look: Array = looks[state] if looks.has(state) else looks[STATES[state][0]]
 		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], face.spacing_glyph))
 		add_theme_color_override(STATES[state][1], look[TEXT])
 	add_theme_color_override("font_focus_color", looks["normal"][TEXT])

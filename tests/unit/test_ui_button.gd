@@ -58,6 +58,13 @@ func test_ghost_looks() -> void:
 	_assert_look(button, "hover", Color.TRANSPARENT, UiTokens.GHOST_LINE_HOVER, UiTokens.TEXT, "font_hover_color")
 	_assert_look(button, "pressed", Color.TRANSPARENT, UiTokens.GHOST_LINE_HOVER, UiTokens.TEXT, "font_pressed_color")
 
+func test_go_looks() -> void:
+	var button := _button("READY", UiButton.GO)
+	_assert_look(button, "normal", UiButton.GO_FILL, UiButton.GO_FILL, UiTokens.INK, "font_color")
+	_assert_look(button, "hover", UiButton.GO_HOVER, UiButton.GO_HOVER, UiTokens.INK, "font_hover_color")
+	_assert_look(button, "disabled", UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL, UiTokens.INK, "font_disabled_color")
+	assert_gt((button.get_theme_font("font") as FontVariation).variation_embolden, 0.0, "a primary button: bold")
+
 func test_disabled_fades_the_whole_button() -> void:
 	var button := _button("RESUME", UiButton.PRIMARY)
 	button.set_enabled(false)
