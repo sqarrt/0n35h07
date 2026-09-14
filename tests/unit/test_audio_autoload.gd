@@ -60,7 +60,7 @@ func test_menu_music_sessions_start_once_and_fade_out() -> void:
 func test_room_codes_are_four_base36_characters() -> void:
 	assert_eq(Audio.random_room_code(func() -> float: return 0.0), "0000")
 	assert_eq(Audio.random_room_code(func() -> float: return 0.9999), "ZZZZ")
-	assert_eq(Audio.random_room_code(func() -> float: return 0.5).length(), Audio.CODE_LENGTH)
+	assert_eq(Audio.random_room_code(func() -> float: return 0.5).length(), RoomCode.LENGTH)
 
 func test_buttons_click_and_hover_through_the_sfx_engine() -> void:
 	var button := Button.new()

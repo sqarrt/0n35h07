@@ -128,6 +128,11 @@ func _ready() -> void:
 	if room != null:
 		refresh()
 
+## A guest's handshake clock (HELLO retries, the connect timeout) runs with the screen.
+func _process(delta: float) -> void:
+	if room is RoomSession:
+		(room as RoomSession).tick(delta)
+
 ## Re-read the room: the mode, the map / time selection, the seats and the actions.
 func refresh() -> void:
 	if room == null or _content == null:

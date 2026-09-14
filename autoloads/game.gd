@@ -13,6 +13,17 @@ var lobby_roster: Array = []                       # the lobby's seats at the st
 var lobby_mode := GameModes.DUEL                   # the lobby preset those seats were taken under
 var warning_seen := false                          # web App showWarning: the warning splash shows once per launch
 var menu_screen := ""                              # the menu screen to reopen when the menu scene loads again ("about")
+var room: RoomSession = null                       # the lobby's room while it's open and through its match (web sessionRef)
+var match_setup := {}                              # the room's START: owners, spawns, local id, seed, peer; {} = tools
+
+const LOCAL_PEER := "local"                        # the transport id of a room nobody else has joined (web selfPeer)
+
+## Leave the room: its transport closes and the match facts go (web leaveRoom).
+func leave_room() -> void:
+	if room != null:
+		room.dispose()
+	room = null
+	match_setup = {}
 
 func _ready() -> void:
 	random.randomize()
