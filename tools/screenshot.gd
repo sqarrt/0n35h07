@@ -519,6 +519,7 @@ func _apply_hud_fixture() -> int:
 			# compile-time dependencies — autoloads aren't globals in a -s script
 			menu.call("set_browser_layout", true)
 			menu.call("backdrop").call("pin_glow_level", 0.0)   # the web tab is silent without a user gesture
+			(menu.call("backdrop") as CanvasItem).visible = false   # web parity-capture-menu.mjs hides the canvases
 		return MENU_FRAMES
 	if _mode == MODE_HUD_STATS:
 		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)
@@ -750,6 +751,9 @@ func _steam_fixture(state: String) -> void:
 ## web page.hover(): a mouse motion pushed onto the laid-out button (for match-end-hover, once the screen has settled).
 func _hover_fixture() -> void:
 	if not HOVER_TARGETS.has(_mode):
+		root.gui_disable_input = true   # the desktop cursor over the tool window would hover a control (web: no mouse)
+		for i in HOVER_FRAMES:
+			await process_frame
 		return
 	if _mode == MODE_MATCH_END_HOVER:
 		var ended := root.find_children("*", "MatchEndedOverlay", true, false)[0] as MatchEndedOverlay

@@ -1,4 +1,4 @@
-class_name SegButton extends Button
+class_name SegButton extends CssButton
 ## A segment toggle — port of web theme.css `.seg`: the tracked 11 px label in a 1 px #334 box, brighter under the
 ## mouse; `seg--on` turns it accent with a faint accent fill. The SMALL size is the bot difficulty picker's
 ## (`.seat-diff .seg`: 9 px, 3 / 8 px padding).
@@ -25,18 +25,17 @@ const STATE_COLORS := {"normal": "font_color", "hover": "font_hover_color", "pre
 var size_variant := NORMAL
 
 var _on := false
-var _spacing := 0
 
 func _init(label := "", variant := NORMAL) -> void:
-	text = label
+	set_label(label)
 	size_variant = variant
 	focus_mode = Control.FOCUS_NONE
 	var spacing_em := UiFont.control_spacing_em(LETTER_SPACING_EM)
 	var font := UiFont.with_css_line(UiFont.spaced(spacing_em, FONT_SIZES[variant]), FONT_SIZES[variant])
-	_spacing = font.spacing_glyph
 	add_theme_font_override("font", font)
 	add_theme_font_size_override("font_size", FONT_SIZES[variant])
 	_apply()
+	set_css_font(FONT_SIZES[variant], spacing_em)
 
 func set_on(on: bool) -> void:
 	if on == _on:
@@ -63,7 +62,7 @@ func _box(background: Color, border: Color) -> StyleBoxFlat:
 	box.set_border_width_all(BORDER_PX)
 	box.anti_aliasing = false
 	box.content_margin_left = padding.x + BORDER_PX
-	box.content_margin_right = padding.x + BORDER_PX + _spacing   # Chrome's trailing letter spacing
+	box.content_margin_right = padding.x + BORDER_PX   # the run keeps Chrome's trailing letter spacing
 	box.content_margin_top = padding.y + BORDER_PX
 	box.content_margin_bottom = padding.y + BORDER_PX
 	return box

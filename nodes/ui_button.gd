@@ -1,4 +1,4 @@
-class_name UiButton extends Button
+class_name UiButton extends CssButton
 ## The project's hard button — port of web ui/Button + theme.css `.btn`: the 16 px UI font spaced 0.18em, 12 / 32 px
 ## padding inside a 1 px border, at least 220 px wide, a flat fill switching instantly per state. Variants: primary
 ## (filled, bold), secondary (outline) and ghost (dim outline). Clicks and hovers sound like the web button.
@@ -114,8 +114,8 @@ var _opacity := 1.0
 
 func _init(label := "", button_variant := SECONDARY, sounds := true, button_metrics: Metrics = null) -> void:
 	metrics = button_metrics if button_metrics != null else Metrics.new()
-	text = label
-	custom_minimum_size.x = metrics.min_width
+	set_label(label)
+	keep_minimum_size(Vector2(metrics.min_width, 0.0))
 	set_variant(button_variant)
 	if sounds:
 		UiSounds.attach(self)
@@ -135,11 +135,11 @@ func set_variant(value: String) -> void:
 	var looks: Dictionary = metrics.looks if not metrics.looks.is_empty() else LOOKS[value]
 	for state in STATES:
 		var look: Array = looks[state] if looks.has(state) else looks[STATES[state][0]]
-		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], face.spacing_glyph,
-			STATES[state][0] == "pressed"))
+		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], STATES[state][0] == "pressed"))
 		add_theme_color_override(STATES[state][1], look[TEXT])
 	add_theme_color_override("font_focus_color", looks["normal"][TEXT])
 	add_theme_stylebox_override("focus", _focus_box())
+	set_css_font(metrics.font_px, metrics.spacing_em, bold, metrics.face)
 
 ## Enable or disable, fading the whole button like CSS opacity (as one layer once grouped()).
 func set_enabled(enabled: bool) -> void:
@@ -174,8 +174,7 @@ func set_cooldown_share(share: float) -> void:
 	style.emit_changed()
 	queue_redraw()
 
-## `trailing_spacing`: Chrome keeps the letter spacing after the last glyph, so the label centres that much to the left.
-func _box(background: Color, border: Color, trailing_spacing: int, pressed := false) -> StyleBoxFlat:
+func _box(background: Color, border: Color, pressed := false) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = background
 	box.border_color = border
@@ -183,7 +182,7 @@ func _box(background: Color, border: Color, trailing_spacing: int, pressed := fa
 	box.set_corner_radius_all(metrics.radius)
 	box.anti_aliasing = metrics.radius > 0   # square CSS box edges stay crisp
 	box.content_margin_left = metrics.padding.x + BORDER_PX
-	box.content_margin_right = metrics.padding.x + BORDER_PX + trailing_spacing
+	box.content_margin_right = metrics.padding.x + BORDER_PX
 	box.content_margin_top = metrics.padding.y + BORDER_PX
 	box.content_margin_bottom = metrics.padding.y + BORDER_PX
 	if pressed and metrics.press_shift != 0:   # the whole box moves, its minimum size does not
