@@ -104,6 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   scene under a slowly orbiting light, framed by the original's camera poses. In the lobby every seated player
   appears on their seat's spot — the Duel pair or the Battle / War square — fading in when they sit down and shrinking
   away when they leave.
+- **The menu glows with the music.** As in the original, the edges of the balls and planet rings on the menu stage
+  light up with a soft glow that follows the music (the menu glow setting turns it off), and the menu panel softly
+  blurs the scene behind it.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds

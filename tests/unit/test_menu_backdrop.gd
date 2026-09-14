@@ -27,9 +27,10 @@ func test_camera_lights_and_ball_spot() -> void:
 
 func test_composites_premultiplied_like_the_web_canvas() -> void:
 	var backdrop := _backdrop()
-	var composite := backdrop.material as ShaderMaterial
+	var composite := backdrop.view().material as ShaderMaterial
 	assert_not_null(composite)
-	assert_eq(composite.shader, MenuBackdrop.PREMULTIPLIED_SHADER, "translucent pixels aren't multiplied by alpha twice")
+	assert_eq(composite.shader, MenuBackdrop.COMPOSITE_SHADER, "translucent pixels aren't multiplied by alpha twice")
+	assert_eq(backdrop.view().texture, backdrop.world().get_texture())
 
 func test_the_ball_waits_out_the_warm_up() -> void:
 	var backdrop := _backdrop()

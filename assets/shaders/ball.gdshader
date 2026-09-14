@@ -12,10 +12,8 @@ uniform bool waves = false;
 uniform float time = 0.0;
 uniform sampler2D art : filter_nearest, repeat_disable, hint_default_white;
 
-const float BALL_RADIUS = 0.5;
-const float WAVE_COUNT = 10.0;
-const float WAVE_AMP = 0.03;
-const float WAVE_SPEED = 3.0;
+#include "res://assets/shaders/ball_waves.gdshaderinc"
+
 const float HALF = 0.5;
 
 varying vec3 art_normal;
@@ -23,7 +21,7 @@ varying vec3 art_normal;
 void vertex() {
 	art_normal = NORMAL;
 	if (waves) {
-		VERTEX += NORMAL * WAVE_AMP * sin(WAVE_COUNT * PI / BALL_RADIUS * VERTEX.y + time * WAVE_SPEED);
+		VERTEX = ball_waves(VERTEX, NORMAL, time);
 	}
 }
 

@@ -95,11 +95,12 @@ const LOBBY_BOXES := ["Title", "Modes", "MapLabel", "Multi", "SelectAll", "TimeL
 	"Map_os_pillars", "Map_os_pool_day", "Map_os_test"]
 const MODE_STAGE := "stage-"           # stage-bot / stage-ffa: the lobby's seat balls alone, the light pinned at 0
 const STAGE_FFA := "ffa"
+const STAGE_GLOW := "-glow-"            # stage-ffa-glow-<level>: web __debugMenuGlowLevel frames
 const STAGE_FRAMES := 90               # the camera damping, the fade-in and the colour easing (web settles 1.5 s)
 const STAGE_BALL_TIME_S := 1.0         # the balls' shader clock (web __debugMenuBallTime)
 const MODE_MENU_BALL := "menu-ball-"   # menu-ball-<degrees>: the backdrop alone, the light pinned
 const MODE_MENU_FULL := "menu-full-"   # menu-full-<degrees>: the browser menu over it, the light pinned
-const MENU_UI := ["Panel", "Version"]
+const MENU_UI := ["PanelBlur", "Panel", "Version"]   # web hides .screen / .version-chip (the panel's blur with it)
 const MENU_BALL_FRAMES := 90          # past the warm-up and the whole fade (web settles for seconds)
 const MODE_MENU := "menu-"
 const MENU_FRAMES := 3               # the column lays out in the browser layout
@@ -305,6 +306,11 @@ func _apply_hud_fixture() -> int:
 		# web parity-capture-lobby-stage.mjs: the room's seats as backdrop balls, every UI layer hidden
 		var state := _mode.trim_prefix(MODE_STAGE)
 		var menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		menu.call("backdrop").call("pin_glow_level", 0.0)   # the menu music would light the edge glow
+		var glow_at := state.find(STAGE_GLOW)
+		if glow_at >= 0:   # stage-<state>-glow-<level>: the edge glow at a pinned audio level
+			menu.call("backdrop").call("pin_glow_level", float(state.substr(glow_at + STAGE_GLOW.length())))
+			state = state.left(glow_at)
 		menu.call("open_lobby")
 		var room: Object = menu.call("lobby").get("room")
 		if state == STAGE_FFA:
@@ -324,6 +330,7 @@ func _apply_hud_fixture() -> int:
 		for menu in root.find_children("*", "MainMenu", true, false):
 			menu.call("set_browser_layout", true)
 			menu.call("backdrop").call("set_light_angle", deg_to_rad(float(_mode.trim_prefix(MODE_MENU_FULL))))
+			menu.call("backdrop").call("pin_glow_level", 0.0)   # the web tab is silent without a user gesture
 		return MENU_BALL_FRAMES
 	if _mode.begins_with(MODE_MENU_BALL):
 		# web parity-capture-menu-ball.mjs: only the 3D backdrop, the orbiting light pinned at the frame's angle
@@ -331,12 +338,14 @@ func _apply_hud_fixture() -> int:
 			for ui_name in MENU_UI:
 				(menu.find_child(ui_name, true, false) as CanvasItem).visible = false
 			menu.call("backdrop").call("set_light_angle", deg_to_rad(float(_mode.trim_prefix(MODE_MENU_BALL))))
+			menu.call("backdrop").call("pin_glow_level", 0.0)   # the web tab is silent without a user gesture
 		return MENU_BALL_FRAMES
 	if _mode.begins_with(MODE_MENU):
 		for menu in root.find_children("*", "MainMenu", true, false):
 			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's
 			# compile-time dependencies — autoloads aren't globals in a -s script
 			menu.call("set_browser_layout", true)
+			menu.call("backdrop").call("pin_glow_level", 0.0)   # the web tab is silent without a user gesture
 		return MENU_FRAMES
 	if _mode == MODE_HUD_STATS:
 		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)

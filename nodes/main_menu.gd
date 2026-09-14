@@ -11,6 +11,8 @@ const PANEL_MAX_WIDTH := 680.0             # .menu-panel width: min(680px, 92vw)
 const PANEL_VIEWPORT_SHARE := 0.92
 const PANEL_BACKGROUND := Color(10.0 / 255.0, 12.0 / 255.0, 17.0 / 255.0, 0.72)
 const PANEL_PADDING := Vector2(40.0, 32.0) # padding: 32px 40px
+const PANEL_BLUR_PX := 2.0                 # backdrop-filter: blur(2px) — σ in pixels
+const BACKDROP_BLUR_SHADER := preload("res://assets/shaders/backdrop_blur.gdshader")
 const PANEL_BORDER_PX := 1                 # border-left / -right: 1px var(--surface-line)
 const LOGO_TEXT := "0N35H07"
 const LOGO_FONT_SIZE := 64                 # 4rem, bold
@@ -43,6 +45,7 @@ const LOGS_DIR := "user://logs"
 const HALF := 0.5
 
 var _panel: Panel
+var _panel_blur: ColorRect
 var _column: CssColumn
 var _lobby: LobbyScreen
 var _backdrop: MenuBackdrop
@@ -63,6 +66,8 @@ func _ready() -> void:
 	_backdrop = MenuBackdrop.new()                   # web App: the persistent 3D backdrop under the menu panel
 	add_child(_backdrop)
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_panel_blur = _backdrop_blur()
+	add_child(_panel_blur)
 	_panel = Panel.new()
 	_panel.name = "Panel"
 	_panel.add_theme_stylebox_override("panel", _panel_box())
@@ -139,6 +144,9 @@ func _layout() -> void:
 	var width := minf(PANEL_MAX_WIDTH, size.x * PANEL_VIEWPORT_SHARE)
 	_panel.position = Vector2(CssPixel.snap((size.x - width) * HALF), 0.0)
 	_panel.size = Vector2(width, size.y)
+	_panel_blur.position = _panel.position
+	_panel_blur.size = _panel.size
+	(_panel_blur.material as ShaderMaterial).set_shader_parameter("box_px", _panel.size)
 	var inset := PANEL_PADDING + Vector2(PANEL_BORDER_PX, 0.0)
 	_column.position = inset
 	_column.size = _panel.size - inset * 2.0
@@ -150,6 +158,17 @@ func _layout() -> void:
 	var chip := _version.get_combined_minimum_size()
 	_version.size = chip
 	_version.position = size - chip - Vector2(VERSION_RIGHT, VERSION_BOTTOM)
+
+## The .menu-panel backdrop-filter: the 3D backdrop behind the panel blurred before its 72% fill is drawn over it.
+func _backdrop_blur() -> ColorRect:
+	var blur := ColorRect.new()
+	blur.name = "PanelBlur"
+	blur.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var composite := ShaderMaterial.new()
+	composite.shader = BACKDROP_BLUR_SHADER
+	composite.set_shader_parameter("sigma", PANEL_BLUR_PX)
+	blur.material = composite
+	return blur
 
 func _panel_box() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
