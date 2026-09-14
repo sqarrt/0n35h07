@@ -39,6 +39,14 @@ var _random := RandomNumberGenerator.new()
 var _rng: Callable
 ## Advance the animations every frame; owners that drive time themselves (the banner's tick) turn it off.
 var auto_advance := true
+## What the box lost to whole pixels across (set by the layout): the plain text, the glow and the copies keep the CSS place.
+var css_offset_x := 0.0:
+	set(value):
+		css_offset_x = value
+		_plain.css_offset_x = value
+		_glow.css_offset_x = value
+		for clip in _glitches:
+			(clip.get_child(0) as CssLabel).css_offset_x = value
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -306,6 +314,7 @@ func _glitch_copy(node_name: String, color: Color, shadow_x: int) -> Control:
 	else:
 		copy.add_theme_font_override("font", _font)
 		copy.add_theme_font_size_override("font_size", _font_size)
+	copy.css_offset_x = css_offset_x
 	copy.add_theme_color_override("font_color", color)
 	copy.add_theme_color_override("font_shadow_color", color)
 	copy.add_theme_constant_override("shadow_offset_x", shadow_x)

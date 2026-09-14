@@ -32,6 +32,7 @@ var _opp_name: EffectText
 var _you_dots: Label
 var _opp_dots: Label
 var _timer: Label
+var _row: CssRow
 var _you := {}
 var _opp := {}
 var _you_streak := NO_STREAK
@@ -48,17 +49,17 @@ func _ready() -> void:
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(spacer)
 
-	var row := HBoxContainer.new()
-	row.name = "Row"
-	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER   # web left: 50% + translateX(-50%)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override("separation", GAP)
-	add_child(row)
+	_row = CssRow.new()
+	_row.name = "Row"
+	_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER   # web left: 50% + translateX(-50%)
+	_row.gap = GAP
+	add_child(_row)
+	sort_children.connect(func() -> void: CssRow.centre_in(_row, size.x))
 
 	_you_frags = _frag_label("YouFrags")
 	_you_name = _name_text("YouName")
 	_you_dots = _dots_label("YouDots")
-	row.add_child(_side([_you_dots, _you_name, _you_frags], BoxContainer.ALIGNMENT_END))
+	_row.add_child(_side([_you_dots, _you_name, _you_frags], CssRow.END))
 
 	var frame := PanelContainer.new()
 	var box := StyleBoxFlat.new()
@@ -66,8 +67,8 @@ func _ready() -> void:
 	box.border_width_left = TIMER_BORDER
 	box.border_width_right = TIMER_BORDER
 	box.border_color = TIMER_BORDER_COLOR
-	box.content_margin_left = TIMER_PADDING
-	box.content_margin_right = TIMER_PADDING
+	box.content_margin_left = TIMER_PADDING + TIMER_BORDER   # the CSS border box: padding and border (111 px in Chrome)
+	box.content_margin_right = TIMER_PADDING + TIMER_BORDER
 	frame.add_theme_stylebox_override("panel", box)
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -75,12 +76,12 @@ func _ready() -> void:
 	_timer.name = "Timer"
 	(_timer as CssLabel).styled("", TIMER_FONT_SIZE, TIMER_SPACING_EM, TIMER_COLOR)
 	frame.add_child(_timer)
-	row.add_child(frame)
+	_row.add_child(frame)
 
 	_opp_frags = _frag_label("OpponentFrags")
 	_opp_name = _name_text("OpponentName")
 	_opp_dots = _dots_label("OpponentDots")
-	row.add_child(_side([_opp_frags, _opp_name, _opp_dots], BoxContainer.ALIGNMENT_BEGIN))
+	_row.add_child(_side([_opp_frags, _opp_name, _opp_dots], CssRow.START))
 	set_players({}, {})
 
 ## Roster entries of both sides ({} = none: the web fallbacks YOU / OPPONENT and --text).
@@ -122,13 +123,12 @@ func _show_streak(player_name: EffectText, dots: Label, entry: Dictionary, fallb
 func _side_color(entry: Dictionary) -> Color:
 	return Color(entry.get("color", AppearanceConst.FALLBACK_TEXT_COLOR))
 
-func _side(children: Array, align: BoxContainer.AlignmentMode) -> HBoxContainer:
-	var side := HBoxContainer.new()
-	side.custom_minimum_size.x = SIDE_WIDTH
-	side.alignment = align
-	side.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	side.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	side.add_theme_constant_override("separation", SIDE_GAP)
+## web `.side`: 150 px wide, flex with a 7 px gap, the content pushed to its `justify` edge.
+func _side(children: Array, justify: int) -> CssRow:
+	var side := CssRow.new()
+	side.css_width = SIDE_WIDTH
+	side.justify = justify
+	side.gap = SIDE_GAP
 	for child in children:
 		side.add_child(child)
 	return side
@@ -141,17 +141,11 @@ func _name_text(node_name: String) -> EffectText:
 	return text
 
 func _dots_label(node_name: String) -> Label:
-	var label := Label.new()
+	var label := CssLabel.new()
 	label.name = node_name
-	label.add_theme_font_override("font", UiFont.spaced(float(DOT_SPACING_PX) / DOT_FONT_SIZE, DOT_FONT_SIZE))
-	label.add_theme_font_size_override("font_size", DOT_FONT_SIZE)
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	return label
+	return label.styled("", DOT_FONT_SIZE, float(DOT_SPACING_PX) / DOT_FONT_SIZE, Color(AppearanceConst.FALLBACK_TEXT_COLOR))
 
 func _frag_label(node_name: String) -> Label:
-	var label := Label.new()
+	var label := CssLabel.new()
 	label.name = node_name
-	label.text = "0"
-	label.add_theme_font_override("font", UiFont.base())
-	label.add_theme_font_size_override("font_size", FRAG_FONT_SIZE)
-	return label
+	return label.styled("0", FRAG_FONT_SIZE, 0.0, Color(AppearanceConst.FALLBACK_TEXT_COLOR))

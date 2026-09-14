@@ -20,6 +20,7 @@ func test_bottom_bars_and_speed_text_are_gone() -> void:
 	assert_null(hud.find_child("Speed", true, false), "the speed readout is an opt-in overlay in the web")
 
 const CENTER_TOLERANCE := 1.0
+const TIMER_TEXT := "02:55"
 const SCREEN := Vector2i(1280, 720)   # the parity capture resolution (headless root is only 64x64)
 
 ## A HUD inside a real-size viewport, laid out for one frame.
@@ -45,6 +46,16 @@ func test_top_bar_row_is_centred_at_the_web_offset() -> void:
 	var row := timer.get_parent().get_parent() as Control   # Timer -> frame -> row
 	assert_almost_eq(row.global_position.x + row.size.x / 2.0, viewport.x / 2.0, CENTER_TOLERANCE, "centred like web translateX(-50%)")
 	assert_almost_eq(row.global_position.y, float(HudTopBar.TOP), CENTER_TOLERANCE, "web .match-hud top: 30px")
+
+func test_the_timer_frame_is_the_css_border_box() -> void:
+	var hud := await _hud_on_screen()
+	(hud.find_child("TopBar", true, false) as HudTopBar).set_state(0, 0, TIMER_TEXT)
+	await get_tree().process_frame
+	var timer := hud.find_child("Timer", true, false) as CssLabel
+	var frame := timer.get_parent() as Control
+	assert_almost_eq(frame.get_combined_minimum_size().x,
+		timer.run().width() + 2.0 * (HudTopBar.TIMER_PADDING + HudTopBar.TIMER_BORDER), CENTER_TOLERANCE * 0.01,
+		"padding 0 14px inside a 1 px border each side: 111 px around 02:55 in Chrome")
 
 func test_timer_uses_the_web_size_and_colour() -> void:
 	var timer := _hud().find_child("Timer", true, false) as Label
