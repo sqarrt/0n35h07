@@ -87,6 +87,7 @@ func tick(delta: float) -> void:
 	if _timeout_left > 0.0:
 		_timeout_left -= delta
 		if _timeout_left <= 0.0:
+			GameLog.warn("room", "connect_timeout", {"sec": _profile.get("connectTimeoutSec"), "peerSeen": found_host})
 			_close()
 
 ## Guest: ask the creator for a free seat (a 2v2 team change).
@@ -151,6 +152,7 @@ func _publish() -> void:
 func _announce_start(setup: Dictionary) -> void:
 	var spawns := _ffa_spawns() if mode == GameModes.WAR else []
 	var owner_map := owners()
+	GameLog.log("room", "start_send", {"mapId": map_id, "durationMs": duration_min * MS_PER_MIN, "mode": mode})
 	net.broadcast(TAG_START, {"durationMs": duration_min * MS_PER_MIN, "mapId": map_id, "spawns": spawns,
 		"owners": owner_map})
 	_add_network_facts(setup, spawns, owner_map)
@@ -163,6 +165,7 @@ func _seats_compacted(old_ids: Array) -> void:
 	_peer_by_slot = peers
 
 func _seat_moved(from_slot: int, to_slot: int) -> void:
+	GameLog.log("room", "slot_move", {"from": from_slot, "to": to_slot})
 	if _peer_by_slot.has(from_slot):
 		_peer_by_slot[to_slot] = _peer_by_slot[from_slot]
 		_peer_by_slot.erase(from_slot)
@@ -175,6 +178,7 @@ func _on_hello(hello: Dictionary, from: String) -> void:
 		return
 	var slot := slots.find(null)
 	if slot < 0:
+		GameLog.warn("room", "hello_reject_full", {"from": from})
 		return                                  # every seat taken: nobody is evicted
 	_peer_by_slot[slot] = from                  # mapped before the room publishes, so the guest gets its ASSIGN
 	seat_guest(_guest_entry(hello), _array_or(hello.get("desiredMap"), map_sel),
@@ -201,6 +205,7 @@ func _send_assign(peer: String) -> void:
 	var your_id := _slot_of(peer)
 	if your_id < 0:
 		return
+	GameLog.log("room", "assign_send", {"mapId": map_id, "durationMin": duration_min, "yourId": your_id})
 	net.send(peer, TAG_ASSIGN, {"yourId": your_id, "roster": roster(), "durationMin": duration_min, "mapId": map_id,
 		"ready": ready_ids(), "mode": mode, "owners": owners(), "seed": music_seed})
 
@@ -257,10 +262,13 @@ func _on_assign(assign: Dictionary, from: String) -> void:
 	local_player_id = int(assign["yourId"])
 	music_seed = String(assign.get("seed", ""))
 	_owners = _int_keys(assign.get("owners", {}))
+	GameLog.log("room", "assign_recv", {"mapId": assign["mapId"], "durationMin": assign["durationMin"],
+		"yourId": local_player_id, "mode": assign["mode"]})
 	apply_room(String(assign["mode"]), assign["roster"], String(assign["mapId"]), int(assign["durationMin"]),
 		assign.get("ready", []))
 
 func _on_start(start: Dictionary, _from: String) -> void:
+	GameLog.log("room", "start_recv", {"mapId": start["mapId"], "durationMs": start["durationMs"]})
 	_started = true
 	map_id = String(start["mapId"])
 	duration_min = roundi(float(start["durationMs"]) / MS_PER_MIN)
@@ -271,6 +279,7 @@ func _on_start(start: Dictionary, _from: String) -> void:
 ## Before the ASSIGN any departure counts; after it only the creator's.
 func _on_peer_left(peer: String) -> void:
 	if _host_peer == "" or peer == _host_peer:
+		GameLog.warn("transport", "host_gone", {"peerSeen": found_host, "connected": connected})
 		_close()
 
 func _close() -> void:

@@ -22,10 +22,14 @@ func _init(net, match_obj) -> void:
 	_net.on(TAG_HIT, func(payload, from): _match.judge_claim(from, payload))
 	if _match.has_method("apply_phase"):
 		_net.on(TAG_PHASE, func(payload, from):
-			if from == _match.creator_peer():   # only the lobby creator stamps the phase
-				_match.apply_phase(payload))
+			if from != _match.creator_peer():   # only the lobby creator stamps the phase
+				GameLog.warn("phase", "phase_drop", {"from": from})
+				return
+			_match.apply_phase(payload))
 	if _match.has_method("handle_peer_left"):
-		_net.on_peer_leave(func(peer): _match.handle_peer_left(peer))
+		_net.on_peer_leave(func(peer):
+			GameLog.warn("transport", "peer_left", {"peer": peer})
+			_match.handle_peer_left(peer))
 
 ## Send outgoing data after the simulation step (now in ms).
 func after_update(now_ms: float) -> void:

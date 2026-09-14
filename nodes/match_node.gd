@@ -38,6 +38,11 @@ var _left := {}       # id -> true: its peer left (web leftIds)
 var _result := {}
 var _freeze_left_ms := 0.0
 var _announced := false
+var _logged_phase := ""                     # session log (web Match diag): the phase last logged
+var _phase_entered_ms := 0.0
+var _phase_warned := false
+var _last_health_ms := -INF
+var _actor_prev := {}                       # id -> {shield, dash} at the last tick
 
 func _ready() -> void:
 	process_physics_priority = 100   # run after the entities' _physics_process each tick
@@ -158,8 +163,39 @@ func _physics_process(delta: float) -> void:
 	if rules.apply_comeback():   # web: at the top of the next tick, before anyone moves or fires
 		singularity_changed.emit(rules.singularity_active)
 	_tick_result(delta)
+	_log_diag()
 	if net_session != null:
 		net_session.after_update(float(clock_ms.call()))
+
+## Session log (web Match diag): each phase transition once, a pre-live phase stuck past the watchdog, a health line
+## every couple of seconds while live, and every player's shield / dash edges.
+func _log_diag() -> void:
+	if not GameLog.is_active():
+		return
+	var now := float(clock_ms.call())
+	var current: String = MatchPhase.NAMES[phase.phase]
+	if current != _logged_phase:
+		_logged_phase = current
+		_phase_entered_ms = now
+		_phase_warned = false
+		GameLog.log("phase", current, {"creator": phase.creator, "ready": phase.ready_ids()})
+	elif not phase.is_live() and not phase.is_ended() and not _phase_warned \
+			and now - _phase_entered_ms > GameLog.PHASE_WATCHDOG_MS:
+		_phase_warned = true
+		GameLog.warn("phase", "stuck", {"phase": current, "ms": now - _phase_entered_ms, "ready": phase.ready_ids()})
+	if phase.is_live() and now - _last_health_ms >= GameLog.HEALTH_HEARTBEAT_MS:
+		_last_health_ms = now
+		GameLog.log("health", "tick", {"peers": _entities.size()})
+	for id in _entities:
+		var player = (_entities[id] as PlayerNode).player
+		var shield: bool = player.shield_active()
+		var dash: bool = player.is_dashing()
+		var prev: Dictionary = _actor_prev.get(id, {"shield": false, "dash": false})
+		if shield != prev["shield"]:
+			GameLog.log("act", "shield", {"id": id, "on": shield})
+		if dash and not prev["dash"]:
+			GameLog.log("act", "dash", {"id": id})
+		_actor_prev[id] = {"shield": shield, "dash": dash}
 
 ## Re-emit rule events as signals (web Match dispatches BEAM_FLASH / SHIELD_BLOCK / PLAYER_HIT from these facts).
 func emit_events(events: Array) -> void:
@@ -309,6 +345,7 @@ func _end_match(reason := MatchResult.REASON_TIME) -> void:
 		return
 	var players: Array = players()
 	var local_team: int = _entities[local_id].player.team if _entities.has(local_id) else NO_TEAM
+	GameLog.log("phase", "match_end", {"reason": reason})   # web endMatch: once per peer
 	_result = MatchResult.compute(players, local_team, reason)
 	_freeze_left_ms = MatchConst.END_FREEZE_MS
 

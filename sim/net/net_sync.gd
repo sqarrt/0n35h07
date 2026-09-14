@@ -77,14 +77,18 @@ func judge_claim(from: String, claim: Dictionary) -> Dictionary:
 	if not players.has(hit_id) or not players.has(shooter_id):
 		return {}
 	if not _sender_owns(from, shooter_id):
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "from": from, "reason": "not_owner"})
 		return {}
 	var victim = players[hit_id]
 	var shooter = players[shooter_id]
 	if victim == shooter:
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "bad_target"})
 		return {}
 	if shooter.team == victim.team:
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "teammate"})
 		return {}                    # teammate: no harm
 	if not victim.alive:
+		GameLog.log("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "dead"})
 		return {}
 	var point: Vector3 = victim.position()
 	var claim_point = claim.get("point")
@@ -97,13 +101,17 @@ func judge_claim(from: String, claim: Dictionary) -> Dictionary:
 		point = Vector3(claim_point[0], claim_point[1], claim_point[2])
 	var distance: float = shooter.position().distance_to(point)
 	if not is_finite(distance) or distance > CombatConst.AIM_RANGE:
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "range", "dist": distance})
 		return {}
+	GameLog.log("act", "claim_judge", {"shooter": shooter_id, "victim": hit_id, "dist": distance})
 	var res: String = victim.receive_hit()   # the shield on the victim's screen wins
 	var verdict: Dictionary
 	if res == "blocked":
 		verdict = {"t": "block", "shooter": shooter_id, "victim": hit_id, "perfect": victim.is_perfect_block()}
+		GameLog.log("act", "block", {"shooter": shooter_id, "victim": hit_id, "perfect": verdict["perfect"]})
 	else:
 		verdict = {"t": "kill", "shooter": shooter_id, "victim": hit_id}
+		GameLog.log("act", "kill", {"shooter": shooter_id, "victim": hit_id})
 	var local := rules.apply_combat_event(verdict)
 	emit_event(verdict)
 	return local
@@ -125,11 +133,23 @@ func apply_peer_event(from: String, e: Dictionary) -> Dictionary:
 	match e.get("t", ""):
 		"kill", "block":
 			var v := int(e["victim"])
-			if not owned_ids.has(v) and _sender_owns(from, v):
-				return rules.apply_combat_event(e)
+			if owned_ids.has(v):
+				return {}
+			if not _sender_owns(from, v):
+				GameLog.warn("act", "event_drop", {"t": e["t"], "from": from, "victim": v})
+				return {}
+			var fields := {"side": "remote", "shooter": e.get("shooter"), "victim": v}
+			if e["t"] == "block":
+				fields["perfect"] = bool(e.get("perfect", false))
+			GameLog.log("act", e["t"], fields)
+			return rules.apply_combat_event(e)
 		"respawn":
 			var id := int(e["id"])
-			if players.has(id) and not owned_ids.has(id) and _sender_owns(from, id):
+			if players.has(id) and not owned_ids.has(id):
+				if not _sender_owns(from, id):
+					GameLog.warn("act", "event_drop", {"t": "respawn", "from": from, "id": id})
+					return {}
+				GameLog.log("act", "respawn", {"side": "remote", "id": id})
 				var pos: Array = e["pos"]
 				players[id].respawn_at(Vector3(pos[0], pos[1], pos[2]))
 	return {}

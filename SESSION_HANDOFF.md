@@ -114,8 +114,13 @@ UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144
 `ProfileStore.save_hook`), `SteamPresence` (меню/лобби/матч); автозагрузка `SteamBridge` первой. Живой прогон
 `tools/steam_smoke.gd` (`--log-file`, т. к. GUI-exe не пишет в консоль): имя, облачный блоб web-сборки читается, RP
 ставится. Грабля: статическая функция `is_tool` на классе уходит во встроенный `Script.is_tool()`. Отчёт
-`2026-09-14-steam-profile-*`. **Дальше:** (1) дробная разрядка букв (целый `spacing_glyph`); (2) радио (кнопка RADIO и
-мини-плеер в меню десктопа, DLC). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`2026-09-14-steam-profile-*`. **Журнал сессии D1 смержен** (`feature/godot-game-log`): `GameLog` (статический, как web
+`gameLog`), `GameLogFormat`, `LogRetention`, `GameLogSink` (`user://logs/oneshot-*.log`, 1 с / 400 строк, 15 файлов),
+`GameLogErrors` (`OS.add_logger`), установка в `Game._ready` только при Steam и не `-s`; события web в комнате,
+согласовании, матче, сети и лобби Steam. Живой запуск (`--quit-after 400`) записал `session_start`. Отчёт
+`2026-09-14-game-log-*`. Найдено: в порте нет предсказания убийства (web `predictOpponentDeath`). **Дальше:**
+(1) предсказание убийства в сетевом бою; (2) дробная разрядка букв (целый `spacing_glyph`, в 4.7 разрядка только
+целая — нужен свой рисующий контрол); (3) радио (кнопка RADIO, мини-плеер, DLC; нужен веб-рантайм для Strudel). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

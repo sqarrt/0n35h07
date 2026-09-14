@@ -16,8 +16,11 @@ var menu_screen := ""                              # the menu screen to reopen w
 var room: RoomSession = null                       # the lobby's room while it's open and through its match (web sessionRef)
 var match_setup := {}                              # the room's START: owners, spawns, local id, seed, peer; {} = tools
 
+var log_sink: GameLogSink = null                  # the Steam build's session log file (web logSink); null elsewhere
+
 const LOCAL_PEER := "local"                        # the transport id of a room nobody else has joined (web selfPeer)
 const HEADLESS_DISPLAY := "headless"               # DisplayServer.get_name() of a --headless run
+const CLIENT_PLATFORM := "desktop"                 # web CLIENT_PLATFORM on the Steam build
 
 ## Leave the room: its transport closes and the match facts go (web leaveRoom).
 func leave_room() -> void:
@@ -26,11 +29,23 @@ func leave_room() -> void:
 	room = null
 	match_setup = {}
 
+## web installGameLog: the session file, its header and the engine's uncaught errors (the sink flushes on the way out).
+func _start_game_log() -> void:
+	log_sink = GameLogSink.new()
+	log_sink.name = "GameLogSink"
+	add_child(log_sink)
+	GameLog.install(log_sink)
+	OS.add_logger(GameLogErrors.new())
+	GameLog.log("life", "session_start", {"version": GAME_VERSION, "appId": SteamApi.APP_ID, "platform": CLIENT_PLATFORM,
+		"engine": Engine.get_version_info()["string"]})
+
 func _ready() -> void:
 	DisplayStartup.start(get_tree().root, OS.get_cmdline_args(), DisplayServer.get_name() == HEADLESS_DISPLAY,
 		DisplayServer.screen_get_dpi())
 	random.randomize()
 	var cloud := SteamBridge.available() and not DisplayStartup.is_tool_run(OS.get_cmdline_args())
+	if cloud:   # web installGameLog: the session log exists on the Steam build only
+		_start_game_log()
 	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
 		if cloud:   # web main.tsx: reconcile with Steam Cloud before the profile is read
 			ProfileCloud.sync_on_startup(SteamBridge, random.randf)

@@ -54,6 +54,7 @@ func _resolve_combat() -> void:
 			continue
 		_last_seq[shooter.id] = w.fire_seq
 		var o: Dictionary = w.outcome
+		GameLog.log("act", "fire", {"id": shooter.id, "hit": int(o["hit_entity_id"])})
 		events.append({"t": "fired", "id": shooter.id, "end": o["end"], "hit_point": o["hit_point"], "hit": int(o["hit_entity_id"])})
 		var eid: int = int(o["hit_entity_id"])
 		if eid < 0:
@@ -73,9 +74,11 @@ func _resolve_hit(shooter, victim, point) -> void:
 	var res: String = victim.receive_hit()
 	if res == "blocked":
 		var perfect: bool = victim.is_perfect_block()
+		GameLog.log("act", "block", {"shooter": shooter.id, "victim": victim.id, "perfect": perfect})
 		_apply_block(shooter, victim, perfect)
 		events.append({"t": "block", "shooter": shooter.id, "victim": victim.id, "perfect": perfect})
 	else:
+		GameLog.log("act", "kill", {"shooter": shooter.id, "victim": victim.id})
 		var first_blood := _apply_kill(shooter, victim)
 		events.append({"t": "kill", "shooter": shooter.id, "victim": victim.id, "point": point,
 			"streak": (shooter.streak if shooter != victim else 0), "first_blood": first_blood})
@@ -127,6 +130,7 @@ func _resolve_respawns(dt: float) -> void:
 		p.respawn_timer -= dt * 1000.0
 		if p.respawn_timer <= 0.0:
 			p.respawn_at(p.position())
+			GameLog.log("act", "respawn", {"id": p.id})
 			events.append({"t": "respawn", "id": p.id, "pos": p.position()})
 
 func _owns(id: int) -> bool:
