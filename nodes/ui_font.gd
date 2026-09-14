@@ -21,6 +21,7 @@ const MEASURE_PX := 1000                       # fractional em metrics are read 
 const FAKE_BOLD_SIZES := Vector2(9.0, 36.0)
 const FAKE_BOLD_RATIOS := Vector2(1.0 / 24.0, 1.0 / 32.0)
 const EMBOLDEN_UNIT_SIZE := 16.0
+const EMBOLDEN_ADVANCE_DIVISOR := 64.0         # Godot widens an emboldened advance by embolden × size / 64 px
 ## The Latin face's hhea metrics (units per em 1000: ascender 885, descender -242).
 const ASCENT_EM := 0.885
 const DESCENT_EM := 0.242
@@ -81,12 +82,23 @@ static func spaced(letter_spacing_em: float, font_size: int, css_px := 0.0, face
 	mirror_fallbacks(variation)
 	return variation
 
-## The spaced face in CSS font-weight bold.
+## The spaced face in CSS font-weight bold. Chrome's synthetic bold keeps every advance, Godot's embolden widens each
+## one (embolden_advance): that share comes out of the letter spacing.
 static func bold_spaced(letter_spacing_em: float, font_size: int, css_px := 0.0, face: Font = null) -> FontVariation:
 	var variation := spaced(letter_spacing_em, font_size, css_px, face)
 	variation.variation_embolden = fake_bold_embolden(font_size)
+	variation.spacing_glyph = bold_spacing_px(letter_spacing_em * _px(font_size, css_px), variation.variation_embolden,
+		font_size)
 	mirror_fallbacks(variation)
 	return variation
+
+## Whole-pixel letter spacing for an emboldened face that adds up to Chrome's `spacing_px` per glyph.
+static func bold_spacing_px(spacing_px: float, embolden: float, font_size: int) -> int:
+	return roundi(spacing_px - embolden_advance(embolden, font_size))
+
+## How much Godot's TextServer widens each glyph advance of a face emboldened by `embolden` at `font_size`.
+static func embolden_advance(embolden: float, font_size: int) -> float:
+	return embolden * font_size / EMBOLDEN_ADVANCE_DIVISOR
 
 ## Glyphs from the fallback faces (Cyrillic, CJK) take the variation's letter spacing and synthetic bold too: with its
 ## own fallbacks empty, a FontVariation falls back to the base face's plain fonts, which carry neither (Chrome spaces and

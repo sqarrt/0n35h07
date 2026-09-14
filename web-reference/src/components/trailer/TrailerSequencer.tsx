@@ -188,7 +188,8 @@ export function TrailerSequencer({ masterVolume, onDone }: TrailerSequencerProps
   useEffect(() => {
     if (shot?.type !== 'finale') { setShowTitle(false); return }
     const tTitle = setTimeout(() => { setShowTitle(true); music.stop() }, 3600)
-    const tEnd = setTimeout(finish, 9000)   // fallback in case FinaleScene never reaches onEnd
+    // fallback in case FinaleScene never reaches onEnd (not while a parity capture holds the clock)
+    const tEnd = window.__debugTrailerHoldClock ? undefined : setTimeout(finish, 9000)
     return () => { clearTimeout(tTitle); clearTimeout(tEnd) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shotIndex])

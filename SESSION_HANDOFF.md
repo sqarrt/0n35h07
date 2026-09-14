@@ -76,9 +76,10 @@
 | Трейлер T1a: данные повтора | `RemoteState` + `Player.remote` (геттеры замаха/рывка/щита/готовности берут состояние снаружи; `NetProtocol.apply_player_snapshot` его заполняет — пригодится и сети), `DemoClip` (записи `assets/demos/*.demo.json`, камера, снимки игроков), `DemoTimeline` (часы по фрагментам, смесь кадров, события, склейки, сигнал перед концом). Визуала пока нет — отчёта нет; спека `docs/superpowers/specs/2026-09-14-godot-trailer-design.md` |
 | Трейлер T1b: воспроизведение | `PlayerNode.replay` (без симуляции, купол щита и сдутие замаха по `remote`, `play_remote_beam`), `MatchNode.replay` (часы записи), `Hud.replay` (без полосы звука/статистики/перегрева), `DemoPlayback` (карта, игроки, камера записи, события, сигнал `sound`; фон `#05070d`, без теней — как холст плана трейлера); web-хуки `__debugTrailerShot`/`__debugTrailerHoldFrame`, `parity-capture-trailer-frame.mjs`, режим `trailer-frame-<clip>-<frame>` на `scenes/trailer_frame.tscn` |
 | Трейлер T2: секвенсор | `TrailerScreen` (`scenes/trailer.tscn`, `exit_scene` → меню, `Game.menu_screen` = about) по `TrailerEdl`: `HudCountdown` (тики, GO → `Audio.play_trailer_music`), `TrailerCutView` + `TrailerCut` (ключи CSS по свойствам, `GlowText` в `CssOpacity` под скошенным `Node2D`, шейдер полосы `trailer_cut_bar`, общий `css_box.gdshaderinc`), `DemoPlayback` под покрышкой (`CssTransition` с кривой), `DemoPlayback.announced` → свой `HudStreakBanner`, `TrailerSkipButton` (▸ на Consolas: `UiFont.base_with`, `mixed_line_px`), `TrailerTitleCard`, `hold_at`/`wake`; `Hud.replay` без вспышек/щитового свечения/баннера; `HudCountdown` — жирность Chrome и CSS-строка; web-хук `__debugTrailerHoldClock`, `parity-capture-trailer-cut.mjs` (анимации композитора → встроенный стиль), режим `trailer-shot-<план>-<ms>[-awake]` |
+| Трейлер T3: финал | `FinaleTimeline` (замах 0.35×, выстрел, 0.05×, отъезд камеры, конец 7.5 s), `FinaleScene` (бойцы `BallVisual` + `WindupWorldView` + `BeamFx`, свет ÷ π, float-вьюпорт в `BloomChain`, композит меню «сцена SCREEN bloom», `hold_at` шагами 1/60), `BloomChain` вынесен из `MenuEdgeGlow`; `TrailerScreen` ставит финал под титр; `UiFont.bold_spaced`/`bold_spacing_px` — embolden Godot расширял каждую букву (size×embolden/64), теперь вычитается из разрядки; web-хуки `__debugFinaleHoldS`/`__debugFinaleAt`, `parity-capture-trailer-finale.mjs`, режим `trailer-shot-11-<ms>` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map, trailer-replay, trailer-sequencer).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n, warning-splash, match-settings, ready-ritual, lobby-map, trailer-replay, trailer-sequencer, trailer-finale).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
@@ -87,10 +88,9 @@
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
 шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT и APPEARANCE с превью
 стилей, переводы интерфейса i18n (10 языков), заставка-предупреждение M6, настройки в паузе, ритуал готовности матча и
-размытый фон карты в лобби смержены в `release_2.0.0`. Трейлер: T1 (воспроизведение записи, кадр 1.24/255, отчёт
-`2026-09-14-trailer-replay-*`) и T2 (секвенсор: отсчёт 0.64, перебивка 0.20–4.36, отчёт `2026-09-14-trailer-sequencer-*`,
-GUT 601/601) готовы; дальше T3 — `FinaleScene` (замедленная встречная дуэль под титром; титр `TrailerTitleCard` и
-тайминги 3.6 / 9 s уже есть, сейчас под ним однотонный #04050a), кадр титра сверить вместе со сценой. Следующие слайсы: дробная разрядка букв (перебивка трейлера шире на 17 px), сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
+размытый фон карты в лобби и **трейлер целиком** смержены в `release_2.0.0`: T1 (воспроизведение записи, 1.24/255,
+отчёт `2026-09-14-trailer-replay-*`), T2 (секвенсор: отсчёт 0.64, перебивка 0.08–1.82 после правки жирности, отчёт
+`2026-09-14-trailer-sequencer-*`), T3 (финал 1.75/255, отчёт `2026-09-14-trailer-finale-*`). Следующие слайсы: дробная разрядка букв (целый `spacing_glyph`), сеть/Steam-лобби (в десктопной сборке дуэль со свободным местом показывает SEARCH
 вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
@@ -103,8 +103,10 @@ GUT 601/601) готовы; дальше T3 — `FinaleScene` (замедленн
 - Открыто после темы UI: MENU — дробная базовая линия Chrome (отчёт `2026-09-14-ui-theme-*`).
 - Открыто после лобби: нет сети (Steam-приглашения, SEARCH, гости; в проекте нет аддона GodotSteam) (отчёты
   `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
-- Открыто после трейлера T2: нет финальной сцены `FinaleScene` (T3); текст перебивки шире на 17 px (целая разрядка),
-  цифра отсчёта на 2 px правее/выше (отчёт `2026-09-14-trailer-sequencer-*`).
+- Открыто после трейлера: жирные буквы на 2 px выше (титр, перебивка), цифра отсчёта на 2 px правее/выше, CTA на 1 px;
+  случайные рывки rage / частицы singularity не детерминированы (отчёты `2026-09-14-trailer-sequencer-*`,
+  `2026-09-14-trailer-finale-*`). Правка жирности (`bold_spacing_px`) затронула крупный жирный текст всех экранов —
+  другие экраны после неё не пересняты.
 - Открыто после главного меню: мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
   RADIO скрыт до радио (отчёт `2026-09-14-settings-about-*`).
 - Открыто после i18n: высота CJK-строки на 12 / 14 / 24 px (Chrome 16 / 19 / 31, Godot 17 / 17 / 32) — поправки
@@ -112,7 +114,7 @@ GUT 601/601) готовы; дальше T3 — `FinaleScene` (замедленн
 - **Лобби L1–L6**: режимы DUEL/BATTLE/WAR, места, боты (ник/сложность), карты мультивыбор, длительность 3/5/10,
   код комнаты; карта `os_test`; ready-оверлей (фаза ready).
 - **Сеть в матче**: NetSync к MatchNode, транспорт (ENet/WebRTC/Steam), RoomSession; **Steam** (GodotSteam, имя из Steam);
-  **радио** (WebView + Strudel); редактор карт; трейлер; неймплейты 2v2/FFA.
+  **радио** (WebView + Strudel); редактор карт; неймплейты 2v2/FFA.
 
 ## 6. Грабли (не наступать повторно)
 

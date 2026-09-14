@@ -17,13 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   available a moment after the mouse is released.
 - **The pre-fight countdown number matches the original's weight.** It was drawn bolder and a few pixels high; it now
   uses the browser's synthetic bold and line box.
+- **Bold text keeps the original's letter widths.** Large bold lines (titles, the trailer's text cuts) came out wider
+  than in the original; the extra width is now taken out of the letter spacing.
 
 ### Added
 - **The built-in trailer plays from ABOUT → WATCH.** As in the original: a 3-2-1 countdown, text cuts slamming in
   with a neon sweep and a glitch split, recorded matches replayed shot by shot under a cover that lifts once each scene
   is ready, the streak banner carrying across shots, dimmed game sounds, the trailer's own music starting on GO, and the
-  closing title. It is always in English; the cursor and SKIP hide after a moment without mouse movement, and SKIP or
-  Esc returns to ABOUT. The finale's slow-motion duel is still to come.
+  closing slow-motion duel — two fighters charge and fire, their beams freeze mid-flight as the camera pulls back and
+  the title surfaces. It is always in English; the cursor and SKIP hide after a moment without mouse movement, and SKIP
+  or Esc returns to ABOUT.
 - **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
   victim's owner against the victim's real local state — the shield on the victim's screen always wins — and every
   peer derives the same score, streak, bounty and perfect-block reward from the verdict. Claims, verdicts and
