@@ -7,8 +7,6 @@ const SFX_BUS := "Sfx"
 const MENU_MUSIC_BUS := "MenuMusic%d"          # a fresh prefix per session: a fading session keeps its own buses
 const TRAILER_MUSIC_BUS := "TrailerMusic%d"
 const TRAILER_ECHO_TAIL_SEC := 2.6             # web ECHO_TAIL_MS: the echo rings out before the session goes
-const CODE_ALPHABET := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"   # web randomRoomCode: base-36, upper case
-const CODE_LENGTH := 4                                           # web CODE_LEN
 const KEY_MASTER := "volumeMaster"
 const KEY_MUSIC := "volumeMusic"
 const KEY_SFX := "volumeSfx"
@@ -121,10 +119,7 @@ func stop_menu_music() -> void:
 
 ## A room-code-like music seed for a local match (web randomRoomCode).
 static func random_room_code(rng: Callable) -> String:
-	var code := ""
-	for i in CODE_LENGTH:
-		code += CODE_ALPHABET[mini(CODE_ALPHABET.length() - 1, floori(rng.call() * CODE_ALPHABET.length()))]
-	return code
+	return RoomCode.random(rng)
 
 func _volume(key: String) -> float:
 	return clampf(float(Game.profile.get(key, 1.0)), 0.0, 1.0)
