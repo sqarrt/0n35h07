@@ -9,6 +9,7 @@ const GAME_MODES := [DUEL, BATTLE, WAR]
 const SLOT_COUNT := {DUEL: 2, BATTLE: 4, WAR: 4}
 ## Display names — universal brand words, not localised (web MODE_LABEL).
 const LABELS := {DUEL: "Duel", BATTLE: "Battle", WAR: "War"}
+const TEAM_COLORS := [Color("#3377ff"), Color("#ff5533")]   # web TEAM_COLORS #37f / #f53 (2v2 totals, nameplates)
 const FFA_MIN_PLAYERS := 2              # an FFA room may start as a pair
 const TEAM_SIZE_2V2 := 2                # slots 0-1 -> team 0, slots 2-3 -> team 1
 
