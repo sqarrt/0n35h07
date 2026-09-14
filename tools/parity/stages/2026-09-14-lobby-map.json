@@ -1,0 +1,65 @@
+{
+  "id": "2026-09-14-lobby-map",
+  "title": "Сверка паритета OneShot · размытая карта в фоне лобби",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс фона лобби: web `components/MapBackground.tsx` и theme.css `.map-bg` — превью выбранной карты на весь экран (`object-fit: cover`) с `filter: blur(5px) brightness(0.7)`, проявление 0.7 s вместе с лобби и перекрёстный переход 320 ms при смене карты. Кадры сравнивают только фон: 3D-шары, панель и чип версии скрыты.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-lobby-map.json`. Web: `web-reference/scripts/parity-capture-lobby-map.mjs` (меню → PLAY, холсты, `.menu-panel` и `.version-chip` скрыты; os_arena через 1.5 s, затем выбор os_india и 1 s) → `test-results/parity-lobby-map/web-map-bg-*.png` + `web-lobby-map.json`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режим `profile:lobby-map-<id>` (лобби открыто, карта комнаты задана, фон 3D, панель, размытие под ней и чип скрыты; 90 кадров) → `godot-map-bg-*.png`. Пиксели — среднее отличие каналов (0–255).",
+  "pages": [
+    {
+      "slug": "lobby-map",
+      "name": "Фон лобби",
+      "verdict": "Фон карты перенесён: превью 1024×640 растянуто на 1280×800 и обрезано по центру, размыто гауссом σ 5 px с прозрачностью за краями (края уходят в цвет страницы, как у CSS-фильтра), затемнено до 70%; проявляется за 0.7 s при открытии лобби и гаснет при выходе, при смене карты старая картинка гаснет поверх новой за 320 ms. Кадры совпадают с web: os_arena 0.04/255, os_india 0.04/255 (центр 0.00 и 0.06, края 0.00).",
+      "verdict_short": "Фон карты совпадает",
+      "conditions": [
+        ["сборка", "браузер (фон одинаков в обеих сборках)", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "после проявления (1.5 s) и после смены карты (1 s)", "90 кадров после открытия лобби"],
+        ["тесты", "—", "GUT 560/560 (`test_map_background`)"]
+      ],
+      "comparisons": [
+        {"title": "os_arena", "wipe": true,
+          "note": "Выбор карты по умолчанию (web draftSel.map[0]).",
+          "panels": [
+            {"kind": "web", "img": "parity-lobby-map/crops/web-os_arena.png", "note": "—"},
+            {"kind": "godot", "img": "parity-lobby-map/crops/godot-os_arena.png", "note": "0.04/255"}
+          ]},
+        {"title": "os_india после смены", "wipe": true,
+          "note": "Одиночный выбор плитки заменяет карту комнаты.",
+          "panels": [
+            {"kind": "web", "img": "parity-lobby-map/crops/web-os_india.png", "note": "—"},
+            {"kind": "godot", "img": "parity-lobby-map/crops/godot-os_india.png", "note": "0.04/255"}
+          ]},
+        {"title": "Угол: край размытия (×4)", "wipe": true,
+          "note": "Фильтр видит прозрачность за краем элемента: картинка уходит в фон страницы.",
+          "panels": [
+            {"kind": "web", "img": "parity-lobby-map/crops/web-os_india-corner.png", "note": "—"},
+            {"kind": "godot", "img": "parity-lobby-map/crops/godot-os_india-corner.png", "note": "0.00/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "LM1", "severity": "fixed",
+          "title": "В лобби не было размытого фона карты",
+          "web": "`MapBackground` при `screen === 'lobby'`: `<img>` превью с `.map-bg` (blur 5px, brightness 0.7, opacity 0.7s ease), при смене карты — снимок старой карты с анимацией `map-snap-out` 320 ms.",
+          "godot": "`MapBackground` за `MenuBackdrop` в `MainMenu`: два слоя (текущий и гаснущий), в каждом превью рисуется в SubViewport, горизонтальный проход размытия — во вложенном SubViewport один раз на карту, вертикальный — на экране (`image_blur`: предумноженный цвет, прозрачность за краями, модуляция = brightness и opacity). Карта — `room.map_sel[0]`, показ — `open_lobby` / `close_lobby`. Было: за шарами лобби был только цвет фона.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/map_background.gd", "assets/shaders/image_blur.gdshader", "nodes/main_menu.gd", "tests/unit/test_map_background.gd", "web-reference/src/components/MapBackground.tsx"]
+        },
+        {
+          "id": "LM2", "severity": "fixed",
+          "title": "Второй слой не показывался после смены карты",
+          "web": "Новая картинка сразу видна под гаснущей старой.",
+          "godot": "Найдено на первом кадре os_india (21.91/255, только цвет фона): слой, скрытый после своего затухания, становился текущим, но оставался невидимым. `_apply` теперь всегда показывает текущий слой; тест проверяет несколько смен подряд.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/map_background.gd", "tests/unit/test_map_background.gd"]
+        }
+      ],
+      "limitations": [
+        "Во время перекрёстного перехода прозрачность накладывается на слои по отдельности, а не на собранную группу `.map-bg`; кадры сняты после переходов.",
+        "Карты без превью web рисует живым холстом (`MapBackgroundCanvas`); у всех пяти карт превью есть, запасной путь не перенесён."
+      ]
+    }
+  ]
+}

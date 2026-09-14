@@ -60,6 +60,7 @@ var _panel_slide := 0.0
 var _panel_slide_target := 0.0
 var _settings_section := SettingsScreen.SECTION_PLAYER   # web App keeps the settings tab across visits
 var _backdrop: MenuBackdrop
+var _map_background: MapBackground
 var _buttons: Array[UiButton] = []
 var _quit: UiButton
 var _hint: Label
@@ -75,6 +76,8 @@ func _ready() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_map_background = MapBackground.new()            # web App: the lobby's blurred map behind the spheres
+	add_child(_map_background)
 	_backdrop = MenuBackdrop.new()                   # web App: the persistent 3D backdrop under the menu panel
 	add_child(_backdrop)
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -110,6 +113,7 @@ func open_lobby() -> void:
 	_column.visible = false
 	_show_room(room)
 	room.changed.connect(_show_room.bind(room))
+	_map_background.set_shown(true)
 	_layout()
 
 ## BACK / LEAVE: the room closes, the menu returns.
@@ -117,6 +121,7 @@ func close_lobby() -> void:
 	if _lobby != null:
 		_lobby.queue_free()
 		_lobby = null
+	_map_background.set_shown(false)
 	_column.visible = true
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
@@ -226,6 +231,8 @@ func backdrop() -> MenuBackdrop:
 
 ## web App: the lobby backdrop shows the room's seats and frames the preset (Duel pair / Battle-War square).
 func _show_room(room: RoomModel) -> void:
+	if not room.map_sel.is_empty():
+		_map_background.show_map(room.map_sel[0])   # web lastMapId: roomView.mapId ?? draftSel.map[0]
 	_backdrop.set_screen(MenuCameraRig.SCREEN_LOBBY, room.mode)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_LOBBY, MenuStage.profile_spec(Game.profile), room.occupied(),
 		RoomModel.HOST_SLOT))

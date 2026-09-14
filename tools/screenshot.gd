@@ -79,6 +79,8 @@ const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
 const MODE_TEAM := "team-"
+const MODE_LOBBY_MAP := "lobby-map-"   # lobby-map-<id>: the lobby's blurred map background alone
+const LOBBY_MAP_FRAMES := 90           # past the 0.7 s fade-in (web waits 1.5 s)
 const MODE_READY := "ready-"          # ready-duel / ready-2v2: the ready ritual before the local player confirms
 const READY_FRAMES := 2
 const PLATE_SUFFIX := "-plate"        # team-<mode>-plate: an enemy bot placed in front of the camera
@@ -339,6 +341,14 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_PAUSE):
 		_pause_fixture(_mode.trim_prefix(MODE_PAUSE))
 		return PAUSE_FRAMES
+	if _mode.begins_with(MODE_LOBBY_MAP):
+		# web parity-capture-lobby-map.mjs: the lobby on that map, only the blurred background left on screen
+		var map_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		map_menu.call("open_lobby")
+		map_menu.call("lobby").get("room").call("set_map", [_mode.trim_prefix(MODE_LOBBY_MAP)])
+		for ui_name in MENU_UI + ["Backdrop"]:
+			(map_menu.find_child(ui_name, true, false) as CanvasItem).visible = false
+		return LOBBY_MAP_FRAMES
 	if _mode.begins_with(MODE_LOBBY):
 		_lobby_fixture(_mode.trim_prefix(MODE_LOBBY))
 		return LOBBY_FRAMES
