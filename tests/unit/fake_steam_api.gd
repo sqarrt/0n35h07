@@ -13,6 +13,7 @@ signal session_requested(steam_id: int)
 const NEW_LOBBY := 900
 
 var up := true
+var respond := true                             # false: lobby requests go unanswered (a slow Steam)
 var steam_id := 100
 var name := "SELF"
 var members := {}                               # lobby -> Array[int]
@@ -21,6 +22,8 @@ var sent: Array = []                            # [[to, data]]
 var presence := {}                              # key -> value
 var joinable := {}                              # lobby -> bool
 var left: Array = []
+var created_public: Array = []                  # the visibility of every lobby asked for
+var joined: Array = []                          # every lobby asked to join
 var friend_list: Array = []
 var names := {}
 var command_line := ""
@@ -43,12 +46,18 @@ func persona_name() -> String:
 func friend_name(id: int) -> String:
 	return names.get(id, "")
 
-func create_lobby(_public: bool) -> void:
+func create_lobby(public: bool) -> void:
+	created_public.append(public)
+	if not respond:
+		return
 	members[NEW_LOBBY] = [steam_id]
 	lobby_created.emit(true, NEW_LOBBY)
 	lobby_joined.emit(true, NEW_LOBBY)          # Steam reports entering the lobby it created too
 
 func join_lobby(id: int) -> void:
+	joined.append(id)
+	if not respond:
+		return
 	var list: Array = members.get(id, [])
 	list.append(steam_id)
 	members[id] = list
