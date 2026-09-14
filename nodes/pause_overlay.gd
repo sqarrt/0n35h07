@@ -55,9 +55,11 @@ func _ready() -> void:
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", UiTokens.ACCENT)
 	column.add(title, 0.0, TITLE_MARGIN_BOTTOM)
-	_resume = _button(column, "Resume", RESUME_TEXT, UiButton.PRIMARY, false)   # web: a plain <button>, silent
+	_resume = UiButton.new(RESUME_TEXT, UiButton.PRIMARY, false)   # web: a plain <button>, silent
+	_resume.name = "Resume"
 	_resume.disabled_opacity = COOLDOWN_OPACITY
 	_resume.pressed.connect(_on_resume)
+	column.add(_resume.grouped(), UiButton.MARGIN_Y, UiButton.MARGIN_Y)   # the dark label over the faded fill
 	_button(column, "Settings", SETTINGS_TEXT, UiButton.GHOST).pressed.connect(settings_requested.emit)
 	_button(column, "ToMenu", TO_MENU_TEXT, UiButton.GHOST).pressed.connect(_on_main_menu)
 	_quit = _button(column, "Quit", QUIT_TEXT, UiButton.GHOST)

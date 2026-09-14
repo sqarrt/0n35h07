@@ -82,7 +82,8 @@ func test_resume_waits_out_the_cooldown() -> void:
 	_now = UNLOCK_AT_MS + PauseModel.COOLDOWN_MS * 0.5
 	overlay.refresh()
 	assert_true(resume.disabled)
-	assert_almost_eq(resume.modulate.a, PauseOverlay.COOLDOWN_OPACITY, EPS)
+	assert_almost_eq(resume.opacity(), PauseOverlay.COOLDOWN_OPACITY, EPS)
+	assert_not_null(resume.fade, "RESUME fades as one layer (CSS opacity)")
 	assert_almost_eq((resume.get_theme_stylebox("disabled") as UiButton.CooldownStyle).share, 0.5, EPS)
 	_now = UNLOCK_AT_MS + PauseModel.COOLDOWN_MS
 	overlay.refresh()

@@ -63,12 +63,28 @@ func test_disabled_fades_the_whole_button() -> void:
 	button.set_enabled(false)
 	assert_true(button.disabled)
 	assert_almost_eq(button.modulate.a, UiButton.DISABLED_OPACITY, EPS)
+	assert_almost_eq(button.opacity(), UiButton.DISABLED_OPACITY, EPS)
 	button.set_enabled(true)
 	assert_almost_eq(button.modulate.a, 1.0, EPS)
 	button.disabled_opacity = HALF
 	button.set_enabled(false)
 	assert_almost_eq(button.modulate.a, HALF, EPS, "the pause menu's inline opacity")
 	_assert_look(button, "disabled", UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL, UiTokens.INK, "font_disabled_color")
+
+func test_a_grouped_button_fades_as_one_layer() -> void:
+	var viewport := SubViewport.new()
+	viewport.size = SCREEN
+	add_child_autofree(viewport)
+	var button := UiButton.new("RESUME", UiButton.PRIMARY)
+	var group := button.grouped()
+	viewport.add_child(group)
+	button.set_enabled(false)
+	assert_almost_eq(group.opacity(), UiButton.DISABLED_OPACITY, EPS, "CSS opacity composites the button first")
+	assert_almost_eq(button.modulate.a, 1.0, EPS, "no per-draw fade on top")
+	assert_almost_eq(button.opacity(), UiButton.DISABLED_OPACITY, EPS)
+	await wait_process_frames(1)
+	assert_eq(group.get_combined_minimum_size(), BOX, "the group takes the button's box")
+	assert_eq(button.size, BOX)
 
 func test_cooldown_fill_grows_inside_the_border() -> void:
 	var button := _button("RESUME", UiButton.PRIMARY)

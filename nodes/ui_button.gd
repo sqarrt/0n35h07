@@ -74,6 +74,9 @@ class CooldownStyle extends StyleBox:
 
 var variant := SECONDARY
 var disabled_opacity := DISABLED_OPACITY
+var fade: CssOpacity                     # set by grouped(): the disabled fade composites the button first
+
+var _opacity := 1.0
 
 func _init(label := "", button_variant := SECONDARY, sounds := true) -> void:
 	text = label
@@ -96,10 +99,26 @@ func set_variant(value: String) -> void:
 	add_theme_color_override("font_focus_color", looks["normal"][TEXT])
 	add_theme_stylebox_override("focus", _focus_box())
 
-## Enable or disable, fading the whole button like CSS opacity.
+## Enable or disable, fading the whole button like CSS opacity (as one layer once grouped()).
 func set_enabled(enabled: bool) -> void:
 	disabled = not enabled
-	modulate.a = 1.0 if enabled else disabled_opacity
+	_opacity = 1.0 if enabled else disabled_opacity
+	if fade != null:
+		fade.set_opacity(_opacity)
+	else:
+		modulate.a = _opacity
+
+func opacity() -> float:
+	return _opacity
+
+## Wrap the button so its fade composites it as one layer — needed where a label sits over a fill (primary); lay out
+## the returned box instead of the button.
+func grouped() -> CssOpacity:
+	fade = CssOpacity.new(self)
+	fade.name = "%sGroup" % name
+	modulate.a = 1.0
+	fade.set_opacity(_opacity)
+	return fade
 
 ## The RESUME cooldown fill (0..1) over the disabled box.
 func set_cooldown_share(share: float) -> void:

@@ -27,10 +27,13 @@ var _dash_progress := HudModel.READY
 var _windup_progress := 0.0
 var _respawn_progress = null         # null while not in the ghost phase
 var _was_winding_up := false
+var _lock: PointerLock
 
-func setup(human: PlayerNode, match_node: MatchNode) -> void:
+## `lock`: the pointer lock the live HUD needs (web GameOverlay live = locked && phase live); the real mouse by default.
+func setup(human: PlayerNode, match_node: MatchNode, lock: PointerLock = null) -> void:
 	_human = human
 	_match = match_node
+	_lock = lock if lock != null else PointerLock.new()
 	_match.frag.connect(_on_frag)
 	_match.fired.connect(_on_fired)
 	_match.blocked.connect(_on_blocked)
@@ -73,9 +76,10 @@ func _process(delta: float) -> void:
 		return
 	var player := _human.player
 	var cd := _match.countdown_label()
-	var live := cd == ""
-	_countdown.visible = not live
-	if not live:
+	var counting_down := cd != ""
+	var live := not counting_down and _lock.is_locked()   # web: no HUD under the pause menu
+	_countdown.visible = counting_down
+	if counting_down:
 		_countdown.set_number(cd)
 		_countdown.tick(delta)
 	for element in [_top_bar, _crosshair, _brackets, _dash]:

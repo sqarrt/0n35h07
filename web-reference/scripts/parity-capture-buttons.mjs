@@ -58,8 +58,8 @@ const hover = async (id, name) => {
 try {
   const renderer = await enterLiveMatch(page, base, mapId, async () => {}, { profile: PROFILE, botName: BOT_NAME });
   await page.evaluate(ms => { window.__debugLockCooldownLeft = ms; }, COOLDOWN_LEFT_MS);
-  await page.mouse.move(0, 0);
   await setLock(false);
+  await page.mouse.move(0, 0);   // only once unlocked: a move under the (faked) lock turns the camera
   await page.getByTestId('pause-resume').waitFor();
   await page.waitForTimeout(STATE_SETTLE_MS);
   await shot('web-pause-cooldown');

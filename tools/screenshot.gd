@@ -329,7 +329,7 @@ func _capture() -> void:
 			for child in column.get_children():
 				if child is Control and child.visible:
 					boxes[str(child.name)] = _rect(child)
-			var resume := column.find_child("Resume", false, false) as UiButton
+			var resume := column.find_child("Resume", true, false) as UiButton
 			var cooldown := resume.get_theme_stylebox("disabled") as UiButton.CooldownStyle if resume != null else null
 			if cooldown != null and resume.disabled:
 				var fill := cooldown.fill_rect(Rect2(resume.global_position, resume.size))

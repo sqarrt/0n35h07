@@ -73,7 +73,7 @@ func test_hud_follows_the_roster_and_player_streaks() -> void:
 	match_node.add_entity(human, 0)
 	var hud := Hud.new()
 	screen.add_child(hud)
-	hud.setup(human, match_node)
+	hud.setup(human, match_node, preload("res://tests/support/locked_pointer.gd").new())
 	match_node.force_live()
 	human.player.streak = Streak.STREAK_DOUBLE
 	hud._process(0.0)
