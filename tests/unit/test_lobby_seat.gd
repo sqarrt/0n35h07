@@ -32,7 +32,7 @@ func test_a_free_host_seat_offers_a_bot() -> void:
 func test_the_own_name_is_underlined() -> void:
 	var seat := _seat()
 	seat.show_seat(HUMAN, true, false, true)
-	var nick := seat.find_child("Nick", true, false) as LobbySeat.Nick
+	var nick := seat.find_child("Nick", true, false) as UnderlinedLabel
 	assert_eq(nick.text, "PARITY7")
 	assert_true(nick.underline, "web lobby-nick--you")
 	assert_eq(nick.get_theme_color("font_color"), Color("#ffaa44"), "in the player's colour")

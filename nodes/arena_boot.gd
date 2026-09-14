@@ -49,7 +49,7 @@ func _ready() -> void:
 	for id in nodes:
 		nodes[id].apply_appearance(match_node.roster.entry(id))
 		var team := GameModes.team_of_slot(mode, id)
-		match_node.add_entity(nodes[id], team)
+		match_node.add_entity(nodes[id], team, id != HUMAN_SLOT)   # web: bots are ready from the start
 		# web: plates only where friend / foe reading matters (not 1v1), never over the own model
 		if mode != GameModes.DUEL and id != HUMAN_SLOT:
 			var plate_color: Color = GameModes.TEAM_COLORS[team] if mode == GameModes.BATTLE else Nameplate.NEUTRAL_COLOR
@@ -76,6 +76,15 @@ func _ready() -> void:
 		Audio.apply_volumes()
 		edges.set_enabled(bool(profile.get("postProcessing", true))))
 	add_child(pause)
+
+	# The ready ritual (web ReadyOverlay): a click takes the pointer (web handleReady) and confirms the local player.
+	var ready_overlay := ReadyOverlay.new()
+	add_child(ready_overlay)
+	ready_overlay.setup(match_node)
+	ready_overlay.ready_requested.connect(func() -> void:
+		PointerLock.new().lock()
+		if match_node.mark_ready(HUMAN_SLOT):
+			UiSounds.play("ready"))                  # web: the sound only on the transition to ready
 
 	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; the match is no longer live, so no pause.
 	var ended := MatchEndedOverlay.new()

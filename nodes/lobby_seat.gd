@@ -22,7 +22,6 @@ const GAP := 6.0
 const NICK_FONT_SIZE := 16
 const NICK_SPACING_EM := 0.06
 const UNDERLINE_OFFSET := 5.0                   # text-underline-offset: 5px
-const UNDERLINE_PX := 1.0
 const NAME_FIELD_WIDTH := 120.0                 # 7.5rem
 const NAME_MAX := 16                            # web settings NAME_MAX
 const NAME_PLACEHOLDER_KEY := "lobbyBotNamePlaceholder"   # web dictionary keys
@@ -45,18 +44,6 @@ const GLOW_REACH_SIGMAS := 3.0                  # the glow quad reaches three si
 const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
 const ARC_POINTS := 8
 const HALF := 0.5
-
-## A name with Chrome's `text-decoration: underline` 5 px under the baseline.
-class Nick extends Label:
-	var underline := false
-
-	func _draw() -> void:
-		if not underline:
-			return
-		var font := get_theme_font("font")
-		var y := font.get_ascent(get_theme_font_size("font_size")) + LobbySeat.UNDERLINE_OFFSET \
-			+ LobbySeat.UNDERLINE_PX * LobbySeat.HALF
-		draw_line(Vector2(0.0, y), Vector2(size.x, y), get_theme_color("font_color"), LobbySeat.UNDERLINE_PX)
 
 ## A dashed action zone (web .seat-zone): the whole free card, accent under the mouse.
 class Zone extends Button:
@@ -257,9 +244,10 @@ func _zone() -> Zone:
 func _nick_font() -> FontVariation:
 	return UiFont.with_css_line(UiFont.spaced(NICK_SPACING_EM, NICK_FONT_SIZE), NICK_FONT_SIZE)
 
-func _nick(text: String, color: Color) -> Nick:
-	var nick := Nick.new()
+func _nick(text: String, color: Color) -> UnderlinedLabel:
+	var nick := UnderlinedLabel.new()
 	nick.name = "Nick"
+	nick.offset_px = UNDERLINE_OFFSET
 	nick.text = text
 	var font := _nick_font()
 	nick.add_theme_font_override("font", font)

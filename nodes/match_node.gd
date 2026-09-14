@@ -1,6 +1,6 @@
 class_name MatchNode extends Node
 ## Owns the fighting entities and runs the local match each tick (after the entities move/fire):
-## entry countdown -> live -> ended when the match clock runs out. The sim MatchRules does
+## the ready ritual -> countdown -> live -> ended when the match clock runs out. The sim MatchRules does
 ## kill/block/respawn/score; this node drives it, freezes players outside live (web tickPhase),
 ## re-emits each tick's rule events as signals for the HUD/FX and announces the outcome after the end
 ## freeze-frame (web endMatch + END_FREEZE_MS).
@@ -32,11 +32,23 @@ func _ready() -> void:
 func set_duration_ms(ms: float) -> void:
 	_clock = MatchClock.new(ms)
 
-func add_entity(pnode: PlayerNode, team: int) -> void:
+## A participant; `ready` confirms its seat in the ready ritual at once (web: bots are auto-ready).
+func add_entity(pnode: PlayerNode, team: int, ready := false) -> void:
 	pnode.player.team = team
 	pnode.player.set_frozen(true)   # frozen until the countdown ends
 	_entities[pnode.player.id] = pnode
 	rules.add_player(pnode.player)
+	phase.add_participant(pnode.player.id, ready)
+
+## web markReady: a participant confirms (the local player's click); returns whether it was news.
+func mark_ready(id: int) -> bool:
+	return phase.mark_ready(id)
+
+func ready_ids() -> Array:
+	return phase.ready_ids()
+
+func is_ready_phase() -> bool:
+	return phase.is_ready_phase()
 
 ## Every participant's Player (bots pick their target among them).
 func players() -> Array:

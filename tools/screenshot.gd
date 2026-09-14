@@ -79,6 +79,8 @@ const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
 const MODE_TEAM := "team-"
+const MODE_READY := "ready-"          # ready-duel / ready-2v2: the ready ritual before the local player confirms
+const READY_FRAMES := 2
 const PLATE_SUFFIX := "-plate"        # team-<mode>-plate: an enemy bot placed in front of the camera
 const PLATE_BOT_ID := 2
 const PLATE_DISTANCE := 4.0           # world units along the camera's look (web parity-capture-nameplate.mjs)
@@ -231,6 +233,8 @@ func _initialize() -> void:
 		_passive_bot = true
 	if g != null:
 		g.warning_seen = not _mode.begins_with(MODE_WARNING)   # web captures run on ?net=bc, which skips it
+	if _mode == MODE_READY + GameModes.BATTLE and g != null:   # the 2v2 ritual lists four seats
+		_team_roster(g, GameModes.BATTLE)
 	if _mode.begins_with(MODE_TEAM) and g != null:   # the lobby's seats for a Battle / War match
 		_team_roster(g, _mode.trim_prefix(MODE_TEAM).trim_suffix(PLATE_SUFFIX))
 		_passive_bot = false                          # the roster's passive bots already stand still
@@ -245,6 +249,13 @@ func _initialize() -> void:
 	root.add_child(load(scene_path).instantiate())
 	if _passive_bot:
 		_setup_fixture.call_deferred()
+	if not _mode.begins_with(MODE_READY):
+		_ready_human.call_deferred()   # web captures call __debugReady as the match mounts
+
+## web __debugReady: the local player confirms the ready ritual (the bots already have).
+func _ready_human() -> void:
+	for match_node in root.find_children("*", "MatchNode", true, false):
+		(match_node as MatchNode).mark_ready(HUMAN_ID)
 
 ## web parity-capture-teams.mjs seats: the parity human on seat 0, passive bots B1..B3 on the others.
 func _team_roster(g: Node, mode: String) -> void:
