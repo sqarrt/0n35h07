@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The game starts fullscreen at the Windows display scale.** As in the original's desktop build, the window fills the
   screen and the interface follows the Windows scale setting (150% draws it half again as large), so menus, the lobby
   and the HUD look the same fullscreen as in a small window; 3D backdrops and streak text render at full resolution.
+- **Letters sit where the original puts them.** Labels and buttons on the menu, settings, about and lobby screens
+  were drawn with whole-pixel letter spacing and font sizes, so words came out a few pixels too wide or narrow; every
+  letter now lands at the original's fractional position, bold text thickens evenly and centred text keeps its exact
+  place, in a window and fullscreen.
 - **Scroll bars match the original's desktop build.** Scrolling screens keep the room of its thin native scroll bar,
   with arrow buttons and a narrow round-ended thumb, so the lobby's column lines up with the original; the ✕ buttons
   on seats and in the friend picker keep their small line height.

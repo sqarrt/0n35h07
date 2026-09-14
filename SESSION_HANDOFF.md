@@ -121,8 +121,15 @@ UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144
 `2026-09-14-game-log-*`. **Предсказание убийства N4 смержено** (`feature/godot-kill-prediction`): `NetSync.predict_death`
 (из `MatchNode` после заявки своего игрока, пропуск при щите), `predicted_kill` с окном `NetConst.NET_PREDICT_KILL_MS`
 250, подтверждение `kill`, откат `block` / по окну в `apply_peer_snapshot`, `Player.revive_from_false_prediction`;
-тесты — перенос web `Match.predictedKill` и `mesh.deathProtocol`. Отчёт `2026-09-15-kill-prediction-*`. **Дальше:**
-(1) дробная разрядка букв (целый `spacing_glyph`, в 4.7 разрядка только целая — нужен свой рисующий контрол);
+тесты — перенос web `Match.predictedKill` и `mesh.deathProtocol`. Отчёт `2026-09-15-kill-prediction-*`.
+**Дробная разрядка FS смержена** (`feature/godot-fractional-spacing`): `CssTextRun` (перо и размер дробные, отрисовка
+`font_draw_glyph` под `draw_set_transform` + oversampling, жирный левее на половину роста `UiFont.embolden_growth`),
+`CssLabel` (через `MenuText.label`; `_set` перехватывает `text`/перенос/обрезку — но собственные присваивания скрипта
+мимо `_set`), `CssButton` → `UiButton`, `SegButton` (`set_label`, `keep_minimum_size`); `CssColumn` отдаёт долю
+округления рамки в `css_offset_x`. Инструмент: режимы `menu*` скрывают фон, без наведения — `gui_disable_input`.
+Отчёт `2026-09-15-fractional-spacing-*`: панели 0.23–0.72/255, буквы меню ±0.15 px. GUT 761/761. **Дальше:**
+(1) вторая волна разрядки — HUD (`EffectText`, `GlowText`, верхняя строка), неймплейты, трейлер, легенда, заголовок и
+подсказка меню, карусель режимов, подписи мест, тост; `css_offset_x` в раскладках `_place`;
 (2) радио (кнопка RADIO, мини-плеер, DLC; нужен веб-рантайм для Strudel). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
@@ -130,8 +137,9 @@ UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144
 ## 5. Что ещё осталось (бэклог паритета)
 
 - Открыто по звуку: форма кроссфейда, реверб/эхо шинами вместо свёртки web, нет де-клика (отчёт `2026-09-14-audio-*`).
-- **Дробная разрядка букв**: `FontVariation.spacing_glyph` — целое (0.08em × 13 px = 1.04 → 1), длинные строки
-  к концу отстают на 1–2 px (отчёты hud-core, stats); общее решение для всех текстов `UiFont.spaced`.
+- **Дробная разрядка букв, вторая волна**: экраны меню / SETTINGS / ABOUT / лобби и кнопки уже на `CssTextRun`
+  (отчёт `2026-09-15-fractional-spacing-*`); HUD, неймплейты, трейлер, легенда, заголовок меню, тост, итог матча ещё
+  на целом `spacing_glyph` (отчёты hud-core, stats).
 - Открыто после темы UI: MENU — дробная базовая линия Chrome (отчёт `2026-09-14-ui-theme-*`).
 - Открыто после лобби: нет сети (Steam-приглашения, SEARCH, гости; в проекте нет аддона GodotSteam) (отчёты
   `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).

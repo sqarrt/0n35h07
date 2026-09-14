@@ -51,6 +51,19 @@ func test_a_left_margin_joins_the_centred_width() -> void:
 	assert_almost_eq(logo.position.x, floorf((SCREEN.x - (376.0 + 19.2)) * 0.5 + 19.2 + 0.5), EPS,
 		"web h1 margin-left 0.3em: the margin box is centred, the text sits after the margin")
 
+func test_css_text_keeps_the_fraction_the_box_lost() -> void:
+	var column := _column()
+	var button := UiButton.new("PLAY", UiButton.PRIMARY)
+	button.keep_minimum_size(Vector2(BUTTON.x + 1.0, 0.0))   # 221 px: centred at x 529.5, the border on 530
+	column.add(button)
+	await wait_process_frames(2)
+	assert_almost_eq(button.position.x, 530.0, EPS)
+	assert_almost_eq(button.css_offset_x, -0.5, EPS, "Chrome snaps the border and leaves the text at 529.5")
+	var plain := _box(BUTTON)
+	column.add(plain)
+	await wait_process_frames(2)
+	assert_false(CssColumn.CSS_OFFSET in plain, "other boxes are placed as before")
+
 func test_gap_sits_between_boxes() -> void:
 	var column := _column()
 	column.gap = 26.0

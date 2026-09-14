@@ -1,0 +1,117 @@
+{
+  "id": "2026-09-15-fractional-spacing",
+  "title": "Сверка паритета OneShot · дробная разрядка букв",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс FS: общий остаток почти всех прошлых отчётов — в Godot 4.7 разрядка шрифта (`FontVariation.spacing_glyph`) только целая, а CSS `letter-spacing` дробный (0.18em × 16 px = 2.88 → 3, 0.04em × 12.5 px = 0.5 → 1), размер шрифта тоже округлялся (11.2 → 11). Пробы 15.09 показали, как рисует Chrome: каждый глиф на дробном пере (шаг = advance + spacing, спейсинг и после последнего глифа), дробный размер, синтетический жирный без расширения advance. Слайс переносит это в `CssTextRun` и строит на нём подписи экранов (`CssLabel` через `MenuText.label`) и кнопки (`CssButton` → `UiButton`, `SegButton`). Сверка — меню, SETTINGS, ABOUT, лобби Steam в окне 1280×720 и выборочно на весь экран (3840×2160 при 150%) против прежних web-кадров, «до» — кадры Godot до слайса.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-fractional-spacing.json`. Web (без изменений, прежние кадры на GPU): `parity-capture-menu.mjs` → `test-results/parity-gpu-menu/web-menu.png` (+ `web-menu.json`: рамка кнопки x 490.5), `parity-capture-settings.mjs` → `parity-gpu-settings/web-*.png` и с `PARITY_FULLSCREEN=1` → `parity-fs-settings/web-*.png`, `parity-capture-lobby-steam.mjs` → `parity-gpu-lobby-steam-2/web-steam-*.png`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режимы `profile:menu-browser`, `profile:settings-player|graphics`, `profile:about`, `profile:steam-idle|picker` (`--resolution 1280x720`) и `profile:settings-graphics`, `profile:steam-idle`, `profile:desktop-menu` (`--fullscreen`) → `test-results/parity-fs2/godot-*.png`; «до» — `parity-gpu-menu/godot-menu-browser.png`, `parity-gpu-settings/godot-*.png`, `parity-fs-settings/godot-*.png`, `parity-gpu-lobby-steam-2/godot-steam-idle[-fs]-ds.png`. Вырезки — `tools/parity/crop.py` → `test-results/parity-fs2-report/`. Пиксели — среднее отличие каналов (0–255) по области: панель x 300–980 (в окне) и 1410–2430 (на весь экран), лобби — кадр / колонка 1270–2570. Центроиды букв — сумма отличия от фона по столбцам полосы текста, буквы разделены пустыми столбцами. Пробы: `tools/probes/glyph_probe.gd`, `glyph_rows_capture.gd`, `label_min_size_probe.gd`, `label_text_signal_probe.gd`, `embolden_offset_probe.gd`, web `parity-probe-glyph-positions.mjs` → `test-results/probes/glyph-positions/`.",
+  "pages": [
+    {
+      "slug": "fractional-spacing",
+      "name": "Дробная разрядка",
+      "verdict": "Буквы меню, SETTINGS, ABOUT и лобби стоят там же, где в Chrome: шаг совпал (центроиды букв кнопок меню ±0.15 px, до слайса дрейф −1.03…+0.87 px), ширины рамок вкладок и сегментов совпали (MULTI 441–499 при web 441–498, до 438–497). Панели: SETTINGS PLAYER 1.05 → 0.72/255, GRAPHICS 0.74 → 0.29, ABOUT 0.66 → 0.45, лобби Steam 0.71 → 0.65, выбор друга 0.53 → 0.44, кнопки меню 0.89 → 0.53. На весь экран: SETTINGS 0.48 → 0.23, лобби 0.69 → 0.62, жирный PLAY ±0.04 физ. px. Остаток — тексты вне слайса (HUD, неймплейты, трейлер, легенда, заголовок меню) и кнопка RADIO.",
+      "verdict_short": "Разрядка букв как в Chrome",
+      "conditions": [
+        ["окно", "1280×720, pixel ratio 1", "`--resolution 1280x720`, `ui_scale` 1"],
+        ["весь экран", "2560×1440 CSS px × 1.5", "`--fullscreen` 3840×2160, `ui_scale` 1.5"],
+        ["рендер", "Chromium (Playwright), ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "кадры стадий main-menu, settings-about, steam-lobby", "кадр 60 (меню, SETTINGS), 95 (лобби Steam); фон скрыт, GUI-ввод отключён"],
+        ["профиль", "PARITY7, en", "PARITY7, en"],
+        ["тесты", "—", "GUT 761/761 (`test_css_text_run`, `test_css_label`, `test_css_button`, `test_css_column`, `test_menu_text`, `test_ui_button`, `test_seg_button`)"]
+      ],
+      "comparisons": [
+        {"title": "SETTINGS · PLAYER: заголовок, вкладки, подпись (×2)", "wipe": true,
+          "note": "До: целая разрядка раздувала SETTINGS на 5 px и рамки вкладок SOUND / GRAPHICS на 2–4 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs2-report/web-settings-player.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs2-report/godot-before-settings-player.png", "note": "панель 1.05/255"},
+            {"kind": "godot", "img": "parity-fs2-report/godot-settings-player.png", "note": "панель 0.72/255"}
+          ]},
+        {"title": "SETTINGS · GRAPHICS на весь экран", "wipe": true,
+          "note": "Дробный CSS-размер × 1.5 растрируется через oversampling: POST-PROCESSING 220 физ. px, как в web (до 215).",
+          "panels": [
+            {"kind": "web", "img": "parity-fs2-report/web-settings-fs.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs2-report/godot-before-settings-fs.png", "note": "панель 0.48/255"},
+            {"kind": "godot", "img": "parity-fs2-report/godot-settings-fs.png", "note": "панель 0.23/255"}
+          ]},
+        {"title": "Лобби Steam: заголовок, режимы, MULTI / SELECT ALL", "wipe": true,
+          "note": "Сегменты `SegButton` 11 px × 0.08em: рамки совпали. Карусель режимов (WAR / DUEL / BATTLE) — вне слайса.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs2-report/web-steam-tabs.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs2-report/godot-before-steam-tabs.png", "note": "кадр 0.71/255"},
+            {"kind": "godot", "img": "parity-fs2-report/godot-steam-tabs.png", "note": "кадр 0.65/255"}
+          ]},
+        {"title": "Кнопки главного меню (×2)", "wipe": true,
+          "note": "Буквы на месте Chrome: шаг из прогона, жирный PLAY сдвинут на половину роста глифа, текст на дробной CSS-позиции рамки (490.5), сама рамка — на целом пикселе.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs2-report/web-menu-buttons.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs2-report/godot-before-menu-buttons.png", "note": "0.89/255, дрейф букв до ±1 px"},
+            {"kind": "godot", "img": "parity-fs2-report/godot-menu-buttons.png", "note": "0.53/255, буквы ±0.15 px"}
+          ]},
+        {"title": "PLAY на весь экран (×2)",
+          "note": "У web колонка на 42 физ. px выше: в ней есть RADIO. Вырезки выровнены по кнопке.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs2-report/web-menu-fs-play.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs2-report/godot-before-menu-fs-play.png", "note": "буквы −1.0…+0.3 физ. px"},
+            {"kind": "godot", "img": "parity-fs2-report/godot-menu-fs-play.png", "note": "буквы ±0.04 физ. px"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "FS1", "severity": "fixed",
+          "title": "Целая разрядка и округлённый размер шрифта подписей и кнопок",
+          "web": "`letter-spacing` в em и rem-размеры дробные: глиф на дробном пере (фаза четвертями пикселя), спейсинг и после последнего глифа, ширина — сумма шагов.",
+          "godot": "`CssTextRun`: advance читаются на 1000 px (как `UiFont.css_width`), перо дробное, отрисовка `TextServer.font_draw_glyph` под `draw_set_transform(scale = css_px / css_size)` с oversampling `scale × UiScale`; строка `line-height: normal`. `CssLabel extends Label` (нативные глифы отрезаны `VC_CHARS_BEFORE_SHAPING`, ширина — прогон, текст и перенос/обрезка перехватываются `_set`; перенос, многоточие и многострочный текст рисуются нативно) — через `MenuText.label`. `CssButton` (нативный текст пуст, `text` читает/пишет подпись, высота — строка шрифта) — база `UiButton` и `SegButton`; хвостовой спейсинг ушёл из отступов рамок в прогон.",
+          "evidence": ["screenshot", "test", "code", "runtime"],
+          "sources": ["nodes/css_text_run.gd", "nodes/css_label.gd", "nodes/css_button.gd", "nodes/menu_text.gd", "nodes/ui_button.gd", "nodes/seg_button.gd", "tests/unit/test_css_text_run.gd", "tests/unit/test_css_label.gd", "tests/unit/test_css_button.gd", "tools/probes/label_text_signal_probe.gd"]
+        },
+        {
+          "id": "FS2", "severity": "fixed",
+          "title": "Синтетический жирный Godot толстеет вправо",
+          "web": "Skia обводит контур синтетического жирного равномерно с обеих сторон.",
+          "godot": "Проба `embolden_offset_probe.gd`: левый край растра остаётся, глиф шире на `embolden × size / 16` px (64 px: +2). `UiFont.embolden_growth`; прогон жирного рисуется левее на половину роста (`CssTextRun.bold_ink_shift`). Центроид PLAY: +0.75 → +0.5 px (остаток — FS3).",
+          "evidence": ["screenshot", "test", "runtime"],
+          "sources": ["nodes/ui_font.gd", "nodes/css_text_run.gd", "tools/probes/embolden_offset_probe.gd"]
+        },
+        {
+          "id": "FS3", "severity": "fixed",
+          "title": "Текст центрированной кнопки на полпикселя правее",
+          "web": "Рамка кнопки меню x 490.5 (`web-menu.json`): граница рисуется на целом пикселе, текст — от дробной позиции.",
+          "godot": "`CssColumn` ставит рамку на `CssPixel.snap(x)` и передаёт потерянную долю в `css_offset_x` у `CssButton` / `CssLabel`; прогон учитывает её. Буквы кнопок меню ±0.15 px от web (до правки +0.4…+0.5).",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/css_column.gd", "nodes/css_button.gd", "nodes/css_label.gd", "tests/unit/test_css_column.gd"]
+        },
+        {
+          "id": "FS4", "severity": "fixed",
+          "title": "Инструмент: фон и курсор в кадрах меню",
+          "web": "`parity-capture-menu.mjs` скрывает холсты фона; мыши у Playwright нет.",
+          "godot": "Режимы `menu*` в `tools/screenshot.gd` фон не скрывали (после DS шар просвечивал сквозь стекло панели, кадр 6.08/255) — теперь скрывают, как `desktop-menu`. Реальный курсор Windows над окном инструмента наводился на кнопку — в режимах без наведения GUI-ввод корня отключается перед кадром.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["tools/screenshot.gd"]
+        },
+        {
+          "id": "FS5", "severity": "visual",
+          "title": "Тексты вне слайса — пока целая разрядка",
+          "web": "Все тексты дробные.",
+          "godot": "Ещё на `UiFont.spaced`: HUD (`EffectText`, `GlowText`, верхняя строка), неймплейты, трейлер, легенда управления, заголовок и подсказка меню, карусель режимов, подписи мест лобби вне `MenuText`, тост, итог матча, заголовок паузы. `css_offset_x` передаёт только `CssColumn`; раскладки экранов через `_place` (44 вызова `CssPixel.snap`) — следующая волна.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd", "nodes/main_menu.gd", "nodes/lobby_seat.gd", "nodes/effect_text.gd"]
+        },
+        {
+          "id": "FS6", "severity": "missing",
+          "title": "Нет кнопки RADIO",
+          "web": "Десктопное меню показывает RADIO; колонка на весь экран на 42 физ. px выше.",
+          "godot": "Слайс радио; кадр меню на весь экран 4.42/255 до и после (между собой 0.09).",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/radio"]
+        }
+      ],
+      "limitations": [
+        "«До» для меню и SETTINGS — кадры прежних стадий (окно после DS не менялось, 0.00/255); для лобби — кадры `-ds`, снятые после слайса DS.",
+        "Подписи с переносом, многоточием или несколькими строками (имя в выборе друга) рисуются нативно с целой разрядкой.",
+        "Вертикаль не менялась: базовая линия — округлённый подъём строки, как в прежних отчётах; высота CJK-строк не трогалась.",
+        "Кнопки на весь экран сверены по PLAY и SETTINGS; APPEARANCE и ABOUT на весь экран не снимались."
+      ]
+    }
+  ]
+}

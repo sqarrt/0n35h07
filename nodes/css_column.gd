@@ -4,6 +4,7 @@ class_name CssColumn extends Container
 ## (CssPixel). Hidden children take no room, like display: none.
 
 const HALF := 0.5
+const CSS_OFFSET := &"css_offset_x"
 
 var gap := 0.0:
 	set(value):
@@ -64,5 +65,8 @@ func _sort() -> void:
 		var box := child.get_combined_minimum_size()
 		var left := margin_left_of(child)
 		y += margins.x
-		fit_child_in_rect(child, Rect2(CssPixel.snap((size.x - box.x - left) * HALF + left), CssPixel.snap(y), box.x, box.y))
+		var x := (size.x - box.x - left) * HALF + left
+		fit_child_in_rect(child, Rect2(CssPixel.snap(x), CssPixel.snap(y), box.x, box.y))
+		if CSS_OFFSET in child:   # a CssButton / CssLabel draws its text where Chrome keeps it
+			child.set(CSS_OFFSET, x - CssPixel.snap(x))
 		y += box.y + margins.y + gap

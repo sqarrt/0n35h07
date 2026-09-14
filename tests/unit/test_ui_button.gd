@@ -31,9 +31,11 @@ func test_box_matches_the_web_button() -> void:
 	assert_eq(button.size, BOX, "min-width 220; 12 px padding and a 1 px border around the 16 px line")
 	var normal := _flat(button, "normal")
 	assert_almost_eq(normal.content_margin_left, UiButton.PADDING_X + UiButton.BORDER_PX, EPS)
-	var spacing := (button.get_theme_font("font") as FontVariation).spacing_glyph
-	assert_almost_eq(normal.content_margin_right, UiButton.PADDING_X + UiButton.BORDER_PX + spacing, EPS,
-		"Chrome keeps the letter spacing after the last glyph, so the label sits half of it left of centre")
+	assert_almost_eq(normal.content_margin_right, UiButton.PADDING_X + UiButton.BORDER_PX, EPS,
+		"the run holds Chrome's trailing letter spacing, not the box")
+	var chrome := CssTextRun.new("EXIT", UiButton.FONT_SIZE, UiButton.LETTER_SPACING_EM, true)
+	assert_almost_eq(button.run().width(), chrome.width(), EPS, "the bold label at 0.18em × 16 px = 2.88 px a glyph")
+	assert_almost_eq(button.text_origin().x, (BOX.x - chrome.width()) * HALF, EPS, "centred like the CSS inline box")
 	assert_almost_eq(normal.content_margin_top, UiButton.PADDING_Y + UiButton.BORDER_PX, EPS)
 	assert_eq(normal.border_width_top, UiButton.BORDER_PX)
 	assert_eq(button.get_theme_font_size("font_size"), UiButton.FONT_SIZE)

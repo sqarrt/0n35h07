@@ -17,19 +17,15 @@ const SUB_HEADER_BORDER_PX := 1
 const SUB_HEADER_MARGIN_BOTTOM := 17.6       # 1.1rem
 const SCREEN_TOP_SHARE := 0.06               # .panel-fill paddingTop: 6vh (Settings / About)
 
-## A label in the UI font at a CSS pixel size, with Chrome's trailing letter spacing kept in its box.
+## A label in the UI font at a CSS pixel size, laid out and drawn at Chrome's fractional letter spacing.
 static func label(node_name: String, text: String, css_px: float, spacing_em: float, color: Color,
-		bold := false) -> Label:
-	var label := Label.new()
+		bold := false) -> CssLabel:
+	var label := CssLabel.new()
 	label.name = node_name
 	label.text = text
-	var font_size := UiFont.css_size(css_px)
-	var face := UiFont.bold_spaced(spacing_em, font_size, css_px) if bold else UiFont.spaced(spacing_em, font_size, css_px)
-	var font := UiFont.with_css_line(face, font_size, css_px)
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	label.setup(css_px, spacing_em, bold)
 	label.add_theme_color_override("font_color", color)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
@@ -44,13 +40,11 @@ static func field_label(node_name: String, text: String) -> Label:
 ## A group heading over its rule (web `subHeader`): lay it out at the full column width.
 static func sub_header(node_name: String, text: String) -> Label:
 	var header := label(node_name, text, SUB_HEADER_PX, SUB_HEADER_SPACING_EM, UiTokens.ACCENT_DIM)
-	var font := header.get_theme_font("font") as FontVariation
 	var rule := StyleBoxFlat.new()
 	rule.draw_center = false
 	rule.border_color = UiTokens.SURFACE_LINE
 	rule.border_width_bottom = SUB_HEADER_BORDER_PX
 	rule.anti_aliasing = false
 	rule.content_margin_bottom = SUB_HEADER_PADDING_BOTTOM + SUB_HEADER_BORDER_PX
-	rule.content_margin_right = font.spacing_glyph
 	header.add_theme_stylebox_override("normal", rule)
 	return header

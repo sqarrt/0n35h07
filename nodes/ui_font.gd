@@ -24,6 +24,7 @@ const FAKE_BOLD_SIZES := Vector2(9.0, 36.0)
 const FAKE_BOLD_RATIOS := Vector2(1.0 / 24.0, 1.0 / 32.0)
 const EMBOLDEN_UNIT_SIZE := 16.0
 const EMBOLDEN_ADVANCE_DIVISOR := 64.0         # Godot widens an emboldened advance by embolden × size / 64 px
+const EMBOLDEN_GROWTH_DIVISOR := 16.0          # ... and its glyph bitmap by embolden × size / 16 px
 ## The Latin face's hhea metrics (units per em 1000: ascender 885, descender -242).
 const ASCENT_EM := 0.885
 const DESCENT_EM := 0.242
@@ -110,6 +111,11 @@ static func bold_spacing_px(spacing_px: float, embolden: float, font_size: int) 
 ## How much Godot's TextServer widens each glyph advance of a face emboldened by `embolden` at `font_size`.
 static func embolden_advance(embolden: float, font_size: int) -> float:
 	return embolden * font_size / EMBOLDEN_ADVANCE_DIVISOR
+
+## How much wider the emboldened glyph bitmap grows — to the right only, its left edge stays (probe
+## embolden_offset_probe.gd: 64 px at 0.5 → 2 px); Skia strokes Chrome's synthetic bold evenly on both sides.
+static func embolden_growth(embolden: float, font_size: int) -> float:
+	return embolden * font_size / EMBOLDEN_GROWTH_DIVISOR
 
 ## Glyphs from the fallback faces (Cyrillic, CJK) take the variation's letter spacing and synthetic bold too: with its
 ## own fallbacks empty, a FontVariation falls back to the base face's plain fonts, which carry neither (Chrome spaces and
