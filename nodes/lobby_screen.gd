@@ -158,6 +158,7 @@ func seats() -> Array[LobbySeat]:
 
 func _rebuild_seats() -> void:
 	for seat in _seats:
+		_seats_box.remove_child(seat)            # out of the tree now, so the new seats keep their names
 		seat.queue_free()
 	_seats.clear()
 	var compact := room.mode != GameModes.DUEL
