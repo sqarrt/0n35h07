@@ -51,8 +51,8 @@ func test_boxes_follow_chrome_text_metrics() -> void:
 	var ranking := o.find_child("Ranking", true, false) as Control
 	assert_almost_eq(ranking.get_combined_minimum_size().y, 60.0, 0.01, "two 24 px rows 12 px apart")
 	var reason := o.find_child("Reason", true, false) as Label
-	assert_almost_eq(reason.get_theme_stylebox("normal").content_margin_right,
-		float((reason.get_theme_font("font") as FontVariation).spacing_glyph), 0.01, "the trailing letter spacing")
+	assert_almost_eq(reason.get_combined_minimum_size().x, CssTextRun.new(reason.text, MatchEndedOverlay.REASON_FONT_SIZE,
+		MatchEndedOverlay.REASON_SPACING_EM).width(), 0.01, "Chrome's run, the trailing letter spacing included")
 
 func test_rows_list_players_by_kills() -> void:
 	var o := _overlay()

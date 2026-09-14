@@ -98,16 +98,10 @@ func _ranking(scores: Array, roster: Roster, tiers: Dictionary) -> GridContainer
 	return grid
 
 func _label(node_name: String, text: String, font_size: int, color: Color, spacing_em: float) -> Label:
-	var l := Label.new()
+	var l := CssLabel.new()
 	if node_name != "":
 		l.name = node_name
-	l.text = text
-	var font := UiFont.with_css_line(UiFont.spaced(spacing_em, font_size), font_size)
-	l.add_theme_font_override("font", font)
-	l.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
-	l.add_theme_font_size_override("font_size", font_size)
-	l.add_theme_color_override("font_color", color)
-	return l
+	return l.styled(text, font_size, spacing_em, color)
 
 func _on_exit() -> void:
 	get_tree().change_scene_to_file(MAIN_MENU)

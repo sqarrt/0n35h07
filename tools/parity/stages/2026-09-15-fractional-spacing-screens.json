@@ -1,0 +1,134 @@
+{
+  "id": "2026-09-15-fractional-spacing-screens",
+  "title": "Сверка паритета OneShot · дробная разрядка, вторая волна",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс FS2 переводит на `CssTextRun` оставшиеся простые подписи и кнопки с разрядкой: подсказку F11 и чип версии меню, заголовок паузы, подписи итога матча, имена, статусы и подсказку ритуала готовности, легенду управления (Consolas), зоны, ники и спин поиска мест лобби, ссылки ABOUT. По ходу сверки найдены и исправлены вертикаль текста `CssButton` (ссылки на 0.9 px выше web) и захват мыши инструментом в ритуале готовности (в кадре был HUD). Сверка — окно 1280×720 и выборочно весь экран (3840×2160 при 150%) против прежних web-кадров; «до» — финальные кадры слайса FS для меню и ABOUT, кадры прежних стадий для остальных экранов.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-fractional-spacing-screens.json`. Web (прежние кадры на GPU): `parity-capture-menu.mjs` → `test-results/parity-gpu-menu/web-menu.png`, `parity-capture-settings.mjs` → `parity-gpu-settings/web-*.png` и с `PARITY_FULLSCREEN=1` → `parity-fs-settings/web-menu.png`, `parity-capture-lobby-steam.mjs` → `parity-gpu-lobby-steam-2/web-steam-*-bottom[-fs].png`, `parity-capture-buttons.mjs` → `parity-gpu-buttons/web-pause.png`, `web-match-end.png`, `parity-capture-ready.mjs` → `parity-ready/en/web-ready-*.png`. Godot: `tools/screenshot.gd` → `test-results/parity-fs3/godot-*.png`: `scenes/main_menu.tscn` (кадр 60 / 95) режимы `profile:menu-browser`, `profile:about`, `profile:settings-player`, `profile:steam-idle-bottom`, `profile:steam-searching-bottom` (`--resolution 1280x720`) и `profile:desktop-menu`, `profile:steam-idle-bottom` (`--fullscreen`); `scenes/arena_test.tscn` + `res://maps/os_arena.json`: `profile:pause-idle` (кадр 300), `profile` с матчем 1000 мс (кадр 480), `profile:ready-duel|2v2` (кадр 120). «До»: `parity-fs2/godot-menu-browser.png`, `godot-about.png`, `godot-settings-player.png`, `godot-desktop-menu-fs.png`; `parity-gpu-lobby-steam-2/godot-steam-*-bottom.png`, `parity-gpu-buttons/godot-pause-idle.png`, `godot-match-end.png`, `parity-ready/en/godot-ready-*.png`. Вырезки — `tools/parity/crop.py` → `test-results/parity-fs3-report/`. Пиксели — среднее отличие каналов (0–255): кадр целиком, панель x 300–980, подсказка 540–740 × 530–560, на весь экран колонка 1410–2430 / 1270–2570. Строки ссылок — центроид суммы отличия от фона по строкам. Исходник вертикали нативной кнопки — `godotengine/godot` `scene/gui/button.cpp`.",
+  "pages": [
+    {
+      "slug": "fractional-spacing-screens",
+      "name": "Разрядка экранов",
+      "verdict": "Подписи паузы, итога, ритуала готовности, легенды, мест лобби, ссылок и меню стоят по Chrome: имя и статус в углу готовности уже на 12 px (PARITY7 234 px при web 234, до 246), подписи легенды на месте web (Move 363 / Jump 563 при web 363 / 563, до 368 / 567), строки ссылок ABOUT ±0.08 px. Пиксели: подсказка меню 2.85 → 0.39/255, ABOUT 0.45 → 0.40, SETTINGS PLAYER 0.72 → 0.66, лобби снизу 1.24 → 1.16, поиск 0.78 → 0.73, пауза 0.68 → 0.65, готовность 2.28 → 2.20 и 2.37 → 2.30, итог матча 0.63 → 0.64 (на уровне шума), кнопки меню 0.53 → 0.53. На весь экран: лобби снизу 0.61, чип версии совпал. Остаток — тексты со свечением (логотип, карусель, HUD), неймплейты, трейлер, тост и RADIO.",
+      "verdict_short": "Разрядка экранов как в Chrome",
+      "conditions": [
+        ["окно", "1280×720, pixel ratio 1", "`--resolution 1280x720`, `ui_scale` 1"],
+        ["весь экран", "2560×1440 CSS px × 1.5", "`--fullscreen` 3840×2160, `ui_scale` 1.5"],
+        ["рендер", "Chromium (Playwright), ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "кадры стадий main-menu, settings-about, steam-lobby, ui-theme, ready-ritual", "те же кадры: 60 / 95 (меню), 300 (пауза), 480 при матче 1000 мс (итог), 120 (готовность)"],
+        ["профиль", "PARITY7, en; бот EX82R", "PARITY7, en; бот EX82R"],
+        ["тесты", "—", "GUT 766/766 (`test_css_text_run`, `test_css_label`, `test_css_button`, `test_underlined_label`, `test_css_column`, `test_pause_overlay`, `test_match_ended_overlay`, `test_lobby_seat`)"]
+      ],
+      "comparisons": [
+        {"title": "Ритуал готовности: имя и статус в углу (×3)", "wipe": true,
+          "note": "До: целая разрядка удлиняла PARITY7 и NOT READY на 12 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-ready-corner.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-ready-corner.png", "note": "кадр 2.28/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-ready-corner.png", "note": "кадр 2.20/255"}
+          ]},
+        {"title": "Ритуал готовности: подсказка (×3)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-ready-hint.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-ready-hint.png", "note": "«to start» уже на 7 px"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-ready-hint.png", "note": "на месте web"}
+          ]},
+        {"title": "Легенда управления (×2)", "wipe": true,
+          "note": "Consolas 11.52 px: подписи действий 0.05em = 0.576 px на букву.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-ready-legend.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-ready-legend.png", "note": "подписи шире на 4–7 px"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-ready-legend.png", "note": "на месте web"}
+          ]},
+        {"title": "Лобби Steam: места (×2)", "wipe": true,
+          "note": "Зоны INVITE A FRIEND / ADD A BOT и ник — прогоны; ＋ стоит по ширине прогона.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-lobby-seats.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-lobby-seats.png", "note": "кадр 1.24/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-lobby-seats.png", "note": "кадр 1.16/255"}
+          ]},
+        {"title": "ABOUT: ссылки (×2)", "wipe": true,
+          "note": "Строки ссылок: web 202.81 / 228.97 / 255.04, Godot 202.75 / 228.87 / 254.96.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-about-links.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-about-links.png", "note": "панель 0.45/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-about-links.png", "note": "панель 0.40/255"}
+          ]},
+        {"title": "Пауза (×2)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-pause.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-pause.png", "note": "кадр 0.68/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-pause.png", "note": "кадр 0.65/255"}
+          ]},
+        {"title": "Итог матча: рейтинг и причина (×3)", "wipe": true,
+          "note": "Имена игроков — `EffectText` (третья волна); фраги и TIME UP — прогоны.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-match-end.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-match-end.png", "note": "кадр 0.63/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-match-end.png", "note": "кадр 0.64/255"}
+          ]},
+        {"title": "Подсказка F11 (×3)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-menu-hint.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-menu-hint.png", "note": "2.85/255"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-menu-hint.png", "note": "0.39/255"}
+          ]},
+        {"title": "Чип версии на весь экран",
+          "note": "У web над чипом мини-плеер радио (слайс радио).",
+          "panels": [
+            {"kind": "web", "img": "parity-fs3-report/web-version-fs.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs3-report/godot-before-version-fs.png", "note": "целая разрядка"},
+            {"kind": "godot", "img": "parity-fs3-report/godot-version-fs.png", "note": "буквы на месте web"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "FS2-1", "severity": "fixed",
+          "title": "Целая разрядка подписей и кнопок экранов",
+          "web": "`letter-spacing` в em и дробные размеры на каждом экране.",
+          "godot": "`CssLabel.styled()` (текст, CSS-шрифт, цвет одним вызовом; `MenuText.label` на нём): подсказка меню, заголовок паузы, подписи итога, имена и статусы готовности, подписи легенды. `UnderlinedLabel extends CssLabel` — линия от базовой линии прогона. `CssButton`: чип версии, `LobbySeat.Zone` (＋ по ширине прогона), `UiLink`. `CssTextRun`: грань `FontVariation` копируется с трансформом (наклонный спин поиска), `SystemFont` даёт строку из своих метрик (Consolas легенды). `CssOffset.keep` отдаёт долю округления в `css_offset_x` из `CssColumn`, `SettingsRows.place`, `LobbyScreen._place` и легенды.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/css_label.gd", "nodes/css_text_run.gd", "nodes/css_offset.gd", "nodes/underlined_label.gd", "nodes/lobby_seat.gd", "nodes/ui_link.gd", "nodes/controls_legend.gd", "nodes/ready_overlay.gd", "nodes/pause_overlay.gd", "nodes/match_ended_overlay.gd", "nodes/main_menu.gd", "tests/unit/test_underlined_label.gd"]
+        },
+        {
+          "id": "FS2-2", "severity": "fixed",
+          "title": "Текст CssButton на 0.9 px выше нативного",
+          "web": "Строки ссылок ABOUT: центроиды 202.81 / 228.97 / 255.04 (нативная кнопка Godot совпадала: 202.83).",
+          "godot": "Своя формула центрировала строку CSS-подъёма и дала 201.93. `button.cpp`: `text_ofs.y = (drawable_size_remained.height - text_buf->get_size().height) / 2.0f + style_margin_top` — по строке самого текста (запасной глиф «—» меняет её высоту), базовая линия — подъём этой строки. `CssButton.text_origin` повторяет это (строка подписи тем же шрифтом и языком, базовая линия на целом пикселе); `CssTextRun.draw` отдаёт трансформу целую часть, а дробь по x — перу глифа. Теперь 202.75 / 228.87 / 254.96.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/css_button.gd", "nodes/css_text_run.gd", "tests/unit/test_css_button.gd"]
+        },
+        {
+          "id": "FS2-3", "severity": "fixed",
+          "title": "Инструмент: HUD в кадрах ритуала готовности",
+          "web": "`parity-capture-ready.mjs` снимает ритуал до захвата указателя — HUD скрыт.",
+          "godot": "После слайса DS фикстура захватывала мышь во всех режимах, кроме паузы: HUD (скобки щита, кольцо прицела, аудиополоса) появлялся поверх ритуала (кадр 2.91/255). Режимы `ready-*` мышь не захватывают.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["tools/screenshot.gd"]
+        },
+        {
+          "id": "FS2-4", "severity": "visual",
+          "title": "Тексты третьей волны",
+          "web": "Все тексты дробные.",
+          "godot": "На целой разрядке: `EffectText` / `GlowText` (логотип, карусель режимов, имена HUD и итога, итог DRAW, тосты серий), таймер HUD, неймплейты, трейлер, тост приглашения (`RichTextLabel`), поля ввода (`LineEdit`).",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/glow_text.gd", "nodes/effect_text.gd", "nodes/hud_top_bar.gd", "nodes/invite_toast.gd"]
+        },
+        {
+          "id": "FS2-5", "severity": "missing",
+          "title": "Нет кнопки RADIO и мини-плеера",
+          "web": "Десктопное меню и лобби показывают RADIO и мини-плеер.",
+          "godot": "Слайс радио; колонка меню на весь экран 4.42/255 до и после.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/radio"]
+        }
+      ],
+      "limitations": [
+        "«До» для паузы, итога, готовности и лобби снизу — кадры прежних стадий, снятые до слайса FS; для меню, ABOUT и SETTINGS — финальные кадры FS.",
+        "«До» для лобби снизу на весь экран снят до слайса DS (9.17/255) и для сравнения не годится; после — 0.61.",
+        "Кадры на весь экран побайтно не меняются от переноса дроби из трансформа в перо: при oversampling 1.5 TextServer не квантует позицию глифа.",
+        "Кадр итога матча изменился на уровне шума: имена игроков и DRAW — тексты третьей волны."
+      ]
+    }
+  ]
+}

@@ -30,7 +30,7 @@ const HALF := 0.5
 class Item:
 	var chips: Array[Panel] = []
 	var chip_widths: Array[float] = []
-	var action: Label
+	var action: CssLabel
 	var action_width := 0.0
 
 	func width() -> float:
@@ -47,17 +47,14 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_face = SystemFont.new()
 	_face.font_names = PackedStringArray(MONOSPACE_FAMILIES)
-	var font_size := UiFont.css_size(CSS_PX)
-	var chip_font := UiFont.with_face_line(UiFont.spaced(0.0, font_size, CSS_PX, _face), font_size, _face)
-	var action_font := UiFont.with_face_line(UiFont.spaced(ACTION_SPACING_EM, font_size, CSS_PX, _face), font_size, _face)
 	for binding in BINDINGS:
 		var item := Item.new()
 		for key in binding[0]:
 			var text := I18n.t(String(key).trim_prefix(KEY_PREFIX)) if String(key).begins_with(KEY_PREFIX) else String(key)
-			item.chips.append(_chip(text, chip_font, font_size))
+			item.chips.append(_chip(text))
 			item.chip_widths.append(maxf(CHIP_MIN, _css_width(text, 0.0) + 2.0 * (CHIP_PADDING_X + CHIP_BORDER_PX)))
 		var action_text := I18n.t(binding[1])
-		item.action = _label(action_text, action_font, font_size, ACTION_COLOR)
+		item.action = _label(action_text, ACTION_SPACING_EM, ACTION_COLOR)
 		add_child(item.action)
 		item.action_width = _css_width(action_text, ACTION_SPACING_EM)
 		_items.append(item)
@@ -92,17 +89,20 @@ func _place_item(item: Item, left: float, top: float) -> void:
 		var chip := item.chips[i]
 		chip.position = Vector2(CssPixel.snap(x), CssPixel.snap(top))
 		chip.size = Vector2(CssPixel.snap(x + item.chip_widths[i]) - chip.position.x, CHIP_MIN)
-		var text := chip.get_child(0) as Label
+		var text := chip.get_child(0) as CssLabel
 		var text_box := text.get_combined_minimum_size()
-		text.position = ((chip.size - text_box) * HALF).round()
+		var text_left := x - chip.position.x + (item.chip_widths[i] - text_box.x) * HALF   # centred in the CSS chip
+		text.position = Vector2(CssPixel.snap(text_left), roundf((chip.size.y - text_box.y) * HALF))
+		text.css_offset_x = text_left - text.position.x
 		text.size = text_box
 		x += item.chip_widths[i] + CHIP_GAP
 	var action_box := item.action.get_combined_minimum_size()
 	x += ITEM_GAP - CHIP_GAP
 	item.action.position = Vector2(CssPixel.snap(x), CssPixel.snap(top + (CHIP_MIN - action_box.y) * HALF))
+	item.action.css_offset_x = x - item.action.position.x
 	item.action.size = action_box
 
-func _chip(text: String, font: FontVariation, font_size: int) -> Panel:
+func _chip(text: String) -> Panel:
 	var chip := Panel.new()
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var box := StyleBoxFlat.new()
@@ -111,19 +111,12 @@ func _chip(text: String, font: FontVariation, font_size: int) -> Panel:
 	box.set_border_width_all(CHIP_BORDER_PX)
 	box.set_corner_radius_all(CHIP_RADIUS)
 	chip.add_theme_stylebox_override("panel", box)
-	chip.add_child(_label(text, font, font_size, CHIP_TEXT))
+	chip.add_child(_label(text, 0.0, CHIP_TEXT))
 	add_child(chip)
 	return chip
 
-func _label(text: String, font: FontVariation, font_size: int, color: Color) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
-	return label
+func _label(text: String, spacing_em: float, color: Color) -> CssLabel:
+	return CssLabel.new().styled(text, CSS_PX, spacing_em, color, false, _face)
 
 ## A run's CSS width at 0.72rem in the monospace face.
 func _css_width(text: String, spacing_em: float) -> float:

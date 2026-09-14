@@ -10,6 +10,7 @@ const SPACING_EM := 0.18
 const PADDING := 10.0
 const WIDE := 400.0
 const SHIFT := 2.0
+const BORDER_BELOW := 1.0
 
 func _button(label: String) -> CssButton:
 	var viewport := SubViewport.new()
@@ -55,6 +56,20 @@ func test_the_label_follows_the_pressed_box() -> void:
 	button.button_pressed = true
 	assert_eq(button.get_draw_mode(), BaseButton.DRAW_PRESSED)
 	assert_almost_eq(button.text_origin().y, idle.y + SHIFT, EPS)
+
+func test_the_baseline_is_where_the_native_button_puts_it() -> void:
+	var button := _button("YouTube — @watooh")
+	for state in CssButton.STYLES.values():   # a link's box: nothing above the text, a 1 px border below
+		var box := StyleBoxEmpty.new()
+		box.content_margin_bottom = BORDER_BELOW
+		button.add_theme_stylebox_override(state, box)
+	await wait_process_frames(1)
+	var line := TextLine.new()
+	line.add_string(button.text, button.get_theme_font("font"), button.get_theme_font_size("font_size"))
+	var inner := button.size.y - BORDER_BELOW
+	var native := roundf((inner - line.get_size().y) * CssButton.HALF + line.get_line_ascent())
+	assert_almost_eq(button.text_origin().y + button.run().baseline(), native, EPS,
+		"button.cpp: the text line centred, unrounded, its ascent down to the baseline")
 
 func test_the_colour_is_the_states() -> void:
 	var button := _button("GO")

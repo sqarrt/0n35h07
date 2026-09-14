@@ -102,16 +102,15 @@ func setup(match_node: MatchNode) -> void:
 		var id: int = entry["id"]
 		var name_label := UnderlinedLabel.new()
 		name_label.name = "Name%d" % id
-		_style(name_label, entry.get("name", ""), NAME_PX if corners else LIST_NAME_PX,
+		name_label.styled(entry.get("name", ""), NAME_PX if corners else LIST_NAME_PX,
 			NAME_SPACING_EM if corners else 0.0, match_node.roster.color_of(id))
 		name_label.underline = id == match_node.local_id
 		name_label.offset_px = UNDERLINE_OFFSET
 		_root.add_child(name_label)
 		_names[id] = name_label
-		var status := Label.new()
+		var status := CssLabel.new()
 		status.name = "Status%d" % id
-		_style(status, "", STATUS_PX if corners else roundi(LIST_STATUS_PX), STATUS_SPACING_EM if corners else 0.0,
-			UiTokens.MUTED, 0.0 if corners else LIST_STATUS_PX)
+		status.styled("", STATUS_PX if corners else LIST_STATUS_PX, STATUS_SPACING_EM if corners else 0.0, UiTokens.MUTED)
 		_root.add_child(status)
 		_statuses[id] = status
 	refresh()
@@ -220,15 +219,6 @@ func statuses() -> Dictionary:
 
 func legend() -> ControlsLegend:
 	return _legend
-
-func _style(label: Label, text: String, font_px: int, spacing_em: float, color: Color, css_px := 0.0) -> void:
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var font := UiFont.with_css_line(UiFont.spaced(spacing_em, font_px, css_px), font_px, css_px)
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", font_px)
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
 
 func _tint(node_name: String, color: Color, from_right: bool) -> TextureRect:
 	var gradient := Gradient.new()

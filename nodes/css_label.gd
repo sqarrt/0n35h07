@@ -29,9 +29,20 @@ func setup(font_px: float, letter_spacing_em := 0.0, synthetic_bold := false, fo
 	var font_size := UiFont.css_size(font_px)
 	var spaced := UiFont.bold_spaced(letter_spacing_em, font_size, font_px, font_face) if synthetic_bold \
 		else UiFont.spaced(letter_spacing_em, font_size, font_px, font_face)
-	add_theme_font_override("font", UiFont.with_css_line(spaced, font_size, font_px))
+	add_theme_font_override("font", UiFont.with_face_line(spaced, font_size, font_face) if font_face is SystemFont
+		else UiFont.with_css_line(spaced, font_size, font_px))
 	add_theme_font_size_override("font_size", font_size)
 	_relayout()
+
+## A caption in one call: its text, CSS font and colour, no stylebox margins, clicks let through.
+func styled(label_text: String, font_px: float, letter_spacing_em: float, color: Color, synthetic_bold := false,
+		font_face: Font = null) -> CssLabel:
+	text = label_text                          # the script's own assignment skips _set: setup() lays the run out
+	add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	add_theme_color_override("font_color", color)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	setup(font_px, letter_spacing_em, synthetic_bold, font_face)
+	return self
 
 ## Whether the run draws the text (a single unwrapped, untrimmed line).
 func draws_run() -> bool:

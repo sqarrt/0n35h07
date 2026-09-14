@@ -62,7 +62,7 @@ func test_css_text_keeps_the_fraction_the_box_lost() -> void:
 	var plain := _box(BUTTON)
 	column.add(plain)
 	await wait_process_frames(2)
-	assert_false(CssColumn.CSS_OFFSET in plain, "other boxes are placed as before")
+	assert_false(CssOffset.PROPERTY in plain, "other boxes are placed as before")
 
 func test_gap_sits_between_boxes() -> void:
 	var column := _column()

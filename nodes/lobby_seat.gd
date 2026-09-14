@@ -66,19 +66,19 @@ const ARC_POINTS := 8
 const HALF := 0.5
 
 ## A dashed action zone (web .seat-zone): the free card's share, accent under the mouse; `plus` draws the ＋ before it.
-class Zone extends Button:
+class Zone extends CssButton:
 	var plus: Label = null
 
 	func _draw() -> void:
 		var color := UiTokens.ACCENT if is_hovered() else UiTokens.LINE
 		LobbySeat.draw_dashes(self, Rect2(Vector2.ZERO, size), LobbySeat.ZONE_BORDER_PX, 0.0, color)
+		super()
 
 	## The ＋ sits PLUS_GAP left of the caption, the pair centred (the caption's left margin makes room for it).
 	func place_plus() -> void:
 		if plus == null:
 			return
-		var font := get_theme_font("font")
-		var caption := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, get_theme_font_size("font_size")).x
+		var caption := run().width()
 		var box := plus.get_combined_minimum_size()
 		plus.size = box
 		plus.position = Vector2((size.x - box.x - LobbySeat.PLUS_GAP - caption) * LobbySeat.HALF, (size.y - box.y) * LobbySeat.HALF)
@@ -174,11 +174,7 @@ func show_searching(text: String) -> void:
 		_clear()
 		_searching = true
 		_column = _new_column()
-		_spin = _nick(text, UiTokens.MUTED)
-		var oblique := _spin.get_theme_font("font").duplicate() as FontVariation
-		# Godot slants through the x axis' y component (docs: Transform2D(1.0, slant, 0.0, 1.0, 0.0, 0.0))
-		oblique.variation_transform = Transform2D(Vector2(1.0, OBLIQUE_SKEW), Vector2(0.0, 1.0), Vector2.ZERO)
-		_spin.add_theme_font_override("font", oblique)
+		_spin = _nick(text, UiTokens.MUTED, _oblique_face())
 		_column.add(_spin)
 		_finish()
 	_spin.text = text
@@ -359,10 +355,9 @@ func _zone(node_name: String, key: String, action: Signal, with_plus := false) -
 	var font := UiFont.with_css_line(UiFont.spaced(ZONE_SPACING_EM, ZONE_FONT_SIZE), ZONE_FONT_SIZE)
 	zone.add_theme_font_override("font", font)
 	zone.add_theme_font_size_override("font_size", ZONE_FONT_SIZE)
-	var idle := UiFont.trailing_spacing_style(font)
+	var idle := StyleBoxEmpty.new()
 	var hover := StyleBoxFlat.new()
 	hover.bg_color = ZONE_HOVER_BACKGROUND
-	hover.content_margin_right = font.spacing_glyph
 	zone.add_theme_color_override("font_color", ZONE_TEXT)
 	for key_name in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
 		zone.add_theme_color_override(key_name, UiTokens.ACCENT)
@@ -377,6 +372,7 @@ func _zone(node_name: String, key: String, action: Signal, with_plus := false) -
 		zone.add_theme_stylebox_override(state, idle)
 	for state in ["hover", "hover_pressed"]:
 		zone.add_theme_stylebox_override(state, hover)
+	zone.set_css_font(ZONE_FONT_SIZE, ZONE_SPACING_EM)
 	zone.mouse_entered.connect(zone.queue_redraw)
 	zone.mouse_exited.connect(zone.queue_redraw)
 	zone.pressed.connect(func() -> void: action.emit(slot))
@@ -385,18 +381,20 @@ func _zone(node_name: String, key: String, action: Signal, with_plus := false) -
 func _nick_font() -> FontVariation:
 	return UiFont.with_css_line(UiFont.spaced(NICK_SPACING_EM, NICK_FONT_SIZE), NICK_FONT_SIZE)
 
-func _nick(text: String, color: Color) -> UnderlinedLabel:
+func _nick(text: String, color: Color, face: Font = null) -> UnderlinedLabel:
 	var nick := UnderlinedLabel.new()
 	nick.name = "Nick"
 	nick.offset_px = UNDERLINE_OFFSET
-	nick.text = text
-	var font := _nick_font()
-	nick.add_theme_font_override("font", font)
-	nick.add_theme_font_size_override("font_size", NICK_FONT_SIZE)
-	nick.add_theme_color_override("font_color", color)
-	nick.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
-	nick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	nick.styled(text, NICK_FONT_SIZE, NICK_SPACING_EM, color, false, face)
 	return nick
+
+## Skia's synthetic oblique for the searching spin (font-style: italic on a face without one).
+func _oblique_face() -> FontVariation:
+	var oblique := FontVariation.new()
+	oblique.base_font = UiFont.base()
+	# Godot slants through the x axis' y component (docs: Transform2D(1.0, slant, 0.0, 1.0, 0.0, 0.0))
+	oblique.variation_transform = Transform2D(Vector2(1.0, OBLIQUE_SKEW), Vector2(0.0, 1.0), Vector2.ZERO)
+	return oblique
 
 func _name_field(entry: Dictionary) -> LineEdit:
 	var field := LineEdit.new()

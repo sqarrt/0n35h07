@@ -23,6 +23,8 @@ func test_a_free_host_seat_offers_a_bot() -> void:
 	seat.show_seat(null, false, false, true)
 	var zone := seat.find_child("AddBot", true, false) as Button
 	assert_eq(zone.text, "ADD A BOT")
+	assert_almost_eq((zone as CssButton).run().width(),
+		CssTextRun.new("ADD A BOT", LobbySeat.ZONE_FONT_SIZE, LobbySeat.ZONE_SPACING_EM).width(), EPS, "0.16em × 10 px")
 	watch_signals(seat)
 	zone.pressed.emit()
 	assert_signal_emitted_with_parameters(seat, "add_bot_requested", [SLOT])
