@@ -1,4 +1,4 @@
-# Передача сессии — OneShot: перенос web → Godot (обновлено 13.09.2026, поздний вечер, Claude Code, WSL)
+# Передача сессии — OneShot: перенос web → Godot (обновлено 14.09.2026, ночь, Claude Code, WSL)
 
 ## 1. Задача
 
@@ -32,13 +32,14 @@
   `parity-probe-fx-region.mjs`; общий код — `parity-lib.mjs` (`enterLiveMatch(page, base, map, onStage, {profile, botName})`).
   Хуки web: `__debugAnnounce(kind)`, `__debugStreak(id,n)`, `__debugPlayerColor(id)`, `__debugTimeScale(k)` (только
   симуляция; `Date.now`-визуалы не замедляет), `__debugKill(id)`, `__debugRespawning(id)`, `__debugSetStreak(id,n)`
-  (настоящая серия: перегрев/pierce/прозрачность + HUD), `__debugForceEnd`, …
-  Ещё скрипты: `parity-capture-skins/-beams/-shield-dash/-windup-respawn.mjs`. Vite из WSL на /mnt/c не видит правок —
+  (настоящая серия: перегрев/pierce/прозрачность + HUD), `__debugForceEnd`, `__debugAudioBands`, `__debugStats`
+  (заморозить FPS/худший кадр/историю/скорость), …
+  Ещё скрипты: `parity-capture-skins/-beams/-shield-dash/-windup-respawn/-overheat/-audio-bar/-stats.mjs`. Vite из WSL на /mnt/c не видит правок —
   перезапускать (`pgrep -f "^node node_modules/vite"` + kill; `pkill -f` убивает свою оболочку).
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 364/364)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 371/371)
 
 | Слайс | Суть |
 |---|---|
@@ -54,21 +55,23 @@
 | G11c щиты и следы | `ShieldFx` dome/hex/crystal (`ShieldSkinState`), `DashTrailView` streak/wave/rift |
 | G11d замахи и респавны | `WindupWorldView` (`RageJaws`, `SingularityVortex`, точки `size_attenuated_points`), `RespawnFxView` echo/chaos/swarm (`ChaosRespawn`, `SwarmRespawn`); шар пишет глубину в призраке |
 | Звук (SND) | `MusicRng`/`MusicDirector`/`MenuMusicArranger` (сверены оракулом web), `MusicSlots`/`MusicScheduler`/`MusicEngine` (слот-плееры с `AudioStreamInteractive`, переход на следующий такт = 8 с), `MatchSfx`/`SfxEngine`/`MatchAudio`, автозагрузка `Audio` (меню, UI, `AudioAnalysisHub`), `HudAudioBar`; стемы/SFX → Ogg (`tools/audio/convert_web_audio.py`) |
+| StatsOverlay | `StatsModel` (окно 500 мс, история 150, форматы web) + `HudStatsOverlay` (FPS, график 150×46 отрезками, скорость) по `showFps`/`showSpeed`; рамки на целых пикселях как в Chrome |
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
-Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1) и звук (SND) смержены в `release_2.0.0`. Следующий
-слайс — **StatsOverlay** (FPS/скорость по настройкам профиля), затем тема UI и меню.
+Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND) и StatsOverlay смержены в
+`release_2.0.0`. Следующий слайс — **тема интерфейса** (кнопки, E2), затем меню M1–M8.
 
 ## 5. Что ещё осталось (бэклог паритета)
 
-- **StatsOverlay** (следующий: FPS/скорость по `showFps`/`showSpeed`). Открыто по звуку: форма кроссфейда, реверб/эхо
-  шинами вместо свёртки web, нет де-клика (см. отчёт `2026-09-14-audio-*`).
+- Открыто по звуку: форма кроссфейда, реверб/эхо шинами вместо свёртки web, нет де-клика (отчёт `2026-09-14-audio-*`).
+- **Дробная разрядка букв**: `FontVariation.spacing_glyph` — целое (0.08em × 13 px = 1.04 → 1), длинные строки
+  к концу отстают на 1–2 px (отчёты hud-core, stats); общее решение для всех текстов `UiFont.spaced`.
 - **Тема интерфейса**: кнопки (`Button variant=primary`), экран результата E2 (кнопка/высота колонки).
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
   в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
@@ -78,6 +81,10 @@
   **радио** (WebView + Strudel); редактор карт; трейлер; неймплейты 2v2/FFA.
 
 ## 6. Грабли (не наступать повторно)
+
+- Chrome композитит дробные рамки DOM на целых пикселях (холст на 138.5 рисуется с 139, базовая линия текста
+  округляется) → в Godot округлять верх рамки и базовую линию (`HudStatsOverlay._whole_pixel`). Сглаженная
+  `draw_polyline` срезает острие резкого пика — рисовать отрезками `draw_line`.
 
 - Звук: у узла дети выходят из дерева раньше родителя — не спрашивать у дочернего движка шину в `_exit_tree`;
   Callable на метод не держит RefCounted живым; в GutTest нельзя назвать хелпер `_input`; автозагрузки не глобальны

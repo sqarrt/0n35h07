@@ -25,6 +25,7 @@ declare global {
     __debugRespawning?: (id: number) => boolean
     __debugSetStreak?: (id: number, count: number) => void
     __debugAudioBands?: number[] | null
+    __debugStats?: { fps: number; worstMs: number; frameTimes: number[]; speed: number } | null
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void

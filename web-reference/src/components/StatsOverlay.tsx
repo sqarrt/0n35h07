@@ -65,6 +65,14 @@ export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
 
     const loop = () => {
       const now = performance.now()
+      const fixed = window.__debugStats   // parity captures: frozen readings instead of the live frame timing
+      if (fixed) {
+        hist.set(fixed.frameTimes.slice(0, HISTORY)); head = 0
+        setFps(fixed.fps); setWorstMs(fixed.worstMs)
+        draw()
+        raf = requestAnimationFrame(loop)
+        return
+      }
       const ft = now - prev; prev = now
       hist[head] = ft; head = (head + 1) % HISTORY
       windowMax = Math.max(windowMax, ft)
@@ -91,7 +99,7 @@ export function StatsOverlay({ showFps, showSpeed, speed }: StatsOverlayProps) {
           <canvas ref={canvasRef} style={{ width: GRAPH_W, height: GRAPH_H, display: 'block', marginTop: 3 }} />
         </>
       )}
-      {showSpeed && <div style={{ marginTop: showFps ? 3 : 0 }}>{speed.toFixed(1)} {t.statsSpeedUnit}</div>}
+      {showSpeed && <div style={{ marginTop: showFps ? 3 : 0 }}>{(window.__debugStats?.speed ?? speed).toFixed(1)} {t.statsSpeedUnit}</div>}
     </div>
   )
 }

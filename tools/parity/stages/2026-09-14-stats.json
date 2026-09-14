@@ -1,0 +1,69 @@
+{
+  "id": "2026-09-14-stats",
+  "title": "Сверка паритета OneShot · отладочная статистика (StatsOverlay)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап HUD: web `StatsOverlay` — FPS с худшим кадром за полсекунды, график времени кадра 150×46 с ориентирами 120/60 FPS и скорость игрока; включается флагами профиля `showFps` / `showSpeed`. Показания заморожены одинаковым набором: 144 FPS, худший кадр 9.7 ms, 150 кадров по 6.9 ms с пиками 22 ms (кадр 40) и 12 ms (кадр 100), скорость 7.4.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-stats.json`. Web: `web-reference/scripts/parity-capture-stats.mjs` (хук `window.__debugStats`) → `test-results/parity-gpu-stats/web-stats.png` + рамки элементов `web-stats.json`. Godot: `tools/screenshot.gd` режим `profile:hud-stats` на `maps/os_arena.json`, кадр 300 → `godot-stats.png` + факты `godot-stats.png.json`. Замеры: `tools/parity/measure.py read_png`; вырезки: `tools/parity/crop.py`. Пробы: `tools/graph_probe.gd` (варианты линии графика), `tools/font_metrics_probe.gd` (метрики шрифта).",
+  "pages": [
+    {
+      "slug": "stats",
+      "name": "Угол статистики под скобкой щита",
+      "verdict": "Оверлей перенесён: тексты совпадают дословно, строки и график стоят на тех же пикселях (строки чернил FPS 119–131, скорости 191–203, графика 154–175 — как в web). Среднее отличие: график 0.62/255, строка скорости 0.78/255. У строки FPS 6.96/255: разрядка букв округлена до целого пикселя, к концу 26 символов глифы отстают на 1–2 px.",
+      "verdict_short": "StatsOverlay перенесён; разрядка FPS-строки округлена",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, кадр 300"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["профиль", "PARITY7 `#fa4`, `showFps` + `showSpeed`", "то же в `Game.profile`"],
+        ["показания", "`__debugStats` = {fps 144, worstMs 9.7, frameTimes, speed 7.4}", "`HudStatsOverlay.show_fixture(144, 9.7, frameTimes, 7.4)` из `web-stats.json`"],
+        ["тесты", "—", "GUT 371/371, 4170 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Угол статистики (увеличение ×3)", "wipe": true,
+          "note": "Строка FPS, график (фон, ориентиры 120 и 60 FPS, линия кадров с двумя пиками), строка скорости.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-stats/crops/web-corner.png", "note": "Рамки: FPS [22, 116, 209.6×19.5], холст [22, 138.5, 150×46], скорость [22, 187.5, 209.6×19.5]."},
+            {"kind": "godot", "img": "parity-gpu-stats/crops/godot-corner.png", "note": "Текст FPS (22, 118) 208×16, график (22, 139), текст скорости (22, 190) 56×16."}
+          ]},
+        {"title": "Конец строки FPS (увеличение ×6)", "wipe": true,
+          "note": "Шаг символа: web 8.04 px (7.0 глиф + 1.04 разрядка), Godot 8.00 px (разрядка `spacing_glyph` — целое).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-stats/crops/web-fps-tail.png", "note": "«ms» начинается на x 208, строка заканчивается на 228."},
+            {"kind": "godot", "img": "parity-gpu-stats/crops/godot-fps-tail.png", "note": "«ms» на x 207, конец на 226."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "ST1", "severity": "fixed",
+          "title": "Отладочная статистика FPS / скорости",
+          "web": "`StatsOverlay.tsx`: top 116, left 22, 13 px, `letter-spacing 0.08em`, `line-height 1.5`, `--accent`, `text-shadow 0 0 6px rgba(0,0,0,.85)`; FPS и худший кадр за окно 500 ms; холст 150×46 (фон rgba(8,12,18,.55), ориентиры 8.33 и 16.67 ms, верх 33.3 ms), шаг 3 px; скорость `toFixed(1) u/s`.",
+          "godot": "`StatsModel` (окно, история, форматы, `toFixed`) + `HudStatsOverlay` (GlowText со свечением 6 px, график отрезками); `Hud` включает части по `showFps` / `showSpeed` профиля и кормит время кадра и скорость игрока. Было: оверлея не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/stats_model.gd", "nodes/hud_stats_overlay.gd", "nodes/hud.gd", "tests/unit/test_stats_model.gd", "tests/unit/test_hud_stats_overlay.gd", "web-reference/src/components/StatsOverlay.tsx"]
+        },
+        {
+          "id": "ST2", "severity": "fixed",
+          "title": "Строки и холст на целых пикселях",
+          "web": "Chrome композитит дробные рамки на целых пикселях: холст 138.5 рисуется с 139 (ориентир 60 FPS в строках 161/162 по половине, 120 FPS — строка 173), строка скорости 187.5 → 188, базовая линия 202.",
+          "godot": "`_whole_pixel` округляет верх рамок и базовую линию (половина вниз по экрану): график на 139, текст скорости с 190. Было: 138.5 и 189.25 — линия графика размазывалась на две строки, текст скорости на 1 px выше. Отличие строки скорости 8.06 → 0.78, графика 0.69 → 0.62.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_stats_overlay.gd", "tests/unit/test_hud_stats_overlay.gd"]
+        },
+        {
+          "id": "ST3", "severity": "fixed",
+          "title": "Острие однокадрового пика",
+          "web": "Путь холста `lineTo` шириной 1: у пика 22 ms соединение уходит в скос (угол острее предела `miterLimit 10`), свет начинается со строки 154.",
+          "godot": "Линия кадров — отдельными сглаженными отрезками `draw_line`. Сглаженная `draw_polyline` срезала острие: свет начинался только со строки 158 (проба `tools/graph_probe.gd`: отличие области пика 16.2 у полилинии, 10.0 у отрезков).",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/hud_stats_overlay.gd", "tools/graph_probe.gd"]
+        }
+      ],
+      "limitations": [
+        "Разрядка букв: `FontVariation.spacing_glyph` — целое, 0.08em × 13 px = 1.04 px округляется до 1; к концу строки FPS глифы отстают на 1–2 px (то же ограничение, что в отчёте hud-core). Общее решение для всех текстов с разрядкой — отдельный слайс.",
+        "Склоны пика в Godot ярче web на 20–50 уровней синего: сглаженные отрезки перекрываются и складываются, а холст закрашивает объединение пути.",
+        "Живые показания не сравнивались попиксельно: обе стороны заморожены одинаковым набором; окно FPS, история и форматы проверены юнит-тестами `test_stats_model.gd`."
+      ]
+    }
+  ]
+}

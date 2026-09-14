@@ -24,6 +24,8 @@ extends SceneTree
 ##                     exactly those bolts at their strike peak with the pulse at its start.
 ##   hud-audio-bar-<run>  passive bot + the visualiser fed the fixed bands of web-audio-bar-<run>.json next to the
 ##                     output PNG (parity-capture-audio-bar.mjs), 90 frames to settle; the bar geometry joins the facts.
+##   hud-stats         passive bot + the profile's showFps / showSpeed on, the stats overlay frozen on the readings of
+##                     web-stats.json next to the output PNG (parity-capture-stats.mjs); its boxes join the facts.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -46,6 +48,9 @@ const OVERHEAT_FRAMES := 2           # the HUD picks the streak up, then the fro
 const MODE_HUD_AUDIO_BAR := "hud-audio-bar-"
 const AUDIO_BAR_FIXTURE := "web-audio-bar-%s.json"
 const AUDIO_BAR_FRAMES := 90         # web settles the line's smoothing for 1.5 s (at --fixed-fps 60)
+const MODE_HUD_STATS := "hud-stats"
+const STATS_FIXTURE := "web-stats.json"
+const STATS_FRAMES := 2              # the HUD shows the overlay, then the frozen fixture draws
 const MODE_THIRD_PERSON := "third-person"
 const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
@@ -120,13 +125,16 @@ func _initialize() -> void:
 	_passive_bot = _reference_camera or _mode in [MODE_PASSIVE_BOT, MODE_HUD_GHOST, MODE_THIRD_PERSON, MODE_TP_WINDUP,
 		MODE_TP_DEFLATE] \
 		or _mode.begins_with(MODE_HUD_BANNER) or _mode.begins_with(MODE_HUD_NAMES) or _mode.begins_with(MODE_PROFILE) \
-		or _mode.begins_with(MODE_HUD_OVERHEAT) or _mode.begins_with(MODE_HUD_AUDIO_BAR)
+		or _mode.begins_with(MODE_HUD_OVERHEAT) or _mode.begins_with(MODE_HUD_AUDIO_BAR) or _mode == MODE_HUD_STATS
 	if _mode.begins_with(MODE_PROFILE) and g != null:
 		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
 		g.lobby_bot_name = PARITY_BOT_NAME
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
+	if _mode == MODE_HUD_STATS and g != null:   # web profile showFps / showSpeed
+		g.profile["showFps"] = true
+		g.profile["showSpeed"] = true
 	var style_mode := _style_mode()
 	if style_mode != "":
 		_passive_bot = true
@@ -207,6 +215,16 @@ func _apply_hud_fixture() -> int:
 		_human().player.start_firing()   # web: one mousedown
 		var half := _mode == MODE_TP_WINDUP or _mode.begins_with(MODE_TP_WINDUP_STYLE)
 		return HALF_WINDUP_FRAMES if half else DEFLATE_FRAMES   # the shot frame = 50 ms into it
+	if _mode == MODE_HUD_STATS:
+		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)
+		var stats_json := JSON.new()
+		var overlay := root.find_child("StatsOverlay", true, false) as HudStatsOverlay
+		if overlay != null and FileAccess.file_exists(stats_fixture) \
+				and stats_json.parse(FileAccess.get_file_as_string(stats_fixture)) == OK:
+			var stats: Dictionary = stats_json.data["stats"]
+			overlay.show_fixture(int(stats["fps"]), float(stats["worstMs"]), PackedFloat32Array(stats["frameTimes"]),
+				float(stats["speed"]))
+		return STATS_FRAMES
 	if _mode.begins_with(MODE_HUD_AUDIO_BAR):
 		var bar_fixture := _output.get_base_dir().path_join(AUDIO_BAR_FIXTURE % _mode.trim_prefix(MODE_HUD_AUDIO_BAR))
 		var bar_json := JSON.new()
@@ -268,6 +286,11 @@ func _capture() -> void:
 		facts["audio_bar"] = {"visible": audio_bar.visible, "origin": [audio_bar.bar_origin().x, audio_bar.bar_origin().y],
 			"size": [audio_bar.bar_size().x, audio_bar.bar_size().y],
 			"points": Array(audio_bar.line_points()).map(func(p: Vector2) -> Array: return [p.x, p.y])}
+	var stats_overlay := root.find_child("StatsOverlay", true, false) as HudStatsOverlay
+	if stats_overlay != null:
+		facts["stats"] = {"visible": stats_overlay.visible, "fps_text": stats_overlay.fps_text().label().text,
+			"speed_text": stats_overlay.speed_text().label().text, "fps": _rect(stats_overlay.fps_text()),
+			"graph": _rect(stats_overlay.graph()), "speed": _rect(stats_overlay.speed_text())}
 	var human := _human()
 	if human != null:
 		facts["human_respawning"] = human.player.respawning
@@ -293,6 +316,9 @@ func _web_bolts(bolts: Array) -> Array:
 		out.append({"side": bolt["side"], "top_pct": float(bolt["topPct"]), "length": float(bolt["length"]),
 			"segments": segments})
 	return out
+
+func _rect(control: Control) -> Array:
+	return [control.global_position.x, control.global_position.y, control.size.x, control.size.y]
 
 func _vec(v: Vector3) -> Array:
 	return [v.x, v.y, v.z]
