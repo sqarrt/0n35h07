@@ -16,12 +16,16 @@ const FORBIDDEN_RENDERER = /SwiftShader/i;
 /** The desktop window fullscreen on the parity machine's 3840×2160 display at the Windows 150% scale: the WebView's CSS
  *  viewport is the screen divided by the scale (2560×1440 CSS px) at a 1.5 pixel ratio. */
 export const FULLSCREEN = { viewport: { width: 2560, height: 1440 }, deviceScaleFactor: 1.5 };
+/** PARITY_FULLSCREEN=1: every capture launches the FULLSCREEN window unless it passes its own viewport. */
+export const FULLSCREEN_ON = process.env.PARITY_FULLSCREEN === '1';
+const DEFAULT_WINDOW = FULLSCREEN_ON ? FULLSCREEN : { viewport: VIEWPORT, deviceScaleFactor: 1 };
 
 /** Launch the browser and a page; throws when WebGL runs on a line-dropping renderer. */
 /** `showScrollbars`: keep classic scrollbars (headless Chromium hides them by default; the desktop WebView draws its
  *  native thin 10 px bar, which takes layout width inside a scrolling panel). `viewport` / `deviceScaleFactor`: the
  *  page's CSS size and pixel ratio (FULLSCREEN for the fullscreen frames). */
-export async function launchReferencePage({ showScrollbars = false, viewport = VIEWPORT, deviceScaleFactor = 1 } = {}) {
+export async function launchReferencePage({ showScrollbars = false, viewport = DEFAULT_WINDOW.viewport,
+  deviceScaleFactor = DEFAULT_WINDOW.deviceScaleFactor } = {}) {
   const browser = await chromium.launch({
     headless: true,
     args: GL_ARGS,

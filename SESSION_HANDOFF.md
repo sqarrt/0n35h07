@@ -101,12 +101,15 @@ Join game / `+connect_lobby` → гость, закрытая комната г�
 последний): нативная полоса прокрутки десктопного WebView (`UiScroll`: жёлоб 10 px, стрелки 12 px, ползунок 6 px;
 `LobbyScreen` сужает колонку при переполнении; полоса 0.02/255), `GlyphButton` (✕ с line-height 1), подгонка разрядки
 `UiFont.fitted_spacing` по 100 глифам, `CssBoxShadow`; остаток — целая разрядка. GUT 685/685.
-**Найдено на весь экран:** монитор 3840×2160 при масштабе Windows 150%; в `project.godot` нет масштаба содержимого →
-интерфейс Godot в 1.5 раза мельче web (панель 680 физических px против 1020). Съёмка на весь экран: web
-`set PARITY_FULLSCREEN=1&& node scripts\parity-capture-lobby-steam.mjs …` (`parity-lib.mjs` `FULLSCREEN` 2560×1440 CSS ×
-1.5), Godot `--fullscreen` вместо `--resolution`. **Дальше:** (1) слайс DPI-масштаба: масштаб интерфейса по DPI Windows
-для всех экранов и HUD, сверка в окне и на весь экран; (2) N3 (имя из Steam, облако, ачивки, Rich Presence);
-(3) дробная разрядка букв (целый `spacing_glyph`); (4) радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+**Слайс DS (весь экран + масштаб по DPI) смержен** (`feature/godot-dpi-scale`): монитор стенда 3840×2160 при 150%;
+`DisplayStartup.start` из `Game._ready` — весь экран (как Tauri `fullscreen: true`) и `content_scale_factor =
+UiScale.for_dpi(DPI)` (на Windows `screen_get_scale()` = 1, берём DPI 144); `-s`-инструменты окно не получают (их
+`_initialize` раньше `_ready` автозагрузок). Рендер-таргеты `MenuBackdrop`/`FinaleScene`/композит `EffectText` — в
+физических px через `UiScale`. Отчёт `2026-09-14-display-scale-*`: весь экран совпал (панели 0.00–1.02/255), окно не
+изменилось (0.00). GUT 692/692. **Съёмка на весь экран:** web `set PARITY_FULLSCREEN=1&& node scripts\<скрипт>.mjs
+<папка>` (`parity-lib.mjs` `FULLSCREEN` 2560×1440 CSS × 1.5, для всех скриптов), Godot `--fullscreen` вместо
+`--resolution` (`ui_scale` в фактах кадра). **Дальше:** (1) N3 (имя из Steam, облако, ачивки, Rich Presence);
+(2) дробная разрядка букв (целый `spacing_glyph`); (3) радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

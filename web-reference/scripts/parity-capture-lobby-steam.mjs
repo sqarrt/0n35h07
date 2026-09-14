@@ -8,9 +8,8 @@
 //   node scripts/parity-capture-lobby-steam.mjs <output dir> [base url]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { FULLSCREEN, VIEWPORT, launchReferencePage, settleScene } from './parity-lib.mjs';
+import { FULLSCREEN, FULLSCREEN_ON, VIEWPORT, launchReferencePage, settleScene } from './parity-lib.mjs';
 
-const FULLSCREEN_ON = process.env.PARITY_FULLSCREEN === '1';
 const SUFFIX = FULLSCREEN_ON ? '-fs' : '';
 const WINDOW = FULLSCREEN_ON ? FULLSCREEN : { viewport: VIEWPORT, deviceScaleFactor: 1 };
 

@@ -227,6 +227,9 @@ func _initialize() -> void:
 	var extra := OS.get_cmdline_user_args()
 	var scene_path := extra[ARG_SCENE] if extra.size() > ARG_SCENE else DEFAULT_SCENE
 	var g := root.get_node_or_null("Game")   # autoload node (not a compile-time global here)
+	# web captures: the 1280×720 page at pixel ratio 1, or fullscreen at the Windows scale (parity-lib FULLSCREEN)
+	var fullscreen := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	root.content_scale_factor = UiScale.for_dpi(DisplayServer.screen_get_dpi()) if fullscreen else 1.0
 	if extra.size() > ARG_MAP:
 		_map_path = extra[ARG_MAP]
 		if g != null:
@@ -562,6 +565,7 @@ func _capture() -> void:
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
 	if not _mode.begins_with(MODE_PAUSE):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED   # the HUD shows under the pointer lock; a fullscreen tool window loses it
 		for pause in root.find_children("*", "PauseOverlay", true, false):
 			(pause as PauseOverlay).setup(func() -> bool: return false)   # an unfocused capture window never pauses
 			(pause as PauseOverlay).refresh()
@@ -584,7 +588,7 @@ func _capture() -> void:
 		push_error("Screenshot save failed: %s" % error_string(result))
 		quit(1)
 		return
-	var facts := {"map": _map_path, "capture_frame": _frames, "mode": _mode,
+	var facts := {"map": _map_path, "capture_frame": _frames, "mode": _mode, "ui_scale": root.content_scale_factor,
 		"reference_camera": _reference_camera, "passive_bot": _passive_bot}
 	if _match_ms != NO_OVERRIDE:
 		facts["match_duration_ms"] = _match_ms

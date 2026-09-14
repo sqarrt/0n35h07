@@ -212,8 +212,9 @@ func _add_view() -> void:
 	add_child(_view)
 	_view.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
+## web finale Canvas: dpr [1, 2] — the world renders in device pixels under the Windows scale.
 func _fit() -> void:
-	var pixels := Vector2i(maxi(roundi(size.x), 1), maxi(roundi(size.y), 1))
+	var pixels := UiScale.device_size(size, UiScale.of(self))
 	_world.size = pixels
 	_bloom.set_size(pixels)
 
