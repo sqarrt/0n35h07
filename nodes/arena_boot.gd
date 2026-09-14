@@ -47,7 +47,12 @@ func _ready() -> void:
 	add_child(match_node)
 	for id in nodes:
 		nodes[id].apply_appearance(match_node.roster.entry(id))
-		match_node.add_entity(nodes[id], GameModes.team_of_slot(mode, id))
+		var team := GameModes.team_of_slot(mode, id)
+		match_node.add_entity(nodes[id], team)
+		# web: plates only where friend / foe reading matters (not 1v1), never over the own model
+		if mode != GameModes.DUEL and id != HUMAN_SLOT:
+			var plate_color: Color = GameModes.TEAM_COLORS[team] if mode == GameModes.BATTLE else Nameplate.NEUTRAL_COLOR
+			nodes[id].set_nameplate(Nameplate.create(match_node.roster.name_of(id), plate_color))
 	match_node.fired.connect(hc.on_fired)   # web: the local player's own shot shakes the camera
 	match_node.singularity_changed.connect(func(active: bool) -> void: MapBlocks.set_transparent(get_tree(), active))
 

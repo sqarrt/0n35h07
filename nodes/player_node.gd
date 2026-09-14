@@ -188,6 +188,19 @@ func on_block() -> void:
 func is_flashing() -> bool:
 	return _flash > 0.0
 
+var _nameplate: Nameplate = null         # web setNameplate: over other players in 2v2 / FFA
+
+## Attach (or with null remove) the name plate; it shows while the player is alive (web: dies with the body).
+func set_nameplate(plate: Nameplate) -> void:
+	if _nameplate != null:
+		_nameplate.queue_free()
+	_nameplate = plate
+	if plate != null:
+		add_child(plate)
+
+func nameplate() -> Nameplate:
+	return _nameplate
+
 func _process(delta: float) -> void:
 	# Smoothly close the eye's step lag so a climb reads as a rise, not a snap (HumanController places the camera).
 	if _step_smooth > 0.0:
@@ -233,6 +246,8 @@ func update_visuals(delta: float) -> void:
 	_respawn_fx.update(delta)
 	_dash_trail.visible = _body_visible   # web setBodyVisible: no own trail in first person
 	_dash_trail.update(delta, player.body.is_dashing(), global_position)
+	if _nameplate != null:
+		_nameplate.visible = player.alive   # hidden from the kill until the respawn
 	_shield_fx.update(delta)
 
 func _fill_respawn_frame(ghost: bool, origin: Vector3) -> RespawnFxView.Frame:

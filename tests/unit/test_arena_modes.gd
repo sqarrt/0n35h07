@@ -31,3 +31,10 @@ func test_a_battle_roster_builds_two_teams() -> void:
 		teams[score["id"]] = score["team"]
 	assert_eq(teams, {0: 0, 1: 0, 2: 1, 3: 1}, "web teamOfSlot: slots 0-1 and 2-3")
 	assert_not_null(arena.find_child("TeamBar", true, false), "more than two players: the team top bar")
+	var plates := {}
+	for pnode in arena.find_children("*", "PlayerNode", true, false):
+		plates[(pnode as PlayerNode).player.id] = (pnode as PlayerNode).nameplate()
+	assert_null(plates[0], "never over the own model")
+	for id in [1, 2, 3]:
+		assert_not_null(plates[id], "a plate over player %d" % id)
+	assert_eq(plates[1].text(), "B1")

@@ -1078,6 +1078,16 @@ export class Match {
     w.__debugPlayerColor = (id: number) => this.colorOf.get(id) ?? null
     // Parity captures: start a player's ghost phase without a shooter (no score), and watch it materialise.
     w.__debugKill = (id: number) => this.byId.get(id)?.applyDeath()
+    // Parity captures: move a player on the ground plane (its height kept), e.g. an enemy in front of the camera.
+    w.__debugPlace = (id: number, x: number, z: number) => {
+      const p = this.byId.get(id)
+      if (!p) return null
+      const pos = p.position.clone()
+      pos.x = x
+      pos.z = z
+      p['body'].setPosition(pos)   // debug-only: the body is private to Player; element access keeps its API untouched
+      return { x: pos.x, y: pos.y, z: pos.z }
+    }
     w.__debugRespawning = (id: number) => this.byId.get(id)?.isRespawning ?? false
     // Parity captures: a real streak (OVERHEAT mods, pierce and see-through blocks next tick) with its HUD tier.
     w.__debugSetStreak = (id: number, count: number) => {

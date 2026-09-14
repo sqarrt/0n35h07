@@ -74,6 +74,10 @@ const HOVER_FRAMES := 2              # the button takes the hover look
 const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit",
 	"menu-hover-play": "Play", "menu-hover-secondary": "Appearance"}
 const MODE_TEAM := "team-"
+const PLATE_SUFFIX := "-plate"        # team-<mode>-plate: an enemy bot placed in front of the camera
+const PLATE_BOT_ID := 2
+const PLATE_DISTANCE := 4.0           # world units along the camera's look (web parity-capture-nameplate.mjs)
+const PLATE_FRAMES := 20
 const TEAM_BOT_SLOTS := [1, 2, 3]
 const TEAM_BOT_NAME := "B%d"
 const TEAM_BOXES := ["TeamBar", "TeamLeft", "TeamRight", "TotalLeft", "TotalRight", "Timer", "Row0", "Row1", "Row2", "Row3"]
@@ -179,7 +183,7 @@ func _initialize() -> void:
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
 	if _mode.begins_with(MODE_TEAM) and g != null:   # the lobby's seats for a Battle / War match
-		_team_roster(g, _mode.trim_prefix(MODE_TEAM))
+		_team_roster(g, _mode.trim_prefix(MODE_TEAM).trim_suffix(PLATE_SUFFIX))
 		_passive_bot = false                          # the roster's passive bots already stand still
 	if _mode == MODE_HUD_STATS and g != null:   # web profile showFps / showSpeed
 		g.profile["showFps"] = true
@@ -278,6 +282,15 @@ func _apply_hud_fixture() -> int:
 	if _mode.begins_with(MODE_LOBBY):
 		_lobby_fixture(_mode.trim_prefix(MODE_LOBBY))
 		return LOBBY_FRAMES
+	if _mode.begins_with(MODE_TEAM) and _mode.ends_with(PLATE_SUFFIX):
+		# web __debugPlace(2, camera + look * 4): an enemy close enough to read its plate
+		var camera := root.get_camera_3d()
+		var look := -camera.global_basis.z
+		var target := camera.global_position + Vector3(look.x, 0.0, look.z).normalized() * PLATE_DISTANCE
+		for node in _players():
+			if node.player.id == PLATE_BOT_ID:
+				node.place_at(Vector3(target.x, node.global_position.y, target.z))
+		return PLATE_FRAMES
 	if _mode.begins_with(MODE_MENU):
 		for menu in root.find_children("*", "MainMenu", true, false):
 			# the web capture runs in a browser tab; call() keeps MainMenu (it uses autoload names) out of this tool's

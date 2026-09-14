@@ -27,6 +27,7 @@ declare global {
     __debugAudioBands?: number[] | null
     __debugStats?: { fps: number; worstMs: number; frameTimes: number[]; speed: number } | null
     __debugLockCooldownLeft?: number   // ms left of the pause RESUME cooldown, frozen for parity captures
+    __debugPlace?: (id: number, x: number, z: number) => { x: number; y: number; z: number } | null
     __debugPhysicsReady?: () => boolean
     __debugPhase?: () => string
     __debugReady?: () => void
