@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 393/393)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 398/398)
 
 | Слайс | Суть |
 |---|---|
@@ -58,24 +58,28 @@
 | Звук (SND) | `MusicRng`/`MusicDirector`/`MenuMusicArranger` (сверены оракулом web), `MusicSlots`/`MusicScheduler`/`MusicEngine` (слот-плееры с `AudioStreamInteractive`, переход на следующий такт = 8 с), `MatchSfx`/`SfxEngine`/`MatchAudio`, автозагрузка `Audio` (меню, UI, `AudioAnalysisHub`), `HudAudioBar`; стемы/SFX → Ogg (`tools/audio/convert_web_audio.py`) |
 | StatsOverlay | `StatsModel` (окно 500 мс, история 150, форматы web) + `HudStatsOverlay` (FPS, график 150×46 отрезками, скорость) по `showFps`/`showSpeed`; рамки на целых пикселях как в Chrome |
 | Тема UI + пауза (UT) | `UiButton` (primary/secondary/ghost), `UiTokens`, `CssColumn`/`CssPixel`/`CssOpacity`, `UiFont.with_css_line`/`trailing_spacing_style`/`bold_spaced`; `PauseModel` + `PointerLock` (пауза не стопит матч, кулдаун RESUME 1300 мс, HUD скрыт без захвата); колонка результата (E2) |
+| Главное меню M2/M4 (MM) | `MainMenu`: панель 680 px (фон .72, боковые линии), логотип 0N35H07 (жирный, свечение 30 px), линия, PLAY/APPEARANCE/SETTINGS/ABOUT/QUIT шириной 50%, чип версии (открывает папку логов); выбор карты убран из меню (web — в лобби) |
 | PP1 контур рёбер блоков | `MapEdges`: копии raycast-блоков на слое 20 → float-SubViewport (нормаль+глубина), квад `map_edges` (blend_mul) |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
 
-Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay и тема UI с паузой
-смержены в `release_2.0.0`. Следующий слайс — **меню M1–M8** (главное меню на `UiButton`, подменю настроек паузы).
+Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
+раскладка главного меню смержены в `release_2.0.0`. Следующий слайс — **лобби L1–L6** (в меню больше нет выбора
+карты: PLAY сразу в арену на `Game.selected_map`), затем 3D-фон меню M1 и экраны APPEARANCE / SETTINGS / ABOUT.
 
 ## 5. Что ещё осталось (бэклог паритета)
 
 - Открыто по звуку: форма кроссфейда, реверб/эхо шинами вместо свёртки web, нет де-клика (отчёт `2026-09-14-audio-*`).
 - **Дробная разрядка букв**: `FontVariation.spacing_glyph` — целое (0.08em × 13 px = 1.04 → 1), длинные строки
   к концу отстают на 1–2 px (отчёты hud-core, stats); общее решение для всех текстов `UiFont.spaced`.
-- Открыто после темы UI: SETTINGS в паузе (web `MatchSettings`) ничего не открывает; secondary-кнопки и фокус
-  сверить пикселями в главном меню; MENU — дробная базовая линия Chrome (отчёт `2026-09-14-ui-theme-*`).
+- Открыто после темы UI: SETTINGS в паузе (web `MatchSettings`) ничего не открывает; MENU — дробная базовая
+  линия Chrome (отчёт `2026-09-14-ui-theme-*`).
+- Открыто после главного меню: APPEARANCE / SETTINGS / ABOUT шлют `screen_requested`, экранов нет; нет 3D-фона
+  (`MenuBackdrop`) и `backdrop-filter: blur(2px)` панели; RADIO скрыт до радио; нет заставки M6 и i18n M5.
 - **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
   в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
 - **Лобби L1–L6**: режимы DUEL/BATTLE/WAR, места, боты (ник/сложность), карты мультивыбор, длительность 3/5/10,
@@ -88,6 +92,8 @@
 - Chrome композитит дробные рамки DOM на целых пикселях (холст на 138.5 рисуется с 139, базовая линия текста
   округляется) → в Godot округлять верх рамки и базовую линию (`HudStatsOverlay._whole_pixel`). Сглаженная
   `draw_polyline` срезает острие резкого пика — рисовать отрезками `draw_line`.
+- `tools/screenshot.gd` (скрипт `-s`) не должен ссылаться на тип класса, который использует имена автозагрузок
+  (`Audio`, `Game`) — компиляция инструмента падает («Identifier not found: Audio»); звать методы через `call()`.
 - Текст Chrome: высота строки `normal` = округлённые подъём + спуск (Godot округляет вверх: 16 px 15 + 4 вместо 14 + 4)
   → `UiFont.with_css_line`; разрядка CSS идёт и после последней буквы → `trailing_spacing_style` / правое поле кнопки.
   Синтетический жирный Godot (`variation_embolden`) шаг букв НЕ расширяет.

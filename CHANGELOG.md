@@ -90,6 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The original's buttons and pause menu.** Buttons take the original's filled, outlined and dim looks that switch
   instantly on hover and press. The pause menu shows MENU with RESUME, SETTINGS, TO MENU and QUIT over the dimmed
   match, and the result screen gets the original's column spacing, a bold headline and the filled EXIT button.
+- **The original's main menu.** The game opens on the original's centred menu panel with the glowing 0N35H07 logo,
+  PLAY, APPEARANCE, SETTINGS, ABOUT and QUIT, and the version in the corner, which opens the log folder when clicked.
+  The map is no longer chosen in the main menu: as in the original, that belongs to the lobby.
 
 ### Fixed
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
