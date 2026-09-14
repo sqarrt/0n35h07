@@ -1,0 +1,279 @@
+{
+  "id": "2026-09-14-i18n",
+  "title": "Сверка паритета OneShot · переводы интерфейса (i18n)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс переводов: web `src/i18n` (10 словарей `Dict = typeof en`, `I18nProvider` / `useT`) и единственное CSS-правило по языку (`index.css`: `html[lang=\"zh-CN\"] .btn, .seg { letter-spacing: 0.05em }`). Эталон — десктопная (Steam) сборка: заглушка `__TAURI_INTERNALS__`. Сверены русский (кириллица, длинные слова) и упрощённый китайский (CJK-начертание, другой межбуквенный интервал, более высокие строки): меню, SETTINGS, ABOUT, APPEARANCE, лобби, пауза и экран результата.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-i18n.json`. Словари: `web-reference/scripts/export-i18n.mjs` → `assets/i18n/<id>.json` (171 ключ × 10 языков). Web: `PARITY_LOCALE=<ru|zh-CN>` для `parity-capture-settings.mjs` (новый кадр `web-menu`), `parity-capture-appearance.mjs`, `parity-capture-lobby.mjs`, `parity-capture-buttons.mjs` → `test-results/parity-i18n/<язык>/web-*.png` + JSON рамок. Godot: `tools/screenshot.gd` с префиксом режима `locale-<id>:` — `profile:desktop-menu`, `profile:settings-<tab>`, `profile:about`, `profile:appearance-panel`, `profile:lobby-fresh` на `scenes/main_menu.tscn`; `profile:pause-idle` (кадр 300) и `profile:match-end-hover` (матч 1000 мс, кадр 480) на `scenes/arena_test.tscn` → `godot-*.png` + `.png.json`. Пиксели — среднее отличие каналов (0–255) по колонке панели x 300–980 (APPEARANCE x 576–1256, лобби — верх тела y 0–440, пауза — колонка 440–840 × 180–540). Пробы высоты строки: Chrome — `span` с `var(--ui-font)`, Godot — `Label` на `UiFont`.",
+  "pages": [
+    {
+      "slug": "service",
+      "name": "Словари и смена языка",
+      "verdict": "Тексты интерфейса берутся из словарей web: 171 ключ в 10 языках, шаблоны `{0}` («{0} МИН»). Язык из профиля (иначе системный) применяется при запуске; выбор плитки в SETTINGS сразу пересобирает колонку меню и экран настроек на той же вкладке, камера фона не двигается. Кнопки меню в ru и zh-CN совпадают по рамкам (299×44 и 299×47). Сдвиг всей колонки на 29–30 px — это кнопка RADIO десктопной сборки: радио не перенесено.",
+      "verdict_short": "Словари и переключение перенесены",
+      "conditions": [
+        ["сборка", "браузер с заглушкой `__TAURI_INTERNALS__` (`IS_DESKTOP`)", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["профиль", "PARITY7, locale ru / zh-CN", "то же в памяти (`locale-<id>:profile:`)"],
+        ["тесты", "—", "GUT 534/534 (`test_i18n`, смена языка в `test_main_menu`, `test_settings_screen`)"]
+      ],
+      "comparisons": [
+        {"title": "Меню · русский", "wipe": false,
+          "note": "Фон скрыт. В web над QUIT есть RADIO (десктоп), поэтому колонка выше на 28.8 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-menu.png", "note": "ИГРАТЬ / ВНЕШНОСТЬ / НАСТРОЙКИ / ОБ ИГРЕ / РАДИО / ВЫХОД"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-menu.png", "note": "Без RADIO."}
+          ]},
+        {"title": "Кнопка PLAY · zh-CN (×2)", "wipe": true,
+          "note": "Строка с китайским выше: кнопка 47 px вместо 44.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-menu-buttons.png", "note": "开始游戏, разрядка 0.05em"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-menu-buttons.png", "note": "Рамка 299×47; вырезка 4.08/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "I1", "severity": "fixed",
+          "title": "Тексты интерфейса только на английском",
+          "web": "`useT()` отдаёт словарь активного языка (en, fr, it, de, es, zh-CN, pt-BR, ru, tr, pl); параметризованные записи — функции (`roomDurationMin(n)`).",
+          "godot": "`I18n.t(key, args)` читает `assets/i18n/<id>.json` (выгрузка `export-i18n.mjs`: функции вызваны с «{0}», «{1}»), при отсутствии записи — английскую, затем ключ. Константы текста стали ключами во всех экранах: меню, лобби и места, SETTINGS, ABOUT, APPEARANCE и поле рисунка, пауза, результат (`HudModel`), имена верхней строки HUD, «RESPAWNING», слова оверлея статистики (`StatsModel`). Было: английские константы, выбор языка сохранялся, но ничего не менял.",
+          "evidence": ["test", "code", "screenshot"],
+          "sources": ["sim/i18n.gd", "assets/i18n/ru.json", "web-reference/scripts/export-i18n.mjs", "autoloads/game.gd", "tests/unit/test_i18n.gd", "web-reference/src/i18n/index.ts"]
+        },
+        {
+          "id": "I2", "severity": "fixed",
+          "title": "Смена языка на лету",
+          "web": "`setLocale` в `I18nProvider`: дерево перерисовывается на месте, профиль сохраняется.",
+          "godot": "`SettingsScreen.locale_changed` (только при новом языке) → `MainMenu._on_locale_changed`: `I18n.use_locale`, пересборка колонки меню и свежий `SettingsScreen` на той же вкладке, обновление наведения под курсором; фон и поза камеры не трогаются. Остальные экраны строятся уже в новом языке.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/main_menu.gd", "nodes/settings_screen.gd", "tests/unit/test_main_menu.gd", "tests/unit/test_settings_screen.gd"]
+        },
+        {
+          "id": "I3", "severity": "missing",
+          "title": "RADIO в меню десктопной сборки",
+          "web": "Между ABOUT и QUIT — кнопка RADIO (电台 / РАДИО) и мини-плеер радио в правом нижнем углу.",
+          "godot": "Радио не перенесено: кнопки нет, колонка меню на 28.8 px ниже. Отдельный слайс.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/main_menu.gd", "web-reference/src/screens/MainMenu.tsx"]
+        }
+      ],
+      "limitations": [
+        "Тексты неперенесённых функций (радио, Steam-приглашения, поиск, заставка-предупреждение, редактор) выгружены в словари, но пока не используются.",
+        "Web показывает трейлер всегда на английском (`ForceLocale`); трейлера в Godot нет."
+      ]
+    },
+    {
+      "slug": "russian",
+      "name": "Русский: SETTINGS, ABOUT, APPEARANCE, лобби",
+      "verdict": "Экраны на русском совпадают с web так же, как английские: колонка PLAYER 1.12/255 (en 1.05), SOUND 0.76, GRAPHICS 0.98, ABOUT 0.77 (en 0.66), панель APPEARANCE 1.59, верх лобби 1.30. Рамки по вертикали в пределах ±0.5 px (вкладки 118 против 118.19, BACK 638 против 637.61). До исправления кириллические строки были на 1 px выше и сдвигали всё ниже: PLAYER 2.73, ABOUT 3.47, APPEARANCE 4.88.",
+      "verdict_short": "ru совпадает",
+      "conditions": [
+        ["язык", "ru", "ru"],
+        ["лобби", "браузерная сборка (десктопной нужен Steam)", "десктоп Godot, фон скрыт"]
+      ],
+      "comparisons": [
+        {"title": "SETTINGS · PLAYER", "wipe": true,
+          "note": "Колонка 598 px от x 341; фон скрыт.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-settings-player.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-settings-player.png", "note": "Колонка 1.12/255."}
+          ]},
+        {"title": "Заголовок и вкладки (×2)", "wipe": true,
+          "note": "h2 24 px жирным 0.2em, вкладки `.seg` 11 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-top.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-top.png", "note": "НАСТРОЙКИ шире: разрядка 5 px вместо 4.8."}
+          ]},
+        {"title": "APPEARANCE", "wipe": true,
+          "note": "Длинная подпись резервного цвета со строчными буквами в скобках.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-appearance.png", "note": "Поверх — мини-плеер радио."},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-appearance.png", "note": "Панель 1.59/255."}
+          ]},
+        {"title": "SETTINGS · SOUND", "wipe": true,
+          "note": "Подписи слайдеров.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-settings-sound.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-settings-sound.png", "note": "0.76/255."}
+          ]},
+        {"title": "ABOUT", "wipe": true,
+          "note": "ОБ ИГРЕ, РАЗРАБОТЧИК, ТРЕЙЛЕР, СМОТРЕТЬ.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-about.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-about.png", "note": "0.77/255."}
+          ]},
+        {"title": "Лобби, верх тела", "wipe": true,
+          "note": "ИГРАТЬ, режимы, // КАРТА, // ВРЕМЯ с «3 МИН».",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-lobby.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-lobby.png", "note": "1.30/255; полоса прокрутки Godot видна, web её прячет."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "I4", "severity": "fixed",
+          "title": "Кириллические строки на 1 px выше",
+          "web": "Chrome считает строку `line-height: normal` по латинскому начертанию семейства и для кириллицы (замер: 16 px — «PLAY» и «ИГРАТЬ» по 18 px).",
+          "godot": "`UiFont.with_css_line` теперь ставит те же поправки подъёма и спуска и зеркальным запасным вариациям. Было: кириллические глифы шли с неисправленными метриками запасного шрифта (19 px), вкладки и всё ниже сдвигались на 1 px.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd"]
+        },
+        {
+          "id": "I5", "severity": "visual",
+          "title": "Ширина кириллического текста на целых пикселях",
+          "web": "Дробные разрядка и шаг глифа (24 px × 0.2em = 4.8 px).",
+          "godot": "`spacing_glyph` целый: НАСТРОЙКИ и ВНЕШНОСТЬ шире на 3–4 px, заголовок паузы МЕНЮ 83 против 76.42 px (с концевой разрядкой). Известный общий остаток.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd"]
+        }
+      ],
+      "limitations": [
+        "Английские кадры после правки `with_css_line` совпадают с прежними бит в бит (отличие 0.00 по всему кадру PLAYER и ABOUT).",
+        "Эталон лобби — браузерная сборка: в десктопной вместо READY в дуэли стоит SEARCH и есть Steam-приглашения (нужен Steam); низ тела (код комнаты, вход по коду) не сравнивался."
+      ]
+    },
+    {
+      "slug": "chinese",
+      "name": "Упрощённый китайский",
+      "verdict": "Китайский интерфейс перенесён: глифы Microsoft YaHei, разрядка кнопок и сегментов 0.05em, кнопки с китайскими подписями высотой 47 px. Колонки: PLAYER 2.36/255, SOUND 0.54, GRAPHICS 0.75, ABOUT 1.06, панель APPEARANCE 2.16, верх лобби 2.20. Остаток — округление высоты CJK-строки на части кеглей: заголовок 24 px выше на 1 px (32 против 31), и всё под ним на 1 px ниже (вкладки 123 против 122.19).",
+      "verdict_short": "zh-CN: остаток ±1 px строки",
+      "conditions": [
+        ["язык", "zh-CN (`html lang`)", "zh-CN"],
+        ["CJK-шрифт", "стек `--ui-font` → Microsoft YaHei", "системный запасной при локали `TranslationServer` zh_CN → Microsoft YaHei"]
+      ],
+      "comparisons": [
+        {"title": "SETTINGS · PLAYER", "wipe": true,
+          "note": "BACK внизу 47 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-settings-player.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-settings-player.png", "note": "2.36/255 (до правок 2.55)."}
+          ]},
+        {"title": "Заголовок и вкладки (×2)", "wipe": true,
+          "note": "设置 24 px: строка Chrome 31 px, Godot 32.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-top.png", "note": "вкладки у 122.19"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-top.png", "note": "вкладки у 123"}
+          ]},
+        {"title": "BACK", "wipe": true,
+          "note": "`marginTop: auto`: низ кнопки в 6.4 px от низа колонки.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-back.png", "note": "634.61, 47 px"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-back.png", "note": "635, 47 px (было 638: высота 44 константой)"}
+          ]},
+        {"title": "APPEARANCE", "wipe": true,
+          "note": "Полноширинные скобки в «备用颜色（主色被占用时）».",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-appearance.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-appearance.png", "note": "2.16/255."}
+          ]},
+        {"title": "SETTINGS · GRAPHICS", "wipe": true,
+          "note": "Подписи переключателей 11.2 px: строка 15 px в обоих.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-settings-graphics.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-settings-graphics.png", "note": "0.75/255."}
+          ]},
+        {"title": "ABOUT", "wipe": true,
+          "note": "WATCH / BACK по 47 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-about.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-about.png", "note": "1.06/255."}
+          ]},
+        {"title": "Лобби, верх тела", "wipe": true,
+          "note": "开始游戏, режимы, карты, «3 分钟».",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-lobby.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-lobby.png", "note": "2.20/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "I6", "severity": "fixed",
+          "title": "Кнопки с китайскими подписями выходили за колонку",
+          "web": "Кнопка растёт по строке: 16 px китайского — 21 px, кнопка 47 px; BACK прижат к низу (`marginTop: auto`), READY и BACK лобби под телом.",
+          "godot": "SETTINGS, ABOUT, APPEARANCE и лобби берут высоту кнопки из её минимального размера. Было: константа 44 px — в zh-CN BACK стоял на 3 px ниже (638 против 634.61) и выходил за колонку, тело лобби не укорачивалось.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/settings_screen.gd", "nodes/about_screen.gd", "nodes/appearance_screen.gd", "nodes/lobby_screen.gd"]
+        },
+        {
+          "id": "I7", "severity": "fixed",
+          "title": "Разрядка кнопок и сегментов в китайском",
+          "web": "`html[lang=\"zh-CN\"] .btn, .seg { letter-spacing: 0.05em }` (замер: EXIT 16 px — 0.8 px); встроенная разрядка (плитки языков, h1/h2) сильнее.",
+          "godot": "`UiFont.control_spacing_em`: `UiButton.Metrics` и `SegButton` берут 0.05em при zh-CN; плитка языка оставляет свои 0.02em.",
+          "evidence": ["test", "code", "screenshot"],
+          "sources": ["nodes/ui_font.gd", "nodes/ui_button.gd", "nodes/seg_button.gd", "tests/unit/test_i18n.gd", "web-reference/src/index.css"]
+        },
+        {
+          "id": "I8", "severity": "fixed",
+          "title": "Японские начертания китайских глифов",
+          "web": "Chrome берёт глифы, которых нет в Share Tech Mono, из стека `--ui-font` — Microsoft YaHei — в любом языке; строка растёт только там, где он использован.",
+          "godot": "`UiFont.base()` ставит локаль `TranslationServer` zh_CN: системный запасной шрифт Godot выбирает начертание по ней (en → Yu Gothic / Microsoft JhengHei, zh_CN → Microsoft YaHei). Явный `SystemFont` в запасных не подходит: он поднимает высоту всех строк, и латинских тоже.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd"]
+        },
+        {
+          "id": "I9", "severity": "visual",
+          "title": "Высота CJK-строки на части кеглей",
+          "web": "Строка китайского = округлённые подъём + спуск YaHei: 11 / 12 / 13 / 14 / 16 / 18 / 24 / 52 px → 15 / 16 / 17 / 19 / 21 / 24 / 31 / 69.",
+          "godot": "Системный запасной шрифт: 15 / 17 / 17 / 17 / 21 / 24 / 32 / 69. Расходятся 12, 14 и 24 px: заголовки h2 и заголовок паузы выше на 1 px, причина результата (12 px) 17 против 16. Поправки подъёма/спуска на вариации запасного шрифта на высоту строки не влияют (замер) — нужен собственный расчёт строки для CJK-текста.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd", "nodes/menu_text.gd"]
+        }
+      ],
+      "limitations": [
+        "Плитка 简体中文 в сетке языков по-прежнему на явном CJK-начертании с поправкой −1 px (замер SETTINGS).",
+        "На системах без Microsoft YaHei (не Windows) и Chrome, и Godot возьмут другой CJK-шрифт; сверка — только Windows."
+      ]
+    },
+    {
+      "slug": "match",
+      "name": "Пауза и результат матча",
+      "verdict": "Пауза и экран результата переведены. Русский: RESUME / SETTINGS / TO MENU у 311 / 368 / 424 против 310.72 / 367.5 / 424.28, EXIT 444 против 443.5; колонка паузы 1.51/255. Китайский: кнопки 47 px у 309 / 369 / 428 против 308.22 / 368 / 427.78, EXIT 449 против 448; колонка паузы 2.32 (заголовок 菜单 выше на 1 px, как в I9).",
+      "verdict_short": "Пауза и результат совпадают",
+      "conditions": [
+        ["карта", "os_arena, пассивный бот EX82R", "то же"],
+        ["состояние", "пауза без кулдауна; конец матча с наведением на EXIT", "`pause-idle` (кадр 300); `match-end-hover`, матч 1000 мс"]
+      ],
+      "comparisons": [
+        {"title": "Пауза · русский", "wipe": true,
+          "note": "МЕНЮ, ПРОДОЛЖИТЬ, НАСТРОЙКИ, В МЕНЮ (браузерная раскладка без QUIT).",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-pause.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-pause.png", "note": "1.51/255."}
+          ]},
+        {"title": "Пауза · zh-CN", "wipe": true,
+          "note": "Кнопки по 47 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-pause.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-pause.png", "note": "2.32/255."}
+          ]},
+        {"title": "Результат · русский", "wipe": false,
+          "note": "НИЧЬЯ, ВРЕМЯ ВЫШЛО, ВЫЙТИ; за колонкой — сцена матча (в web видна сетка пола, отличие области 4.9 — от фона).",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/ru-web-match-end.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/ru-godot-match-end.png", "note": "—"}
+          ]},
+        {"title": "Результат · zh-CN", "wipe": false,
+          "note": "平局, 时间到, 退出.",
+          "panels": [
+            {"kind": "web", "img": "parity-i18n/crops/zh-CN-web-match-end.png", "note": "—"},
+            {"kind": "godot", "img": "parity-i18n/crops/zh-CN-godot-match-end.png", "note": "Причина 17 px против 16 (I9)."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "I10", "severity": "fixed",
+          "title": "Пауза, результат и слова HUD на английском",
+          "web": "`PauseMenu`, `MatchEndedOverlay`, `HUD` (hudYou / hudOpponent), `RespawnOverlay`, `StatsOverlay` читают `useT()`.",
+          "godot": "`PauseOverlay`, `MatchEndedOverlay` + `HudModel.outcome_label` / `reason_label`, `HudTopBar`, `HudGhostIndicator`, `StatsModel` — ключи словаря. Было: английские константы.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/pause_overlay.gd", "nodes/match_ended_overlay.gd", "sim/hud_model.gd", "nodes/hud_top_bar.gd", "nodes/hud_ghost_indicator.gd", "sim/stats_model.gd", "tests/unit/test_i18n.gd"]
+        }
+      ],
+      "limitations": [
+        "Слова HUD в живом матче (ВЫ / СОПЕРНИК, ВОЗРОЖДЕНИЕ, «мин» / «ед/с» статистики) проверены тестами и кодом, отдельных кадров нет.",
+        "Слова серий (CATALYST, DOUBLE KILL) web не переводит — в Godot тоже."
+      ]
+    }
+  ]
+}

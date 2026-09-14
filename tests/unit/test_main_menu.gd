@@ -113,6 +113,28 @@ func test_appearance_slides_the_panel_and_mutes_the_glow() -> void:
 		menu._process(1.0 / 60.0)
 	assert_eq(menu.panel_slide(), 0.0)
 
+func test_a_new_language_rebuilds_the_menu_and_the_settings_in_place() -> void:
+	var menu := await _menu()
+	menu.profile_saving = false
+	var saved: Dictionary = Game.profile.duplicate()
+	menu.set_browser_layout(true)
+	menu.open_settings()
+	(menu.screen() as SettingsScreen).select_section(SettingsScreen.SECTION_SOUND)
+	var before := menu.screen()
+	var pose := menu.backdrop().rig.state()
+	(before.find_child("Lang_ru", true, false) as UiButton).pressed.emit()
+	await wait_process_frames(1)
+	assert_eq(I18n.locale(), "ru", "web setLocale")
+	assert_true(menu.screen() is SettingsScreen and menu.screen() != before, "a fresh settings screen")
+	assert_true((menu.screen() as SettingsScreen).page(SettingsScreen.SECTION_SOUND).visible, "on the same tab")
+	assert_eq((menu.screen().find_child("Title", true, false) as Label).text, "НАСТРОЙКИ")
+	assert_eq((_control(menu, "Play") as UiButton).text, "ИГРАТЬ", "the menu column behind it too")
+	assert_false(_control(menu, "Column").visible, "still hidden behind the open screen")
+	assert_true(_control(menu, "Hint").visible, "the column keeps its layout")
+	assert_eq(menu.backdrop().rig.state(), pose, "the camera stays")
+	I18n.use_locale(Locales.FALLBACK)
+	Game.profile = saved
+
 func test_browser_layout_for_parity_captures() -> void:
 	var menu := await _menu()
 	menu.set_browser_layout(true)

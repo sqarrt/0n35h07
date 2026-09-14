@@ -2,7 +2,7 @@
 // SETTINGS / TO MENU) and on the match-end screen (EXIT primary), idle and hovered. The pause opens by dropping the
 // faked pointer lock; __debugLockCooldownLeft freezes the RESUME cooldown. Saves screenshots plus the element boxes and
 // computed button styles as JSON.
-//   node scripts/parity-capture-buttons.mjs <output dir> [base url]
+//   [PARITY_LOCALE=<id>] node scripts/parity-capture-buttons.mjs <output dir> [base url]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { VIEWPORT, launchReferencePage, enterLiveMatch, settleScene } from './parity-lib.mjs';
@@ -10,7 +10,7 @@ import { VIEWPORT, launchReferencePage, enterLiveMatch, settleScene } from './pa
 const output = resolve(process.argv[2] ?? '../test-results/parity-buttons');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
 const mapId = process.env.PARITY_MAP ?? 'os_arena';
-const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: 'en' };
+const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: process.env.PARITY_LOCALE ?? 'en' };
 const BOT_NAME = 'EX82R';
 const POINTERLOCK_COOLDOWN_MS = 1300;   // web constants.ts
 const COOLDOWN_LEFT_MS = POINTERLOCK_COOLDOWN_MS / 2;

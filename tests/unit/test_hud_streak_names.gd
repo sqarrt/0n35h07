@@ -22,8 +22,9 @@ func _top_bar() -> HudTopBar:
 
 func test_without_a_roster_the_web_fallbacks_show() -> void:
 	var bar := _top_bar()
-	assert_eq((bar.find_child("YouName", true, false) as EffectText).base_text(), HudTopBar.YOU_LABEL)
-	assert_eq((bar.find_child("OpponentName", true, false) as EffectText).base_text(), HudTopBar.OPPONENT_LABEL)
+	assert_eq((bar.find_child("YouName", true, false) as EffectText).base_text(), "YOU", "web dictionary hudYou")
+	assert_eq((bar.find_child("OpponentName", true, false) as EffectText).base_text(), "OPPONENT",
+		"web dictionary hudOpponent")
 	assert_eq((bar.find_child("YouFrags", true, false) as Label).get_theme_color("font_color"),
 		Color(AppearanceConst.FALLBACK_TEXT_COLOR), "no entry: the frags inherit --text")
 

@@ -8,21 +8,21 @@ class_name LobbyScreen extends Control
 signal back_requested
 signal match_requested(setup: Dictionary)
 
-const TITLE_TEXT := "PLAY"                      # web en menuPlay
+const TITLE_KEY := "menuPlay"                   # web dictionary keys
 const BODY_TOP_SHARE := 0.02                    # .lobby-body padding-top: 2vh
 const SECTION_GAP := 18.0                       # .lobby-opts padding / gap, .lobby-ogrp gap
 const LABEL_FONT_SIZE := 11                     # .lobby-ol
 const LABEL_SPACING_EM := 0.18
 const LABEL_PREFIX := "// "
-const MAP_TEXT := "MAP"                         # web en lobbyMap
-const TIME_TEXT := "TIME"                       # lobbyTime
-const PLAYERS_TEXT := "PLAYERS"                 # lobbyPlayers
-const MULTI_TEXT := "MULTI"                     # lobbyMulti
-const SELECT_ALL_TEXT := "SELECT ALL"           # lobbySelectAll
-const MINUTES_FORMAT := "%d MIN"                # roomDurationMin
-const READY_TEXT := "READY"                     # lobbyReady
-const BACK_TEXT := "BACK"                       # roomBack
-const LEAVE_TEXT := "LEAVE"                     # lobbyLeave
+const MAP_KEY := "lobbyMap"
+const TIME_KEY := "lobbyTime"
+const PLAYERS_KEY := "lobbyPlayers"
+const MULTI_KEY := "lobbyMulti"
+const SELECT_ALL_KEY := "lobbySelectAll"
+const MINUTES_KEY := "roomDurationMin"          # "{0} MIN"
+const READY_KEY := "lobbyReady"
+const BACK_KEY := "roomBack"
+const LEAVE_KEY := "lobbyLeave"
 const MAP_COLUMNS := 3
 const MAP_GAP := 8.0
 const ACTION_GAP := 8.0                         # .lobby-ol-actions gap
@@ -84,7 +84,7 @@ func _ready() -> void:
 	_content.name = "Content"
 	_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scroll.add_child(_content)
-	_title = MenuText.title("Title", TITLE_TEXT)
+	_title = MenuText.title("Title", I18n.t(TITLE_KEY))
 	_content.add_child(_title)
 	_carousel = ModeCarousel.new()
 	_carousel.name = "Modes"
@@ -93,10 +93,10 @@ func _ready() -> void:
 	_map_label_row = Control.new()
 	_map_label_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(_map_label_row)
-	_map_label = _label("MapLabel", LABEL_PREFIX + MAP_TEXT, LABEL_FONT_SIZE, LABEL_SPACING_EM, UiTokens.MUTED)
-	_multi = _seg("Multi", MULTI_TEXT)
+	_map_label = _label("MapLabel", LABEL_PREFIX + I18n.t(MAP_KEY), LABEL_FONT_SIZE, LABEL_SPACING_EM, UiTokens.MUTED)
+	_multi = _seg("Multi", I18n.t(MULTI_KEY))
 	_multi.pressed.connect(func() -> void: _set_multi(not _map_multi))
-	_select_all = _seg("SelectAll", SELECT_ALL_TEXT)
+	_select_all = _seg("SelectAll", I18n.t(SELECT_ALL_KEY))
 	_select_all.pressed.connect(_on_select_all)
 	for id in MapCatalog.MAP_IDS:
 		var tile := MapTile.new(id)
@@ -104,22 +104,23 @@ func _ready() -> void:
 		_content.add_child(tile)
 		tile.pressed.connect(_on_map_tile.bind(id))
 		_map_tiles.append(tile)
-	_time_label = _label("TimeLabel", LABEL_PREFIX + TIME_TEXT, LABEL_FONT_SIZE, LABEL_SPACING_EM, UiTokens.MUTED)
+	_time_label = _label("TimeLabel", LABEL_PREFIX + I18n.t(TIME_KEY), LABEL_FONT_SIZE, LABEL_SPACING_EM, UiTokens.MUTED)
 	for minutes in MatchConst.MATCH_DURATIONS_MIN:
-		var seg := _seg("Time%d" % minutes, MINUTES_FORMAT % minutes)
+		var seg := _seg("Time%d" % minutes, I18n.t(MINUTES_KEY, [minutes]))
 		seg.pressed.connect(_on_time.bind(minutes))
 		_time_segs.append(seg)
-	_players_label = _label("PlayersLabel", LABEL_PREFIX + PLAYERS_TEXT, LABEL_FONT_SIZE, LABEL_SPACING_EM, UiTokens.MUTED)
+	_players_label = _label("PlayersLabel", LABEL_PREFIX + I18n.t(PLAYERS_KEY), LABEL_FONT_SIZE, LABEL_SPACING_EM,
+		UiTokens.MUTED)
 	_seats_box = Control.new()
 	_seats_box.name = "Seats"
 	_seats_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_content.add_child(_seats_box)
 	_vs = _label("Vs", VS_TEXT, VS_FONT_SIZE, VS_SPACING_EM, VS_COLOR)
-	_ready_button = UiButton.new(READY_TEXT, UiButton.GO)
+	_ready_button = UiButton.new(I18n.t(READY_KEY), UiButton.GO)
 	_ready_button.name = "Ready"
 	_ready_button.pressed.connect(func() -> void: room.set_local_ready(true))
 	add_child(_ready_button.grouped())                  # a disabled READY fades as one layer
-	_back = UiButton.new(BACK_TEXT, UiButton.GHOST)
+	_back = UiButton.new(I18n.t(BACK_KEY), UiButton.GHOST)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
 	add_child(_back)
@@ -140,7 +141,7 @@ func refresh() -> void:
 	_rebuild_seats()
 	_ready_button.set_enabled(room.can_start())
 	var others_seated := room.occupied().size() > 1
-	_back.text = LEAVE_TEXT if others_seated else BACK_TEXT
+	_back.text = I18n.t(LEAVE_KEY if others_seated else BACK_KEY)
 	_layout()
 
 ## Parity captures: scroll the body to its top or its end.
@@ -184,15 +185,17 @@ func _layout() -> void:
 	if _content == null:
 		return
 	var width := size.x - BLEED
-	var body_height := size.y - 2.0 * (UiButton.BUTTON_HEIGHT + 2.0 * UiButton.MARGIN_Y)
+	var ready_height := _ready_button.get_combined_minimum_size().y   # Chinese labels grow both buttons
+	var back_height := _back.get_combined_minimum_size().y
+	var body_height := size.y - (ready_height + back_height + 4.0 * UiButton.MARGIN_Y)
 	_scroll.position = Vector2.ZERO
 	_scroll.size = Vector2(size.x, body_height)
 	_ready_button.fade.position = Vector2(0.0, CssPixel.snap(body_height + UiButton.MARGIN_Y))
-	_ready_button.fade.size = Vector2(width, UiButton.BUTTON_HEIGHT)
+	_ready_button.fade.size = Vector2(width, ready_height)
 	_ready_button.custom_minimum_size.x = width
-	_back.position = Vector2(0.0, CssPixel.snap(body_height + UiButton.BUTTON_HEIGHT + 3.0 * UiButton.MARGIN_Y))
+	_back.position = Vector2(0.0, CssPixel.snap(body_height + ready_height + 3.0 * UiButton.MARGIN_Y))
 	_back.custom_minimum_size.x = width
-	_back.size = Vector2(width, UiButton.BUTTON_HEIGHT)
+	_back.size = Vector2(width, back_height)
 	var y := get_viewport_rect().size.y * BODY_TOP_SHARE
 	y = _place(_title, 0.0, y) + MenuText.TITLE_MARGIN_BOTTOM
 	_carousel.position = Vector2(0.0, CssPixel.snap(y))

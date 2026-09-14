@@ -5,11 +5,11 @@ class_name AboutScreen extends Control
 signal back_requested
 signal trailer_requested
 
-const TITLE_TEXT := "ABOUT"                        # web en settingsSecAbout
-const DEV_GROUP_TEXT := "DEVELOPER"                # aboutDevGroup
-const TRAILER_GROUP_TEXT := "TRAILER"              # aboutTrailerGroup
-const WATCH_TEXT := "WATCH"                        # aboutWatch
-const BACK_TEXT := "BACK"                          # settingsBack
+const TITLE_KEY := "settingsSecAbout"             # web dictionary keys
+const DEV_GROUP_KEY := "aboutDevGroup"
+const TRAILER_GROUP_KEY := "aboutTrailerGroup"
+const WATCH_KEY := "aboutWatch"
+const BACK_KEY := "settingsBack"
 const DEV_NAME := "Shatalov Dmitriy"               # web DEV_NAME
 ## [label, href] (web DEV_LINKS).
 const DEV_LINKS := [["YouTube — @watooh", "https://www.youtube.com/@watooh"],
@@ -30,8 +30,8 @@ var _back: UiButton
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title = _add(MenuText.title("Title", TITLE_TEXT))
-	_dev_header = _add(MenuText.sub_header("DevHeader", DEV_GROUP_TEXT))
+	_title = _add(MenuText.title("Title", I18n.t(TITLE_KEY)))
+	_dev_header = _add(MenuText.sub_header("DevHeader", I18n.t(DEV_GROUP_KEY)))
 	_name = _add(MenuText.label("DevName", DEV_NAME, NAME_PX, NAME_SPACING_EM, UiTokens.ACCENT_DIM))
 	for i in DEV_LINKS.size():
 		var link := UiLink.new(DEV_LINKS[i][0], DEV_LINKS[i][1])
@@ -39,12 +39,12 @@ func _ready() -> void:
 		link.opened.connect(_open)
 		add_child(link)
 		_links.append(link)
-	_trailer_header = _add(MenuText.sub_header("TrailerHeader", TRAILER_GROUP_TEXT))
-	_watch = UiButton.new(WATCH_TEXT, UiButton.PRIMARY)
+	_trailer_header = _add(MenuText.sub_header("TrailerHeader", I18n.t(TRAILER_GROUP_KEY)))
+	_watch = UiButton.new(I18n.t(WATCH_KEY), UiButton.PRIMARY)
 	_watch.name = "Watch"
 	_watch.pressed.connect(func() -> void: trailer_requested.emit())
 	add_child(_watch)
-	_back = UiButton.new(BACK_TEXT, UiButton.GHOST)
+	_back = UiButton.new(I18n.t(BACK_KEY), UiButton.GHOST)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
 	add_child(_back)
@@ -66,7 +66,7 @@ func _layout() -> void:
 	for button in [_watch, _back]:
 		button.custom_minimum_size.x = width
 	_place(_watch, y + UiButton.MARGIN_Y, width)
-	_place(_back, size.y - UiButton.MARGIN_Y - UiButton.BUTTON_HEIGHT, width)
+	_place(_back, size.y - UiButton.MARGIN_Y - _back.get_combined_minimum_size().y, width)
 
 ## A box at a fractional CSS top, painted from a whole pixel; returns its bottom.
 func _place(control: Control, top: float, width: float) -> float:

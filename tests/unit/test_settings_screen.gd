@@ -89,3 +89,19 @@ func test_changes_write_the_profile() -> void:
 	(settings.find_child("Volume_volumeSfx", true, false) as UiSlider).value_changed.emit(0.25)
 	assert_eq(settings.profile["volumeSfx"], 0.25)
 	assert_signal_emit_count(settings, "profile_changed", 5)
+
+func test_only_a_new_language_asks_for_a_rebuild() -> void:
+	var settings := _settings()
+	watch_signals(settings)
+	(settings.find_child("Lang_en", true, false) as UiButton).pressed.emit()
+	assert_signal_not_emitted(settings, "locale_changed", "web setLocale to the same locale renders nothing new")
+	(settings.find_child("Lang_ru", true, false) as UiButton).pressed.emit()
+	assert_signal_emitted_with_parameters(settings, "locale_changed", ["ru"])
+
+func test_texts_come_in_the_active_locale() -> void:
+	I18n.use_locale("ru")
+	var settings := _settings()
+	I18n.use_locale(Locales.FALLBACK)
+	assert_eq((settings.find_child("Title", true, false) as Label).text, "НАСТРОЙКИ")
+	assert_eq((settings.find_child("Tab_player", true, false) as SegButton).text, "ИГРОК")
+	assert_eq((settings.find_child("Back", true, false) as UiButton).text, "НАЗАД")

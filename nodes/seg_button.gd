@@ -31,7 +31,8 @@ func _init(label := "", variant := NORMAL) -> void:
 	text = label
 	size_variant = variant
 	focus_mode = Control.FOCUS_NONE
-	var font := UiFont.with_css_line(UiFont.spaced(LETTER_SPACING_EM, FONT_SIZES[variant]), FONT_SIZES[variant])
+	var spacing_em := UiFont.control_spacing_em(LETTER_SPACING_EM)
+	var font := UiFont.with_css_line(UiFont.spaced(spacing_em, FONT_SIZES[variant]), FONT_SIZES[variant])
 	_spacing = font.spacing_glyph
 	add_theme_font_override("font", font)
 	add_theme_font_size_override("font_size", FONT_SIZES[variant])

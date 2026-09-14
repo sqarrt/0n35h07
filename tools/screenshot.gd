@@ -108,6 +108,9 @@ const APPEARANCE_MODEL := "planet"
 const APPEARANCE_CELL := Vector2i(8, 8) # web PAINT_CELL
 const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
 const MODE_ABOUT := "about"
+const MODE_DESKTOP_MENU := "desktop-menu"   # the desktop menu (QUIT, no F11 hint), the backdrop hidden
+const LOCALE_PREFIX := "locale-"       # locale-<id>:<mode>: the interface in that language (web PARITY_LOCALE)
+const LOCALE_END := ":"
 const SCREEN_FRAMES := 6               # the screen lays out in the panel (web waits 400 ms, nothing animates)
 const MODE_STAGE := "stage-"           # stage-bot / stage-ffa: the lobby's seat balls alone, the light pinned at 0
 const STAGE_FFA := "ffa"
@@ -194,6 +197,11 @@ func _initialize() -> void:
 		_capture_frame = maxi(1, int(extra[ARG_FRAME]))
 	if extra.size() > ARG_MODE:
 		_mode = extra[ARG_MODE]
+	var locale := ""
+	if _mode.begins_with(LOCALE_PREFIX):
+		var end := _mode.find(LOCALE_END)
+		locale = _mode.substr(LOCALE_PREFIX.length(), end - LOCALE_PREFIX.length())
+		_mode = _mode.substr(end + LOCALE_END.length())
 	if extra.size() > ARG_MATCH_MS:
 		_match_ms = float(extra[ARG_MATCH_MS])
 		if g != null:
@@ -206,6 +214,9 @@ func _initialize() -> void:
 	if _mode.begins_with(MODE_PROFILE) and g != null:
 		g.profile = PlayerProfile.sanitize(PARITY_PROFILE, g.random.randf)   # in memory only: the real profile stays
 		g.lobby_bot_name = PARITY_BOT_NAME
+	if locale != "" and g != null:
+		g.profile[Locales.PROFILE_KEY] = locale
+		I18n.use_locale(locale)
 	if _mode.begins_with(PROFILE_PREFIX):   # "profile:<mode>": the parity identity with any other fixture
 		_mode = _mode.trim_prefix(PROFILE_PREFIX)
 		_passive_bot = true
@@ -356,6 +367,11 @@ func _apply_hud_fixture() -> int:
 		if steps >= 3:
 			appearance.call("paint", BallArt.FRONT, APPEARANCE_CELL.x, APPEARANCE_CELL.y, 1)
 		return STAGE_FRAMES
+	if _mode == MODE_DESKTOP_MENU:
+		# web parity-capture-settings.mjs web-menu: the desktop menu, the backdrop canvases hidden
+		var desktop_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(desktop_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_SETTINGS) or _mode == MODE_ABOUT:
 		# web parity-capture-settings.mjs: SETTINGS on a tab or ABOUT, the backdrop canvases hidden
 		var screen_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
@@ -572,6 +588,7 @@ func _pause_fixture(state: String) -> void:
 ## Reached through call(): MainMenu / LobbyScreen use autoload names, which a -s tool can't compile against.
 func _lobby_fixture(state: String) -> void:
 	var menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+	(menu.find_child("Backdrop", true, false) as CanvasItem).visible = false   # web hides the canvases
 	menu.call("open_lobby")
 	var lobby: Node = menu.call("lobby")
 	var room: Object = lobby.get("room")

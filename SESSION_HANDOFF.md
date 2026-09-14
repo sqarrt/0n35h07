@@ -40,7 +40,7 @@
 - Замеры: `python3 tools/parity/measure.py [--hud] a.png b.png`; вырезки: `python3 tools/parity/crop.py in out x y w h [scale]`.
 - Отчёт: спека `tools/parity/stages/<id>.json` → `python3 tools/parity/report.py <spec>` → открыть HTML локально.
 
-## 3. Сделано (всё смержено в `release_2.0.0`, GUT 522/522)
+## 3. Сделано (всё смержено в `release_2.0.0`, GUT 534/534)
 
 | Слайс | Суть |
 |---|---|
@@ -68,9 +68,10 @@
 | Экраны SETTINGS / ABOUT (SA) | `SettingsScreen` (desktop-вкладки PLAYER/SOUND/GRAPHICS, запись профиля сразу + `Audio.apply_volumes`), `AboutScreen`; контролы `UiToggle`, `UiSlider`, `UiTextField`, `UiLink`, `UiButton.Metrics`; `MenuText` (h2, подпись, подзаголовок — и в лобби); `Locales` (id, родные имена, detectLocale); `UiFont.mirror_fallbacks` (жирный/разрядка у кириллицы и CJK), дробные CSS-кегли; `defaultView` → `HumanController` |
 | Экран APPEARANCE (AP) | `AppearanceScreen` (прокручиваемая страница, правила цветов, запись профиля), `ColorSwatch` (шейдер кольца + свечения), `BallPaintField` (растр холста), `BallArt.encode/decode`, `UiScroll`; `MainMenu.panel_slide` (сдвиг панели вправо, τ 0.06), позы камеры по `part`, `MenuBackdrop.facing_of` / `glow_muted` |
 | Превью стилей (AP-2) | `MenuPreviewCycles` (таймлайны SHOT/RESPAWN/DASH/SHIELD), `MenuStagePreview` (игровые эффекты на шаре превью, порядок шагов web), `MenuBackdrop.preview_style` / `pin_preview_hold_ms`; мир фона во float (`use_hdr_2d`) + цепочка свечения на экране превью = Bloom луча в тишине; web-хук `__debugPreviewHoldMs` |
+| i18n (I) | `I18n` (словари `assets/i18n/<id>.json` из `web-reference/scripts/export-i18n.mjs`, шаблоны `{0}`; язык из профиля в `Game._ready`), тексты всех экранов и HUD по ключам; выбор языка пересобирает колонку меню и SETTINGS (`locale_changed`); zh-CN: `UiFont.control_spacing_em` (0.05em), `TranslationServer` zh_CN → YaHei, высота кнопок по содержимому; кириллица — `with_css_line` и для запасных; захват `locale-<id>:`, web `PARITY_LOCALE` |
 | OV + G11e перегрев | `Player.apply_overheat`/`respawn_speed_mult`, `MatchRules.apply_comeback` (pierce всем), `MapBlocks` (прозрачность 0.2), `HudOverheatVignette` + `OverheatFx` (виньетка, молнии с цепочкой drop-shadow: в Chrome σ = N px) |
 
-Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews).
+Отчёты: `test-results/parity-reports/` (baseline … player-profiles, skins-ball, skins-beam, skins-trails-shields, skins-windup-respawn, overheat, map-edges, audio, stats, ui-theme, main-menu, lobby, teams, nameplates, menu-backdrop, menu-glow, settings-about, appearance, appearance-previews, i18n).
 Замечания пользователя (свечения обводкой, рамка ghost-полос) — **закрыты** в H3.
 
 ## 4. Текущее состояние
@@ -78,9 +79,9 @@
 Скины G11a–G11d, перегрев (OV + G11e), контур рёбер блоков (PP1), звук (SND), StatsOverlay, тема UI с паузой и
 раскладка главного меню, лобби (L-a и L-b: матчи Battle / War), неймплейты и 3D-фон меню (шар, свет, позы камеры,
 шары мест лобби), свечение краёв со звуком, размытие под панелью и экраны SETTINGS / ABOUT и APPEARANCE с превью
-стилей (GUT 522/522) смержены в `release_2.0.0`. Следующий слайс — **i18n** (web `i18n/locales/*.ts`, 10 словарей,
-`Dict = typeof en`; выбор языка уже пишется в профиль, `Locales.of_profile`; все тексты экранов сейчас константами
-en — заменить на словарь), затем сеть/Steam. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+стилей и переводы интерфейса i18n (10 языков, GUT 534/534) смержены в `release_2.0.0`. Следующие слайсы: заставка-
+предупреждение M6 (тексты `warn*` уже в словарях), затем сеть/Steam-лобби (в десктопной сборке дуэль с свободным местом
+показывает SEARCH вместо READY, Steam-приглашения), радио (кнопка RADIO и мини-плеер в меню десктопа). **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
@@ -95,9 +96,10 @@ en — заменить на словарь), затем сеть/Steam. **Пе�
   карты в фоне (отчёты `2026-09-14-lobby-*`, `2026-09-14-teams-*`, `2026-09-14-nameplates-*`).
 - Открыто после главного меню: WATCH в ABOUT шлёт
   `screen_requested('trailer')` — трейлера нет; мягкий Bloom радио не перенесён (отчёт `2026-09-14-menu-glow-*`);
-  RADIO скрыт до радио; нет заставки M6 и i18n M5 (тексты английские, отчёт `2026-09-14-settings-about-*`).
-- **Меню M1–M8**: 3D-фон с шаром, логотип 0N35H07, экраны Внешность/Настройки/Об игре, i18n (10 локалей, `locale`
-  в профиле), заставка-предупреждение, пауза в стиле web; настройка `defaultView` fp/tp.
+  RADIO скрыт до радио; нет заставки M6 (отчёт `2026-09-14-settings-about-*`).
+- Открыто после i18n: высота CJK-строки на 12 / 14 / 24 px (Chrome 16 / 19 / 31, Godot 17 / 17 / 32) — поправки
+  спуска на запасной вариации не влияют, нужен свой расчёт строки для CJK-текста (отчёт `2026-09-14-i18n-*`).
+- **Меню M1–M8**: заставка-предупреждение; настройка `defaultView` fp/tp.
 - **Лобби L1–L6**: режимы DUEL/BATTLE/WAR, места, боты (ник/сложность), карты мультивыбор, длительность 3/5/10,
   код комнаты; карта `os_test`; ready-оверлей (фаза ready).
 - **Сеть в матче**: NetSync к MatchNode, транспорт (ENet/WebRTC/Steam), RoomSession; **Steam** (GodotSteam, имя из Steam);
@@ -169,3 +171,8 @@ en — заменить на словарь), затем сеть/Steam. **Пе�
 - Предупреждение `could not lock config file .git/config` при `git branch -d` безвредно (песочница).
 - В корне появляются char-device файлы `.bashrc`/`.gitconfig`/`.vscode` от песочницы — не коммитить.
 - Playwright в WSL: браузер `~/.cache/ms-playwright/chromium_headless_shell-1234/...` через `executablePath`.
+- i18n: системный запасной шрифт Godot выбирает начертание по локали `TranslationServer` (en → Yu Gothic для
+  китайского) и растит только строки, где он использован; явный `SystemFont` в `fallbacks` растит ВСЕ строки, а его
+  `spacing_top/bottom` на высоту строки не влияют. Высоту кнопок не брать константой (китайская строка → 47 px).
+  `TextLine.add_string` без языка не смотрит на локаль `TranslationServer` (в отличие от `Label`). В cmd.exe
+  `set VAR=x&& node …` работает, а `> nul` внутри той же строки ломает запуск.

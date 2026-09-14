@@ -3,34 +3,37 @@ class_name SettingsScreen extends Control
 ## (settingsSections hides NETWORK there): the SETTINGS title and the section tabs at the top of the panel, one section
 ## under them — PLAYER (the name, the default view, the language grid), SOUND (the volume sliders, radio included) or
 ## GRAPHICS (the post-processing and overlay switches) — and BACK pinned to the panel's bottom. Every change writes the
-## profile at once (`profile_changed`: web saveProfile + onChange). Texts are the English dictionary until i18n lands.
+## profile at once (`profile_changed`: web saveProfile + onChange); a new language also asks for the interface to be
+## rebuilt in it (`locale_changed`: web setLocale).
 
 signal back_requested
 signal profile_changed(profile: Dictionary)
 signal section_changed(section: String)
+signal locale_changed(locale: String)
 
 const SECTION_PLAYER := "player"
 const SECTION_SOUND := "sound"
 const SECTION_NET := "net"
 const SECTION_GRAPHICS := "graphics"
 const ALL_SECTIONS := [SECTION_PLAYER, SECTION_SOUND, SECTION_NET, SECTION_GRAPHICS]
-const SECTION_TEXTS := {SECTION_PLAYER: "PLAYER", SECTION_SOUND: "SOUND", SECTION_NET: "NETWORK",
-	SECTION_GRAPHICS: "GRAPHICS"}                    # web en settingsSec*
-const TITLE_TEXT := "SETTINGS"                     # settingsTitle
-const NAME_TEXT := "NAME"                          # settingsName
-const VIEW_TEXT := "DEFAULT VIEW"                  # settingsDefaultView
-const VIEW_TEXTS := {AppearanceConst.VIEW_FIRST_PERSON: "FIRST PERSON", AppearanceConst.VIEW_THIRD_PERSON: "THIRD PERSON"}
-const LANGUAGE_TEXT := "LANGUAGE"                  # settingsLanguage
-const VOLUME_TEXT := "VOLUME"                      # settingsVolumeGroup
-## [profile key, label] per slider (web SoundControls; the radio one is desktop-only).
-const VOLUMES := [["volumeMaster", "MASTER VOLUME"], ["volumeMusic", "IN-GAME MUSIC"], ["volumeMenuMusic", "MENU MUSIC"],
-	["volumeSfx", "EFFECTS"], ["volumeRadio", "Radio"]]
-const POSTPROC_TEXT := "POST-PROCESSING"            # settingsPostproc
-const OVERLAY_TEXT := "OVERLAY"                    # settingsOverlayGroup
-const POSTPROC_TOGGLES := [["postProcessing", "OUTLINE BLOCKS"], ["menuGlow", "MENU GLOW"],
-	["audioViz", "AUDIO VISUALIZATION"]]
-const OVERLAY_TOGGLES := [["showFps", "SHOW FPS COUNTER"], ["showSpeed", "SHOW PLAYER SPEED"]]
-const BACK_TEXT := "BACK"                          # settingsBack
+const SECTION_KEYS := {SECTION_PLAYER: "settingsSecPlayer", SECTION_SOUND: "settingsSecSound",
+	SECTION_NET: "settingsSecNet", SECTION_GRAPHICS: "settingsSecGraphics"}   # web dictionary keys
+const TITLE_KEY := "settingsTitle"
+const NAME_KEY := "settingsName"
+const VIEW_KEY := "settingsDefaultView"
+const VIEW_KEYS := {AppearanceConst.VIEW_FIRST_PERSON: "settingsViewFp",
+	AppearanceConst.VIEW_THIRD_PERSON: "settingsViewTp"}
+const LANGUAGE_KEY := "settingsLanguage"
+const VOLUME_KEY := "settingsVolumeGroup"
+## [profile key, label key] per slider (web SoundControls; the radio one is desktop-only).
+const VOLUMES := [["volumeMaster", "settingsVolMaster"], ["volumeMusic", "settingsVolMusic"],
+	["volumeMenuMusic", "settingsVolMenuMusic"], ["volumeSfx", "settingsVolSfx"], ["volumeRadio", "settingsVolRadio"]]
+const POSTPROC_KEY := "settingsPostproc"
+const OVERLAY_KEY := "settingsOverlayGroup"
+const POSTPROC_TOGGLES := [["postProcessing", "settingsOutlineBlocks"], ["menuGlow", "settingsMenuGlow"],
+	["audioViz", "settingsAudioViz"]]
+const OVERLAY_TOGGLES := [["showFps", "settingsShowFps"], ["showSpeed", "settingsShowSpeed"]]
+const BACK_KEY := "settingsBack"
 const PROFILE_NAME := "name"
 const PROFILE_VIEW := "defaultView"
 const ROW_GAP := 9.6                               # row: gap 0.6rem
@@ -78,10 +81,10 @@ func setup(edited: Dictionary, open_section := SECTION_PLAYER) -> void:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title = MenuText.title("Title", TITLE_TEXT)
+	_title = MenuText.title("Title", I18n.t(TITLE_KEY))
 	add_child(_title)
 	for id in visible_sections(true):
-		var tab := SegButton.new(SECTION_TEXTS[id])
+		var tab := SegButton.new(I18n.t(SECTION_KEYS[id]))
 		tab.name = "Tab_%s" % id
 		tab.pressed.connect(_on_tab.bind(id))
 		add_child(tab)
@@ -94,7 +97,7 @@ func _ready() -> void:
 	_build_player(_pages[SECTION_PLAYER])
 	_build_sound(_pages[SECTION_SOUND])
 	_build_graphics(_pages[SECTION_GRAPHICS])
-	_back = UiButton.new(BACK_TEXT, UiButton.GHOST)
+	_back = UiButton.new(I18n.t(BACK_KEY), UiButton.GHOST)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
 	add_child(_back)
@@ -106,19 +109,19 @@ func page(id: String) -> Control:
 	return _pages[id]
 
 func _build_player(page_node: Control) -> void:
-	_name_label = _add(page_node, MenuText.field_label("NameLabel", NAME_TEXT))
+	_name_label = _add(page_node, MenuText.field_label("NameLabel", I18n.t(NAME_KEY)))
 	_name_field = UiTextField.new(profile.get(PROFILE_NAME, ""), AppearanceConst.NAME_MAX)
 	_name_field.name = "Name"
 	_name_field.text_changed.connect(_on_name)
 	page_node.add_child(_name_field)
-	_view_label = _add(page_node, MenuText.field_label("ViewLabel", VIEW_TEXT))
-	for view in VIEW_TEXTS:
-		var seg := SegButton.new(VIEW_TEXTS[view])
+	_view_label = _add(page_node, MenuText.field_label("ViewLabel", I18n.t(VIEW_KEY)))
+	for view in VIEW_KEYS:
+		var seg := SegButton.new(I18n.t(VIEW_KEYS[view]))
 		seg.name = "View_%s" % view
 		seg.pressed.connect(_on_view.bind(view))
 		page_node.add_child(seg)
 		_view_segs[view] = seg
-	_language_label = _add(page_node, MenuText.field_label("LanguageLabel", LANGUAGE_TEXT))
+	_language_label = _add(page_node, MenuText.field_label("LanguageLabel", I18n.t(LANGUAGE_KEY)))
 	for id in Locales.ids():
 		var metrics := UiButton.Metrics.new()
 		metrics.font_px = LANG_TILE_PX
@@ -137,19 +140,19 @@ func _build_player(page_node: Control) -> void:
 	_refresh_player()
 
 func _build_sound(page_node: Control) -> void:
-	_volume_header = _add(page_node, MenuText.sub_header("VolumeHeader", VOLUME_TEXT))
+	_volume_header = _add(page_node, MenuText.sub_header("VolumeHeader", I18n.t(VOLUME_KEY)))
 	for entry in VOLUMES:
-		var slider := UiSlider.new(entry[1], float(profile.get(entry[0], 0.0)))
+		var slider := UiSlider.new(I18n.t(entry[1]), float(profile.get(entry[0], 0.0)))
 		slider.name = "Volume_%s" % entry[0]
 		slider.value_changed.connect(_on_setting.bind(entry[0]))
 		page_node.add_child(slider)
 		_sliders[entry[0]] = slider
 
 func _build_graphics(page_node: Control) -> void:
-	_postproc_header = _add(page_node, MenuText.sub_header("PostprocHeader", POSTPROC_TEXT))
+	_postproc_header = _add(page_node, MenuText.sub_header("PostprocHeader", I18n.t(POSTPROC_KEY)))
 	for entry in POSTPROC_TOGGLES:
 		_add_toggle(page_node, entry)
-	_overlay_header = _add(page_node, MenuText.sub_header("OverlayHeader", OVERLAY_TEXT))
+	_overlay_header = _add(page_node, MenuText.sub_header("OverlayHeader", I18n.t(OVERLAY_KEY)))
 	for entry in OVERLAY_TOGGLES:
 		_add_toggle(page_node, entry)
 
@@ -158,7 +161,7 @@ func _add_toggle(page_node: Control, entry: Array) -> void:
 	toggle.name = "Toggle_%s" % entry[0]
 	toggle.switched.connect(_on_setting.bind(entry[0]))
 	page_node.add_child(toggle)
-	var caption := _add(page_node, MenuText.field_label("ToggleLabel_%s" % entry[0], entry[1]))
+	var caption := _add(page_node, MenuText.field_label("ToggleLabel_%s" % entry[0], I18n.t(entry[1])))
 	_toggles[entry[0]] = [toggle, caption]
 
 func _add(page_node: Control, label: Label) -> Label:
@@ -183,7 +186,8 @@ func _layout() -> void:
 	_layout_sound(y, width)
 	_layout_graphics(y, width)
 	_back.custom_minimum_size.x = width
-	_set_box(_back, 0.0, size.y - UiButton.MARGIN_Y - UiButton.BUTTON_HEIGHT, Vector2(width, UiButton.BUTTON_HEIGHT))
+	var back_height := _back.get_combined_minimum_size().y   # a Chinese label's taller line grows the button
+	_set_box(_back, 0.0, size.y - UiButton.MARGIN_Y - back_height, Vector2(width, back_height))
 
 func _layout_player(top: float, width: float) -> void:
 	var y := _place(_name_label, 0.0, top) + LABEL_MARGIN_BOTTOM
@@ -293,9 +297,12 @@ func _on_view(view: String) -> void:
 	profile_changed.emit(profile)
 
 func _on_locale(id: String) -> void:
+	var changed := id != I18n.locale()
 	profile[Locales.PROFILE_KEY] = id
 	_refresh_player()
 	profile_changed.emit(profile)
+	if changed:
+		locale_changed.emit(id)
 
 func _on_setting(value: Variant, key: String) -> void:
 	profile[key] = value

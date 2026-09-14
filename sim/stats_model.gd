@@ -1,7 +1,7 @@
 class_name StatsModel extends RefCounted
 ## Frame-time and speed readout — port of the web components/StatsOverlay.tsx logic: a 150-frame frame-time history
 ## (one graph pixel each, oldest to newest), FPS and the worst frame of each 500 ms window, and the web text formats.
-## The words are the web English strings until the interface gets its translations.
+## The words come in the active locale.
 
 const HISTORY := 150                     # web HISTORY = GRAPH_W: one point per pixel of width
 const WINDOW_MS := 500.0                 # web FPS_WINDOW_MS
@@ -11,9 +11,9 @@ const GRAPH_H := 46.0
 const MS_TOP := 33.3                     # graph top = 33.3 ms (30 FPS)
 const MS_120 := 1000.0 / 120.0           # 120 FPS frame budget guide
 const MS_60 := 1000.0 / 60.0             # 60 FPS frame budget guide
-const MIN_LABEL := "MIN"                 # web en statsMin
-const MS_LABEL := "ms"                   # web en statsMs
-const SPEED_UNIT := "u/s"                # web en statsSpeedUnit
+const MIN_KEY := "statsMin"             # web dictionary keys
+const MS_KEY := "statsMs"
+const SPEED_UNIT_KEY := "statsSpeedUnit"
 const DECIMAL := 10.0
 const HALF := 0.5
 
@@ -68,10 +68,10 @@ static func graph_y(frame_ms: float) -> float:
 	return GRAPH_H - minf(frame_ms, MS_TOP) / MS_TOP * GRAPH_H
 
 func fps_text() -> String:
-	return "%d FPS · %s %d (%s %s)" % [fps, MIN_LABEL, worst_fps(), to_fixed_1(worst_ms), MS_LABEL]
+	return "%d FPS · %s %d (%s %s)" % [fps, I18n.t(MIN_KEY), worst_fps(), to_fixed_1(worst_ms), I18n.t(MS_KEY)]
 
 static func speed_text(speed: float) -> String:
-	return "%s %s" % [to_fixed_1(speed), SPEED_UNIT]
+	return "%s %s" % [to_fixed_1(speed), I18n.t(SPEED_UNIT_KEY)]
 
 ## JS Number.toFixed(1): the nearest tenth, an exact tie going to the larger value (printf would round it to even).
 static func to_fixed_1(value: float) -> String:

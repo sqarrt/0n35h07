@@ -8,11 +8,11 @@ signal settings_requested                # web pause settings sub-view (MatchSet
 
 const LAYER := 10
 const BACKDROP := Color(10.0 / 255.0, 10.0 / 255.0, 15.0 / 255.0, 0.85)   # web rgba(10,10,15,0.85)
-const TITLE_TEXT := "MENU"               # web en pauseTitle
-const RESUME_TEXT := "RESUME"            # pauseResume
-const SETTINGS_TEXT := "SETTINGS"        # settingsTitle
-const TO_MENU_TEXT := "TO MENU"          # pauseToMenu
-const QUIT_TEXT := "QUIT"                # pauseExit
+const TITLE_KEY := "pauseTitle"         # web dictionary keys
+const RESUME_KEY := "pauseResume"
+const SETTINGS_KEY := "settingsTitle"
+const TO_MENU_KEY := "pauseToMenu"
+const QUIT_KEY := "pauseExit"
 const TITLE_FONT_SIZE := 24              # h2: 1.5em, bold
 const TITLE_SPACING_EM := 0.2
 const TITLE_MARGIN_BOTTOM := 32.0        # 2rem
@@ -48,21 +48,21 @@ func _ready() -> void:
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var title := Label.new()
 	title.name = "Title"
-	title.text = TITLE_TEXT
+	title.text = I18n.t(TITLE_KEY)
 	var title_font := UiFont.with_css_line(UiFont.bold_spaced(TITLE_SPACING_EM, TITLE_FONT_SIZE), TITLE_FONT_SIZE)
 	title.add_theme_font_override("font", title_font)
 	title.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(title_font))
 	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
 	title.add_theme_color_override("font_color", UiTokens.ACCENT)
 	column.add(title, 0.0, TITLE_MARGIN_BOTTOM)
-	_resume = UiButton.new(RESUME_TEXT, UiButton.PRIMARY, false)   # web: a plain <button>, silent
+	_resume = UiButton.new(I18n.t(RESUME_KEY), UiButton.PRIMARY, false)   # web: a plain <button>, silent
 	_resume.name = "Resume"
 	_resume.disabled_opacity = COOLDOWN_OPACITY
 	_resume.pressed.connect(_on_resume)
 	column.add(_resume.grouped(), UiButton.MARGIN_Y, UiButton.MARGIN_Y)   # the dark label over the faded fill
-	_button(column, "Settings", SETTINGS_TEXT, UiButton.GHOST).pressed.connect(settings_requested.emit)
-	_button(column, "ToMenu", TO_MENU_TEXT, UiButton.GHOST).pressed.connect(_on_main_menu)
-	_quit = _button(column, "Quit", QUIT_TEXT, UiButton.GHOST)
+	_button(column, "Settings", I18n.t(SETTINGS_KEY), UiButton.GHOST).pressed.connect(settings_requested.emit)
+	_button(column, "ToMenu", I18n.t(TO_MENU_KEY), UiButton.GHOST).pressed.connect(_on_main_menu)
+	_quit = _button(column, "Quit", I18n.t(QUIT_KEY), UiButton.GHOST)
 	_quit.pressed.connect(_on_quit)
 	visible = false
 	refresh()

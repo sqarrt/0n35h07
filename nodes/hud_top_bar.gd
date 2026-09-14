@@ -18,8 +18,8 @@ const TIMER_COLOR := Color("#dfe9f5")
 const TIMER_PADDING := 14
 const TIMER_BORDER := 1
 const TIMER_BORDER_COLOR := Color("#25303f")
-const YOU_LABEL := "YOU"                     # web dictionary hudYou (name fallback without a roster entry)
-const OPPONENT_LABEL := "OPPONENT"           # web dictionary hudOpponent
+const YOU_KEY := "hudYou"                    # web dictionary keys: the name fallbacks without a roster entry
+const OPPONENT_KEY := "hudOpponent"
 const DOT := "●"                             # web streak-dots glyph
 const DOT_FONT_SIZE := 10                    # web .streak-dots font-size
 const DOT_SPACING_PX := 1                    # web .streak-dots letter-spacing
@@ -93,8 +93,8 @@ func set_players(you: Dictionary, opponent: Dictionary) -> void:
 		var color := _side_color(side[2])
 		(side[0] as Label).add_theme_color_override("font_color", color)
 		(side[1] as Label).add_theme_color_override("font_color", color)
-	_show_streak(_you_name, _you_dots, _you, YOU_LABEL, maxi(_you_streak, 0))
-	_show_streak(_opp_name, _opp_dots, _opp, OPPONENT_LABEL, maxi(_opp_streak, 0))
+	_show_streak(_you_name, _you_dots, _you, I18n.t(YOU_KEY), maxi(_you_streak, 0))
+	_show_streak(_opp_name, _opp_dots, _opp, I18n.t(OPPONENT_KEY), maxi(_opp_streak, 0))
 
 ## Frags for both sides and the timer text (HudModel.match_time).
 func set_state(you_frags: int, opponent_frags: int, time_text: String) -> void:
@@ -106,10 +106,10 @@ func set_state(you_frags: int, opponent_frags: int, time_text: String) -> void:
 func set_streaks(you_streak: int, opponent_streak: int) -> void:
 	if you_streak != _you_streak:
 		_you_streak = you_streak
-		_show_streak(_you_name, _you_dots, _you, YOU_LABEL, you_streak)
+		_show_streak(_you_name, _you_dots, _you, I18n.t(YOU_KEY), you_streak)
 	if opponent_streak != _opp_streak:
 		_opp_streak = opponent_streak
-		_show_streak(_opp_name, _opp_dots, _opp, OPPONENT_LABEL, opponent_streak)
+		_show_streak(_opp_name, _opp_dots, _opp, I18n.t(OPPONENT_KEY), opponent_streak)
 
 func _show_streak(player_name: EffectText, dots: Label, entry: Dictionary, fallback: String, streak: int) -> void:
 	var label: String = entry.get("name", fallback)

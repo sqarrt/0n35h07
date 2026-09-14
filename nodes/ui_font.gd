@@ -8,6 +8,12 @@ const CYRILLIC := "res://assets/fonts/share-tech-mono-cyrillic.ttf"
 ## fallback raises every line's ascent in Godot.
 const CJK_FAMILIES := ["Noto Sans SC", "PingFang SC", "Microsoft YaHei"]
 const CJK_FALLBACK_COUNT := 2                  # base_cjk(): the Cyrillic face, then the system CJK face
+## Godot's own system fallback (glyphs no face of the chain has) picks its face by the tool locale — Yu Gothic for
+## Chinese under English. Chrome takes the --ui-font stack's Microsoft YaHei in every language, and like Godot's system
+## fallback grows only the lines that use it; the port has no Godot translations, so the locale only steers that pick.
+const SYSTEM_FALLBACK_LOCALE := "zh_CN"
+## web index.css: html[lang="zh-CN"] .btn, .seg { letter-spacing: 0.05em } — wide Latin tracking bloats CJK labels.
+const CJK_CONTROL_SPACING_EM := 0.05
 
 ## Chrome's synthetic bold (the face has no bold weight): Skia grows the outline by the font size times a ratio
 ## interpolated from 1/24 at 9 px to 1/32 at 36 px; Godot's embolden grows it by strength x size / 16 px.
@@ -24,6 +30,7 @@ static var _base_cjk: FontFile
 ## The shared base face (Latin + Cyrillic fallback).
 static func base() -> FontFile:
 	if _base == null:
+		TranslationServer.set_locale(SYSTEM_FALLBACK_LOCALE)
 		_base = (load(LATIN) as FontFile).duplicate() as FontFile   # don't mutate the shared imported resource
 		var fallbacks: Array[Font] = [load(CYRILLIC) as Font]
 		_base.fallbacks = fallbacks
@@ -32,12 +39,17 @@ static func base() -> FontFile:
 ## The base face that can also show Chinese (the settings language grid's 简体中文).
 static func base_cjk() -> FontFile:
 	if _base_cjk == null:
-		_base_cjk = (load(LATIN) as FontFile).duplicate() as FontFile
+		TranslationServer.set_locale(SYSTEM_FALLBACK_LOCALE)
+		_base_cjk =(load(LATIN) as FontFile).duplicate() as FontFile
 		var cjk := SystemFont.new()
 		cjk.font_names = PackedStringArray(CJK_FAMILIES)
 		var fallbacks: Array[Font] = [load(CYRILLIC) as Font, cjk]
 		_base_cjk.fallbacks = fallbacks
 	return _base_cjk
+
+## The letter spacing of a `.btn` / `.seg` label in the active locale (an inline letter spacing keeps its own).
+static func control_spacing_em(latin_em: float) -> float:
+	return CJK_CONTROL_SPACING_EM if I18n.is_cjk() else latin_em
 
 ## A fractional CSS font size (rem sizes such as 0.7rem = 11.2 px) as the nearest Godot font size.
 static func css_size(css_px: float) -> int:
@@ -79,6 +91,9 @@ static func with_css_line(variation: FontVariation, font_size: int, css_px := 0.
 	var px := _px(font_size, css_px)
 	variation.spacing_top = roundi(ASCENT_EM * px) - roundi(base().get_ascent(font_size))
 	variation.spacing_bottom = roundi(DESCENT_EM * px) - roundi(base().get_descent(font_size))
+	for fallback in variation.fallbacks:   # Cyrillic lines too: Chrome sizes them by the family's Latin face
+		(fallback as FontVariation).spacing_top = variation.spacing_top
+		(fallback as FontVariation).spacing_bottom = variation.spacing_bottom
 	return variation
 
 static func _px(font_size: int, css_px: float) -> float:

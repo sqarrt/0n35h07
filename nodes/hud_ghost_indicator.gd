@@ -6,7 +6,7 @@ class_name HudGhostIndicator extends Control
 
 const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
 const COLOR := Color("#99ccff")              # web GHOST #9cf
-const TEXT := "RESPAWNING"                   # web dictionary respawning
+const TEXT_KEY := "respawning"               # web dictionary key
 const INSET := HudModel.FRAME_INSET
 const THICKNESS := 6.0
 const GLOW_BLUR := 10.0                      # web box-shadow 0 0 10px
@@ -32,7 +32,7 @@ func _ready() -> void:
 	_label.name = "Label"
 	add_child(_label)
 	_label.configure(UiFont.spaced(SPACING_EM, FONT_SIZE), FONT_SIZE, COLOR)
-	_label.set_text(TEXT)
+	_label.set_text(I18n.t(TEXT_KEY))
 	_label.set_shadows([CssShadow.make(LABEL_GLOW_BLUR, COLOR)])
 	var glow_pad := float(CssShadow.reach_px(CssShadow.make(GLOW_BLUR, COLOR)))
 	for bar_name in BAR_NAMES:

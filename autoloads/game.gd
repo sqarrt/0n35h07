@@ -16,4 +16,5 @@ func _ready() -> void:
 	random.randomize()
 	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
 		profile = ProfileStore.load_profile(random.randf)
+	I18n.use_locale(Locales.of_profile(profile))   # web App: profile.locale ?? detectLocale()
 	print("OneShot ", GAME_VERSION, " — Godot foundation ready")

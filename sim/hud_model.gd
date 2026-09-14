@@ -18,20 +18,20 @@ static func match_time(seconds) -> String:
 	var minutes := s / SECONDS_PER_MIN
 	return "%02d:%02d" % [minutes, s % SECONDS_PER_MIN]
 
-const OUTCOME_LABELS := {
-	MatchResult.OUTCOME_WIN: "VICTORY",
-	MatchResult.OUTCOME_LOSE: "DEFEAT",
-	MatchResult.OUTCOME_DRAW: "DRAW",
+const OUTCOME_KEYS := {
+	MatchResult.OUTCOME_WIN: "matchOutcomeWin",
+	MatchResult.OUTCOME_LOSE: "matchOutcomeLose",
+	MatchResult.OUTCOME_DRAW: "matchOutcomeDraw",
 }
-const REASON_LABELS := {MatchResult.REASON_TIME: "TIME UP"}
+const REASON_KEYS := {MatchResult.REASON_TIME: "matchReasonTime"}
 
-## Match-end headline (web dictionary matchOutcome*; English until i18n lands).
+## Match-end headline (web dictionary matchOutcome*).
 static func outcome_label(outcome: String) -> String:
-	return OUTCOME_LABELS.get(outcome, "")
+	return I18n.t(OUTCOME_KEYS[outcome]) if OUTCOME_KEYS.has(outcome) else ""
 
 ## Why the match ended (web dictionary matchReason*).
 static func reason_label(reason: String) -> String:
-	return REASON_LABELS.get(reason, "")
+	return I18n.t(REASON_KEYS[reason]) if REASON_KEYS.has(reason) else ""
 
 ## Result rows as the web overlay lists them: kills descending, equal kills by id.
 static func ranked_scores(scores: Array) -> Array:

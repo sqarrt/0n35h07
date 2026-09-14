@@ -1,16 +1,16 @@
 // Appearance frames as the desktop build (a stub __TAURI_INTERNALS__): menu → APPEARANCE with the parity identity in
-// English. For each state the panel alone (canvases hidden) and the whole screen with the 3D backdrop (the preview ball
+// PARITY_LOCALE (default en). For each state the panel alone (canvases hidden) and the whole screen with the 3D backdrop (the preview ball
 // and the camera pose of the last clicked block; the orbiting light and the ball clock pinned), plus the boxes, own
 // texts and computed styles of every element inside the panel and its scroll metrics. States: fresh (part color), the
 // reserve colour being edited, the planet model, and one painted front cell (part paintFront).
-//   node scripts/parity-capture-appearance.mjs <output dir> [base url]
+//   [PARITY_LOCALE=<id>] node scripts/parity-capture-appearance.mjs <output dir> [base url]
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { VIEWPORT, launchReferencePage, settleScene } from './parity-lib.mjs';
 
 const output = resolve(process.argv[2] ?? '../test-results/parity-appearance');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
-const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: 'en' };
+const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: process.env.PARITY_LOCALE ?? 'en' };
 const RESERVE_PICK = '#4fa';
 const PAINT_CELL = { cx: 8, cy: 8 };      // a cell inside the disc
 const FIELD_CELLS = 16;
