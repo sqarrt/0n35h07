@@ -26,6 +26,24 @@
       window.addEventListener('message', (e) => send('window-message', { data: String(e.data) }))
       document.addEventListener('message', (e) => send('document-message', { data: String(e.detail ?? e.data) }))
       ctx.resume().then(() => send('resumed')).catch((err) => send('resume-failed', { error: String(err) }))
+      // Strudel needs a secure context (AudioWorklet), worklet modules and the sample CDNs: report what this origin allows.
+      const WORKLET = 'class Probe extends AudioWorkletProcessor { process() { return true } } registerProcessor("probe", Probe)'
+      const CDN = 'https://raw.githubusercontent.com/felixroos/dough-samples/main/piano.json'
+      const env = async () => {
+        const facts = { href: location.href, origin: location.origin, secure: window.isSecureContext,
+          worklet: typeof ctx.audioWorklet }
+        try {
+          await ctx.audioWorklet.addModule('data:text/javascript;base64,' + btoa(WORKLET))
+          new AudioWorkletNode(ctx, 'probe')
+          facts.workletModule = 'ok'
+        } catch (err) { facts.workletModule = String(err) }
+        try {
+          const res = await fetch(CDN)
+          facts.cdn = res.status
+        } catch (err) { facts.cdn = String(err) }
+        send('env', facts)
+      }
+      env()
     </script>
   </body>
 </html>

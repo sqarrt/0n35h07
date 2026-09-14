@@ -7,7 +7,9 @@ extends SceneTree
 ## passes its own browser arguments: no effect); `autoplay-prop` sets the WebView's own `autoplay` property (wry
 ## with_autoplay) before the view is created.
 
-const PAGE := "res://tools/probes/webview_audio_probe.html"
+## Under res://localhost/: godot_wry serves res://<dir>/ as http://res.<dir>/, and only *.localhost is a secure context
+## (AudioWorklet); page=res://<other dir>/... reproduces the insecure origin.
+const PAGE := "res://localhost/probes/webview_audio_probe.html"
 const OUT_DIR := "res://test-results/probes/webview"
 const PHASE_S := 3.0
 const PHASES := ["visible", "hidden", "offscreen-1px", "visible-again"]
@@ -15,6 +17,7 @@ const VISIBLE_BOX := Rect2(0.0, 0.0, 320.0, 180.0)
 const OFFSCREEN_BOX := Rect2(-10.0, -10.0, 1.0, 1.0)
 const AUTOPLAY_FLAG := "autoplay-arg"
 const AUTOPLAY_PROPERTY_FLAG := "autoplay-prop"
+const PAGE_ARG := "page="
 const BROWSER_ARGS_ENV := "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"
 const AUTOPLAY_ARGS := "--autoplay-policy=no-user-gesture-required"
 
@@ -35,7 +38,12 @@ func _initialize() -> void:
 	if args.has(AUTOPLAY_PROPERTY_FLAG):
 		view.set("autoplay", true)
 		variant = "autoplay-property"
-	view.set("url", PAGE)
+	var page := PAGE
+	for arg in args:
+		if arg.begins_with(PAGE_ARG):   # page=res://localhost/...: godot_wry serves it from http://res.localhost
+			page = arg.trim_prefix(PAGE_ARG)
+			variant += "-" + page.get_base_dir().get_file()
+	view.set("url", page)
 	view.position = VISIBLE_BOX.position
 	view.size = VISIBLE_BOX.size
 	view.connect("ipc_message", func(message: String) -> void: _messages.append({"phase": _phase, "message": message}))

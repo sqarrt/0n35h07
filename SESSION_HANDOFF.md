@@ -150,10 +150,15 @@ GUT 766/766. **Третья волна FS3 смержена** (`feature/godot-fr
 Итог: `autoplay = true` запускает `AudioContext` без жеста (env `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` не действует);
 скрытый WebView душит таймеры (~1/с), коробка 1×1 за экраном — полный темп; IPC `window.ipc.postMessage` ↔
 событие `message` на `document`, нужно рукопожатие. Регистрация расширения — импорт Windows-сборкой. Спека подпроекта:
-`docs/superpowers/specs/2026-09-15-godot-radio-design.md`. **Дальше:** (1) R1 — хост движка (сборка Vite модулей
-web + `radioHost.ts`), автозагрузка `RadioHost` (WebView 1×1), `RadioModel`, протокол IPC с тестом, живой прогон;
-затем R2 мини-плеер + DLC, R3 экран радио, R4 библиотека, R5 матч/свечение; (2) хвост разрядки — трейлер,
-заставка, тост (`RichTextLabel`), поля ввода; `line-height: 1` точек серии. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`docs/superpowers/specs/2026-09-15-godot-radio-design.md`. **Критично:** godot_wry отдаёт `res://<dir>/` как
+`http://res.<dir>/` — не secure context (нет AudioWorklet); только `res://localhost/…` (`http://res.localhost`) защищён.
+**R1 смержен** (`feature/godot-radio-host`): хост `web-reference/src/radio/host/` (`hostProtocol.ts` + `radioHost.ts`,
+`vite.radio-host.config.ts` → `localhost/radio_host/`, пересборка `npx vite build --config vite.radio-host.config.ts`),
+мост `RadioProtocol` / `RadioTransport` / `RadioHost` (`sim/radio/`), `WebViewRadioTransport` (`nodes/radio/`);
+живой прогон `tools/probes/radio_host_probe.gd`: трек играет, прогресс идёт. Отчёт `2026-09-15-radio-host-*`.
+GUT 779/779. **Дальше:** (1) R2 — автозагрузка радио и прогрев в меню, `RadioModel` + имена треков (`trackName.ts`),
+кнопка RADIO, мини-плеер, права (`entitlement.ts`, DLC `SteamBridge.owns_app`, магазин в оверлее); затем R3 экран
+радио, R4 библиотека, R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 
