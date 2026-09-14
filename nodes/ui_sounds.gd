@@ -17,6 +17,10 @@ static func attach(button: BaseButton) -> void:
 static func toggle() -> void:
 	_play(TOGGLE)
 
+## Any 2D sound event through the Audio autoload (the appearance previews: death, dash, shield_up …).
+static func play(event: String) -> void:
+	_play(event)
+
 static func attach_picker(picker: OptionButton) -> void:
 	picker.item_selected.connect(func(_index: int) -> void: _play(TOGGLE))
 

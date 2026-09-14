@@ -49,6 +49,7 @@ func test_every_stage_renders_before_its_reader() -> void:
 	for stage in [glow.depth_viewport(), glow.color_viewport()]:
 		assert_eq(stage.world_3d, backdrop.world().find_world_3d(), "one world, three cameras")
 	assert_eq(glow.viewports().size(), MenuEdgeGlow.BLOOM_LEVELS * 2 + 3, "7 up, 8 down, luminance, edge, 2 model passes")
+	assert_true(backdrop.world().use_hdr_2d, "linear float like the web HalfFloat target: light above 1 blooms")
 
 func test_dark_rests_and_lit_renders() -> void:
 	var backdrop := _backdrop()

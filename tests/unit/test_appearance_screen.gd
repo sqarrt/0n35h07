@@ -47,7 +47,8 @@ func test_boxes_follow_chrome() -> void:
 func test_colour_rules_and_preview() -> void:
 	var screen := _screen()
 	watch_signals(screen)
-	assert_eq(screen.preview_spec(), {"color": "#fa4", "model": "smooth", "ring": "#4af", "art": ""})
+	assert_eq(screen.preview_spec(), {"color": "#fa4", "model": "smooth", "ring": "#4af", "art": "",
+		"windup": "classic", "respawn": "echo", "dash": "streak", "shield": "dome"})
 	screen.choose_reserve("#fa4")
 	assert_eq(screen.profile["reserveColor"], "#4af", "the primary colour cannot be the reserve")
 	assert_eq(screen.editing, AppearanceScreen.SLOT_RESERVE, "but the ball now shows the reserve slot")

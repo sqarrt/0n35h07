@@ -1,0 +1,92 @@
+{
+  "id": "2026-09-14-appearance-previews",
+  "title": "Сверка паритета OneShot · превью стилей на экране APPEARANCE",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс анимированных превью стилей: web `MenuBackdrop` `StageBall`. По клику на стиль шар превью проигрывает одноразовый цикл с игровыми эффектами: замах и луч (SHOT), пробежку призрака по кругу R 2.6 и сборку (RESPAWN), рывок вбок и обратно (DASH), щит на 1.5 с (SHIELD). Для детерминированных кадров добавлен хук `__debugPreviewHoldMs` (web) / `pin_preview_hold_ms` (Godot): часы превью останавливаются через заданное время после клика. Эталон — десктопная Steam-сборка.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-appearance-previews.json`. Web: `web-reference/scripts/parity-capture-appearance-preview.mjs` (APPEARANCE; для каждого состояния: дождаться конца прошлых превью, задать удержание, кликнуть стиль, вернуть прокрутку панели наверх, подождать 1.5 с) → `test-results/parity-gpu-appearance/web-preview-<kind>-<style>-<ms>.png`. Godot: `tools/screenshot.gd`, режим `profile:appearance-preview-<kind>-<style>-<ms>` (90 кадров). Замеры: среднее отличие каналов по кадру и по сцене слева от панели (x < 576).",
+  "pages": [
+    {
+      "slug": "previews",
+      "name": "Превью стилей",
+      "verdict": "Превью перенесены. Сцена слева от панели отличается на 0.10–0.77/255 в шести состояниях: челюсти rage на 140 мс заряда (0.10), вихрь singularity на 300 мс (0.15), призрак echo на половине круга (0.47), сборка swarm на 100 мс (0.29), пауза рывка rift с R/G/B-копиями (0.19), шестиугольники щита hex (0.77). Луч classic через 60 мс после выстрела — 1.11/255: геометрия и ореол совпадают, остаток — дробный кадр rAF в web. Без превью фон не изменился: шар меню 0.04, War 0.03, свечение 0.26.",
+      "verdict_short": "Превью совпадают",
+      "conditions": [
+        ["сборка", "браузер + заглушка `__TAURI_INTERNALS__`", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, 90 кадров"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["фикстура", "свет 0, часы шара 1 с, свечение 0, `__debugPreviewHoldMs` = мс состояния", "`set_light_angle(0)`, `pin_ball_time(1)`, `pin_glow_level(0)`, `pin_preview_hold_ms`"],
+        ["тесты", "—", "GUT 522/522"]
+      ],
+      "comparisons": [
+        {"title": "SHOT · rage, 140 мс заряда", "wipe": true,
+          "note": "Челюсти до первого броска монеты глитча (160 мс) — кадр детерминирован.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-shot-rage-140.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-shot-rage-140.png", "note": "Сцена 0.10/255."}
+          ]},
+        {"title": "SHOT · classic, 60 мс после выстрела", "wipe": true,
+          "note": "Луч из центра шара вдоль диагонали SHOT; ореол — Bloom композитора.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-shot-classic-460.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-shot-classic-460.png", "note": "Сцена 1.11/255."}
+          ]},
+        {"title": "RESPAWN · echo, половина круга", "wipe": true,
+          "note": "Призрак на дальней стороне круга R 2.6, смотрит по касательной.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-respawn-echo-600.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-respawn-echo-600.png", "note": "Сцена 0.47/255."}
+          ]},
+        {"title": "RESPAWN · swarm, 100 мс сборки", "wipe": true,
+          "note": "Осколки собираются в шар на месте.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-respawn-swarm-1300.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-respawn-swarm-1300.png", "note": "Сцена 0.29/255."}
+          ]},
+        {"title": "DASH · rift, пауза", "wipe": true,
+          "note": "Шар на 3.6 м по +X, копии R/G/B вдоль пути.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-dash-rift-250.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-dash-rift-250.png", "note": "Сцена 0.19/255."}
+          ]},
+        {"title": "SHIELD · hex, 300 мс", "wipe": true,
+          "note": "Плитки щита на центре шара.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-appearance/crops/web-preview-shield-hex-300.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-appearance/crops/godot-preview-shield-hex-300.png", "note": "Сцена 0.77/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "AP4", "severity": "fixed",
+          "title": "Анимированные превью стилей",
+          "web": "`StageBall`: SHOT — заряд `BEAM_WINDUP` → выстрел `playBeam` на 8 м → сдувание `WINDUP_SHRINK_MS`; RESPAWN — `onDeath`, призрак 1200 мс по кругу R 2.6, сборка 500 мс; DASH — 150 мс туда, пауза 350, обратно; SHIELD — 1500 мс. Звуки стилей; пробежка призрака удерживает рывок.",
+          "godot": "`MenuPreviewCycles` (таймлайны), `MenuStagePreview` (игровые `WindupWorldView`, `BeamFx`, `RespawnFxView`, `DashTrailView`, `ShieldFx` на шаре превью, порядок шагов как в web), `MenuBackdrop.preview_style`, `AppearanceScreen.style_previewed`. Было: клик только сохранял стиль.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/menu_preview_cycles.gd", "nodes/menu_stage_preview.gd", "nodes/menu_backdrop.gd", "nodes/appearance_screen.gd", "tests/unit/test_menu_preview_cycles.gd", "tests/unit/test_menu_stage_preview.gd", "web-reference/src/components/MenuBackdrop.tsx"]
+        },
+        {
+          "id": "AP5", "severity": "fixed",
+          "title": "Ореол ярких эффектов в тишине",
+          "web": "Композитор `MenuEdgeGlow` смонтирован всегда: Bloom с порогом 1.1 в HalfFloat-буфере раздувает всё ярче 1 (сердцевину луча), даже когда уровень звука 0.",
+          "godot": "Мир фона рендерится во float (`use_hdr_2d`, композит кодирует sRGB), цепочка свечения работает, пока открыт экран превью. Было: 8-битный мир обрезал луч до 1, ореола не было (сцена 7.68/255).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/menu_backdrop.gd", "assets/shaders/menu_backdrop_composite.gdshader", "assets/shaders/menu_edge_glow.gdshader", "tests/unit/test_menu_edge_glow.gd"]
+        },
+        {
+          "id": "AP6", "severity": "fixed",
+          "title": "Шаг часов превью",
+          "web": "Часы рывка, щита и выстрела шагают до расчёта позиций кадра, часы респавна — после (угол пробежки берётся до шага).",
+          "godot": "`MenuStagePreview.step` повторяет порядок. Было: все часы шагали в конце кадра — копии rift отставали на кадр (сцена 5.29/255).",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/menu_stage_preview.gd"]
+        }
+      ],
+      "limitations": [
+        "Глитч челюстей rage (монета 45% раз в 160 мс) и частицы — случайные с обеих сторон; кадры сняты там, где случайность ещё не проявилась, либо сверены по форме.",
+        "Web сбрасывает перелёт времени на смене фазы (кадр rAF), Godot считает фазы от времени клика: кадры сразу после смены фазы (луч) расходятся до кадра.",
+        "Playwright при клике прокручивает панель к кнопке; кадры web возвращают прокрутку наверх, как у игрока без прокрутки."
+      ]
+    }
+  ]
+}

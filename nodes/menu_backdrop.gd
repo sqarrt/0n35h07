@@ -27,6 +27,7 @@ class StageEntry:
 	var color := Color.WHITE
 	var exiting := false
 	var exit_ms := 0.0
+	var spot := Vector3.ZERO
 
 var rig: MenuCameraRig
 var glow_muted := false                             # web glowMuted: the appearance screen silences the edge glow
@@ -48,6 +49,8 @@ var _ball_time_pinned := false
 var _glow_input := 0.0
 var _glow_input_pinned := false
 var _appearance_part := ""
+var _preview: MenuStagePreview
+var _preview_hold_ms := MenuStagePreview.NO_HOLD
 
 func _ready() -> void:
 	name = "Backdrop"
@@ -59,6 +62,7 @@ func _ready() -> void:
 	_viewport.transparent_bg = true
 	_viewport.own_world_3d = true
 	_viewport.msaa_3d = Viewport.MSAA_4X
+	_viewport.use_hdr_2d = true   # linear float like the web HalfFloat composer: bright effects keep HDR for the bloom
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_glow.adopt_world(_viewport)
 	var environment := WorldEnvironment.new()
@@ -95,6 +99,38 @@ func set_screen(screen: String, game_mode := GameModes.DUEL, is_client := false,
 		part := MenuCameraRig.PART_COLOR) -> void:
 	rig.set_state(MenuCameraRig.state_for(screen, game_mode, is_client, part))
 	_appearance_part = part if screen == MenuCameraRig.SCREEN_APPEARANCE else ""
+	if screen == MenuCameraRig.SCREEN_APPEARANCE and _preview == null:
+		_preview = MenuStagePreview.new()
+		_preview.hold_ms = _preview_hold_ms
+		_viewport.add_child(_preview)
+	elif screen != MenuCameraRig.SCREEN_APPEARANCE and _preview != null:
+		_preview.queue_free()
+		_preview = null
+		_settle_own_ball()
+
+## A style click on the appearance screen: its one-shot preview on your ball (web App handle*Preview seq counters).
+func preview_style(kind: String, style: String) -> void:
+	if _preview != null:
+		_preview.trigger(kind, style)
+
+## Parity captures: freeze the style previews this long after a click (web __debugPreviewHoldMs).
+func pin_preview_hold_ms(ms: float) -> void:
+	_preview_hold_ms = ms
+	if _preview != null:
+		_preview.hold_ms = ms
+
+func preview() -> MenuStagePreview:
+	return _preview
+
+## Leaving the previews mid-run: your ball back on its spot, whole and without the windup glow (web rfx dispose).
+func _settle_own_ball() -> void:
+	var entry: StageEntry = _entries.get(MenuStage.PLAYER_KEY)
+	if entry == null:
+		return
+	entry.visual.position = entry.spot + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)
+	entry.visual.set_emission(Color.BLACK)
+	entry.visual.set_mesh_offset(Vector3.ZERO)
+	entry.visual.set_mesh_visible(true)
 
 ## Where your ball looks (web StageBall on the appearance preview): its art side toward +Z while painting, the fixed
 ## diagonal of the SHOT block, otherwise at the camera.
@@ -122,7 +158,8 @@ func set_balls(balls: Array) -> void:
 		entry.spec = ball["spec"]
 		entry.exiting = false
 		entry.exit_ms = 0.0
-		entry.visual.position = (ball["spot"] as Vector3) + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)
+		entry.spot = ball["spot"]
+		entry.visual.position = entry.spot + Vector3(0.0, SkinCurves.BODY_MESH_Y, 0.0)
 	for key in _entries:
 		if not active.has(key):
 			(_entries[key] as StageEntry).exiting = true
@@ -196,6 +233,9 @@ func _process(delta: float) -> void:
 		entry.visual.set_opacity(entry.stage.opacity)
 		entry.visual.set_scale_factor(entry.stage.scale)
 		entry.visual.face_dir(facing_of(key, entry.visual))
+		if key == MenuStage.PLAYER_KEY and _preview != null:
+			_preview.step(delta, entry.visual, entry.spot, entry.color, entry.stage.scale, entry.spec,
+				facing_of(key, entry.visual))
 		if _ball_time_pinned:
 			entry.visual.set_time(_ball_time)
 		else:
@@ -207,7 +247,9 @@ func _process(delta: float) -> void:
 func _step_glow(delta: float) -> void:
 	var level := _glow_input if _glow_input_pinned else Audio.analysis.level()
 	_glow_level.step(delta, level, glow_muted or not bool(Game.profile.get(PROFILE_MENU_GLOW, true)))
-	var lit := _glow_level.is_lit()
+	# the web composer blooms whatever is HDR-bright even in silence: the appearance previews' beams need the chain
+	# the web composer blooms whatever is HDR-bright even in silence: the appearance previews' beams need the chain
+	var lit := _glow_level.is_lit() or _preview != null
 	if lit != _glow.is_lit():
 		_glow.set_lit(lit)
 		_composite.set_shader_parameter("lit", lit)

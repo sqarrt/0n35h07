@@ -1,7 +1,7 @@
 shader_type canvas_item;
 // The menu backdrop on screen, composited the way a WebGL canvas with premultipliedAlpha is: the stored colour is
 // already multiplied by alpha, so it goes over the page as rgb + dst·(1 − a) (straight blending would darken the
-// translucent planet ring and fading balls). Unlit: the backdrop viewport as is. Lit (web MenuEdgeGlow): the edge
+// translucent planet ring and fading balls). Unlit: the backdrop viewport (linear float) encoded. Lit (web MenuEdgeGlow): the edge
 // buffer screen-blended with the bloom (postprocessing BlendFunction.SCREEN: d + s − min(d·s, 1), alpha max), alpha
 // clamped, linear light encoded to sRGB (three sRGBTransferOETF).
 render_mode blend_premul_alpha;
@@ -24,7 +24,8 @@ vec3 linear_to_srgb(vec3 c) {
 
 void fragment() {
 	if (!lit) {
-		COLOR = texture(TEXTURE, UV);
+		vec4 scene = texture(TEXTURE, UV);   // the backdrop viewport is linear float (HDR 2D)
+		COLOR = vec4(linear_to_srgb(clamp(scene.rgb, vec3(0.0), vec3(1.0))), clamp(scene.a, 0.0, 1.0));
 	} else {
 		vec4 d = texture(edge, UV);
 		vec4 s = texture(bloom, UV) * bloom_intensity;
