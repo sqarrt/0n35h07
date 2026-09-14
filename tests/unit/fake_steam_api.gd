@@ -9,6 +9,7 @@ signal lobby_list(lobby_ids: Array)
 signal join_requested(lobby_id: int)
 signal lobby_invite(inviter_id: int, lobby_id: int)
 signal session_requested(steam_id: int)
+signal overlay_toggled(active: bool)
 
 const NEW_LOBBY := 900
 

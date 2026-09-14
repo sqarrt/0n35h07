@@ -10,6 +10,7 @@ signal lobby_list(lobby_ids: Array)
 signal join_requested(lobby_id: int)
 signal lobby_invite(inviter_id: int, lobby_id: int)
 signal session_requested(steam_id: int)
+signal overlay_toggled(active: bool)
 
 const SINGLETON := "Steam"
 const APP_ID := 4881310                        # 0N35H07 (dev runs have no Steam launch context: web steam_appid.txt)
@@ -43,6 +44,8 @@ func init() -> bool:
 	_steam.join_requested.connect(func(lobby: int, _friend: int) -> void: join_requested.emit(lobby))
 	_steam.lobby_invite.connect(func(inviter: int, lobby: int, _game: int) -> void: lobby_invite.emit(inviter, lobby))
 	_steam.network_messages_session_request.connect(func(steam_id: int) -> void: session_requested.emit(steam_id))
+	_steam.overlay_toggled.connect(func(active: bool, _user_initiated: bool, _app_id: int) -> void:
+		overlay_toggled.emit(active))
 	return true
 
 func available() -> bool:
