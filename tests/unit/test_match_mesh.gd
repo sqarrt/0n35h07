@@ -21,6 +21,10 @@ const DT := 1.0 / 60.0
 class FiredWeapon extends RefCounted:
 	var fire_seq := 1
 	var outcome := {"end": Vector3.FORWARD, "hit_point": HIT_POINT, "hit_entity_id": 1}
+	func set_cooldown_scale(_scale: float) -> void:   # the match's overheat pass touches every weapon
+		pass
+	func interrupt() -> void:
+		pass
 
 var _now := NOW_MS
 
@@ -125,6 +129,15 @@ func test_hits_on_remote_victims_become_claims() -> void:
 	assert_eq(rules.events.size(), 1, "our shot is still ours to show")
 	assert_eq(rules.claims, [{"shooter": 0, "hit_id": 1, "point": [HIT_POINT.x, HIT_POINT.y, HIT_POINT.z]}])
 	assert_true(victim.alive, "the victim's owner decides")
+
+func test_our_hit_on_a_remote_victim_is_predicted() -> void:
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	(peers[0]["players"][0] as PlayerNode).player.weapon = FiredWeapon.new()
+	host._physics_process(DT)
+	var victim: Player = (peers[0]["players"][1] as PlayerNode).player
+	assert_false(victim.alive, "the shooter sees the kill before the owner's verdict (web predictOpponentDeath)")
+	assert_eq(host.drain_claims().size(), 1, "and still asks the victim's owner")
 
 func test_a_departed_peer_ends_the_duel() -> void:
 	var peers := _pair()

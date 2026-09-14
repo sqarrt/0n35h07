@@ -1,0 +1,44 @@
+{
+  "id": "2026-09-15-kill-prediction",
+  "title": "Сверка паритета OneShot · предсказание убийства в сетевом бою",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Сетевой слайс N4: локальное предсказание смерти противника у стрелка. Эталон — web `game/Match.ts` (`predictOpponentDeath`, `revertPredictedKill`, `applyKill`, `applyBlock`, `applyPeerSnapshot`), `game/Player.ts` (`reviveFromFalsePrediction`) и `constants.ts` (`NET_PREDICT_KILL_MS = 250`). Сверка поведенческая: случаи web-тестов `Match.predictedKill.test.ts` и `mesh.deathProtocol.test.ts` перенесены в GUT на мэш из трёх пиров (LoopbackNet) и на MatchNode двух пиров. Найдено при сверке журнала сессии (отчёт `2026-09-14-game-log-*`, D1-3).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-kill-prediction.json`. Web-тесты: `web-reference/tests/unit/Match.predictedKill.test.ts`, `mesh.deathProtocol.test.ts`. GUT: `tests/unit/test_net_claims.gd` (предсказание, подтверждение, откат по блоку, окно ожидания, щит), `tests/unit/test_match_mesh.gd` (выстрел MatchNode по удалённой жертве).",
+  "pages": [
+    {
+      "slug": "kill-prediction",
+      "name": "Предсказание убийства",
+      "verdict": "Перенесено: выстрел локального игрока по удалённой жертве сразу показывает её смерть (призрак, хитбокс выключен) и отправляет заявку владельцу; видимо щитующаяся жертва не предсказывается; `kill` владельца подтверждает смерть без второго счёта; `block` возвращает жертву живой и снова поражаемой; снапшоты «жив», отправленные до прихода заявки, игнорируются 250 мс, после чего потерянная заявка откатывается следующим снапшотом. Журнал сессии пишет `predict_death / predict_skip / predict_confirm / predict_revert` с причиной.",
+      "verdict_short": "Предсказание убийства перенесено",
+      "conditions": [
+        ["окно ожидания", "`NET_PREDICT_KILL_MS = 250`", "`NetConst.NET_PREDICT_KILL_MS = 250.0`"],
+        ["часы", "`Date.now()`", "`NetSync.clock_ms` (часы `MatchNode`, в тестах закреплены)"],
+        ["тесты", "vitest: Match.predictedKill, mesh.deathProtocol", "GUT 746/746 (из них предсказание 6)"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "N4-1", "severity": "fixed",
+          "title": "Смерть противника ждала вердикт владельца",
+          "web": "`resolveCombat`: собственный выстрел по чужой жертве — `queueOrJudge` и `predictOpponentDeath` (кроме `netShielding`); `predictedKill = {id, until: now + 250}`.",
+          "godot": "`MatchNode._physics_process` после маршрутизации заявки своего игрока зовёт `NetSync.predict_death`: `apply_death` у копии жертвы (кроме `is_shielded`), `predicted_kill`. Было: противник оставался живым до события `kill` владельца (задержка на RTT).",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/match_node.gd", "sim/net/net_sync.gd", "sim/net/net_const.gd", "tests/unit/test_match_mesh.gd", "tests/unit/test_net_claims.gd"]
+        },
+        {
+          "id": "N4-2", "severity": "fixed",
+          "title": "Подтверждение, откат по блоку и окно ожидания",
+          "web": "`applyKill` снимает предсказание; `applyBlock` — `revertPredictedKill('block')`; `applyPeerSnapshot`: жив и `now < until` — держать призрак, жив после окна — `revertPredictedKill('grace')`, мёртв — снять предсказание; `reviveFromFalsePrediction` возвращает `alive`, снимает призрак и хитбокс.",
+          "godot": "`NetSync.apply_peer_event` (kill — `predict_confirm`, block — `_revert_prediction`), `NetSync._predicted_state` в `apply_peer_snapshot`, `Player.revive_from_false_prediction` (хитбокс включает `PlayerNode` по `respawning`).",
+          "evidence": ["test", "code"],
+          "sources": ["sim/net/net_sync.gd", "sim/player.gd", "nodes/player_node.gd", "tests/unit/test_net_claims.gd"]
+        }
+      ],
+      "limitations": [
+        "Живой сетевой матч двух машин не проводился: сценарии закреплены на синхронном LoopbackNet из трёх пиров, как web-тесты.",
+        "Визуально предсказанная смерть — тот же призрак, что и подтверждённая (как в web); отдельного кадра сверки нет."
+      ]
+    }
+  ]
+}

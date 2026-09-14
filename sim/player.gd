@@ -149,6 +149,15 @@ func respawn_at(pos: Vector3) -> void:
 	respawning = false
 	respawn_timer = 0.0
 
+## web reviveFromFalsePrediction: the shooter predicted this remote player dead but its owner blocked the shot or the
+## claim was lost — back to life where it stands, shootable again, nothing else reset.
+func revive_from_false_prediction() -> void:
+	if alive:
+		return
+	alive = true
+	respawning = false
+	respawn_timer = 0.0
+
 ## Reward reset: instantly clear beam/shield/dash cooldowns (perfect block / streak break).
 func reset_cooldowns() -> void:
 	if weapon != null:
