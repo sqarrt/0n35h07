@@ -55,15 +55,15 @@ func _ready() -> void:
 	add_child(match_audio)
 	match_audio.setup(match_node, [human, bot], HUMAN_SLOT, self)
 
-	# Pause menu (Esc): resume / back to the main menu.
+	# Pause menu (web App): a live match without the pointer lock; the match keeps running under it.
 	var pause := PauseOverlay.new()
+	pause.setup(match_node.is_live)
 	add_child(pause)
 
-	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; no pause menu from then on.
+	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; the match is no longer live, so no pause.
 	var ended := MatchEndedOverlay.new()
 	add_child(ended)
 	match_node.match_ended.connect(func(result: Dictionary) -> void:
-		pause.enabled = false
 		ended.show_result(result, match_node.roster, match_node.streak_tiers()))
 
 func _spawn_bot(human: PlayerNode, spawn: Vector3, bot_name: String) -> PlayerNode:

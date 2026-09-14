@@ -26,6 +26,10 @@ extends SceneTree
 ##                     output PNG (parity-capture-audio-bar.mjs), 90 frames to settle; the bar geometry joins the facts.
 ##   hud-stats         passive bot + the profile's showFps / showSpeed on, the stats overlay frozen on the readings of
 ##                     web-stats.json next to the output PNG (parity-capture-stats.mjs); its boxes join the facts.
+##   pause-<state>     the pause menu (web parity-capture-buttons.mjs): the pointer lock dropped, QUIT hidden like the
+##                     browser build and the RESUME cooldown frozen — state cooldown (halfway), idle (over),
+##                     hover-ghost (TO MENU hovered) or hover-primary (RESUME hovered); its boxes join the facts.
+##   match-end-hover   the match-end screen (pass <match ms>) with EXIT hovered once the column has settled.
 ##   profile           passive bot + a fixed in-memory profile (PARITY7, #fa4) and bot name EX82R, never saved
 ##                     (web parity-capture-profile.mjs identity).
 ##   profile-double    the same with both players on a double streak, 600 ms in.
@@ -51,6 +55,16 @@ const AUDIO_BAR_FRAMES := 90         # web settles the line's smoothing for 1.5 
 const MODE_HUD_STATS := "hud-stats"
 const STATS_FIXTURE := "web-stats.json"
 const STATS_FRAMES := 2              # the HUD shows the overlay, then the frozen fixture draws
+const MODE_PAUSE := "pause-"
+const PAUSE_COOLDOWN := "cooldown"
+const PAUSE_HOVER_GHOST := "hover-ghost"
+const PAUSE_HOVER_PRIMARY := "hover-primary"
+const PAUSE_COOLDOWN_SHARE := 0.5    # web __debugLockCooldownLeft = half of POINTERLOCK_COOLDOWN
+const PAUSE_FRAMES := 3              # the column lays out, then the frozen cooldown draws
+const MODE_MATCH_END_HOVER := "match-end-hover"
+const END_SETTLE_FRAMES := 12        # the 0.1 s fade and the column layout (at --fixed-fps 60)
+const HOVER_FRAMES := 2              # the button takes the hover look
+const HOVER_TARGETS := {"pause-hover-ghost": "ToMenu", "pause-hover-primary": "Resume", "match-end-hover": "Exit"}
 const MODE_THIRD_PERSON := "third-person"
 const MODE_TP_WINDUP := "third-person-windup"
 const MODE_TP_DEFLATE := "third-person-deflate"
@@ -91,6 +105,13 @@ const ARG_FRAME := 3
 const ARG_MODE := 4
 const ARG_MATCH_MS := 5
 const NO_OVERRIDE := -1.0
+
+## The pause fixture's pointer lock: dropped on cue instead of reading the real mouse mode.
+class ToolLock extends PointerLock:
+	var locked := true
+
+	func is_locked() -> bool:
+		return locked
 
 var _frames := 0
 var _output := OUT
@@ -215,6 +236,9 @@ func _apply_hud_fixture() -> int:
 		_human().player.start_firing()   # web: one mousedown
 		var half := _mode == MODE_TP_WINDUP or _mode.begins_with(MODE_TP_WINDUP_STYLE)
 		return HALF_WINDUP_FRAMES if half else DEFLATE_FRAMES   # the shot frame = 50 ms into it
+	if _mode.begins_with(MODE_PAUSE):
+		_pause_fixture(_mode.trim_prefix(MODE_PAUSE))
+		return PAUSE_FRAMES
 	if _mode == MODE_HUD_STATS:
 		var stats_fixture := _output.get_base_dir().path_join(STATS_FIXTURE)
 		var stats_json := JSON.new()
@@ -259,12 +283,17 @@ func _capture() -> void:
 		camera.global_position = Vector3(spawn[0], spawn[1], spawn[2])
 		camera.global_rotation = Vector3.ZERO
 		camera.fov = REFERENCE_FOV
+	if not _mode.begins_with(MODE_PAUSE):
+		for pause in root.find_children("*", "PauseOverlay", true, false):
+			(pause as PauseOverlay).setup(func() -> bool: return false)   # an unfocused capture window never pauses
+			(pause as PauseOverlay).refresh()
 	var fixture_frames := _apply_hud_fixture()
 	if _mode.begins_with(MODE_TP_REBIRTH):
 		while _human().player.respawning:   # the rebirth offset counts from the materialisation
 			await process_frame
 	for i in fixture_frames:
 		await process_frame   # let the HUD pick the fixture up (and play its animation) before drawing
+	await _hover_fixture()
 	await RenderingServer.frame_post_draw
 	var result := root.get_texture().get_image().save_png(_output)
 	if result != OK:
@@ -291,6 +320,21 @@ func _capture() -> void:
 		facts["stats"] = {"visible": stats_overlay.visible, "fps_text": stats_overlay.fps_text().label().text,
 			"speed_text": stats_overlay.speed_text().label().text, "fps": _rect(stats_overlay.fps_text()),
 			"graph": _rect(stats_overlay.graph()), "speed": _rect(stats_overlay.speed_text())}
+	for overlay_class in ["PauseOverlay", "MatchEndedOverlay"]:
+		for overlay in root.find_children("*", overlay_class, true, false):
+			var column := overlay.find_child("Column", true, false) as CssColumn
+			if not overlay.visible or column == null:
+				continue
+			var boxes := {}
+			for child in column.get_children():
+				if child is Control and child.visible:
+					boxes[str(child.name)] = _rect(child)
+			var resume := column.find_child("Resume", true, false) as UiButton
+			var cooldown := resume.get_theme_stylebox("disabled") as UiButton.CooldownStyle if resume != null else null
+			if cooldown != null and resume.disabled:
+				var fill := cooldown.fill_rect(Rect2(resume.global_position, resume.size))
+				boxes["ResumeFill"] = [fill.position.x, fill.position.y, fill.size.x, fill.size.y]
+			facts[overlay_class] = boxes
 	var human := _human()
 	if human != null:
 		facts["human_respawning"] = human.player.respawning
@@ -304,6 +348,40 @@ func _capture() -> void:
 	metadata.store_string(JSON.stringify(facts, "\t"))
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(_output))
 	_capture_done = true
+
+## web parity-capture-buttons.mjs pause frames: a live match whose pointer lock drops at clock 0, the clock frozen
+## halfway through the RESUME cooldown or past it, and QUIT hidden like the browser build.
+func _pause_fixture(state: String) -> void:
+	var pause := root.find_children("*", "PauseOverlay", true, false)[0] as PauseOverlay
+	var match_node := root.find_children("*", "MatchNode", true, false)[0] as MatchNode
+	var lock := ToolLock.new()
+	var clock := {"now": 0.0}
+	pause.setup(match_node.is_live, lock, func() -> float: return clock["now"])
+	pause.refresh()
+	lock.locked = false
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE   # the human controller reads the real mouse mode
+	pause.refresh()
+	clock["now"] = PauseModel.COOLDOWN_MS * (PAUSE_COOLDOWN_SHARE if state == PAUSE_COOLDOWN else 1.0)
+	pause.set_quit_visible(false)
+	pause.refresh()
+
+## web page.hover(): a mouse motion pushed onto the laid-out button (for match-end-hover, once the screen has settled).
+func _hover_fixture() -> void:
+	if not HOVER_TARGETS.has(_mode):
+		return
+	if _mode == MODE_MATCH_END_HOVER:
+		var ended := root.find_children("*", "MatchEndedOverlay", true, false)[0] as MatchEndedOverlay
+		while not ended.visible:
+			await process_frame
+		for i in END_SETTLE_FRAMES:
+			await process_frame
+	var target := root.find_child(HOVER_TARGETS[_mode], true, false) as Control
+	var motion := InputEventMouseMotion.new()
+	motion.position = target.get_global_rect().get_center()
+	motion.global_position = motion.position
+	root.push_input(motion)
+	for i in HOVER_FRAMES:
+		await process_frame
 
 ## web bolts ({side, topPct, length, segments: [{from: [x, y], to: [x, y], width}]}) in OverheatFx form.
 func _web_bolts(bolts: Array) -> Array:

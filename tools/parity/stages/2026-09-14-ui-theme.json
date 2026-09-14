@@ -1,0 +1,129 @@
+{
+  "id": "2026-09-14-ui-theme",
+  "title": "Сверка паритета OneShot · тема кнопок, меню паузы и экран результата",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс темы интерфейса: web `ui/Button` + `theme.css .btn` (primary / secondary / ghost), меню паузы `PauseMenu` с правилами паузы из `App` и колонка экрана результата (пункт E2 прошлых отчётов). Сравнение на os_arena в живом матче: пауза с RESUME на кулдауне и без, наведение на ghost- и primary-кнопку; экран результата и наведение на EXIT.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-ui-theme.json`. Web: `web-reference/scripts/parity-capture-buttons.mjs` (хук `window.__debugLockCooldownLeft`, захват снимается подменой `pointerLockElement`) → `test-results/parity-gpu-buttons/web-*.png` + рамки и стили `web-buttons.json`; проба фона `parity-probe-pause-backdrop.mjs`. Godot: `tools/screenshot.gd` режимы `profile:pause-<cooldown|idle|hover-ghost|hover-primary>` (кадр 300), `profile` с матчем 1000 мс (кадр 480) и `profile:match-end-hover` → `godot-*.png` + факты `.png.json`. Замеры: `tools/parity/measure.py read_png`; вырезки: `tools/parity/crop.py`; пробы Godot: `tools/bold_metrics_probe.gd`, `tools/group_opacity_probe.gd`.",
+  "pages": [
+    {
+      "slug": "ui-theme",
+      "name": "Кнопки, пауза и экран результата",
+      "verdict": "Тема кнопок и меню паузы перенесены: рамки кнопок совпадают с web до пикселя (220×44; RESUME 311, SETTINGS 368, TO MENU 424, EXIT 444 против 310.7 / 367.5 / 424.3 / 443.5), среднее отличие областей кнопок 1.4–1.8/255 (при наведении до 2.7), фон паузы над сценой 0.5–0.7/255. Колонка результата встала на места web (226 / 311 / 397 / 444); EXIT 0.67/255, заголовок 6.1/255. Пауза больше не останавливает матч и прячет HUD — как в web. Остаются: заголовок MENU 11.2/255 (дробная базовая линия Chrome и разрядка 4.8 → 5 px) и разрядка строк рейтинга и причины (6–8/255).",
+      "verdict_short": "Кнопки, пауза и колонка результата перенесены",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["профиль", "PARITY7 `#fa4`, бот EX82R (passive)", "то же в памяти (`profile:`)"],
+        ["пауза", "`pointerLockElement` → null; `__debugLockCooldownLeft` 650 / 0 мс; QUIT нет (браузер)", "фикстура `pause-<state>`: захват снят в 0 мс, часы 650 / 1300 мс; QUIT скрыт"],
+        ["конец матча", "`__debugForceEnd`, ничья 0:0", "матч 1000 мс, кадр 480, ничья 0:0"],
+        ["наведение", "`page.hover` на кнопку", "`InputEventMouseMotion` в центр кнопки (`root.push_input`)"],
+        ["тесты", "—", "GUT 393/393, 4286 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Меню паузы (увеличение ×2)", "wipe": true,
+          "note": "MENU над RESUME (primary) и ghost SETTINGS / TO MENU; фон rgba(10,10,15,.85) над идущим матчем, HUD скрыт.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-pause.png", "note": "MENU [604.5, 245.3, 71.0×27]; кнопки 220×44 на 310.7 / 367.5 / 424.3."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-pause.png", "note": "MENU [604, 245, 73×27]; кнопки на 311 / 368 / 424. Области кнопок 1.4–1.6/255."}
+          ]},
+        {"title": "Пауза целиком", "wipe": true,
+          "note": "Сцена под фоном паузы: пол (15, 16, 20) в web и (15, 16, 21) в Godot; прицела и верхней строки нет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-pause-full.png", "note": "Кадр web после исправления захвата."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-pause-full.png", "note": "Фон неба 0.67/255, пола 0.54/255."}
+          ]},
+        {"title": "RESUME на кулдауне захвата, 50% (увеличение ×3)", "wipe": true,
+          "note": "Непрозрачность 0.5 на всю кнопку как один слой; заливка rgba(120,180,255,.28) растёт слева.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-pause-cooldown.png", "note": "Заливка [531, 311.7, 109×42]; слева (37, 88, 130), справа (27, 85, 128), текст (8, 14, 24)."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-pause-cooldown.png", "note": "Заливка [531, 312, 109×42]; слева (37, 87, 129), справа (26, 84, 127), текст (8, 14, 23)."}
+          ]},
+        {"title": "Наведение на ghost TO MENU (увеличение ×3)", "wipe": true,
+          "note": "`.btn--ghost:hover`: фон прозрачный, рамка #3a6f9c, текст #cfe6ff.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-pause-hover-ghost.png", "note": "Рамка rgb(58, 111, 156), текст rgb(207, 230, 255)."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-pause-hover-ghost.png", "note": "Область кнопки 2.68/255."}
+          ]},
+        {"title": "Наведение на primary RESUME (увеличение ×3)", "wipe": true,
+          "note": "`.btn--primary:hover`: заливка и рамка #4fb4ff.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-pause-hover-primary.png", "note": "rgb(79, 180, 255)."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-pause-hover-primary.png", "note": "Область кнопки 1.83/255."}
+          ]},
+        {"title": "Экран результата (увеличение ×2)", "wipe": true,
+          "note": "Колонка flex с gap 26: жирный DRAW, рейтинг, причина, EXIT (primary, поля 6.4 px).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-match-end.png", "note": "DRAW [555.2, 226.1, 169.5×59], рейтинг [577.4, 311.1, 125.2×60], причина [608.9, 397.1, 62.2×14], EXIT [530, 443.5]."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-match-end.png", "note": "DRAW [567, 226, 147×59], рейтинг [578, 311, 124×60], причина [610, 397, 60×14], EXIT [530, 444]. EXIT 0.67/255."}
+          ]},
+        {"title": "Наведение на EXIT (увеличение ×3)", "wipe": true,
+          "note": "Сравнивается только кнопка: в web-кадре камера повёрнута движением мыши при поддельном захвате.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-buttons/crops/web-match-end-hover.png", "note": "rgb(79, 180, 255)."},
+            {"kind": "godot", "img": "parity-gpu-buttons/crops/godot-match-end-hover.png", "note": "Область кнопки 0.83/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "UT1", "severity": "fixed",
+          "title": "Тема кнопок (закрывает E2: кнопка EXIT)",
+          "web": "`.btn`: Share Tech Mono 16 px, разрядка 0.18em, отступы 12 / 32 px, рамка 1 px, min-width 220; primary — заливка #2b9ff0, текст #06121f жирный, hover #4fb4ff; secondary — контур #2f6f9e; ghost — контур #2a3340, текст #778, hover #3a6f9c / #cfe6ff; :active и :disabled (opacity .4), :focus-visible 2 px.",
+          "godot": "`UiButton` (+ `UiTokens`): StyleBoxFlat на каждое состояние по таблице CSS (где hover и :active равны по специфичности, берётся поздний CSS: primary и ghost при нажатии сохраняют вид hover); звуки клика и наведения; обводка фокуса только с клавиатуры (Godot прячет фокус от клика). Было: кнопки Godot по умолчанию.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/ui_button.gd", "nodes/ui_tokens.gd", "tests/unit/test_ui_button.gd", "web-reference/src/ui/Button.tsx", "web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "UT2", "severity": "fixed",
+          "title": "Меню паузы в стиле web",
+          "web": "`PauseMenu`: фон rgba(10,10,15,.85), h2 MENU #4af 24 px жирный разрядка .2em (отступ 2rem), RESUME primary (без звуков), ghost SETTINGS / TO MENU / QUIT (QUIT только в desktop-сборке).",
+          "godot": "`PauseOverlay` на `CssColumn`: те же тексты, варианты и отступы; QUIT показан (сборка всегда desktop), в кадрах сверки скрыт. Было: PAUSED 48 px, RESUME / MAIN MENU кнопками Godot, фон rgba(0,0,0,.6).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/pause_overlay.gd", "nodes/css_column.gd", "tests/unit/test_pause_overlay.gd", "web-reference/src/components/PauseMenu.tsx"]
+        },
+        {
+          "id": "UT3", "severity": "fixed",
+          "title": "Правила паузы: матч не останавливается",
+          "web": "`App`: пауза = экран игры, фаза live и нет pointer lock; матч идёт дальше (P2P). Снятие захвата запускает кулдаун RESUME 1300 мс (Chrome не даёт повторно захватить курсор) с заливкой слева направо; RESUME берёт захват обратно; Esc и потеря фокуса окна снимают захват браузером.",
+          "godot": "`PauseModel` + `PointerLock` (захваченная мышь): те же условия, кулдаун и заливка; `arena_boot` передаёт `MatchNode.is_live`. Было: пауза по Esc в любой фазе ставила `get_tree().paused` и замораживала матч.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/pause_model.gd", "nodes/pointer_lock.gd", "nodes/pause_overlay.gd", "nodes/arena_boot.gd", "tests/unit/test_pause_model.gd", "web-reference/src/App.tsx"]
+        },
+        {
+          "id": "UT4", "severity": "fixed",
+          "title": "HUD под паузой",
+          "web": "`GameOverlay`: живой HUD (прицел, скобки, полосы рывка, статистика, AudioBar, баннер, верхняя строка, виньетки) рисуется только при `locked && live`.",
+          "godot": "`Hud.setup(human, match, lock)`: живые элементы требуют захвата; отсчёт по-прежнему по фазе. Было: прицел и строка оставались под паузой (прицел просвечивал через фон).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud.gd", "tests/unit/test_hud_match_end_visibility.gd", "web-reference/src/components/GameOverlay.tsx"]
+        },
+        {
+          "id": "UT5", "severity": "fixed",
+          "title": "Колонка экрана результата и текстовые рамки Chrome",
+          "web": "Колонка flex gap 26; h1 жирный 52 px (рамка 59), строки рейтинга 24 px через 12, EXIT с полями 0.4rem. Высота строки `normal` = округлённые подъём + спуск шрифта; разрядка добавляется и после последней буквы.",
+          "godot": "`CssColumn` (центрирование, CSS-поля, целые пиксели); `UiFont.with_css_line` (16 px: 14 + 4, 24 px: 21 + 6, 52 px: 46 + 13 — Godot округлял вверх), `UiFont.trailing_spacing_style`, жирный DRAW. Было: колонка выше на 5 px (заголовок 60, рейтинг 64), EXIT на 2.5 px ниже, DRAW обычным начертанием.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/match_ended_overlay.gd", "nodes/css_column.gd", "nodes/ui_font.gd", "sim/css_pixel.gd", "tests/unit/test_css_column.gd", "tests/unit/test_ui_font.gd", "tests/unit/test_match_ended_overlay.gd"]
+        },
+        {
+          "id": "UT6", "severity": "fixed",
+          "title": "Непрозрачность кнопки одним слоем",
+          "web": "CSS `opacity` сначала собирает кнопку (заливка, полоса кулдауна, текст), потом делает её полупрозрачной: тёмный текст остаётся тёмным.",
+          "godot": "`UiButton.grouped()` оборачивает кнопку в `CssOpacity` (CanvasGroup). Проба `group_opacity_probe.gd` при 0.5 над #101010: ожидание текста (11, 17, 24); `modulate` и `clip_children` дают (18, 53, 80), CanvasGroup — (11, 17, 23). Было: бледный текст RESUME на кулдауне.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/css_opacity.gd", "nodes/ui_button.gd", "tools/group_opacity_probe.gd"]
+        }
+      ],
+      "limitations": [
+        "SETTINGS в паузе пока ничего не открывает: подменю настроек матча (web `MatchSettings`) — слайс меню; кнопка шлёт сигнал `settings_requested`.",
+        "Заголовок MENU: Chrome ставит базовую линию на дробную позицию (~+0.45 px, края букв полупрозрачны), Godot — на целый пиксель; разрядка 4.8 px округляется до 5. Область заголовка 11.2/255.",
+        "Разрядка строк рейтинга (2.16 → 2 px) и причины (2.4 → 2 px) — то же целочисленное ограничение `spacing_glyph`, что в отчётах hud-core и stats; области 6–8/255.",
+        "Синтетический жирный Godot (`variation_embolden`, сила по формуле Skia) даёт на 3% меньше «чернил» RESUME, чем Chrome, и на 1 строку выше верх букв.",
+        "Вариант secondary и обводка фокуса проверены только юнит-тестами: на этих экранах web их нет (secondary — главное меню, слайс меню).",
+        "Поправка к ходу сверки: первый web-захват двигал мышь при поддельном pointer lock, камера уходила в небо, и сцена под паузой казалась пустой. Скрипт исправлен, кадры паузы и результата сняты заново; в кадре наведения на EXIT камера всё ещё повёрнута — там сравнивается только кнопка.",
+        "Групповая непрозрачность включена только у RESUME; прочие отключаемые primary-кнопки появятся с лобби."
+      ]
+    }
+  ]
+}

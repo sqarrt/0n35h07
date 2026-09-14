@@ -4,6 +4,7 @@ extends GutTest
 ## local player while the match is live.
 
 const PLAYER := preload("res://scenes/player.tscn")
+const LockedPointer := preload("res://tests/support/locked_pointer.gd")
 const SCREEN := Vector2i(1280, 720)
 const HUMAN_ID := 0
 const OTHER_ID := 1
@@ -25,7 +26,7 @@ func before_each() -> void:
 	screen.add_child(_match)
 	_hud = Hud.new()
 	screen.add_child(_hud)
-	_hud.setup(_human, _match)
+	_hud.setup(_human, _match, LockedPointer.new())
 	_match.force_live()
 
 func _layer(node_name: String) -> CanvasItem:
