@@ -26,9 +26,7 @@ const HELLO_KEYS := ["name", "primaryColor", "reserveColor", "ballModel", "windu
 var net
 var role := ROLE_HOST
 var music_seed := ""                            # web seed: shared with every peer in ASSIGN
-var local_player_id := HOST_SLOT
-var connected := true                           # guest: its ASSIGN arrived
-var found_host := true                          # guest: the transport found a peer
+var found_host := true                         # guest: the transport found a peer
 
 var _profile: Dictionary
 var _peer_by_slot := {}                         # creator: seat -> the guest's transport peer
@@ -39,9 +37,12 @@ var _timeout_left := 0.0
 var _closed := false
 
 ## `transport`: the INet; `session_role`: ROLE_HOST for the lobby creator; `code`: the room code seeding the match
-## music (a random one when empty).
-func _init(transport, session_role: String, profile: Dictionary, rng: Callable, code := "") -> void:
+## music (a random one when empty); `maps` / `durations`: this side's selection (web sel — the creator's opening pick, a
+## guest's wishes in its first HELLO; empty: the defaults).
+func _init(transport, session_role: String, profile: Dictionary, rng: Callable, code := "", maps: Array = [],
+		durations: Array = []) -> void:
 	super(profile, rng)
+	_take_selection(maps, durations)
 	net = transport
 	role = session_role
 	_profile = profile
@@ -124,16 +125,14 @@ func set_map(ids: Array) -> void:
 	if is_host():
 		super.set_map(ids)
 	elif not ids.is_empty():
-		map_sel = ids.duplicate()
-		map_id = map_sel[0]
+		_take_selection(ids, [])
 		changed.emit()
 
 func set_duration(minutes: Array) -> void:
 	if is_host():
 		super.set_duration(minutes)
 	elif not minutes.is_empty():
-		duration_sel = minutes.duplicate()
-		duration_min = duration_sel[0]
+		_take_selection([], minutes)
 		changed.emit()
 
 func set_local_ready(ready: bool) -> void:

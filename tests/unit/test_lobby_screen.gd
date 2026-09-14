@@ -39,12 +39,15 @@ func test_sections_sit_where_the_web_puts_them() -> void:
 	assert_almost_eq(_node(lobby, "Modes").position.y, 57.4, EPS)
 	assert_almost_eq(_node(lobby, "MapLabel").position.y, 163.4, EPS)
 	assert_almost_eq(_node(lobby, "Map_os_arena").position.y, 194.4, EPS)
-	assert_almost_eq(_node(lobby, "Map_os_arena").size.x, 194.0, EPS)
-	assert_almost_eq(_node(lobby, "TimeLabel").position.y, 634.4, EPS)
-	assert_almost_eq(_node(lobby, "Time3").position.y, 665.4, EPS)
-	assert_almost_eq(_node(lobby, "PlayersLabel").position.y, 708.4, EPS)
-	assert_almost_eq(_node(lobby, "Seats").position.y, 739.4, EPS)
-	assert_almost_eq(_node(lobby, "Seat0").position.x, 12.48, EPS, "two 44% seats and VS centred, 16 px apart")
+	# the body overflows: the desktop WebView's 10 px scrollbar narrows the column (web desktop frame: 588 px)
+	assert_almost_eq(_node(lobby, "Map_os_arena").size.x, 190.67, EPS)
+	assert_almost_eq(_node(lobby, "SelectAll").position.x + _node(lobby, "SelectAll").size.x, 588.0, EPS)
+	assert_almost_eq(_node(lobby, "TimeLabel").position.y, 627.7, EPS)
+	assert_almost_eq(_node(lobby, "Time3").position.y, 658.7, EPS)
+	assert_almost_eq(_node(lobby, "PlayersLabel").position.y, 701.7, EPS)
+	assert_almost_eq(_node(lobby, "Seats").position.y, 732.7, EPS, "web desktop seats at 764.7 under the 32 px body top")
+	assert_almost_eq(_node(lobby, "Seat0").position.x, 11.88, EPS, "two 44% seats and VS centred, 16 px apart")
+	assert_almost_eq(_node(lobby, "Seat0").size.x, 258.72, EPS)
 
 func test_a_fresh_room() -> void:
 	var lobby := await _lobby()
@@ -52,7 +55,12 @@ func test_a_fresh_room() -> void:
 	assert_true((_node(lobby, "Time3") as SegButton).is_on())
 	assert_eq(lobby.seats().size(), 2)
 	assert_not_null(lobby.seats()[1].find_child("AddBot", true, false), "the free seat offers a bot")
-	assert_true((_node(lobby, "Ready") as UiButton).disabled, "a lone host can't start")
+	assert_not_null(lobby.seats()[1].find_child("Invite", true, false), "and a friend (the Steam build)")
+	assert_eq((_node(lobby, "Ready") as UiButton).text, "SEARCH", "a lone Duel host searches for the free seat")
+	assert_false((_node(lobby, "Ready") as UiButton).disabled)
+	lobby.desktop = false
+	lobby.refresh()
+	assert_true((_node(lobby, "Ready") as UiButton).disabled, "the browser layout: a lone host can't start")
 	assert_eq((_node(lobby, "Back") as UiButton).text, "BACK")
 
 func test_a_bot_enables_ready_and_ready_starts() -> void:

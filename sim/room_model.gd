@@ -19,6 +19,8 @@ var map_sel: Array = []
 var duration_sel: Array = []
 var map_id := ""
 var duration_min := DEFAULT_DURATION_MIN
+var local_player_id := HOST_SLOT                            # this side's seat (a guest's arrives with its ASSIGN)
+var connected := true                                       # a guest: its ASSIGN arrived
 
 var _rng: Callable
 var _ready_ids := {}
@@ -32,6 +34,23 @@ func _init(profile: Dictionary, rng: Callable) -> void:
 	map_id = map_sel[0]
 	slots.resize(GameModes.slot_count(mode))
 	slots[HOST_SLOT] = Roster.human_entry(HOST_SLOT, profile)
+
+## Take a map / duration selection as given (an empty list keeps the current one), the first of each as the pick.
+func _take_selection(maps: Array, durations: Array) -> void:
+	if not maps.is_empty():
+		map_sel = maps.duplicate()
+		map_id = map_sel[0]
+	if not durations.is_empty():
+		duration_sel = durations.duplicate()
+		duration_min = duration_sel[0]
+
+## This side created the room (a local room always did).
+func is_host() -> bool:
+	return true
+
+## This side is shown who sits where (web: a guest sees the others only once assigned).
+func seats_shown() -> bool:
+	return is_host() or connected
 
 func occupied() -> Array:
 	return slots.filter(func(entry) -> bool: return entry != null)

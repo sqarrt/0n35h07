@@ -15,6 +15,8 @@ const SYSTEM_FALLBACK_LOCALE := "zh_CN"
 ## web index.css: html[lang="zh-CN"] .btn, .seg { letter-spacing: 0.05em } — wide Latin tracking bloats CJK labels.
 const CJK_CONTROL_SPACING_EM := 0.05
 const MEASURE_PX := 1000                       # fractional em metrics are read at a large size
+const FITTING_GLYPH := "0"                     # the monospaced face: one advance fits a whole run
+const FITTING_RUN := 100                       # glyphs measured together: a lone glyph's line box rounds its width up
 
 ## Chrome's synthetic bold (the face has no bold weight): Skia grows the outline by the font size times a ratio
 ## interpolated from 1/24 at 9 px to 1/32 at 36 px; Godot's embolden grows it by strength x size / 16 px.
@@ -69,6 +71,15 @@ static func css_width(text: String, css_px: float, spacing_em := 0.0, face: Font
 	var line := TextLine.new()
 	line.add_string(text, _measure_fonts[face], MEASURE_PX, SYSTEM_FALLBACK_LOCALE)
 	return line.get_size().x * css_px / MEASURE_PX + text.length() * spacing_em * css_px
+
+## The letter spacing (px, before rounding) that keeps a monospaced run as wide as Chrome's at a fractional CSS size:
+## Chrome's advance plus its spacing, less Godot's advance at the rounded size (Godot rounds advances per size). Where
+## the spacing alone rounds the wrong way — 12.5 px spaced 0.04em: 0.5 → 1 px on a 13 px advance of 7 — a line runs a
+## pixel per glyph too wide and wraps where Chrome's does not.
+static func fitted_spacing(css_px: float, spacing_em: float, font_size: int, face: Font = null) -> float:
+	var godot := TextLine.new()
+	godot.add_string(FITTING_GLYPH.repeat(FITTING_RUN), spaced(0.0, font_size, 0.0, face), font_size)
+	return css_width(FITTING_GLYPH, css_px, spacing_em, face) - godot.get_size().x / FITTING_RUN
 
 ## A fractional CSS font size (rem sizes such as 0.7rem = 11.2 px) as the nearest Godot font size.
 static func css_size(css_px: float) -> int:

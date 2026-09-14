@@ -1,14 +1,19 @@
 class_name LobbySeat extends Control
 ## One lobby seat — port of a web components/lobby/Seats card: a rounded #0a0f17 card with a 2 px dashed border in the
-## occupant's colour (solid with a ring and a glow once ready). A free host seat is an ADD A BOT zone filling the card;
-## the local player's name is underlined; the host's bot shows ✕, its editable name and the NORMAL / PASSIVE picker,
-## and a click on the card rerolls its name.
+## occupant's colour (solid with a ring and a glow once ready). A free host seat is a stack of dashed action zones filling
+## the card — INVITE A FRIEND (desktop) over ADD A BOT; a guest's free seat is TAKE THIS SEAT; the local player's name is
+## underlined; the host's bot shows ✕, its editable name and the NORMAL / PASSIVE picker, and a click on the card rerolls
+## its name. A sent Steam invite shows the friend with ✕ and a pulsing WAITING tag; while searching a free seat spins
+## random names.
 
 signal add_bot_requested(slot: int)
 signal bot_removed(slot: int)
 signal bot_renamed(slot: int, bot_name: String)
 signal bot_difficulty_picked(slot: int, difficulty: String)
 signal reroll_requested(slot: int)
+signal invite_requested(slot: int)
+signal invite_cancelled(slot: int)
+signal take_requested(slot: int)
 
 const BORDER_PX := 2.0
 const RADIUS := 7
@@ -31,6 +36,21 @@ const ZONE_TEXT := Color("#6f93b3")
 const ZONE_HOVER_BACKGROUND := Color(68.0 / 255.0, 170.0 / 255.0, 1.0, 0.06)
 const ZONE_BORDER_PX := 1.0
 const ADD_BOT_KEY := "lobbyAddBot"
+const INVITE_KEY := "lobbyInviteSection"
+const TAKE_SEAT_KEY := "lobbyTakeSeat"
+const INVITED_KEY := "lobbyInvitedTag"
+const PLUS_GLYPH := "＋"                         # .seat-zone-plus
+const PLUS_FONT_SIZE := 15
+const PLUS_GAP := 7.0                           # .seat-zone gap: 7px
+const WAIT_FONT_SIZE := 8                       # .lobby-seat-wait
+const WAIT_SPACING_EM := 0.18
+const WAIT_DOT_PX := 5.0                        # .lobby-seat-waitdot
+const WAIT_DOT_GAP := 5
+const WAIT_DOT_GLOW_BLUR := 6.0                 # box-shadow: 0 0 6px var(--accent)
+const PULSE_S := 1.1                            # invitePulse 1.1s ease-in-out infinite
+const PULSE_KEYS := [[0.0, 0.35], [0.5, 1.0], [1.0, 0.35]]
+const EASE_IN_OUT := [0.42, 0.0, 0.58, 1.0]
+const OBLIQUE_SKEW := 0.25                      # .lobby-nick--searching font-style italic: Skia's synthetic oblique
 const CANCEL_GLYPH := "✕"
 const CANCEL_FONT_SIZE := 13
 const CANCEL_INSET := Vector2(8.0, 6.0)         # right: 8px; top: 6px
@@ -45,40 +65,74 @@ const GLOW_SHADER := preload("res://assets/shaders/glow_rect.gdshader")
 const ARC_POINTS := 8
 const HALF := 0.5
 
-## A dashed action zone (web .seat-zone): the whole free card, accent under the mouse.
+## A dashed action zone (web .seat-zone): the free card's share, accent under the mouse; `plus` draws the ＋ before it.
 class Zone extends Button:
+	var plus: Label = null
+
 	func _draw() -> void:
 		var color := UiTokens.ACCENT if is_hovered() else UiTokens.LINE
 		LobbySeat.draw_dashes(self, Rect2(Vector2.ZERO, size), LobbySeat.ZONE_BORDER_PX, 0.0, color)
 
+	## The ＋ sits PLUS_GAP left of the caption, the pair centred (the caption's left margin makes room for it).
+	func place_plus() -> void:
+		if plus == null:
+			return
+		var font := get_theme_font("font")
+		var caption := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, get_theme_font_size("font_size")).x
+		var box := plus.get_combined_minimum_size()
+		plus.size = box
+		plus.position = Vector2((size.x - box.x - LobbySeat.PLUS_GAP - caption) * LobbySeat.HALF, (size.y - box.y) * LobbySeat.HALF)
+
+## The pulsing dot of a waiting seat (web .lobby-seat-waitdot).
+class WaitDot extends Control:
+	func _ready() -> void:
+		var glow := CssBoxShadow.make(UiTokens.ACCENT, LobbySeat.WAIT_DOT_GLOW_BLUR, Vector2.ZERO, 0.0,
+			LobbySeat.WAIT_DOT_PX * LobbySeat.HALF)
+		add_child(glow)
+		CssBoxShadow.place(glow, Vector2.ZERO, Vector2.ONE * LobbySeat.WAIT_DOT_PX)
+
+	func _get_minimum_size() -> Vector2:
+		return Vector2.ONE * LobbySeat.WAIT_DOT_PX
+
+	func _draw() -> void:
+		draw_circle(size * LobbySeat.HALF, LobbySeat.WAIT_DOT_PX * LobbySeat.HALF, UiTokens.ACCENT)
+
 var slot := 0
 var compact := false
+var invites := false                            # a desktop host's free seat also offers INVITE A FRIEND
 
 var _entry = null
 var _mine := false
 var _is_ready := false
 var _host := true
+var _waiting := false
+var _searching := false
+var _pulse_s := 0.0
+var _pulse_pin := -1.0                          # parity captures: the pulse held at this time (negative: running)
 var _nodes: Array[Control] = []
+var _zones: Array[Zone] = []
 var _column: CssColumn
-var _cancel: Button
+var _cancel: GlyphButton
 var _glow: ColorRect
+var _dot: WaitDot
+var _spin: Label
 
 ## Show the seat: `entry` a roster entry or null (free), whose it is, readiness and whether we host.
 func show_seat(entry, mine: bool, ready: bool, host: bool) -> void:
+	_clear()
 	_entry = entry
 	_mine = mine
 	_is_ready = ready
 	_host = host
-	for node in _nodes:
-		node.queue_free()
-	_nodes.clear()
-	_column = null
-	_cancel = null
 	if entry == null:
-		if host:
-			_add(_zone())
+		if not host:
+			_add_zone(_zone("TakeSeat", TAKE_SEAT_KEY, take_requested))
+		else:
+			if invites:
+				_add_zone(_zone("Invite", INVITE_KEY, invite_requested, true))
+			_add_zone(_zone("AddBot", ADD_BOT_KEY, add_bot_requested))
 	elif entry["kind"] == Roster.KIND_BOT and host:
-		_cancel = _cancel_button()
+		_cancel = _cancel_button(bot_removed)
 		_add(_cancel)
 		_column = _new_column()
 		_column.add(_name_field(entry))
@@ -88,13 +142,55 @@ func show_seat(entry, mine: bool, ready: bool, host: bool) -> void:
 		var nick := _nick(entry["name"], Color(entry["color"]))
 		nick.underline = mine
 		_column.add(nick)
-	_ensure_glow().visible = not is_dashed()
-	update_minimum_size()
-	_layout()
-	queue_redraw()
+	_finish()
+
+## A sent Steam invite waiting on this free seat: the friend's name, ✕ and the pulsing WAITING tag (web Seats waiting).
+func show_waiting(friend_name: String) -> void:
+	_clear()
+	_host = true
+	_waiting = true
+	_cancel = _cancel_button(invite_cancelled)
+	_add(_cancel)
+	_column = _new_column()
+	_column.add(_nick(friend_name, UiTokens.MUTED))
+	var row := HBoxContainer.new()
+	row.name = "Waiting"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", WAIT_DOT_GAP)
+	_dot = WaitDot.new()
+	_dot.name = "Dot"
+	_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(_dot)
+	var tag := MenuText.label("Tag", I18n.t(INVITED_KEY), WAIT_FONT_SIZE, WAIT_SPACING_EM, UiTokens.ACCENT)
+	row.add_child(tag)
+	_column.add(row)
+	_pulse_s = 0.0
+	_finish()
+
+## A free seat while quick match searches: a spinning random name (web lobby-nick--searching).
+func show_searching(text: String) -> void:
+	if not _searching:
+		_clear()
+		_searching = true
+		_column = _new_column()
+		_spin = _nick(text, UiTokens.MUTED)
+		var oblique := _spin.get_theme_font("font").duplicate() as FontVariation
+		# Godot slants through the x axis' y component (docs: Transform2D(1.0, slant, 0.0, 1.0, 0.0, 0.0))
+		oblique.variation_transform = Transform2D(Vector2(1.0, OBLIQUE_SKEW), Vector2(0.0, 1.0), Vector2.ZERO)
+		_spin.add_theme_font_override("font", oblique)
+		_column.add(_spin)
+		_finish()
+	_spin.text = text
 
 func glow() -> ColorRect:
 	return _ensure_glow()
+
+func zones() -> Array[Zone]:
+	return _zones
+
+func is_waiting() -> bool:
+	return _waiting
 
 func is_dashed() -> bool:
 	return not (_is_ready and _entry != null)
@@ -103,10 +199,20 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	resized.connect(_layout)
 
+func _process(delta: float) -> void:
+	if _dot == null:
+		return
+	_pulse_s = _pulse_pin if _pulse_pin >= 0.0 else _pulse_s + delta
+	_dot.modulate.a = CssTiming.sample(PULSE_KEYS, fposmod(_pulse_s, PULSE_S) / PULSE_S, EASE_IN_OUT)
+
+## Parity captures: hold the waiting dot's pulse `seconds` into its cycle (web pauses invitePulse there).
+func pin_pulse(seconds: float) -> void:
+	_pulse_pin = seconds
+
 func _get_minimum_size() -> Vector2:
 	var padding := _padding()
 	var content := _column.get_combined_minimum_size().y if _column != null else 0.0
-	return Vector2(0.0, maxf(COMPACT_MIN_HEIGHT if compact else MIN_HEIGHT, content + padding.y * 2.0))
+	return Vector2(0.0, maxf(COMPACT_MIN_HEIGHT if compact else MIN_HEIGHT, content + (padding.y + BORDER_PX) * 2.0))
 
 func _gui_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
@@ -157,24 +263,28 @@ static func draw_dashes(canvas: CanvasItem, rect: Rect2, width: float, radius: f
 func _is_host_bot() -> bool:
 	return _host and _entry != null and _entry["kind"] == Roster.KIND_BOT
 
+## .lobby-seat--free (the action zones) packs tighter than an occupied, waiting or searching card.
 func _padding() -> Vector2:
-	if _entry == null:
+	if _entry == null and not _waiting and not _searching:
 		return FREE_PADDING
 	return COMPACT_PADDING if compact else PADDING
 
 func _layout() -> void:
-	var padding := _padding()
-	for node in _nodes:
-		if node is Zone:
-			node.position = padding
-			node.size = size - padding * 2.0
+	var padding := _padding() + Vector2.ONE * BORDER_PX   # the CSS padding box sits inside the 2 px border
+	var inner := size - padding * 2.0
+	if not _zones.is_empty():
+		var height := (inner.y - GAP * (_zones.size() - 1)) / _zones.size()   # .seat-zone flex: 1 1 0
+		for i in _zones.size():
+			_zones[i].position = padding + Vector2(0.0, i * (height + GAP))
+			_zones[i].size = Vector2(inner.x, height)
+			_zones[i].place_plus()
 	if _column != null:
 		_column.position = padding
-		_column.size = size - padding * 2.0
+		_column.size = inner
 	if _cancel != null:
 		var box := _cancel.get_combined_minimum_size()
 		_cancel.size = box
-		_cancel.position = Vector2(size.x - CANCEL_INSET.x - box.x, CANCEL_INSET.y)
+		_cancel.position = Vector2(size.x - BORDER_PX - CANCEL_INSET.x - box.x, BORDER_PX + CANCEL_INSET.y)   # absolute in the padding box
 	_layout_glow()
 
 ## The ready glow (box-shadow 0 0 20px -4px): the analytic blurred box, inset by the negative spread, behind the card.
@@ -206,9 +316,33 @@ func _ensure_glow() -> ColorRect:
 		add_child(_glow)
 	return _glow
 
+func _clear() -> void:
+	for node in _nodes:
+		node.queue_free()
+	_nodes.clear()
+	_zones.clear()
+	_column = null
+	_cancel = null
+	_dot = null
+	_spin = null
+	_entry = null
+	_waiting = false
+	_searching = false
+	_is_ready = false
+
+func _finish() -> void:
+	_ensure_glow().visible = not is_dashed()
+	update_minimum_size()
+	_layout()
+	queue_redraw()
+
 func _add(node: Control) -> void:
 	_nodes.append(node)
 	add_child(node)
+
+func _add_zone(zone: Zone) -> void:
+	_zones.append(zone)
+	_add(zone)
 
 func _new_column() -> CssColumn:
 	var column := CssColumn.new()
@@ -217,10 +351,10 @@ func _new_column() -> CssColumn:
 	_add(column)
 	return column
 
-func _zone() -> Zone:
+func _zone(node_name: String, key: String, action: Signal, with_plus := false) -> Zone:
 	var zone := Zone.new()
-	zone.name = "AddBot"
-	zone.text = I18n.t(ADD_BOT_KEY)
+	zone.name = node_name
+	zone.text = I18n.t(key)
 	zone.focus_mode = Control.FOCUS_NONE
 	var font := UiFont.with_css_line(UiFont.spaced(ZONE_SPACING_EM, ZONE_FONT_SIZE), ZONE_FONT_SIZE)
 	zone.add_theme_font_override("font", font)
@@ -229,16 +363,23 @@ func _zone() -> Zone:
 	var hover := StyleBoxFlat.new()
 	hover.bg_color = ZONE_HOVER_BACKGROUND
 	hover.content_margin_right = font.spacing_glyph
+	zone.add_theme_color_override("font_color", ZONE_TEXT)
+	for key_name in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		zone.add_theme_color_override(key_name, UiTokens.ACCENT)
+	if with_plus:
+		zone.plus = MenuText.label("Plus", PLUS_GLYPH, PLUS_FONT_SIZE, 0.0, UiTokens.ACCENT)
+		zone.add_child(zone.plus)
+		var room := zone.plus.get_combined_minimum_size().x + PLUS_GAP   # the caption centres right of the ＋
+		idle.content_margin_left = room
+		hover.content_margin_left = room
+		zone.resized.connect(zone.place_plus)
 	for state in ["normal", "pressed", "disabled", "focus"]:
 		zone.add_theme_stylebox_override(state, idle)
 	for state in ["hover", "hover_pressed"]:
 		zone.add_theme_stylebox_override(state, hover)
-	zone.add_theme_color_override("font_color", ZONE_TEXT)
-	for key in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		zone.add_theme_color_override(key, UiTokens.ACCENT)
 	zone.mouse_entered.connect(zone.queue_redraw)
 	zone.mouse_exited.connect(zone.queue_redraw)
-	zone.pressed.connect(func() -> void: add_bot_requested.emit(slot))
+	zone.pressed.connect(func() -> void: action.emit(slot))
 	return zone
 
 func _nick_font() -> FontVariation:
@@ -288,19 +429,8 @@ func _difficulty(entry: Dictionary) -> HBoxContainer:
 		row.add_child(seg)
 	return row
 
-func _cancel_button() -> Button:
-	var cancel := Button.new()
+func _cancel_button(action: Signal) -> GlyphButton:
+	var cancel := GlyphButton.new(CANCEL_GLYPH, CANCEL_FONT_SIZE, Vector2.ONE * CANCEL_PADDING)
 	cancel.name = "Remove"
-	cancel.text = CANCEL_GLYPH
-	cancel.focus_mode = Control.FOCUS_NONE
-	cancel.add_theme_font_override("font", UiFont.base())
-	cancel.add_theme_font_size_override("font_size", CANCEL_FONT_SIZE)
-	var box := StyleBoxEmpty.new()
-	box.set_content_margin_all(CANCEL_PADDING)
-	for state in ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]:
-		cancel.add_theme_stylebox_override(state, box)
-	cancel.add_theme_color_override("font_color", UiTokens.MUTED)
-	for key in ["font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
-		cancel.add_theme_color_override(key, UiTokens.TEXT)
-	cancel.pressed.connect(func() -> void: bot_removed.emit(slot))
+	cancel.pressed.connect(func() -> void: action.emit(slot))
 	return cancel

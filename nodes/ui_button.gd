@@ -9,6 +9,9 @@ const GHOST := "ghost"
 const GO := "go"                         # primary + .btn--go: the lobby READY
 const GO_FILL := Color("#23b582")
 const GO_HOVER := Color("#2bcf96")
+const STOP := "stop"                     # primary + .btn--stop: the lobby STOP while searching
+const STOP_FILL := Color("#d83a44")
+const STOP_HOVER := Color("#e44a54")
 const FONT_SIZE := 16                    # 1rem
 const LETTER_SPACING_EM := 0.18
 const PADDING_X := 32.0                  # 2rem
@@ -48,6 +51,12 @@ const LOOKS := {
 		"hover": [GO_HOVER, GO_HOVER, UiTokens.INK],
 		"pressed": [GO_HOVER, GO_HOVER, UiTokens.INK],
 		"disabled": [UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL, UiTokens.INK],
+	},
+	# .btn--stop over .btn--primary: red with white text, brighter under the mouse
+	STOP: {
+		"normal": [STOP_FILL, STOP_FILL, Color.WHITE],
+		"hover": [STOP_HOVER, STOP_HOVER, Color.WHITE],
+		"pressed": [STOP_HOVER, STOP_HOVER, Color.WHITE],
 	},
 }
 ## Godot box state -> the CSS look it shows and the matching text colour key.
@@ -92,6 +101,9 @@ class Metrics:
 	var always_bold := false
 	var face: Font = null                  # null: UiFont.base()
 	var line_adjust := 0                   # px added to the line box's bottom (a fallback face's metrics differ)
+	var radius := 0                        # border-radius; a rounded box is anti-aliased like Chrome's curve
+	var press_shift := 0                   # :active translateY: the pressed box and its label move down
+	var looks := {}                        # an own [background, border, text] per state (empty: the variant's)
 
 var variant := SECONDARY
 var disabled_opacity := DISABLED_OPACITY
@@ -110,7 +122,7 @@ func _init(label := "", button_variant := SECONDARY, sounds := true, button_metr
 
 func set_variant(value: String) -> void:
 	variant = value
-	var bold := metrics.always_bold or value in [PRIMARY, GO]
+	var bold := metrics.always_bold or value in [PRIMARY, GO, STOP]
 	var font_size := UiFont.css_size(metrics.font_px)
 	var face := UiFont.bold_spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face) if bold \
 		else UiFont.spaced(metrics.spacing_em, font_size, metrics.font_px, metrics.face)
@@ -120,10 +132,11 @@ func set_variant(value: String) -> void:
 		(fallback as FontVariation).spacing_bottom += metrics.line_adjust
 	add_theme_font_override("font", font)
 	add_theme_font_size_override("font_size", font_size)
-	var looks: Dictionary = LOOKS[value]
+	var looks: Dictionary = metrics.looks if not metrics.looks.is_empty() else LOOKS[value]
 	for state in STATES:
 		var look: Array = looks[state] if looks.has(state) else looks[STATES[state][0]]
-		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], face.spacing_glyph))
+		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], face.spacing_glyph,
+			STATES[state][0] == "pressed"))
 		add_theme_color_override(STATES[state][1], look[TEXT])
 	add_theme_color_override("font_focus_color", looks["normal"][TEXT])
 	add_theme_stylebox_override("focus", _focus_box())
@@ -162,16 +175,22 @@ func set_cooldown_share(share: float) -> void:
 	queue_redraw()
 
 ## `trailing_spacing`: Chrome keeps the letter spacing after the last glyph, so the label centres that much to the left.
-func _box(background: Color, border: Color, trailing_spacing: int) -> StyleBoxFlat:
+func _box(background: Color, border: Color, trailing_spacing: int, pressed := false) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = background
 	box.border_color = border
 	box.set_border_width_all(BORDER_PX)
-	box.anti_aliasing = false            # square CSS box edges
+	box.set_corner_radius_all(metrics.radius)
+	box.anti_aliasing = metrics.radius > 0   # square CSS box edges stay crisp
 	box.content_margin_left = metrics.padding.x + BORDER_PX
 	box.content_margin_right = metrics.padding.x + BORDER_PX + trailing_spacing
 	box.content_margin_top = metrics.padding.y + BORDER_PX
 	box.content_margin_bottom = metrics.padding.y + BORDER_PX
+	if pressed and metrics.press_shift != 0:   # the whole box moves, its minimum size does not
+		box.expand_margin_top = -metrics.press_shift
+		box.expand_margin_bottom = metrics.press_shift
+		box.content_margin_top += metrics.press_shift
+		box.content_margin_bottom -= metrics.press_shift
 	return box
 
 func _focus_box() -> StyleBoxFlat:

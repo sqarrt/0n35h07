@@ -11,6 +11,10 @@ const SYMBOL_FAMILIES := ["Consolas"]
 const BIG_SIZE := 128            # web .trailer-title 8rem: a whole-pixel embolden advance (0.5 × 128 / 64)
 const BIG_SPACING_EM := 0.18
 const SAMPLE := "0N35H07"
+const TOAST_TITLE_PX := 12.5     # web .invite-title: 12.5 px spaced 0.04em, Chrome's advance 7.25 px
+const TOAST_TITLE_SPACING_EM := 0.04
+const RUN_GLYPHS := 27           # "alice invites you to a game"
+const HALF_PIXEL := 0.5
 
 func test_css_line_box_matches_chrome() -> void:
 	for case in [[BUTTON_SIZE, 14.0, 18.0], [TITLE_SIZE, 21.0, 27.0]]:
@@ -43,3 +47,12 @@ func test_synthetic_bold_follows_the_skia_ratio() -> void:
 	assert_almost_eq(UiFont.fake_bold_embolden(9), UiFont.EMBOLDEN_UNIT_SIZE / 24.0, EPS)
 	assert_almost_eq(UiFont.fake_bold_embolden(36), UiFont.EMBOLDEN_UNIT_SIZE / 32.0, EPS)
 	assert_gt(UiFont.fake_bold_embolden(BUTTON_SIZE), UiFont.fake_bold_embolden(TITLE_SIZE), "the ratio thins as text grows")
+
+func test_fitted_spacing_keeps_a_run_as_wide_as_chromes() -> void:
+	var size := UiFont.css_size(TOAST_TITLE_PX)
+	var face := UiFont.spaced(0.0, size)
+	face.spacing_glyph = roundi(UiFont.fitted_spacing(TOAST_TITLE_PX, TOAST_TITLE_SPACING_EM, size))
+	var run := UiFont.FITTING_GLYPH.repeat(RUN_GLYPHS)
+	var godot := face.get_string_size(run, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var chrome := UiFont.css_width(run, TOAST_TITLE_PX, TOAST_TITLE_SPACING_EM)
+	assert_almost_eq(godot / RUN_GLYPHS, chrome / RUN_GLYPHS, HALF_PIXEL, "within half a pixel a glyph")

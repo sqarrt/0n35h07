@@ -50,7 +50,7 @@ func test_the_host_bot_seat_controls() -> void:
 	watch_signals(seat)
 	normal.pressed.emit()
 	assert_signal_emitted_with_parameters(seat, "bot_difficulty_picked", [SLOT, "normal"])
-	(seat.find_child("Remove", true, false) as Button).pressed.emit()
+	(seat.find_child("Remove", true, false) as BaseButton).pressed.emit()
 	assert_signal_emitted_with_parameters(seat, "bot_removed", [SLOT])
 	(seat.find_child("BotName", true, false) as LineEdit).text_changed.emit("RA-1")
 	assert_signal_emitted_with_parameters(seat, "bot_renamed", [SLOT, "RA-1"])
