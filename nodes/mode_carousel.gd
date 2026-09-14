@@ -59,12 +59,11 @@ func _ready() -> void:
 		label.name = "Name"
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tile.add_child(label)
-		var font := UiFont.with_css_line(UiFont.spaced(NAME_SPACING_EM, NAME_FONT_SIZE), NAME_FONT_SIZE)
-		var pads := UiFont.trailing_spacing_style(font)
-		pads.content_margin_left = font.spacing_glyph
+		var pads := StyleBoxEmpty.new()
+		pads.content_margin_left = NAME_SPACING_EM * NAME_FONT_SIZE   # the run holds the trailing spacing
 		label.label().add_theme_stylebox_override("normal", pads)
 		label.mask_label().add_theme_stylebox_override("normal", pads)
-		label.configure(font, NAME_FONT_SIZE, UiTokens.TEXT)
+		label.configure_css(NAME_FONT_SIZE, NAME_SPACING_EM, UiTokens.TEXT)
 		label.set_text(GameModes.label(mode).to_upper())
 		tile.name_text = label
 		tile.pressed.connect(func() -> void: _pick(mode))

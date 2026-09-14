@@ -118,7 +118,7 @@ func _layout() -> void:
 ## A text's baseline where Chrome paints it: the line box composited on a whole pixel, the glyph box centred in it
 ## (half-leading) and the baseline itself rounded to a pixel.
 func _place_text(text: GlowText, box_top: float, line_box: float) -> void:
-	var ascent := text.label().get_theme_font("font").get_ascent(FONT_SIZE)
+	var ascent := float(text.label().run().baseline())
 	var baseline := CssPixel.snap(CssPixel.snap(box_top) + (line_box - text.size.y) * HALF + ascent)
 	text.position = Vector2(LEFT, baseline - ascent)
 
@@ -127,6 +127,6 @@ func _text(node_name: String) -> GlowText:
 	text.name = node_name
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(text)
-	text.configure(UiFont.spaced(LETTER_SPACING_EM, FONT_SIZE), FONT_SIZE, COLOR)
+	text.configure_css(FONT_SIZE, LETTER_SPACING_EM, COLOR)
 	text.set_shadows([CssShadow.make(SHADOW_BLUR_PX, SHADOW_COLOR)])
 	return text

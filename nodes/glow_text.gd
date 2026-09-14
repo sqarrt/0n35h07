@@ -9,8 +9,8 @@ const BLUR_SHADER := preload("res://assets/shaders/glow_blur.gdshader")
 const HORIZONTAL := Vector2(1.0, 0.0)
 const VERTICAL := Vector2(0.0, 1.0)
 
-var _label: Label
-var _mask_label: Label
+var _label: CssLabel
+var _mask_label: CssLabel
 var _mask: SubViewport
 var _passes: Array[SubViewport] = []
 var _pass_rects: Array[TextureRect] = []
@@ -31,6 +31,14 @@ func configure(font: Font, font_size: int, color: Color) -> void:
 	for l in [_label, _mask_label]:
 		l.add_theme_font_override("font", font)
 		l.add_theme_font_size_override("font_size", font_size)
+	set_color(color)
+	_resize()
+
+## The CSS font instead: `css_px` spaced `spacing_em` (synthetic bold, drawn by `face`), the text and its glyph mask laid
+## out and drawn as Chrome's runs.
+func configure_css(css_px: float, spacing_em: float, color: Color, bold := false, face: Font = null) -> void:
+	for l in [_label, _mask_label]:
+		(l as CssLabel).setup(css_px, spacing_em, bold, face)
 	set_color(color)
 	_resize()
 
@@ -65,10 +73,10 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and is_instance_valid(_mask_label) and _mask_label.get_parent() == null:
 		_mask_label.free()
 
-func label() -> Label:
+func label() -> CssLabel:
 	return _label
 
-func mask_label() -> Label:
+func mask_label() -> CssLabel:
 	return _mask_label
 
 func layers() -> Array[TextureRect]:
@@ -119,7 +127,7 @@ func _rebuild(count: int) -> void:
 	move_child(_label, get_child_count() - 1)
 
 func _resize() -> void:
-	var text_size := _label.get_minimum_size()
+	var text_size := _label.get_combined_minimum_size()   # a CSS run's box lives in the label's custom minimum
 	custom_minimum_size = text_size
 	_label.position = Vector2.ZERO
 	_label.size = text_size
@@ -135,8 +143,8 @@ func _resize() -> void:
 		_layers[i].position = -Vector2.ONE * _pad + _offsets[i]
 		_layers[i].size = Vector2(viewport_size)
 
-func _new_label(node_name: String) -> Label:
-	var l := Label.new()
+func _new_label(node_name: String) -> CssLabel:
+	var l := CssLabel.new()
 	l.name = node_name
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return l

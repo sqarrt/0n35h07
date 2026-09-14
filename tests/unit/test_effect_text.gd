@@ -5,6 +5,7 @@ extends GutTest
 const SCREEN := Vector2i(1280, 720)
 const EPS := 0.001
 const FONT_SIZE := 24
+const SPACING_EM := 0.18
 const PLAIN := Color("#8a93a0")
 const PC := Color("#3377ff")
 const TEXT := "YOU: DOUBLE KILL"
@@ -24,14 +25,26 @@ func test_plain_text_has_no_effect_layers() -> void:
 	assert_true(fx.plain_label().visible)
 	assert_eq(fx.plain_label().get_theme_color("font_color"), PLAIN)
 	assert_false(fx.display().visible)
-	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_minimum_size())
+	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_combined_minimum_size())
 
 func test_plain_size_follows_the_font_once_the_theme_settles() -> void:
 	var fx := _fx()
 	fx.show_text("PARITY7", "", PC)
 	await get_tree().process_frame
-	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_minimum_size(),
+	assert_eq(fx.get_combined_minimum_size(), fx.plain_label().get_combined_minimum_size(),
 		"a stale minimum from the default font would let the text spill into the next column")
+
+func test_a_css_font_reaches_the_plain_text_the_glow_and_the_copies() -> void:
+	var fx := _fx()
+	fx.configure_css(FONT_SIZE, SPACING_EM, PLAIN)
+	fx.show_text("PARITY7", "", PC)
+	var run := CssTextRun.new("PARITY7", FONT_SIZE, SPACING_EM)
+	assert_almost_eq(fx.get_combined_minimum_size().x, run.width(), EPS, "the plain .nm text at Chrome's width")
+	fx.show_text(TEXT, "double", PC)
+	var glitched := CssTextRun.new(TEXT, FONT_SIZE, SPACING_EM)
+	assert_almost_eq(fx.glow().label().run().width(), glitched.width(), EPS)
+	for clip in fx.glitch_copies():
+		assert_almost_eq((clip.get_child(0) as CssLabel).run().width(), glitched.width(), EPS, "the chroma copies too")
 
 func test_double_is_player_coloured_glitched_and_electrified() -> void:
 	var fx := _fx()

@@ -60,8 +60,14 @@ func text_origin() -> Vector2:
 	return _run.placed(content, horizontal_alignment, vertical_alignment)
 
 func _draw() -> void:
-	if draws_run():
-		_run.draw(self, text_origin(), get_theme_color("font_color"))
+	if not draws_run():
+		return
+	var origin := text_origin()
+	var shadow := get_theme_color("font_shadow_color")
+	if shadow.a > 0.0:   # under the text, like the native Label's (the streak glitch copies' ±1 px chroma)
+		var offset := Vector2(get_theme_constant("shadow_offset_x"), get_theme_constant("shadow_offset_y"))
+		_run.draw(self, origin + offset, shadow)
+	_run.draw(self, origin, get_theme_color("font_color"))
 
 ## A stylebox set after setup (a sub-header's rule) changes the box around the run.
 func _notification(what: int) -> void:

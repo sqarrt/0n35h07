@@ -71,11 +71,9 @@ func _ready() -> void:
 	frame.add_theme_stylebox_override("panel", box)
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_timer = Label.new()
+	_timer = CssLabel.new()
 	_timer.name = "Timer"
-	_timer.add_theme_font_override("font", UiFont.spaced(TIMER_SPACING_EM, TIMER_FONT_SIZE))
-	_timer.add_theme_font_size_override("font_size", TIMER_FONT_SIZE)
-	_timer.add_theme_color_override("font_color", TIMER_COLOR)
+	(_timer as CssLabel).styled("", TIMER_FONT_SIZE, TIMER_SPACING_EM, TIMER_COLOR)
 	frame.add_child(_timer)
 	row.add_child(frame)
 
@@ -139,7 +137,7 @@ func _name_text(node_name: String) -> EffectText:
 	var text := EffectText.new()
 	text.name = node_name
 	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # web .side align-items: center
-	text.configure(UiFont.spaced(NAME_SPACING_EM, NAME_FONT_SIZE), NAME_FONT_SIZE, NAME_COLOR)
+	text.configure_css(NAME_FONT_SIZE, NAME_SPACING_EM, NAME_COLOR)
 	return text
 
 func _dots_label(node_name: String) -> Label:

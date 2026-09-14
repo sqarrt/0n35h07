@@ -94,10 +94,6 @@ func set_state(scores: Array, time_text: String, streaks: Dictionary) -> void:
 func rows() -> Dictionary:
 	return _rows
 
-## The row name's face: the duel bar's .nm spacing in Chrome's line box.
-static func name_font() -> FontVariation:
-	return UiFont.with_css_line(UiFont.spaced(NAME_SPACING_EM, NAME_FONT_SIZE), NAME_FONT_SIZE)
-
 ## A pane's content row inside its padded frame (.mhud-team padding; its team tint is an invalid hex in web: no fill).
 func _pane(node_name: String) -> HBoxContainer:
 	var frame := PanelContainer.new()
@@ -129,11 +125,9 @@ func _timer_frame() -> PanelContainer:
 	frame.add_theme_stylebox_override("panel", box)
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_timer = Label.new()
+	_timer = CssLabel.new()
 	_timer.name = "Timer"
-	_timer.add_theme_font_override("font", UiFont.spaced(HudTopBar.TIMER_SPACING_EM, HudTopBar.TIMER_FONT_SIZE))
-	_timer.add_theme_font_size_override("font_size", HudTopBar.TIMER_FONT_SIZE)
-	_timer.add_theme_color_override("font_color", HudTopBar.TIMER_COLOR)
+	(_timer as CssLabel).styled("", HudTopBar.TIMER_FONT_SIZE, HudTopBar.TIMER_SPACING_EM, HudTopBar.TIMER_COLOR)
 	frame.add_child(_timer)
 	return frame
 
@@ -155,21 +149,16 @@ func _player_row(entry: Dictionary, mirror: bool) -> Row:
 	row.name_text = EffectText.new()
 	row.name_text.name = "Name%d" % id
 	row.name_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.frag = Label.new()
-	row.frag.name = "Frag%d" % id
-	row.frag.text = "0"
-	var frag_font := UiFont.with_css_line(UiFont.spaced(ROW_SPACING_EM, ROW_FRAG_FONT_SIZE), ROW_FRAG_FONT_SIZE)
-	row.frag.add_theme_font_override("font", frag_font)
-	row.frag.add_theme_font_size_override("font_size", ROW_FRAG_FONT_SIZE)
-	row.frag.add_theme_color_override("font_color", color)
-	row.frag.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(frag_font))
+	var frag := CssLabel.new()
+	frag.name = "Frag%d" % id
+	row.frag = frag.styled("0", ROW_FRAG_FONT_SIZE, ROW_SPACING_EM, color)
 	var cells: Array = [row.dots, row.name_text, row.frag]
 	if not mirror:
 		cells.reverse()
 	for cell in cells:
 		row.add_child(cell)
 	# .nm grey; the player's colour drives the streak effect (the duel bar names the same way)
-	row.name_text.configure(name_font(), NAME_FONT_SIZE, HudTopBar.NAME_COLOR)
+	row.name_text.configure_css(NAME_FONT_SIZE, NAME_SPACING_EM, HudTopBar.NAME_COLOR)
 	row.name_text.show_text(entry.get("name", ""), "", color)
 	_rows[id] = row
 	return row
