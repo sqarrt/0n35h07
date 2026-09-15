@@ -8,7 +8,7 @@ import { resolve } from 'node:path'
  * localhost/radio_host/. godot_wry serves res://localhost/ from http://res.localhost — a secure context, so Strudel's
  * AudioWorklets load (any other res:// directory is plain http and has no AudioWorklet).
  *
- * Rebuild: npx vite build --config vite.radio-host.config.ts  →  commit localhost/radio_host/.
+ * Rebuild: npm run build (in radio-host/)  →  commit localhost/radio_host/.
  */
 const ROOT = process.cwd()
 const OUT = resolve(ROOT, '../localhost/radio_host')
