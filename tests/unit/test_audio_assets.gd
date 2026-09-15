@@ -1,5 +1,5 @@
 extends GutTest
-## Converted audio assets (tools/audio/convert_web_audio.py): the manifest keeps the web stem order, every stem (and
+## Audio assets converted from the web build's Opus files (2.0.0): the manifest keeps the web stem order, every stem (and
 ## the silent filler) imports as an 8-second loop on the 120 bpm / 16-beat grid with one 16-beat bar, every web SFX
 ## event is present, and the baked loudness gains stay inside the web normalisation bounds.
 

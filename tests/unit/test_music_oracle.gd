@@ -1,6 +1,6 @@
 extends GutTest
-## Music composition parity with the web sources, checked against tests/fixtures/music_oracle.json recorded by
-## web-reference/scripts/parity-oracle-music.mjs: FNV-1a seeds, mulberry32, the stem order, 60 match loops for two
+## Music composition parity with the web sources, checked against tests/fixtures/music_oracle.json, recorded from the
+## web build's own music code before it was retired (2.0.0): FNV-1a seeds, mulberry32, the stem order, 60 match loops for two
 ## seeds plus an outro, and the menu arrangement.
 
 const FIXTURE := "res://tests/fixtures/music_oracle.json"
