@@ -1,0 +1,165 @@
+{
+  "id": "2026-09-15-radio-library",
+  "title": "OneShot · радио R4b: окно LIBRARY",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R4b подпроекта «радио». На экране радио справа от центра открывается окно LIBRARY — проводник папки треков web (components/RadioExplorer): стеклянное окно RadioWindow с тулбаром ◀ ▲ ⌂, адресной строкой с путём папки в данных приложения, сеткой папок и кассет, строкой статуса с переключателем визуализатора. Работают переход в папку, назад / вверх / домой, выделение кликом, Ctrl и Shift, запуск трека с очередью из треков папки. Слой хранения (RadioLibrary) пишет треки в `<данные ОС>/com.oneshot.game/radio`, как Tauri-приложение. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %) над одной и той же засеянной библиотекой.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-library.json`. Web: `web-reference/scripts/parity-capture-radio-library.mjs` (заглушка `__TAURI_INTERNALS__` с файловой системой в памяти и засеянной библиотекой; платформенные шрифты каждой кнопки и пункта меню; `PARITY_FULLSCREEN=1` — весь экран) → `test-results/parity-radio-library/web-radio-library[-sel|-ctx|-folder][-fs].png` + факты `.json`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-library/godot-radio-library[-sel|-folder][-fs].png 120 locale-en:radio-library-<root|sel|folder>` (библиотека засевается `RadioLibrarySeed` в `user://parity_radio_library`). Тесты GUT: `test_radio_library`, `test_radio_explorer`, `test_main_menu`; полный прогон 920/920.",
+  "pages": [
+    {
+      "slug": "radio-library",
+      "name": "Окно LIBRARY",
+      "verdict": "Окно, тулбар, адрес, сетка и статус стоят на местах web: окно [504, 131, 612, 372], кнопки с (9, 39), поле 594×24, ячейки 104 px с шагом 112 и рядами через 18 px, подписи на 8 px под иконкой по центру с дробным x, статус с y 345. Средняя разница по окну — 1.55/255 в корне, 1.60 с выделением, 1.07 в папке; на весь экран — 1.89 / 2.02 / 1.42. Иконки папок и кассет совпадают попиксельно; центроиды тулбара и адреса — в пределах 0.4 px. Остаток — мелкий текст: подписи, адрес и заголовок у Chrome плотнее (адрес 3.41/255, заголовок 4.44/255 в окне).",
+      "verdict_short": "LIBRARY 1:1 по месту и иконкам, текст мягче",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["библиотека", "в памяти: Ambient, Night Drive (Lagoon), Ashen Drift, Fathom XS·17, Twin, Twin (2)", "та же через `RadioLibrarySeed` в `user://parity_radio_library`, адрес — путь web"],
+        ["экран", "RADIO через имя в мини-плеере, холсты скрыты, мышь в (0, 0)", "`open_radio()`, фон скрыт, громкость радио 0.8"],
+        ["язык", "`en`", "`locale-en:`"],
+        ["«выделено»", "клик по Twin.json", "`select(\"Twin.json\")`"],
+        ["«папка»", "двойной клик по Night Drive", "`navigate_into(\"Night Drive\")`"]
+      ],
+      "comparisons": [
+        {
+          "title": "Корень библиотеки, окно (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-root.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-root.png", "note": "окно 1.55/255"}
+          ]
+        },
+        {
+          "title": "Тулбар ◀ ▲ ⌂ (×6)",
+          "wipe": true,
+          "note": "◀ — Segoe UI Symbol, ▲ и ⌂ — Arial, как у Chrome; назад и вверх на 40 % у корня.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-tools.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-tools.png", "note": "кнопки 1.62/255, центроид ±0.3 px"}
+          ]
+        },
+        {
+          "title": "Адресная строка (×4)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-address.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-address.png", "note": "3.41/255, центроид y ±0.01 px"}
+          ]
+        },
+        {
+          "title": "Иконки и подписи (×4)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-icons.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-icons.png", "note": "сетка 1.52/255"}
+          ]
+        },
+        {
+          "title": "Выделен Twin (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-sel.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-sel.png", "note": "сетка 1.59/255"}
+          ]
+        },
+        {
+          "title": "Внутри Night Drive (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-folder.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-folder.png", "note": "окно 1.07/255"}
+          ]
+        },
+        {
+          "title": "Статус и переключатель визуализатора (×4)",
+          "wipe": true,
+          "note": "Левая часть статуса закрыта карточкой плеера в обоих кадрах.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-status.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-status.png", "note": "1.37/255"}
+          ]
+        },
+        {
+          "title": "Корень, весь экран 3840×2160 (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-report/web-root-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-report/godot-root-fs.png", "note": "окно 1.89/255, адрес 5.97"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R4b-1", "severity": "fixed",
+          "title": "Слой хранения библиотеки",
+          "web": "`RadioLibrary` поверх Tauri fs: папка `appData/radio`, папки перед треками с сортировкой без учёта регистра, скрытые `_`/`.`, JSON с отступом 2, свободное имя « (n)», перемещение, переименование, метки.",
+          "godot": "`RadioLibrary` на `DirAccess`/`FileAccess` в `OS.get_data_dir()/com.oneshot.game/radio`; целые числа пишутся целыми, как у JSON.stringify.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_library.gd", "tests/unit/test_radio_library.gd"]
+        },
+        {
+          "id": "R4b-2", "severity": "fixed",
+          "title": "Окно .rexp: тулбар, адрес, сетка, статус",
+          "web": "Окно 612×372 в (W/2 − 136, 0.44·H − 186), минимум 380×260; тулбар 43 px, поле 24 px с `direction: rtl`, сетка `auto-fill 104px` с зазорами 8 / 18, статус 26 px с пилюлей 92×18.",
+          "godot": "`RadioExplorer` на `RadioWindow`; заголовок — имя папки или LIBRARY; строка статуса с числом выделенных; режим визуализатора запоминается в `user://radio.cfg` (у web — localStorage).",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_explorer.gd", "nodes/main_menu.gd", "tests/unit/test_radio_explorer.gd", "tests/unit/test_main_menu.gd"]
+        },
+        {
+          "id": "R4b-3", "severity": "fixed",
+          "title": "Иконки папки и кассеты из CSS",
+          "web": "Папка 46×36 (язычок 20×7, тело с градиентом #1c5e8f → #123c5b и рамкой accent-dim), кассета 52×34 (две катушки 11 px, перемычка, полоса), свечение 10 px; выделенная ячейка — рамка accent, заливка 12 % и внутреннее свечение 16 px.",
+          "godot": "`RadioLibraryIcon` / `RadioLibraryItem` на шейдере `css_box.gdshader` (скругления, градиент, рамка border-box, внутреннее свечение через erfc) и `CssBoxShadow`; дочерние элементы кассеты от внутреннего края рамки.",
+          "evidence": ["screenshot"],
+          "sources": ["assets/shaders/css_box.gdshader", "nodes/radio/radio_library_icon.gd", "nodes/radio/radio_library_item.gd"]
+        },
+        {
+          "id": "R4b-4", "severity": "fixed",
+          "title": "Шрифты глифов тулбара",
+          "web": "Chrome берёт ◀ из Segoe UI Symbol, а ▲ и ⌂ — из Arial (выгружено `CSS.getPlatformFontsForNode` для каждой кнопки): ▲ шире, кнопка 31.89 px, ⌂ мельче.",
+          "godot": "Первая версия брала все три глифа из Segoe UI Symbol — ▲ уже, ⌂ крупнее (кнопки 0.90/255). Семейства заданы для каждой кнопки — 0.47/255, центроид ±0.3 px.",
+          "evidence": ["screenshot", "runtime"],
+          "sources": ["nodes/radio/radio_explorer.gd", "web-reference/scripts/parity-capture-radio-library.mjs"]
+        },
+        {
+          "id": "R4b-5", "severity": "fixed",
+          "title": "Раскладка ячейки и адрес на пиксель выше",
+          "web": "Иконка по центру ячейки, подпись по центру с дробным x; строка поля `line-height: 24px` от контента, внутри рамки 1 px.",
+          "godot": "Ячейка раскладывалась только по сигналу `resized`: ряд папок той же высоты его не получал (иконка и подпись в углу), кассеты — до шрифтов темы (подпись на полширины правее); сетка 6.14/255. Теперь — `NOTIFICATION_RESIZED`/`READY` и смена минимального размера подписи: 1.52/255. Адрес опущен на рамку: 8.31 → 3.41/255.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_library_item.gd", "nodes/radio/radio_explorer.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b-6", "severity": "fixed",
+          "title": "Навигация, выделение, запуск трека",
+          "web": "`navInto` пишет историю, `goUp` — нет, `goHome` пишет покинутую папку; клик выделяет, Ctrl переключает, Shift берёт диапазон от якоря; двойной клик по треку — очередь из читаемых треков папки с этого трека.",
+          "godot": "`RadioExplorer.navigate_into / go_up / go_back / go_home / select / open_entry` с сигналом `play_requested(queue, start)`; повреждённый соседний трек пропускается, как в web `readMany`.",
+          "evidence": ["test"],
+          "sources": ["nodes/radio/radio_explorer.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b-7", "severity": "visual",
+          "title": "Мелкий текст мягче, чем у Chrome",
+          "web": "DirectWrite рисует 11.5–12 px Share Tech Mono с хинтингом: подписи, адрес и заголовок плотнее.",
+          "godot": "Места строк и символов совпадают, глифы тоньше: адрес 3.41/255 (весь экран 5.97), заголовок 4.44 (5.17). Общий бэклог хинтинга мелкого текста порта.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        },
+        {
+          "id": "R4b-8", "severity": "missing",
+          "title": "Контекстное меню, правка и воспроизведение библиотеки",
+          "web": "Контекстное меню (▶ Play, ＋ New folder, ✎ Rename, ⧉ Copy, 📋 Paste, 🗑 Delete), переименование, перетаскивание и рамка выделения, горячие клавиши, копирование и вставка, визуализатор за содержимым; полоса LIBRARY после сворачивания; воспроизведение очереди и сохранение трека из плеера.",
+          "godot": "Слайсы R4b2 (меню, правка, визуализатор) и R4c (очередь, сохранение, полоса LIBRARY). Кадр web с контекстным меню и шрифты пунктов уже сняты. Пока сворачивание прячет окно до следующего входа на экран радио.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioExplorer.tsx", "web-reference/src/App.tsx"]
+        }
+      ],
+      "limitations": [
+        "Hover-подсветка ячеек и кнопок не снималась (мышь в углу).",
+        "Выделение Ctrl / Shift, история и очередь проверены тестами, кадрами сравнивалось только одиночное выделение.",
+        "Левая часть строки статуса закрыта карточкой плеера — сравнивалась видимая правая часть.",
+        "Изменение размера окна и перестроение сетки на другое число колонок кадрами не сравнивались."
+      ]
+    }
+  ]
+}

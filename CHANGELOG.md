@@ -60,6 +60,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   setting off). The Radio's sound now drives the menu glow on every menu screen, as in the original.
 - **The Radio screen dances.** As in the original, the camera punches in on every beat of the track and emoji picked
   by the track's mood rain down from the top of the screen, born on the beat.
+- **The LIBRARY window.** The Radio screen opens the original's library explorer beside the player: back / up / home,
+  the folder's path, folders and cassettes laid out as in the original, the item and folder counts and the visualizer
+  mode switch (remembered). A click selects a track (Ctrl adds, Shift takes a range), a double click opens a folder or
+  plays its tracks from that one. Saved tracks live in the game's app data `radio` folder, as in the original. The
+  context menu, renaming, drag and drop, the visualizer and queue playback come next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.
