@@ -1,6 +1,7 @@
 name: Deploy to GitHub Pages
 
-# Builds the web game and publishes it to GitHub Pages — ON A RELEASE TAG ONLY (the public site = the
+# Builds the web game (web-reference/, the parity oracle of the Godot rewrite — this workflow goes with that folder)
+# and publishes it to GitHub Pages — ON A RELEASE TAG ONLY (the public site = the
 # last released version; master pushes run tests via ci.yml, not a deploy). Manual run via workflow_dispatch.
 # One-time setup: repo Settings → Pages → "Build and deployment" → Source: GitHub Actions; and
 # Settings → Environments → github-pages → "Deployment branches and tags" must allow the tag (e.g. `*.*.*`).
@@ -30,6 +31,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-reference
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +41,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: web-reference/package-lock.json
 
       - run: npm ci
 
@@ -51,7 +56,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: web-reference/dist
 
   deploy:
     needs: build

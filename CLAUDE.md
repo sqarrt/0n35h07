@@ -25,7 +25,8 @@ Requirement: **all visuals and functionality must be reproduced 1:1**.
   preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
   Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
 - The web reference builds from `web-reference/` (its own `package.json`).
-- Note: `.github/workflows/*` still target the old web layout and are stale until CI is reworked.
+- CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless (`scripts/godot.sh` honours `$GODOT_BIN`)
+  plus the web reference's lint / types / unit / build inside `web-reference/`; Pages deploy and Dependabot follow it there.
 
 The rest of this document describes the **web-reference** architecture; the Godot
 architecture is documented incrementally as sub-projects land.
