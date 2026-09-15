@@ -30,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   with whole-pixel letter spacing and font sizes, so words came out a few pixels too wide or narrow; every letter now
   lands at the original's fractional position, bold text thickens evenly and centred text keeps its exact place, in a
   window and fullscreen.
+- **Steam invites reach you anywhere, as in the original.** A friend's "Join game" during a match leaves it for their
+  lobby at once instead of waiting for the menu, and an invite that arrives while the trailer plays pops up over it —
+  accepting leaves the trailer for the friend's lobby.
+- **Buttons no longer answer the keyboard.** As in the original, Tab does not walk the menu buttons and Space or Enter
+  never press a button that was just clicked.
 - **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
   original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
   slot no longer takes a pixel, so names, frags and totals sit where the original has them.

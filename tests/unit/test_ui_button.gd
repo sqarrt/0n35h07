@@ -103,10 +103,7 @@ func test_cooldown_fill_grows_inside_the_border() -> void:
 	assert_eq(style.fill_rect(Rect2(Vector2.ZERO, BOX)), Rect2(1.0, 1.0, 109.0, 42.0), "web span: 50% of the padding box")
 	assert_eq(style.fill_color, UiButton.COOLDOWN_FILL)
 
-func test_focus_outline_sits_outside_the_border() -> void:
-	var button := _button("EXIT", UiButton.PRIMARY)
-	var focus := _flat(button, "focus")
-	assert_false(focus.draw_center)
-	assert_eq(focus.border_color, UiTokens.ACCENT)
-	assert_eq(focus.border_width_left, UiButton.FOCUS_OUTLINE_PX)
-	assert_almost_eq(focus.expand_margin_left, float(UiButton.FOCUS_OUTLINE_PX + UiButton.FOCUS_OFFSET_PX), EPS)
+func test_a_button_never_takes_keyboard_focus() -> void:
+	var button := _button("READY", UiButton.PRIMARY)
+	assert_eq(button.focus_mode, Control.FOCUS_NONE,
+		"web gameFeel: a clicked button is blurred and Tab moves nothing, so Space / Enter never press it again")
