@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   queue (prev / next step round it, a finished track moves on, On Air returns to the live stream); the track playing
   drags from the player onto a folder to be saved (on the free trial, 5 saves a day); a minimized LIBRARY window
   becomes a bar over the player beside PROGRAM, the one minimized last on top.
+- **The Radio plays through a match.** As in the original, a match started while the Radio is playing keeps it as its
+  soundtrack instead of the match music (the HUD's audio bar follows it); a match started without it plays its own
+  music and stops the Radio, and the trailer always stops it.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

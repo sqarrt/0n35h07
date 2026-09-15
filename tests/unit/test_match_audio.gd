@@ -42,6 +42,19 @@ func test_go_starts_the_music_and_the_end_fades_it() -> void:
 	audio.free()
 	assert_eq(Audio.analysis.source_count(), sources, "leaving the arena drops the music from the analysis")
 
+func test_under_the_radio_go_starts_no_match_music() -> void:
+	var world := Node3D.new()
+	add_child_autofree(world)
+	var parts := _match_audio(world)
+	var match_node: MatchNode = parts[0]
+	var audio: MatchAudio = parts[1]
+	audio.music_enabled = false
+	var sources := Audio.analysis.source_count()
+	match_node.force_live()
+	audio._physics_process(DT)
+	assert_null(audio.music(), "web radioForMatch: the match's musicEngine is undefined")
+	assert_eq(Audio.analysis.source_count(), sources, "the radio feeds the visualiser instead")
+
 func test_streak_announces_play_their_sound() -> void:
 	var world := Node3D.new()
 	add_child_autofree(world)
