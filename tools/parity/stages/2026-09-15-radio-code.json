@@ -1,0 +1,148 @@
+{
+  "id": "2026-09-15-radio-code",
+  "title": "OneShot · радио R3b: окно PROGRAM",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R3b подпроекта «радио». На экране радио слева открывается окно PROGRAM web с текущей программой Strudel: стеклянная рамка RadioExplorer.css с заголовком и кнопками _ ▢ ✕, код с мягким свечением и тонкой полосой прокрутки, перенос строк как у Chrome, перетаскивание за заголовок и изменение размера за уголок, разворот на весь экран, копирование кликом, сворачивание в полосу PROGRAM над плеером. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %); у web включены полосы прокрутки, как в десктопном WebView.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-code.json`. Web: `web-reference/scripts/parity-capture-radio-code.mjs` (десктопная заглушка, autoplay, доступ к буферу, `showScrollbars`; `PARITY_FULLSCREEN=1` — весь экран) → `test-results/parity-radio-code/web-radio-code[-copied|-min|-max][-fs].png` + факты `.json` со строками переноса. Таблица переносов Chrome: `web-reference/scripts/export-chrome-line-breaks.mjs` → `assets/text/chrome_line_breaks.json`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-code/godot-radio-code-<state>[-fs].png 120 locale-en:radio-code-<open|copied|min|max>` (программа — из фактов web). Тесты GUT: `test_css_pre_wrap`, `test_radio_window`, `test_radio_code_view`, `test_radio_code_panel`, `test_radio_player`, `test_radio_glass_button`, `test_glass_card`, `test_glow_text`, `test_main_menu`.",
+  "pages": [
+    {
+      "slug": "radio-code",
+      "name": "Окно PROGRAM",
+      "verdict": "Геометрия и хром окна совпадают с web: рамка [18, 18, 256, 620], код с 1 px и 31 px внутрь, кнопки на x 165 / 195 / 225, заголовок на (9, 8); разница — заголовок 1.68/255, полоса прокрутки 0.39, уголок 0.96, тень под окном 0.25, полоса PROGRAM над плеером 1.74, развёрнутое окно (верх) 2.79 в окне и 2.96 на весь экран. Перенос кода совпадает с Chrome во всех 816 строках двух программ (212 и 396 px), строки на шаге 17.265625 px: центроиды ±0.2 px и на 30-й строке. Разница в области кода — 5.9…13/255 по полосам с текстом — от растеризации мелкого текста: у Chrome глифы 11.5 px плотнее (чернила 5229 px средней яркостью 101 против 6537 px и 72 в Godot).",
+      "verdict_short": "Окно PROGRAM 1:1 по месту и переносу, текст мягче",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU, полосы прокрутки видимы", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["экран", "RADIO, первый трек, холсты скрыты", "`open_radio()`, фон скрыт, программа из фактов web"],
+        ["язык", "`en`", "`locale-en:`"],
+        ["«скопировано»", "клик по коду, кадр через 0.3 с", "`copy()` с пустым буфером"],
+        ["«свёрнуто» / «развёрнуто»", "_ , затем полоса PROGRAM и ▢, кадр через 0.8 с", "`minimize_requested`, `toggle_maximized()`, переходы досчитаны"]
+      ],
+      "comparisons": [
+        {
+          "title": "Окно открыто, окно (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-open.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-open.png", "note": "заголовок 1.68/255, код 5.93"}
+          ]
+        },
+        {
+          "title": "Код крупно (×8)",
+          "wipe": true,
+          "note": "Места строк совпадают; Chrome рисует глифы плотнее.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/zoom-web-code.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/zoom-godot-code.png", "note": "центроиды ±0.2 px"}
+          ]
+        },
+        {
+          "title": "Полоса прокрутки (×6)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-scrollbar.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-scrollbar.png", "note": "0.39/255"}
+          ]
+        },
+        {
+          "title": "Скопировано: заголовок в две строки (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-copied-title.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-copied-title.png", "note": "5.58/255"}
+          ]
+        },
+        {
+          "title": "Свёрнуто: полоса PROGRAM над плеером (×2)",
+          "wipe": true,
+          "note": "Имя трека в плеере Godot не подставлялось — сверяется полоса.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-min.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-min.png", "note": "полоса 1.74/255"}
+          ]
+        },
+        {
+          "title": "Развёрнуто, верх (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-max.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-max.png", "note": "2.79/255"}
+          ]
+        },
+        {
+          "title": "Окно открыто, весь экран 3840×2160 (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-code-report/web-open-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-code-report/godot-open-fs.png", "note": "7.07/255 по верху окна"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R3b-1", "severity": "fixed",
+          "title": "Перенос строк программы",
+          "web": "`white-space: pre-wrap; overflow-wrap: anywhere` в Share Tech Mono 0.72rem: жадное заполнение, висящие пробелы, переносы после пробела и между парами ASCII по таблице Blink, иначе — где угодно.",
+          "godot": "`CssPreWrap` с таблицей пар, выгруженной из самого Chromium (98 символов, 421 разрешённая пара); сверено со строками, которые Chrome нарисовал, — 623 и 193 строки без единого расхождения.",
+          "evidence": ["test", "runtime"],
+          "sources": ["sim/css_pre_wrap.gd", "assets/text/chrome_line_breaks.json", "web-reference/scripts/export-chrome-line-breaks.mjs", "tests/unit/test_css_pre_wrap.gd"]
+        },
+        {
+          "id": "R3b-2", "severity": "fixed",
+          "title": "Окно .rexp",
+          "web": "Стекло с тенью 0 18px 60px и свечением 0 0 30px, заголовок 30 px с градиентом и светящимся текстом, кнопки 22×19, уголок 16 px, `overflow: hidden` по радиусу 14; перетаскивание, изменение размера до 220×160, разворот с отступом 8 px за 0.26 с.",
+          "godot": "`RadioWindow` (переиспользуется библиотекой в R4): `GlassCard.set_shadow`, шейдер хрома `radio_window_chrome.gdshader` (градиент, линия, полосы уголка по скруглённой маске), заголовок переносится по словам — «PROGRAM (COPIED)» в две строки, как у Chrome.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_window.gd", "assets/shaders/radio_window_chrome.gdshader", "nodes/glass_card.gd", "tests/unit/test_radio_window.gd"]
+        },
+        {
+          "id": "R3b-3", "severity": "fixed",
+          "title": "Полоса прокрутки десктопного WebView",
+          "web": "`scrollbar-width: thin` в theme.css у Chrome важнее `::-webkit-scrollbar`: системная тонкая полоса 10 px (стрелки 12 px, скруглённый бегунок 6 px) цвета rgba(47,111,158,0.35); текст уже на её ширину. Headless-захват по умолчанию её прячет — web снят с `showScrollbars`.",
+          "godot": "`RadioCodeView` рисует ту же полосу и переносит код на ширину без неё, когда программа не помещается (второй проход, как у Chrome); колесо прокручивает на 100 px.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_code_view.gd", "web-reference/scripts/parity-lib.mjs", "tests/unit/test_radio_code_view.gd"]
+        },
+        {
+          "id": "R3b-4", "severity": "fixed",
+          "title": "Свечение кода и общий слой размытия",
+          "web": "`text-shadow: 0 0 6px rgba(120,170,255,0.45)` у всего кода.",
+          "godot": "Цепочка маска → горизонтальный проход → вертикальный слой вынесена из `GlowText` в `CssGlow`; `GlowText` и `RadioCodeView` работают поверх неё (тесты `GlowText` не менялись).",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/css_glow.gd", "nodes/glow_text.gd", "nodes/radio/radio_code_lines.gd"]
+        },
+        {
+          "id": "R3b-5", "severity": "fixed",
+          "title": "Сворачивание, копирование, строки на шаге layout unit",
+          "web": "_ и ✕ сворачивают окно в полосу PROGRAM над карточкой плеера (появление 0.2 с), состояние живёт между визитами; клик копирует код и пишет «(copied)» 1.2 с; шаг строк 17.28 → 17.265625 (1/64 px), полу-интерлиньяж — целый пиксель.",
+          "godot": "`MainMenu` держит окно под плеером и флаг свёрнутости; `RadioPlayer.show_code_bar`; `RadioCodePanel.copy`; `RadioCodeLines.pitch` / `half_leading`.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/main_menu.gd", "nodes/radio/radio_player.gd", "nodes/radio/radio_code_panel.gd", "tests/unit/test_main_menu.gd"]
+        },
+        {
+          "id": "R3b-6", "severity": "visual",
+          "title": "Мелкий текст кода мягче, чем у Chrome",
+          "web": "DirectWrite рисует 11.5 px с хинтингом: штрихи плотные, контрастные.",
+          "godot": "Глифы CssTextRun мягче и на полпикселя выше; свечение слабее на ~15 % из-за тонкого штриха. Места строк и символов совпадают. Хинтинг мелкого текста — общий вопрос для всего порта, вынесен в бэклог.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd", "assets/fonts/share-tech-mono-latin-400-normal.woff2.import"]
+        },
+        {
+          "id": "R3b-7", "severity": "missing",
+          "title": "Takeover и библиотека",
+          "web": "Бит-часы, камера и дождь эмодзи, мягкое свечение краёв; проводник библиотеки и полоса LIBRARY.",
+          "godot": "Слайсы R3c (takeover) и R4 (библиотека).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/radioTakeover/RadioTakeover.tsx", "web-reference/src/components/RadioExplorer.tsx"]
+        }
+      ],
+      "limitations": [
+        "Перетаскивание и изменение размера мышью проверены тестами, кадрами не сравнивались.",
+        "Hover-подсветка кнопок и блока кода не снималась (мышь в углу).",
+        "Прокрутка сверена по геометрии бегунка; кадр в прокрученном состоянии не снимался.",
+        "Буфер обмена в кадре Godot не трогался: копирование подменено."
+      ]
+    }
+  ]
+}

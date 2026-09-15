@@ -18,6 +18,7 @@ signal air_requested
 signal ball_toggled
 signal unlock_requested
 signal back_requested
+signal code_bar_pressed
 
 const WIDTH := 300.0
 const RIGHT := 18.0
@@ -64,6 +65,9 @@ const LIMIT_SPACING_EM := 0.04
 const LIMIT_COLOR := Color("#ee99aa")          # #e9a
 const LIMIT_MARGIN_TOP := 2.0
 const BACK_LABEL := "← %s"
+const PROGRAM_KEY := "radioProgram"
+const BAR_ENTER_S := 0.2                       # web rexp-bar-in: the bar rises 12 px and fades in
+const BAR_ENTER_RISE := 12.0
 const RADIO_WORD_KEY := "settingsVolRadio"     # web radioWord: the subtitle before a track
 const AIR_KEY := "radioAir"
 const BACK_KEY := "settingsBack"
@@ -88,6 +92,10 @@ var _volume: RadioVolumeRow
 var _trial: RadioTrialRow
 var _limit: CssLabel
 var _back: RadioGlassButton
+var _code_bar: RadioGlassButton
+var _code_bar_shown := false
+var _bar_in := CssTransition.new(BAR_ENTER_S, EXPAND_CURVE)
+var _card_top := 0.0
 var _card := Vector2(WIDTH, 0.0)
 var _box := Vector2(WIDTH, 0.0)                # the whole player: the card, and BACK under it when expanded
 var _expanded := false
@@ -128,10 +136,15 @@ func _init() -> void:
 	_limit.name = "GenLimit"
 	_limit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_limit)
-	_back = RadioGlassButton.new("")
+	_back = RadioGlassButton.new("", RadioGlassButton.ARROW_FAMILIES)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
 	add_child(_back)
+	_code_bar = RadioGlassButton.new("")
+	_code_bar.name = "ProgramBar"
+	_code_bar.pressed.connect(func() -> void: code_bar_pressed.emit())
+	add_child(_code_bar)
+	_bar_in.snap(1.0)
 	relabel()
 	show_air(true)
 	show_ball_hidden(false)
@@ -178,6 +191,22 @@ func show_air(on: bool) -> void:
 func show_ball_hidden(hidden: bool) -> void:
 	_ball.text = BALL_HIDDEN if hidden else BALL_SHOWN
 
+## The PROGRAM bar over the card while the code window is minimized (it rises in as it appears).
+func show_code_bar(shown: bool) -> void:
+	if shown and not _code_bar_shown:
+		_bar_in.snap(0.0)
+		_bar_in.set_target(1.0)
+		set_process(true)
+	_code_bar_shown = shown
+	_layout()
+
+func code_bar() -> RadioGlassButton:
+	return _code_bar
+
+## Where the card starts inside the player: under the bars when any are shown.
+func card_top() -> float:
+	return _card_top
+
 ## Docked (false) or expanded on the Radio screen (true); `animate` runs the transform transition.
 func set_expanded(expanded: bool, animate := true) -> void:
 	_expanded = expanded
@@ -196,6 +225,7 @@ func is_expanded() -> bool:
 func relabel() -> void:
 	_air.text = AIR_LABEL % I18n.t(AIR_KEY)
 	_back.button().text = BACK_LABEL % I18n.t(BACK_KEY)
+	_code_bar.button().text = I18n.t(PROGRAM_KEY)
 	_limit.text = I18n.t(GEN_LIMIT_KEY)
 	_subtitle.text = _subtitle_text if _subtitle_text != "" else I18n.t(RADIO_WORD_KEY)
 	_layout()
@@ -246,8 +276,9 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	_expand.advance(delta)
-	_apply_transform()
-	if is_equal_approx(_expand.value, _expand.target()):
+	_bar_in.advance(delta)
+	_layout()
+	if is_equal_approx(_expand.value, _expand.target()) and is_equal_approx(_bar_in.value, _bar_in.target()):
 		set_process(false)
 
 func _on_title_input(event: InputEvent) -> void:
@@ -283,7 +314,14 @@ func _layout() -> void:
 	var rows := _rows()
 	for control: Control in [_subtitle, _scrub, _air_row, _volume, _trial, _limit]:
 		control.visible = false
-	var y := GlassCard.BORDER_PX + PADDING.y
+	var bar_shown := _expanded and _code_bar_shown
+	_code_bar.visible = bar_shown
+	_card_top = _code_bar.bar_height() + ROOT_GAP if bar_shown else 0.0
+	if bar_shown:
+		_code_bar.size = Vector2(WIDTH, _code_bar.bar_height())
+		_code_bar.position = Vector2(0.0, (1.0 - _bar_in.value) * BAR_ENTER_RISE)
+		_code_bar.modulate.a = _bar_in.value
+	var y := _card_top + GlassCard.BORDER_PX + PADDING.y
 	for i in rows.size():
 		var control: Control = rows[i][0]
 		y += rows[i][2]
@@ -293,12 +331,13 @@ func _layout() -> void:
 		y += rows[i][1] + (GAP if i < rows.size() - 1 else 0.0)
 	_layout_transport(content_width)
 	_layout_air_row(content_width)
-	_card = Vector2(WIDTH, y + PADDING.y + GlassCard.BORDER_PX)
+	_card = Vector2(WIDTH, y - _card_top + PADDING.y + GlassCard.BORDER_PX)
+	_glass.position = Vector2(0.0, _card_top)
 	_glass.set_box(_card)
-	_box = _card
+	_box = Vector2(WIDTH, _card_top + _card.y)
 	_back.visible = _expanded
 	if _expanded:
-		_back.position = Vector2(0.0, _card.y + ROOT_GAP)
+		_back.position = Vector2(0.0, _box.y + ROOT_GAP)
 		_back.size = Vector2(WIDTH, _back.bar_height())
 		_box.y += ROOT_GAP + _back.bar_height()
 	_apply_transform()

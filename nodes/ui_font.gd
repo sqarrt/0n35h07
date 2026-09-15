@@ -204,8 +204,10 @@ static func fallback_ascent_px(css_px: float, families: Array) -> int:
 static func fallback_descent_px(css_px: float, families: Array) -> int:
 	return maxi(roundi(DESCENT_EM * css_px), roundi(_fallback_em(families).y * css_px))
 
-## The largest ascent and descent (em) among the families' faces.
+## The largest ascent and descent (em) among the families' faces (none: the UI font alone decides).
 static func _fallback_em(families: Array) -> Vector2:
+	if families.is_empty():
+		return Vector2.ZERO
 	var largest := Vector2.ZERO
 	var read := false
 	for family in families:

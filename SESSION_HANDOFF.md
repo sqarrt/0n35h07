@@ -173,9 +173,15 @@ Chrome на Windows берёт у системных фолбэков OS/2 win/t
 (Cambria Math) открывается по индексу; strut Blink — округлённый ascent + floor полу-интерлиньяжа. Кадры
 `locale-en:radio-screen-<ready|playing|trial>` на `scenes/main_menu.tscn`, web `parity-capture-radio-screen.mjs`
 (пробная полоса — только `vite build` + `vite preview`, `PARITY_TRIAL`). Отчёт `2026-09-15-radio-screen-*`: окно
-1.15/1.60/1.50, весь экран 1.22/1.74. GUT 858/858. **Дальше:** (1) R3b панель кода (окно `RadioCodePanel`), R3c
-takeover (бит-часы, камера, дождь эмодзи, мягкое свечение), R4 библиотека (лимит сохранений `note_saved`, полосы
-LIBRARY / PROGRAM), R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+1.15/1.60/1.50, весь экран 1.22/1.74. GUT 858/858. **R3b смержен** (`feature/godot-radio-code`): окно PROGRAM —
+`RadioWindow` (хром `.rexp`: `GlassCard.set_shadow`, шейдер `radio_window_chrome`, заголовок с переносом по словам,
+перетаскивание/размер/разворот; для библиотеки R4), `RadioCodePanel` + `RadioCodeView` (`CssPreWrap` по таблице пар
+Blink `assets/text/chrome_line_breaks.json` — 816/816 строк как у Chrome; тонкая полоса 10 px; свечение через
+`CssGlow`, вынесенный из `GlowText`), полоса PROGRAM над плеером (`show_code_bar`). Кадры
+`locale-en:radio-code-<open|copied|min|max>`, web `parity-capture-radio-code.mjs` (`showScrollbars`). Отчёт
+`2026-09-15-radio-code-*`: хром 0.4–1.7/255, код 6–13 (мягче растеризация мелкого текста). GUT 879/879. **Дальше:**
+(1) R3c takeover (бит-часы, камера, дождь эмодзи, мягкое свечение), R4 библиотека (лимит сохранений `note_saved`,
+полоса LIBRARY), R5 матч/свечение; (1б) хинтинг мелкого текста (CssTextRun мягче DirectWrite на 11–12 px); (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

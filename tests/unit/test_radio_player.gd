@@ -140,6 +140,32 @@ func test_expanded_controls_ask_for_actions() -> void:
 	player.show_ball_hidden(true)
 	assert_eq(player.ball_button().text, RadioPlayer.BALL_HIDDEN)
 
+func test_the_program_bar_sits_over_the_card_while_the_code_is_minimized() -> void:
+	var player := await _expanded()
+	var plain := player.size.y
+	player.show_code_bar(true)
+	player._process(SETTLE_S)
+	var bar := player.code_bar()
+	assert_true(bar.visible)
+	assert_eq(bar.button().text, I18n.t("radioProgram"))
+	assert_eq(Rect2(bar.position, bar.size), Rect2(0.0, 0.0, 300.0, 33.0), "web radio-code-min [490, 382, 300, 33]")
+	assert_almost_eq(player.card_top(), 41.0, EPS, "8 px under the bar")
+	assert_almost_eq(player.size.y, plain + 41.0, EPS, "web player 294 = 33 + 8 + 209 + 8 + 36")
+	assert_almost_eq(player.global_position.y + player.size.y, SCREEN.y - RadioPlayer.BOTTOM, EPS, "the bottom stays")
+	watch_signals(player)
+	bar.pressed.emit()
+	assert_signal_emitted(player, "code_bar_pressed")
+	player.show_code_bar(false)
+	assert_false(bar.visible)
+	assert_almost_eq(player.size.y, plain, EPS)
+
+func test_the_program_bar_rises_in() -> void:
+	var player := await _expanded()
+	player.show_code_bar(true)
+	player._process(RadioPlayer.BAR_ENTER_S * 0.5)
+	assert_between(player.code_bar().modulate.a, 0.01, 0.99, "rexp-bar-in: fading in")
+	assert_gt(player.code_bar().position.y, 0.0, "still below its place")
+
 func test_the_move_between_dock_and_screen_is_a_transition() -> void:
 	var player := await _player()
 	player.set_expanded(true)

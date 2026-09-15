@@ -42,3 +42,14 @@ func test_the_glass_ts_look() -> void:
 	assert_almost_eq(float(surface.get_shader_parameter("radius_px")), 14.0, EPS)
 	assert_almost_eq(float(surface.get_shader_parameter("shadow_sigma")), 20.0, EPS, "blur 40px = 2σ")
 	assert_eq(surface.get_shader_parameter("fill_color"), Color(10.0 / 255.0, 15.0 / 255.0, 20.0 / 255.0, 0.55))
+
+func test_a_window_takes_its_own_shadow_and_no_ring() -> void:
+	var card := _card()
+	card.set_shadow(Vector2(0.0, 18.0), 60.0, 0.0)
+	var surface := card.surface().material as ShaderMaterial
+	assert_almost_eq(float(surface.get_shader_parameter("shadow_sigma")), 30.0, EPS, "RadioExplorer.css 0 18px 60px")
+	assert_eq(surface.get_shader_parameter("shadow_offset_px"), Vector2(0.0, 18.0))
+	assert_almost_eq(float(surface.get_shader_parameter("ring_px")), 0.0, EPS)
+	var pad := GlassCard.KERNEL_SIGMAS * 60.0 * GlassCard.SHADOW_SIGMA_SHARE + 18.0
+	assert_almost_eq(float(surface.get_shader_parameter("pad_px")), pad, EPS, "the surface reaches the larger shadow")
+	assert_eq(card.surface().size, BOX + Vector2.ONE * 2.0 * pad)

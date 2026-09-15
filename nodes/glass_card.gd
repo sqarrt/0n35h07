@@ -25,6 +25,8 @@ const KERNEL_SIGMAS := 3.0
 
 var _blur: ColorRect
 var _surface: ColorRect
+var _shadow_offset := SHADOW_OFFSET
+var _shadow_blur := SHADOW_BLUR
 
 func _init() -> void:
 	name = "Glass"
@@ -40,13 +42,23 @@ func blur() -> ColorRect:
 func surface() -> ColorRect:
 	return _surface
 
+## Another outer shadow and ring for the same glass (the radio windows, RadioExplorer.css .rexp: 0 18px 60px, no ring).
+func set_shadow(offset: Vector2, blur: float, ring_px := RING_PX) -> void:
+	_shadow_offset = offset
+	_shadow_blur = blur
+	var material := _surface.material as ShaderMaterial
+	material.set_shader_parameter("shadow_offset_px", offset)
+	material.set_shader_parameter("shadow_sigma", blur * SHADOW_SIGMA_SHARE)
+	material.set_shader_parameter("ring_px", ring_px)
+	set_box(size)
+
 ## Lay the passes out on the card's box, its top-left at this node's position; the shadow reaches past it.
 func set_box(box: Vector2) -> void:
 	size = box
 	_blur.position = Vector2.ZERO
 	_blur.size = box
 	(_blur.material as ShaderMaterial).set_shader_parameter("box_px", box)
-	var pad := KERNEL_SIGMAS * SHADOW_BLUR * SHADOW_SIGMA_SHARE + SHADOW_OFFSET.length()
+	var pad := KERNEL_SIGMAS * _shadow_blur * SHADOW_SIGMA_SHARE + _shadow_offset.length()
 	_surface.position = -Vector2.ONE * pad
 	_surface.size = box + Vector2.ONE * 2.0 * pad
 	var surface_material := _surface.material as ShaderMaterial

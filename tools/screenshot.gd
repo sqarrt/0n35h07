@@ -156,6 +156,10 @@ const RADIO_TRIAL_GENS := 3                # web PARITY_TRIAL: today's generatio
 const RADIO_TRIAL_SAVES := 1
 const RADIO_VOLUME := 0.8                  # web VOL_DEFAULT.radio
 const RADIO_VOLUME_KEY := "volumeRadio"    # web profile.volumeRadio (Audio's key: autoloads aren't globals here)
+const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
+const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
+const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
+const RADIO_CODE_SETTLE_S := 1.0           # past the maximize transition and the bar's entrance
 const MODE_RADIO := "radio-"               # radio-ready / radio-playing: the docked mini-player (web capture fixture)
 const RADIO_PLAYING := "playing"
 const RADIO_FIXTURE := "web-radio-player%s.json"
@@ -517,6 +521,32 @@ func _apply_hud_fixture() -> int:
 			expanded.show_details(str(facts["rows"][1]["text"]), played, length_ms)
 		else:
 			expanded.show_state(RadioModel.NO_TRACK, true, false)
+		return SCREEN_FRAMES
+	if _mode.begins_with(MODE_RADIO_CODE):
+		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized
+		var code_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(code_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		code_menu.call("open_radio")
+		var code_player := code_menu.find_child("RadioPlayer", true, false) as RadioPlayer
+		code_player.set_expanded(true, false)
+		code_player.show_state(RadioModel.NO_TRACK, true, true)
+		var code_state := _mode.trim_prefix(MODE_RADIO_CODE)
+		var code_json := JSON.new()
+		var code_fs := _output.get_file().get_basename().ends_with(FULLSCREEN_SUFFIX)
+		var code_fixture := _output.get_base_dir().path_join(RADIO_CODE_FIXTURE % (FULLSCREEN_SUFFIX if code_fs else ""))
+		var panel := code_menu.call("code_panel") as RadioCodePanel
+		if FileAccess.file_exists(code_fixture) and code_json.parse(FileAccess.get_file_as_string(code_fixture)) == OK:
+			panel.show_code(str(code_json.data["open"]["program"]))
+		match RADIO_CODE_STATES.get(code_state, ""):
+			"copied":
+				panel.clipboard = func(_text: String) -> void: pass   # the capture leaves the clipboard alone
+				panel.copy()
+			"minimized":
+				panel.minimize_requested.emit()
+				code_player._process(RADIO_CODE_SETTLE_S)
+			"maximized":
+				panel.toggle_maximized()
+				panel._process(RADIO_CODE_SETTLE_S)
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO):
 		# web parity-capture-radio-player.mjs: the docked player with the engine ready, off or playing the web's track
