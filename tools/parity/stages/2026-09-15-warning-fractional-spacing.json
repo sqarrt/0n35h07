@@ -1,0 +1,115 @@
+{
+  "id": "2026-09-15-warning-fractional-spacing",
+  "title": "OneShot · FS4a: дробная разрядка заставки-предупреждения",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Первая часть хвоста дробной разрядки. Заставка-предупреждение, которую видно при каждом запуске, рисовала заголовок ⚠ WARNING и абзац с целой разрядкой (Godot 4.7 знает только целые `spacing_glyph`): буквы уходили на 1–2 px с каждым символом, и строки абзаца расходились с Chrome к краям. Теперь заголовок и значок — `GlowText.configure_css`, а каждая строка абзаца — `CssTextRun` на своей базовой линии, по центру с дробным левым краем, как `text-align: center`. Сверка — те же web-кадры, что в отчёте `2026-09-14-warning-splash`, на en, ru и zh-CN, 1280×720.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-warning-fractional-spacing.json`. Web: `test-results/parity-warning/<id>/web-warning.png` и факты `web-warning.json` (скрипт `parity-capture-warning.mjs`, 14.09). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720 -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-warning-fs4/<id>/godot-warning[-early].png 120 locale-<id>:profile:warning[-early]`. «До» — кадры Godot из `parity-warning/<id>/godot-warning.png` (14.09). Пиксели — среднее отличие каналов (0–255) по боксам `.warn-head`, `.warn-text`, `.warn-hint` из фактов web. Тесты GUT: `test_warning_splash` (6/6).",
+  "pages": [
+    {
+      "slug": "warning-fractional-spacing",
+      "name": "Заставка-предупреждение",
+      "verdict": "Для латиницы и кириллицы разрядка сошлась с Chrome: абзац en 21.15 → 6.07/255, ru 21.93 → 6.04; заголовок en 8.98 → 4.97, ru 13.60 → 5.89; подсказка en 4.91 → 2.37, ru 8.77 → 4.71. Переносы строк прежние (сверяются тестом). В zh-CN места знаков и строк совпадают, но Chrome рисует Microsoft YaHei плотнее: абзац 34.64 → 31.45/255 — это толщина глифов, не разрядка; подсказка zh-CN 10.07 → 15.79 — её сдвинули прошлые слайсы разрядки (FS2), в этом слайсе она не менялась.",
+      "verdict_short": "Разрядка заставки 1:1 для en/ru; CJK — толщина глифов",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["момент", "подсказка показана, пульс планеты 1000 мс", "`pin_clock_ms` 2400, `pin_pulse_ms` 1000"],
+        ["язык", "en / ru / zh-CN", "`locale-<id>:`"]
+      ],
+      "comparisons": [
+        {
+          "title": "en · заголовок (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-warning-fs4/crops/en-web-head.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning-fs4/crops/en-godot-head.png", "note": "4.97/255 (было 8.98)"}
+          ]
+        },
+        {
+          "title": "en · заголовок до слайса (×3)",
+          "panels": [
+            {"kind": "godot", "img": "parity-warning-fs4/crops/en-before-head.png", "note": "целая разрядка"}
+          ]
+        },
+        {
+          "title": "en · конец первой строки (×4)",
+          "wipe": true,
+          "note": "С целой разрядкой строка уходила вправо к концу.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning-fs4/crops/en-web-line-end.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning-fs4/crops/en-godot-line-end.png", "note": "абзац 6.07/255"}
+          ]
+        },
+        {
+          "title": "en · конец первой строки до слайса (×4)",
+          "panels": [
+            {"kind": "godot", "img": "parity-warning-fs4/crops/en-before-line-end.png", "note": "абзац 21.15/255"}
+          ]
+        },
+        {
+          "title": "en · центр",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-warning-fs4/crops/en-web-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning-fs4/crops/en-godot-centre.png", "note": "—"}
+          ]
+        },
+        {
+          "title": "ru · центр",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-warning-fs4/crops/ru-web-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning-fs4/crops/ru-godot-centre.png", "note": "абзац 6.04/255"}
+          ]
+        },
+        {
+          "title": "zh-CN · центр",
+          "wipe": true,
+          "note": "Места совпадают; иероглифы у Chrome плотнее.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning-fs4/crops/zh-CN-web-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning-fs4/crops/zh-CN-godot-centre.png", "note": "абзац 31.45/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "FS4a-1", "severity": "fixed",
+          "title": "Целая разрядка заголовка и абзаца",
+          "web": "`.warn-head` 19 px, 0.24em (4.56 px); `.warn-icon` наследует 4.56 px; `.warn-text` 17 px, 0.04em (0.68 px), строки по центру с дробным левым краем.",
+          "godot": "Было: `FontVariation.spacing_glyph` (целые px) и `TextLine` по центру с округлением. Стало: `GlowText.configure_css` для заголовка и значка (разрядка после последней буквы — у самого прогона), `CssTextRun` на каждую строку абзаца, центр строки = центр экрана.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/warning_splash.gd", "nodes/css_text_run.gd", "tests/unit/test_warning_splash.gd"]
+        },
+        {
+          "id": "FS4a-2", "severity": "visual",
+          "title": "Толщина иероглифов zh-CN",
+          "web": "DirectWrite рисует Microsoft YaHei с хинтингом — штрихи плотнее.",
+          "godot": "Места строк и знаков те же; штрихи тоньше (абзац 31.45/255). Общий бэклог отрисовки мелкого текста.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd"]
+        },
+        {
+          "id": "FS4a-3", "severity": "visual",
+          "title": "Подсказка zh-CN",
+          "web": "`.warn-hint` 14 px, 0.16em; чип 13 px.",
+          "godot": "15.79/255 против 10.07 в кадре 14.09: подсказку уже переводили на дробную разрядку в FS2, в этом слайсе она не менялась; разобрать в следующей волне вместе с CJK-шириной разрядки (`UiFont.control_spacing_em`).",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/menu_text.gd", "nodes/ui_font.gd"]
+        },
+        {
+          "id": "FS4a-4", "severity": "missing",
+          "title": "Остальной хвост разрядки",
+          "web": "Перебивки, титр и кнопка пропуска трейлера, тост приглашения, поля ввода (настройки, поиск друзей, имя бота) — с дробной разрядкой Chrome.",
+          "godot": "Следующие части FS4.",
+          "evidence": ["code"],
+          "sources": ["nodes/trailer_cut_view.gd", "nodes/trailer_title_card.gd", "nodes/trailer_skip_button.gd", "nodes/invite_toast.gd", "nodes/ui_text_field.gd"]
+        }
+      ],
+      "limitations": [
+        "Кадры «до» сняты 14.09 и включают изменения прошлых слайсов разрядки в подсказке.",
+        "Весь экран не снимался: разрядка считается в CSS px и не зависит от масштаба, проверено прежним отчётом о DPI."
+      ]
+    }
+  ]
+}
