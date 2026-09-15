@@ -1,12 +1,16 @@
 extends GutTest
-## RadioPlayer docked — web components/RadioPlayer collapsed on the menu screens: a 300 px glass card (12 / 16 px padding,
-## a 9 px gap) with the track name over prev / play-pause / next, shrunk to 0.8 into the corner 18 px from the right and
-## 44 px from the bottom; the transport dims to 0.45 until the engine is ready; the name opens the radio.
+## RadioPlayer — web components/RadioPlayer. Docked on the menu screens: a 300 px glass card (12 / 16 px padding, a 9 px
+## gap) with the track name over prev / play-pause / next, shrunk to 0.8 into the corner 18 px from the right and 44 px
+## from the bottom; the transport dims to 0.45 until the engine is ready; the name opens the radio. Expanded on the Radio
+## screen (window capture: the card [490, 423, 300, 209], its rows 13 / 39 / 61 / 88 / 135 / 176 px down, BACK 8 px
+## under it): centred along the bottom at full size, with the trial strip and the limit line added under the volume.
 
 const EPS := 0.01
 const SCREEN := Vector2i(1280, 720)
 const CARD := Vector2(300.0, 90.0)          # 12 + 17 (the 0.92rem line) + 9 + 38 + 12, a 1 px border twice
 const BUTTON_WIDTH := (300.0 - 2.0 * 16.0 - 2.0 * 1.0 - 2.0 * 8.0) / 3.0
+const ROW_TOPS := [13.0, 39.0, 61.0, 88.0, 135.0, 176.0]
+const SETTLE_S := 1.0
 
 func _player() -> RadioPlayer:
 	var viewport := SubViewport.new()
@@ -21,6 +25,13 @@ func _player() -> RadioPlayer:
 	await wait_process_frames(2)
 	return player
 
+func _expanded() -> RadioPlayer:
+	var player := await _player()
+	player.show_state("proc/warden", true, true)
+	player.show_details("126 BPM · E phrygian", 0.03, 137000.0)
+	player.set_expanded(true, false)
+	return player
+
 func test_the_card_docks_shrunk_into_the_corner() -> void:
 	var player := await _player()
 	assert_eq(player.card_box(), CARD)
@@ -28,6 +39,8 @@ func test_the_card_docks_shrunk_into_the_corner() -> void:
 	var shown := Rect2(player.global_position, CARD * RadioPlayer.COLLAPSED_SCALE)
 	assert_almost_eq(shown.end.x, SCREEN.x - RadioPlayer.RIGHT, EPS, "right: 18px, transform-origin bottom right")
 	assert_almost_eq(shown.end.y, SCREEN.y - RadioPlayer.BOTTOM, EPS, "bottom: 44px")
+	assert_false(player.back_bar().visible, "docked: no BACK")
+	assert_false(player.scrub().visible)
 
 func test_the_transport_fills_its_row() -> void:
 	var player := await _player()
@@ -42,9 +55,12 @@ func test_the_transport_fills_its_row() -> void:
 func test_dim_until_ready_and_the_play_glyph_follows_the_state() -> void:
 	var player := await _player()
 	assert_almost_eq(player.transport_row().modulate.a, RadioPlayer.DIM_OPACITY, EPS, "web dim: opacity 0.45")
+	assert_almost_eq(player.subtitle_label().modulate.a, RadioPlayer.DIM_OPACITY, EPS)
+	assert_eq(player.scrub().mouse_filter, Control.MOUSE_FILTER_IGNORE, "pointer-events: none")
 	assert_eq(player.title_text(), RadioModel.NO_TRACK)
 	player.show_state("Galvanic Worm IV", true, true)
 	assert_almost_eq(player.transport_row().modulate.a, 1.0, EPS)
+	assert_almost_eq(player.volume_row().modulate.a, 1.0, EPS, "the volume never dims")
 	assert_eq(player.title_text(), "Galvanic Worm IV")
 	assert_eq((player.transport_buttons()[1] as Button).text, RadioPlayer.PAUSE_GLYPH)
 
@@ -61,3 +77,74 @@ func test_controls_ask_for_actions() -> void:
 	assert_signal_emitted(player, "next_requested")
 	player.request_open()
 	assert_signal_emitted(player, "open_requested", "the collapsed name opens the radio")
+
+func test_expanded_rows_follow_chrome() -> void:
+	var player := await _expanded()
+	var rows: Array = [player.find_child("TrackName", true, false), player.subtitle_label(), player.scrub(),
+		player.transport_row(), player.find_child("AirRow", true, false), player.volume_row()]
+	for i in rows.size():
+		assert_almost_eq((rows[i] as Control).position.y, ROW_TOPS[i], EPS, "row %d" % i)
+	var expected := 26.0 + 17.0 + 13.0 + 18.0 + 38.0 + 32.0 + player.volume_row().row_height() + 5.0 * RadioPlayer.GAP
+	assert_almost_eq(player.card_box().y, expected, EPS, "web 209 with the 20 px pictogram line")
+	assert_eq(player.subtitle_label().text, "126 BPM · E phrygian")
+	assert_eq(player.scrub().times(), ["0:04", "2:17"])
+	assert_almost_eq(player.air_button().size.x, 224.0, EPS, "266 − 8 − the 34 px ball")
+	assert_almost_eq(player.ball_button().position.x, 232.0, EPS)
+
+func test_expanded_sits_centred_along_the_bottom_with_back_under_the_card() -> void:
+	var player := await _expanded()
+	await wait_process_frames(1)
+	assert_almost_eq(player.scale.x, 1.0, EPS)
+	assert_almost_eq(player.global_position.x, (SCREEN.x - RadioPlayer.WIDTH) * 0.5, EPS, "web card x 490")
+	assert_almost_eq(player.global_position.y + player.size.y, SCREEN.y - RadioPlayer.BOTTOM, EPS)
+	assert_true(player.back_bar().visible)
+	assert_almost_eq(player.back_bar().position.y, player.card_box().y + RadioPlayer.ROOT_GAP, EPS)
+	assert_eq(player.back_bar().button().text, "← %s" % I18n.t("settingsBack"))
+
+func test_the_subtitle_before_a_track_is_the_radios_name() -> void:
+	var player := await _player()
+	player.show_details("", 0.0, 0.0)
+	player.set_expanded(true, false)
+	assert_eq(player.subtitle_label().text, I18n.t("settingsVolRadio"))
+	assert_eq(player.scrub().times(), ["0:00", "0:00"])
+
+func test_the_trial_strip_and_the_limit_line_grow_the_card() -> void:
+	var player := await _expanded()
+	var plain := player.card_box().y
+	player.show_trial({"gens_left": 7, "saves_left": 4}, true, false)
+	assert_true(player.trial_row().visible)
+	assert_almost_eq(player.card_box().y, plain + RadioPlayer.GAP + RadioTrialRow.MARGIN_TOP
+		+ player.trial_row().row_height(), EPS, "web 247 with the strip")
+	player.show_trial({"gens_left": 0, "saves_left": 4}, true, true)
+	assert_true(player.limit_label().visible)
+	player.show_trial({}, false, false)
+	assert_false(player.trial_row().visible, "unlimited: no strip")
+	assert_almost_eq(player.card_box().y, plain, EPS)
+
+func test_expanded_controls_ask_for_actions() -> void:
+	var player := await _expanded()
+	watch_signals(player)
+	player.scrub().seek_requested.emit(0.5)
+	player.volume_row().volume_changed.emit(0.3)
+	player.ball_button().pressed.emit()
+	player.air_button().pressed.emit()
+	player.back_bar().pressed.emit()
+	player.show_trial({"gens_left": 7, "saves_left": 4}, true, false)
+	player.trial_row().unlock_requested.emit()
+	assert_signal_emitted_with_parameters(player, "seek_requested", [0.5])
+	assert_signal_emitted_with_parameters(player, "volume_changed", [0.3])
+	assert_signal_emitted(player, "ball_toggled")
+	assert_signal_emitted(player, "air_requested")
+	assert_signal_emitted(player, "back_requested")
+	assert_signal_emitted(player, "unlock_requested")
+	player.show_ball_hidden(true)
+	assert_eq(player.ball_button().text, RadioPlayer.BALL_HIDDEN)
+
+func test_the_move_between_dock_and_screen_is_a_transition() -> void:
+	var player := await _player()
+	player.set_expanded(true)
+	player._process(RadioPlayer.EXPAND_S * 0.5)
+	assert_between(player.scale.x, RadioPlayer.COLLAPSED_SCALE + EPS, 1.0 - EPS, "half way through the .34 s transform")
+	player._process(SETTLE_S)
+	assert_almost_eq(player.scale.x, 1.0, EPS)
+	assert_almost_eq(player.global_position.x, (SCREEN.x - RadioPlayer.WIDTH) * 0.5, EPS)

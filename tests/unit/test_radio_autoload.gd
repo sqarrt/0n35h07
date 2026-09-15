@@ -9,6 +9,8 @@ const CMD := "cmd"
 const GATE := "gate"
 const INIT := "init"
 const RESUME := "resume"
+const SEEK := "seek"
+const VOLUME := "volume"
 const PAGE_READY := '{"event":"ready"}'
 const ENGINE_READY := '{"event":"init-state","state":"ready"}'
 const GENERATED := '{"event":"generated"}'
@@ -96,3 +98,31 @@ func test_buying_the_dlc_reopens_the_gate_and_resumes() -> void:
 	assert_eq(made[1].commands()[0]["canGenerate"], true)
 	assert_true(names.has(RESUME), "the halted stream starts again")
 	assert_eq(Game.profile[RadioRights.KEY_OWNED], true)
+
+func test_a_seek_moves_the_bar_at_once() -> void:
+	var made := _radio(0)
+	made[0].warm_up()
+	made[1].deliver(PAGE_READY)
+	made[1].sent.clear()
+	made[0].seek(0.5)
+	assert_eq(_names(made[1]), [SEEK])
+	assert_eq(made[0].model.progress, 0.5, "web setRadioProgress before the next poll")
+
+func test_the_volume_reaches_the_engine() -> void:
+	var made := _radio(0)
+	made[0].warm_up()
+	made[1].deliver(PAGE_READY)
+	made[1].sent.clear()
+	made[0].apply_volume()
+	assert_eq(_names(made[1]), [VOLUME])
+
+func test_the_trial_strip_and_the_daily_limit() -> void:
+	var made := _radio(RadioEntitlement.FREE_GENS_PER_DAY)
+	var radio = made[0]
+	assert_eq(radio.trial_strip(), {}, "not known before Steam answers")
+	radio.warm_up()
+	assert_eq(radio.trial_strip(), {"gens_left": 0, "saves_left": RadioEntitlement.FREE_SAVES_PER_DAY})
+	assert_true(radio.can_unlock())
+	assert_false(radio.gen_limited(), "switched off: no limit line")
+	Game.profile[RADIO.KEY_ENABLED] = true
+	assert_true(radio.gen_limited())

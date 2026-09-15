@@ -1,0 +1,125 @@
+{
+  "id": "2026-09-15-radio-screen",
+  "title": "OneShot · радио R3a: экран радио и развёрнутый плеер",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R3a подпроекта «радио». Кнопка RADIO и имя трека в мини-плеере открывают экран радио web: панель меню уходит, фон встаёт в позу настроек, плеер переезжает из угла в центр внизу и разворачивается — подпись BPM · тональность, полоса позиции с временем и перемоткой, транспорт, «Эфир» и кнопка шара (камера уводит взгляд вверх), громкость радио, полоса пробного режима с кнопкой разблокировки и стеклянная кнопка BACK. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %); полосу пробного режима web показывает только в production-сборке.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-screen.json`. Web: `web-reference/scripts/parity-capture-radio-screen.mjs` (десктопная заглушка, autoplay, клик по имени в мини-плеере; `PARITY_FULLSCREEN=1` — весь экран; `PARITY_TRIAL=3` на `vite build` + `vite preview` — пробный режим) → `test-results/parity-radio3/web-radio-screen-*.png` + факты `.json`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio3/godot-radio-screen-<state>[-fs].png 120 locale-en:radio-screen-<ready|playing|trial>` (имя, подпись и позиция — из фактов web). Разница — средняя по каналам в коробке плеера с BACK. Метрики шрифтов: `tools/probes/fallback_face_probe.gd`. Тесты GUT: `test_radio_player`, `test_radio_scrub`, `test_radio_volume_row`, `test_radio_trial_row`, `test_radio_glass_button`, `test_ui_range`, `test_ui_controls`, `test_system_font_metrics`, `test_menu_camera_rig_hide_ball`, `test_radio_player_format`, `test_radio_autoload`, `test_main_menu`, `test_css_button`.",
+  "pages": [
+    {
+      "slug": "radio-screen",
+      "name": "Экран радио",
+      "verdict": "Развёрнутый плеер совпадает с web: карточка 300 px в центре внизу, строки на 13 / 39 / 61 / 88 / 135 / 176 px от её верха, BACK 36 px на 8 px ниже. Разница в окне — 1.15/255 (выключено), 1.60 (играет), 1.50 (пробный режим); на весь экран — 1.22 и 1.74. По строкам: громкость 0.98, BACK 1.17, транспорт 2.33, «Эфир» 2.99; центроиды надписей BACK −0.11 px, «On Air» −0.14, ◉ −0.02 по x, ⏮ +0.31, текст пробной полосы +0.26. До исправлений метрик те же кадры давали 6.46 и 5.36: карточка была на 3 px ниже.",
+      "verdict_short": "Экран радио 1:1 в окне и на весь экран",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["экран", "RADIO после клика по имени, холсты скрыты, панель кода слева (в кадр не входит)", "`open_radio()`, фон скрыт, плеер развёрнут без анимации"],
+        ["язык", "профиль паритета `en`", "`locale-en:`"],
+        ["«играет»", "первый трек, позиция 0:04", "имя, подпись и доля позиции из фактов web"],
+        ["пробный режим", "`vite build` + `vite preview`: DLC нет (кэш), 3 генерации и 1 сохранение сегодня", "`rights.dev_unlimited = false`, DLC нет, тот же профиль"],
+        ["громкость", "0.8 (по умолчанию)", "0.8"]
+      ],
+      "comparisons": [
+        {
+          "title": "Выключено, окно (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio3-report/web-ready.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio3-report/godot-ready.png", "note": "1.15/255"}
+          ]
+        },
+        {
+          "title": "Играет, окно (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio3-report/web-playing.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio3-report/godot-playing.png", "note": "1.60/255"}
+          ]
+        },
+        {
+          "title": "Пробный режим, окно (×3)",
+          "wipe": true,
+          "note": "Сборка preview: в dev web снимает лимит.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio3-report/web-trial.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio3-report/godot-trial.png", "note": "1.50/255"}
+          ]
+        },
+        {
+          "title": "Выключено, весь экран 3840×2160 (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio3-report/web-ready-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio3-report/godot-ready-fs.png", "note": "1.22/255"}
+          ]
+        },
+        {
+          "title": "Играет, весь экран 3840×2160 (×2)",
+          "wipe": true,
+          "note": "Трек proc/aquifer, позиция 0:03.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio3-report/web-playing-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio3-report/godot-playing-fs.png", "note": "1.74/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R3a-1", "severity": "fixed",
+          "title": "Развёрнутый плеер и экран радио",
+          "web": "`RadioPlayer` expanded: карточка glass.ts, строки с зазором 9 px, BACK под ней; `translateX(calc(-50vw + 50% + 18px)) scale(1)` за 0.34 s `cubic-bezier(0.2, 0.8, 0.2, 1)`; на экране `radio` нет панели меню, фон — поза settings.",
+          "godot": "`RadioPlayer.set_expanded` на `CssTransition`; строки `RadioScrub`, `RadioVolumeRow` (`UiRange`, выделенный из `UiSlider`), `RadioTrialRow`, `RadioGlassButton`; `MainMenu.open_radio` / `close_radio`, перемотка и громкость через `Radio.seek` / `apply_volume`, шар — `MenuCameraRig.hide_ball` (0.7 s линейно, взгляд +12).",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_player.gd", "nodes/radio/radio_scrub.gd", "nodes/radio/radio_volume_row.gd", "nodes/radio/radio_trial_row.gd", "nodes/radio/radio_glass_button.gd", "nodes/ui_range.gd", "nodes/main_menu.gd", "sim/menu_camera_rig.gd"]
+        },
+        {
+          "id": "R3a-2", "severity": "fixed",
+          "title": "Высота строки с системным фолбэком: карточка ниже на 3 px",
+          "web": "Chrome на Windows (Skia/DirectWrite) строит `line-height: normal` у системного шрифта по OS/2: winAscent/winDescent, либо typo, если стоит USE_TYPO_METRICS. Строка 🔊 (Segoe UI Emoji, 1.079 / 0.251 em) при 15.2 px — 20 px.",
+          "godot": "FreeType отдаёт hhea (0.728 / 0.210): строка 17 px, карточка на 3 px ниже, всё над громкостью сдвинуто. `SystemFontMetrics` читает OS/2 из файла шрифта; `UiFont.fallback_line_px` / `fallback_ascent_px` — строки громкости, BACK (← из Microsoft YaHei, базовая линия 23) и текста пробной полосы (+1.7 px → +0.26).",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["nodes/system_font_metrics.gd", "nodes/ui_font.gd", "tools/probes/fallback_face_probe.gd", "tests/unit/test_system_font_metrics.gd"]
+        },
+        {
+          "id": "R3a-3", "severity": "fixed",
+          "title": "Cambria Math открывался как Cambria",
+          "web": "◉ и ⟳ Chrome берёт из Cambria Math — второй грани `cambria.ttc`.",
+          "godot": "`SystemFont(\"Cambria Math\")` грузил первую грань коллекции (Cambria): ◉ мельче и правее на 1.5 px. Грань коллекции теперь находится по имени в таблице `name` и открывается `FontVariation.variation_face_index`; `mirror_fallbacks` переносит индекс.",
+          "evidence": ["runtime", "screenshot"],
+          "sources": ["nodes/ui_font.gd", "nodes/system_font_metrics.gd"]
+        },
+        {
+          "id": "R3a-4", "severity": "fixed",
+          "title": "Базовая линия при `line-height: 1`",
+          "web": "Blink: строка по центру ячейки, округлённый ascent плюс полу-интерлиньяж, округлённый вниз.",
+          "godot": "`CssButton` считал по неокруглённым метрикам: «On Air» был на 0.86 px ниже. Новая формула — −0.14 px; транспорт при 16.8 px не изменился (24).",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/css_button.gd", "tests/unit/test_css_button.gd"]
+        },
+        {
+          "id": "R3a-5", "severity": "visual",
+          "title": "Мелкий текст и цветные эмодзи",
+          "web": "Chrome ставит текст по вертикали дробно; 💾 и 🔊 — цветные глифы Segoe UI Emoji.",
+          "godot": "Godot рисует строку на целом пикселе: буквы имени и подписи расходятся на 0–1 px (разница по строке 5.9 и 7.8/255 при центроидах ±0.6 px); 💾 чуть крупнее и ярче.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        },
+        {
+          "id": "R3a-6", "severity": "missing",
+          "title": "Панель кода, takeover, библиотека",
+          "web": "Окно PROGRAM с кодом Strudel, бит-часы с камерой и дождём эмодзи, мягкое свечение, проводник библиотеки и полосы LIBRARY / PROGRAM над плеером, режим «избранное».",
+          "godot": "Слайсы R3b (панель кода), R3c (takeover), R4 (библиотека). Строка «лимит генераций исчерпан» сделана и покрыта тестом, но в кадр не снималась.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioCodePanel.tsx", "web-reference/src/components/radioTakeover/RadioTakeover.tsx", "web-reference/src/components/RadioExplorer.tsx"]
+        }
+      ],
+      "limitations": [
+        "В кадре «играет» трек в Godot не звучал: имя, подпись и позиция взяты из фактов web.",
+        "Анимация перехода из угла в центр проверена тестом (промежуточный масштаб, итоговое место), кадрами не сравнивалась.",
+        "Наведение и перетаскивание не сверялись: у кнопок web нет hover-вида, у ползунка — только подсветка бегунка.",
+        "Панель кода web слева в кадр плеера не попадает, но на полном кадре она есть — сравнивались только коробки плеера."
+      ]
+    }
+  ]
+}

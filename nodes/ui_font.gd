@@ -31,6 +31,7 @@ const DESCENT_EM := 0.242
 
 static var _base: FontFile
 static var _bases_with := {}                  # "family,family" -> the base face with those system fallbacks
+static var _systems := {}                     # "family,family" -> the system face of that list
 static var _measure_fonts := {}                # face -> its unspaced variation at MEASURE_PX
 
 ## The shared base face (Latin + Cyrillic fallback).
@@ -53,12 +54,37 @@ static func base_with(families: Array) -> FontFile:
 	if not _bases_with.has(key):
 		TranslationServer.set_locale(SYSTEM_FALLBACK_LOCALE)
 		var face := (load(LATIN) as FontFile).duplicate() as FontFile
-		var system := SystemFont.new()
-		system.font_names = PackedStringArray(families)
-		var fallbacks: Array[Font] = [load(CYRILLIC) as Font, system]
+		var fallbacks: Array[Font] = [load(CYRILLIC) as Font, system_face(families)]
 		face.fallbacks = fallbacks
 		_bases_with[key] = face
 	return _bases_with[key]
+
+## The system face of `families` (the first one installed), one per family list — base_with's fallback, and the face a
+## line box takes its metrics from.
+static func system_face(families: Array) -> Font:
+	var key := ",".join(families)
+	if not _systems.has(key):
+		var face: Font = _collection_face(families[0]) if not families.is_empty() else null
+		if face == null:
+			var system := SystemFont.new()
+			system.font_names = PackedStringArray(families)
+			face = system
+		_systems[key] = face
+	return _systems[key]
+
+## A family that is a later face of its collection file (Cambria Math in cambria.ttc), opened by its index: SystemFont
+## would draw the collection's first face (Cambria). null for any other family.
+static func _collection_face(family: String) -> Font:
+	var index := SystemFontMetrics.face_index(family)
+	if index <= 0:
+		return null
+	var file := FontFile.new()
+	if file.load_dynamic_font(OS.get_system_font_path(family)) != OK:
+		return null
+	var face := FontVariation.new()
+	face.base_font = file
+	face.variation_face_index = index
+	return face
 
 ## The letter spacing of a `.btn` / `.seg` label in the active locale (an inline letter spacing keeps its own).
 static func control_spacing_em(latin_em: float) -> float:
@@ -124,7 +150,11 @@ static func mirror_fallbacks(variation: FontVariation) -> void:
 	var mirrored: Array[Font] = []
 	for fallback in variation.base_font.fallbacks:
 		var copy := FontVariation.new()
-		copy.base_font = fallback
+		if fallback is FontVariation:   # a collection's face: the same file and face, not a variation of a variation
+			copy.base_font = (fallback as FontVariation).base_font
+			copy.variation_face_index = (fallback as FontVariation).variation_face_index
+		else:
+			copy.base_font = fallback
 		copy.spacing_glyph = variation.spacing_glyph
 		copy.variation_embolden = variation.variation_embolden
 		mirrored.append(copy)
@@ -154,9 +184,39 @@ static func with_face_line(variation: FontVariation, font_size: int, face: Font)
 ## Chrome's `line-height: normal` box for a line that also draws glyphs from `face` (a system fallback such as the ▸ in
 ## Consolas): the larger of the two faces' ascents and of their descents, each rounded to a pixel.
 static func mixed_line_px(css_px: float, face: Font) -> int:
-	var ascent := maxi(roundi(ASCENT_EM * css_px), roundi(face.get_ascent(MEASURE_PX) * css_px / MEASURE_PX))
-	var descent := maxi(roundi(DESCENT_EM * css_px), roundi(face.get_descent(MEASURE_PX) * css_px / MEASURE_PX))
-	return ascent + descent
+	return mixed_ascent_px(css_px, face) + mixed_descent_px(css_px, face)
+
+## That line box's baseline from its top: the larger rounded ascent.
+static func mixed_ascent_px(css_px: float, face: Font) -> int:
+	return maxi(roundi(ASCENT_EM * css_px), roundi(face.get_ascent(MEASURE_PX) * css_px / MEASURE_PX))
+
+static func mixed_descent_px(css_px: float, face: Font) -> int:
+	return maxi(roundi(DESCENT_EM * css_px), roundi(face.get_descent(MEASURE_PX) * css_px / MEASURE_PX))
+
+## A line of the UI font that also draws glyphs from system `families`, with those faces' metrics as Chrome reads them
+## (SystemFontMetrics: OS/2 win or typo, not Godot's hhea) — Godot's own where no font file can be read.
+static func fallback_line_px(css_px: float, families: Array) -> int:
+	return fallback_ascent_px(css_px, families) + fallback_descent_px(css_px, families)
+
+static func fallback_ascent_px(css_px: float, families: Array) -> int:
+	return maxi(roundi(ASCENT_EM * css_px), roundi(_fallback_em(families).x * css_px))
+
+static func fallback_descent_px(css_px: float, families: Array) -> int:
+	return maxi(roundi(DESCENT_EM * css_px), roundi(_fallback_em(families).y * css_px))
+
+## The largest ascent and descent (em) among the families' faces.
+static func _fallback_em(families: Array) -> Vector2:
+	var largest := Vector2.ZERO
+	var read := false
+	for family in families:
+		var metrics := SystemFontMetrics.line_em(family)
+		if not metrics.is_empty():
+			read = true
+			largest = largest.max(Vector2(metrics[SystemFontMetrics.ASCENT], metrics[SystemFontMetrics.DESCENT]))
+	if read:
+		return largest
+	var face := system_face(families)
+	return Vector2(face.get_ascent(MEASURE_PX), face.get_descent(MEASURE_PX)) / MEASURE_PX
 
 static func _px(font_size: int, css_px: float) -> float:
 	return css_px if css_px > 0.0 else float(font_size)

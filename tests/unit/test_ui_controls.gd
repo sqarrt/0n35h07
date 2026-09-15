@@ -40,8 +40,9 @@ func test_slider_drags_in_whole_percents() -> void:
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
 	var track := slider.track_rect()
-	press.position = Vector2(track.position.x + track.size.x * 0.5, track.get_center().y)
-	slider._gui_input(press)
+	var range_input := slider.range_input()
+	press.position = Vector2(track.position.x + track.size.x * 0.5, track.get_center().y) - range_input.position
+	range_input._gui_input(press)
 	assert_signal_emitted(slider, "value_changed")
 	assert_eq(slider.value * UiSlider.PERCENT_MAX, roundf(slider.value * UiSlider.PERCENT_MAX), "whole percents")
 	assert_almost_eq(slider.value, 0.5, 0.011)

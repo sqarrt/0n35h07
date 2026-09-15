@@ -155,3 +155,42 @@ func test_radio_between_about_and_quit_and_its_player_in_the_corner() -> void:
 	var player := _control(menu, "RadioPlayer") as RadioPlayer
 	assert_true(player.visible, "the mini-player lives on every menu screen")
 	assert_gt(player.get_index(), _control(menu, "Version").get_index(), "above the version chip")
+
+func test_radio_takes_over_and_back_returns_the_menu() -> void:
+	var menu := await _menu()
+	menu.open_radio()
+	assert_true(menu.is_radio_open())
+	assert_false(_control(menu, "Panel").visible, "web: the Radio screen has no .screen panel")
+	assert_true(menu.radio_player().is_expanded())
+	assert_eq(menu.backdrop().rig.state(), MenuCameraRig.state_for(MenuCameraRig.SCREEN_SETTINGS, GameModes.DUEL, false))
+	menu.radio_player().back_requested.emit()
+	assert_false(menu.is_radio_open())
+	assert_true(_control(menu, "Panel").visible)
+	assert_false(menu.radio_player().is_expanded())
+
+func test_the_docked_name_opens_the_radio_and_another_screen_closes_it() -> void:
+	var menu := await _menu()
+	menu.radio_player().open_requested.emit()
+	assert_true(menu.is_radio_open())
+	menu.open_settings()
+	assert_false(menu.is_radio_open(), "another screen ends the takeover")
+	assert_true(_control(menu, "Panel").visible)
+
+func test_the_ball_toggle_tilts_the_camera_and_entering_shows_the_ball() -> void:
+	var menu := await _menu()
+	menu.open_radio()
+	menu.radio_player().ball_toggled.emit()
+	assert_true(menu.backdrop().rig.hide_ball)
+	assert_eq(menu.radio_player().ball_button().text, RadioPlayer.BALL_HIDDEN)
+	menu.close_radio()
+	menu.open_radio()
+	assert_false(menu.backdrop().rig.hide_ball, "web: re-entering the radio shows the ball again")
+
+func test_the_volume_is_the_profiles_radio_level() -> void:
+	var menu := await _menu()
+	menu.profile_saving = false
+	var before = Game.profile.get(Audio.KEY_RADIO)
+	menu.open_radio()
+	menu.radio_player().volume_changed.emit(0.25)
+	assert_eq(Game.profile[Audio.KEY_RADIO], 0.25)
+	Game.profile[Audio.KEY_RADIO] = before

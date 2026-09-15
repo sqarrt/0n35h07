@@ -38,6 +38,9 @@ extends SceneTree
 ##   steam-<state>     the desktop Play screen on a fake Steam (web parity-capture-lobby-steam.mjs): toast (an invite over
 ##                     the menu), idle (the hosted Private lobby), picker (INVITE A FRIEND open), invited (Bob waiting on
 ##                     seat 1, the pulse held at its peak) or searching (SEARCH pressed); -bottom scrolls. Use with profile:.
+##   radio-screen-<state>  the Radio screen with the expanded player (web parity-capture-radio-screen.mjs), the backdrop
+##                     hidden: ready (off, "—"), playing (the web's track, subtitle and position from
+##                     web-radio-screen[-fs].json) or trial (off, the free-trial strip: DLC not owned, 3 generations used)
 ##   radio-<state>     the desktop menu with its Radio mini-player docked (web parity-capture-radio-player.mjs), the backdrop
 ##                     hidden: ready (the engine up, the radio off, "—") or playing (the name from web-radio-player.json
 ##                     next to the output PNG); a -s tool hosts no engine, so the player's state is set directly.
@@ -144,6 +147,15 @@ const APPEARANCE_CELL := Vector2i(8, 8) # web PAINT_CELL
 const MODE_SETTINGS := "settings-"     # settings-<tab>: the desktop SETTINGS on player / sound / graphics
 const MODE_ABOUT := "about"
 const MODE_DESKTOP_MENU := "desktop-menu"   # the desktop menu (QUIT, no F11 hint), the backdrop hidden
+const MODE_RADIO_SCREEN := "radio-screen-" # radio-screen-ready / -playing / -trial: the Radio screen's expanded player
+const RADIO_SCREEN_FIXTURE := "web-radio-screen%s.json"
+const RADIO_TRIAL := "trial"
+const RADIO_TRIAL_SUFFIX := "-trial"
+const RADIO_READY := "ready"
+const RADIO_TRIAL_GENS := 3                # web PARITY_TRIAL: today's generations used
+const RADIO_TRIAL_SAVES := 1
+const RADIO_VOLUME := 0.8                  # web VOL_DEFAULT.radio
+const RADIO_VOLUME_KEY := "volumeRadio"    # web profile.volumeRadio (Audio's key: autoloads aren't globals here)
 const MODE_RADIO := "radio-"               # radio-ready / radio-playing: the docked mini-player (web capture fixture)
 const RADIO_PLAYING := "playing"
 const RADIO_FIXTURE := "web-radio-player%s.json"
@@ -471,6 +483,40 @@ func _apply_hud_fixture() -> int:
 		# web parity-capture-settings.mjs web-menu: the desktop menu, the backdrop canvases hidden
 		var desktop_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
 		(desktop_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		return SCREEN_FRAMES
+	if _mode.begins_with(MODE_RADIO_SCREEN):
+		# web parity-capture-radio-screen.mjs: the Radio screen's expanded player, the canvases hidden
+		var takeover: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(takeover.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		var screen_state := _mode.trim_prefix(MODE_RADIO_SCREEN)
+		var on_trial := screen_state == RADIO_TRIAL
+		var profile: Dictionary = root.get_node("Game").profile   # autoload nodes (not compile-time globals here)
+		var radio_node := root.get_node("Radio")
+		profile[RADIO_VOLUME_KEY] = RADIO_VOLUME
+		if on_trial:
+			radio_node.rights.dev_unlimited = false   # an editor run is the web's dev build: unlimited
+			radio_node.rights.resolve(profile, false)
+			profile[RadioRights.KEY_TRIAL] = {RadioEntitlement.DAY: radio_node.today.call(),
+				RadioEntitlement.GENS: RADIO_TRIAL_GENS, RadioEntitlement.SAVES: RADIO_TRIAL_SAVES}
+		takeover.call("open_radio")
+		var expanded := takeover.find_child("RadioPlayer", true, false) as RadioPlayer
+		expanded.set_expanded(true, false)
+		var screen_json := JSON.new()
+		var fullscreen_shot := _output.get_file().get_basename().ends_with(FULLSCREEN_SUFFIX)
+		var screen_fixture := _output.get_base_dir().path_join(RADIO_SCREEN_FIXTURE
+			% ((RADIO_TRIAL_SUFFIX if on_trial else "") + (FULLSCREEN_SUFFIX if fullscreen_shot else "")))
+		var facts := {}
+		if FileAccess.file_exists(screen_fixture) and screen_json.parse(FileAccess.get_file_as_string(screen_fixture)) == OK:
+			facts = screen_json.data.get(RADIO_READY if on_trial else screen_state, {})
+		if screen_state == RADIO_PLAYING and not facts.is_empty():
+			var rail_width := float(facts["radio-scrub"]["box"][2])
+			var played := float(facts["radio-scrub-fill"]["box"][2]) / rail_width
+			var length := str(facts["times"][1]).split(":")
+			var length_ms := (int(length[0]) * RadioPlayerFormat.SEC_PER_MIN + int(length[1])) * RadioPlayerFormat.MS_PER_SEC
+			expanded.show_state(str(facts["radio-track-name"]["text"]), true, true)
+			expanded.show_details(str(facts["rows"][1]["text"]), played, length_ms)
+		else:
+			expanded.show_state(RadioModel.NO_TRACK, true, false)
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO):
 		# web parity-capture-radio-player.mjs: the docked player with the engine ready, off or playing the web's track
