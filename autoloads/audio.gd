@@ -13,6 +13,8 @@ const KEY_SFX := "volumeSfx"
 const KEY_MENU_MUSIC := "volumeMenuMusic"
 const KEY_RADIO := "volumeRadio"
 
+signal volumes_applied                         # the profile's volumes were re-read: the radio follows (web App effect)
+
 var analysis := AudioAnalysisHub.new()
 var debug_bands := PackedFloat32Array()        # parity fixtures: a fixed spectrum instead of the live sound
 
@@ -57,6 +59,7 @@ func apply_volumes() -> void:
 		_menu_music.set_user_gain(menu_music_gain())
 	if _trailer_music != null:
 		_trailer_music.set_user_gain(master_gain())
+	volumes_applied.emit()
 
 func music_gain() -> float:
 	return _volume(KEY_MASTER) * _volume(KEY_MUSIC)

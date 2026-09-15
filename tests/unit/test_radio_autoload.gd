@@ -117,6 +117,14 @@ func test_the_volume_reaches_the_engine() -> void:
 	made[0].apply_volume()
 	assert_eq(_names(made[1]), [VOLUME])
 
+func test_any_volume_slider_reaches_the_page_at_once() -> void:
+	var made := _radio(0)
+	made[0].warm_up()
+	made[1].deliver(PAGE_READY)
+	made[1].sent.clear()
+	Audio.apply_volumes()   # SETTINGS, the pause panel and the player's slider all save and re-apply the volumes
+	assert_eq(_names(made[1]), [VOLUME], "web App: master × radio follows the profile without a player action")
+
 func test_the_pages_meter_reaches_the_menus_audio_analysis() -> void:
 	var made := _radio(0)
 	var radio = made[0]
