@@ -24,6 +24,8 @@ Requirement: **all visuals and functionality must be reproduced 1:1**.
   (the Steam depot layout; needs the Godot export templates in `%APPDATA%\Godot\export_templates\4.7.1.stable`). The
   preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
   Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
+- Steam upload (steamcmd on PATH or `$env:STEAMCMD`): `./scripts/upload_steam.ps1 -App 4881310 -User <login> [-Branch
+  default] [-DryRun]` — SteamPipe VDFs for `release/windows` (Playtest app: `-App 4888710`).
 - The web reference builds from `web-reference/` (its own `package.json`).
 - CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless (`scripts/godot.sh` honours `$GODOT_BIN`)
   plus the web reference's lint / types / unit / build inside `web-reference/`; Pages deploy and Dependabot follow it there.
