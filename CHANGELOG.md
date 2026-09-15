@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The Radio screen's frosted glow.** On the Radio screen the menu backdrop turns into the original's frosted glass: the
   whole scene blooms softly, brighter with the music, and the ball's edges glow stronger (even with the menu glow
   setting off). The Radio's sound now drives the menu glow on every menu screen, as in the original.
+- **The Radio screen dances.** As in the original, the camera punches in on every beat of the track and emoji picked
+  by the track's mood rain down from the top of the screen, born on the beat.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

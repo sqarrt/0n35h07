@@ -1,0 +1,6 @@
+Twemoji.Mozilla.ttf — the COLR emoji font the web build ships in public/fonts (web-reference/public/fonts), used by the
+Radio screen's emoji rain.
+
+Twemoji Mozilla (https://github.com/mozilla/twemoji-colr): the emoji artwork is Twemoji by Twitter, Inc and other
+contributors, licensed under CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/); the font build is by Mozilla,
+licensed under the Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0).

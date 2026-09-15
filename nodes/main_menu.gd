@@ -34,6 +34,8 @@ const RADIO_KEY := "settingsVolRadio"         # web borrows the settings volume 
 const QUIT_KEY := "menuExit"
 const SCREEN_RADIO := "radio"
 const CODE_KEY := "strudelCode"               # web MusicalState.strudelCode: the program the PROGRAM window shows
+const MOOD_KEY := "mood"                      # web radioMode.mood / bpm: what the takeover beats and rains to
+const BPM_KEY := "bpm"
 const HINT_KEY := "menuFullscreenHint"     # browser only
 const SMALL_FONT_SIZE := 11                # .menu-hint / .version-chip
 const SMALL_SPACING_EM := 0.16
@@ -635,6 +637,8 @@ func _on_radio_changed() -> void:
 	_radio_player.show_trial(Radio.trial_strip(), Radio.can_unlock(), _radio_open and Radio.gen_limited())
 	if _code_panel != null:
 		_code_panel.show_code(str(Radio.model.musical_state.get(CODE_KEY, "")))
+	_backdrop.radio_mood = str(Radio.model.musical_state.get(MOOD_KEY, ""))
+	_backdrop.radio_bpm = float(Radio.model.musical_state.get(BPM_KEY, MenuBackdrop.RADIO_DEFAULT_BPM))
 	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):
 		Audio.play_menu_music()
 	else:

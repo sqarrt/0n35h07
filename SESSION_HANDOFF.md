@@ -184,8 +184,13 @@ Blink `assets/text/chrome_line_breaks.json` — 816/816 строк как у Chr
 порог 0, радиус 0.95, 0.35 + 1.4·√(1.6·level), края ×1.8), `MenuBackdrop.radio_mode`, `BloomChain.set_threshold/
 set_radius`; метр радио ×12 в `AudioAnalysisHub.add_level_reader`. Кадры `locale-en:profile:radio-glow-<menu|radio>`,
 web `parity-capture-radio-glow.mjs` (закрепления + тихий `__debugAudioBands`). Отчёт `2026-09-15-radio-glow-*`:
-0.03–0.09/255. GUT 885/885. **Дальше:** (1) R3c2 бит-часы, панч камеры, дождь эмодзи (Twemoji Mozilla из
-`web-reference/public/fonts`), R4 библиотека (лимит сохранений `note_saved`, полоса LIBRARY), R5 матч/свечение;
+0.03–0.09/255. GUT 885/885. **R3c2 смержен** (`feature/godot-radio-beat`): `RadioBeatClock`, `RadioCameraPunch`,
+`RadioEmojiRain` (Label3D + `assets/fonts/Twemoji.Mozilla.ttf`), `RadioEmojiMoods`, `RadioTakeover` в
+`MenuBackdrop` (после рига; `pin_beat_bands` для кадров); `AudioAnalysisHub.fill_bands` + 8 полос метра от `Radio`.
+Живая проба `tools/probes/radio_takeover_probe.tscn` (синтетический удар, без звука): 45/46 битов, до 22 эмодзи.
+На тихой громкости радио нижние полосы движка насыщены — битов нет, как у web. Отчёт `2026-09-15-radio-beat-*`.
+GUT 904/904. **Дальше:** (1) R4 библиотека (проводник `RadioExplorer` на `RadioWindow`, визуализатор, лимит
+сохранений `note_saved`, полоса LIBRARY, режим «избранное»), R5 радио в матче / Rich Presence;
 (1б) хинтинг мелкого текста (CssTextRun мягче DirectWrite на 11–12 px); (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
