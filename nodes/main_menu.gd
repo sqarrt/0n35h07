@@ -672,11 +672,10 @@ func _restore_code() -> void:
 func radio_player() -> RadioPlayer:
 	return _radio_player
 
-## web onVolume: the radio level saved in the profile and sent to the engine.
+## web onVolume: the radio level saved in the profile; applying the volumes sends it to the engine.
 func _set_radio_volume(value: float) -> void:
 	Game.profile[Audio.KEY_RADIO] = value
 	_save_profile(Game.profile)
-	Radio.apply_volume()
 
 ## web onToggleBall: the camera tilts off the ball, or back.
 func _toggle_ball() -> void:

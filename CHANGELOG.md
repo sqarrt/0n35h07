@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   accepting leaves the trailer for the friend's lobby.
 - **Buttons no longer answer the keyboard.** As in the original, Tab does not walk the menu buttons and Space or Enter
   never press a button that was just clicked.
+- **The radio follows every volume slider.** Master and radio volume changed in SETTINGS or in the pause settings now
+  change the radio at once, as in the original, not only the player's own slider.
 - **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
   original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
   slot no longer takes a pixel, so names, frags and totals sit where the original has them.

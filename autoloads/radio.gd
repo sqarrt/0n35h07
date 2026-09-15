@@ -46,6 +46,7 @@ func _ready() -> void:
 	rights = RadioRights.new(Game.profile, OS.has_feature(EDITOR_FEATURE))
 	rights.changed.connect(_apply_gate)
 	SteamBridge.overlay_closed.connect(recheck_dlc)
+	Audio.volumes_applied.connect(apply_volume)   # web App: master × radio follows every volume slider at once
 	if DisplayStartup.is_tool_run(OS.get_cmdline_args()) or not WebViewRadioTransport.available():
 		return
 	var transport := WebViewRadioTransport.new()
