@@ -6,6 +6,14 @@ class_name RadioLibraryItem extends Control
 
 signal pressed(item: RadioLibraryItem, event: InputEventMouseButton)
 signal opened(item: RadioLibraryItem)
+signal rename_finished(item: RadioLibraryItem, new_name: String, committed: bool)
+
+const RENAME_WIDTH := 92.0                      # web .rexp-rename: 92 px, 11 px text centred, #070a0f in an accent border
+const RENAME_PX := 11.0
+const RENAME_FILL := Color("#070a0f")
+const RENAME_RADIUS := 3
+const RENAME_PADDING := Vector2.ZERO            # the theme's reset takes the <input> padding away (capture: 92×15)
+const RENAME_BORDER_PX := 1
 
 const WIDTH := 104.0
 const PADDING := Vector2(4.0, 8.0)
@@ -33,6 +41,7 @@ var selected := false:
 var _box: ColorRect
 var _icon: RadioLibraryIcon
 var _label: GlowText
+var _rename: LineEdit = null
 var _hovered := false
 
 func _init(library_entry: Dictionary) -> void:
@@ -74,12 +83,69 @@ func icon() -> RadioLibraryIcon:
 func label() -> GlowText:
 	return _label
 
-## The cell's own height: the border, the padding, the icon, the gap and the name's line.
+## The cell's own height: the border, the padding, the icon, the gap and the name's line (or its edit field).
 func natural_height() -> float:
-	return 2.0 * (BORDER_PX + PADDING.y) + _icon.size.y + GAP + line_px()
+	return 2.0 * (BORDER_PX + PADDING.y) + _icon.size.y + GAP + (rename_height() if _rename != null else line_px())
 
 static func line_px() -> float:
 	return LABEL_PX * LINE_HEIGHT_EM
+
+## The edit field's border box: the UI font's line at 11 px, the input padding and border.
+static func rename_height() -> float:
+	return roundi(UiFont.ASCENT_EM * RENAME_PX) + roundi(UiFont.DESCENT_EM * RENAME_PX) \
+		+ 2.0 * (RENAME_PADDING.y + RENAME_BORDER_PX)
+
+func rename_field() -> LineEdit:
+	return _rename
+
+## The name as an edit field, focused with the caret at the end: Enter or leaving it commits, Escape cancels.
+func begin_rename() -> LineEdit:
+	if _rename != null:
+		return _rename
+	_rename = LineEdit.new()
+	_rename.name = "Rename"
+	_rename.text = str(entry[RadioLibrary.NAME])
+	_rename.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var font_size := UiFont.css_size(RENAME_PX)
+	_rename.add_theme_font_override("font", UiFont.with_css_line(UiFont.spaced(0.0, font_size, RENAME_PX), font_size,
+		RENAME_PX))
+	_rename.add_theme_font_size_override("font_size", font_size)
+	_rename.add_theme_color_override("font_color", UiTokens.TEXT)
+	var box := StyleBoxFlat.new()
+	box.bg_color = RENAME_FILL
+	box.border_color = UiTokens.ACCENT
+	box.set_border_width_all(RENAME_BORDER_PX)
+	box.set_corner_radius_all(RENAME_RADIUS)
+	box.content_margin_left = RENAME_PADDING.x + RENAME_BORDER_PX
+	box.content_margin_right = RENAME_PADDING.x + RENAME_BORDER_PX
+	box.content_margin_top = RENAME_PADDING.y + RENAME_BORDER_PX
+	box.content_margin_bottom = RENAME_PADDING.y + RENAME_BORDER_PX
+	for state in ["normal", "focus", "read_only"]:
+		_rename.add_theme_stylebox_override(state, box)
+	_rename.text_submitted.connect(func(_text: String) -> void: finish_rename(true))
+	_rename.focus_exited.connect(func() -> void: finish_rename(true))
+	_rename.gui_input.connect(func(event: InputEvent) -> void:   # before the field's own keys: Escape cancels
+		var key := event as InputEventKey
+		if key != null and key.pressed and key.keycode == KEY_ESCAPE:
+			finish_rename(false))
+	_label.visible = false
+	add_child(_rename)
+	_rename.caret_column = _rename.text.length()
+	_rename.grab_focus.call_deferred()
+	_layout()
+	return _rename
+
+## The edit ends: the field goes, the name comes back, and the explorer hears what was typed.
+func finish_rename(committed: bool) -> void:
+	if _rename == null:
+		return
+	var field := _rename
+	_rename = null
+	var typed := field.text
+	field.queue_free()
+	_label.visible = true
+	_layout()
+	rename_finished.emit(self, typed, committed)
 
 func _gui_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
@@ -89,6 +155,7 @@ func _gui_input(event: InputEvent) -> void:
 		opened.emit(self)
 	elif click.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 		pressed.emit(self, click)
+	accept_event()                                 # web stopPropagation: the window's own menu stays shut
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_ENTER or what == NOTIFICATION_MOUSE_EXIT:
@@ -129,3 +196,6 @@ func _layout() -> void:
 	var text_left := (size.x - text.x) * HALF                  # text-align: center keeps Chrome's fractional left
 	_label.position = Vector2(floorf(text_left), line_top + floorf((line_px() - text.y) * HALF))
 	_label.css_offset_x = text_left - _label.position.x
+	if _rename != null:
+		_rename.size = Vector2(RENAME_WIDTH, rename_height())
+		_rename.position = Vector2((size.x - RENAME_WIDTH) * HALF, line_top)

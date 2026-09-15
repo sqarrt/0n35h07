@@ -19,6 +19,9 @@ const APP_DATA = 'C:\\Users\\PARITY7\\AppData\\Roaming\\com.oneshot.game';
 const SETTLE_TIMEOUT_MS = 30000;
 const EXPAND_SETTLE_MS = 1500;
 const UI_SETTLE_MS = 600;
+const COPIED_SETTLE_MS = 300;                 // past the field's .12 s colour transition, inside its 1.1 s
+const COPIED_CLEAR_MS = 1200;
+const WINDOW_MENU_AT = FULLSCREEN_ON ? { x: 1500, y: 757 } : { x: 860, y: 440 };   // empty grid, under the first row
 const track = (name, bpm) => JSON.stringify({ v: 2, id: `${name}:0`, name, bpm, bars: 64,
   info: { mood: 'dark_techno', key: 'E', scale: 'phrygian' }, program: `setcpm(${bpm}/4)\narrange()` }, null, 2);
 // The seeded library: [path, contents | null for a folder] under the app-data radio root.
@@ -86,7 +89,8 @@ const measure = () => page.evaluate(() => {
     field: pick(q('.rexp-addr .field')), grid: pick(q('.rexp-grid')), items: all('.rexp-it'),
     icons: all('.rexp-it > div:first-child'), labels: all('.rexp-it .lbl'), status: pick(q('.rexp-status')),
     statusText: pick(q('.rexp-status span')), viz: pick(q('[data-testid="radio-viz-switch"]')),
-    menu: pick(q('.rexp-ctx')), menuItems: all('.rexp-mi') };
+    menu: pick(q('.rexp-ctx')), menuItems: all('.rexp-mi'), menuKeys: all('.rexp-mi .k'), menuAccels: all('.rexp-mi .acc'),
+    rename: pick(q('.rexp-rename')), copiedMark: pick(q('.rexp-copied')) };
 });
 
 try {
@@ -127,6 +131,32 @@ try {
   facts.contextFonts = { item: await platformFonts('.rexp-mi'), items: await eachFonts('.rexp-ctx .rexp-mi', facts.context.menuItems.length) };
   await page.keyboard.press('Escape');
   await page.mouse.click(2, 700);
+
+  // the window's own menu: a right click on the empty grid clears the selection
+  await page.mouse.click(WINDOW_MENU_AT.x, WINDOW_MENU_AT.y, { button: 'right' });
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-ctx-window');
+  facts.contextWindow = await measure();
+  await page.mouse.click(2, 700);
+
+  // F2 on a selected track: the rename field in place of its name
+  await page.locator('[data-path="Twin.json"]').click();
+  await page.mouse.move(0, 0);
+  await page.keyboard.press('F2');
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-rename');
+  facts.rename = await measure();
+  facts.renameFonts = await platformFonts('.rexp-rename');
+  await page.keyboard.press('Escape');
+
+  // a click on the address copies the path: the field turns green with a ✓ for 1.1 s
+  await page.locator('.rexp-addr .field').click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(COPIED_SETTLE_MS);
+  await shot('web-radio-library-copied');
+  facts.copied = await measure();
+  facts.copiedFonts = await platformFonts('.rexp-copied');
+  await page.waitForTimeout(COPIED_CLEAR_MS);
 
   await page.locator('[data-path="Night Drive"]').dblclick();
   await page.mouse.move(0, 0);

@@ -1,0 +1,130 @@
+{
+  "id": "2026-09-15-radio-library-edit",
+  "title": "OneShot · радио R4b2a: меню и правка библиотеки",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R4b2a подпроекта «радио». В окне LIBRARY работает контекстное меню web — на элементе (▶ Play, ＋ New folder, ✎ Rename F2, ⧉ Copy Ctrl+C, 📋 Paste Ctrl+V, 🗑 Delete Del) и на пустом месте окна (New folder, Paste), — те же горячие клавиши, переименование прямо в сетке и копирование пути кликом по адресной строке. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %) над засеянной библиотекой прошлого слайса.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-library-edit.json`. Web: `web-reference/scripts/parity-capture-radio-library.mjs` (кадры `-ctx`, `-ctx-window`, `-rename`, `-copied`, факты меню, поля и ✓ с платформенными шрифтами; `PARITY_FULLSCREEN=1` — весь экран). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-library/godot-radio-library-<ctx|ctx-window|rename|copied>[-fs].png 120 locale-en:radio-library-<ctx|ctx-window|rename|copied>`. Тесты GUT: `test_radio_explorer_menu`, `test_radio_context_menu`, `test_radio_explorer`, `test_glass_card`.",
+  "pages": [
+    {
+      "slug": "radio-library-edit",
+      "name": "Меню и правка",
+      "verdict": "Контекстное меню стоит там же, где у web: [1021, 298, 208, 205] на Twin и [860, 440, 208, 78] на окне, строки 194 px с шагом 32 (31 у ⧉), глифы в 15 px с x 12, подписи с x 38, подсказки клавиш у правого края на дробном y. Разница по меню — 3.52/255 на элементе и 2.89 на окне, на весь экран — 3.18 и 2.50; глифы из тех же системных шрифтов, что у Chrome (Segoe UI Symbol, Microsoft YaHei, Cambria Math, Segoe UI Emoji). Поле переименования [975, 311, 92, 15] — 4.14/255 (весь экран 4.38), центроид текста ±0.3 px; «скопировано» — поле 5.18, ✓ 5.23, центроид ✓ в пределах 0.6 px. Остаток — мелкий текст мягче, как во всём порте.",
+      "verdict_short": "Меню, переименование и копирование пути 1:1",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["меню на элементе", "правый клик в центр Twin.json", "`open_menu(entry, центр ячейки)`"],
+        ["меню окна", "правый клик в (860, 440), на весь экран — (1500, 757) CSS px", "`open_menu({}, та же точка)`"],
+        ["переименование", "клик по Twin.json, F2, кадр через 0.6 с (каретки нет)", "`select` + `begin_rename`, каретка скрыта"],
+        ["скопировано", "клик по адресу, кадр через 0.3 с; запись в буфер отклонена правами headless-браузера", "`copy_address()` с пустым буфером"]
+      ],
+      "comparisons": [
+        {
+          "title": "Меню на выделенном треке (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-ctx.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-ctx.png", "note": "3.52/255: глифы 5.90, подписи 4.81, клавиши 1.50"}
+          ]
+        },
+        {
+          "title": "Меню окна (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-ctx-window.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-ctx-window.png", "note": "2.89/255"}
+          ]
+        },
+        {
+          "title": "Переименование (×5)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-rename.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-rename.png", "note": "поле 4.14/255, ячейка 3.38"}
+          ]
+        },
+        {
+          "title": "Путь скопирован (×5)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-copied.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-copied.png", "note": "поле 5.18/255, ✓ 5.23"}
+          ]
+        },
+        {
+          "title": "Меню, весь экран 3840×2160 (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-ctx-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-ctx-fs.png", "note": "3.18/255"}
+          ]
+        },
+        {
+          "title": "Переименование, весь экран (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-edit-report/web-rename-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-edit-report/godot-rename-fs.png", "note": "поле 4.38/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R4b2a-1", "severity": "fixed",
+          "title": "Контекстное меню .rexp-ctx",
+          "web": "Жидкое стекло: заливка rgba(14,19,27,.78), blur(22px), блик 14 %, радиус 12, тени 0 14px 44px 60 % и 0 0 22px accent 12 %; min-width 208, отступ 6; у правого края не ближе 220 px. Строки flex с align-items: center — высота по самой высокой строке глифа (16, у ⧉ Cambria Math — 15).",
+          "godot": "`RadioContextMenu` на `GlassCard.set_look` / `set_shadow(…, color)`; каждый элемент строки ставится на базовую линию своей строки, отцентрованной в строке меню; нажатие вне меню закрывает его и доходит до цели, как pointerdown у web.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_context_menu.gd", "nodes/glass_card.gd", "tests/unit/test_radio_context_menu.gd"]
+        },
+        {
+          "id": "R4b2a-2", "severity": "fixed",
+          "title": "Пункты меню и действия",
+          "web": "`menu(c)`: Play на элементе, New folder всегда, Rename при выделении не больше одного, Copy при выделенных треках, Paste (неактивен без скопированного), Delete при выделении; правый клик по элементу сначала выделяет его, по окну — снимает выделение. F2, Del, Ctrl+C, Ctrl+V — пока окно видно и имя не редактируется.",
+          "godot": "`RadioExplorerMenu` (чистая модель) и `RadioExplorer.open_menu / run_action / new_folder / delete_selection / copy_selection / paste / play_entry`; клавиши — `_unhandled_key_input`; меню закрывается, когда окно прячется.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_explorer_menu.gd", "nodes/radio/radio_explorer.gd", "tests/unit/test_radio_explorer_menu.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b2a-3", "severity": "fixed",
+          "title": "Переименование в сетке",
+          "web": "`<input class=\"rexp-rename\">` 92×15 (отступы сброшены темой), 11 px по центру, #070a0f в рамке accent; Enter или потеря фокуса — сохранить (обрезав пробелы, если имя не пустое и другое), Escape — отменить.",
+          "godot": "`RadioLibraryItem.begin_rename / finish_rename` с `LineEdit`; первая версия брала отступы input по умолчанию (2 / 1 px) — поле 92×19, разница 20.4/255; по фактам захвата отступы убраны: 4.14/255.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_library_item.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b2a-4", "severity": "fixed",
+          "title": "Копирование пути",
+          "web": "Клик по адресу пишет путь в буфер; поле 1.1 с зелёное (рамка и текст #4fa, внутреннее свечение 10px 18 %), справа ✓ 13 px из Segoe UI Symbol со свечением 8px 55 % — в 14 px от края строки, по её центру.",
+          "godot": "Поле адреса нарисовано шейдером `css_box` (рамка, внутреннее свечение), ✓ — `GlowText`. Первая версия ставила ✓ до применения шрифтов — он уезжал на рамку (11.4/255); раскладка теперь повторяется при смене его размера: 5.23/255.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_explorer.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b2a-5", "severity": "visual",
+          "title": "Мелкий текст и глифы меню мягче",
+          "web": "DirectWrite с хинтингом: подписи 12.5 px и глифы плотнее.",
+          "godot": "Места совпадают; штрихи тоньше (глифы 5.90/255, подписи 4.81). Общий бэклог хинтинга мелкого текста.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        },
+        {
+          "id": "R4b2a-6", "severity": "missing",
+          "title": "Перетаскивание, рамка выделения, визуализатор, очередь",
+          "web": "Перетаскивание треков в папки (подсветка папки пунктиром #4fa), рамка выделения на пустом месте сетки, визуализатор за содержимым окна; воспроизведение очереди, сохранение трека из плеера и полоса LIBRARY.",
+          "godot": "Слайсы R4b2b (перетаскивание, рамка, визуализатор) и R4c (очередь, сохранение, полоса LIBRARY).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioExplorer.tsx", "web-reference/src/components/RadioVisualizer.tsx"]
+        }
+      ],
+      "limitations": [
+        "Hover строк меню и поля адреса не снимался (мышь в углу); проверен только цвет по коду.",
+        "Каретка поля переименования в кадре web не видна, в кадре Godot скрыта принудительно.",
+        "Кадр «скопировано» на весь экран сравнивался по строке адреса целиком (7.22/255 вместе с текстом пути).",
+        "Сохранение переименования и вставка проверены тестами над файлами, кадрами не сравнивались."
+      ]
+    }
+  ]
+}

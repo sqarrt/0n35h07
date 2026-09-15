@@ -165,6 +165,12 @@ const RADIO_LIBRARY_SELECTED := "Twin.json"    # web: the click on [data-path="T
 const RADIO_LIBRARY_FOLDER := "Night Drive"    # web: the double click on [data-path="Night Drive"]
 const RADIO_LIBRARY_SELECT := "sel"
 const RADIO_LIBRARY_OPEN := "folder"
+const RADIO_LIBRARY_MENU := "ctx"              # web: a right click on the middle of Twin.json
+const RADIO_LIBRARY_WINDOW_MENU := "ctx-window"
+const RADIO_LIBRARY_RENAME := "rename"         # web: Twin.json clicked, then F2
+const RADIO_LIBRARY_COPIED := "copied"         # web: a click on the address field
+const RADIO_LIBRARY_WINDOW_MENU_AT := Vector2(860.0, 440.0)      # web WINDOW_MENU_AT, CSS px
+const RADIO_LIBRARY_WINDOW_MENU_AT_FS := Vector2(1500.0, 757.0)
 const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
 const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
 const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
@@ -562,11 +568,27 @@ func _apply_hud_fixture() -> int:
 		var explorer := library_menu.call("explorer") as RadioExplorer
 		explorer.display_root = RadioLibrarySeed.DISPLAY_ROOT
 		explorer.refresh()
+		var selected_item: RadioLibraryItem = explorer.items().filter(func(item: RadioLibraryItem) -> bool:
+			return item.path() == RADIO_LIBRARY_SELECTED)[0]
 		match _mode.trim_prefix(MODE_RADIO_LIBRARY):
 			RADIO_LIBRARY_SELECT:
 				explorer.select(RADIO_LIBRARY_SELECTED)
 			RADIO_LIBRARY_OPEN:
 				explorer.navigate_into(RADIO_LIBRARY_FOLDER)
+			RADIO_LIBRARY_MENU:
+				explorer.open_menu(selected_item.entry, selected_item.get_global_rect().get_center().floor())
+			RADIO_LIBRARY_WINDOW_MENU:
+				var library_fs := _output.get_file().get_basename().ends_with(FULLSCREEN_SUFFIX)
+				var at := RADIO_LIBRARY_WINDOW_MENU_AT_FS if library_fs else RADIO_LIBRARY_WINDOW_MENU_AT
+				explorer.open_menu({}, (library_menu as Control).get_global_transform() * at)
+			RADIO_LIBRARY_RENAME:
+				explorer.select(RADIO_LIBRARY_SELECTED)
+				explorer.begin_rename(RADIO_LIBRARY_SELECTED)
+				# the web frame shows no caret (its blink is off at the shot): none here either
+				selected_item.rename_field().add_theme_constant_override("caret_width", 0)
+			RADIO_LIBRARY_COPIED:
+				explorer.clipboard = func(_text: String) -> void: pass   # the capture leaves the clipboard alone
+				explorer.copy_address()
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO_CODE):
 		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized
