@@ -9,13 +9,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { FULLSCREEN, FULLSCREEN_ON, VIEWPORT, launchReferencePage, settleScene } from './parity-lib.mjs';
+import { APP_DATA, stubDesktop } from './parity-desktop-stub.mjs';
 
 const SUFFIX = FULLSCREEN_ON ? '-fs' : '';
 const WINDOW = FULLSCREEN_ON ? FULLSCREEN : { viewport: VIEWPORT, deviceScaleFactor: 1 };
 const output = resolve(process.argv[2] ?? '../test-results/parity-radio-library');
 const base = process.argv[3] ?? 'http://127.0.0.1:5173/?net=bc';
 const PROFILE = { name: 'PARITY7', primaryColor: '#fa4', reserveColor: '#4af', locale: 'en', radioEnabled: false };
-const APP_DATA = 'C:\\Users\\PARITY7\\AppData\\Roaming\\com.oneshot.game';
 const SETTLE_TIMEOUT_MS = 30000;
 const EXPAND_SETTLE_MS = 1500;
 const UI_SETTLE_MS = 600;
@@ -35,32 +35,6 @@ const LIBRARY = [
   ['radio/Night Drive/Lagoon.json', track('Lagoon', 118)],
 ];
 
-const stubDesktop = ({ appData, library }) => {
-  const dirs = new Set(library.filter(([, c]) => c === null).map(([p]) => p));
-  const files = new Map(library.filter(([, c]) => c !== null));
-  const pending = () => new Promise(() => {});
-  const handlers = {
-    'plugin:path|resolve_directory': () => appData,
-    'plugin:path|join': (args) => args.paths.join('\\'),
-    'plugin:fs|mkdir': (args) => { dirs.add(args.path); },
-    'plugin:fs|exists': (args) => dirs.has(args.path) || files.has(args.path),
-    'plugin:fs|read_dir': (args) => {
-      const prefix = `${args.path}/`;
-      const out = [];
-      for (const d of dirs) if (d.startsWith(prefix) && !d.slice(prefix.length).includes('/')) out.push({ name: d.slice(prefix.length), isDirectory: true, isFile: false, isSymlink: false });
-      for (const f of files.keys()) if (f.startsWith(prefix) && !f.slice(prefix.length).includes('/')) out.push({ name: f.slice(prefix.length), isDirectory: false, isFile: true, isSymlink: false });
-      return out;
-    },
-    'plugin:fs|read_text_file': (args) => Array.from(new TextEncoder().encode(files.get(args.path) ?? '')),
-    'plugin:fs|write_text_file': (bytes, options) => { files.set(decodeURIComponent(options.headers.path), new TextDecoder().decode(bytes)); },
-    'plugin:fs|remove': (args) => { files.delete(args.path); dirs.delete(args.path); },
-    'plugin:fs|rename': (args) => { if (files.has(args.oldPath)) { files.set(args.newPath, files.get(args.oldPath)); files.delete(args.oldPath); } },
-  };
-  window.__TAURI_INTERNALS__ = {
-    invoke: (cmd, args, options) => (handlers[cmd] ? Promise.resolve(handlers[cmd](args, options)) : pending()),
-    transformCallback: () => 0, metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } },
-  };
-};
 
 await mkdir(output, { recursive: true });
 const { browser, page, errors } = await launchReferencePage(WINDOW);

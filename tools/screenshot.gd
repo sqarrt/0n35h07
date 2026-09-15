@@ -175,6 +175,11 @@ const RADIO_LIBRARY_MARQUEE := "marquee"       # web: a band from WINDOW_MENU_AT
 const RADIO_LIBRARY_MARQUEE_TO := Vector2(700.0, 290.0)
 const RADIO_LIBRARY_MARQUEE_TO_FS := Vector2(1340.0, 607.0)
 const RADIO_LIBRARY_DROP := "dropok"           # web: .dropok set on Night Drive
+const MODE_RADIO_VIZ := "radio-viz-"           # radio-viz-scope / -bars / -radial / -field: the pinned visualizer
+## web parity-capture-radio-viz.mjs PIN: one frame every mode draws the same way each run.
+const RADIO_VIZ_PIN := {"phase": 1.7, "frame": 0, "level": 0.08, "impulse": 0.35, "seed": 7,
+	"bands": [0.82, 0.9, 0.76, 0.7, 0.62, 0.58, 0.5, 0.46, 0.52, 0.44, 0.4, 0.38, 0.35, 0.3, 0.28, 0.26, 0.3, 0.22, 0.2,
+		0.18, 0.15, 0.12, 0.1, 0.08]}
 const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
 const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
 const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
@@ -349,6 +354,26 @@ func _initialize() -> void:
 		_capture_frame = maxi(_capture_frame, TRAILER_SHOT_FRAMES)
 
 ## web __debugReady: the local player confirms the ready ritual (the bots already have).
+## The Radio screen with its LIBRARY window over the web capture's library (`seeded`) or an empty one, the backdrop
+## hidden, the player expanded and ready at the web's radio volume; the address shows the web's path.
+func _open_library(library_menu: Node, seeded: bool) -> RadioExplorer:
+	(library_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+	root.get_node("Game").profile[RADIO_VOLUME_KEY] = RADIO_VOLUME   # web VOL_DEFAULT.radio under the player
+	var library := RadioLibrary.new(RADIO_LIBRARY_ROOT)
+	if seeded:
+		RadioLibrarySeed.seed(library)
+	else:
+		RadioLibrarySeed.clear(library)
+	library_menu.set("radio_library", library)
+	library_menu.call("open_radio")
+	var player := library_menu.find_child("RadioPlayer", true, false) as RadioPlayer
+	player.set_expanded(true, false)
+	player.show_state(RadioModel.NO_TRACK, true, false)
+	var explorer := library_menu.call("explorer") as RadioExplorer
+	explorer.display_root = RadioLibrarySeed.DISPLAY_ROOT
+	explorer.refresh()
+	return explorer
+
 func _ready_human() -> void:
 	for match_node in root.find_children("*", "MatchNode", true, false):
 		(match_node as MatchNode).mark_ready(HUMAN_ID)
@@ -557,21 +582,16 @@ func _apply_hud_fixture() -> int:
 			if ui != null:
 				ui.visible = false
 		return STAGE_FRAMES
+	if _mode.begins_with(MODE_RADIO_VIZ):
+		# web parity-capture-radio-viz.mjs: the visualizer pinned to one frame behind an empty LIBRARY window
+		var viz_explorer := _open_library(root.find_children("*", "MainMenu", true, false)[0], false)
+		viz_explorer.set_viz_mode(_mode.trim_prefix(MODE_RADIO_VIZ), false)
+		viz_explorer.visualizer().pin(RADIO_VIZ_PIN)
+		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO_LIBRARY):
 		# web parity-capture-radio-library.mjs: the LIBRARY window over the seeded library — its root, a track selected, a folder
 		var library_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
-		(library_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
-		root.get_node("Game").profile[RADIO_VOLUME_KEY] = RADIO_VOLUME   # web VOL_DEFAULT.radio under the player
-		var seeded := RadioLibrary.new(RADIO_LIBRARY_ROOT)
-		RadioLibrarySeed.seed(seeded)
-		library_menu.set("radio_library", seeded)
-		library_menu.call("open_radio")
-		var library_player := library_menu.find_child("RadioPlayer", true, false) as RadioPlayer
-		library_player.set_expanded(true, false)
-		library_player.show_state(RadioModel.NO_TRACK, true, false)
-		var explorer := library_menu.call("explorer") as RadioExplorer
-		explorer.display_root = RadioLibrarySeed.DISPLAY_ROOT
-		explorer.refresh()
+		var explorer := _open_library(library_menu, true)
 		var selected_item: RadioLibraryItem = explorer.items().filter(func(item: RadioLibraryItem) -> bool:
 			return item.path() == RADIO_LIBRARY_SELECTED)[0]
 		match _mode.trim_prefix(MODE_RADIO_LIBRARY):

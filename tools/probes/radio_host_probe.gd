@@ -35,7 +35,8 @@ func _initialize() -> void:
 				state.get("mood"), state.get("key"), state.get("scaleName"), state.get("bpm"), state.get("trackSeed")]))
 	_host.progress_changed.connect(func(progress: float, total_ms: float, running: bool) -> void:
 		_progress.append([snappedf(progress, 0.0001), total_ms, running]))
-	_host.meter_changed.connect(func(level: float, _bands: PackedFloat32Array) -> void: _max_level = maxf(_max_level, level))
+	_host.meter_changed.connect(func(level: float, _bands: PackedFloat32Array, _vis_bands: PackedFloat32Array) -> void:
+		_max_level = maxf(_max_level, level))
 	_host.generated.connect(func() -> void: _generated += 1)
 	_host.init(PROBE_VOLUME)   # queued: the page is not loaded yet
 	_started_ms = Time.get_ticks_msec()

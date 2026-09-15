@@ -67,7 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   click opens the original's glass context menu (Play, New folder, Rename, Copy, Paste, Delete) with the same F2, Del,
   Ctrl+C and Ctrl+V shortcuts; names are edited in place, and a click on the path copies it. Tracks drag onto a folder
   (lit with a green dashed outline) to move there, and a rubber band dragged over the empty grid selects what it
-  touches. The visualizer and queue playback come next.
+  touches. Behind the window the original's music visualizer glows — an oscilloscope, bars, spokes or a drifting dot
+  field, AUTO rotating them every 18 seconds, the choice remembered. Queue playback comes next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

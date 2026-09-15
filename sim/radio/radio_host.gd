@@ -7,7 +7,7 @@ signal page_ready
 signal init_state_changed(state: String)             # web RadioInitState: idle / loading / ready / error
 signal state_changed(state: Dictionary)              # web MusicalState of the track that just started
 signal progress_changed(progress: float, total_ms: float, running: bool)
-signal meter_changed(level: float, bands: PackedFloat32Array)
+signal meter_changed(level: float, bands: PackedFloat32Array, vis_bands: PackedFloat32Array)
 signal track_ended
 signal generated                                     # a new live track began (the trial's generation counter)
 
@@ -84,7 +84,8 @@ func _on_received(text: String) -> void:
 				progress_changed.emit(float(event["progress"]), float(event["totalMs"]), event["running"])
 		RadioProtocol.EVENT_METER:
 			if _is_number(event.get("level")) and event.get("bands") is Array:
-				meter_changed.emit(float(event["level"]), PackedFloat32Array(event["bands"]))
+				var vis_bands: Array = event["visBands"] if event.get("visBands") is Array else []
+				meter_changed.emit(float(event["level"]), PackedFloat32Array(event["bands"]), PackedFloat32Array(vis_bands))
 		RadioProtocol.EVENT_TRACK_END:
 			track_ended.emit()
 		RadioProtocol.EVENT_GENERATED:

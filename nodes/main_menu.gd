@@ -611,6 +611,9 @@ func _open_explorer() -> void:
 	move_child(_explorer, _radio_player.get_index())
 	_explorer.open_on(radio_library, size)
 	_explorer.minimize_requested.connect(func() -> void: _explorer.visible = false)
+	_explorer.visualizer().level_source = Radio.level          # web engine.readLevel / readBands(24)
+	_explorer.visualizer().bands_source = Radio.vis_bands
+	_explorer.set_radio_active(Radio.is_active())
 
 ## web RadioCodePanel on the Radio screen: under the player, placed for this screen, minimized if it was left so.
 func _open_code_panel() -> void:
@@ -660,6 +663,8 @@ func _on_radio_changed() -> void:
 	_radio_player.show_trial(Radio.trial_strip(), Radio.can_unlock(), _radio_open and Radio.gen_limited())
 	if _code_panel != null:
 		_code_panel.show_code(str(Radio.model.musical_state.get(CODE_KEY, "")))
+	if _explorer != null:
+		_explorer.set_radio_active(Radio.is_active())
 	_backdrop.radio_mood = str(Radio.model.musical_state.get(MOOD_KEY, ""))
 	_backdrop.radio_bpm = float(Radio.model.musical_state.get(BPM_KEY, MenuBackdrop.RADIO_DEFAULT_BPM))
 	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):

@@ -117,6 +117,8 @@ var _grid: Control
 var _status: Panel
 var _status_text: CssLabel
 var _viz_button: CssButton
+var _visualizer: RadioVisualizer
+var _radio_active := false
 
 func _init() -> void:
 	super()
@@ -192,6 +194,8 @@ func _init() -> void:
 	_viz_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_viz_button.pressed.connect(cycle_viz)
 	_status.add_child(_viz_button)
+	_visualizer = RadioVisualizer.new()
+	underlay().add_child(_visualizer)
 	content().resized.connect(_layout_content)
 
 ## web useWindowChrome's first geometry for a screen of `screen` px.
@@ -202,6 +206,7 @@ static func initial_geometry(screen: Vector2) -> Rect2:
 func open_on(radio_library: RadioLibrary, screen: Vector2) -> void:
 	library = radio_library
 	_viz = _load_viz()
+	_visualizer.mode = _viz
 	setup(I18n.t(TITLE_KEY), initial_geometry(screen), MIN_SIZE)
 	refresh()
 
@@ -606,15 +611,31 @@ func _notification(what: int) -> void:
 		if _menu != null:
 			_menu.close()
 		end_marquee()
+	if what == NOTIFICATION_VISIBILITY_CHANGED and _visualizer != null:
+		_visualizer.set_active(_radio_active and visible)
 
 ## The status bar's pill: the next visualizer mode, remembered (web localStorage radio.viz).
 func cycle_viz() -> void:
-	_viz = VIZ_MODES[(VIZ_MODES.find(_viz) + 1) % VIZ_MODES.size()]
-	var settings := ConfigFile.new()
-	settings.load(settings_path)
-	settings.set_value(SETTINGS_SECTION, SETTINGS_VIZ, _viz)
-	settings.save(settings_path)
+	set_viz_mode(VIZ_MODES[(VIZ_MODES.find(_viz) + 1) % VIZ_MODES.size()])
+
+## The visualizer's mode and the pill's label; `remember` keeps it for the next visit.
+func set_viz_mode(mode: String, remember := true) -> void:
+	_viz = mode
+	_visualizer.mode = mode
+	if remember:
+		var settings := ConfigFile.new()
+		settings.load(settings_path)
+		settings.set_value(SETTINGS_SECTION, SETTINGS_VIZ, _viz)
+		settings.save(settings_path)
 	_update_status()
+
+func visualizer() -> RadioVisualizer:
+	return _visualizer
+
+## web active={radioActive && !hidden}: the visualizer runs while the radio plays and the window shows.
+func set_radio_active(active: bool) -> void:
+	_radio_active = active
+	_visualizer.set_active(_radio_active and visible)
 
 func _show(path: String) -> void:
 	_path = path
