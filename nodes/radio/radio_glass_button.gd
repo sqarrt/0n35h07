@@ -1,7 +1,8 @@
 class_name RadioGlassButton extends Control
-## A glass bar button of the expanded Radio player — web RadioPlayer backBtn: a glass.ts card, padding 9px 0, the label
-## centred in #cdd at 0.74rem spaced 0.16em. Its line box holds the fallback face of the label's symbol (the ← Chrome
-## takes from Microsoft YaHei), so the bar is the two borders, the padding and that mixed line.
+## A glass bar button of the expanded Radio player — web RadioPlayer backBtn (BACK, and the LIBRARY / PROGRAM bars of
+## minimized windows): a glass.ts card, padding 9px 0, the label centred in #cdd at 0.74rem spaced 0.16em. Its line box
+## holds the fallback face of a symbol in the label (the ← Chrome takes from Microsoft YaHei), so the bar is the two
+## borders, the padding and that mixed line.
 
 signal pressed
 
@@ -9,14 +10,16 @@ const PADDING_Y := 9.0
 const LABEL_PX := 11.84                         # 0.74rem
 const SPACING_EM := 0.16
 const TEXT := Color("#ccdddd")                  # #cdd
-const SYMBOL_FAMILIES := ["Microsoft YaHei"]   # the --ui-font stack's face for ←
-const HALF := 0.5
+const ARROW_FAMILIES := ["Microsoft YaHei"]    # the --ui-font stack's face for ←
 
 var _glass: GlassCard
 var _button: CssButton
+var _families: Array
 
-func _init(label: String) -> void:
+## `families`: the system faces drawing the label's symbols (none: the UI font alone).
+func _init(label: String, families: Array = []) -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_families = families
 	_glass = GlassCard.new()
 	add_child(_glass)
 	_button = CssButton.new()
@@ -27,9 +30,9 @@ func _init(label: String) -> void:
 	box.content_margin_top = GlassCard.BORDER_PX + PADDING_Y
 	box.content_margin_bottom = GlassCard.BORDER_PX + PADDING_Y
 	RadioButtons.dress(_button, box, TEXT)
-	RadioButtons.set_font(_button, LABEL_PX, SPACING_EM, SYMBOL_FAMILIES)
+	RadioButtons.set_font(_button, LABEL_PX, SPACING_EM, families)
 	_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_button.css_baseline = GlassCard.BORDER_PX + PADDING_Y + UiFont.fallback_ascent_px(LABEL_PX, SYMBOL_FAMILIES)
+	_button.css_baseline = GlassCard.BORDER_PX + PADDING_Y + UiFont.fallback_ascent_px(LABEL_PX, families)
 	_button.text = label
 	_button.pressed.connect(func() -> void: pressed.emit())
 	add_child(_button)
@@ -40,7 +43,7 @@ func button() -> CssButton:
 
 ## The bar's height: both borders, the padding and the label's mixed line box.
 func bar_height() -> float:
-	return 2.0 * (GlassCard.BORDER_PX + PADDING_Y) + UiFont.fallback_line_px(LABEL_PX, SYMBOL_FAMILIES)
+	return 2.0 * (GlassCard.BORDER_PX + PADDING_Y) + UiFont.fallback_line_px(LABEL_PX, _families)
 
 func _get_minimum_size() -> Vector2:
 	return Vector2(0.0, bar_height())

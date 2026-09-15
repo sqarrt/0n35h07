@@ -33,6 +33,7 @@ const ABOUT_KEY := "settingsSecAbout"
 const RADIO_KEY := "settingsVolRadio"         # web borrows the settings volume label, uppercased
 const QUIT_KEY := "menuExit"
 const SCREEN_RADIO := "radio"
+const CODE_KEY := "strudelCode"               # web MusicalState.strudelCode: the program the PROGRAM window shows
 const HINT_KEY := "menuFullscreenHint"     # browser only
 const SMALL_FONT_SIZE := 11                # .menu-hint / .version-chip
 const SMALL_SPACING_EM := 0.16
@@ -61,6 +62,8 @@ var _column: CssColumn
 var _lobby: LobbyScreen
 var profile_saving := true                    # parity captures edit an in-memory profile without saving it
 var _radio_open := false                      # web screen === 'radio': the takeover instead of the panel
+var _code_panel: RadioCodePanel = null        # the PROGRAM window while the Radio screen is up
+var _code_minimized := false                  # web radioCodeOpen (App state): kept between visits
 var _screen: Control                          # the open SETTINGS / ABOUT / APPEARANCE screen
 var _panel_base_x := 0.0
 var _panel_slide := 0.0
@@ -177,6 +180,8 @@ func _on_locale_changed(locale: String) -> void:
 	_screen = _settings_screen()
 	_panel.add_child(_screen)
 	_radio_player.relabel()
+	if _code_panel != null:
+		_code_panel.relabel()
 	_layout()
 	get_viewport().update_mouse_cursor_state()   # the new tile under the pointer takes the hover look
 
@@ -522,6 +527,7 @@ func _add_radio_player() -> void:
 	_radio_player.ball_toggled.connect(_toggle_ball)
 	_radio_player.unlock_requested.connect(Radio.open_store)
 	_radio_player.back_requested.connect(close_radio)
+	_radio_player.code_bar_pressed.connect(_restore_code)
 	_radio_player.open_requested.connect(open_radio)
 	_radio_player.visible = not _browser_layout
 	Radio.changed.connect(_on_radio_changed)
@@ -553,6 +559,7 @@ func open_radio() -> void:
 	_set_ball_hidden(false)   # web: re-entering the radio shows the ball again
 	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
 	_radio_player.set_expanded(true)
+	_open_code_panel()
 	screen_requested.emit(SCREEN_RADIO)
 	_on_radio_changed()
 
@@ -565,12 +572,41 @@ func close_radio() -> void:
 	_panel.visible = true
 	_panel_blur.visible = true
 	_radio_player.set_expanded(false)
+	_radio_player.show_code_bar(false)
+	_code_panel.queue_free()
+	_code_panel = null
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
 	_on_radio_changed()
 
 func is_radio_open() -> bool:
 	return _radio_open
+
+func code_panel() -> RadioCodePanel:
+	return _code_panel
+
+## web RadioCodePanel on the Radio screen: under the player, placed for this screen, minimized if it was left so.
+func _open_code_panel() -> void:
+	_code_panel = RadioCodePanel.new()
+	add_child(_code_panel)
+	move_child(_code_panel, _radio_player.get_index())
+	_code_panel.open_on(size)
+	_code_panel.minimize_requested.connect(_minimize_code)
+	_code_panel.visible = not _code_minimized
+	_radio_player.show_code_bar(_code_minimized)
+
+## _ or ✕: the window goes, the PROGRAM bar comes over the player.
+func _minimize_code() -> void:
+	_code_minimized = true
+	_code_panel.visible = false
+	_radio_player.show_code_bar(true)
+
+## The PROGRAM bar: the window comes back where it was.
+func _restore_code() -> void:
+	_code_minimized = false
+	if _code_panel != null:
+		_code_panel.visible = true
+	_radio_player.show_code_bar(false)
 
 func radio_player() -> RadioPlayer:
 	return _radio_player
@@ -595,6 +631,8 @@ func _on_radio_changed() -> void:
 	_radio_player.show_details(Radio.model.subtitle(), Radio.model.progress, Radio.model.total_ms)
 	_radio_player.show_volume(Audio.radio_volume())
 	_radio_player.show_trial(Radio.trial_strip(), Radio.can_unlock(), _radio_open and Radio.gen_limited())
+	if _code_panel != null:
+		_code_panel.show_code(str(Radio.model.musical_state.get(CODE_KEY, "")))
 	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):
 		Audio.play_menu_music()
 	else:

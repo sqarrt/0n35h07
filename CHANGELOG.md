@@ -51,6 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   times, the transport, On Air, a toggle that tilts the camera off your ball, the radio volume, the free-trial strip
   with Unlock Radio (it opens the DLC's store page) and BACK. Symbols the UI font lacks (emoji, arrows, math signs) sit
   on the same line heights as in the original. The code panel, the beat-driven visuals and the library come next.
+- **The PROGRAM window.** The Radio screen shows the track's Strudel program in the original's glass window: it wraps
+  exactly where the original does, glows softly, scrolls with its thin scrollbar, drags by its title, resizes by its
+  corner, maximizes, copies the program on a click ("(copied)" in the title) and minimizes to a PROGRAM bar over the
+  player that brings it back.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

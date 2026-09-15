@@ -1,0 +1,4100 @@
+{
+ "css_px": 11.52,
+ "spacing_em": 0.02,
+ "cases": [
+  {
+   "capture": "web-radio-code.json",
+   "width": 212,
+   "program": "setcpm(130/4)\n// 6EA0BD · dark_techno · A aeolian · 130bpm\narrange(\n  // intro (8 bars)\n  [8, stack(\n  (s(\"bd*4\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.34).gain(0.63).lpf(900).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(2),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(90, 700).slow(8)).room(0.03).roomsize(3).gain(0.67).gain(\"<0.59 0.73 0.86 1 1!4>\").gain(\"<1 1 1 1 1 1 1 0>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.54).gain(\"<0.59 0.73 0.86 1 1!4>\").gain(\"<1 1 1 1 1 1 1 0>\").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"33\").s(\"sawtooth\").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(707).crush(8).gain(0.01).delay(0.05).delaytime(0.1875).delayfeedback(0.25).room(0.13).roomsize(3).pan(0.56).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(8)\n)],\n  // build (8 bars)\n  [8, stack(\n  (s(\"<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd bd bd bd]>\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.34).gain(0.77).gain(\"<0 1 1 1 1 1 1 1>\")).orbit(2),\n  (s(\"<~ white ~ ~ ~ ~ ~ ~>\").dec(0.8).hpf(2500).gain(0.36).room(0.6).roomsize(8)).orbit(8),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ [sd*4 sd*8]>\").bank(\"AkaiLinn\").gain(0.44).hpf(400).lpf(7000).room(0.06).roomsize(3)).orbit(7),\n  (note(\"<[45 38 32 28 23 17] ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").dec(0.12).lpf(500).gain(0.47)).orbit(8),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 910).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.69).gain(\"<0 1 1 1 1 1 1 1>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.56).gain(\"<0 1 1 1 1 1 1 1>\").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"33\").s(\"sawtooth\").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(707).crush(8).gain(0.01).delay(0.05).delaytime(0.1875).delayfeedback(0.25).room(0.13).roomsize(3).pan(0.56)).orbit(8),\n  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ ~]>\").sometimesBy(0.2, x => x.ply(2)).s(\"supersaw\").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6).lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8).lpf(saw.range(450, 1500).slow(8)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.07)).orbit(6),\n  (note(\"<[69 ~ ~ ~ 57 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [60 ~ ~ 64 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.03)).orbit(9)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"bd*4\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.46).gain(0.8)).orbit(2),\n  (s(\"<white white ~ ~ ~>\").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),\n  (s(\"hh*8\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).gain(\"<0.59 0.73 0.86 1>\").pan(sine.slow(4))).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain(\"<0.59 0.73 0.86 1>\").room(0.06).roomsize(3).shape(0.16).lpf(7500)).orbit(7),\n  (s(\"~ cp ~ cp\").bank(\"AkaiLinn\").gain(0.28).gain(\"<0.59 0.73 0.86 1>\").room(0.05).roomsize(3).shape(0.08).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500).gain(\"<0.59 0.73 0.86 1>\")).orbit(3),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 910).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain(\"<1 1 1 0.84>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ ~]>\").sometimesBy(0.2, x => x.ply(2)).s(\"supersaw\").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6).lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8).lpf(saw.range(450, 1500).slow(8)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.06).gain(\"<0.7 0.7 0.7 1>\")).orbit(6),\n  (note(\"<[57 ~ ~ 62 ~ ~ 60 ~] [~ 57 ~ ~ ~ ~ ~ ~] [65 ~ ~ 69 ~ ~ 65 ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.02)).orbit(9)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"bd*4\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.46).gain(0.8)).orbit(2),\n  (s(\"hh*8\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.06).roomsize(3).shape(0.16).lpf(7500)).orbit(7),\n  (s(\"~ cp ~ cp\").bank(\"AkaiLinn\").gain(0.28).room(0.05).roomsize(3).shape(0.08).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 1235).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain(\"<0.85 0.85 0.85 1>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ ~]>\").sometimesBy(0.2, x => x.ply(2)).s(\"supersaw\").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6).lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8).lpf(saw.range(450, 1500).slow(8)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.06)).orbit(6),\n  (note(\"<[71 ~ ~ ~ 67 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [65 ~ ~ 62 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.02)).orbit(9)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.46).gain(0.8)).orbit(2),\n  (s(\"<~ ~ ~ [lt ~ mt ~ ht ~ mt lt]>\").bank(\"AkaiLinn\").gain(0.35).room(0.2)).orbit(7),\n  (s(\"hh*8\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.06).roomsize(3).shape(0.16).lpf(7500)).orbit(7),\n  (s(\"~ cp ~ cp\").bank(\"AkaiLinn\").gain(0.28).room(0.05).roomsize(3).shape(0.08).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 1560).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain(\"<1 1 1 0.84>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ ~]>\").sometimesBy(0.2, x => x.ply(2)).s(\"supersaw\").unison(7).detune(0.6).add(note(perlin.range(-0.4, 0.4).slow(2))).attack(0.25).release(1.6).lpq(4).delay(0.4).delaytime(0.5).delayfeedback(0.6).room(0.66).roomsize(8).lpf(saw.range(450, 1500).slow(8)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.06).gain(\"<0.7 0.7 0.7 1>\")).orbit(6),\n  (note(\"<[[60,64,67] ~ ~ [53,57,60] ~ [64,67,71] ~ ~] [~ ~ [57,60,64] ~ [62,65,69] ~ [57,60,64] ~] [~ [60,64,67] ~ [53,57,60] ~ ~ [64,67,71] ~] [[57,60,64] ~ [57,60,64] ~ ~ ~ ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.02)).orbit(9)\n)],\n  // break (8 bars)\n  [8, stack(\n  (s(\"<[bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] [bd*4] ~>\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.34).gain(0.69).lpf(1500).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(2),\n  (s(\"[hh ~]*2\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.11).pan(sine.slow(4)).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0, x => x.ply(2)).gain(0.12).room(0.06).roomsize(3).shape(0.16).lpf(7500).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(7),\n  (note(\"33\").s(\"sawtooth\").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(707).crush(8).gain(0.01).delay(0.05).delaytime(0.1875).delayfeedback(0.25).room(0.13).roomsize(3).pan(0.56).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(8),\n  (note(\"<[<[~ 57 ~ 64 69 ~ 64 ~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ ~]>] ~ ~ ~ ~ ~ ~ ~>\").s(\"square\").degradeBy(0.4).acidenv(0.4).lpq(2).attack(0.02).dec(0.12).hpf(180).delay(0.6).delaytime(0.1875).delayfeedback(0.62).room(0.6).roomsize(7).gain(0.22).lpf(1500)).orbit(6),\n  (note(\"<[77 ~ ~ ~ ~ ~ ~ ~] [~ ~ 74 ~ ~ ~ ~ ~] [~ ~ ~ ~ 72 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").s(\"sawtooth\").vowel(\"<a e o aa>\").lpq(2).attack(0.05).release(0.45).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.72).roomsize(8).lpf(saw.range(500, 2000).slow(8)).hpf(180).pan(sine.slow(6).range(0.3, 0.7)).gain(0.15).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(6),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ [bd sd bd sd [sd sd] [sd*4] sd*8 sd*16]>\").bank(\"AkaiLinn\").gain(0.67).hpf(150).shape(0.1).lpf(7000).room(0.05).roomsize(3)).orbit(7)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"bd*4\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.46).gain(0.8).gain(\"<0 1 1 1>\")).orbit(2),\n  (s(\"<~ white ~ ~>\").dec(0.8).hpf(2500).gain(0.29).room(0.6).roomsize(8)).orbit(8),\n  (s(\"<white white ~ ~ ~>\").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),\n  (s(\"hh*8\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4)).gain(\"<0 1 1 1>\")).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.06).roomsize(3).shape(0.16).lpf(7500).gain(\"<0 1 1 1>\")).orbit(7),\n  (s(\"~ cp ~ cp\").bank(\"AkaiLinn\").gain(0.28).room(0.05).roomsize(3).shape(0.08).lpf(7500).gain(\"<0 1 1 1>\")).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500).gain(\"<0 1 1 1>\")).orbit(3),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(90, 910).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain(\"<1 1 1 0.84>\").gain(\"<0.59 0.73 0.86 1>\").gain(\"<0 1 1 1>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.33).gain(\"<0.59 0.73 0.86 1>\").gain(\"<0 1 1 1>\").lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"<[59 ~ ~ 57 ~ 55 ~ ~] [59 ~ 59 ~ ~ 57 ~ ~] [55 ~ ~ 57 ~ 59 ~ ~] [59 ~ 57 ~ ~ 55 ~ ~]>\").add(note(\"<0 0 0 0>\")).sometimesBy(0.2, x => x.ply(2)).s(\"sawtooth\").vowel(\"<a e o aa>\").lpq(2).attack(0.05).release(0.45).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.72).roomsize(8).lpf(saw.range(220, 2000).slow(4)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.06).gain(\"<0.7 0.7 0.7 1>\")).orbit(6),\n  (note(\"<[[[57,60] [62,65]] [[60,64] [65,69]] [57,60] [[53,57] [57,60]] [62,65] [[60,64] [65,69]] [57,60] [53,57]] [[57,60] [[62,65] [60,64]] [65,69] [[57,60] [53,57]] [[57,60] [62,65]] [60,64] [[65,69] [57,60]] [53,57]] [[[57,60] [62,65]] [60,64] [[65,69] [57,60]] [53,57] [57,60] [[62,65] [60,64]] [65,69] [[57,60] [53,57]]] [[57,60] [[62,65] [57,60]] [62,65] [60,64] [[65,69] [57,60]] [53,57] ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.02)).orbit(9)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"<[bd*4] [bd*4] [bd*4] [bd*2 bd bd bd]>\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.46).gain(0.8)).orbit(2),\n  (s(\"<~ ~ ~ [lt mt lt mt lt mt lt mt]>\").bank(\"AkaiLinn\").gain(0.35).room(0.2)).orbit(7),\n  (s(\"hh*8\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.24).pan(sine.slow(4))).orbit(3),\n  (s(\"~ sd ~ sd\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.06).roomsize(3).shape(0.16).lpf(7500)).orbit(7),\n  (s(\"~ cp ~ cp\").bank(\"AkaiLinn\").gain(0.28).room(0.05).roomsize(3).shape(0.08).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 1560).slow(4)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.4).gain(\"<0.85 0.85 0.85 1>\").gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"<[59 ~ ~ 57 ~ 55 ~ ~] [59 ~ 59 ~ ~ 57 ~ ~] [55 ~ ~ 57 ~ 59 ~ ~] [59 ~ 57 ~ ~ 55 ~ ~]>\").add(note(\"<0 0 0 0>\")).sometimesBy(0.2, x => x.ply(2)).s(\"sawtooth\").vowel(\"<a e o aa>\").lpq(2).attack(0.05).release(0.45).delay(0.5).delaytime(0.375).delayfeedback(0.62).room(0.72).roomsize(8).lpf(saw.range(560, 2000).slow(4)).pan(sine.slow(6).range(0.3, 0.7)).gain(0.06)).orbit(6),\n  (note(\"<[64 ~ ~ 69 ~ 64 ~ ~] [~ ~ 65 ~ 60 ~ 69 ~] [~ 72 ~ 69 ~ ~ 64 ~] [60 ~ 57 ~ ~ ~ ~ ~]>\").s(\"square\").lpf(2200).room(0.4).delay(0.2).pan(0.72).gain(0.02)).orbit(9)\n)],\n  // outro (8 bars)\n  [8, stack(\n  (s(\"bd*4\").bank(\"AkaiLinn\").n(0).gain(\"0.95 0.9 0.85 0.95 0.8 0.83 0.88 0.92\").shape(0.34).distort(\"1.4:0.4\").attack(0.001).shape(0.34).gain(0.75)).orbit(2),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ white>\").dec(1.2).hpf(2500).gain(0.33).room(0.6).roomsize(8)).orbit(8),\n  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 0 0 0 0\").add(note(\"<33 35>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").gain(\"1 0.45 0.6 0.5 1 0.45 0.6 0.5 1 0.45 0.7 0.5 1 0.45 0.6 0.5\").clip(0.95).lpf(saw.range(420, 910).slow(8)).superimpose(x => x.add(note(7)).late(0.0625).s(\"square\").lpf(1400).gain(0.32)).room(0.03).roomsize(3).gain(0.48).gain(saw.range(0.41, 1).fast(4))).orbit(4),\n  (note(\"<33 35>\").s(\"sine\").gain(0.39).lpf(150).gain(saw.range(0.41, 1).fast(4))).orbit(8),\n  (note(\"33\").s(\"sawtooth\").attack(1).release(6).add(note(sine.range(-0.4, 0.4).slow(1.5))).lpf(707).crush(8).gain(0.01).delay(0.05).delaytime(0.1875).delayfeedback(0.25).room(0.13).roomsize(3).pan(0.56)).orbit(8)\n)],\n)",
+   "lines": [
+    {
+     "row": 0,
+     "start": 0,
+     "text": "setcpm(130/4)"
+    },
+    {
+     "row": 1,
+     "start": 14,
+     "text": "// 6EA0BD · dark_techno · A "
+    },
+    {
+     "row": 2,
+     "start": 42,
+     "text": "aeolian · 130bpm"
+    },
+    {
+     "row": 3,
+     "start": 59,
+     "text": "arrange("
+    },
+    {
+     "row": 4,
+     "start": 68,
+     "text": "  // intro (8 bars)"
+    },
+    {
+     "row": 5,
+     "start": 88,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 6,
+     "start": 101,
+     "text": "  "
+    },
+    {
+     "row": 7,
+     "start": 103,
+     "text": "(s(\"bd*4\").bank(\"AkaiLinn\").n(0)"
+    },
+    {
+     "row": 8,
+     "start": 135,
+     "text": ".gain(\"0.95 0.9 0.85 0.95 0.8 "
+    },
+    {
+     "row": 9,
+     "start": 165,
+     "text": "0.83 0.88 "
+    },
+    {
+     "row": 10,
+     "start": 175,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 11,
+     "start": 207,
+     "text": "0.4\").attack(0.001).shape(0.34)."
+    },
+    {
+     "row": 12,
+     "start": 239,
+     "text": "gain(0.63).lpf(900).gain(\"<1 1 1 "
+    },
+    {
+     "row": 13,
+     "start": 272,
+     "text": "1 1 1 1 0>\")).orbit(2),"
+    },
+    {
+     "row": 14,
+     "start": 296,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 15,
+     "start": 329,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 16,
+     "start": 353,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 17,
+     "start": 385,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 18,
+     "start": 417,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 19,
+     "start": 448,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 20,
+     "start": 478,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 21,
+     "start": 497,
+     "text": "0.5\").clip(0.95).lpf(saw.range(9"
+    },
+    {
+     "row": 22,
+     "start": 529,
+     "text": "0, "
+    },
+    {
+     "row": 23,
+     "start": 532,
+     "text": "700).slow(8)).room(0.03).roomsiz"
+    },
+    {
+     "row": 24,
+     "start": 564,
+     "text": "e(3).gain(0.67).gain(\"<0.59 0.73 "
+    },
+    {
+     "row": 25,
+     "start": 597,
+     "text": "0.86 1 1!4>\").gain(\"<1 1 1 1 1 1 "
+    },
+    {
+     "row": 26,
+     "start": 630,
+     "text": "1 0>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 27,
+     "start": 658,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 28,
+     "start": 681,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 29,
+     "start": 694,
+     "text": "35>\").s(\"sine\").gain(0.54).gain("
+    },
+    {
+     "row": 30,
+     "start": 726,
+     "text": "\"<0.59 0.73 0.86 1 1!4>\").gain(\""
+    },
+    {
+     "row": 31,
+     "start": 758,
+     "text": "<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 32,
+     "start": 773,
+     "text": "0>\").lpf(150).gain(saw.range(0.4"
+    },
+    {
+     "row": 33,
+     "start": 805,
+     "text": "1, 1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 34,
+     "start": 831,
+     "text": "  "
+    },
+    {
+     "row": 35,
+     "start": 833,
+     "text": "(note(\"33\").s(\"sawtooth\").attack"
+    },
+    {
+     "row": 36,
+     "start": 865,
+     "text": "(1).release(6).add(note(sine.ran"
+    },
+    {
+     "row": 37,
+     "start": 897,
+     "text": "ge(-0.4, "
+    },
+    {
+     "row": 38,
+     "start": 906,
+     "text": "0.4).slow(1.5))).lpf(707).crush("
+    },
+    {
+     "row": 39,
+     "start": 938,
+     "text": "8).gain(0.01).delay(0.05).delayt"
+    },
+    {
+     "row": 40,
+     "start": 970,
+     "text": "ime(0.1875).delayfeedback(0.25)."
+    },
+    {
+     "row": 41,
+     "start": 1002,
+     "text": "room(0.13).roomsize(3).pan(0.56)"
+    },
+    {
+     "row": 42,
+     "start": 1034,
+     "text": ".gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 43,
+     "start": 1056,
+     "text": "0>\")).orbit(8)"
+    },
+    {
+     "row": 44,
+     "start": 1071,
+     "text": ")],"
+    },
+    {
+     "row": 45,
+     "start": 1075,
+     "text": "  // build (8 bars)"
+    },
+    {
+     "row": 46,
+     "start": 1095,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 47,
+     "start": 1108,
+     "text": "  (s(\"<[bd*4] [bd*4] [bd*4] "
+    },
+    {
+     "row": 48,
+     "start": 1136,
+     "text": "[bd*4] [bd*4] [bd*4] [bd*4] [bd "
+    },
+    {
+     "row": 49,
+     "start": 1168,
+     "text": "bd bd "
+    },
+    {
+     "row": 50,
+     "start": 1174,
+     "text": "bd]>\").bank(\"AkaiLinn\").n(0).gai"
+    },
+    {
+     "row": 51,
+     "start": 1206,
+     "text": "n(\"0.95 0.9 0.85 0.95 0.8 0.83 "
+    },
+    {
+     "row": 52,
+     "start": 1237,
+     "text": "0.88 "
+    },
+    {
+     "row": 53,
+     "start": 1242,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 54,
+     "start": 1274,
+     "text": "0.4\").attack(0.001).shape(0.34)."
+    },
+    {
+     "row": 55,
+     "start": 1306,
+     "text": "gain(0.77).gain(\"<0 1 1 1 1 1 1 "
+    },
+    {
+     "row": 56,
+     "start": 1338,
+     "text": "1>\")).orbit(2),"
+    },
+    {
+     "row": 57,
+     "start": 1354,
+     "text": "  (s(\"<~ white ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 58,
+     "start": 1379,
+     "text": "~>\").dec(0.8).hpf(2500).gain(0.3"
+    },
+    {
+     "row": 59,
+     "start": 1411,
+     "text": "6).room(0.6).roomsize(8)).orbit("
+    },
+    {
+     "row": 60,
+     "start": 1443,
+     "text": "8),"
+    },
+    {
+     "row": 61,
+     "start": 1447,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ [sd*4 "
+    },
+    {
+     "row": 62,
+     "start": 1474,
+     "text": "sd*8]>\").bank(\"AkaiLinn\").gain(0"
+    },
+    {
+     "row": 63,
+     "start": 1506,
+     "text": ".44).hpf(400).lpf(7000).room(0.0"
+    },
+    {
+     "row": 64,
+     "start": 1538,
+     "text": "6).roomsize(3)).orbit(7),"
+    },
+    {
+     "row": 65,
+     "start": 1564,
+     "text": "  (note(\"<[45 38 32 28 23 17] ~ "
+    },
+    {
+     "row": 66,
+     "start": 1596,
+     "text": "~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 67,
+     "start": 1606,
+     "text": "~>\").s(\"sine\").dec(0.12).lpf(500"
+    },
+    {
+     "row": 68,
+     "start": 1638,
+     "text": ").gain(0.47)).orbit(8),"
+    },
+    {
+     "row": 69,
+     "start": 1662,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 70,
+     "start": 1695,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 71,
+     "start": 1719,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 72,
+     "start": 1751,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 73,
+     "start": 1783,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 74,
+     "start": 1814,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 75,
+     "start": 1844,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 76,
+     "start": 1863,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 77,
+     "start": 1895,
+     "text": "20, 910).slow(8)).superimpose(x "
+    },
+    {
+     "row": 78,
+     "start": 1927,
+     "text": "=> "
+    },
+    {
+     "row": 79,
+     "start": 1930,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 80,
+     "start": 1962,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 81,
+     "start": 1994,
+     "text": "om(0.03).roomsize(3).gain(0.69)."
+    },
+    {
+     "row": 82,
+     "start": 2026,
+     "text": "gain(\"<0 1 1 1 1 1 1 "
+    },
+    {
+     "row": 83,
+     "start": 2047,
+     "text": "1>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 84,
+     "start": 2073,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 85,
+     "start": 2096,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 86,
+     "start": 2109,
+     "text": "35>\").s(\"sine\").gain(0.56).gain("
+    },
+    {
+     "row": 87,
+     "start": 2141,
+     "text": "\"<0 1 1 1 1 1 1 "
+    },
+    {
+     "row": 88,
+     "start": 2157,
+     "text": "1>\").lpf(150).gain(saw.range(0.4"
+    },
+    {
+     "row": 89,
+     "start": 2189,
+     "text": "1, 1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 90,
+     "start": 2215,
+     "text": "  "
+    },
+    {
+     "row": 91,
+     "start": 2217,
+     "text": "(note(\"33\").s(\"sawtooth\").attack"
+    },
+    {
+     "row": 92,
+     "start": 2249,
+     "text": "(1).release(6).add(note(sine.ran"
+    },
+    {
+     "row": 93,
+     "start": 2281,
+     "text": "ge(-0.4, "
+    },
+    {
+     "row": 94,
+     "start": 2290,
+     "text": "0.4).slow(1.5))).lpf(707).crush("
+    },
+    {
+     "row": 95,
+     "start": 2322,
+     "text": "8).gain(0.01).delay(0.05).delayt"
+    },
+    {
+     "row": 96,
+     "start": 2354,
+     "text": "ime(0.1875).delayfeedback(0.25)."
+    },
+    {
+     "row": 97,
+     "start": 2386,
+     "text": "room(0.13).roomsize(3).pan(0.56)"
+    },
+    {
+     "row": 98,
+     "start": 2418,
+     "text": ").orbit(8),"
+    },
+    {
+     "row": 99,
+     "start": 2430,
+     "text": "  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] "
+    },
+    {
+     "row": 100,
+     "start": 2462,
+     "text": "[~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 "
+    },
+    {
+     "row": 101,
+     "start": 2494,
+     "text": "64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ "
+    },
+    {
+     "row": 102,
+     "start": 2522,
+     "text": "~]>\").sometimesBy(0.2, x => "
+    },
+    {
+     "row": 103,
+     "start": 2550,
+     "text": "x.ply(2)).s(\"supersaw\").unison(7"
+    },
+    {
+     "row": 104,
+     "start": 2582,
+     "text": ").detune(0.6).add(note(perlin.ra"
+    },
+    {
+     "row": 105,
+     "start": 2614,
+     "text": "nge(-0.4, "
+    },
+    {
+     "row": 106,
+     "start": 2624,
+     "text": "0.4).slow(2))).attack(0.25).rele"
+    },
+    {
+     "row": 107,
+     "start": 2656,
+     "text": "ase(1.6).lpq(4).delay(0.4).delay"
+    },
+    {
+     "row": 108,
+     "start": 2688,
+     "text": "time(0.5).delayfeedback(0.6).roo"
+    },
+    {
+     "row": 109,
+     "start": 2720,
+     "text": "m(0.66).roomsize(8).lpf(saw.rang"
+    },
+    {
+     "row": 110,
+     "start": 2752,
+     "text": "e(450, "
+    },
+    {
+     "row": 111,
+     "start": 2759,
+     "text": "1500).slow(8)).pan(sine.slow(6)."
+    },
+    {
+     "row": 112,
+     "start": 2791,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 113,
+     "start": 2802,
+     "text": "0.7)).gain(0.07)).orbit(6),"
+    },
+    {
+     "row": 114,
+     "start": 2830,
+     "text": "  (note(\"<[69 ~ ~ ~ 57 ~ ~ ~] [~ "
+    },
+    {
+     "row": 115,
+     "start": 2863,
+     "text": "~ ~ ~ ~ ~ ~ ~] [60 ~ ~ 64 ~ ~ ~ "
+    },
+    {
+     "row": 116,
+     "start": 2895,
+     "text": "~] [~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 117,
+     "start": 2913,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 118,
+     "start": 2945,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 119,
+     "start": 2977,
+     "text": "0.03)).orbit(9)"
+    },
+    {
+     "row": 120,
+     "start": 2993,
+     "text": ")],"
+    },
+    {
+     "row": 121,
+     "start": 2997,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 122,
+     "start": 3016,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 123,
+     "start": 3029,
+     "text": "  "
+    },
+    {
+     "row": 124,
+     "start": 3031,
+     "text": "(s(\"bd*4\").bank(\"AkaiLinn\").n(0)"
+    },
+    {
+     "row": 125,
+     "start": 3063,
+     "text": ".gain(\"0.95 0.9 0.85 0.95 0.8 "
+    },
+    {
+     "row": 126,
+     "start": 3093,
+     "text": "0.83 0.88 "
+    },
+    {
+     "row": 127,
+     "start": 3103,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 128,
+     "start": 3135,
+     "text": "0.4\").attack(0.001).shape(0.46)."
+    },
+    {
+     "row": 129,
+     "start": 3167,
+     "text": "gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 130,
+     "start": 3188,
+     "text": "  (s(\"<white white ~ ~ "
+    },
+    {
+     "row": 131,
+     "start": 3211,
+     "text": "~>\").dec(0.6).hpf(3500).gain(0.2"
+    },
+    {
+     "row": 132,
+     "start": 3243,
+     "text": "9).room(0.5).roomsize(6)).orbit("
+    },
+    {
+     "row": 133,
+     "start": 3275,
+     "text": "8),"
+    },
+    {
+     "row": 134,
+     "start": 3279,
+     "text": "  "
+    },
+    {
+     "row": 135,
+     "start": 3281,
+     "text": "(s(\"hh*8\").bank(\"AkaiLinn\").dec("
+    },
+    {
+     "row": 136,
+     "start": 3313,
+     "text": "tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 137,
+     "start": 3337,
+     "text": "0.12)).gain(0.24).gain(\"<0.59 "
+    },
+    {
+     "row": 138,
+     "start": 3367,
+     "text": "0.73 0.86 "
+    },
+    {
+     "row": 139,
+     "start": 3377,
+     "text": "1>\").pan(sine.slow(4))).orbit(3)"
+    },
+    {
+     "row": 140,
+     "start": 3409,
+     "text": ","
+    },
+    {
+     "row": 141,
+     "start": 3411,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 142,
+     "start": 3424,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 143,
+     "start": 3456,
+     "text": "y(0.28, x => "
+    },
+    {
+     "row": 144,
+     "start": 3469,
+     "text": "x.ply(2)).gain(0.32).gain(\"<0.59 "
+    },
+    {
+     "row": 145,
+     "start": 3502,
+     "text": "0.73 0.86 "
+    },
+    {
+     "row": 146,
+     "start": 3512,
+     "text": "1>\").room(0.06).roomsize(3).shap"
+    },
+    {
+     "row": 147,
+     "start": 3544,
+     "text": "e(0.16).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 148,
+     "start": 3573,
+     "text": "  (s(\"~ cp ~ "
+    },
+    {
+     "row": 149,
+     "start": 3586,
+     "text": "cp\").bank(\"AkaiLinn\").gain(0.28)"
+    },
+    {
+     "row": 150,
+     "start": 3618,
+     "text": ".gain(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 151,
+     "start": 3641,
+     "text": "1>\").room(0.05).roomsize(3).shap"
+    },
+    {
+     "row": 152,
+     "start": 3673,
+     "text": "e(0.08).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 153,
+     "start": 3702,
+     "text": "  (s(\"[~ "
+    },
+    {
+     "row": 154,
+     "start": 3711,
+     "text": "hh]*4\").gain(0.19).hpf(6500).gai"
+    },
+    {
+     "row": 155,
+     "start": 3743,
+     "text": "n(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 156,
+     "start": 3762,
+     "text": "1>\")).orbit(3),"
+    },
+    {
+     "row": 157,
+     "start": 3778,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 158,
+     "start": 3811,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 159,
+     "start": 3835,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 160,
+     "start": 3867,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 161,
+     "start": 3899,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 162,
+     "start": 3930,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 163,
+     "start": 3960,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 164,
+     "start": 3979,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 165,
+     "start": 4011,
+     "text": "20, 910).slow(4)).superimpose(x "
+    },
+    {
+     "row": 166,
+     "start": 4043,
+     "text": "=> "
+    },
+    {
+     "row": 167,
+     "start": 4046,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 168,
+     "start": 4078,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 169,
+     "start": 4110,
+     "text": "om(0.03).roomsize(3).gain(0.4).g"
+    },
+    {
+     "row": 170,
+     "start": 4142,
+     "text": "ain(\"<1 1 1 "
+    },
+    {
+     "row": 171,
+     "start": 4154,
+     "text": "0.84>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 172,
+     "start": 4183,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 173,
+     "start": 4206,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 174,
+     "start": 4219,
+     "text": "35>\").s(\"sine\").gain(0.33).lpf(1"
+    },
+    {
+     "row": 175,
+     "start": 4251,
+     "text": "50).gain(saw.range(0.41, "
+    },
+    {
+     "row": 176,
+     "start": 4276,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 177,
+     "start": 4299,
+     "text": "  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] "
+    },
+    {
+     "row": 178,
+     "start": 4331,
+     "text": "[~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 "
+    },
+    {
+     "row": 179,
+     "start": 4363,
+     "text": "64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ "
+    },
+    {
+     "row": 180,
+     "start": 4391,
+     "text": "~]>\").sometimesBy(0.2, x => "
+    },
+    {
+     "row": 181,
+     "start": 4419,
+     "text": "x.ply(2)).s(\"supersaw\").unison(7"
+    },
+    {
+     "row": 182,
+     "start": 4451,
+     "text": ").detune(0.6).add(note(perlin.ra"
+    },
+    {
+     "row": 183,
+     "start": 4483,
+     "text": "nge(-0.4, "
+    },
+    {
+     "row": 184,
+     "start": 4493,
+     "text": "0.4).slow(2))).attack(0.25).rele"
+    },
+    {
+     "row": 185,
+     "start": 4525,
+     "text": "ase(1.6).lpq(4).delay(0.4).delay"
+    },
+    {
+     "row": 186,
+     "start": 4557,
+     "text": "time(0.5).delayfeedback(0.6).roo"
+    },
+    {
+     "row": 187,
+     "start": 4589,
+     "text": "m(0.66).roomsize(8).lpf(saw.rang"
+    },
+    {
+     "row": 188,
+     "start": 4621,
+     "text": "e(450, "
+    },
+    {
+     "row": 189,
+     "start": 4628,
+     "text": "1500).slow(8)).pan(sine.slow(6)."
+    },
+    {
+     "row": 190,
+     "start": 4660,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 191,
+     "start": 4671,
+     "text": "0.7)).gain(0.06).gain(\"<0.7 0.7 "
+    },
+    {
+     "row": 192,
+     "start": 4703,
+     "text": "0.7 1>\")).orbit(6),"
+    },
+    {
+     "row": 193,
+     "start": 4723,
+     "text": "  (note(\"<[57 ~ ~ 62 ~ ~ 60 ~] "
+    },
+    {
+     "row": 194,
+     "start": 4754,
+     "text": "[~ 57 ~ ~ ~ ~ ~ ~] [65 ~ ~ 69 ~ "
+    },
+    {
+     "row": 195,
+     "start": 4786,
+     "text": "~ 65 ~] [~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 196,
+     "start": 4809,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 197,
+     "start": 4841,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 198,
+     "start": 4873,
+     "text": "0.02)).orbit(9)"
+    },
+    {
+     "row": 199,
+     "start": 4889,
+     "text": ")],"
+    },
+    {
+     "row": 200,
+     "start": 4893,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 201,
+     "start": 4912,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 202,
+     "start": 4925,
+     "text": "  "
+    },
+    {
+     "row": 203,
+     "start": 4927,
+     "text": "(s(\"bd*4\").bank(\"AkaiLinn\").n(0)"
+    },
+    {
+     "row": 204,
+     "start": 4959,
+     "text": ".gain(\"0.95 0.9 0.85 0.95 0.8 "
+    },
+    {
+     "row": 205,
+     "start": 4989,
+     "text": "0.83 0.88 "
+    },
+    {
+     "row": 206,
+     "start": 4999,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 207,
+     "start": 5031,
+     "text": "0.4\").attack(0.001).shape(0.46)."
+    },
+    {
+     "row": 208,
+     "start": 5063,
+     "text": "gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 209,
+     "start": 5084,
+     "text": "  "
+    },
+    {
+     "row": 210,
+     "start": 5086,
+     "text": "(s(\"hh*8\").bank(\"AkaiLinn\").dec("
+    },
+    {
+     "row": 211,
+     "start": 5118,
+     "text": "tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 212,
+     "start": 5142,
+     "text": "0.12)).gain(0.24).pan(sine.slow("
+    },
+    {
+     "row": 213,
+     "start": 5174,
+     "text": "4))).orbit(3),"
+    },
+    {
+     "row": 214,
+     "start": 5189,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 215,
+     "start": 5202,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 216,
+     "start": 5234,
+     "text": "y(0.28, x => "
+    },
+    {
+     "row": 217,
+     "start": 5247,
+     "text": "x.ply(2)).gain(0.32).room(0.06)."
+    },
+    {
+     "row": 218,
+     "start": 5279,
+     "text": "roomsize(3).shape(0.16).lpf(7500"
+    },
+    {
+     "row": 219,
+     "start": 5311,
+     "text": ")).orbit(7),"
+    },
+    {
+     "row": 220,
+     "start": 5324,
+     "text": "  (s(\"~ cp ~ "
+    },
+    {
+     "row": 221,
+     "start": 5337,
+     "text": "cp\").bank(\"AkaiLinn\").gain(0.28)"
+    },
+    {
+     "row": 222,
+     "start": 5369,
+     "text": ".room(0.05).roomsize(3).shape(0."
+    },
+    {
+     "row": 223,
+     "start": 5401,
+     "text": "08).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 224,
+     "start": 5426,
+     "text": "  (s(\"[~ "
+    },
+    {
+     "row": 225,
+     "start": 5435,
+     "text": "hh]*4\").gain(0.19).hpf(6500)).or"
+    },
+    {
+     "row": 226,
+     "start": 5467,
+     "text": "bit(3),"
+    },
+    {
+     "row": 227,
+     "start": 5475,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 228,
+     "start": 5508,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 229,
+     "start": 5532,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 230,
+     "start": 5564,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 231,
+     "start": 5596,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 232,
+     "start": 5627,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 233,
+     "start": 5657,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 234,
+     "start": 5676,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 235,
+     "start": 5708,
+     "text": "20, 1235).slow(4)).superimpose(x "
+    },
+    {
+     "row": 236,
+     "start": 5741,
+     "text": "=> "
+    },
+    {
+     "row": 237,
+     "start": 5744,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 238,
+     "start": 5776,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 239,
+     "start": 5808,
+     "text": "om(0.03).roomsize(3).gain(0.4).g"
+    },
+    {
+     "row": 240,
+     "start": 5840,
+     "text": "ain(\"<0.85 0.85 0.85 "
+    },
+    {
+     "row": 241,
+     "start": 5861,
+     "text": "1>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 242,
+     "start": 5887,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 243,
+     "start": 5910,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 244,
+     "start": 5923,
+     "text": "35>\").s(\"sine\").gain(0.33).lpf(1"
+    },
+    {
+     "row": 245,
+     "start": 5955,
+     "text": "50).gain(saw.range(0.41, "
+    },
+    {
+     "row": 246,
+     "start": 5980,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 247,
+     "start": 6003,
+     "text": "  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] "
+    },
+    {
+     "row": 248,
+     "start": 6035,
+     "text": "[~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 "
+    },
+    {
+     "row": 249,
+     "start": 6067,
+     "text": "64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ "
+    },
+    {
+     "row": 250,
+     "start": 6095,
+     "text": "~]>\").sometimesBy(0.2, x => "
+    },
+    {
+     "row": 251,
+     "start": 6123,
+     "text": "x.ply(2)).s(\"supersaw\").unison(7"
+    },
+    {
+     "row": 252,
+     "start": 6155,
+     "text": ").detune(0.6).add(note(perlin.ra"
+    },
+    {
+     "row": 253,
+     "start": 6187,
+     "text": "nge(-0.4, "
+    },
+    {
+     "row": 254,
+     "start": 6197,
+     "text": "0.4).slow(2))).attack(0.25).rele"
+    },
+    {
+     "row": 255,
+     "start": 6229,
+     "text": "ase(1.6).lpq(4).delay(0.4).delay"
+    },
+    {
+     "row": 256,
+     "start": 6261,
+     "text": "time(0.5).delayfeedback(0.6).roo"
+    },
+    {
+     "row": 257,
+     "start": 6293,
+     "text": "m(0.66).roomsize(8).lpf(saw.rang"
+    },
+    {
+     "row": 258,
+     "start": 6325,
+     "text": "e(450, "
+    },
+    {
+     "row": 259,
+     "start": 6332,
+     "text": "1500).slow(8)).pan(sine.slow(6)."
+    },
+    {
+     "row": 260,
+     "start": 6364,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 261,
+     "start": 6375,
+     "text": "0.7)).gain(0.06)).orbit(6),"
+    },
+    {
+     "row": 262,
+     "start": 6403,
+     "text": "  (note(\"<[71 ~ ~ ~ 67 ~ ~ ~] [~ "
+    },
+    {
+     "row": 263,
+     "start": 6436,
+     "text": "~ ~ ~ ~ ~ ~ ~] [65 ~ ~ 62 ~ ~ ~ "
+    },
+    {
+     "row": 264,
+     "start": 6468,
+     "text": "~] [~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 265,
+     "start": 6486,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 266,
+     "start": 6518,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 267,
+     "start": 6550,
+     "text": "0.02)).orbit(9)"
+    },
+    {
+     "row": 268,
+     "start": 6566,
+     "text": ")],"
+    },
+    {
+     "row": 269,
+     "start": 6570,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 270,
+     "start": 6589,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 271,
+     "start": 6602,
+     "text": "  (s(\"<[bd*4] [bd*4] [bd*4] "
+    },
+    {
+     "row": 272,
+     "start": 6630,
+     "text": "[bd*2 bd bd "
+    },
+    {
+     "row": 273,
+     "start": 6642,
+     "text": "bd]>\").bank(\"AkaiLinn\").n(0).gai"
+    },
+    {
+     "row": 274,
+     "start": 6674,
+     "text": "n(\"0.95 0.9 0.85 0.95 0.8 0.83 "
+    },
+    {
+     "row": 275,
+     "start": 6705,
+     "text": "0.88 "
+    },
+    {
+     "row": 276,
+     "start": 6710,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 277,
+     "start": 6742,
+     "text": "0.4\").attack(0.001).shape(0.46)."
+    },
+    {
+     "row": 278,
+     "start": 6774,
+     "text": "gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 279,
+     "start": 6795,
+     "text": "  (s(\"<~ ~ ~ [lt ~ mt ~ ht ~ mt "
+    },
+    {
+     "row": 280,
+     "start": 6827,
+     "text": "lt]>\").bank(\"AkaiLinn\").gain(0.3"
+    },
+    {
+     "row": 281,
+     "start": 6859,
+     "text": "5).room(0.2)).orbit(7),"
+    },
+    {
+     "row": 282,
+     "start": 6883,
+     "text": "  "
+    },
+    {
+     "row": 283,
+     "start": 6885,
+     "text": "(s(\"hh*8\").bank(\"AkaiLinn\").dec("
+    },
+    {
+     "row": 284,
+     "start": 6917,
+     "text": "tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 285,
+     "start": 6941,
+     "text": "0.12)).gain(0.24).pan(sine.slow("
+    },
+    {
+     "row": 286,
+     "start": 6973,
+     "text": "4))).orbit(3),"
+    },
+    {
+     "row": 287,
+     "start": 6988,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 288,
+     "start": 7001,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 289,
+     "start": 7033,
+     "text": "y(0.28, x => "
+    },
+    {
+     "row": 290,
+     "start": 7046,
+     "text": "x.ply(2)).gain(0.32).room(0.06)."
+    },
+    {
+     "row": 291,
+     "start": 7078,
+     "text": "roomsize(3).shape(0.16).lpf(7500"
+    },
+    {
+     "row": 292,
+     "start": 7110,
+     "text": ")).orbit(7),"
+    },
+    {
+     "row": 293,
+     "start": 7123,
+     "text": "  (s(\"~ cp ~ "
+    },
+    {
+     "row": 294,
+     "start": 7136,
+     "text": "cp\").bank(\"AkaiLinn\").gain(0.28)"
+    },
+    {
+     "row": 295,
+     "start": 7168,
+     "text": ".room(0.05).roomsize(3).shape(0."
+    },
+    {
+     "row": 296,
+     "start": 7200,
+     "text": "08).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 297,
+     "start": 7225,
+     "text": "  (s(\"[~ "
+    },
+    {
+     "row": 298,
+     "start": 7234,
+     "text": "hh]*4\").gain(0.19).hpf(6500)).or"
+    },
+    {
+     "row": 299,
+     "start": 7266,
+     "text": "bit(3),"
+    },
+    {
+     "row": 300,
+     "start": 7274,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 301,
+     "start": 7307,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 302,
+     "start": 7331,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 303,
+     "start": 7363,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 304,
+     "start": 7395,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 305,
+     "start": 7426,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 306,
+     "start": 7456,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 307,
+     "start": 7475,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 308,
+     "start": 7507,
+     "text": "20, 1560).slow(4)).superimpose(x "
+    },
+    {
+     "row": 309,
+     "start": 7540,
+     "text": "=> "
+    },
+    {
+     "row": 310,
+     "start": 7543,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 311,
+     "start": 7575,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 312,
+     "start": 7607,
+     "text": "om(0.03).roomsize(3).gain(0.4).g"
+    },
+    {
+     "row": 313,
+     "start": 7639,
+     "text": "ain(\"<1 1 1 "
+    },
+    {
+     "row": 314,
+     "start": 7651,
+     "text": "0.84>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 315,
+     "start": 7680,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 316,
+     "start": 7703,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 317,
+     "start": 7716,
+     "text": "35>\").s(\"sine\").gain(0.33).lpf(1"
+    },
+    {
+     "row": 318,
+     "start": 7748,
+     "text": "50).gain(saw.range(0.41, "
+    },
+    {
+     "row": 319,
+     "start": 7773,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 320,
+     "start": 7796,
+     "text": "  (note(\"<[~ 57 ~ 64 69 ~ 64 ~] "
+    },
+    {
+     "row": 321,
+     "start": 7828,
+     "text": "[~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ 69 "
+    },
+    {
+     "row": 322,
+     "start": 7860,
+     "text": "64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ "
+    },
+    {
+     "row": 323,
+     "start": 7888,
+     "text": "~]>\").sometimesBy(0.2, x => "
+    },
+    {
+     "row": 324,
+     "start": 7916,
+     "text": "x.ply(2)).s(\"supersaw\").unison(7"
+    },
+    {
+     "row": 325,
+     "start": 7948,
+     "text": ").detune(0.6).add(note(perlin.ra"
+    },
+    {
+     "row": 326,
+     "start": 7980,
+     "text": "nge(-0.4, "
+    },
+    {
+     "row": 327,
+     "start": 7990,
+     "text": "0.4).slow(2))).attack(0.25).rele"
+    },
+    {
+     "row": 328,
+     "start": 8022,
+     "text": "ase(1.6).lpq(4).delay(0.4).delay"
+    },
+    {
+     "row": 329,
+     "start": 8054,
+     "text": "time(0.5).delayfeedback(0.6).roo"
+    },
+    {
+     "row": 330,
+     "start": 8086,
+     "text": "m(0.66).roomsize(8).lpf(saw.rang"
+    },
+    {
+     "row": 331,
+     "start": 8118,
+     "text": "e(450, "
+    },
+    {
+     "row": 332,
+     "start": 8125,
+     "text": "1500).slow(8)).pan(sine.slow(6)."
+    },
+    {
+     "row": 333,
+     "start": 8157,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 334,
+     "start": 8168,
+     "text": "0.7)).gain(0.06).gain(\"<0.7 0.7 "
+    },
+    {
+     "row": 335,
+     "start": 8200,
+     "text": "0.7 1>\")).orbit(6),"
+    },
+    {
+     "row": 336,
+     "start": 8220,
+     "text": "  (note(\"<[[60,64,67] ~ ~ "
+    },
+    {
+     "row": 337,
+     "start": 8246,
+     "text": "[53,57,60] ~ [64,67,71] ~ ~] [~ "
+    },
+    {
+     "row": 338,
+     "start": 8278,
+     "text": "~ [57,60,64] ~ [62,65,69] ~ "
+    },
+    {
+     "row": 339,
+     "start": 8306,
+     "text": "[57,60,64] ~] [~ [60,64,67] ~ "
+    },
+    {
+     "row": 340,
+     "start": 8336,
+     "text": "[53,57,60] ~ ~ [64,67,71] ~] "
+    },
+    {
+     "row": 341,
+     "start": 8365,
+     "text": "[[57,60,64] ~ [57,60,64] ~ ~ ~ ~ "
+    },
+    {
+     "row": 342,
+     "start": 8398,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 343,
+     "start": 8430,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 344,
+     "start": 8462,
+     "text": "0.02)).orbit(9)"
+    },
+    {
+     "row": 345,
+     "start": 8478,
+     "text": ")],"
+    },
+    {
+     "row": 346,
+     "start": 8482,
+     "text": "  // break (8 bars)"
+    },
+    {
+     "row": 347,
+     "start": 8502,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 348,
+     "start": 8515,
+     "text": "  (s(\"<[bd*4] [bd*4] [bd*4] "
+    },
+    {
+     "row": 349,
+     "start": 8543,
+     "text": "[bd*4] [bd*4] [bd*4] [bd*4] "
+    },
+    {
+     "row": 350,
+     "start": 8571,
+     "text": "~>\").bank(\"AkaiLinn\").n(0).gain("
+    },
+    {
+     "row": 351,
+     "start": 8603,
+     "text": "\"0.95 0.9 0.85 0.95 0.8 0.83 "
+    },
+    {
+     "row": 352,
+     "start": 8632,
+     "text": "0.88 "
+    },
+    {
+     "row": 353,
+     "start": 8637,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 354,
+     "start": 8669,
+     "text": "0.4\").attack(0.001).shape(0.34)."
+    },
+    {
+     "row": 355,
+     "start": 8701,
+     "text": "gain(0.69).lpf(1500).gain(\"<1 1 "
+    },
+    {
+     "row": 356,
+     "start": 8733,
+     "text": "1 1 1 1 1 0>\")).orbit(2),"
+    },
+    {
+     "row": 357,
+     "start": 8759,
+     "text": "  (s(\"[hh "
+    },
+    {
+     "row": 358,
+     "start": 8769,
+     "text": "~]*2\").bank(\"AkaiLinn\").dec(tri."
+    },
+    {
+     "row": 359,
+     "start": 8801,
+     "text": "fast(4).range(0.05, "
+    },
+    {
+     "row": 360,
+     "start": 8821,
+     "text": "0.12)).gain(0.11).pan(sine.slow("
+    },
+    {
+     "row": 361,
+     "start": 8853,
+     "text": "4)).gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 362,
+     "start": 8878,
+     "text": "0>\")).orbit(3),"
+    },
+    {
+     "row": 363,
+     "start": 8894,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 364,
+     "start": 8907,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 365,
+     "start": 8939,
+     "text": "y(0, x => "
+    },
+    {
+     "row": 366,
+     "start": 8949,
+     "text": "x.ply(2)).gain(0.12).room(0.06)."
+    },
+    {
+     "row": 367,
+     "start": 8981,
+     "text": "roomsize(3).shape(0.16).lpf(7500"
+    },
+    {
+     "row": 368,
+     "start": 9013,
+     "text": ").gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 369,
+     "start": 9036,
+     "text": "0>\")).orbit(7),"
+    },
+    {
+     "row": 370,
+     "start": 9052,
+     "text": "  "
+    },
+    {
+     "row": 371,
+     "start": 9054,
+     "text": "(note(\"33\").s(\"sawtooth\").attack"
+    },
+    {
+     "row": 372,
+     "start": 9086,
+     "text": "(1).release(6).add(note(sine.ran"
+    },
+    {
+     "row": 373,
+     "start": 9118,
+     "text": "ge(-0.4, "
+    },
+    {
+     "row": 374,
+     "start": 9127,
+     "text": "0.4).slow(1.5))).lpf(707).crush("
+    },
+    {
+     "row": 375,
+     "start": 9159,
+     "text": "8).gain(0.01).delay(0.05).delayt"
+    },
+    {
+     "row": 376,
+     "start": 9191,
+     "text": "ime(0.1875).delayfeedback(0.25)."
+    },
+    {
+     "row": 377,
+     "start": 9223,
+     "text": "room(0.13).roomsize(3).pan(0.56)"
+    },
+    {
+     "row": 378,
+     "start": 9255,
+     "text": ".gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 379,
+     "start": 9277,
+     "text": "0>\")).orbit(8),"
+    },
+    {
+     "row": 380,
+     "start": 9293,
+     "text": "  (note(\"<[<[~ 57 ~ 64 69 ~ 64 "
+    },
+    {
+     "row": 381,
+     "start": 9324,
+     "text": "~] [~ 65 ~ ~ 60 ~ 69 ~] [~ 72 ~ "
+    },
+    {
+     "row": 382,
+     "start": 9356,
+     "text": "69 64 ~ 60 ~] [~ 57 ~ ~ 57 ~ ~ "
+    },
+    {
+     "row": 383,
+     "start": 9387,
+     "text": "~]>] ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 384,
+     "start": 9404,
+     "text": "~>\").s(\"square\").degradeBy(0.4)."
+    },
+    {
+     "row": 385,
+     "start": 9436,
+     "text": "acidenv(0.4).lpq(2).attack(0.02)"
+    },
+    {
+     "row": 386,
+     "start": 9468,
+     "text": ".dec(0.12).hpf(180).delay(0.6).d"
+    },
+    {
+     "row": 387,
+     "start": 9500,
+     "text": "elaytime(0.1875).delayfeedback(0"
+    },
+    {
+     "row": 388,
+     "start": 9532,
+     "text": ".62).room(0.6).roomsize(7).gain("
+    },
+    {
+     "row": 389,
+     "start": 9564,
+     "text": "0.22).lpf(1500)).orbit(6),"
+    },
+    {
+     "row": 390,
+     "start": 9591,
+     "text": "  (note(\"<[77 ~ ~ ~ ~ ~ ~ ~] [~ "
+    },
+    {
+     "row": 391,
+     "start": 9623,
+     "text": "~ 74 ~ ~ ~ ~ ~] [~ ~ ~ ~ 72 ~ ~ "
+    },
+    {
+     "row": 392,
+     "start": 9655,
+     "text": "~] [~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 393,
+     "start": 9673,
+     "text": "~]>\").s(\"sawtooth\").vowel(\"<a e "
+    },
+    {
+     "row": 394,
+     "start": 9705,
+     "text": "o "
+    },
+    {
+     "row": 395,
+     "start": 9707,
+     "text": "aa>\").lpq(2).attack(0.05).releas"
+    },
+    {
+     "row": 396,
+     "start": 9739,
+     "text": "e(0.45).delay(0.5).delaytime(0.3"
+    },
+    {
+     "row": 397,
+     "start": 9771,
+     "text": "75).delayfeedback(0.62).room(0.7"
+    },
+    {
+     "row": 398,
+     "start": 9803,
+     "text": "2).roomsize(8).lpf(saw.range(500"
+    },
+    {
+     "row": 399,
+     "start": 9835,
+     "text": ", "
+    },
+    {
+     "row": 400,
+     "start": 9837,
+     "text": "2000).slow(8)).hpf(180).pan(sine"
+    },
+    {
+     "row": 401,
+     "start": 9869,
+     "text": ".slow(6).range(0.3, "
+    },
+    {
+     "row": 402,
+     "start": 9889,
+     "text": "0.7)).gain(0.15).gain(\"<1 1 1 1 "
+    },
+    {
+     "row": 403,
+     "start": 9921,
+     "text": "1 1 1 0>\")).orbit(6),"
+    },
+    {
+     "row": 404,
+     "start": 9943,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ [bd sd bd "
+    },
+    {
+     "row": 405,
+     "start": 9974,
+     "text": "sd [sd sd] [sd*4] sd*8 "
+    },
+    {
+     "row": 406,
+     "start": 9997,
+     "text": "sd*16]>\").bank(\"AkaiLinn\").gain("
+    },
+    {
+     "row": 407,
+     "start": 10029,
+     "text": "0.67).hpf(150).shape(0.1).lpf(70"
+    },
+    {
+     "row": 408,
+     "start": 10061,
+     "text": "00).room(0.05).roomsize(3)).orbi"
+    },
+    {
+     "row": 409,
+     "start": 10093,
+     "text": "t(7)"
+    },
+    {
+     "row": 410,
+     "start": 10098,
+     "text": ")],"
+    },
+    {
+     "row": 411,
+     "start": 10102,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 412,
+     "start": 10121,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 413,
+     "start": 10134,
+     "text": "  "
+    },
+    {
+     "row": 414,
+     "start": 10136,
+     "text": "(s(\"bd*4\").bank(\"AkaiLinn\").n(0)"
+    },
+    {
+     "row": 415,
+     "start": 10168,
+     "text": ".gain(\"0.95 0.9 0.85 0.95 0.8 "
+    },
+    {
+     "row": 416,
+     "start": 10198,
+     "text": "0.83 0.88 "
+    },
+    {
+     "row": 417,
+     "start": 10208,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 418,
+     "start": 10240,
+     "text": "0.4\").attack(0.001).shape(0.46)."
+    },
+    {
+     "row": 419,
+     "start": 10272,
+     "text": "gain(0.8).gain(\"<0 1 1 "
+    },
+    {
+     "row": 420,
+     "start": 10295,
+     "text": "1>\")).orbit(2),"
+    },
+    {
+     "row": 421,
+     "start": 10311,
+     "text": "  (s(\"<~ white ~ "
+    },
+    {
+     "row": 422,
+     "start": 10328,
+     "text": "~>\").dec(0.8).hpf(2500).gain(0.2"
+    },
+    {
+     "row": 423,
+     "start": 10360,
+     "text": "9).room(0.6).roomsize(8)).orbit("
+    },
+    {
+     "row": 424,
+     "start": 10392,
+     "text": "8),"
+    },
+    {
+     "row": 425,
+     "start": 10396,
+     "text": "  (s(\"<white white ~ ~ "
+    },
+    {
+     "row": 426,
+     "start": 10419,
+     "text": "~>\").dec(0.6).hpf(3500).gain(0.2"
+    },
+    {
+     "row": 427,
+     "start": 10451,
+     "text": "9).room(0.5).roomsize(6)).orbit("
+    },
+    {
+     "row": 428,
+     "start": 10483,
+     "text": "8),"
+    },
+    {
+     "row": 429,
+     "start": 10487,
+     "text": "  "
+    },
+    {
+     "row": 430,
+     "start": 10489,
+     "text": "(s(\"hh*8\").bank(\"AkaiLinn\").dec("
+    },
+    {
+     "row": 431,
+     "start": 10521,
+     "text": "tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 432,
+     "start": 10545,
+     "text": "0.12)).gain(0.24).pan(sine.slow("
+    },
+    {
+     "row": 433,
+     "start": 10577,
+     "text": "4)).gain(\"<0 1 1 1>\")).orbit(3),"
+    },
+    {
+     "row": 434,
+     "start": 10610,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 435,
+     "start": 10623,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 436,
+     "start": 10655,
+     "text": "y(0.28, x => "
+    },
+    {
+     "row": 437,
+     "start": 10668,
+     "text": "x.ply(2)).gain(0.32).room(0.06)."
+    },
+    {
+     "row": 438,
+     "start": 10700,
+     "text": "roomsize(3).shape(0.16).lpf(7500"
+    },
+    {
+     "row": 439,
+     "start": 10732,
+     "text": ").gain(\"<0 1 1 1>\")).orbit(7),"
+    },
+    {
+     "row": 440,
+     "start": 10763,
+     "text": "  (s(\"~ cp ~ "
+    },
+    {
+     "row": 441,
+     "start": 10776,
+     "text": "cp\").bank(\"AkaiLinn\").gain(0.28)"
+    },
+    {
+     "row": 442,
+     "start": 10808,
+     "text": ".room(0.05).roomsize(3).shape(0."
+    },
+    {
+     "row": 443,
+     "start": 10840,
+     "text": "08).lpf(7500).gain(\"<0 1 1 "
+    },
+    {
+     "row": 444,
+     "start": 10867,
+     "text": "1>\")).orbit(7),"
+    },
+    {
+     "row": 445,
+     "start": 10883,
+     "text": "  (s(\"[~ "
+    },
+    {
+     "row": 446,
+     "start": 10892,
+     "text": "hh]*4\").gain(0.19).hpf(6500).gai"
+    },
+    {
+     "row": 447,
+     "start": 10924,
+     "text": "n(\"<0 1 1 1>\")).orbit(3),"
+    },
+    {
+     "row": 448,
+     "start": 10950,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 449,
+     "start": 10983,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 450,
+     "start": 11007,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 451,
+     "start": 11039,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 452,
+     "start": 11071,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 453,
+     "start": 11102,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 454,
+     "start": 11132,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 455,
+     "start": 11151,
+     "text": "0.5\").clip(0.95).lpf(saw.range(9"
+    },
+    {
+     "row": 456,
+     "start": 11183,
+     "text": "0, 910).slow(4)).superimpose(x "
+    },
+    {
+     "row": 457,
+     "start": 11214,
+     "text": "=> "
+    },
+    {
+     "row": 458,
+     "start": 11217,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 459,
+     "start": 11249,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 460,
+     "start": 11281,
+     "text": "om(0.03).roomsize(3).gain(0.4).g"
+    },
+    {
+     "row": 461,
+     "start": 11313,
+     "text": "ain(\"<1 1 1 0.84>\").gain(\"<0.59 "
+    },
+    {
+     "row": 462,
+     "start": 11345,
+     "text": "0.73 0.86 1>\").gain(\"<0 1 1 "
+    },
+    {
+     "row": 463,
+     "start": 11373,
+     "text": "1>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 464,
+     "start": 11399,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 465,
+     "start": 11422,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 466,
+     "start": 11435,
+     "text": "35>\").s(\"sine\").gain(0.33).gain("
+    },
+    {
+     "row": 467,
+     "start": 11467,
+     "text": "\"<0.59 0.73 0.86 1>\").gain(\"<0 1 "
+    },
+    {
+     "row": 468,
+     "start": 11500,
+     "text": "1 "
+    },
+    {
+     "row": 469,
+     "start": 11502,
+     "text": "1>\").lpf(150).gain(saw.range(0.4"
+    },
+    {
+     "row": 470,
+     "start": 11534,
+     "text": "1, 1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 471,
+     "start": 11560,
+     "text": "  (note(\"<[59 ~ ~ 57 ~ 55 ~ ~] "
+    },
+    {
+     "row": 472,
+     "start": 11591,
+     "text": "[59 ~ 59 ~ ~ 57 ~ ~] [55 ~ ~ 57 "
+    },
+    {
+     "row": 473,
+     "start": 11623,
+     "text": "~ 59 ~ ~] [59 ~ 57 ~ ~ 55 ~ "
+    },
+    {
+     "row": 474,
+     "start": 11651,
+     "text": "~]>\").add(note(\"<0 0 0 "
+    },
+    {
+     "row": 475,
+     "start": 11674,
+     "text": "0>\")).sometimesBy(0.2, x => "
+    },
+    {
+     "row": 476,
+     "start": 11702,
+     "text": "x.ply(2)).s(\"sawtooth\").vowel(\""
+    },
+    {
+     "row": 477,
+     "start": 11733,
+     "text": "<a e o "
+    },
+    {
+     "row": 478,
+     "start": 11740,
+     "text": "aa>\").lpq(2).attack(0.05).releas"
+    },
+    {
+     "row": 479,
+     "start": 11772,
+     "text": "e(0.45).delay(0.5).delaytime(0.3"
+    },
+    {
+     "row": 480,
+     "start": 11804,
+     "text": "75).delayfeedback(0.62).room(0.7"
+    },
+    {
+     "row": 481,
+     "start": 11836,
+     "text": "2).roomsize(8).lpf(saw.range(220"
+    },
+    {
+     "row": 482,
+     "start": 11868,
+     "text": ", "
+    },
+    {
+     "row": 483,
+     "start": 11870,
+     "text": "2000).slow(4)).pan(sine.slow(6)."
+    },
+    {
+     "row": 484,
+     "start": 11902,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 485,
+     "start": 11913,
+     "text": "0.7)).gain(0.06).gain(\"<0.7 0.7 "
+    },
+    {
+     "row": 486,
+     "start": 11945,
+     "text": "0.7 1>\")).orbit(6),"
+    },
+    {
+     "row": 487,
+     "start": 11965,
+     "text": "  (note(\"<[[[57,60] [62,65]] "
+    },
+    {
+     "row": 488,
+     "start": 11994,
+     "text": "[[60,64] [65,69]] [57,60] "
+    },
+    {
+     "row": 489,
+     "start": 12020,
+     "text": "[[53,57] [57,60]] [62,65] "
+    },
+    {
+     "row": 490,
+     "start": 12046,
+     "text": "[[60,64] [65,69]] [57,60] "
+    },
+    {
+     "row": 491,
+     "start": 12072,
+     "text": "[53,57]] [[57,60] [[62,65] "
+    },
+    {
+     "row": 492,
+     "start": 12099,
+     "text": "[60,64]] [65,69] [[57,60] "
+    },
+    {
+     "row": 493,
+     "start": 12125,
+     "text": "[53,57]] [[57,60] [62,65]] "
+    },
+    {
+     "row": 494,
+     "start": 12152,
+     "text": "[60,64] [[65,69] [57,60]] "
+    },
+    {
+     "row": 495,
+     "start": 12178,
+     "text": "[53,57]] [[[57,60] [62,65]] "
+    },
+    {
+     "row": 496,
+     "start": 12206,
+     "text": "[60,64] [[65,69] [57,60]] "
+    },
+    {
+     "row": 497,
+     "start": 12232,
+     "text": "[53,57] [57,60] [[62,65] "
+    },
+    {
+     "row": 498,
+     "start": 12257,
+     "text": "[60,64]] [65,69] [[57,60] "
+    },
+    {
+     "row": 499,
+     "start": 12283,
+     "text": "[53,57]]] [[57,60] [[62,65] "
+    },
+    {
+     "row": 500,
+     "start": 12311,
+     "text": "[57,60]] [62,65] [60,64] "
+    },
+    {
+     "row": 501,
+     "start": 12336,
+     "text": "[[65,69] [57,60]] [53,57] ~ "
+    },
+    {
+     "row": 502,
+     "start": 12364,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 503,
+     "start": 12396,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 504,
+     "start": 12428,
+     "text": "0.02)).orbit(9)"
+    },
+    {
+     "row": 505,
+     "start": 12444,
+     "text": ")],"
+    },
+    {
+     "row": 506,
+     "start": 12448,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 507,
+     "start": 12467,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 508,
+     "start": 12480,
+     "text": "  (s(\"<[bd*4] [bd*4] [bd*4] "
+    },
+    {
+     "row": 509,
+     "start": 12508,
+     "text": "[bd*2 bd bd "
+    },
+    {
+     "row": 510,
+     "start": 12520,
+     "text": "bd]>\").bank(\"AkaiLinn\").n(0).gai"
+    },
+    {
+     "row": 511,
+     "start": 12552,
+     "text": "n(\"0.95 0.9 0.85 0.95 0.8 0.83 "
+    },
+    {
+     "row": 512,
+     "start": 12583,
+     "text": "0.88 "
+    },
+    {
+     "row": 513,
+     "start": 12588,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 514,
+     "start": 12620,
+     "text": "0.4\").attack(0.001).shape(0.46)."
+    },
+    {
+     "row": 515,
+     "start": 12652,
+     "text": "gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 516,
+     "start": 12673,
+     "text": "  (s(\"<~ ~ ~ [lt mt lt mt lt mt "
+    },
+    {
+     "row": 517,
+     "start": 12705,
+     "text": "lt "
+    },
+    {
+     "row": 518,
+     "start": 12708,
+     "text": "mt]>\").bank(\"AkaiLinn\").gain(0.3"
+    },
+    {
+     "row": 519,
+     "start": 12740,
+     "text": "5).room(0.2)).orbit(7),"
+    },
+    {
+     "row": 520,
+     "start": 12764,
+     "text": "  "
+    },
+    {
+     "row": 521,
+     "start": 12766,
+     "text": "(s(\"hh*8\").bank(\"AkaiLinn\").dec("
+    },
+    {
+     "row": 522,
+     "start": 12798,
+     "text": "tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 523,
+     "start": 12822,
+     "text": "0.12)).gain(0.24).pan(sine.slow("
+    },
+    {
+     "row": 524,
+     "start": 12854,
+     "text": "4))).orbit(3),"
+    },
+    {
+     "row": 525,
+     "start": 12869,
+     "text": "  (s(\"~ sd ~ "
+    },
+    {
+     "row": 526,
+     "start": 12882,
+     "text": "sd\").bank(\"AkaiLinn\").sometimesB"
+    },
+    {
+     "row": 527,
+     "start": 12914,
+     "text": "y(0.28, x => "
+    },
+    {
+     "row": 528,
+     "start": 12927,
+     "text": "x.ply(2)).gain(0.32).room(0.06)."
+    },
+    {
+     "row": 529,
+     "start": 12959,
+     "text": "roomsize(3).shape(0.16).lpf(7500"
+    },
+    {
+     "row": 530,
+     "start": 12991,
+     "text": ")).orbit(7),"
+    },
+    {
+     "row": 531,
+     "start": 13004,
+     "text": "  (s(\"~ cp ~ "
+    },
+    {
+     "row": 532,
+     "start": 13017,
+     "text": "cp\").bank(\"AkaiLinn\").gain(0.28)"
+    },
+    {
+     "row": 533,
+     "start": 13049,
+     "text": ".room(0.05).roomsize(3).shape(0."
+    },
+    {
+     "row": 534,
+     "start": 13081,
+     "text": "08).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 535,
+     "start": 13106,
+     "text": "  (s(\"[~ "
+    },
+    {
+     "row": 536,
+     "start": 13115,
+     "text": "hh]*4\").gain(0.19).hpf(6500)).or"
+    },
+    {
+     "row": 537,
+     "start": 13147,
+     "text": "bit(3),"
+    },
+    {
+     "row": 538,
+     "start": 13155,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 539,
+     "start": 13188,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 540,
+     "start": 13212,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 541,
+     "start": 13244,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 542,
+     "start": 13276,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 543,
+     "start": 13307,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 544,
+     "start": 13337,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 545,
+     "start": 13356,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 546,
+     "start": 13388,
+     "text": "20, 1560).slow(4)).superimpose(x "
+    },
+    {
+     "row": 547,
+     "start": 13421,
+     "text": "=> "
+    },
+    {
+     "row": 548,
+     "start": 13424,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 549,
+     "start": 13456,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 550,
+     "start": 13488,
+     "text": "om(0.03).roomsize(3).gain(0.4).g"
+    },
+    {
+     "row": 551,
+     "start": 13520,
+     "text": "ain(\"<0.85 0.85 0.85 "
+    },
+    {
+     "row": 552,
+     "start": 13541,
+     "text": "1>\").gain(saw.range(0.41, "
+    },
+    {
+     "row": 553,
+     "start": 13567,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 554,
+     "start": 13590,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 555,
+     "start": 13603,
+     "text": "35>\").s(\"sine\").gain(0.33).lpf(1"
+    },
+    {
+     "row": 556,
+     "start": 13635,
+     "text": "50).gain(saw.range(0.41, "
+    },
+    {
+     "row": 557,
+     "start": 13660,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 558,
+     "start": 13683,
+     "text": "  (note(\"<[59 ~ ~ 57 ~ 55 ~ ~] "
+    },
+    {
+     "row": 559,
+     "start": 13714,
+     "text": "[59 ~ 59 ~ ~ 57 ~ ~] [55 ~ ~ 57 "
+    },
+    {
+     "row": 560,
+     "start": 13746,
+     "text": "~ 59 ~ ~] [59 ~ 57 ~ ~ 55 ~ "
+    },
+    {
+     "row": 561,
+     "start": 13774,
+     "text": "~]>\").add(note(\"<0 0 0 "
+    },
+    {
+     "row": 562,
+     "start": 13797,
+     "text": "0>\")).sometimesBy(0.2, x => "
+    },
+    {
+     "row": 563,
+     "start": 13825,
+     "text": "x.ply(2)).s(\"sawtooth\").vowel(\""
+    },
+    {
+     "row": 564,
+     "start": 13856,
+     "text": "<a e o "
+    },
+    {
+     "row": 565,
+     "start": 13863,
+     "text": "aa>\").lpq(2).attack(0.05).releas"
+    },
+    {
+     "row": 566,
+     "start": 13895,
+     "text": "e(0.45).delay(0.5).delaytime(0.3"
+    },
+    {
+     "row": 567,
+     "start": 13927,
+     "text": "75).delayfeedback(0.62).room(0.7"
+    },
+    {
+     "row": 568,
+     "start": 13959,
+     "text": "2).roomsize(8).lpf(saw.range(560"
+    },
+    {
+     "row": 569,
+     "start": 13991,
+     "text": ", "
+    },
+    {
+     "row": 570,
+     "start": 13993,
+     "text": "2000).slow(4)).pan(sine.slow(6)."
+    },
+    {
+     "row": 571,
+     "start": 14025,
+     "text": "range(0.3, "
+    },
+    {
+     "row": 572,
+     "start": 14036,
+     "text": "0.7)).gain(0.06)).orbit(6),"
+    },
+    {
+     "row": 573,
+     "start": 14064,
+     "text": "  (note(\"<[64 ~ ~ 69 ~ 64 ~ ~] "
+    },
+    {
+     "row": 574,
+     "start": 14095,
+     "text": "[~ ~ 65 ~ 60 ~ 69 ~] [~ 72 ~ 69 "
+    },
+    {
+     "row": 575,
+     "start": 14127,
+     "text": "~ ~ 64 ~] [60 ~ 57 ~ ~ ~ ~ "
+    },
+    {
+     "row": 576,
+     "start": 14154,
+     "text": "~]>\").s(\"square\").lpf(2200).room"
+    },
+    {
+     "row": 577,
+     "start": 14186,
+     "text": "(0.4).delay(0.2).pan(0.72).gain("
+    },
+    {
+     "row": 578,
+     "start": 14218,
+     "text": "0.02)).orbit(9)"
+    },
+    {
+     "row": 579,
+     "start": 14234,
+     "text": ")],"
+    },
+    {
+     "row": 580,
+     "start": 14238,
+     "text": "  // outro (8 bars)"
+    },
+    {
+     "row": 581,
+     "start": 14258,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 582,
+     "start": 14271,
+     "text": "  "
+    },
+    {
+     "row": 583,
+     "start": 14273,
+     "text": "(s(\"bd*4\").bank(\"AkaiLinn\").n(0)"
+    },
+    {
+     "row": 584,
+     "start": 14305,
+     "text": ".gain(\"0.95 0.9 0.85 0.95 0.8 "
+    },
+    {
+     "row": 585,
+     "start": 14335,
+     "text": "0.83 0.88 "
+    },
+    {
+     "row": 586,
+     "start": 14345,
+     "text": "0.92\").shape(0.34).distort(\"1.4:"
+    },
+    {
+     "row": 587,
+     "start": 14377,
+     "text": "0.4\").attack(0.001).shape(0.34)."
+    },
+    {
+     "row": 588,
+     "start": 14409,
+     "text": "gain(0.75)).orbit(2),"
+    },
+    {
+     "row": 589,
+     "start": 14431,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 590,
+     "start": 14452,
+     "text": "white>\").dec(1.2).hpf(2500).gain"
+    },
+    {
+     "row": 591,
+     "start": 14484,
+     "text": "(0.33).room(0.6).roomsize(8)).or"
+    },
+    {
+     "row": 592,
+     "start": 14516,
+     "text": "bit(8),"
+    },
+    {
+     "row": 593,
+     "start": 14524,
+     "text": "  (note(\"0 0 0 6 0 0 0 0 0 0 0 6 "
+    },
+    {
+     "row": 594,
+     "start": 14557,
+     "text": "0 0 0 0\").add(note(\"<33 "
+    },
+    {
+     "row": 595,
+     "start": 14581,
+     "text": "35>\")).s(\"supersaw\").unison(5).d"
+    },
+    {
+     "row": 596,
+     "start": 14613,
+     "text": "etune(0.4).acidenv(0.7).lpq(9).d"
+    },
+    {
+     "row": 597,
+     "start": 14645,
+     "text": "istort(\"1.2:0.3\").gain(\"1 0.45 "
+    },
+    {
+     "row": 598,
+     "start": 14676,
+     "text": "0.6 0.5 1 0.45 0.6 0.5 1 0.45 "
+    },
+    {
+     "row": 599,
+     "start": 14706,
+     "text": "0.7 0.5 1 0.45 0.6 "
+    },
+    {
+     "row": 600,
+     "start": 14725,
+     "text": "0.5\").clip(0.95).lpf(saw.range(4"
+    },
+    {
+     "row": 601,
+     "start": 14757,
+     "text": "20, 910).slow(8)).superimpose(x "
+    },
+    {
+     "row": 602,
+     "start": 14789,
+     "text": "=> "
+    },
+    {
+     "row": 603,
+     "start": 14792,
+     "text": "x.add(note(7)).late(0.0625).s(\"s"
+    },
+    {
+     "row": 604,
+     "start": 14824,
+     "text": "quare\").lpf(1400).gain(0.32)).ro"
+    },
+    {
+     "row": 605,
+     "start": 14856,
+     "text": "om(0.03).roomsize(3).gain(0.48)."
+    },
+    {
+     "row": 606,
+     "start": 14888,
+     "text": "gain(saw.range(0.41, "
+    },
+    {
+     "row": 607,
+     "start": 14909,
+     "text": "1).fast(4))).orbit(4),"
+    },
+    {
+     "row": 608,
+     "start": 14932,
+     "text": "  (note(\"<33 "
+    },
+    {
+     "row": 609,
+     "start": 14945,
+     "text": "35>\").s(\"sine\").gain(0.39).lpf(1"
+    },
+    {
+     "row": 610,
+     "start": 14977,
+     "text": "50).gain(saw.range(0.41, "
+    },
+    {
+     "row": 611,
+     "start": 15002,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 612,
+     "start": 15025,
+     "text": "  "
+    },
+    {
+     "row": 613,
+     "start": 15027,
+     "text": "(note(\"33\").s(\"sawtooth\").attack"
+    },
+    {
+     "row": 614,
+     "start": 15059,
+     "text": "(1).release(6).add(note(sine.ran"
+    },
+    {
+     "row": 615,
+     "start": 15091,
+     "text": "ge(-0.4, "
+    },
+    {
+     "row": 616,
+     "start": 15100,
+     "text": "0.4).slow(1.5))).lpf(707).crush("
+    },
+    {
+     "row": 617,
+     "start": 15132,
+     "text": "8).gain(0.01).delay(0.05).delayt"
+    },
+    {
+     "row": 618,
+     "start": 15164,
+     "text": "ime(0.1875).delayfeedback(0.25)."
+    },
+    {
+     "row": 619,
+     "start": 15196,
+     "text": "room(0.13).roomsize(3).pan(0.56)"
+    },
+    {
+     "row": 620,
+     "start": 15228,
+     "text": ").orbit(8)"
+    },
+    {
+     "row": 621,
+     "start": 15239,
+     "text": ")],"
+    },
+    {
+     "row": 622,
+     "start": 15243,
+     "text": ")"
+    }
+   ]
+  },
+  {
+   "capture": "web-radio-code-fs.json",
+   "width": 396,
+   "program": "setcpm(117/4)\n// 3C0946 · dark_ambient · D locrian · 117bpm\narrange(\n  // introB (8 bars)\n  [8, stack(\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(90, 700).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.67).gain(\"<0.59 0.73 0.86 1 1!4>\").gain(\"<1 1 1 1 1 1 1 0>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.54).gain(\"<0.59 0.73 0.86 1 1!4>\").gain(\"<1 1 1 1 1 1 1 0>\").lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).gain(0.01).pan(sine.slow(9)).gain(\"<1 1 1 1 1 1 1 0>\")).orbit(8),\n  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5).delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9).lpf(3200).pan(sine.slow(6).range(0.3, 0.7)).gain(0.15)).orbit(6),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] [sd*8]]>\").bank(\"AkaiLinn\").gain(0.66).hpf(150).shape(0.1).lpf(7000).room(0.11).roomsize(5)).orbit(7)\n)],\n  // build (8 bars)\n  [8, stack(\n  (s(\"<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd bd bd bd]>\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 0.8 0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.26).gain(0.77)).orbit(2),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ white*8>\").dec(0.08).lpf(saw.range(500, 9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),\n  (note(\"<[48 41 35 30] ~ ~ ~ ~ ~ ~ ~>\").s(\"sine\").dec(0.12).lpf(500).gain(0.47)).orbit(8),\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, 910).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.69).gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.56).lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).gain(0.01).pan(sine.slow(9))).orbit(8),\n  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5).delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9).lpf(3200).pan(sine.slow(6).range(0.3, 0.7)).gain(0.09)).orbit(6)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 0.8 0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),\n  (s(\"<[~ white] ~ ~ ~>\").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orbit(8),\n  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.3).gain(\"<0.59 0.73 0.86 1>\").pan(sine.slow(4)).swingBy(0.13, 4)).orbit(3),\n  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).gain(\"<0.59 0.73 0.86 1>\").room(0.12).roomsize(5).shape(0.06).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500).gain(\"<0.59 0.73 0.86 1>\")).orbit(3),\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, 910).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.4).gain(\"<1 1 1 0.84>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5).delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9).lpf(3200).pan(sine.slow(6).range(0.3, 0.7)).gain(0.07).gain(\"<0.7 0.7 0.7 1>\")).orbit(6)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 0.8 0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),\n  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.3).pan(sine.slow(4)).swingBy(0.13, 4)).orbit(3),\n  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.12).roomsize(5).shape(0.06).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, 1235).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.4).gain(\"<0.85 0.85 0.85 1>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5).delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9).lpf(3200).pan(sine.slow(6).range(0.3, 0.7)).gain(0.07)).orbit(6)\n)],\n  // peak (4 bars)\n  [4, stack(\n  (s(\"<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] ~>\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 0.8 0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.38).gain(0.8)).orbit(2),\n  (s(\"<~ ~ ~ white*16>\").dec(0.08).lpf(saw.range(600, 7000)).gain(saw.range(0.03, 0.22)).hpf(400)).orbit(8),\n  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, 0.12)).gain(0.3).pan(sine.slow(4)).swingBy(0.13, 4)).orbit(3),\n  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => x.ply(2)).gain(0.32).room(0.12).roomsize(5).shape(0.06).lpf(7500)).orbit(7),\n  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, 1560).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.4).gain(\"<1 1 1 0.84>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5).delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).roomsize(9).lpf(3200).pan(sine.slow(6).range(0.3, 0.7)).gain(0.07).gain(\"<0.7 0.7 0.7 1>\")).orbit(6)\n)],\n  // outro (8 bars)\n  [8, stack(\n  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 0.8 0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape(0.26).gain(0.75)).orbit(2),\n  (s(\"<~ ~ ~ ~ ~ ~ ~ white>\").dec(1.2).hpf(2500).gain(0.33).room(0.6).roomsize(8)).orbit(8),\n  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9).distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, 910).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4).room(0.06).roomsize(5).gain(0.48).gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),\n  (note(\"<26 26>\").s(\"sine\").gain(0.39).lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),\n  (s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).gain(0.01).pan(sine.slow(9))).orbit(8)\n)],\n)",
+   "lines": [
+    {
+     "row": 0,
+     "start": 0,
+     "text": "setcpm(117/4)"
+    },
+    {
+     "row": 1,
+     "start": 14,
+     "text": "// 3C0946 · dark_ambient · D locrian · 117bpm"
+    },
+    {
+     "row": 2,
+     "start": 60,
+     "text": "arrange("
+    },
+    {
+     "row": 3,
+     "start": 69,
+     "text": "  // introB (8 bars)"
+    },
+    {
+     "row": 4,
+     "start": 90,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 5,
+     "start": 103,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 6,
+     "start": 160,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 7,
+     "start": 221,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(90, "
+    },
+    {
+     "row": 8,
+     "start": 271,
+     "text": "700).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4)"
+    },
+    {
+     "row": 9,
+     "start": 332,
+     "text": ".room(0.06).roomsize(5).gain(0.67).gain(\"<0.59 0.73 0.86 1 "
+    },
+    {
+     "row": 10,
+     "start": 391,
+     "text": "1!4>\").gain(\"<1 1 1 1 1 1 1 0>\").gain(saw.range(0.62, "
+    },
+    {
+     "row": 11,
+     "start": 445,
+     "text": "1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 "
+    },
+    {
+     "row": 12,
+     "start": 507,
+     "text": "0.3\")).orbit(4),"
+    },
+    {
+     "row": 13,
+     "start": 524,
+     "text": "  (note(\"<26 26>\").s(\"sine\").gain(0.54).gain(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 14,
+     "start": 586,
+     "text": "1 1!4>\").gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 15,
+     "start": 616,
+     "text": "0>\").lpf(150).gain(saw.range(0.62, 1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 16,
+     "start": 674,
+     "text": "  "
+    },
+    {
+     "row": 17,
+     "start": 676,
+     "text": "(s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).g"
+    },
+    {
+     "row": 18,
+     "start": 737,
+     "text": "ain(0.01).pan(sine.slow(9)).gain(\"<1 1 1 1 1 1 1 "
+    },
+    {
+     "row": 19,
+     "start": 786,
+     "text": "0>\")).orbit(8),"
+    },
+    {
+     "row": 20,
+     "start": 802,
+     "text": "  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ "
+    },
+    {
+     "row": 21,
+     "start": 863,
+     "text": "~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => "
+    },
+    {
+     "row": 22,
+     "start": 914,
+     "text": "x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5)."
+    },
+    {
+     "row": 23,
+     "start": 975,
+     "text": "delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).room"
+    },
+    {
+     "row": 24,
+     "start": 1036,
+     "text": "size(9).lpf(3200).pan(sine.slow(6).range(0.3, "
+    },
+    {
+     "row": 25,
+     "start": 1082,
+     "text": "0.7)).gain(0.15)).orbit(6),"
+    },
+    {
+     "row": 26,
+     "start": 1110,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ [bd ~ bd sd ~ sd [sd*4] "
+    },
+    {
+     "row": 27,
+     "start": 1155,
+     "text": "[sd*8]]>\").bank(\"AkaiLinn\").gain(0.66).hpf(150).shape(0.1).lp"
+    },
+    {
+     "row": 28,
+     "start": 1216,
+     "text": "f(7000).room(0.11).roomsize(5)).orbit(7)"
+    },
+    {
+     "row": 29,
+     "start": 1257,
+     "text": ")],"
+    },
+    {
+     "row": 30,
+     "start": 1261,
+     "text": "  // build (8 bars)"
+    },
+    {
+     "row": 31,
+     "start": 1281,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 32,
+     "start": 1294,
+     "text": "  (s(\"<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ "
+    },
+    {
+     "row": 33,
+     "start": 1356,
+     "text": "bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd "
+    },
+    {
+     "row": 34,
+     "start": 1418,
+     "text": "~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd "
+    },
+    {
+     "row": 35,
+     "start": 1479,
+     "text": "~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] "
+    },
+    {
+     "row": 36,
+     "start": 1541,
+     "text": "[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd bd bd "
+    },
+    {
+     "row": 37,
+     "start": 1591,
+     "text": "bd]>\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 "
+    },
+    {
+     "row": 38,
+     "start": 1651,
+     "text": "0.83 0.8 "
+    },
+    {
+     "row": 39,
+     "start": 1660,
+     "text": "0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape("
+    },
+    {
+     "row": 40,
+     "start": 1721,
+     "text": "0.26).gain(0.77)).orbit(2),"
+    },
+    {
+     "row": 41,
+     "start": 1749,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ white*8>\").dec(0.08).lpf(saw.range(500, "
+    },
+    {
+     "row": 42,
+     "start": 1810,
+     "text": "9000)).gain(saw.range(0.04, 0.34)).hpf(300)).orbit(8),"
+    },
+    {
+     "row": 43,
+     "start": 1865,
+     "text": "  (note(\"<[48 41 35 30] ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 44,
+     "start": 1901,
+     "text": "~>\").s(\"sine\").dec(0.12).lpf(500).gain(0.47)).orbit(8),"
+    },
+    {
+     "row": 45,
+     "start": 1957,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 46,
+     "start": 2014,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 47,
+     "start": 2075,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, "
+    },
+    {
+     "row": 48,
+     "start": 2126,
+     "text": "910).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4)"
+    },
+    {
+     "row": 49,
+     "start": 2187,
+     "text": ".room(0.06).roomsize(5).gain(0.69).gain(saw.range(0.62, "
+    },
+    {
+     "row": 50,
+     "start": 2243,
+     "text": "1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 "
+    },
+    {
+     "row": 51,
+     "start": 2305,
+     "text": "0.3\")).orbit(4),"
+    },
+    {
+     "row": 52,
+     "start": 2322,
+     "text": "  (note(\"<26 "
+    },
+    {
+     "row": 53,
+     "start": 2335,
+     "text": "26>\").s(\"sine\").gain(0.56).lpf(150).gain(saw.range(0.62, "
+    },
+    {
+     "row": 54,
+     "start": 2392,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 55,
+     "start": 2415,
+     "text": "  "
+    },
+    {
+     "row": 56,
+     "start": 2417,
+     "text": "(s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).g"
+    },
+    {
+     "row": 57,
+     "start": 2478,
+     "text": "ain(0.01).pan(sine.slow(9))).orbit(8),"
+    },
+    {
+     "row": 58,
+     "start": 2517,
+     "text": "  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ "
+    },
+    {
+     "row": 59,
+     "start": 2578,
+     "text": "~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => "
+    },
+    {
+     "row": 60,
+     "start": 2629,
+     "text": "x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5)."
+    },
+    {
+     "row": 61,
+     "start": 2690,
+     "text": "delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).room"
+    },
+    {
+     "row": 62,
+     "start": 2751,
+     "text": "size(9).lpf(3200).pan(sine.slow(6).range(0.3, "
+    },
+    {
+     "row": 63,
+     "start": 2797,
+     "text": "0.7)).gain(0.09)).orbit(6)"
+    },
+    {
+     "row": 64,
+     "start": 2824,
+     "text": ")],"
+    },
+    {
+     "row": 65,
+     "start": 2828,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 66,
+     "start": 2847,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 67,
+     "start": 2860,
+     "text": "  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd "
+    },
+    {
+     "row": 68,
+     "start": 2902,
+     "text": "~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 "
+    },
+    {
+     "row": 69,
+     "start": 2964,
+     "text": "0.8 "
+    },
+    {
+     "row": 70,
+     "start": 2968,
+     "text": "0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape("
+    },
+    {
+     "row": 71,
+     "start": 3029,
+     "text": "0.38).gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 72,
+     "start": 3056,
+     "text": "  (s(\"<[~ white] ~ ~ "
+    },
+    {
+     "row": 73,
+     "start": 3077,
+     "text": "~>\").dec(0.6).hpf(3500).gain(0.29).room(0.5).roomsize(6)).orb"
+    },
+    {
+     "row": 74,
+     "start": 3138,
+     "text": "it(8),"
+    },
+    {
+     "row": 75,
+     "start": 3145,
+     "text": "  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 76,
+     "start": 3204,
+     "text": "0.12)).gain(0.3).gain(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 77,
+     "start": 3243,
+     "text": "1>\").pan(sine.slow(4)).swingBy(0.13, 4)).orbit(3),"
+    },
+    {
+     "row": 78,
+     "start": 3294,
+     "text": "  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ "
+    },
+    {
+     "row": 79,
+     "start": 3332,
+     "text": "cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => "
+    },
+    {
+     "row": 80,
+     "start": 3377,
+     "text": "x.ply(2)).gain(0.32).gain(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 81,
+     "start": 3420,
+     "text": "1>\").room(0.12).roomsize(5).shape(0.06).lpf(7500)).orbit(7),"
+    },
+    {
+     "row": 82,
+     "start": 3481,
+     "text": "  (s(\"[~ hh]*4\").gain(0.19).hpf(6500).gain(\"<0.59 0.73 0.86 "
+    },
+    {
+     "row": 83,
+     "start": 3541,
+     "text": "1>\")).orbit(3),"
+    },
+    {
+     "row": 84,
+     "start": 3557,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 85,
+     "start": 3614,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 86,
+     "start": 3675,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, "
+    },
+    {
+     "row": 87,
+     "start": 3726,
+     "text": "910).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4)"
+    },
+    {
+     "row": 88,
+     "start": 3787,
+     "text": ".room(0.06).roomsize(5).gain(0.4).gain(\"<1 1 1 "
+    },
+    {
+     "row": 89,
+     "start": 3834,
+     "text": "0.84>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 "
+    },
+    {
+     "row": 90,
+     "start": 3895,
+     "text": "1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),"
+    },
+    {
+     "row": 91,
+     "start": 3942,
+     "text": "  (note(\"<26 "
+    },
+    {
+     "row": 92,
+     "start": 3955,
+     "text": "26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, "
+    },
+    {
+     "row": 93,
+     "start": 4012,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 94,
+     "start": 4035,
+     "text": "  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ "
+    },
+    {
+     "row": 95,
+     "start": 4096,
+     "text": "~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => "
+    },
+    {
+     "row": 96,
+     "start": 4147,
+     "text": "x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5)."
+    },
+    {
+     "row": 97,
+     "start": 4208,
+     "text": "delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).room"
+    },
+    {
+     "row": 98,
+     "start": 4269,
+     "text": "size(9).lpf(3200).pan(sine.slow(6).range(0.3, "
+    },
+    {
+     "row": 99,
+     "start": 4315,
+     "text": "0.7)).gain(0.07).gain(\"<0.7 0.7 0.7 1>\")).orbit(6)"
+    },
+    {
+     "row": 100,
+     "start": 4366,
+     "text": ")],"
+    },
+    {
+     "row": 101,
+     "start": 4370,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 102,
+     "start": 4389,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 103,
+     "start": 4402,
+     "text": "  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd "
+    },
+    {
+     "row": 104,
+     "start": 4444,
+     "text": "~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 "
+    },
+    {
+     "row": 105,
+     "start": 4506,
+     "text": "0.8 "
+    },
+    {
+     "row": 106,
+     "start": 4510,
+     "text": "0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape("
+    },
+    {
+     "row": 107,
+     "start": 4571,
+     "text": "0.38).gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 108,
+     "start": 4598,
+     "text": "  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 109,
+     "start": 4657,
+     "text": "0.12)).gain(0.3).pan(sine.slow(4)).swingBy(0.13, "
+    },
+    {
+     "row": 110,
+     "start": 4706,
+     "text": "4)).orbit(3),"
+    },
+    {
+     "row": 111,
+     "start": 4720,
+     "text": "  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ "
+    },
+    {
+     "row": 112,
+     "start": 4758,
+     "text": "cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => "
+    },
+    {
+     "row": 113,
+     "start": 4803,
+     "text": "x.ply(2)).gain(0.32).room(0.12).roomsize(5).shape(0.06).lpf(7"
+    },
+    {
+     "row": 114,
+     "start": 4864,
+     "text": "500)).orbit(7),"
+    },
+    {
+     "row": 115,
+     "start": 4880,
+     "text": "  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),"
+    },
+    {
+     "row": 116,
+     "start": 4929,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 117,
+     "start": 4986,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 118,
+     "start": 5047,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, "
+    },
+    {
+     "row": 119,
+     "start": 5098,
+     "text": "1235).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4"
+    },
+    {
+     "row": 120,
+     "start": 5159,
+     "text": ").room(0.06).roomsize(5).gain(0.4).gain(\"<0.85 0.85 0.85 "
+    },
+    {
+     "row": 121,
+     "start": 5216,
+     "text": "1>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 1 "
+    },
+    {
+     "row": 122,
+     "start": 5276,
+     "text": "0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),"
+    },
+    {
+     "row": 123,
+     "start": 5321,
+     "text": "  (note(\"<26 "
+    },
+    {
+     "row": 124,
+     "start": 5334,
+     "text": "26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, "
+    },
+    {
+     "row": 125,
+     "start": 5391,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 126,
+     "start": 5414,
+     "text": "  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ "
+    },
+    {
+     "row": 127,
+     "start": 5475,
+     "text": "~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => "
+    },
+    {
+     "row": 128,
+     "start": 5526,
+     "text": "x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5)."
+    },
+    {
+     "row": 129,
+     "start": 5587,
+     "text": "delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).room"
+    },
+    {
+     "row": 130,
+     "start": 5648,
+     "text": "size(9).lpf(3200).pan(sine.slow(6).range(0.3, "
+    },
+    {
+     "row": 131,
+     "start": 5694,
+     "text": "0.7)).gain(0.07)).orbit(6)"
+    },
+    {
+     "row": 132,
+     "start": 5721,
+     "text": ")],"
+    },
+    {
+     "row": 133,
+     "start": 5725,
+     "text": "  // peak (4 bars)"
+    },
+    {
+     "row": 134,
+     "start": 5744,
+     "text": "  [4, stack("
+    },
+    {
+     "row": 135,
+     "start": 5757,
+     "text": "  (s(\"<[bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ "
+    },
+    {
+     "row": 136,
+     "start": 5819,
+     "text": "bd ~ ~ bd ~ bd ~ ~ bd ~] [bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd "
+    },
+    {
+     "row": 137,
+     "start": 5881,
+     "text": "~] ~>\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 "
+    },
+    {
+     "row": 138,
+     "start": 5942,
+     "text": "0.83 0.8 "
+    },
+    {
+     "row": 139,
+     "start": 5951,
+     "text": "0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape("
+    },
+    {
+     "row": 140,
+     "start": 6012,
+     "text": "0.38).gain(0.8)).orbit(2),"
+    },
+    {
+     "row": 141,
+     "start": 6039,
+     "text": "  (s(\"<~ ~ ~ white*16>\").dec(0.08).lpf(saw.range(600, "
+    },
+    {
+     "row": 142,
+     "start": 6093,
+     "text": "7000)).gain(saw.range(0.03, 0.22)).hpf(400)).orbit(8),"
+    },
+    {
+     "row": 143,
+     "start": 6148,
+     "text": "  (s(\"hh*16\").bank(\"AkaiLinn\").dec(tri.fast(4).range(0.05, "
+    },
+    {
+     "row": 144,
+     "start": 6207,
+     "text": "0.12)).gain(0.3).pan(sine.slow(4)).swingBy(0.13, "
+    },
+    {
+     "row": 145,
+     "start": 6256,
+     "text": "4)).orbit(3),"
+    },
+    {
+     "row": 146,
+     "start": 6270,
+     "text": "  (s(\"~ ~ ~ ~ cp ~ ~ ~ ~ ~ ~ ~ cp ~ ~ "
+    },
+    {
+     "row": 147,
+     "start": 6308,
+     "text": "cp\").bank(\"AkaiLinn\").sometimesBy(0.28, x => "
+    },
+    {
+     "row": 148,
+     "start": 6353,
+     "text": "x.ply(2)).gain(0.32).room(0.12).roomsize(5).shape(0.06).lpf(7"
+    },
+    {
+     "row": 149,
+     "start": 6414,
+     "text": "500)).orbit(7),"
+    },
+    {
+     "row": 150,
+     "start": 6430,
+     "text": "  (s(\"[~ hh]*4\").gain(0.19).hpf(6500)).orbit(3),"
+    },
+    {
+     "row": 151,
+     "start": 6479,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 152,
+     "start": 6536,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 153,
+     "start": 6597,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, "
+    },
+    {
+     "row": 154,
+     "start": 6648,
+     "text": "1560).slow(4)).delay(0.06).delaytime(0.375).delayfeedback(0.4"
+    },
+    {
+     "row": 155,
+     "start": 6709,
+     "text": ").room(0.06).roomsize(5).gain(0.4).gain(\"<1 1 1 "
+    },
+    {
+     "row": 156,
+     "start": 6757,
+     "text": "0.84>\").gain(saw.range(0.62, 1).fast(4)).gain(\"1 1 0.3 0.3 1 "
+    },
+    {
+     "row": 157,
+     "start": 6818,
+     "text": "1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3\")).orbit(4),"
+    },
+    {
+     "row": 158,
+     "start": 6865,
+     "text": "  (note(\"<26 "
+    },
+    {
+     "row": 159,
+     "start": 6878,
+     "text": "26>\").s(\"sine\").gain(0.33).lpf(150).gain(saw.range(0.62, "
+    },
+    {
+     "row": 160,
+     "start": 6935,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 161,
+     "start": 6958,
+     "text": "  (note(\"<[53 ~ ~ ~ 55 ~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~] [56 ~ ~ 55 ~ "
+    },
+    {
+     "row": 162,
+     "start": 7019,
+     "text": "~ ~ ~] [~ ~ ~ ~ ~ ~ ~ ~]>\").sometimesBy(0.24, x => "
+    },
+    {
+     "row": 163,
+     "start": 7070,
+     "text": "x.ply(2)).s(\"sine\").fm(2).fmh(2.01).attack(0.005).decay(0.5)."
+    },
+    {
+     "row": 164,
+     "start": 7131,
+     "text": "delay(0.4).delaytime(0.375).delayfeedback(0.6).room(0.6).room"
+    },
+    {
+     "row": 165,
+     "start": 7192,
+     "text": "size(9).lpf(3200).pan(sine.slow(6).range(0.3, "
+    },
+    {
+     "row": 166,
+     "start": 7238,
+     "text": "0.7)).gain(0.07).gain(\"<0.7 0.7 0.7 1>\")).orbit(6)"
+    },
+    {
+     "row": 167,
+     "start": 7289,
+     "text": ")],"
+    },
+    {
+     "row": 168,
+     "start": 7293,
+     "text": "  // outro (8 bars)"
+    },
+    {
+     "row": 169,
+     "start": 7313,
+     "text": "  [8, stack("
+    },
+    {
+     "row": 170,
+     "start": 7326,
+     "text": "  (s(\"bd ~ ~ bd ~ ~ bd ~ ~ bd ~ bd ~ ~ bd "
+    },
+    {
+     "row": 171,
+     "start": 7368,
+     "text": "~\").bank(\"AkaiLinn\").n(0).gain(\"0.82 0.82 0.93 0.88 0.95 0.83 "
+    },
+    {
+     "row": 172,
+     "start": 7430,
+     "text": "0.8 "
+    },
+    {
+     "row": 173,
+     "start": 7434,
+     "text": "0.87\").shape(0.26).decay(0.08).lpf(2000).attack(0.001).shape("
+    },
+    {
+     "row": 174,
+     "start": 7495,
+     "text": "0.26).gain(0.75)).orbit(2),"
+    },
+    {
+     "row": 175,
+     "start": 7523,
+     "text": "  (s(\"<~ ~ ~ ~ ~ ~ ~ "
+    },
+    {
+     "row": 176,
+     "start": 7544,
+     "text": "white>\").dec(1.2).hpf(2500).gain(0.33).room(0.6).roomsize(8))"
+    },
+    {
+     "row": 177,
+     "start": 7605,
+     "text": ".orbit(8),"
+    },
+    {
+     "row": 178,
+     "start": 7616,
+     "text": "  (note(\"6 0 ~ 5 4 0 ~ 0 6 0 ~ 5 4 0 ~ 0\").add(note(\"<26 "
+    },
+    {
+     "row": 179,
+     "start": 7673,
+     "text": "26>\")).s(\"supersaw\").unison(5).detune(0.4).acidenv(0.7).lpq(9"
+    },
+    {
+     "row": 180,
+     "start": 7734,
+     "text": ").distort(\"1.2:0.3\").clip(0.95).lpf(saw.range(420, "
+    },
+    {
+     "row": 181,
+     "start": 7785,
+     "text": "910).slow(8)).delay(0.06).delaytime(0.375).delayfeedback(0.4)"
+    },
+    {
+     "row": 182,
+     "start": 7846,
+     "text": ".room(0.06).roomsize(5).gain(0.48).gain(saw.range(0.62, "
+    },
+    {
+     "row": 183,
+     "start": 7902,
+     "text": "1).fast(4)).gain(\"1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 0.3 1 1 0.3 "
+    },
+    {
+     "row": 184,
+     "start": 7964,
+     "text": "0.3\")).orbit(4),"
+    },
+    {
+     "row": 185,
+     "start": 7981,
+     "text": "  (note(\"<26 "
+    },
+    {
+     "row": 186,
+     "start": 7994,
+     "text": "26>\").s(\"sine\").gain(0.39).lpf(150).gain(saw.range(0.62, "
+    },
+    {
+     "row": 187,
+     "start": 8051,
+     "text": "1).fast(4))).orbit(8),"
+    },
+    {
+     "row": 188,
+     "start": 8074,
+     "text": "  "
+    },
+    {
+     "row": 189,
+     "start": 8076,
+     "text": "(s(\"white*16\").dec(0.01).degradeBy(0.7).hpf(1500).lpf(4300).g"
+    },
+    {
+     "row": 190,
+     "start": 8137,
+     "text": "ain(0.01).pan(sine.slow(9))).orbit(8)"
+    },
+    {
+     "row": 191,
+     "start": 8175,
+     "text": ")],"
+    },
+    {
+     "row": 192,
+     "start": 8179,
+     "text": ")"
+    }
+   ]
+  }
+ ]
+}

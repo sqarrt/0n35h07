@@ -186,6 +186,25 @@ func test_the_ball_toggle_tilts_the_camera_and_entering_shows_the_ball() -> void
 	menu.open_radio()
 	assert_false(menu.backdrop().rig.hide_ball, "web: re-entering the radio shows the ball again")
 
+func test_the_program_window_comes_with_the_radio_and_minimizes_to_the_bar() -> void:
+	var menu := await _menu()
+	menu.open_radio()
+	var panel := menu.code_panel()
+	assert_not_null(panel)
+	assert_true(panel.visible)
+	assert_lt(panel.get_index(), menu.radio_player().get_index(), "web: z-index 170 under the player's 200")
+	assert_eq(panel.geometry(), RadioCodePanel.initial_geometry(Vector2(SCREEN)))
+	panel.minimize_requested.emit()
+	assert_false(panel.visible)
+	assert_true(menu.radio_player().code_bar().visible)
+	menu.close_radio()
+	assert_null(menu.code_panel())
+	menu.open_radio()
+	assert_false(menu.code_panel().visible, "web: the minimized state outlives the visit")
+	menu.radio_player().code_bar_pressed.emit()
+	assert_true(menu.code_panel().visible)
+	assert_false(menu.radio_player().code_bar().visible)
+
 func test_the_volume_is_the_profiles_radio_level() -> void:
 	var menu := await _menu()
 	menu.profile_saving = false
