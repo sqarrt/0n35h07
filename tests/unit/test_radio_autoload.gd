@@ -116,6 +116,22 @@ func test_the_volume_reaches_the_engine() -> void:
 	made[0].apply_volume()
 	assert_eq(_names(made[1]), [VOLUME])
 
+func test_the_pages_meter_reaches_the_menus_audio_analysis() -> void:
+	var made := _radio(0)
+	var radio = made[0]
+	made[1].deliver('{"event":"meter","level":0.05,"bands":[0.9,0.1,0,0,0,0,0,0]}')
+	Audio.analysis.update()
+	var radio_level: float = 0.05 * RADIO.LEVEL_SCALE
+	# the shared hub also hears the menu's real buses (other suites leave sound playing): only the radio's share is ours
+	assert_gte(Audio.analysis.level(), radio_level - 0.001, "web RADIO_LEVEL_SCALE")
+	var beat := PackedFloat32Array()
+	beat.resize(8)
+	Audio.analysis.fill_bands(beat)
+	assert_almost_eq(beat[0], 0.9, 0.001, "the page's bands at their own count")
+	radio.free()
+	Audio.analysis.update()
+	assert_lt(Audio.analysis.level(), radio_level * 0.5, "gone with the radio")
+
 func test_the_trial_strip_and_the_daily_limit() -> void:
 	var made := _radio(RadioEntitlement.FREE_GENS_PER_DAY)
 	var radio = made[0]

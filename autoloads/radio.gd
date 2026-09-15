@@ -26,6 +26,7 @@ var _was_ready := false
 var _screen := SCREEN_MENU
 var _can_generate := true                       # the page's gate starts open
 var _meter_reader := Callable()
+var _bands_reader := Callable()
 
 func _ready() -> void:
 	model.changed.connect(_on_model_changed)
@@ -46,6 +47,12 @@ func attach_host(radio_host: RadioHost) -> void:
 	var meter := model                          # web: the radio's level joins the menu's audio analysis
 	_meter_reader = func() -> float: return meter.meter_level * LEVEL_SCALE
 	Audio.analysis.add_level_reader(_meter_reader)
+	_bands_reader = func(out: PackedFloat32Array) -> void:   # the page sends its bands at one count (web readBands)
+		if out.size() != meter.meter_bands.size():
+			return
+		for i in out.size():
+			out[i] = maxf(out[i], meter.meter_bands[i])
+	Audio.analysis.add_band_reader(_bands_reader)
 
 func is_available() -> bool:
 	return host != null
@@ -125,6 +132,7 @@ func _notification(what: int) -> void:
 		recheck_dlc()
 	elif what == NOTIFICATION_PREDELETE and _meter_reader.is_valid():
 		Audio.analysis.remove_level_reader(_meter_reader)
+		Audio.analysis.remove_band_reader(_bands_reader)
 
 func _on_generated() -> void:
 	rights.note_generated(Game.profile, today.call())

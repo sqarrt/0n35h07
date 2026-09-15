@@ -533,6 +533,7 @@ func _apply_hud_fixture() -> int:
 		glow_backdrop.call("set_light_angle", 0.0)
 		glow_backdrop.call("pin_ball_time", STAGE_BALL_TIME_S)
 		glow_backdrop.call("pin_glow_level", 0.0)
+		glow_backdrop.call("pin_beat_bands", PackedFloat32Array())   # web __debugAudioBands: no beats, no emoji
 		if _mode.trim_prefix(MODE_RADIO_GLOW) == RADIO_GLOW_RADIO:
 			glow_menu.call("open_radio")
 		for ui_name in RADIO_GLOW_UI:

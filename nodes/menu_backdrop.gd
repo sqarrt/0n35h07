@@ -16,6 +16,8 @@ const COLOR_TAU := 0.067                            # web COLOR_TAU: a ball's co
 const EXIT_MS := 400.0                              # web EXIT_MS: a leaving ball stays mounted while it fades
 const COMPOSITE_SHADER := preload("res://assets/shaders/menu_backdrop_composite.gdshader")
 const PROFILE_MENU_GLOW := "menuGlow"
+const RADIO_DEFAULT_BPM := 120.0                    # web radioMusicalState?.bpm ?? 120
+const BEAT_BANDS := 8                               # web RADIO_BANDS: the beat clock reads eight bands
 const SHOT_AIM := Vector3(-0.78, -0.55, 1.3)        # web SHOT_AIM_DIR (normalised where used)
 const PAINT_AIM := Vector3(0.0, 0.0, 1.0)           # web: the art's front hemisphere faces +Z while painting
 
@@ -32,6 +34,8 @@ class StageEntry:
 var rig: MenuCameraRig
 var glow_muted := false                             # web glowMuted: the appearance screen silences the edge glow
 var radio_mode := false                             # web radioMode / softBloom: the Radio screen's frosted takeover
+var radio_mood := ""                                # web radioMode.mood: the track's (the emoji set)
+var radio_bpm := RADIO_DEFAULT_BPM                  # web radioMode.bpm: the beat grid's tempo
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -42,6 +46,10 @@ var _composite: ShaderMaterial
 var _glow: MenuEdgeGlow
 var _glow_level := MenuGlowLevel.new()
 var _soft_bloom := RadioSoftBloom.new()
+var _beat := RadioBeatClock.new()                   # kept across Radio visits (web: module-level state)
+var _takeover: RadioTakeover = null
+var _beat_bands := PackedFloat32Array()
+var _beat_bands_pinned := false
 var _entries := {}                                  # key -> StageEntry
 var _warm_frames := 0
 var _light_angle := 0.0
@@ -178,6 +186,31 @@ func pin_ball_time(seconds: float) -> void:
 	_ball_time_pinned = true
 
 ## Parity captures: pin the audio level the edge glow reads (web __debugMenuGlowLevel).
+## Parity captures: the beat clock's spectrum held (web __debugAudioBands) — silence keeps the takeover still.
+func pin_beat_bands(bands: PackedFloat32Array) -> void:
+	_beat_bands = bands
+	_beat_bands_pinned = true
+
+func takeover() -> RadioTakeover:
+	return _takeover
+
+## web RadioTakeover, mounted only while the Radio screen is up: after the rig places the camera, the beat moves it and
+## the emoji follow.
+func _step_takeover(delta: float) -> void:
+	if radio_mode and _takeover == null:
+		_takeover = RadioTakeover.new()
+		_viewport.add_child(_takeover)
+	elif not radio_mode and _takeover != null:
+		_takeover.queue_free()
+		_takeover = null
+	if _takeover == null:
+		return
+	if not _beat_bands_pinned:
+		_beat_bands.resize(BEAT_BANDS)
+		Audio.analysis.fill_bands(_beat_bands)
+	var aspect := float(_viewport.size.x) / maxf(1.0, float(_viewport.size.y))
+	_takeover.step(delta, _beat, _camera, aspect, _beat_bands, radio_bpm, radio_mood, Audio.analysis.level())
+
 func pin_glow_level(level: float) -> void:
 	_glow_input = level
 	_glow_input_pinned = true
@@ -216,6 +249,7 @@ func _process(delta: float) -> void:
 	_warm_frames += 1
 	rig.step(delta)
 	_place_camera()
+	_step_takeover(delta)
 	_glow.sync_camera(_camera)
 	if not _light_pinned:
 		_light_angle += SPIN_SPEED * minf(delta, MenuCameraRig.MAX_DT)
