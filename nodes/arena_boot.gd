@@ -20,6 +20,8 @@ func _ready() -> void:
 	add_child(MapLights.build())                     # web MapLights + the page background as the sky
 	# The lobby's seats and preset (web RoomSession start); tools without a lobby get the classic human vs bot.
 	var setup: Dictionary = Game.match_setup
+	var radio_for_match := bool(setup.get(MainMenu.RADIO_FOR_MATCH, false))
+	Radio.set_screen(RadioDirector.SCREEN_GAME, radio_for_match)   # web App: the radio stays only as the soundtrack
 	var local_id := int(setup.get("local_id", HUMAN_SLOT))
 	var roster := _match_roster()
 	var mode: String = Game.lobby_mode if not Game.lobby_roster.is_empty() else GameModes.DUEL
@@ -84,6 +86,7 @@ func _ready() -> void:
 	# Match sound: SFX transitions, combat and announce sounds, countdown / GO and the seeded match music.
 	var match_audio := MatchAudio.new()
 	match_audio.seed_code = String(setup.get("seed", ""))   # web: every peer plays the room's music
+	match_audio.music_enabled = not radio_for_match         # web Match musicEngine: undefined under the radio
 	add_child(match_audio)
 	match_audio.setup(match_node, nodes.values(), local_id, self)
 

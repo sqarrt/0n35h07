@@ -10,6 +10,7 @@ const DEFAULT_WINDUP := "classic"
 const READY := 1.0                                 # a cooldown progress of 1 means ready
 
 var seed_code := ""                               # set before setup to share a seed; empty = a local random code
+var music_enabled := true                         # false: the radio is the soundtrack (web radioForMatch)
 
 var _match: MatchNode
 var _players: Array = []                          # PlayerNode
@@ -47,7 +48,8 @@ func _physics_process(_delta: float) -> void:
 				_sfx.play_2d(cue)
 			MatchAudioCues.GO:
 				_sfx.play_2d(cue)
-				_start_music()
+				if music_enabled:
+					_start_music()
 			MatchAudioCues.ENDED:
 				if _music != null:
 					_music.fade_out()

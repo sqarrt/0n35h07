@@ -188,6 +188,21 @@ func test_a_save_counts_against_the_trial_and_a_spent_one_is_refused() -> void:
 	assert_eq(library.list_dir("").size(), 1)
 	RadioLibrarySeed.clear(library)
 
+func test_a_match_keeps_the_radio_only_when_it_started_with_it() -> void:
+	var made := _radio(0)
+	var radio = made[0]
+	var transport: FakeTransport = made[1]
+	Game.profile[RADIO.KEY_ENABLED] = true
+	radio.warm_up()
+	transport.deliver(PAGE_READY)
+	transport.deliver(ENGINE_READY)
+	transport.sent.clear()
+	radio.set_screen(RadioDirector.SCREEN_GAME, true)
+	assert_eq(_names(transport), [VOLUME, RESUME], "web radioForMatch: playing through the match")
+	transport.sent.clear()
+	radio.set_screen(RadioDirector.SCREEN_GAME)
+	assert_eq(_names(transport), [RadioProtocol.STOP], "a match that chose its own music")
+
 func test_the_trial_strip_and_the_daily_limit() -> void:
 	var made := _radio(RadioEntitlement.FREE_GENS_PER_DAY)
 	var radio = made[0]

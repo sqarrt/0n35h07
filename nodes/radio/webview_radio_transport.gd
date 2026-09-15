@@ -20,6 +20,9 @@ func attach(parent: Node) -> void:
 	_view = ClassDB.instantiate(CLASS_NAME) as Control
 	_view.name = "RadioHostView"
 	_view.set("autoplay", true)
+	# godot_wry stretches a WebView over the whole window unless told not to: the blank page covered the game in white
+	_view.set("full_window_size", false)
+	_view.set("focused_when_created", false)   # the keyboard stays with the game
 	_view.set("url", PAGE)
 	_view.position = OFFSCREEN_BOX.position
 	_view.size = OFFSCREEN_BOX.size

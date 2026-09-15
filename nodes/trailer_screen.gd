@@ -56,6 +56,7 @@ func _ready() -> void:
 	_saved_locale = I18n.locale()
 	I18n.use_locale(LOCALE)
 	Audio.stop_menu_music()                    # web App: no menu music on the trailer screen
+	Radio.set_screen(RadioDirector.SCREEN_TRAILER)   # web App: the trailer runs its own audio, the radio stops
 	for id in TrailerEdl.clips():
 		_clips[id] = DemoClip.load_clip(id)
 	_layer = CanvasLayer.new()

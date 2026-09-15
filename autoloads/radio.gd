@@ -36,6 +36,7 @@ var _warmed := false
 var _save_prompt_token := 0
 var _was_ready := false
 var _screen := SCREEN_MENU
+var _radio_for_match := false
 var _can_generate := true                       # the page's gate starts open
 var _meter_reader := Callable()
 var _bands_reader := Callable()
@@ -96,15 +97,17 @@ func warm_up() -> void:
 	_apply_gate()
 	host.init(Audio.radio_gain())
 
-## The screen the radio plays under (web App screen): a menu screen, the trailer or a match.
-func set_screen(screen: String) -> void:
+## The screen the radio plays under (web App screen): a menu screen, the trailer or a match; `for_match` says the radio
+## was playing when that match started (web gameNet.radioForMatch), so it stays the soundtrack.
+func set_screen(screen: String, for_match := false) -> void:
 	_screen = screen
+	_radio_for_match = for_match
 	sync()
 
 ## Apply the switch, the volume and the screen to the engine (web App start/stop effect).
 func sync() -> void:
 	if host != null:
-		RadioDirector.sync(host, model.is_ready(), enabled(), Audio.radio_gain(), _screen)
+		RadioDirector.sync(host, model.is_ready(), enabled(), Audio.radio_gain(), _screen, _radio_for_match)
 	changed.emit()
 
 ## web radioNext / radioPrev: the library queue steps round, the live stream skips a track.

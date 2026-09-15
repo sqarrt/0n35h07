@@ -57,6 +57,7 @@ const TRAILER_SCENE := "res://scenes/trailer.tscn"
 const LOGS_DIR := "user://logs"
 const HALF := 0.5
 const JOIN_REQUESTED := "joinRequested"   # web steam-net event: "Join game" from the friends list
+const RADIO_FOR_MATCH := "radio_for_match"  # Game.match_setup: the radio is this match's soundtrack
 
 var _panel: Panel
 var _panel_blur: ColorRect
@@ -831,6 +832,7 @@ func _start_match(setup: Dictionary) -> void:
 	Game.match_duration_ms = setup["duration_min"] * MatchConst.MS_PER_MIN
 	Game.lobby_roster = setup["roster"]
 	Game.lobby_mode = setup["mode"]
+	setup[RADIO_FOR_MATCH] = Radio.is_active()          # web gameNet.radioForMatch: this peer's radio at START
 	Game.match_setup = setup                            # the room (Game.room) stays open through the match
 	get_tree().change_scene_to_file(ARENA)
 

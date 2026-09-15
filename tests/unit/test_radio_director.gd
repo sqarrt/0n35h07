@@ -46,3 +46,13 @@ func test_the_trailer_and_a_match_stop_the_radio() -> void:
 		var parts := _host()
 		RadioDirector.sync(parts[0], true, true, VOLUME, screen)
 		assert_eq((parts[1] as FakeTransport).sent, [RadioProtocol.command(RadioProtocol.STOP)], screen)
+
+func test_a_match_started_with_the_radio_keeps_it_playing() -> void:
+	var parts := _host()
+	var transport: FakeTransport = parts[1]
+	RadioDirector.sync(parts[0], true, true, VOLUME, RadioDirector.SCREEN_GAME, true)
+	assert_eq(transport.sent, [RadioProtocol.volume_command(VOLUME), RadioProtocol.command(RadioProtocol.RESUME)],
+		"web radioForMatch: the radio is the match's soundtrack")
+	transport.sent.clear()
+	RadioDirector.sync(parts[0], true, true, VOLUME, RadioDirector.SCREEN_TRAILER, true)
+	assert_eq(transport.sent, [RadioProtocol.command(RadioProtocol.STOP)], "the trailer runs its own music regardless")
