@@ -175,6 +175,8 @@ const RADIO_LIBRARY_MARQUEE := "marquee"       # web: a band from WINDOW_MENU_AT
 const RADIO_LIBRARY_MARQUEE_TO := Vector2(700.0, 290.0)
 const RADIO_LIBRARY_MARQUEE_TO_FS := Vector2(1340.0, 607.0)
 const RADIO_LIBRARY_DROP := "dropok"           # web: .dropok set on Night Drive
+const RADIO_LIBRARY_BAR := "bar"               # web: LIBRARY's _ — its bar over the player
+const RADIO_LIBRARY_BARS := "bars"             # web: then PROGRAM's _ — the PROGRAM bar on top
 const MODE_RADIO_VIZ := "radio-viz-"           # radio-viz-scope / -bars / -radial / -field: the pinned visualizer
 ## web parity-capture-radio-viz.mjs PIN: one frame every mode draws the same way each run.
 const RADIO_VIZ_PIN := {"phase": 1.7, "frame": 0, "level": 0.08, "impulse": 0.35, "seed": 7,
@@ -623,6 +625,11 @@ func _apply_hud_fixture() -> int:
 				for item in explorer.items():
 					if item.path() == RADIO_LIBRARY_FOLDER:
 						item.drop_target = true
+			RADIO_LIBRARY_BAR, RADIO_LIBRARY_BARS:
+				explorer.minimize_requested.emit()
+				if _mode.trim_prefix(MODE_RADIO_LIBRARY) == RADIO_LIBRARY_BARS:
+					(library_menu.call("code_panel") as RadioCodePanel).minimize_requested.emit()
+				(library_menu.call("radio_player") as RadioPlayer)._process(RADIO_CODE_SETTLE_S)   # past the bars' entrance
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO_CODE):
 		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized

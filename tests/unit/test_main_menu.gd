@@ -220,8 +220,16 @@ func test_the_library_window_comes_with_the_radio_under_the_program_window() -> 
 	assert_eq(explorer.address_text().get_file(), TEST_LIBRARY.get_file(), "the injected library's folder")
 	explorer.minimize_requested.emit()
 	assert_false(explorer.visible)
+	assert_true(menu.radio_player().library_bar().visible, "web: the LIBRARY bar over the player")
 	menu.close_radio()
 	assert_null(menu.explorer())
+	assert_false(menu.radio_player().library_bar().visible)
+	menu.open_radio()
+	assert_false(menu.explorer().visible, "web radioExpOpen outlives the visit")
+	assert_true(menu.radio_player().library_bar().visible)
+	menu.radio_player().library_bar_pressed.emit()
+	assert_true(menu.explorer().visible)
+	assert_false(menu.radio_player().library_bar().visible)
 
 func test_the_volume_is_the_profiles_radio_level() -> void:
 	var menu := await _menu()

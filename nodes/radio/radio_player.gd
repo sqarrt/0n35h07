@@ -19,6 +19,7 @@ signal ball_toggled
 signal unlock_requested
 signal back_requested
 signal code_bar_pressed
+signal library_bar_pressed
 
 const WIDTH := 300.0
 const RIGHT := 18.0
@@ -66,6 +67,12 @@ const LIMIT_COLOR := Color("#ee99aa")          # #e9a
 const LIMIT_MARGIN_TOP := 2.0
 const BACK_LABEL := "← %s"
 const PROGRAM_KEY := "radioProgram"
+const LIBRARY_KEY := "radioLibrary"
+const SAVE_LIMIT_KEY := "radioSaveLimit"
+const BAR_CODE := "code"                       # web lastMin: which minimized window's bar sits on top
+const BAR_LIBRARY := "lib"
+const DRAG_PREVIEW_ALPHA := 0.6                # the browser's translucent drag image of the cassette
+const DRAG_PREVIEW_GRAB := Vector2(26.0, 17.0) # web setDragImage(ghost, 26, 17)
 const BAR_ENTER_S := 0.2                       # web rexp-bar-in: the bar rises 12 px and fades in
 const BAR_ENTER_RISE := 12.0
 const RADIO_WORD_KEY := "settingsVolRadio"     # web radioWord: the subtitle before a track
@@ -92,9 +99,18 @@ var _volume: RadioVolumeRow
 var _trial: RadioTrialRow
 var _limit: CssLabel
 var _back: RadioGlassButton
+## web onDragTrack: the audible track as a library payload ({} when nothing can be saved).
+var track_payload := func() -> Dictionary: return {}
+
 var _code_bar: RadioGlassButton
-var _code_bar_shown := false
-var _bar_in := CssTransition.new(BAR_ENTER_S, EXPAND_CURVE)
+var _library_bar: RadioGlassButton
+var _bars := {}                                # BAR_CODE / BAR_LIBRARY → the bar
+var _bar_shown := {BAR_CODE: false, BAR_LIBRARY: false}
+var _bar_in := {BAR_CODE: CssTransition.new(BAR_ENTER_S, EXPAND_CURVE), BAR_LIBRARY: CssTransition.new(BAR_ENTER_S, EXPAND_CURVE)}
+var _last_minimized := ""
+var _save_limit: CssLabel
+var _save_limited := false
+var _drag_surface: Control
 var _card_top := 0.0
 var _card := Vector2(WIDTH, 0.0)
 var _box := Vector2(WIDTH, 0.0)                # the whole player: the card, and BACK under it when expanded
@@ -109,6 +125,11 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glass = GlassCard.new()
 	add_child(_glass)
+	_drag_surface = Control.new()                 # web draggable card: the empty areas carry the track to the library
+	_drag_surface.name = "DragSurface"
+	_drag_surface.mouse_filter = Control.MOUSE_FILTER_PASS
+	_drag_surface.set_drag_forwarding(func(_at: Vector2) -> Variant: return drag_data(), Callable(), Callable())
+	add_child(_drag_surface)
 	_title = CssLabel.new().styled(RadioModel.NO_TRACK, TITLE_PX, TITLE_SPACING_EM, TITLE_COLOR)
 	_title.name = "TrackName"
 	_title.mouse_filter = Control.MOUSE_FILTER_STOP   # the collapsed name opens the radio
@@ -136,6 +157,10 @@ func _init() -> void:
 	_limit.name = "GenLimit"
 	_limit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_limit)
+	_save_limit = CssLabel.new().styled("", LIMIT_PX, LIMIT_SPACING_EM, LIMIT_COLOR)
+	_save_limit.name = "SaveLimit"
+	_save_limit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_save_limit)
 	_back = RadioGlassButton.new("", RadioGlassButton.ARROW_FAMILIES)
 	_back.name = "Back"
 	_back.pressed.connect(func() -> void: back_requested.emit())
@@ -144,7 +169,13 @@ func _init() -> void:
 	_code_bar.name = "ProgramBar"
 	_code_bar.pressed.connect(func() -> void: code_bar_pressed.emit())
 	add_child(_code_bar)
-	_bar_in.snap(1.0)
+	_library_bar = RadioGlassButton.new("")
+	_library_bar.name = "LibraryBar"
+	_library_bar.pressed.connect(func() -> void: library_bar_pressed.emit())
+	add_child(_library_bar)
+	_bars = {BAR_CODE: _code_bar, BAR_LIBRARY: _library_bar}
+	for entrance: CssTransition in _bar_in.values():
+		entrance.snap(1.0)
 	relabel()
 	show_air(true)
 	show_ball_hidden(false)
@@ -193,15 +224,58 @@ func show_ball_hidden(hidden: bool) -> void:
 
 ## The PROGRAM bar over the card while the code window is minimized (it rises in as it appears).
 func show_code_bar(shown: bool) -> void:
-	if shown and not _code_bar_shown:
-		_bar_in.snap(0.0)
-		_bar_in.set_target(1.0)
-		set_process(true)
-	_code_bar_shown = shown
+	_show_bar(BAR_CODE, shown)
+
+## The LIBRARY bar over the card while the library window is minimized.
+func show_library_bar(shown: bool) -> void:
+	_show_bar(BAR_LIBRARY, shown)
+
+## web lastMin: the bar of the window minimized last sits on top of the stack.
+func set_last_minimized(bar: String) -> void:
+	_last_minimized = bar
+	_layout()
+
+## web saveLimited: "Daily free saves used up" under the card's rows while a refused save's prompt lasts.
+func show_save_limited(on: bool) -> void:
+	_save_limited = on
 	_layout()
 
 func code_bar() -> RadioGlassButton:
 	return _code_bar
+
+func library_bar() -> RadioGlassButton:
+	return _library_bar
+
+func save_limit_label() -> CssLabel:
+	return _save_limit
+
+## web onDragStart on the expanded card: the audible track (and the cassette as the drag image), or no drag.
+func drag_data() -> Variant:
+	if not _expanded:
+		return null
+	var payload: Dictionary = track_payload.call()
+	if payload.is_empty():
+		return null
+	if get_viewport() != null and get_viewport().gui_is_dragging():
+		var holder := Control.new()
+		var cassette := RadioLibraryIcon.new(RadioLibraryIcon.TRACK)
+		cassette.position = -DRAG_PREVIEW_GRAB
+		cassette.modulate.a = DRAG_PREVIEW_ALPHA
+		holder.add_child(cassette)
+		_drag_surface.set_drag_preview(holder)
+	return {RadioExplorer.DRAG_TRACK: payload}
+
+func _show_bar(bar: String, shown: bool) -> void:
+	if shown and not _bar_shown[bar]:
+		var entrance: CssTransition = _bar_in[bar]
+		entrance.snap(0.0)
+		entrance.set_target(1.0)
+		set_process(true)
+	_bar_shown[bar] = shown
+	_layout()
+
+func _bar_order() -> Array:
+	return [BAR_CODE, BAR_LIBRARY] if _last_minimized == BAR_CODE else [BAR_LIBRARY, BAR_CODE]
 
 ## Where the card starts inside the player: under the bars when any are shown.
 func card_top() -> float:
@@ -211,6 +285,10 @@ func card_top() -> float:
 func set_expanded(expanded: bool, animate := true) -> void:
 	_expanded = expanded
 	_title.mouse_default_cursor_shape = Control.CURSOR_ARROW if expanded else Control.CURSOR_POINTING_HAND
+	# expanded, the name is part of the draggable card; docked, it opens the radio
+	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE if expanded else Control.MOUSE_FILTER_STOP
+	_drag_surface.mouse_default_cursor_shape = Control.CURSOR_DRAG if expanded else Control.CURSOR_ARROW
+	_drag_surface.visible = expanded
 	if animate:
 		_expand.set_target(1.0 if expanded else 0.0)
 		set_process(true)
@@ -226,7 +304,9 @@ func relabel() -> void:
 	_air.text = AIR_LABEL % I18n.t(AIR_KEY)
 	_back.button().text = BACK_LABEL % I18n.t(BACK_KEY)
 	_code_bar.button().text = I18n.t(PROGRAM_KEY)
+	_library_bar.button().text = I18n.t(LIBRARY_KEY)
 	_limit.text = I18n.t(GEN_LIMIT_KEY)
+	_save_limit.text = I18n.t(SAVE_LIMIT_KEY)
 	_subtitle.text = _subtitle_text if _subtitle_text != "" else I18n.t(RADIO_WORD_KEY)
 	_layout()
 
@@ -276,9 +356,12 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	_expand.advance(delta)
-	_bar_in.advance(delta)
+	var settled := is_equal_approx(_expand.value, _expand.target())
+	for entrance: CssTransition in _bar_in.values():
+		entrance.advance(delta)
+		settled = settled and is_equal_approx(entrance.value, entrance.target())
 	_layout()
-	if is_equal_approx(_expand.value, _expand.target()) and is_equal_approx(_bar_in.value, _bar_in.target()):
+	if settled:
 		set_process(false)
 
 func _on_title_input(event: InputEvent) -> void:
@@ -300,6 +383,8 @@ func _rows() -> Array:
 			rows.append([_trial, _trial.row_height(), RadioTrialRow.MARGIN_TOP])
 		if _gen_limited:
 			rows.append([_limit, _limit.css_size().y, LIMIT_MARGIN_TOP])
+		if _save_limited:
+			rows.append([_save_limit, _save_limit.css_size().y, LIMIT_MARGIN_TOP])
 	return rows
 
 func _layout() -> void:
@@ -312,15 +397,18 @@ func _layout() -> void:
 		and _title.run().width() > content_width else TextServer.OVERRUN_NO_TRIMMING
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var rows := _rows()
-	for control: Control in [_subtitle, _scrub, _air_row, _volume, _trial, _limit]:
+	for control: Control in [_subtitle, _scrub, _air_row, _volume, _trial, _limit, _save_limit]:
 		control.visible = false
-	var bar_shown := _expanded and _code_bar_shown
-	_code_bar.visible = bar_shown
-	_card_top = _code_bar.bar_height() + ROOT_GAP if bar_shown else 0.0
-	if bar_shown:
-		_code_bar.size = Vector2(WIDTH, _code_bar.bar_height())
-		_code_bar.position = Vector2(0.0, (1.0 - _bar_in.value) * BAR_ENTER_RISE)
-		_code_bar.modulate.a = _bar_in.value
+	_card_top = 0.0
+	for key: String in _bar_order():                # flex column, gap 8: the bars, then the card
+		var bar: RadioGlassButton = _bars[key]
+		bar.visible = _expanded and _bar_shown[key]
+		if bar.visible:
+			var entrance: CssTransition = _bar_in[key]
+			bar.size = Vector2(WIDTH, bar.bar_height())
+			bar.position = Vector2(0.0, _card_top + (1.0 - entrance.value) * BAR_ENTER_RISE)
+			bar.modulate.a = entrance.value
+			_card_top += bar.bar_height() + ROOT_GAP
 	var y := _card_top + GlassCard.BORDER_PX + PADDING.y
 	for i in rows.size():
 		var control: Control = rows[i][0]
@@ -334,6 +422,8 @@ func _layout() -> void:
 	_card = Vector2(WIDTH, y - _card_top + PADDING.y + GlassCard.BORDER_PX)
 	_glass.position = Vector2(0.0, _card_top)
 	_glass.set_box(_card)
+	_drag_surface.position = _glass.position
+	_drag_surface.size = _card
 	_box = Vector2(WIDTH, _card_top + _card.y)
 	_back.visible = _expanded
 	if _expanded:

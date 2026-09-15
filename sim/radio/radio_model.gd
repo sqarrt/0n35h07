@@ -14,6 +14,7 @@ var musical_state := {}
 var progress := 0.0
 var total_ms := 0.0
 var running := false
+var bars := 0.0                               # the audible track's length in bars (web controller.currentBars)
 var meter_level := 0.0                        # the page's output level (web engine.readLevel), ~30 Hz
 var meter_bands := PackedFloat32Array()       # its 8 bands (web engine.readBands)
 var meter_vis_bands := PackedFloat32Array()   # its 24 bands for the LIBRARY visualizer
@@ -25,10 +26,11 @@ func bind(host: RadioHost) -> void:
 	host.state_changed.connect(func(state: Dictionary) -> void:
 		musical_state = state
 		changed.emit())
-	host.progress_changed.connect(func(value: float, total: float, is_running: bool) -> void:
+	host.progress_changed.connect(func(value: float, total: float, is_running: bool, track_bars: float) -> void:
 		progress = value
 		total_ms = total
 		running = is_running
+		bars = track_bars
 		changed.emit())
 	host.meter_changed.connect(func(level: float, bands: PackedFloat32Array, vis_bands: PackedFloat32Array) -> void:
 		meter_level = level                     # read each frame, no signal

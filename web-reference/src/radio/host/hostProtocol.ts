@@ -23,7 +23,7 @@ export type HostEvent =
   | { event: 'ready' }
   | { event: 'init-state'; state: RadioInitState }
   | { event: 'state'; state: MusicalState }
-  | { event: 'progress'; progress: number; totalMs: number; running: boolean }
+  | { event: 'progress'; progress: number; totalMs: number; running: boolean; bars: number }
   | { event: 'meter'; level: number; bands: number[]; visBands: number[] }
   | { event: 'track-end' }
   | { event: 'generated' }

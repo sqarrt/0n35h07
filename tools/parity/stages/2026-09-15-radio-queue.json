@@ -1,0 +1,95 @@
+{
+  "id": "2026-09-15-radio-queue",
+  "title": "OneShot · радио R4c: очередь библиотеки, сохранение и полоса LIBRARY",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R4c подпроекта «радио». Двойной клик по треку и ▶ Play играют папку библиотеки очередью запечённых треков: ⏮ / ⏭ ходят по ней по кругу, закончившийся трек сменяется следующим, On Air возвращает живую генерацию. Трек, который сейчас звучит, перетаскивается с карточки плеера в папку или на сетку и сохраняется — в пробном периоде не больше 5 раз в день, дальше под карточкой на 4 секунды появляется «Daily free saves used up». Свёрнутое окно LIBRARY превращается в полосу над плеером рядом с полосой PROGRAM — сверху та, что свернули последней. Страница движка теперь присылает длину звучащего трека в тактах. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-queue.json`. Web: `web-reference/scripts/parity-capture-radio-library.mjs` (кадры `-bar` — _ у LIBRARY, `-bars` — затем _ у PROGRAM; `PARITY_FULLSCREEN=1` — весь экран). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-library/godot-radio-library-<bar|bars>[-fs].png 120 locale-en:radio-library-<bar|bars>`. Страница движка: `npx vite build --config vite.radio-host.config.ts` → `localhost/radio_host/`. Тесты GUT: `test_radio_queue`, `test_radio_autoload`, `test_radio_host`, `test_radio_player_bars`, `test_radio_player`, `test_radio_explorer`, `test_main_menu`; полный прогон 954/954.",
+  "pages": [
+    {
+      "slug": "radio-queue",
+      "name": "Очередь и сохранение",
+      "verdict": "Полосы свёрнутых окон стоят там же, где у web: LIBRARY [490, 382, 300, 33] над карточкой, а после сворачивания PROGRAM — PROGRAM [490, 341] сверху и LIBRARY под ней через 8 px. Разница по полосам — 1.65/255 (одна) и 1.35 (две), по всей стопке с плеером и BACK — 1.49 / 1.44; на весь экран — 1.58 / 1.55. Очередь, её круговые шаги и автопереход, возврат к эфиру, полезная нагрузка трека (id seed:index, имя, BPM, такты, тональность, программа), сохранение с квотой и подсказкой проверены тестами над подменной страницей и файлами.",
+      "verdict_short": "Полосы LIBRARY/PROGRAM 1:1, очередь и сохранение по тестам",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["полоса", "клик по _ у LIBRARY, кадр через 0.6 с", "`minimize_requested`, переход полосы досчитан"],
+        ["две полосы", "затем клик по _ у PROGRAM", "`minimize_requested` у окна PROGRAM"]
+      ],
+      "comparisons": [
+        {
+          "title": "Полоса LIBRARY над плеером (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-queue-report/web-bar.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-queue-report/godot-bar.png", "note": "полоса 1.65/255, стопка 1.49"}
+          ]
+        },
+        {
+          "title": "PROGRAM свёрнута последней — сверху (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-queue-report/web-bars.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-queue-report/godot-bars.png", "note": "полосы 1.35/255, стопка 1.44"}
+          ]
+        },
+        {
+          "title": "Полоса LIBRARY, весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-queue-report/web-bar-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-queue-report/godot-bar-fs.png", "note": "1.58/255"}
+          ]
+        },
+        {
+          "title": "Две полосы, весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-queue-report/web-bars-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-queue-report/godot-bars-fs.png", "note": "1.55/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R4c-1", "severity": "fixed",
+          "title": "Очередь библиотеки",
+          "web": "`onPlayLibrary`: читаемые треки папки становятся очередью ('fav'), играет выбранный (`playBaked`), радио включается; ⏮ / ⏭ ходят по очереди по кругу; `onTrackEnd` в 'fav' ставит следующий (по кругу); `onRadioMode('gen')` — `resumeGenerative`.",
+          "godot": "`RadioQueue`; `Radio.play_library / next / prev / set_play_mode`, автопереход по `track_ended`; `MainMenu` включает радио через `_radio_transport`, On Air — `set_play_mode(MODE_GEN)`, подсветка On Air — по режиму.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_queue.gd", "autoloads/radio.gd", "nodes/main_menu.gd", "tests/unit/test_radio_queue.gd", "tests/unit/test_radio_autoload.gd"]
+        },
+        {
+          "id": "R4c-2", "severity": "fixed",
+          "title": "Сохранение звучащего трека",
+          "web": "`currentTrackJSON`: `{v: 2, id: seed ? seed:index : name, name, bpm, bars: controller.currentBars(), info: {mood, key, scale}, program}`; перетаскивание с пустого места развёрнутой карточки (кассета как изображение), drop на папку или сетку; `onSaveTrack` пропускает только при квоте, иначе подсказка на 4 с.",
+          "godot": "Страница хоста добавляет `bars` в событие `progress`; `Radio.current_track_payload` и `Radio.save_track` (квота `RadioRights`, профиль сохраняется); `RadioPlayer.drag_data` с поверхности карточки; `RadioExplorer.drop_into` → `save_requested`; строка «saves used up» под карточкой.",
+          "evidence": ["test"],
+          "sources": ["web-reference/src/radio/host/radioHost.ts", "sim/radio/radio_host.gd", "sim/radio/radio_model.gd", "autoloads/radio.gd", "nodes/radio/radio_player.gd", "nodes/radio/radio_explorer.gd", "tests/unit/test_radio_player_bars.gd"]
+        },
+        {
+          "id": "R4c-3", "severity": "fixed",
+          "title": "Полоса LIBRARY и порядок полос",
+          "web": "`libraryMin`: свёрнутое окно LIBRARY — стеклянная полоса над карточкой (появляется, поднимаясь на 12 px за 0.2 с); `lastMin` ставит сверху полосу окна, свёрнутого последним; `radioExpOpen` живёт между визитами.",
+          "godot": "`RadioPlayer.show_library_bar / set_last_minimized`, у каждой полосы свой переход; `MainMenu` хранит свёрнутость LIBRARY, как PROGRAM.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_player.gd", "nodes/main_menu.gd", "tests/unit/test_main_menu.gd"]
+        },
+        {
+          "id": "R4c-4", "severity": "missing",
+          "title": "Радио в матче и Rich Presence",
+          "web": "Радио играет через матч вместо музыки матча; статус трека в Steam Rich Presence.",
+          "godot": "Слайс R5.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/Game.tsx", "web-reference/src/steam"]
+        }
+      ],
+      "limitations": [
+        "Настоящее перетаскивание с карточки и вызов квоты кадрами не снимались: подсказка «saves used up» — та же строка стиля, что уже сверенная «gen limit».",
+        "Очередь и автопереход проверены на подменной странице; живая страница движка запускалась только пробой хоста.",
+        "Анимация появления полос сравнивалась в конце перехода."
+      ]
+    }
+  ]
+}

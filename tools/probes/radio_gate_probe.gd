@@ -31,7 +31,7 @@ func _initialize() -> void:
 	_host.init_state_changed.connect(func(state: String) -> void: _engine_ready = _engine_ready or state == READY)
 	_host.generated.connect(func() -> void: _generated[_phase] += 1)
 	_host.state_changed.connect(func(_state: Dictionary) -> void: _states[_phase] += 1)
-	_host.progress_changed.connect(func(_progress: float, _total_ms: float, running: bool) -> void:
+	_host.progress_changed.connect(func(_progress: float, _total_ms: float, running: bool, _bars: float) -> void:
 		_running[_phase] = _running[_phase] or running)
 	_host.set_gate(false)
 	_host.init(PROBE_VOLUME)

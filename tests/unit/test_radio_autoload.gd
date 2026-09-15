@@ -14,6 +14,7 @@ const VOLUME := "volume"
 const PAGE_READY := '{"event":"ready"}'
 const ENGINE_READY := '{"event":"init-state","state":"ready"}'
 const GENERATED := '{"event":"generated"}'
+const TEST_LIBRARY := "user://test_radio_autoload_library"
 
 class FakeTransport extends RadioTransport:
 	var sent: Array[String] = []
@@ -131,6 +132,61 @@ func test_the_pages_meter_reaches_the_menus_audio_analysis() -> void:
 	radio.free()
 	Audio.analysis.update()
 	assert_lt(Audio.analysis.level(), radio_level * 0.5, "gone with the radio")
+
+func _track(track_name: String) -> Dictionary:
+	return {"v": 2, "id": track_name, "name": track_name, "bpm": 120, "bars": 32, "info": {}, "program": "arrange()"}
+
+func _baked(transport: FakeTransport) -> Array:
+	return transport.commands().filter(func(command: Dictionary) -> bool: return command[CMD] == RadioProtocol.PLAY_BAKED) \
+		.map(func(command: Dictionary) -> String: return command["track"]["name"])
+
+func test_the_library_queue_plays_steps_and_loops_on_track_end() -> void:
+	var made := _radio(0)
+	var radio = made[0]
+	var transport: FakeTransport = made[1]
+	transport.deliver(PAGE_READY)
+	radio.play_library([_track("A"), _track("B"), _track("C")], 2)
+	assert_eq(radio.play_mode, RADIO.MODE_FAV)
+	radio.next()
+	radio.prev()
+	radio.prev()
+	transport.deliver('{"event":"track-end"}')
+	assert_eq(_baked(transport), ["C", "A", "C", "B", "C"], "start, next wraps, prev, prev, the end moves on")
+	transport.sent.clear()
+	radio.set_play_mode(RADIO.MODE_GEN)
+	radio.next()
+	transport.deliver('{"event":"track-end"}')
+	assert_eq(_names(transport), [RadioProtocol.RESUME_GENERATIVE, RadioProtocol.NEXT], "On Air: the live stream again")
+
+func test_the_audible_track_becomes_a_library_payload() -> void:
+	var made := _radio(0)
+	var radio = made[0]
+	var transport: FakeTransport = made[1]
+	assert_eq(radio.current_track_payload(), {}, "nothing playing")
+	transport.deliver(JSON.stringify({"event": "state", "state": {"seed": "AA3C39", "trackIndex": 3, "trackSeed": "AA3C39:t3",
+		"strudelCode": "setcpm(30)", "mood": "dub_techno", "key": "A", "scaleName": "phrygian", "bpm": 123}}))
+	transport.deliver('{"event":"progress","progress":0.1,"totalMs":90000,"running":true,"bars":48}')
+	var payload: Dictionary = radio.current_track_payload()
+	assert_eq(payload["id"], "AA3C39:3", "web trackId(seed, index)")
+	assert_eq(payload["name"], radio.model.track_label())
+	assert_eq(payload["bars"], 48.0)
+	assert_eq(payload["info"], {"mood": "dub_techno", "key": "A", "scale": "phrygian"})
+	assert_eq(payload["program"], "setcpm(30)")
+
+func test_a_save_counts_against_the_trial_and_a_spent_one_is_refused() -> void:
+	var made := _radio(0)
+	var radio = made[0]
+	var library := RadioLibrary.new(TEST_LIBRARY)
+	RadioLibrarySeed.clear(library)
+	assert_true(radio.save_track(library, "", _track("Kept")))
+	assert_eq(int(Game.profile[RadioRights.KEY_TRIAL]["saves"]), 1)
+	assert_eq(_saves, 1)
+	assert_eq(library.list_dir("").size(), 1)
+	Game.profile[RadioRights.KEY_TRIAL]["saves"] = RadioEntitlement.FREE_SAVES_PER_DAY
+	assert_false(radio.save_track(library, "", _track("Refused")))
+	assert_true(radio.save_limited, "web radioSavePrompt")
+	assert_eq(library.list_dir("").size(), 1)
+	RadioLibrarySeed.clear(library)
 
 func test_the_trial_strip_and_the_daily_limit() -> void:
 	var made := _radio(RadioEntitlement.FREE_GENS_PER_DAY)

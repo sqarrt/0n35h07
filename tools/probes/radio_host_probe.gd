@@ -33,7 +33,7 @@ func _initialize() -> void:
 			_first_state = state
 			print("radio host probe: first state at %d ms: mood %s key %s %s bpm %s track %s" % [_elapsed(),
 				state.get("mood"), state.get("key"), state.get("scaleName"), state.get("bpm"), state.get("trackSeed")]))
-	_host.progress_changed.connect(func(progress: float, total_ms: float, running: bool) -> void:
+	_host.progress_changed.connect(func(progress: float, total_ms: float, running: bool, _bars: float) -> void:
 		_progress.append([snappedf(progress, 0.0001), total_ms, running]))
 	_host.meter_changed.connect(func(level: float, _bands: PackedFloat32Array, _vis_bands: PackedFloat32Array) -> void:
 		_max_level = maxf(_max_level, level))

@@ -66,6 +66,7 @@ var profile_saving := true                    # parity captures edit an in-memor
 var _radio_open := false                      # web screen === 'radio': the takeover instead of the panel
 var _code_panel: RadioCodePanel = null        # the PROGRAM window while the Radio screen is up
 var _code_minimized := false                  # web radioCodeOpen (App state): kept between visits
+var _library_minimized := false               # web radioExpOpen: kept between visits too
 var radio_library: RadioLibrary = null        # the LIBRARY folder (tests and parity captures seed their own)
 var _explorer: RadioExplorer = null           # the LIBRARY window while the Radio screen is up
 var _screen: Control                          # the open SETTINGS / ABOUT / APPEARANCE screen
@@ -534,6 +535,9 @@ func _add_radio_player() -> void:
 	_radio_player.unlock_requested.connect(Radio.open_store)
 	_radio_player.back_requested.connect(close_radio)
 	_radio_player.code_bar_pressed.connect(_restore_code)
+	_radio_player.library_bar_pressed.connect(_restore_library)
+	_radio_player.air_requested.connect(func() -> void: Radio.set_play_mode(Radio.MODE_GEN))   # web onMode('gen')
+	_radio_player.track_payload = Radio.current_track_payload
 	_radio_player.open_requested.connect(open_radio)
 	_radio_player.visible = not _browser_layout
 	Radio.changed.connect(_on_radio_changed)
@@ -581,6 +585,7 @@ func close_radio() -> void:
 	_panel_blur.visible = true
 	_radio_player.set_expanded(false)
 	_radio_player.show_code_bar(false)
+	_radio_player.show_library_bar(false)
 	_code_panel.queue_free()
 	_code_panel = null
 	_explorer.queue_free()
@@ -610,7 +615,12 @@ func _open_explorer() -> void:
 	add_child(_explorer)
 	move_child(_explorer, _radio_player.get_index())
 	_explorer.open_on(radio_library, size)
-	_explorer.minimize_requested.connect(func() -> void: _explorer.visible = false)
+	_explorer.minimize_requested.connect(_minimize_library)
+	_explorer.play_requested.connect(func(queue: Array, start: int) -> void:   # web onPlayLibrary
+		_radio_transport(func() -> void: Radio.play_library(queue, start)))
+	_explorer.save_requested.connect(_save_to_library)
+	_explorer.visible = not _library_minimized
+	_radio_player.show_library_bar(_library_minimized)
 	_explorer.visualizer().level_source = Radio.level          # web engine.readLevel / readBands(24)
 	_explorer.visualizer().bands_source = Radio.vis_bands
 	_explorer.set_radio_active(Radio.is_active())
@@ -630,6 +640,26 @@ func _minimize_code() -> void:
 	_code_minimized = true
 	_code_panel.visible = false
 	_radio_player.show_code_bar(true)
+	_radio_player.set_last_minimized(RadioPlayer.BAR_CODE)
+
+## _ or ✕ on LIBRARY: the window goes, the LIBRARY bar comes over the player.
+func _minimize_library() -> void:
+	_library_minimized = true
+	_explorer.visible = false
+	_radio_player.show_library_bar(true)
+	_radio_player.set_last_minimized(RadioPlayer.BAR_LIBRARY)
+
+## The LIBRARY bar: the window comes back where it was.
+func _restore_library() -> void:
+	_library_minimized = false
+	if _explorer != null:
+		_explorer.visible = true
+	_radio_player.show_library_bar(false)
+
+## web onSaveTrack from a drop on the explorer: saved through the trial, the folder listed again.
+func _save_to_library(folder: String, payload: Dictionary) -> void:
+	if Radio.save_track(radio_library, folder, payload):
+		_explorer.refresh()
 
 ## The PROGRAM bar: the window comes back where it was.
 func _restore_code() -> void:
@@ -665,6 +695,8 @@ func _on_radio_changed() -> void:
 		_code_panel.show_code(str(Radio.model.musical_state.get(CODE_KEY, "")))
 	if _explorer != null:
 		_explorer.set_radio_active(Radio.is_active())
+	_radio_player.show_air(Radio.play_mode == Radio.MODE_GEN)
+	_radio_player.show_save_limited(Radio.save_limited)
 	_backdrop.radio_mood = str(Radio.model.musical_state.get(MOOD_KEY, ""))
 	_backdrop.radio_bpm = float(Radio.model.musical_state.get(BPM_KEY, MenuBackdrop.RADIO_DEFAULT_BPM))
 	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):
