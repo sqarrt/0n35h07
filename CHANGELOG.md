@@ -45,7 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The Radio's free daily trial.** As in the original's Steam build, without the Radio DLC the Radio makes 10 new
   tracks a day (the count starts over at local midnight; setting the clock back does not reset it) and then stops;
   owning the DLC — asked of Steam when the menu opens and again when the Steam overlay closes or the game window gets
-  focus back — lifts the limit and resumes the stream. The trial strip and the store button come with the Radio screen.
+  focus back — lifts the limit and resumes the stream.
+- **The Radio screen.** RADIO or the docked player's track name opens the original's Radio screen: the menu gives way
+  to the backdrop and the player glides to the bottom centre and unfolds — tempo and key, a seekable progress bar with
+  times, the transport, On Air, a toggle that tilts the camera off your ball, the radio volume, the free-trial strip
+  with Unlock Radio (it opens the DLC's store page) and BACK. Symbols the UI font lacks (emoji, arrows, math signs) sit
+  on the same line heights as in the original. The code panel, the beat-driven visuals and the library come next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

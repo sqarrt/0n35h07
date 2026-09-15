@@ -82,6 +82,30 @@ func prev() -> void:
 	if host != null:
 		host.prev()
 
+## web radioSeek: the track jumps to a fraction and the bar shows it at once.
+func seek(fraction: float) -> void:
+	if host == null:
+		return
+	host.seek(fraction)
+	model.set_progress(fraction)
+
+## web: the master × radio level follows the profile, playing or paused.
+func apply_volume() -> void:
+	if host != null:
+		host.set_volume(Audio.radio_gain())
+
+## The expanded player's free-trial strip ({gens_left, saves_left}; empty when unlimited or not known yet).
+func trial_strip() -> Dictionary:
+	return rights.trial_strip(Game.profile, today.call())
+
+func can_unlock() -> bool:
+	return rights.can_unlock()
+
+## web genLimited (the Radio screen adds itself): on the trial, switched on, no generation left today.
+func gen_limited() -> bool:
+	var allowed := rights.entitlement(Game.profile, today.call())
+	return not allowed["unlimited"] and enabled() and allowed["gens_left"] == 0.0
+
 ## web live-unlock: ask Steam again — the store may just have sold the DLC — and let a new day's trial reopen the gate.
 func recheck_dlc() -> void:
 	rights.recheck(Game.profile, owns_dlc.call())

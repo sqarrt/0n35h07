@@ -68,6 +68,10 @@ func menu_music_gain() -> float:
 func radio_gain() -> float:
 	return _volume(KEY_MASTER) * _volume(KEY_RADIO)
 
+## The profile's radio level alone (the Radio player's volume slider).
+func radio_volume() -> float:
+	return _volume(KEY_RADIO)
+
 ## Menu music on the non-match screens (web App effect); a no-op while it already plays.
 func play_menu_music() -> void:
 	if _menu_music != null:

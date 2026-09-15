@@ -29,6 +29,13 @@ var css_line_height := 0.0:
 		css_line_height = value
 		queue_redraw()
 
+## An explicit baseline in px from the button's top (below 0: none). A line that holds a fallback face's taller metrics
+## (the ← of the Radio's glass bars) has its baseline where Chrome's line box puts it, not where the native centring would.
+var css_baseline := -1.0:
+	set(value):
+		css_baseline = value
+		queue_redraw()
+
 var _label := ""
 var _run := CssTextRun.new()
 var _css_px := 0.0                              # 0: no CSS font yet
@@ -64,8 +71,13 @@ func run() -> CssTextRun:
 func text_origin() -> Vector2:
 	var style := get_theme_stylebox(STYLES[get_draw_mode()])
 	var inner := size - style.get_minimum_size()
-	if css_line_height > 0.0:   # the line box centred, its baseline at the strut's (unrounded) half-leading plus the ascent
-		var strut_baseline := roundf(style.get_margin(SIDE_TOP) + inner.y * HALF + (_run.ascent() - _run.descent()) * HALF)
+	if css_baseline >= 0.0:
+		return _run.placed(Rect2(style.get_margin(SIDE_LEFT) + css_offset_x, css_baseline - _run.baseline(), inner.x,
+			_run.line_height()), alignment)
+	if css_line_height > 0.0:   # Blink: the line box centred, the rounded ascent plus the half-leading floored (radio probes)
+		var half_leading := floorf((css_line_height - _run.line_height()) * HALF)
+		var strut_baseline := roundf(style.get_margin(SIDE_TOP) + (inner.y - css_line_height) * HALF + _run.baseline()
+			+ half_leading)
 		return _run.placed(Rect2(style.get_margin(SIDE_LEFT) + css_offset_x, strut_baseline - _run.baseline(), inner.x,
 			_run.line_height()), alignment)
 	var line := TextLine.new()                  # the native text's line — fallback glyphs (an em dash) size it too

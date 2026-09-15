@@ -11,6 +11,7 @@ const PADDING := 10.0
 const WIDE := 400.0
 const SHIFT := 2.0
 const BORDER_BELOW := 1.0
+const BASELINE := 23.0
 
 func _button(label: String) -> CssButton:
 	var viewport := SubViewport.new()
@@ -77,8 +78,15 @@ func test_a_set_line_height_centres_the_strut() -> void:
 	await wait_process_frames(1)
 	var run := button.run()
 	var inner := button.size.y - PADDING * 2.0
-	assert_almost_eq(button.text_origin().y + run.baseline(), roundf(PADDING + inner * CssButton.HALF
-		+ (run.ascent() - run.descent()) * CssButton.HALF), EPS, "the UI font's unrounded ascent and descent, not the glyph's")
+	var half_leading := floorf((FONT_PX - run.line_height()) * CssButton.HALF)
+	assert_almost_eq(button.text_origin().y + run.baseline(), roundf(PADDING + (inner - FONT_PX) * CssButton.HALF
+		+ run.baseline() + half_leading), EPS, "Blink: the UI font's rounded ascent and the floored half-leading")
+
+func test_an_explicit_baseline_wins() -> void:
+	var button := _button("← BACK")
+	button.css_baseline = BASELINE
+	await wait_process_frames(1)
+	assert_almost_eq(button.text_origin().y + button.run().baseline(), BASELINE, EPS)
 
 func test_the_colour_is_the_states() -> void:
 	var button := _button("GO")

@@ -60,6 +60,7 @@ var _panel_blur: ColorRect
 var _column: CssColumn
 var _lobby: LobbyScreen
 var profile_saving := true                    # parity captures edit an in-memory profile without saving it
+var _radio_open := false                      # web screen === 'radio': the takeover instead of the panel
 var _screen: Control                          # the open SETTINGS / ABOUT / APPEARANCE screen
 var _panel_base_x := 0.0
 var _panel_slide := 0.0
@@ -127,6 +128,7 @@ func _ready() -> void:
 ## PLAY (web handlePlay): the selection back to the first map and time, and a fresh room hosted on every visit — a Private
 ## Steam lobby friends are invited into, or without Steam a room of our own — shown in the panel instead of the menu.
 func open_lobby() -> void:
+	close_radio()
 	close_screen()
 	close_lobby()
 	_draft_maps = [MapCatalog.MAP_IDS[0]]
@@ -174,6 +176,7 @@ func _on_locale_changed(locale: String) -> void:
 	_screen.queue_free()
 	_screen = _settings_screen()
 	_panel.add_child(_screen)
+	_radio_player.relabel()
 	_layout()
 	get_viewport().update_mouse_cursor_state()   # the new tile under the pointer takes the hover look
 
@@ -225,6 +228,7 @@ func panel_slide() -> float:
 
 ## web App: settings and about share the settings camera pose; appearance takes its own and mutes the glow.
 func _show_screen(opened: Control, backdrop_screen: String) -> void:
+	close_radio()
 	close_screen()
 	close_lobby()
 	_screen = opened
@@ -512,7 +516,13 @@ func _add_radio_player() -> void:
 	_radio_player.play_pause_requested.connect(_toggle_radio)
 	_radio_player.prev_requested.connect(func() -> void: _radio_transport(Radio.prev))
 	_radio_player.next_requested.connect(func() -> void: _radio_transport(Radio.next))
-	_radio_player.open_requested.connect(_open_radio)
+	_radio_player.seek_requested.connect(func(fraction: float) -> void:
+		_radio_transport(func() -> void: Radio.seek(fraction)))
+	_radio_player.volume_changed.connect(_set_radio_volume)
+	_radio_player.ball_toggled.connect(_toggle_ball)
+	_radio_player.unlock_requested.connect(Radio.open_store)
+	_radio_player.back_requested.connect(close_radio)
+	_radio_player.open_requested.connect(open_radio)
 	_radio_player.visible = not _browser_layout
 	Radio.changed.connect(_on_radio_changed)
 	Radio.warm_up()
@@ -524,7 +534,7 @@ func _toggle_radio() -> void:
 	_save_profile(Game.profile)
 	Radio.sync()
 
-## web radioPrev / radioNext: a transport action implies playing (ensureRadioOn).
+## web radioPrev / radioNext / radioSeek: a transport action implies playing (ensureRadioOn).
 func _radio_transport(action: Callable) -> void:
 	if not Radio.enabled():
 		Game.profile[Radio.KEY_ENABLED] = true
@@ -532,13 +542,59 @@ func _radio_transport(action: Callable) -> void:
 	action.call()
 	Radio.sync()
 
-## web handleRadio → setScreen('radio'); the Radio screen comes with slice R3.
-func _open_radio() -> void:
+## RADIO (web handleRadio → setScreen('radio')): a full-screen takeover — the menu panel goes, the backdrop takes the
+## settings pose with the ball back in view, and the player unfolds centred along the bottom.
+func open_radio() -> void:
+	close_screen()
+	close_lobby()
+	_radio_open = true
+	_panel.visible = false
+	_panel_blur.visible = false
+	_set_ball_hidden(false)   # web: re-entering the radio shows the ball again
+	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
+	_radio_player.set_expanded(true)
 	screen_requested.emit(SCREEN_RADIO)
+	_on_radio_changed()
 
-## The player follows the model; the menu music gives way while the radio plays (web radioActive).
+## BACK from the Radio screen (web onBack → setScreen('menu')): the panel and the docked player return.
+func close_radio() -> void:
+	if not _radio_open:
+		return
+	_radio_open = false
+	_set_ball_hidden(false)
+	_panel.visible = true
+	_panel_blur.visible = true
+	_radio_player.set_expanded(false)
+	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
+	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
+	_on_radio_changed()
+
+func is_radio_open() -> bool:
+	return _radio_open
+
+func radio_player() -> RadioPlayer:
+	return _radio_player
+
+## web onVolume: the radio level saved in the profile and sent to the engine.
+func _set_radio_volume(value: float) -> void:
+	Game.profile[Audio.KEY_RADIO] = value
+	_save_profile(Game.profile)
+	Radio.apply_volume()
+
+## web onToggleBall: the camera tilts off the ball, or back.
+func _toggle_ball() -> void:
+	_set_ball_hidden(not _backdrop.rig.hide_ball)
+
+func _set_ball_hidden(hidden: bool) -> void:
+	_backdrop.rig.hide_ball = hidden
+	_radio_player.show_ball_hidden(hidden)
+
+## The player follows the model and the trial; the menu music gives way while the radio plays (web radioActive).
 func _on_radio_changed() -> void:
 	_radio_player.show_state(Radio.model.track_label(), Radio.model.is_ready(), Radio.enabled())
+	_radio_player.show_details(Radio.model.subtitle(), Radio.model.progress, Radio.model.total_ms)
+	_radio_player.show_volume(Audio.radio_volume())
+	_radio_player.show_trial(Radio.trial_strip(), Radio.can_unlock(), _radio_open and Radio.gen_limited())
 	if RadioDirector.menu_music_allowed(Radio.enabled(), Radio.model.is_ready()):
 		Audio.play_menu_music()
 	else:
@@ -612,7 +668,7 @@ func _build_column() -> void:
 	_add_button("Settings", I18n.t(SETTINGS_KEY), UiButton.SECONDARY).pressed.connect(open_settings)
 	_add_button("About", I18n.t(ABOUT_KEY), UiButton.SECONDARY).pressed.connect(open_about)
 	_radio = _add_button("Radio", I18n.t(RADIO_KEY).to_upper(), UiButton.SECONDARY)   # web: desktop only
-	_radio.pressed.connect(_open_radio)
+	_radio.pressed.connect(open_radio)
 	_quit = _add_button("Quit", I18n.t(QUIT_KEY), UiButton.GHOST)   # web: desktop only — this build always is one
 	_quit.pressed.connect(_on_quit)
 	_hint = _small_label("Hint", I18n.t(HINT_KEY))

@@ -1,49 +1,100 @@
 class_name RadioPlayer extends Control
-## The Radio mini-player docked on the menu screens — port of web components/RadioPlayer collapsed: a glass.ts card 300
-## px wide (12 / 16 px padding, a 9 px gap) holding the track name — click it to open the radio — over prev /
-## play-pause / next, the whole card shrunk to 0.8 into the corner 18 px from the right and 44 px from the bottom
-## (transform-origin bottom right). Until the engine is ready the transport dims to 0.45 and lets the mouse through.
-## The expanded Radio-screen player comes with that screen.
+## The Radio player — port of web components/RadioPlayer: one glass.ts card 300 px wide (12 / 16 px padding, a 9 px gap).
+## Docked on the menu screens it is shrunk to 0.8 into the corner 18 px from the right and 44 px from the bottom
+## (transform-origin bottom right) with the track name — click it to open the radio — over prev / play-pause / next.
+## Expanded on the Radio screen it sits centred along the bottom at full size with the subtitle, the scrub row, the
+## transport, On Air and the ball toggle, the volume, the free-trial strip and the daily-limit line, and the glass BACK
+## bar 8 px under the card. One 0.34 s cubic-bezier(0.2, 0.8, 0.2, 1) transform moves it between the two while the
+## content swaps at once. Until the engine is ready the subtitle, the scrub row, the transport and the On Air row dim
+## to 0.45 and let the mouse through.
 
 signal play_pause_requested
 signal prev_requested
 signal next_requested
 signal open_requested
+signal seek_requested(fraction: float)
+signal volume_changed(value: float)
+signal air_requested
+signal ball_toggled
+signal unlock_requested
+signal back_requested
 
 const WIDTH := 300.0
 const RIGHT := 18.0
 const BOTTOM := 44.0
 const COLLAPSED_SCALE := 0.8
+const EXPAND_S := 0.34
+const EXPAND_CURVE := [0.2, 0.8, 0.2, 1.0]
 const PADDING := Vector2(16.0, 12.0)
 const GAP := 9.0
+const ROOT_GAP := 8.0                          # between the card and the BACK bar
 const ROW_GAP := 8.0
 const BUTTON_HEIGHT := 38.0
 const BUTTON_RADIUS := 10
-const BUTTON_BORDER_PX := 1
 const BUTTON_BORDER := Color(1.0, 1.0, 1.0, 0.14)
 const BUTTON_TEXT := Color("#ccdddd")          # #cdd
 const BUTTON_PX := 16.8                        # 1.05rem
 const TITLE_PX := 14.72                        # 0.92rem
 const TITLE_SPACING_EM := 0.05
 const TITLE_COLOR := Color("#eeeeff")          # #eef
+const SUBTITLE_PX := 11.2                      # 0.7rem
+const SUBTITLE_SPACING_EM := 0.12
 const DIM_OPACITY := 0.45
 const PREV_GLYPH := "⏮"
 const PLAY_GLYPH := "▶"
 const PAUSE_GLYPH := "⏸"
 const NEXT_GLYPH := "⏭"
 const SYMBOL_FAMILIES := ["Segoe UI Symbol"]   # the transport glyphs are not in the UI font (Chrome's system fallback)
-const BUTTON_STATES := ["normal", "hover", "pressed", "hover_pressed", "focus", "disabled"]
-const TEXT_COLORS := ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color",
-	"font_focus_color", "font_disabled_color"]
+const AIR_HEIGHT := 32.0
+const AIR_PX := 11.52                          # 0.72rem
+const AIR_SPACING_EM := 0.08
+const AIR_LABEL := "◉ %s"
+const AIR_FAMILIES := ["Cambria Math"]         # Chrome's face for ◉
+const AIR_ON_BORDER_ALPHA := 0.45
+const AIR_ON_FILL_ALPHA := 0.10
+const AIR_ON_GLOW_ALPHA := 0.15
+const AIR_GLOW_BLUR := 10.0
+const AIR_OFF_TEXT := Color("#bbccdd")         # #bcd
+const BALL_WIDTH := 34.0
+const BALL_PX := 14.4                          # 0.9rem
+const BALL_SHOWN := "⬤"
+const BALL_HIDDEN := "◯"
+const LIMIT_PX := 10.24                        # 0.64rem
+const LIMIT_SPACING_EM := 0.04
+const LIMIT_COLOR := Color("#ee99aa")          # #e9a
+const LIMIT_MARGIN_TOP := 2.0
+const BACK_LABEL := "← %s"
+const RADIO_WORD_KEY := "settingsVolRadio"     # web radioWord: the subtitle before a track
+const AIR_KEY := "radioAir"
+const BACK_KEY := "settingsBack"
+const GEN_LIMIT_KEY := "radioGenLimit"
+const TRIAL_GENS := "gens_left"
+const TRIAL_SAVES := "saves_left"
 const HALF := 0.5
 
 var _glass: GlassCard
 var _title: CssLabel
+var _subtitle: CssLabel
+var _scrub: RadioScrub
 var _row: Control
 var _prev: CssButton
 var _play: CssButton
 var _next: CssButton
+var _air_row: Control
+var _air_glow: ColorRect
+var _air: CssButton
+var _ball: CssButton
+var _volume: RadioVolumeRow
+var _trial: RadioTrialRow
+var _limit: CssLabel
+var _back: RadioGlassButton
 var _card := Vector2(WIDTH, 0.0)
+var _box := Vector2(WIDTH, 0.0)                # the whole player: the card, and BACK under it when expanded
+var _expanded := false
+var _expand := CssTransition.new(EXPAND_S, EXPAND_CURVE)
+var _has_trial := false
+var _gen_limited := false
+var _subtitle_text := ""
 
 func _init() -> void:
 	name = "RadioPlayer"
@@ -53,26 +104,100 @@ func _init() -> void:
 	_title = CssLabel.new().styled(RadioModel.NO_TRACK, TITLE_PX, TITLE_SPACING_EM, TITLE_COLOR)
 	_title.name = "TrackName"
 	_title.mouse_filter = Control.MOUSE_FILTER_STOP   # the collapsed name opens the radio
-	_title.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_title.gui_input.connect(_on_title_input)
 	add_child(_title)
-	_row = Control.new()
-	_row.name = "Transport"
-	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_row)
-	_prev = _button("Prev", PREV_GLYPH, prev_requested)
-	_play = _button("PlayPause", PLAY_GLYPH, play_pause_requested)
-	_next = _button("Next", NEXT_GLYPH, next_requested)
-	scale = Vector2.ONE * COLLAPSED_SCALE
+	_subtitle = CssLabel.new().styled("", SUBTITLE_PX, SUBTITLE_SPACING_EM, UiTokens.ACCENT_DIM)
+	_subtitle.name = "Subtitle"
+	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_subtitle)
+	_scrub = RadioScrub.new()
+	_scrub.seek_requested.connect(func(fraction: float) -> void: seek_requested.emit(fraction))
+	add_child(_scrub)
+	_row = _container("Transport")
+	_prev = _transport_button("Prev", PREV_GLYPH, prev_requested)
+	_play = _transport_button("PlayPause", PLAY_GLYPH, play_pause_requested)
+	_next = _transport_button("Next", NEXT_GLYPH, next_requested)
+	_add_air_row()
+	_volume = RadioVolumeRow.new()
+	_volume.volume_changed.connect(func(value: float) -> void: volume_changed.emit(value))
+	add_child(_volume)
+	_trial = RadioTrialRow.new()
+	_trial.unlock_requested.connect(func() -> void: unlock_requested.emit())
+	add_child(_trial)
+	_limit = CssLabel.new().styled("", LIMIT_PX, LIMIT_SPACING_EM, LIMIT_COLOR)
+	_limit.name = "GenLimit"
+	_limit.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(_limit)
+	_back = RadioGlassButton.new("")
+	_back.name = "Back"
+	_back.pressed.connect(func() -> void: back_requested.emit())
+	add_child(_back)
+	relabel()
+	show_air(true)
+	show_ball_hidden(false)
+	_expand.snap(0.0)
+	set_process(false)
 	_layout()
 
 ## What the player shows: the track label, whether the engine is ready, whether the radio is switched on.
 func show_state(label: String, ready: bool, playing: bool) -> void:
 	_title.text = label
 	_play.text = PAUSE_GLYPH if playing else PLAY_GLYPH
-	_row.modulate.a = 1.0 if ready else DIM_OPACITY
-	for button in transport_buttons():
-		(button as Control).mouse_filter = Control.MOUSE_FILTER_STOP if ready else Control.MOUSE_FILTER_IGNORE
+	for dimmed: CanvasItem in [_subtitle, _scrub, _row, _air_row]:
+		dimmed.modulate.a = 1.0 if ready else DIM_OPACITY
+	var filter := Control.MOUSE_FILTER_STOP if ready else Control.MOUSE_FILTER_IGNORE
+	for control: Control in transport_buttons() + [_scrub, _air, _ball]:
+		control.mouse_filter = filter
+	_layout()
+
+## The expanded player's track facts: "BPM · key scale" (the radio's name before a track), the play position and length.
+func show_details(subtitle: String, progress: float, total_ms: float) -> void:
+	_subtitle_text = subtitle
+	_subtitle.text = subtitle if subtitle != "" else I18n.t(RADIO_WORD_KEY)
+	_scrub.show_progress(progress, total_ms)
+	_layout()
+
+func show_volume(value: float) -> void:
+	_volume.set_volume(value)
+
+## The free-trial strip ({gens_left, saves_left}, empty: none), its unlock button, the "daily generations used up" line.
+func show_trial(strip: Dictionary, can_unlock: bool, gen_limited: bool) -> void:
+	_has_trial = not strip.is_empty()
+	if _has_trial:
+		_trial.show_trial(int(strip[TRIAL_GENS]), int(strip[TRIAL_SAVES]), can_unlock)
+	_gen_limited = gen_limited
+	_layout()
+
+## On Air lit while the live generative stream is the source.
+func show_air(on: bool) -> void:
+	var border := Color(UiTokens.OK, AIR_ON_BORDER_ALPHA) if on else BUTTON_BORDER
+	var fill := Color(UiTokens.OK, AIR_ON_FILL_ALPHA) if on else Color(0.0, 0.0, 0.0, 0.0)
+	RadioButtons.dress(_air, RadioButtons.outline(border, BUTTON_RADIUS, fill), UiTokens.OK if on else AIR_OFF_TEXT)
+	_air_glow.visible = on
+
+func show_ball_hidden(hidden: bool) -> void:
+	_ball.text = BALL_HIDDEN if hidden else BALL_SHOWN
+
+## Docked (false) or expanded on the Radio screen (true); `animate` runs the transform transition.
+func set_expanded(expanded: bool, animate := true) -> void:
+	_expanded = expanded
+	_title.mouse_default_cursor_shape = Control.CURSOR_ARROW if expanded else Control.CURSOR_POINTING_HAND
+	if animate:
+		_expand.set_target(1.0 if expanded else 0.0)
+		set_process(true)
+	else:
+		_expand.snap(1.0 if expanded else 0.0)
+	_layout()
+
+func is_expanded() -> bool:
+	return _expanded
+
+## The texts in the active language (web re-renders on a locale change).
+func relabel() -> void:
+	_air.text = AIR_LABEL % I18n.t(AIR_KEY)
+	_back.button().text = BACK_LABEL % I18n.t(BACK_KEY)
+	_limit.text = I18n.t(GEN_LIMIT_KEY)
+	_subtitle.text = _subtitle_text if _subtitle_text != "" else I18n.t(RADIO_WORD_KEY)
 	_layout()
 
 func card_box() -> Vector2:
@@ -87,6 +212,30 @@ func transport_row() -> Control:
 func title_text() -> String:
 	return _title.text
 
+func subtitle_label() -> CssLabel:
+	return _subtitle
+
+func scrub() -> RadioScrub:
+	return _scrub
+
+func air_button() -> CssButton:
+	return _air
+
+func ball_button() -> CssButton:
+	return _ball
+
+func volume_row() -> RadioVolumeRow:
+	return _volume
+
+func trial_row() -> RadioTrialRow:
+	return _trial
+
+func limit_label() -> CssLabel:
+	return _limit
+
+func back_bar() -> RadioGlassButton:
+	return _back
+
 func request_open() -> void:
 	open_requested.emit()
 
@@ -95,62 +244,124 @@ func _notification(what: int) -> void:
 		set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		_layout()
 
+func _process(delta: float) -> void:
+	_expand.advance(delta)
+	_apply_transform()
+	if is_equal_approx(_expand.value, _expand.target()):
+		set_process(false)
+
 func _on_title_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
-	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+	if not _expanded and click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		request_open()
 
+## The card's rows top to bottom: [control, height, margin above]; the expanded rows only on the Radio screen.
+func _rows() -> Array:
+	var rows := [[_title, _title.css_size().y, 0.0]]
+	if _expanded:
+		rows.append([_subtitle, _subtitle.css_size().y, 0.0])
+		rows.append([_scrub, RadioScrub.HEIGHT, 0.0])
+	rows.append([_row, BUTTON_HEIGHT, 0.0])
+	if _expanded:
+		rows.append([_air_row, AIR_HEIGHT, 0.0])
+		rows.append([_volume, _volume.row_height(), 0.0])
+		if _has_trial:
+			rows.append([_trial, _trial.row_height(), RadioTrialRow.MARGIN_TOP])
+		if _gen_limited:
+			rows.append([_limit, _limit.css_size().y, LIMIT_MARGIN_TOP])
+	return rows
+
 func _layout() -> void:
+	if _back == null:
+		return
 	var left := GlassCard.BORDER_PX + PADDING.x
 	var content_width := WIDTH - 2.0 * left
-	var title_top := GlassCard.BORDER_PX + PADDING.y
-	var title_box := _title.css_size()
 	# text-overflow: ellipsis — a name wider than the card trims natively
 	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS if _title.run() != null \
 		and _title.run().width() > content_width else TextServer.OVERRUN_NO_TRIMMING
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.position = Vector2(left, title_top)
-	_title.size = Vector2(content_width, title_box.y)
-	var row_top := title_top + title_box.y + GAP
-	_row.position = Vector2(left, row_top)
-	_row.size = Vector2(content_width, BUTTON_HEIGHT)
+	var rows := _rows()
+	for control: Control in [_subtitle, _scrub, _air_row, _volume, _trial, _limit]:
+		control.visible = false
+	var y := GlassCard.BORDER_PX + PADDING.y
+	for i in rows.size():
+		var control: Control = rows[i][0]
+		y += rows[i][2]
+		control.visible = true
+		control.position = Vector2(left, y)
+		control.size = Vector2(content_width, rows[i][1])
+		y += rows[i][1] + (GAP if i < rows.size() - 1 else 0.0)
+	_layout_transport(content_width)
+	_layout_air_row(content_width)
+	_card = Vector2(WIDTH, y + PADDING.y + GlassCard.BORDER_PX)
+	_glass.set_box(_card)
+	_box = _card
+	_back.visible = _expanded
+	if _expanded:
+		_back.position = Vector2(0.0, _card.y + ROOT_GAP)
+		_back.size = Vector2(WIDTH, _back.bar_height())
+		_box.y += ROOT_GAP + _back.bar_height()
+	_apply_transform()
+
+## web wrap: translateX(0) scale(0.8) docked, translateX(calc(-50vw + 50% + 18px)) scale(1) expanded, from the bottom right.
+## The offsets come from the player's own box: moving one offset resizes the control before the other is set.
+func _apply_transform() -> void:
+	var progress := _expand.value
+	var viewport_width := get_parent_area_size().x
+	scale = Vector2.ONE * lerpf(COLLAPSED_SCALE, 1.0, progress)
+	pivot_offset = _box
+	var shift := progress * (-viewport_width * HALF + _box.x * HALF + RIGHT)
+	offset_right = -RIGHT + shift
+	offset_bottom = -BOTTOM
+	offset_left = offset_right - _box.x
+	offset_top = offset_bottom - _box.y
+
+func _layout_transport(content_width: float) -> void:
 	var button_width := (content_width - ROW_GAP * (transport_buttons().size() - 1)) / transport_buttons().size()
 	for i in transport_buttons().size():
 		var button: CssButton = transport_buttons()[i]
 		var x := i * (button_width + ROW_GAP)
 		button.position = Vector2(CssPixel.snap(x), 0.0)
 		button.size = Vector2(CssPixel.snap(x + button_width) - button.position.x, BUTTON_HEIGHT)
-	_card = Vector2(WIDTH, row_top + BUTTON_HEIGHT + PADDING.y + GlassCard.BORDER_PX)
-	_glass.set_box(_card)
-	size = _card
-	pivot_offset = _card                          # transform-origin: bottom right
-	offset_right = -RIGHT
-	offset_bottom = -BOTTOM
-	offset_left = offset_right - _card.x
-	offset_top = offset_bottom - _card.y
 
-func _button(node_name: String, glyph: String, action: Signal) -> CssButton:
+func _layout_air_row(content_width: float) -> void:
+	var air_width := content_width - ROW_GAP - BALL_WIDTH
+	_air.position = Vector2.ZERO
+	_air.size = Vector2(air_width, AIR_HEIGHT)
+	CssBoxShadow.place(_air_glow, _air.position, _air.size)
+	_ball.position = Vector2(air_width + ROW_GAP, 0.0)
+	_ball.size = Vector2(BALL_WIDTH, AIR_HEIGHT)
+
+func _container(node_name: String) -> Control:
+	var container := Control.new()
+	container.name = node_name
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(container)
+	return container
+
+func _add_air_row() -> void:
+	_air_row = _container("AirRow")
+	_air_glow = CssBoxShadow.make(Color(UiTokens.OK, AIR_ON_GLOW_ALPHA), AIR_GLOW_BLUR, Vector2.ZERO, 0.0, BUTTON_RADIUS)
+	_air_row.add_child(_air_glow)
+	_air = _icon_button("Air", AIR_PX, AIR_SPACING_EM, AIR_FAMILIES, _air_row)
+	_air.pressed.connect(func() -> void: air_requested.emit())
+	_ball = _icon_button("Ball", BALL_PX, 0.0, SYMBOL_FAMILIES, _air_row)
+	RadioButtons.dress(_ball, RadioButtons.outline(BUTTON_BORDER, BUTTON_RADIUS), BUTTON_TEXT)
+	_ball.pressed.connect(func() -> void: ball_toggled.emit())
+
+func _transport_button(node_name: String, glyph: String, action: Signal) -> CssButton:
+	var button := _icon_button(node_name, BUTTON_PX, 0.0, SYMBOL_FAMILIES, _row)
+	RadioButtons.dress(button, RadioButtons.outline(BUTTON_BORDER, BUTTON_RADIUS), BUTTON_TEXT)
+	button.text = glyph
+	button.pressed.connect(func() -> void: action.emit())
+	return button
+
+## web iconBtn: grid-centred symbol at line-height 1, a pointer, no focus ring.
+func _icon_button(node_name: String, css_px: float, spacing_em: float, families: Array, parent: Control) -> CssButton:
 	var button := CssButton.new()
 	button.name = node_name
-	button.text = glyph
 	button.focus_mode = Control.FOCUS_NONE
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	var face := UiFont.base_with(SYMBOL_FAMILIES)
-	var font_size := UiFont.css_size(BUTTON_PX)
-	button.add_theme_font_override("font", UiFont.with_css_line(UiFont.spaced(0.0, font_size, BUTTON_PX, face), font_size,
-		BUTTON_PX))
-	button.add_theme_font_size_override("font_size", font_size)
-	var box := StyleBoxFlat.new()   # appearance none, a hairline border on a 10 px radius, no hover look
-	box.draw_center = false
-	box.border_color = BUTTON_BORDER
-	box.set_border_width_all(BUTTON_BORDER_PX)
-	box.set_corner_radius_all(BUTTON_RADIUS)
-	for state in BUTTON_STATES:
-		button.add_theme_stylebox_override(state, box)
-	for key in TEXT_COLORS:
-		button.add_theme_color_override(key, BUTTON_TEXT)
-	button.set_css_font(BUTTON_PX, 0.0, false, face)
-	button.css_line_height = BUTTON_PX              # line-height: 1, centred by display: grid
-	button.pressed.connect(func() -> void: action.emit())
-	_row.add_child(button)
+	RadioButtons.set_font(button, css_px, spacing_em, families, css_px)
+	parent.add_child(button)
 	return button

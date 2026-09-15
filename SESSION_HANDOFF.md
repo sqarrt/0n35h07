@@ -165,9 +165,17 @@ GUT 779/779. **R2a смержен** (`feature/godot-radio-player`): автоза
 `RadioEntitlement` (оракул `export-radio-entitlement.mjs`, 144 случая), `RadioRights` (кэш `radioDlcOwned`, счёт
 `radioTrial`), `Radio`: `gate` до `init`, `generated` → счёт + сохранение, открытие гейта → `resume`, перепроверка DLC
 по `SteamBridge.overlay_closed` и фокусу окна, `open_store()` (`steam://store/4904970`). Живая проба
-`tools/probes/radio_gate_probe.gd`. Отчёт `2026-09-15-radio-entitlement-*`. GUT 821/821. **Дальше:** (1) R3 экран
-радио (развёрнутый плеер + пробная полоса `RadioRights.trial_strip`, панель кода, визуализатор, takeover), R4
-библиотека (лимит сохранений `note_saved`), R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`tools/probes/radio_gate_probe.gd`. Отчёт `2026-09-15-radio-entitlement-*`. GUT 821/821. **R3a смержен**
+(`feature/godot-radio-screen`): экран радио — `MainMenu.open_radio` / `close_radio` (панель скрыта, поза settings),
+развёрнутый `RadioPlayer` (подпись, `RadioScrub`, «Эфир» + шар → `MenuCameraRig.hide_ball`, `RadioVolumeRow` на
+`UiRange`, выделенном из `UiSlider`, `RadioTrialRow`, `RadioGlassButton` BACK, переход 0.34 s); `SystemFontMetrics` —
+Chrome на Windows берёт у системных фолбэков OS/2 win/typo, не hhea (`UiFont.fallback_line_px`); грань коллекции
+(Cambria Math) открывается по индексу; strut Blink — округлённый ascent + floor полу-интерлиньяжа. Кадры
+`locale-en:radio-screen-<ready|playing|trial>` на `scenes/main_menu.tscn`, web `parity-capture-radio-screen.mjs`
+(пробная полоса — только `vite build` + `vite preview`, `PARITY_TRIAL`). Отчёт `2026-09-15-radio-screen-*`: окно
+1.15/1.60/1.50, весь экран 1.22/1.74. GUT 858/858. **Дальше:** (1) R3b панель кода (окно `RadioCodePanel`), R3c
+takeover (бит-часы, камера, дождь эмодзи, мягкое свечение), R4 библиотека (лимит сохранений `note_saved`, полосы
+LIBRARY / PROGRAM), R5 матч/свечение; (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

@@ -34,6 +34,11 @@ var position: Vector3
 var look: Vector3
 
 var _state := DEFAULT
+var hide_ball := false                  # web radio hideBall: the camera tilts up off the ball
+var _hide_amount := 0.0
+
+const HIDE_BALL_LOOK_UP := 12.0         # web: the look target rises this far, the ball leaves the frame
+const HIDE_BALL_DUR := 0.7              # web: seconds for the whole pan, linear — out and back alike
 
 func _init(pose_table: Dictionary, state := DEFAULT) -> void:
 	poses = pose_table
@@ -66,11 +71,18 @@ func set_state(state: String) -> void:
 func state() -> String:
 	return _state
 
-## One render frame: the position and the look point each close the same share of their distance to the pose.
+## How far the hide-ball tilt has gone, 0..1.
+func hide_amount() -> float:
+	return _hide_amount
+
+## One render frame: the hide-ball amount moves at a constant speed toward the toggle and raises the look target; the
+## position and the look point each close the same share of their distance to the pose.
 func step(dt: float) -> void:
-	var k := 1.0 - exp(-minf(dt, MAX_DT) / DAMP_TAU)
+	var clamped := minf(dt, MAX_DT)
+	_hide_amount = move_toward(_hide_amount, 1.0 if hide_ball else 0.0, clamped / HIDE_BALL_DUR)
+	var k := 1.0 - exp(-clamped / DAMP_TAU)
 	position = position.lerp(poses[_state][POSITION], k)
-	look = look.lerp(poses[_state][TARGET], k)
+	look = look.lerp(poses[_state][TARGET] + Vector3.UP * HIDE_BALL_LOOK_UP * _hide_amount, k)
 
 static func _vec(values: Array) -> Vector3:
 	return Vector3(values[0], values[1], values[2])

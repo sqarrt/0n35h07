@@ -31,6 +31,11 @@ func bind(host: RadioHost) -> void:
 func is_ready() -> bool:
 	return init_state == INIT_READY
 
+## The play position before the page confirms it (web radioSeek: the bar jumps at once instead of snapping back).
+func set_progress(fraction: float) -> void:
+	progress = fraction
+	changed.emit()
+
 ## A baked favorite keeps its frozen name, a live track derives one, and before any track: "—".
 func track_label() -> String:
 	if musical_state.is_empty():
