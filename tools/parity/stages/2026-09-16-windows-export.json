@@ -1,0 +1,69 @@
+{
+  "id": "2026-09-16-windows-export",
+  "title": "OneShot · Сборка Windows: депо Steam, запуск без редактора",
+  "date": "2026-09-16",
+  "captures_dir": "test-results",
+  "lede": "До этого этапа порт запускался только из редактора Godot. Эталон — десктопная Steam-сборка web (Tauri): папка депо `steam-build/` с `0N35H07.exe` и `steam_api64.dll`, иконка `src-tauri/icons/icon.ico`, игра берёт Steam-приложение из контекста запуска. Теперь `scripts/export_windows.ps1` собирает то же расположение в `release/windows`, а запуск собранной игры проверен сценариями «как игрок»: заставка → клик → меню → радио. Кадры сборки сравниваются с кадром запуска из редактора тем же сценарием: поведение сборки должно не отличаться от редактора, который уже сверен с web.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-16-windows-export.json`. Сборка: `$env:GODOT_BIN=…Godot_v4.7.1-stable_win64.exe; ./scripts/export_windows.ps1` (шаблоны 4.7.1 — только файлы windows x86_64 из официального `Godot_v4.7.1-stable_export_templates.tpz`, извлечены range-запросами). Проверки запуска: `test-results/probes/launch_export_screenshot.ps1` (сборка и редактор с `-ExtraArgs --path`), `0N35H07.exe --quit-after 900|1200 --log-file …` (без Steam и с временным `steam_appid.txt`), `test-results/probes/launch_export_radio.ps1` (▶ в мини-плеере, кадр через 25 с, повторный ▶ возвращает переключатель). Состав `.pck` — поиск путей в байтах пакета. Журналы сессий — `%APPDATA%\\Godot\\app_userdata\\OneShot\\logs`.",
+  "pages": [
+    {
+      "slug": "windows-export",
+      "name": "Сборка Windows",
+      "verdict": "Сборка `release/windows` повторяет депо web: `0N35H07.exe`, `0N35H07.pck`, `godot_wry.dll`, `libgodotsteam…release.x86_64.dll`, `steam_api64.dll`. В пакете есть страница радио, 5 карт (raw + geo), 10 словарей, 3 демо трейлера, шрифты и звуки; тестов нет. Собранная игра стартует на весь экран с заставкой, закрывает её кликом и показывает меню кадр-в-кадр как запуск из редактора; со Steam-контекстом пишет журнал сессии, радио запускается и играет трек. Иконка окна и exe — иконка десктопной сборки web (раньше — стандартная Godot).",
+      "verdict_short": "Собранная игра работает как запуск из редактора",
+      "conditions": [
+        ["эталон", "web Steam-сборка: `steam-build/0N35H07.exe` + `steam_api64.dll`, иконка Tauri", "Godot `release/windows` из `scripts/export_windows.ps1`"],
+        ["экран", "—", "3840×2160, масштаб Windows 150 %, RTX 4080, Vulkan Forward+"],
+        ["Steam", "App из контекста запуска (steam_appid.txt только для dev)", "`steamInitEx(0)` в сборке; проверка Steam-пути — временный `steam_appid.txt`"]
+      ],
+      "comparisons": [
+        {
+          "title": "Меню после заставки: сборка и редактор (×0.5 экрана)",
+          "wipe": true,
+          "panels": [
+            {"kind": "godot", "img": "probes/launch_editor_menu.png", "note": "запуск из редактора"},
+            {"kind": "godot", "img": "probes/launch_export.png", "note": "собранный 0N35H07.exe — тот же кадр"}
+          ]
+        },
+        {
+          "title": "Радио в собранной игре (▶ в мини-плеере, через 25 с)",
+          "panels": [
+            {"kind": "godot", "img": "probes/launch_export_radio.png", "note": "трек daemon:cathedral, кнопка паузы, свечение реагирует на звук"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "X1", "severity": "fixed",
+          "title": "Игра собирается без редактора",
+          "web": "Tauri собирает `0N35H07.exe` с `steam_api64.dll` рядом — депо Steam.",
+          "godot": "Было: только запуск из редактора, пресета и шаблонов нет. Стало: `tools/export/windows_preset.cfg` (x86_64, exe `0N35H07`, pck рядом, `include_filter` `localhost/radio_host/*`, исключены `tests/`, `tools/`, `addons/gut/`, пробы WebView) и `scripts/export_windows.ps1` (копирует пресет в неотслеживаемый `export_presets.cfg`, `.gdignore` в `release/`, экспорт через `godot.ps1`).",
+          "evidence": ["runtime", "screenshot"],
+          "sources": ["scripts/export_windows.ps1", "tools/export/windows_preset.cfg", "CLAUDE.md"]
+        },
+        {
+          "id": "X2", "severity": "fixed",
+          "title": "Иконка окна и exe",
+          "web": "`src-tauri/icons/icon.ico` / `icon.png`.",
+          "godot": "Было: стандартная иконка Godot (в `project.godot` не задана). Стало: `config/icon` и `config/windows_native_icon` на копиях иконок web в `assets/`; экспорт вшивает `.ico` в exe (предупреждение: в `.ico` нет размера 128 — как у исходника web).",
+          "evidence": ["code", "runtime"],
+          "sources": ["project.godot", "assets/icon.ico", "assets/icon.png"]
+        },
+        {
+          "id": "X3", "severity": "visual",
+          "title": "Без Steam собранная игра не пишет журнал",
+          "web": "Журнал сессии и облако профиля — только в Steam-сборке; запуск вне Steam берёт app из `steam_appid.txt` лишь в dev.",
+          "godot": "То же поведение: `SteamApi` в сборке зовёт `steamInitEx(0)`, без контекста Steam мост недоступен — нет журнала и облака, игра работает. С `steam_appid.txt` журнал `oneshot-20260916-011320.log` записан, ошибок движка нет.",
+          "evidence": ["runtime"],
+          "sources": ["sim/net/steam_api.gd", "autoloads/game.gd"]
+        }
+      ],
+      "limitations": [
+        "Загрузка в Steam (SteamPipe) и запуск из клиента Steam не выполнялись — Steam-путь проверен временным `steam_appid.txt`.",
+        "Проверен только Windows x86_64 release; debug-сборка (`-Mode debug`) не собиралась.",
+        "Матч в собранной игре не запускался: проверены заставка, меню и радио; матч, лобби и трейлер покрыты запуском из редактора и тестами.",
+        "Шаблоны экспорта установлены вне репозитория (профиль Windows пользователя)."
+      ]
+    }
+  ]
+}

@@ -20,6 +20,10 @@ Requirement: **all visuals and functionality must be reproduced 1:1**.
 - Run tests (Godot analog of `npm run test`): `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit`
   (PowerShell: quote `'-gdir=res://tests/unit'`; first time / after adding `class_name`s: run `--headless --path . --import` once)
 - Parity reports: `python3 tools/parity/report.py tools/parity/stages/<stage>.json` → `test-results/parity-reports/<stage>/`.
+- Windows build (PowerShell, `$env:GODOT_BIN` set): `./scripts/export_windows.ps1 [-Mode debug]` → `release/windows/0N35H07.exe`
+  (the Steam depot layout; needs the Godot export templates in `%APPDATA%\Godot\export_templates\4.7.1.stable`). The
+  preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
+  Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
 - The web reference builds from `web-reference/` (its own `package.json`).
 - Note: `.github/workflows/*` still target the old web layout and are stale until CI is reworked.
 
