@@ -18,6 +18,8 @@ const GAP := 11.0
 const TITLE_PX := 12.5
 const TITLE_SPACING_EM := 0.04
 const TITLE_LINE_EM := 1.5
+const TITLE_SEPARATOR := " "
+const LAYOUT_UNITS := 64.0                           # Chrome LayoutUnit: line boxes floor to 1/64 px
 const BUTTON_PX := 11.0
 const BUTTON_SPACING_EM := 0.12
 const BUTTON_PADDING_Y := 8.0
@@ -39,6 +41,17 @@ const DECLINE_LOOKS := {
 	"pressed": [Color(1.0, 102.0 / 255.0, 102.0 / 255.0, 0.16), Color("#b85563"), Color("#ff9999")],
 }
 
+## The title's lines as Chrome draws them: each piece a CSS run (the name bold and accent) at its pen and baseline.
+class Title extends Control:
+	var pieces: Array = []                      # [CssTextRun, origin, colour]
+
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		for piece in pieces:
+			(piece[0] as CssTextRun).draw(self, piece[1], piece[2])
+
 var inviter_name := ""
 var inviter_id := ""
 var lobby_id := ""
@@ -46,7 +59,9 @@ var lobby_id := ""
 var _age := 0.0
 var _height := 0.0
 var _glass: GlassCard
-var _title: RichTextLabel
+var _title: Title
+var _title_lines := PackedStringArray()
+var _title_height := 0.0
 var _accept: UiButton
 var _decline: UiButton
 
@@ -56,18 +71,8 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_glass = GlassCard.new()                            # the glass under everything the card holds
 	add_child(_glass)
-	_title = RichTextLabel.new()
+	_title = Title.new()
 	_title.name = "Title"
-	_title.bbcode_enabled = false
-	_title.scroll_active = false
-	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # overflow-wrap: break-word
-	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title.add_theme_font_override("normal_font", _title_font(false))
-	_title.add_theme_font_override("bold_font", _title_font(true))
-	_title.add_theme_font_size_override("normal_font_size", UiFont.css_size(TITLE_PX))
-	_title.add_theme_font_size_override("bold_font_size", UiFont.css_size(TITLE_PX))
-	_title.add_theme_color_override("default_color", UiTokens.TEXT)
-	_title.add_theme_constant_override("line_separation", 0)
 	add_child(_title)
 	_accept = _button("Accept", ACCEPT_KEY, ACCEPT_LOOKS)
 	_accept.pressed.connect(func() -> void: accepted.emit(lobby_id))
@@ -104,22 +109,47 @@ func _place(shift: float) -> void:
 	offset_bottom = -BOTTOM
 	offset_top = CssPixel.snap(offset_bottom - _height)
 
+## The title's text: the inviter's name, then "invites you to a game".
+func title_text() -> String:
+	return inviter_name + TITLE_SEPARATOR + I18n.t(TITLE_KEY)
+
+func title_lines() -> PackedStringArray:
+	return _title_lines
+
+## Break the title where Chrome would (spaces and CJK, by fractional CSS widths) and lay each line out: the name's part
+## bold in the accent, the rest in the text colour, every piece on the line's baseline in a 1.5 line box.
 func _fill_title() -> void:
-	_title.clear()
-	_title.push_color(UiTokens.ACCENT)
-	_title.push_bold()
-	_title.add_text(inviter_name)
-	_title.pop()
-	_title.pop()
-	_title.add_text(" " + I18n.t(TITLE_KEY))
+	var text := title_text()
+	var content_width := WIDTH - 2.0 * (GlassCard.BORDER_PX + PADDING.x)
+	_title_lines = CssLineBreak.lines(text, content_width,
+		func(part: String) -> float: return UiFont.css_width(part, TITLE_PX, TITLE_SPACING_EM))
+	var line_box := floorf(TITLE_PX * TITLE_LINE_EM * LAYOUT_UNITS) / LAYOUT_UNITS
+	var ascent := roundi(UiFont.ASCENT_EM * TITLE_PX)
+	var half_leading := floorf((line_box - ascent - roundi(UiFont.DESCENT_EM * TITLE_PX)) * HALF)
+	var name_end := inviter_name.length()
+	var cursor := 0
+	_title.pieces.clear()
+	for i in _title_lines.size():
+		var line := _title_lines[i]
+		var start := text.find(line, cursor)
+		cursor = start + line.length()
+		var baseline := i * line_box + half_leading + ascent
+		var pen := 0.0
+		for part in [[start, mini(cursor, name_end), true], [maxi(start, name_end), cursor, false]]:
+			if part[1] <= part[0]:
+				continue
+			var run := CssTextRun.new(text.substr(part[0], part[1] - part[0]), TITLE_PX, TITLE_SPACING_EM, part[2])
+			_title.pieces.append([run, Vector2(pen, baseline - run.baseline()), UiTokens.ACCENT if part[2] else UiTokens.TEXT])
+			pen += run.width()
+	_title_height = line_box * _title_lines.size()
+	_title.queue_redraw()
 
 func _layout() -> void:
 	var left := GlassCard.BORDER_PX + PADDING.x
 	var content_width := WIDTH - 2.0 * left
 	_title.position = Vector2(left, GlassCard.BORDER_PX + PADDING.y)
-	_title.size = Vector2(content_width, 0.0)
-	var title_height := float(_title.get_content_height())
-	_title.size.y = title_height
+	var title_height := _title_height
+	_title.size = Vector2(content_width, title_height)
 	var row_y := _title.position.y + title_height + GAP
 	var button_width := (content_width - ROW_GAP) * HALF
 	var button_height := _accept.get_combined_minimum_size().y
@@ -131,21 +161,6 @@ func _layout() -> void:
 	_height = row_y + button_height + PADDING.y + GlassCard.BORDER_PX
 	_glass.set_box(Vector2(WIDTH, _height))
 	_place(ENTER_SHIFT * (1.0 - modulate.a) if _age < ENTER_S else 0.0)
-
-## 12.5 px spaced 0.04em on a 1.5 line box: Chrome's normal line with the half-leading over and under it; the spacing is
-## fitted to Chrome's run width, so the title breaks where web's does.
-func _title_font(bold: bool) -> FontVariation:
-	var font_size := UiFont.css_size(TITLE_PX)
-	var face := UiFont.bold_spaced(0.0, font_size, TITLE_PX) if bold else UiFont.spaced(0.0, font_size, TITLE_PX)
-	var embolden := UiFont.embolden_advance(face.variation_embolden, font_size)
-	face.spacing_glyph = roundi(UiFont.fitted_spacing(TITLE_PX, TITLE_SPACING_EM, font_size) - embolden)
-	UiFont.mirror_fallbacks(face)
-	var font := UiFont.with_css_line(face, font_size, TITLE_PX)
-	var leading := TITLE_PX * TITLE_LINE_EM - font.get_height(font_size)
-	for variation in [font] + font.fallbacks:
-		(variation as FontVariation).spacing_top += floori(leading * HALF)
-		(variation as FontVariation).spacing_bottom += ceili(leading * HALF)
-	return font
 
 func _button(node_name: String, key: String, looks: Dictionary) -> UiButton:
 	var metrics := UiButton.Metrics.new()

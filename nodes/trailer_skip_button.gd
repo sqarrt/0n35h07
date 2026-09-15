@@ -1,4 +1,4 @@
-class_name TrailerSkipButton extends Button
+class_name TrailerSkipButton extends CssButton
 ## The trailer's SKIP — port of theme.css .trailer-skip: a small dim button 20 px from the right and 18 px from the
 ## bottom that brightens on hover and fades away with the idle cursor (opacity 0.3 s ease; no clicks while hidden).
 
@@ -33,6 +33,7 @@ func _ready() -> void:
 	var font := UiFont.with_css_line(UiFont.spaced(SPACING_EM, font_size, FONT_PX, face), font_size, FONT_PX)
 	add_theme_font_override("font", font)
 	add_theme_font_size_override("font_size", font_size)
+	set_css_font(FONT_PX, SPACING_EM, false, face)   # Chrome's fractional pen positions, the ▸ from Consolas
 	for state in LOOKS:
 		var look: Array = LOOKS[state]
 		var style := StyleBoxFlat.new()
@@ -41,7 +42,7 @@ func _ready() -> void:
 		style.set_border_width_all(BORDER_PX)
 		style.set_corner_radius_all(RADIUS)
 		style.content_margin_left = PADDING.x
-		style.content_margin_right = PADDING.x + font.spacing_glyph   # Chrome's trailing letter spacing
+		style.content_margin_right = PADDING.x         # the run carries the spacing after the last glyph
 		style.content_margin_top = PADDING.y
 		style.content_margin_bottom = PADDING.y
 		add_theme_stylebox_override(state, style)

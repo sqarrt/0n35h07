@@ -24,6 +24,7 @@ func _init(initial := "", max_chars := 0) -> void:
 	add_theme_stylebox_override("normal", _box(UiTokens.LINE, BORDER_PX))
 	add_theme_stylebox_override("read_only", _box(UiTokens.LINE, BORDER_PX))
 	add_theme_stylebox_override("focus", _box(UiTokens.ACCENT, FOCUS_RING_PX))
+	CssFieldText.attach(self, FONT_PX, SPACING_EM)   # the value at Chrome's fractional letter spacing
 
 func _box(color: Color, width: int) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()

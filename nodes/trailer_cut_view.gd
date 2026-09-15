@@ -12,7 +12,7 @@ var _bar: ColorRect
 var _skew: Node2D
 var _fade: CssOpacity
 var _text: GlowText
-var _font: FontVariation
+var _spacing_em := TrailerCut.TEXT_SPACING_EM
 var _duration_s := TrailerEdl.CUT_MS / MS_PER_S
 var _elapsed := 0.0
 
@@ -37,15 +37,13 @@ func _ready() -> void:
 	_skew = Node2D.new()
 	_skew.name = "TextSkew"
 	add_child(_skew)
-	_font = UiFont.bold_spaced(TrailerCut.TEXT_SPACING_EM, TrailerCut.TEXT_PX)
 	_text = GlowText.new()
 	_text.name = "Text"
 	_fade = CssOpacity.new(_text)
 	_fade.name = "Fade"
 	_skew.add_child(_fade)
-	_text.configure(_font, TrailerCut.TEXT_PX, Color.WHITE)
+	_text.configure_css(TrailerCut.TEXT_PX, _spacing_em, Color.WHITE, true)
 	_text.set_shadows(TrailerCut.shadows(0.0))
-	_set_spacing(_font.spacing_glyph, true)
 	_apply()
 
 ## Start a cut showing `text` for `duration_ms` (web: the element re-keyed per shot, animation-duration inline).
@@ -80,8 +78,7 @@ func _apply() -> void:
 		return
 	var fraction := _elapsed / _duration_s
 	var state := TrailerCut.text(fraction)
-	_set_spacing(UiFont.bold_spacing_px(float(state["spacing"]) * TrailerCut.TEXT_PX, _font.variation_embolden,
-		TrailerCut.TEXT_PX))
+	_set_spacing(float(state["spacing"]))
 	_text.set_shadows(TrailerCut.shadows(fraction))
 	var box := _text.get_combined_minimum_size()
 	_fade.size = box
@@ -105,13 +102,9 @@ func _apply_bar() -> void:
 	material.set_shader_parameter("sigma_px", Vector2(sigma * scale, sigma))
 	_bar.modulate.a = state["opacity"]
 
-## The letter spacing in whole pixels (Godot's is integral), keeping Chrome's line box and trailing spacing.
-func _set_spacing(px: int, force := false) -> void:
-	if px == _font.spacing_glyph and not force:
+## The keyframed letter spacing (em) at Chrome's fractional pen positions; the run is laid out again only when it moves.
+func _set_spacing(spacing_em: float) -> void:
+	if is_equal_approx(spacing_em, _spacing_em):
 		return
-	_font.spacing_glyph = px
-	UiFont.mirror_fallbacks(_font)
-	UiFont.with_css_line(_font, TrailerCut.TEXT_PX)
-	var trailing := UiFont.trailing_spacing_style(_font)
-	_text.label().add_theme_stylebox_override("normal", trailing)
-	_text.mask_label().add_theme_stylebox_override("normal", trailing)
+	_spacing_em = spacing_em
+	_text.configure_css(TrailerCut.TEXT_PX, _spacing_em, Color.WHITE, true)

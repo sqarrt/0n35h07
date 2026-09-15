@@ -1,0 +1,75 @@
+{
+  "id": "2026-09-15-toast-fractional-spacing",
+  "title": "OneShot · FS4c: дробная разрядка тоста приглашения",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Третья часть хвоста дробной разрядки. Заголовок тоста приглашения в Steam («alice invites you to a game», ник жирным цветом accent) был `RichTextLabel` с целой разрядкой, подогнанной под ширину строки Chrome, — буквы стояли не на своих местах, а длинный ник переносился не там, где у Chrome. Теперь заголовок — узел с прогонами `CssTextRun`: переносы считает `CssLineBreak` по дробным ширинам CSS, каждая строка делится на жирный ник и остальной текст, всё на базовой линии строки высотой 1.5 em. Сверка — те же web-кадры, что в отчёте `2026-09-14-steam-lobby`, в окне 1280×720 и на весь экран 3840×2160.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-toast-fractional-spacing.json`. Web: `test-results/parity-gpu-lobby-steam-2/web-steam-toast[-fs].png` и факты `web-lobby-steam.json` (`toastTitle` [1038, 513.25, 208, 18.75], letter-spacing 0.5px). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-toast-fs4/godot-steam-toast[-fs].png 95 profile:steam-toast`. «До» — `parity-gpu-lobby-steam-2/godot-steam-toast[-fs].png`. Области: заголовок [1038, 513, 208, 19], карточка [1022, 499, 240, 90] (на весь экран — те же CSS px ×1.5). Тесты GUT: `test_invite_toast` (5/5).",
+  "pages": [
+    {
+      "slug": "toast-fractional-spacing",
+      "name": "Тост приглашения",
+      "verdict": "Заголовок встал на места Chrome: чернила 1040–1232 при web 1039–1231 (раньше 1039–1226 — строка была на 5 px короче). Разница по заголовку 26.57 → 15.11/255 в окне и 26.16 → 11.07 на весь экран, по карточке 6.15 → 3.90 и 12.06 → 3.63. Строка «alice invites you to a game» — 195.75 px из 208, в одну строку, как у web; «PARITY7 invites you to a game» — 210.25 px, и теперь переносится, как перенёс бы Chrome (прежний `RichTextLabel` держал её в строку только из-за подогнанной разрядки).",
+      "verdict_short": "Заголовок тоста 1:1 по местам и переносам",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["приглашение", "десктопная сборка, заглушка Steam, ник alice", "`profile:steam-toast`, тот же ник"]
+      ],
+      "comparisons": [
+        {
+          "title": "Заголовок (×4)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-toast-fs4/crops/web-title.png", "note": "—"},
+            {"kind": "godot", "img": "parity-toast-fs4/crops/godot-title.png", "note": "15.11/255 (было 26.57)"}
+          ]
+        },
+        {
+          "title": "Заголовок до слайса (×4)",
+          "panels": [
+            {"kind": "godot", "img": "parity-toast-fs4/crops/before-title.png", "note": "строка на 5 px короче"}
+          ]
+        },
+        {
+          "title": "Карточка на весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-toast-fs4/crops/web-card-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-toast-fs4/crops/godot-card-fs.png", "note": "3.63/255 (было 12.06)"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "FS4c-1", "severity": "fixed",
+          "title": "Заголовок тоста",
+          "web": "`.invite-title` 12.5px, letter-spacing 0.04em (0.5px), line-height 1.5 (18.75px), ник `<b>` weight 600 цветом accent; перенос `overflow-wrap: break-word` по ширине 208 px.",
+          "godot": "Было: `RichTextLabel` с жирным и обычным шрифтами, целой разрядкой по `UiFont.fitted_spacing` и полу-интерлиньяжем в отступах шрифта. Стало: `InviteToast.Title` — прогоны `CssTextRun` (ник синтетически жирный), переносы `CssLineBreak` по `UiFont.css_width`, строка 18.75 px с полу-интерлиньяжем floor и подъёмом 11 px; `title_text()` / `title_lines()` для тестов.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/invite_toast.gd", "nodes/css_line_break.gd", "tests/unit/test_invite_toast.gd"]
+        },
+        {
+          "id": "FS4c-2", "severity": "visual",
+          "title": "Мелкий текст мягче",
+          "web": "DirectWrite с хинтингом на 12.5 px.",
+          "godot": "Места совпадают (±1 px), штрихи тоньше — остаток 15.11/255 по заголовку. Общий бэклог отрисовки мелкого текста.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        },
+        {
+          "id": "FS4c-3", "severity": "missing",
+          "title": "Поля ввода",
+          "web": "`.input` в настройках (1.3rem, 0.1em), поиск друзей и имя бота — текст с дробной разрядкой.",
+          "godot": "Нативный `LineEdit` умеет только целую разрядку; следующая часть FS4.",
+          "evidence": ["code"],
+          "sources": ["nodes/ui_text_field.gd", "nodes/steam_friend_picker.gd", "nodes/lobby_seat.gd"]
+        }
+      ],
+      "limitations": [
+        "Перенос длинного ника проверен тестом и замером ширины, кадром web не сравнивался (в захвате ник alice).",
+        "Анимация появления тоста не снималась."
+      ]
+    }
+  ]
+}

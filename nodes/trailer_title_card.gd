@@ -42,10 +42,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var title := GlowText.new()
 	title.name = "Title"
-	var title_font := _font(TITLE_PX, TITLE_SPACING_EM, true)
-	title.configure(title_font, UiFont.css_size(TITLE_PX), UiTokens.ACCENT)
-	title.label().add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(title_font))
-	title.mask_label().add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(title_font))
+	title.configure_css(TITLE_PX, TITLE_SPACING_EM, UiTokens.ACCENT, true)   # fractional spacing, the last glyph's included
 	title.set_text(TITLE)
 	title.set_shadows([CssShadow.make(TITLE_GLOW_BLUR, TITLE_GLOW)])
 	_add_item(title, UiFont.css_width(TITLE, TITLE_PX, TITLE_SPACING_EM))
@@ -138,19 +135,8 @@ func _build_cta() -> Control:
 	cta.add_child(_cta_label)
 	return cta
 
-func _font(css_px: float, spacing_em: float, bold: bool) -> FontVariation:
-	var font_size := UiFont.css_size(css_px)
-	var spaced := UiFont.bold_spaced(spacing_em, font_size, css_px) if bold else UiFont.spaced(spacing_em, font_size, css_px)
-	return UiFont.with_css_line(spaced, font_size, css_px)
-
+## A line of the card as Chrome lays it out: fractional letter spacing after every glyph, synthetic bold when asked.
 func _label(node_name: String, text: String, css_px: float, spacing_em: float, color: Color, bold: bool) -> Label:
-	var font := _font(css_px, spacing_em, bold)
-	var label := Label.new()
+	var label := CssLabel.new().styled(text, css_px, spacing_em, color, bold)
 	label.name = node_name
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", UiFont.css_size(css_px))
-	label.add_theme_color_override("font_color", color)
-	label.add_theme_stylebox_override("normal", UiFont.trailing_spacing_style(font))
 	return label

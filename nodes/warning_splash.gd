@@ -94,10 +94,12 @@ class Chip extends Control:
 		draw_style_box(_box, rect)
 		draw_style_box(_inset, rect.grow(-WarningSplash.CHIP_BORDER))
 
-## The paragraph: Chrome's line breaks and line boxes, each line drawn on its CSS baseline and centred.
+## The paragraph: Chrome's line breaks and line boxes, each line a CSS run on its baseline, centred at its fractional
+## left (text-align: center).
 class Paragraph extends Control:
-	var lines: Array[TextLine] = []
+	var lines: Array[CssTextRun] = []
 	var baselines: Array[float] = []
+	var centre := 0.0                          # the screen's centre in this node's coordinates
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -105,8 +107,7 @@ class Paragraph extends Control:
 	func _draw() -> void:
 		for i in lines.size():
 			var line := lines[i]
-			var x := CssPixel.snap((size.x - line.get_size().x) * WarningSplash.HALF)
-			line.draw(get_canvas_item(), Vector2(x, baselines[i] - line.get_line_ascent()), UiTokens.TEXT)
+			line.draw(self, Vector2(centre - line.width() * WarningSplash.HALF, baselines[i] - line.baseline()), UiTokens.TEXT)
 
 var _elapsed_ms := 0.0
 var _out_ms := NO_PIN
@@ -125,7 +126,6 @@ var _hint: Control
 var _chip: Chip
 var _chip_label: Label
 var _hint_label: Label
-var _body_font: FontVariation
 
 func _init() -> void:
 	name = "WarningSplash"
@@ -158,7 +158,6 @@ func _init() -> void:
 	_icon = _glow_text("Icon", ICON, ICON_PX, TITLE_SPACING_EM * TITLE_PX / ICON_PX,
 		[CssShadow.make(TITLE_GLOW_BLUR, TITLE_GLOW), CssShadow.make(ICON_DROP_BLUR, ICON_DROP)], symbol)
 	_title = _glow_text("Title", I18n.t(TITLE_KEY), TITLE_PX, TITLE_SPACING_EM, [CssShadow.make(TITLE_GLOW_BLUR, TITLE_GLOW)])
-	_body_font = UiFont.with_css_line(UiFont.spaced(BODY_SPACING_EM, BODY_PX), BODY_PX)
 	_paragraph = Paragraph.new()
 	_paragraph.name = "Body"
 	_content.add_child(_paragraph)
@@ -252,12 +251,7 @@ func _glow_text(node_name: String, text: String, font_px: int, spacing_em: float
 	var glow := GlowText.new()
 	glow.name = node_name
 	_content.add_child(glow)
-	var spaced := UiFont.spaced(spacing_em, font_px, 0.0, face)
-	var font := UiFont.with_css_line(spaced, font_px) if face == null else UiFont.with_face_line(spaced, font_px, face)
-	var trailing := UiFont.trailing_spacing_style(font)   # Chrome keeps the spacing after the last glyph
-	glow.label().add_theme_stylebox_override("normal", trailing)
-	glow.mask_label().add_theme_stylebox_override("normal", trailing)
-	glow.configure(font, font_px, UiTokens.OPP)
+	glow.configure_css(font_px, spacing_em, UiTokens.OPP, false, face)   # fractional spacing, the last glyph's included
 	glow.set_text(text)
 	glow.set_shadows(shadows)
 	glow.minimum_size_changed.connect(_layout)
@@ -276,9 +270,7 @@ func _set_body(text: String) -> void:
 	_paragraph.lines.clear()
 	for line_text in _body_lines:
 		_body_width = maxf(_body_width, _css_width(line_text))
-		var line := TextLine.new()
-		line.add_string(line_text, _body_font, BODY_PX, UiFont.SYSTEM_FALLBACK_LOCALE)
-		_paragraph.lines.append(line)
+		_paragraph.lines.append(CssTextRun.new(line_text, BODY_PX, BODY_SPACING_EM))
 
 ## A run's CSS width at the body size.
 func _css_width(text: String) -> float:
@@ -312,6 +304,7 @@ func _layout() -> void:
 	var body_top := top + head_height + BOX_GAP
 	_paragraph.position = Vector2(CssPixel.snap(centre - _body_width * HALF), 0.0)
 	_paragraph.size = Vector2(CssPixel.snap(_body_width), size.y)
+	_paragraph.centre = centre - _paragraph.position.x
 	var latin_ascent := roundi(UiFont.ASCENT_EM * BODY_PX)
 	var latin_line := latin_ascent + roundi(UiFont.DESCENT_EM * BODY_PX)
 	var half_leading := floorf((line_height - latin_line) * HALF)
