@@ -63,6 +63,15 @@ func set_size(screen: Vector2i) -> void:
 	for i in _up.size():
 		pass_material(_up[i]).set_shader_parameter("texel", Vector2.ONE / Vector2(_up_source(i).size))
 
+## The bright-pass threshold while running (web luminanceMaterial.threshold: the Radio screen's soft bloom morphs it).
+func set_threshold(value: float) -> void:
+	pass_material(_luminance).set_shader_parameter("threshold", value)
+
+## The blur's radius while running (web mipmapBlurPass.radius).
+func set_radius(value: float) -> void:
+	for stage in _up:
+		pass_material(stage).set_shader_parameter("radius", value)
+
 func set_active(on: bool) -> void:
 	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	for stage in _stages:

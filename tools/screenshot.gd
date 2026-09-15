@@ -156,6 +156,9 @@ const RADIO_TRIAL_GENS := 3                # web PARITY_TRIAL: today's generatio
 const RADIO_TRIAL_SAVES := 1
 const RADIO_VOLUME := 0.8                  # web VOL_DEFAULT.radio
 const RADIO_VOLUME_KEY := "volumeRadio"    # web profile.volumeRadio (Audio's key: autoloads aren't globals here)
+const MODE_RADIO_GLOW := "radio-glow-"     # radio-glow-menu / -radio: the backdrop's bloom, pinned, the UI hidden
+const RADIO_GLOW_RADIO := "radio"
+const RADIO_GLOW_UI := ["Panel", "PanelBlur", "Version", "RadioPlayer", "RadioCode"]
 const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
 const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
 const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
@@ -522,6 +525,21 @@ func _apply_hud_fixture() -> int:
 		else:
 			expanded.show_state(RadioModel.NO_TRACK, true, false)
 		return SCREEN_FRAMES
+	if _mode.begins_with(MODE_RADIO_GLOW):
+		# web parity-capture-radio-glow.mjs: the menu or the Radio screen's frosted bloom, the light, the ball clock and the
+		# glow level pinned, everything over the backdrop hidden
+		var glow_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		var glow_backdrop: Node = glow_menu.call("backdrop")
+		glow_backdrop.call("set_light_angle", 0.0)
+		glow_backdrop.call("pin_ball_time", STAGE_BALL_TIME_S)
+		glow_backdrop.call("pin_glow_level", 0.0)
+		if _mode.trim_prefix(MODE_RADIO_GLOW) == RADIO_GLOW_RADIO:
+			glow_menu.call("open_radio")
+		for ui_name in RADIO_GLOW_UI:
+			var ui := glow_menu.find_child(ui_name, false, false) as CanvasItem
+			if ui != null:
+				ui.visible = false
+		return STAGE_FRAMES
 	if _mode.begins_with(MODE_RADIO_CODE):
 		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized
 		var code_menu: Node = root.find_children("*", "MainMenu", true, false)[0]

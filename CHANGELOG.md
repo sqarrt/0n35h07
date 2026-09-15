@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   exactly where the original does, glows softly, scrolls with its thin scrollbar, drags by its title, resizes by its
   corner, maximizes, copies the program on a click ("(copied)" in the title) and minimizes to a PROGRAM bar over the
   player that brings it back.
+- **The Radio screen's frosted glow.** On the Radio screen the menu backdrop turns into the original's frosted glass: the
+  whole scene blooms softly, brighter with the music, and the ball's edges glow stronger (even with the menu glow
+  setting off). The Radio's sound now drives the menu glow on every menu screen, as in the original.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.
