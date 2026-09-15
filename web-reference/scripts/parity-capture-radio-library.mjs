@@ -22,6 +22,9 @@ const UI_SETTLE_MS = 600;
 const COPIED_SETTLE_MS = 300;                 // past the field's .12 s colour transition, inside its 1.1 s
 const COPIED_CLEAR_MS = 1200;
 const WINDOW_MENU_AT = FULLSCREEN_ON ? { x: 1500, y: 757 } : { x: 860, y: 440 };   // empty grid, under the first row
+const MARQUEE_FROM = WINDOW_MENU_AT;
+const MARQUEE_TO = FULLSCREEN_ON ? { x: 1340, y: 607 } : { x: 700, y: 290 };      // over Night Drive, Ashen Drift, Fathom
+const MARQUEE_STEPS = 8;
 const track = (name, bpm) => JSON.stringify({ v: 2, id: `${name}:0`, name, bpm, bars: 64,
   info: { mood: 'dark_techno', key: 'E', scale: 'phrygian' }, program: `setcpm(${bpm}/4)\narrange()` }, null, 2);
 // The seeded library: [path, contents | null for a folder] under the app-data radio root.
@@ -90,7 +93,10 @@ const measure = () => page.evaluate(() => {
     icons: all('.rexp-it > div:first-child'), labels: all('.rexp-it .lbl'), status: pick(q('.rexp-status')),
     statusText: pick(q('.rexp-status span')), viz: pick(q('[data-testid="radio-viz-switch"]')),
     menu: pick(q('.rexp-ctx')), menuItems: all('.rexp-mi'), menuKeys: all('.rexp-mi .k'), menuAccels: all('.rexp-mi .acc'),
-    rename: pick(q('.rexp-rename')), copiedMark: pick(q('.rexp-copied')) };
+    rename: pick(q('.rexp-rename')), copiedMark: pick(q('.rexp-copied')), marquee: pick(q('.rexp-marquee')),
+    dropItem: pick(q('.rexp-it.dropok')),
+    dropIcon: (() => { const el = q('.rexp-it.dropok .rexp-folder'); if (!el) return null;
+      const s = getComputedStyle(el, '::after'); return { border: s.border, boxShadow: s.boxShadow, background: s.backgroundImage }; })() };
 });
 
 try {
@@ -157,6 +163,24 @@ try {
   facts.copied = await measure();
   facts.copiedFonts = await platformFonts('.rexp-copied');
   await page.waitForTimeout(COPIED_CLEAR_MS);
+
+  // a rubber band dragged over the empty grid: every item it touches is selected
+  await page.mouse.move(MARQUEE_FROM.x, MARQUEE_FROM.y);
+  await page.mouse.down();
+  await page.mouse.move(MARQUEE_TO.x, MARQUEE_TO.y, { steps: MARQUEE_STEPS });
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-marquee');
+  facts.marquee = await measure();
+  await page.mouse.up();
+  await page.mouse.click(MARQUEE_FROM.x, MARQUEE_FROM.y);   // a click on the empty grid clears the selection
+
+  // a folder under a dragged track: .dropok set by hand (a synthetic drag shows no drop-target look)
+  await page.mouse.move(0, 0);
+  await page.locator('[data-path="Night Drive"]').evaluate(el => el.classList.add('dropok'));
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-dropok');
+  facts.dropok = await measure();
+  await page.locator('[data-path="Night Drive"]').evaluate(el => el.classList.remove('dropok'));
 
   await page.locator('[data-path="Night Drive"]').dblclick();
   await page.mouse.move(0, 0);

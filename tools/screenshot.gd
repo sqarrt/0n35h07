@@ -171,6 +171,10 @@ const RADIO_LIBRARY_RENAME := "rename"         # web: Twin.json clicked, then F2
 const RADIO_LIBRARY_COPIED := "copied"         # web: a click on the address field
 const RADIO_LIBRARY_WINDOW_MENU_AT := Vector2(860.0, 440.0)      # web WINDOW_MENU_AT, CSS px
 const RADIO_LIBRARY_WINDOW_MENU_AT_FS := Vector2(1500.0, 757.0)
+const RADIO_LIBRARY_MARQUEE := "marquee"       # web: a band from WINDOW_MENU_AT to MARQUEE_TO, the mouse still down
+const RADIO_LIBRARY_MARQUEE_TO := Vector2(700.0, 290.0)
+const RADIO_LIBRARY_MARQUEE_TO_FS := Vector2(1340.0, 607.0)
+const RADIO_LIBRARY_DROP := "dropok"           # web: .dropok set on Night Drive
 const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
 const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
 const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
@@ -589,6 +593,16 @@ func _apply_hud_fixture() -> int:
 			RADIO_LIBRARY_COPIED:
 				explorer.clipboard = func(_text: String) -> void: pass   # the capture leaves the clipboard alone
 				explorer.copy_address()
+			RADIO_LIBRARY_MARQUEE:
+				var band_fs := _output.get_file().get_basename().ends_with(FULLSCREEN_SUFFIX)
+				var to_screen := (library_menu as Control).get_global_transform()
+				explorer.begin_marquee(to_screen * (RADIO_LIBRARY_WINDOW_MENU_AT_FS if band_fs else RADIO_LIBRARY_WINDOW_MENU_AT),
+					false)
+				explorer.marquee_to(to_screen * (RADIO_LIBRARY_MARQUEE_TO_FS if band_fs else RADIO_LIBRARY_MARQUEE_TO))
+			RADIO_LIBRARY_DROP:
+				for item in explorer.items():
+					if item.path() == RADIO_LIBRARY_FOLDER:
+						item.drop_target = true
 		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO_CODE):
 		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized

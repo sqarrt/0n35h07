@@ -210,6 +210,67 @@ func test_a_click_on_the_address_copies_the_path() -> void:
 	var mark := explorer.copied_mark()
 	assert_almost_eq(mark.position.x + mark.size.x, 612.0 - 2.0 - 14.0, 1.0, "right: 14px in the address row")
 
+func test_the_rubber_band_selects_what_it_touches() -> void:
+	var explorer := _explorer()
+	explorer.select("Twin (2).json")
+	var origin := explorer.global_position
+	explorer.begin_marquee(origin + Vector2(356.0, 309.0), false)   # web (860, 440) in the window at (504, 131)
+	assert_true(explorer.selection().is_empty(), "a press on the empty grid starts over")
+	assert_not_null(explorer.marquee())
+	explorer.marquee_to(origin + Vector2(196.0, 159.0))             # web (700, 290)
+	var picked := explorer.selection()
+	picked.sort()
+	assert_eq(picked, ["Ashen Drift.json", "Fathom XS·17.json", "Night Drive"], "every cell the band touches")
+	assert_eq(explorer.marquee().size, Vector2(160.0, 150.0))
+	explorer.end_marquee()
+	assert_null(explorer.marquee())
+	explorer.select("Twin (2).json")
+	explorer.begin_marquee(origin + Vector2(356.0, 309.0), true)
+	explorer.marquee_to(origin + Vector2(350.0, 300.0))
+	assert_eq(explorer.selection(), ["Twin (2).json"], "Ctrl keeps the selection under an empty band")
+	explorer.end_marquee()
+
+func test_dragged_tracks_move_into_a_folder_but_not_where_they_are() -> void:
+	var explorer := _explorer()
+	var twin: RadioLibraryItem = explorer.items()[4]
+	explorer.select("Ambient")
+	var data: Dictionary = explorer.drag_data(twin)
+	assert_eq(explorer.selection(), ["Twin.json"], "an unselected track becomes the selection")
+	assert_eq(data[RadioExplorer.DRAG_MOVE], ["Twin.json"])
+	assert_null(explorer.drag_data(explorer.items()[0]), "folders do not drag")
+	explorer.select("Ashen Drift.json", true)
+	explorer.select("Night Drive", true)
+	assert_eq(explorer.drag_data(twin)[RadioExplorer.DRAG_MOVE], ["Ashen Drift.json", "Twin.json"], "tracks only")
+	explorer.move_into("", ["Twin.json"])
+	assert_true(_names(explorer).has("Twin"), "already there")
+	explorer.move_into("Night Drive", ["Ashen Drift.json", "Twin.json"])
+	assert_eq(_names(explorer), ["Ambient", "Night Drive", "Fathom XS·17", "Twin (2)"])
+	explorer.navigate_into("Night Drive")
+	assert_eq(_names(explorer), ["Ashen Drift", "Lagoon", "Twin"])
+
+func test_only_folders_take_a_drop_and_light_up() -> void:
+	var explorer := _explorer()
+	var folder: RadioLibraryItem = explorer.items()[1]
+	var track: RadioLibraryItem = explorer.items()[2]
+	var move := {RadioExplorer.DRAG_MOVE: ["Twin.json"]}
+	assert_true(explorer._can_drop_into(folder, move))
+	assert_true(folder.drop_target)
+	assert_false(explorer._can_drop_into(track, move))
+	assert_false(explorer._can_drop_into(folder, {"other": 1}))
+	folder.notification(Control.NOTIFICATION_DRAG_END)
+	assert_false(folder.drop_target, "the drag is over")
+
+func test_a_drop_target_dashes_its_border_like_blink() -> void:
+	assert_almost_eq(RadioLibraryItem.dash_gap(103.5, 3.0, 2.0), 2.025, EPS, "21 dashes, 20 gaps along 103.5 px")
+	assert_almost_eq(RadioLibraryItem.dash_gap(96.0, 3.0, 2.0), 1.8947, 0.001, "20 dashes fit closer to 2 than 19")
+	var explorer := _explorer()
+	var folder: RadioLibraryItem = explorer.items()[1]
+	var look := folder.get_node("Box").material as ShaderMaterial
+	assert_eq(look.get_shader_parameter("dash_px"), 0.0, "solid until a drag hovers")
+	folder.drop_target = true
+	assert_eq(look.get_shader_parameter("dash_px"), 3.0)
+	assert_eq(look.get_shader_parameter("border_color"), UiTokens.OK)
+
 func test_play_on_a_folder_queues_its_tracks_from_the_first() -> void:
 	var explorer := _explorer()
 	watch_signals(explorer)

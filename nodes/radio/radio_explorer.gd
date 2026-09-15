@@ -7,8 +7,9 @@ class_name RadioExplorer extends RadioWindow
 ## status bar (the counts, and the visualizer's mode pill). A click selects (Ctrl toggles, Shift takes the range), a
 ## double click opens a folder or plays the folder's tracks from that one. A right click opens the context menu — on an
 ## item (selecting it first) or on the window (clearing the selection) — whose actions also answer F2 (rename in place),
-## Del, Ctrl+C and Ctrl+V while the window shows and no name is being edited. Drag and drop and the visualizer come
-## with the next slice.
+## Del, Ctrl+C and Ctrl+V while the window shows and no name is being edited. Tracks drag onto a folder (or the grid) to
+## move there, the selected ones together; a press on the empty grid drags a rubber band that selects every item it
+## touches (with Ctrl, added to the selection). The visualizer comes with the next slice.
 
 signal play_requested(queue: Array, start_index: int)
 
@@ -78,11 +79,14 @@ const SETTINGS_SECTION := "radio"
 const SETTINGS_VIZ := "viz"
 const WINDOWS_SEPARATOR := "\\"
 const LIBRARY_SEPARATOR := "/"
+const DRAG_MOVE := "radio_move"                 # web DT_MOVE: the dragged tracks' library paths
+const DRAG_PREVIEW_ALPHA := 0.6                 # the browser's translucent drag image
 
 var library: RadioLibrary
 var display_root := ""                          # the address bar's root (parity captures pin the web's)
 var settings_path := SETTINGS_PATH
 var clipboard: Callable = func(text: String) -> void: DisplayServer.clipboard_set(text)
+var overlay_under: Control = null               # the rubber band goes under this sibling (web: the player's z 200 wins)
 
 var _path := ""
 var _history: PackedStringArray = []
@@ -93,6 +97,9 @@ var _anchor := ""
 var _clip: Array = []                           # web clip: the copied tracks' paths
 var _menu: RadioContextMenu = null
 var _renaming := ""                             # the path whose name is being edited
+var _marquee: RadioMarquee = null
+var _marquee_from := Vector2.ZERO               # global
+var _marquee_base := {}                         # the selection the band adds to (Ctrl) or {}
 var _viz := VIZ_MODES[0]
 var _tools: Control
 var _back: CssButton
@@ -160,6 +167,9 @@ func _init() -> void:
 	_grid.name = "Grid"
 	_grid.clip_contents = true
 	_grid.mouse_filter = Control.MOUSE_FILTER_PASS
+	_grid.gui_input.connect(_on_grid_input)
+	_grid.set_drag_forwarding(Callable(), func(_at: Vector2, data: Variant) -> bool: return _is_move(data),
+		func(_at: Vector2, data: Variant) -> void: move_into(_path, data[DRAG_MOVE]))
 	content().add_child(_grid)
 	_status = Panel.new()
 	_status.name = "Status"
@@ -234,6 +244,9 @@ func refresh() -> void:
 		item.pressed.connect(_on_item_pressed)
 		item.opened.connect(func(opened: RadioLibraryItem) -> void: open_entry(opened.entry))
 		item.rename_finished.connect(_on_rename_finished)
+		item.set_drag_forwarding(func(_at: Vector2) -> Variant: return drag_data(item),
+			func(_at: Vector2, data: Variant) -> bool: return _can_drop_into(item, data),
+			func(_at: Vector2, data: Variant) -> void: _drop_into(item, data))
 		_grid.add_child(item)
 		_items.append(item)
 	var kept := {}
@@ -295,16 +308,114 @@ func select(path: String, toggle := false, extend := false) -> void:
 	else:
 		_selection = {path: true}
 		_anchor = path
-	for item in _items:
-		item.selected = _selection.has(item.path())
-	_update_status()
+	_apply_selection()
 
 func clear_selection() -> void:
 	_selection = {}
 	_anchor = ""
+	_apply_selection()
+
+func _apply_selection() -> void:
 	for item in _items:
-		item.selected = false
+		item.selected = _selection.has(item.path())
 	_update_status()
+
+## web onDragStartTrack: a track not in the selection becomes it; the dragged paths are the selected tracks (folders
+## never move this way). null for a folder or a name being edited.
+func drag_data(item: RadioLibraryItem) -> Variant:
+	if item.is_folder() or item.path() == _renaming:
+		return null
+	if not _selection.has(item.path()):
+		select(item.path())
+	var paths := _selected_tracks()
+	if paths.is_empty():
+		paths = [item.path()]
+	if item.get_viewport() != null and item.get_viewport().gui_is_dragging():   # a real drag is starting
+		var preview := RadioLibraryIcon.new(RadioLibraryIcon.TRACK)
+		preview.modulate.a = DRAG_PREVIEW_ALPHA
+		item.set_drag_preview(preview)
+	return {DRAG_MOVE: paths}
+
+## web onDropTo: the dragged tracks into `folder`, skipping any already there, the folder itself or its ancestors.
+func move_into(folder: String, paths: Array) -> void:
+	var moving := paths.filter(func(path: String) -> bool:
+		var slash := path.rfind(LIBRARY_SEPARATOR)
+		var parent := path.substr(0, slash) if slash >= 0 else ""
+		return parent != folder and path != folder and not folder.begins_with(path + LIBRARY_SEPARATOR))
+	if moving.is_empty():
+		return
+	for path in moving:
+		library.move_track(path, folder)
+	refresh()
+
+## A press on the empty grid starts the band at `global_at`: the selection starts over, or from itself with Ctrl.
+func begin_marquee(global_at: Vector2, additive: bool) -> void:
+	_marquee_base = _selection.duplicate() if additive else {}
+	_selection = _marquee_base.duplicate()
+	_anchor = ""
+	_apply_selection()
+	_marquee_from = global_at
+	_marquee = RadioMarquee.new()
+	get_parent().add_child(_marquee)
+	if overlay_under != null and overlay_under.get_parent() == get_parent():
+		get_parent().move_child(_marquee, overlay_under.get_index())
+	marquee_to(global_at)
+
+## The band to `global_at`: every item whose box it touches (edges included) joins the base selection.
+func marquee_to(global_at: Vector2) -> void:
+	if _marquee == null:
+		return
+	var band := Rect2(_marquee_from.min(global_at), (global_at - _marquee_from).abs())
+	var host := get_parent() as Control
+	_marquee.place(Rect2(host.get_global_transform().affine_inverse() * band.position, band.size))
+	var hit := _marquee_base.duplicate()
+	for item in _items:
+		var box := item.get_global_rect()
+		if not (box.end.x < band.position.x or box.position.x > band.end.x or box.end.y < band.position.y
+				or box.position.y > band.end.y):
+			hit[item.path()] = true
+	_selection = hit
+	_apply_selection()
+
+func end_marquee() -> void:
+	if _marquee != null:
+		_marquee.queue_free()
+		_marquee = null
+
+func marquee() -> RadioMarquee:
+	return _marquee
+
+func _on_grid_input(event: InputEvent) -> void:
+	var press := event as InputEventMouseButton
+	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
+		begin_marquee(press.global_position, press.ctrl_pressed or press.meta_pressed)
+		_grid.accept_event()
+
+## web document mousemove / mouseup while the band is out.
+func _input(event: InputEvent) -> void:
+	if _marquee == null:
+		return
+	var motion := event as InputEventMouseMotion
+	if motion != null:
+		marquee_to(motion.global_position)
+		return
+	var release := event as InputEventMouseButton
+	if release != null and not release.pressed and release.button_index == MOUSE_BUTTON_LEFT:
+		end_marquee()
+
+static func _is_move(data: Variant) -> bool:
+	return data is Dictionary and (data as Dictionary).get(DRAG_MOVE) is Array
+
+## web onDragOver on a folder: it lights up as the drop target; tracks take no drop.
+func _can_drop_into(item: RadioLibraryItem, data: Variant) -> bool:
+	if not item.is_folder() or not _is_move(data):
+		return false
+	item.drop_target = true
+	return true
+
+func _drop_into(item: RadioLibraryItem, data: Variant) -> void:
+	item.drop_target = false
+	move_into(item.path(), data[DRAG_MOVE])
 
 ## A folder opens; a track plays with the folder's readable tracks as the queue.
 func open_entry(entry: Dictionary) -> void:
@@ -491,8 +602,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 ## The menu lives beside the window (over the player): it goes when the window hides or goes.
 func _notification(what: int) -> void:
-	if _menu != null and (what == NOTIFICATION_PREDELETE or (what == NOTIFICATION_VISIBILITY_CHANGED and not visible)):
-		_menu.close()
+	if what == NOTIFICATION_PREDELETE or (what == NOTIFICATION_VISIBILITY_CHANGED and not visible):
+		if _menu != null:
+			_menu.close()
+		end_marquee()
 
 ## The status bar's pill: the next visualizer mode, remembered (web localStorage radio.viz).
 func cycle_viz() -> void:
