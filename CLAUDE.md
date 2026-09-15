@@ -2,40 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Resume here:** read [SESSION_HANDOFF.md](SESSION_HANDOFF.md) for the 2026-09-13 session state,
-verified results, corrected screenshots and pending per-stage HTML parity reports.
+## 2.0.0 — the Godot game
 
-## 2.0.0 — Godot rewrite (in progress)
+OneShot (0N35H07) is an arcade first-person shooter for Steam, built natively on **Godot 4.7 (GDScript, Windows)**.
+The repo **root is the Godot project** (`project.godot`, `scenes/`, `autoloads/`, `nodes/`, `sim/`, `assets/`,
+`maps/`, `addons/`, `tests/unit/`). It is a 1:1 port of the React/Three.js web game, which served as the parity
+oracle until the port replaced it and was removed from the repository (its history stays in git). The one piece of
+web code the game still runs is the generative radio's engine page, kept as its own package in **`radio-host/`**.
 
-OneShot is being reimplemented natively on **Godot 4.7 (GDScript, Windows-native)**.
-The repo **root is the Godot project** (`project.godot`, `scenes/`, `scripts/`, `autoloads/`,
-`addons/gut/`, `tests/unit/`). The previous React/Three.js web game is preserved under
-**`web-reference/`** as the 1:1 parity oracle and will be removed once Godot reaches parity.
-Requirement: **all visuals and functionality must be reproduced 1:1**.
-
-- Two runners, same Godot 4.7.1: **Claude Code works in WSL** → `scripts/godot.sh` (Linux binary in
-  `~/.local/share/godot/godot`; engine runs need the sandbox disabled). **Codex works natively in Windows / PowerShell**
-  → `./scripts/godot.ps1` (set `$env:GODOT_BIN` to the Windows `.exe`, or put `godot` / `godot4` on PATH).
-- Run the game (headless): `scripts/godot.sh --headless --path . scenes/main.tscn --quit-after 5`
-- Run tests (Godot analog of `npm run test`): `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit`
-  (PowerShell: quote `'-gdir=res://tests/unit'`; first time / after adding `class_name`s: run `--headless --path . --import` once)
-- Parity reports: `python3 tools/parity/report.py tools/parity/stages/<stage>.json` → `test-results/parity-reports/<stage>/`.
-- Windows build (PowerShell, `$env:GODOT_BIN` set): `./scripts/export_windows.ps1 [-Mode debug]` → `release/windows/0N35H07.exe`
-  (the Steam depot layout; needs the Godot export templates in `%APPDATA%\Godot\export_templates\4.7.1.stable`). The
-  preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
-  Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
-- Steam upload (steamcmd on PATH or `$env:STEAMCMD`): `./scripts/upload_steam.ps1 -App 4881310 -User <login> [-Branch
-  default] [-DryRun]` — SteamPipe VDFs for `release/windows` (Playtest app: `-App 4888710`).
-- The web reference builds from `web-reference/` (its own `package.json`).
-- CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless (`scripts/godot.sh` honours `$GODOT_BIN`)
-  plus the web reference's lint / types / unit / build inside `web-reference/`; Pages deploy and Dependabot follow it there.
-
-The rest of this document describes the **web-reference** architecture; the Godot
-architecture is documented incrementally as sub-projects land.
-
-OneShot — an arcade first-person shooter. Stack: React 19 + React Three Fiber (@react-three/fiber 9) +
-Three.js 0.184 + @react-three/rapier 2 (physics), Trystero (WebRTC P2P), Vite 8 build, TypeScript 6,
-Tauri 2 desktop build.
+- Two runners, same Godot 4.7.1: **Claude Code works in WSL** → `scripts/godot.sh` (`$GODOT_BIN`, else the Linux binary
+  in `~/.local/share/godot/godot`; engine runs need the sandbox disabled). **Codex works natively in Windows /
+  PowerShell** → `./scripts/godot.ps1` (set `$env:GODOT_BIN` to the Windows `.exe`, or put `godot` / `godot4` on PATH).
 
 ## Base rules
 
@@ -52,35 +29,32 @@ Tauri 2 desktop build.
   bash treats `@'` as literals and `@` characters leak into the message. Write the message to a temp file and
   commit via `git commit -F <file>` (reliable in any shell), or use a bash heredoc (`cat > f <<'EOF' … EOF`).
   The `@'…'@` syntax is allowed ONLY in the PowerShell tool, not in Bash.
-- After every change, run the tests in headless mode (`npm run test`) and keep the tests up to date with your changes.
+- After every change, run the tests headless (the GUT suite; `npm test` in `radio-host/` when the radio page changes)
+  and keep the tests up to date with your changes.
 - After changes, do a THOUGHTFUL review of your own code so it doesn't snowball into a mass refactor.
 - You MUST follow the SOLID, DRY and SRP principles.
 - You NEVER use magic numbers. Only named constants.
 - Constants must be local.
   - Constants used in a single file — declare them there.
-  - Constants used within a single directory — declare them at the directory level.
-  - Constants needed project-wide — in src/constants.
+  - Constants used within a directory — declare them at the directory level (`sim/*_const.gd`).
+  - Constants needed project-wide — in `sim/constants.gd`.
   - For constants this is a recommendation, not a requirement. Use common sense.
-- When working on the frontend, watch CAREFULLY that the UI doesn't "jump".
+- When working on the UI, watch CAREFULLY that it doesn't "jump".
   - Button sizes must not change between states.
   - Headings must stay in the same place.
   - Element positions should barely change.
-- Don't run the app yourself.
+- Don't run the app yourself except for probes and verification.
   - The user usually already has it running.
 
 ## Tests
 
-- The user asked Codex to perform parity checks independently (2026-09-13).
-  Run the relevant automated checks yourself; do not require the user to compare versions manually.
-  For EACH parity-comparison stage, produce a standalone HTML report with embedded screenshots,
-  explicit capture conditions, confirmed discrepancies and limitations. Use the same map, phase,
-  viewport and camera; wait for scene warmup and entrance animations before visual conclusions.
-- Never update an existing parity report: every check — corrections included — produces a NEW report.
-  `tools/parity/report.py` writes each run to a fresh timestamped folder and refuses to overwrite.
-  Do NOT publish reports (no Artifacts): keep them as local HTML files only.
-- Capture web reference frames on a real GPU only (SwiftShader draws the floor grid as stripes and drops the beam skin).
-- No test may be flaky.
-- If a test simply cannot be stabilised — ask the user whether it can be dropped.
+- Run the relevant automated checks yourself; do not require the user to compare or verify manually.
+- No test may be flaky. If a test simply cannot be stabilised — ask the user whether it can be dropped.
+- Behaviour matters more than pixels: flows, transitions and reactions must work as the original did.
+- After changes to startup, autoloads or native windows, also check a real launch (not only `-s` tool frames).
+- Parity / verification stages produce a NEW standalone HTML report each time:
+  `python3 tools/parity/report.py tools/parity/stages/<stage>.json` → `test-results/parity-reports/<stage>-<stamp>/`.
+  The tool never overwrites a report. Do NOT publish reports (no Artifacts): keep them as local HTML files.
 
 ## GitFlow
 - Develop in a separate feature branch.
@@ -91,111 +65,66 @@ Tauri 2 desktop build.
   - A release branch must be cut ONLY from ACTUAL master branch
   - Confirm the version with the user before creating the release branch.
   - Nothing needs to be pushed: the user pushes the release branch and merges into master themselves.
-- The version in package.json on the release branch must reflect the release branch version.
+- The version in `project.godot` (`config/version`), `autoloads/game.gd` (`GAME_VERSION`) and
+  `radio-host/package.json` must reflect the release branch version.
 - Update CHANGELOG.md before merging into the release branch.
 
 ## Commands
 
-- `npm run dev` — Vite dev server (http://localhost:5173).
-- `npm run build` — `tsc -b && vite build` (full type-check + production build).
-- `npm run lint` — ESLint.
-- `npm run test` — the **canonical run**: vitest (unit) + Playwright headless (e2e). Run after changes.
-- `npm run test:unit` / `test:e2e` / `test:headed` / `test:connected` — individually
-  (`test:connected` uses an already-open browser window).
-- A single unit test: `npx vitest run --config vitest.config.ts tests/unit/Shield.test.ts` (or `-t "name"`).
-- A single e2e: `npx playwright test --project=headless tests/shooting.spec.ts` (or `-g "substring"`).
-- Types only, no build: `npx tsc -b --noEmit`.
-- Tauri: `npm run tauri:dev`, `npm run tauri:build`.
+- Tests (GUT): `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit`
+  (one script: `-gselect=<test_name>`, a single name; PowerShell: quote `'-gdir=res://tests/unit'`; the first time and
+  after adding `class_name`s run `scripts/godot.sh --headless --path . --import` once).
+- Run the game headless: `scripts/godot.sh --headless --path . --quit-after 5`.
+- Tool frames: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- <scene>
+  - res://<png> <frames> <mode>`.
+- Windows build (PowerShell, `$env:GODOT_BIN` set): `./scripts/export_windows.ps1 [-Mode debug]` → `release/windows/0N35H07.exe`
+  (the Steam depot layout; needs the Godot export templates in `%APPDATA%\Godot\export_templates\4.7.1.stable`). The
+  preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
+  Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
+- Steam upload (steamcmd on PATH or `$env:STEAMCMD`): `./scripts/upload_steam.ps1 -App 4881310 -User <login> [-Branch
+  default] [-DryRun]` — SteamPipe VDFs for `release/windows` (Playtest app: `-App 4888710`).
+- Radio page (`radio-host/`, Node `^20.19 || >=22.12`): `npm ci`, `npm test` (vitest), `npm run typecheck`,
+  `npm run build` → `localhost/radio_host/` (commit the rebuilt bundle).
+- CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless, plus `radio-host` types / tests / a build
+  that must reproduce the committed bundle.
 
-Note on types: `erasableSyntaxOnly` is on — parameter properties (`constructor(private x)`), enums and
-namespaces are **forbidden**. Declare fields explicitly and assign them in the constructor body.
+Note on the radio page's TypeScript: `erasableSyntaxOnly` is on — parameter properties (`constructor(private x)`),
+enums and namespaces are **forbidden**.
 
 ## Architecture (big picture)
 
-Three layers: **simulation — pure TS classes in `src/game/` (no React); R3F — a thin host; HUD — a React/DOM overlay.**
+**Layers.** `sim/` — engine-agnostic game logic ported 1:1 from the web simulation (plain `RefCounted` classes:
+`Body`, `Player`, `Weapon`, `Shield`, `MatchRules`, `MatchPhase`, `BotController` with personality / aim / tactics,
+`Streak`, `Overheat`, the HUD / lobby / radio models); `nodes/` — Godot nodes that host it (`PlayerNode`
+CharacterBody3D, `MatchNode` coordinator, `Hud`, menus, lobby, radio UI, trailer); `scenes/` — `main_menu.tscn`
+(the run scene), `arena_test.tscn` (a match), `trailer.tscn`; `autoloads/` — `SteamBridge`, `Game` (profile, room,
+match setup, session log), `Audio` (SFX, menu / trailer music, the analysis hub), `Radio`. Unit tests construct `sim/`
+classes directly; nodes are tested in SubViewports.
 
-The map of `src/` (the shooter is only about half of it): `game/` — the simulation; `net/` — P2P mesh + room;
-`components/` + `screens/` + `ui/` + `hooks/` — React (HUD, menus, lobby, the 3D menu backdrop); `editor/` — the
-in-app map editor at `#editor` (dev-only: it reads/writes `src/maps/<id>/` through a Vite dev-bridge plugin, so it is
-NOT driven by the map registry in `game/maps.ts`); `maps/` — maps as data (`raw.json` source + `geo.json` compiled
-geometry + `preview.png`, per map); `radio/` — the generative radio (Strudel-based; a large, self-contained
-subsystem); `steam/` — Steam integration (achievements, cloud, lobby/invites, rich presence) behind Tauri;
-`i18n/` — 10 locales typed as `Dict = typeof en`; `diag/` — session logging; `trailer/` — the demo/trailer recorder.
+**Simulation.** A single `Player` — the human, a bot and a remote player alike — composes a `Body`, a beam weapon and a
+shield and exposes intent methods with built-in cooldowns; controllers (`HumanController`, `BotController`) drive the
+same intents. `MatchNode` runs the rules after the entities each physics frame (60 Hz with physics interpolation):
+one-shot kills, shield blocks, the ghost respawn, streaks / bounty / overheat, the `ready → countdown → live → ended`
+ritual stamped by the lobby creator. Movement is `CharacterBody3D` with a manual step-up; combat raycasts hit hitboxes
+on their own physics layer (teammate bodies block the beam, friendly fire deals no harm).
 
-**Simulation (`src/game/`).** A single `Player` entity — the human, a bot and a remote networked
-player alike — composes an **injected** `Body` + `IWeapon` (`BeamWeapon`) + `IShield` (`Shield`); weapon and shield
-are injected behind interfaces (Dependency Inversion), `Body` as the concrete class (a player IS its body).
-`Player` exposes intent methods `moveIntent/jump/aim/startFiring/activateShield` with built-in cooldowns. Controllers
-(`HumanController` — keyboard/mouse/camera; `BotController` — AI) drive the **same** `Player` methods:
-the AI is just another controller, like a keyboard. `Player` **does not respawn itself** — `Match` does.
-`Match` owns the world/players/controllers and is the **single place for the rules** (combat, respawn,
-HUD events, the ready ritual, excluding self-hits); its `update(dt)` is the shared heartbeat.
+**Networking — P2P, symmetric full mesh (`sim/net/`).** No host authority: every peer simulates the players it owns
+(itself + its bots). `RoomSession` is the seat handshake (HELLO / ASSIGN / READY / SETSLOT / START; the seat index is
+the player id, the creator sits in seat 0); `NetSession` + `NetSync` broadcast snapshots of owned players and slim
+events; combat is shooter-claimed and **victim-judged** (the shield on the victim's screen wins), with the shooter's
+kill predicted and rolled back. Transports: `SteamNet` over Steam relay (lobbies, quick match, invites) and
+`LoopbackNet` for solo rooms and tests. The mode (Duel / Battle / War) is a lobby preset; the simulation is always
+team-based.
 
-**R3F host — fixed 60Hz tick.** `App` renders `<Canvas>`; `Game` builds the `Match` once (`useMemo`) and drives it
-through a `TickDriver` accumulator: one `useFrame` turns the variable render dt into whole `FIXED_DT` ticks (spikes
-clamped, catch-up capped). Per tick — `match.update(FIXED_DT)` → `match.step(FIXED_DT)` (manual Rapier step, see
-Physics) → `match.captureTick()` → `session.afterUpdate()` (net send). After the loop, `match.renderInterpolate(alpha)`
-places visuals + camera between ticks, so rendering stays smooth at any refresh rate. There is **no shared clock** —
-every peer ticks its own sim. Each game object **owns its own THREE meshes**; the world-space visuals (bodies + beams)
-live in `match.root`, rendered via `<primitive object={match.root} />`. `Match.update` order: `syncFromBody` →
-`controllers.update` (intents/aim) → `players.update` (weapon/shield/visuals) → `applyPhysics` → combat/respawn/HUD →
-`controllers.lateUpdate` (the camera reads the fresh position cache).
+**UI.** Screens live in `MainMenu` (menu, lobby, settings, appearance, about, radio takeover) over a persistent 3D
+`MenuBackdrop`; the match overlays are `Hud`, `ReadyOverlay`, `PauseOverlay` (a live match without the pointer lock)
+and `MatchEndedOverlay`. Text is laid out like Chrome (`CssTextRun` / `CssLabel` / `CssButton`: fractional letter
+spacing and sizes), 10 locales come from `assets/i18n/*.json`, and the interface follows the Windows display scale
+fullscreen (`DisplayStartup`, `UiScale`).
 
-**Physics — Rapier KinematicCharacterController.** `<Physics paused timeStep={FIXED_DT} interpolate={false}>` in
-`Game` — **paused**: the world is stepped by hand from the tick loop (`match.step`), not by r3f.
-Per player — a `<RigidBody type="kinematicPosition">` **with only a `<CapsuleCollider>`** (physics). **Visuals are
-decoupled from the RigidBody:** `bodyGroup` is NOT placed inside the `<RigidBody>` (otherwise the hitbox gets a
-double transform) — it lives in `match.root` and is positioned from `rb.translation()` in `Player.syncFromBody`.
-Movement is one shared KCC: `Body` accumulates intent (`desired`/`velocityY`), `Match.applyPhysics` (inline in
-`update`) calls `computeColliderMovement` → `setNextKinematicTranslation`. Gravity/jump are computed by us (a
-kinematic body ignores world `gravity`). `RapierBridge` (via `useRapier`) hands `Match` the physics world. Gotcha:
-do **not** enable `enableSnapToGround` (it kills the jump); the arena is static `<CuboidCollider>`s.
+**Radio.** The Strudel engine runs in `radio-host/`'s page, served to a 1×1 off-screen godot_wry WebView from
+`res://localhost/radio_host/` (`WebViewRadioTransport` → `RadioHost`, JSON messages in `RadioProtocol`); the player,
+explorer, code panel, trial and library are native Godot UI (`nodes/radio/`, `sim/radio/`).
 
-**Combat and raycast — on Three.js, not Rapier.** `World.raycast` hits mesh hitboxes with `userData.entityId`;
-`excludeEntityIds` excludes only the shooter itself (`[p.id]`) — **teammate bodies DO block the beam** (that's the
-tactic), but friendly fire deals no harm: the gate is `shooter.team === victim.team` in `resolveHit`/`judgeClaim`,
-not the raycast. The capsule collider is for movement only. Meshes that must not be raycast targets are tagged with
-`userData.noRaycast` at creation time.
-
-**HUD/menus.** The HUD is a React/DOM overlay on `useGameHUD` (a reducer in `App`); `Match` dispatches HUD actions
-to it. Screens are a state machine in `App` (`menu|lobby|game|settings|appearance|about|trailer|radio`) + hash
-routing. The room is **seat-based, always p2p**. The mode (`src/game/modes.ts`) is a **lobby preset** — it fixes the
-seat count (1v1→2, 2v2/ffa→4), the team layout (`teamOfSlot`) and the start gate (`canStartFor`); **the simulation
-itself is always team-based and never branches on the mode**. The seat index IS the player id, and the lobby creator
-always sits in seat 0. Humans take the first free seat via `HELLO → ASSIGN`; there is **NO bot eviction** — the host
-manages seats explicitly (`addBot`/`removeBot`) and a client may move to a free seat via `setSlot` (that's the 2v2
-team change). Entering a match is a phase ritual `ready → countdown → live` (split-screen READY + 3s countdown,
-movement/actions frozen except the camera; bots are auto-ready); the phase is owned by `Match` and stamped by the
-lobby creator. For e2e — ~20 debug globals; the full, authoritative list with signatures is `src/debug-globals.d.ts`
-(don't duplicate it here — it rots).
-
-**Networking — P2P, symmetric full mesh (`src/net/`).** There is no single-player and **no host authority**: every
-peer runs the same `NetSession` and simulates the players it **owns** (itself + its bots). Ownership is the core
-idea — *every fact has exactly one owner*: `Match` gets `owners` (id → peer) + `selfPeer` from the room and derives
-`ownedIds`; absent owners → the local peer owns everyone (bot matches, unit tests).
-
-Each peer broadcasts only its OWN facts: **snapshots** of its owned players (throttled to `NET_SNAPSHOT_HZ`) +
-**events** (`fired/kill/block/respawn/ready/…`). Combat is **shooter-authoritative, victim-judged**: the shooter
-raycasts what it sees and sends a `HitClaim` ADDRESSED to the **victim's owner**, who judges it against the victim's
-real local state (alive / not a ghost / not a teammate / **the shield on the VICTIM'S screen always wins**) and
-broadcasts the verdict. A dropped claim needs no reply — the shooter's predicted kill self-corrects from snapshots
-after `NET_PREDICT_KILL_MS`. Scores, streaks and bounty are **derived locally by every peer** from the same slim
-event stream — there is nothing to desync. The lobby creator is the only arbiter of the phase (`iAmCreator`/
-`creatorPeer`; other peers' phase stamps are dropped).
-
-Layers: `INet` — transport (`TrysteroNet` internet / `SteamNet` Steam relay / `BroadcastChannelNet` tabs+e2e /
-`LagNet` — a lag/jitter wrapper for `?net=bc-lag` / `LoopbackNet` units, N peers via `createLoopbackHub`; chosen by
-`createNet`/`?net`), `protocol.ts` — JSON messages + roster (tags: `hello/assign/start/snapshot/event/ready/phase/
-hit/setSlot`), `RoomSession` — the seat handshake, `NetSession` — the mesh orchestrator (`afterUpdate` per tick).
-The TURN hook is `NET_ICE_SERVERS` (empty = STUN). Gotchas: action names ≤12 bytes; a peer leaving mid-match does
-**not** end it while two teams remain (its bots leave with it).
-
-**Test strategy.** Rapier (WASM) and the r3f renderer don't run in jsdom → **physics/movement/collisions/in-browser
-networking are tested in e2e** (`tests/*.spec.ts`, real Chromium; `multiplayer.spec` — two pages, `mesh.spec` — three,
-over BroadcastChannel). Unit tests (`tests/unit/*.test.ts`) hold the pure logic: classes are constructed directly,
-`Match.applyPhysics` without Rapier is a no-op, and the network layer is tested via `LoopbackNet`
-(`createLoopbackHub` — N peers in-process).
-
-`tests/` has **its own tsconfig** (`tsconfig.test.json`, referenced from `tsconfig.json`), so `tsc -b` type-checks it
-too. Keep it that way: vitest runs through esbuild transpile-only, so a test outside the type-check silently rots —
-that is exactly how tests ended up referencing protocol fields that no longer existed.
+**Steam.** GodotSteam GDExtension behind `SteamApi` / `SteamBridge`: achievements, Steam Cloud profile sync, Rich
+Presence, lobbies and invites, the Radio DLC check.

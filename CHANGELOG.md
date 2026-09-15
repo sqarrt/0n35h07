@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Uploading to Steam works with the Godot build.** `scripts/upload_steam.ps1` publishes `release/windows` to SteamPipe
   with the same options as the web build's uploader (app, depot, branch, login, description), for the main app and
   the Playtest app, and can write the build scripts without uploading (`-DryRun`).
+- **The web version is retired from the repository.** The Godot game has replaced the React/Three.js game, which served as
+  its parity reference; the web code, its tests, browser tooling and the GitHub Pages deploy are gone (the git history
+  keeps them). The radio's engine page, which the game still runs, now lives in its own `radio-host/` package with its
+  tests; CI checks it and that the bundled page is up to date.
 - **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
   original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
   slot no longer takes a pixel, so names, frags and totals sit where the original has them.

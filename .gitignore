@@ -43,9 +43,6 @@ TODO.md
 .superpowers
 .mcp.json
 
-# Map editor per-session backup (autosave artifact — not shipped)
-web-reference/src/maps/*/backup.json
-
 # Steamworks SDK — vendored locally for builds; not redistributable in a public repo (Valve license)
 steamworks_sdk_164/
 

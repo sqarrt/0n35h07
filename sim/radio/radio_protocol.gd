@@ -1,5 +1,5 @@
 class_name RadioProtocol
-## The JSON messages between Godot and the radio host page (web-reference src/radio/host/hostProtocol.ts): the commands
+## The JSON messages between Godot and the radio host page (radio-host/src/radio/host/hostProtocol.ts): the commands
 ## Godot posts — their names and fields exactly as the page parses them — and the events the page posts back.
 
 const CMD := "cmd"

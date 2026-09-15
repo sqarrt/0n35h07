@@ -1,0 +1,60 @@
+{
+  "id": "2026-09-16-port-complete",
+  "title": "OneShot · Порт завершён: web-эталон выведен из репозитория",
+  "date": "2026-09-16",
+  "captures_dir": "test-results",
+  "lede": "Итоговый этап переноса OneShot 2.0.0 с React/Three.js на Godot 4.7. Все подпроекты перенесены и сверены отчётами этапов 2026-09-13…2026-09-16 (ядро симуляции, HUD, скины, звук, меню и экраны, лобби и режимы, i18n, заставка, трейлер, сеть и Steam, радио R1–R5, дробная разрядка, аудиты поведения B1–B4, сборка Windows). Web-игра хранилась в `web-reference/` как эталон паритета; на этом этапе единственный web-код, который игра по-прежнему выполняет, — страница движка радио — вынесен в пакет `radio-host/`, а `web-reference/` удалён из репозитория (история git его сохраняет). Сверки со скриншотами web после этого этапа невозможны — прежние отчёты остаются в `test-results/parity-reports/`.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-16-port-complete.json`. Проверки этапа: GUT `scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit` без `web-reference/` — 966/966; `radio-host`: `npm test` — 27 файлов / 98 тестов, `npm run typecheck` — чисто, `npm run build` — `localhost/radio_host/assets/radio-host-Bg_0ZJ65.js`, `git status` без изменений (бандл побайтно тот же); YAML `ci.yml` / `dependabot.yml` / `bug_report.yml` разобран. Экспорт и запуск сборки — отчёт `2026-09-16-windows-export`; поведение — `2026-09-15-behavior-flows`, `2026-09-16-behavior-radio-volume`.",
+  "pages": [
+    {
+      "slug": "port-complete",
+      "name": "Итог порта",
+      "verdict": "Игра на Godot воспроизводит Steam-версию web-игры: меню и все экраны, лобби Duel / Battle / War с ботами, матч (стрельба, щит, рывок, серии, перегрев, ghost-респаун, ритуал готовности, пауза, итог), P2P-меш через Steam (лобби, быстрый матч, приглашения, предсказание убийства), достижения, облако профиля, Rich Presence, радио с библиотекой и пробным периодом, трейлер, 10 языков, весь экран по масштабу Windows. Собирается в депо Steam (`scripts/export_windows.ps1`), выгружается в SteamPipe (`scripts/upload_steam.ps1`), проверяется CI (GUT + `radio-host`). Web-эталон выведен; документация описывает Godot-проект.",
+      "verdict_short": "Порт завершён, web-эталон выведен",
+      "conditions": [
+        ["эталон", "web-игра 0.x–1.x (`web-reference/`, десктоп / Steam-ветки)", "Godot 4.7.1, `release_2.0.0`"],
+        ["перенесено без Godot-аналога", "страница движка радио (Strudel)", "`radio-host/` → `localhost/radio_host/` в WebView"],
+        ["не переносилось", "браузерная сборка (вход по коду, Trystero/WebRTC, реле, F11-подсказка), редактор карт (dev), F9-запись демо (dev), замороженная страница трейлера", "только Steam-версия"]
+      ],
+      "comparisons": [
+        {
+          "title": "Собранная игра: меню и радио",
+          "panels": [
+            {"kind": "godot", "img": "probes/launch_export_radio.png", "note": "0N35H07.exe из release/windows, радио играет"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "P1", "severity": "fixed",
+          "title": "Страница радио вынесена из web-эталона",
+          "web": "Бандл радио собирался `web-reference/vite.radio-host.config.ts` из `web-reference/src/radio`.",
+          "godot": "`radio-host/`: 49 файлов замыкания импортов (`src/radio` app / host / music, `public/radio` банки) перенесены `git mv` с путями, 27 тестов со снапшотом, свой `package.json` с версиями из web-lock (@strudel/web 1.3.0, vite 8.0.14, vitest 4.1.7, typescript 6.0.3); сборка даёт побайтно тот же бандл.",
+          "evidence": ["test", "runtime"],
+          "sources": ["radio-host/package.json", "radio-host/vite.config.ts", "localhost/radio_host/index.html"]
+        },
+        {
+          "id": "P2", "severity": "fixed",
+          "title": "web-reference удалён, инфраструктура на Godot",
+          "web": "`web-reference/` (554 файла), CI npm-задания, деплой GitHub Pages, Dependabot на npm web, README / CONTRIBUTING / CREDITS / CLAUDE.md о React-стеке.",
+          "godot": "Папка удалена; CI — GUT + `radio-host` (типы, тесты, актуальность бандла); Pages-деплой и конвертер web-аудио удалены; Dependabot — `/radio-host`; `report.py` берёт шрифты из `assets/fonts`; документация и шаблоны issue / PR — про Godot.",
+          "evidence": ["test", "code"],
+          "sources": [".github/workflows/ci.yml", ".github/dependabot.yml", "CLAUDE.md", "README.md", "CONTRIBUTING.md", "CREDITS.md", "tools/parity/report.py"]
+        },
+        {
+          "id": "P3", "severity": "visual",
+          "title": "Известные пиксельные остатки",
+          "web": "Растеризация текста DirectWrite (хинтинг, размер растра, яркость штриха), дробные позиции отдельных текстов.",
+          "godot": "Раскладка и места букв совпадают; на дробных размерах верх заглавных может отличаться на ряд пикселей, штрих мелкого текста тоньше. По решению пользователя (поведение важнее пикселей) не доводится.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        }
+      ],
+      "limitations": [
+        "Живой матч между двумя ПК через Steam после финальных слайсов не прогонялся: сеть проверена юнит-тестами на LoopbackNet и фейковом Steam, транспорт — ранним живым прогоном.",
+        "Выгрузка в SteamPipe выполнялась только в режиме -DryRun (нужны учётные данные Steam); CI GitHub Actions локально не запускался — шаги повторены вручную (GUT через GODOT_BIN, npm в radio-host).",
+        "После удаления web-reference новые сверки со скриншотами web невозможны; при необходимости эталон восстанавливается из истории git (коммит перед удалением)."
+      ]
+    }
+  ]
+}

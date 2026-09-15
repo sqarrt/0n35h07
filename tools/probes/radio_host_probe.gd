@@ -1,6 +1,6 @@
 extends SceneTree
 ## Probe (2026-09-15): the radio bridge end to end — WebViewRadioTransport loads the built host
-## (res://localhost/radio_host/, web-reference vite.radio-host.config.ts), RadioHost queues `init` until the page is
+## (res://localhost/radio_host/, built by radio-host/vite.config.ts), RadioHost queues `init` until the page is
 ## ready and resumes once the engine is — does Strudel warm up, does a track start and run, does the meter move?
 ## Nearly silent (volume 0.001). Writes the raw events to test-results/probes/radio_host/events.json and a summary.
 ##   Godot.exe --path . --resolution 640x360 -s tools/probes/radio_host_probe.gd

@@ -21,8 +21,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 STAMP_FORMAT = "%Y%m%d-%H%M%S"
 OUT_ROOT = REPO / "test-results" / "parity-reports"
-FONT_LATIN = REPO / "web-reference/node_modules/@fontsource/share-tech-mono/files/share-tech-mono-latin-400-normal.woff2"
-FONT_CYRILLIC = REPO / "web-reference/src/ui/fonts/share-tech-mono-cyrillic.ttf"
+FONT_LATIN = REPO / "assets/fonts/share-tech-mono-latin-400-normal.woff2"
+FONT_CYRILLIC = REPO / "assets/fonts/share-tech-mono-cyrillic.ttf"
 BODY_FONT_URL = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap"
 CYRILLIC_RANGE = "U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116"
 

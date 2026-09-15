@@ -1,4 +1,4 @@
-# Upload the exported depot to SteamPipe through steamcmd — port of web-reference scripts/upload-steam.mjs. The same build
+# Upload the exported depot to SteamPipe through steamcmd — port of the web build's scripts/upload-steam.mjs. The same build
 # can go to the main app and to the Playtest app.
 #
 #   ./scripts/export_windows.ps1                                        # produce release/windows first
