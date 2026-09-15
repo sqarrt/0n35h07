@@ -66,6 +66,8 @@ var profile_saving := true                    # parity captures edit an in-memor
 var _radio_open := false                      # web screen === 'radio': the takeover instead of the panel
 var _code_panel: RadioCodePanel = null        # the PROGRAM window while the Radio screen is up
 var _code_minimized := false                  # web radioCodeOpen (App state): kept between visits
+var radio_library: RadioLibrary = null        # the LIBRARY folder (tests and parity captures seed their own)
+var _explorer: RadioExplorer = null           # the LIBRARY window while the Radio screen is up
 var _screen: Control                          # the open SETTINGS / ABOUT / APPEARANCE screen
 var _panel_base_x := 0.0
 var _panel_slide := 0.0
@@ -184,6 +186,8 @@ func _on_locale_changed(locale: String) -> void:
 	_radio_player.relabel()
 	if _code_panel != null:
 		_code_panel.relabel()
+	if _explorer != null:
+		_explorer.relabel()
 	_layout()
 	get_viewport().update_mouse_cursor_state()   # the new tile under the pointer takes the hover look
 
@@ -562,6 +566,7 @@ func open_radio() -> void:
 	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
 	_backdrop.radio_mode = true
 	_radio_player.set_expanded(true)
+	_open_explorer()
 	_open_code_panel()
 	screen_requested.emit(SCREEN_RADIO)
 	_on_radio_changed()
@@ -578,6 +583,8 @@ func close_radio() -> void:
 	_radio_player.show_code_bar(false)
 	_code_panel.queue_free()
 	_code_panel = null
+	_explorer.queue_free()
+	_explorer = null
 	_backdrop.radio_mode = false
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
@@ -588,6 +595,21 @@ func is_radio_open() -> bool:
 
 func code_panel() -> RadioCodePanel:
 	return _code_panel
+
+func explorer() -> RadioExplorer:
+	return _explorer
+
+## web RadioExplorer on the Radio screen: under the PROGRAM window and the player (App renders it before both), placed
+## for this screen. Its minimize hides it; the LIBRARY bar that brings it back comes with the library playback.
+func _open_explorer() -> void:
+	if radio_library == null:
+		radio_library = RadioLibrary.new()
+	radio_library.ensure_root()                  # web RadioLibrary.init: the folder exists before the first listing
+	_explorer = RadioExplorer.new()
+	add_child(_explorer)
+	move_child(_explorer, _radio_player.get_index())
+	_explorer.open_on(radio_library, size)
+	_explorer.minimize_requested.connect(func() -> void: _explorer.visible = false)
 
 ## web RadioCodePanel on the Radio screen: under the player, placed for this screen, minimized if it was left so.
 func _open_code_panel() -> void:

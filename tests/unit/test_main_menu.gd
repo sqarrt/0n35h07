@@ -6,12 +6,17 @@ extends GutTest
 const EPS := 0.01
 const SCREEN := Vector2i(1280, 720)
 const BUTTON_STEP := 56.8          # 44 px buttons with 6.4 px margins that don't collapse
+const TEST_LIBRARY := "user://test_main_menu_radio"   # the Radio screen's LIBRARY, out of the real app data
+
+func after_all() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_LIBRARY))
 
 func _menu() -> MainMenu:
 	var viewport := SubViewport.new()
 	viewport.size = SCREEN
 	add_child_autofree(viewport)
 	var menu := (load("res://scenes/main_menu.tscn") as PackedScene).instantiate() as MainMenu
+	menu.radio_library = RadioLibrary.new(TEST_LIBRARY)
 	viewport.add_child(menu)
 	await wait_process_frames(3)
 	return menu
@@ -204,6 +209,19 @@ func test_the_program_window_comes_with_the_radio_and_minimizes_to_the_bar() -> 
 	menu.radio_player().code_bar_pressed.emit()
 	assert_true(menu.code_panel().visible)
 	assert_false(menu.radio_player().code_bar().visible)
+
+func test_the_library_window_comes_with_the_radio_under_the_program_window() -> void:
+	var menu := await _menu()
+	menu.open_radio()
+	var explorer := menu.explorer()
+	assert_not_null(explorer)
+	assert_lt(explorer.get_index(), menu.code_panel().get_index(), "web App renders RadioExplorer before RadioCodePanel")
+	assert_eq(explorer.geometry(), RadioExplorer.initial_geometry(Vector2(SCREEN)))
+	assert_eq(explorer.address_text().get_file(), TEST_LIBRARY.get_file(), "the injected library's folder")
+	explorer.minimize_requested.emit()
+	assert_false(explorer.visible)
+	menu.close_radio()
+	assert_null(menu.explorer())
 
 func test_the_volume_is_the_profiles_radio_level() -> void:
 	var menu := await _menu()

@@ -159,6 +159,12 @@ const RADIO_VOLUME_KEY := "volumeRadio"    # web profile.volumeRadio (Audio's ke
 const MODE_RADIO_GLOW := "radio-glow-"     # radio-glow-menu / -radio: the backdrop's bloom, pinned, the UI hidden
 const RADIO_GLOW_RADIO := "radio"
 const RADIO_GLOW_UI := ["Panel", "PanelBlur", "Version", "RadioPlayer", "RadioCode"]
+const MODE_RADIO_LIBRARY := "radio-library-"   # radio-library-root / -sel / -folder: the LIBRARY window
+const RADIO_LIBRARY_ROOT := "user://parity_radio_library"   # emptied and seeded like the web's in-memory folder
+const RADIO_LIBRARY_SELECTED := "Twin.json"    # web: the click on [data-path="Twin.json"]
+const RADIO_LIBRARY_FOLDER := "Night Drive"    # web: the double click on [data-path="Night Drive"]
+const RADIO_LIBRARY_SELECT := "sel"
+const RADIO_LIBRARY_OPEN := "folder"
 const MODE_RADIO_CODE := "radio-code-"     # radio-code-open / -copied / -min / -max: the PROGRAM window
 const RADIO_CODE_FIXTURE := "web-radio-code%s.json"
 const RADIO_CODE_STATES := {"open": "open", "copied": "copied", "min": "minimized", "max": "maximized"}
@@ -541,6 +547,27 @@ func _apply_hud_fixture() -> int:
 			if ui != null:
 				ui.visible = false
 		return STAGE_FRAMES
+	if _mode.begins_with(MODE_RADIO_LIBRARY):
+		# web parity-capture-radio-library.mjs: the LIBRARY window over the seeded library — its root, a track selected, a folder
+		var library_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
+		(library_menu.find_child("Backdrop", true, false) as CanvasItem).visible = false
+		root.get_node("Game").profile[RADIO_VOLUME_KEY] = RADIO_VOLUME   # web VOL_DEFAULT.radio under the player
+		var seeded := RadioLibrary.new(RADIO_LIBRARY_ROOT)
+		RadioLibrarySeed.seed(seeded)
+		library_menu.set("radio_library", seeded)
+		library_menu.call("open_radio")
+		var library_player := library_menu.find_child("RadioPlayer", true, false) as RadioPlayer
+		library_player.set_expanded(true, false)
+		library_player.show_state(RadioModel.NO_TRACK, true, false)
+		var explorer := library_menu.call("explorer") as RadioExplorer
+		explorer.display_root = RadioLibrarySeed.DISPLAY_ROOT
+		explorer.refresh()
+		match _mode.trim_prefix(MODE_RADIO_LIBRARY):
+			RADIO_LIBRARY_SELECT:
+				explorer.select(RADIO_LIBRARY_SELECTED)
+			RADIO_LIBRARY_OPEN:
+				explorer.navigate_into(RADIO_LIBRARY_FOLDER)
+		return SCREEN_FRAMES
 	if _mode.begins_with(MODE_RADIO_CODE):
 		# web parity-capture-radio-code.mjs: the PROGRAM window with the web's program — open, copied, minimized, maximized
 		var code_menu: Node = root.find_children("*", "MainMenu", true, false)[0]
