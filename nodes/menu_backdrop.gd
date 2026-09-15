@@ -31,6 +31,7 @@ class StageEntry:
 
 var rig: MenuCameraRig
 var glow_muted := false                             # web glowMuted: the appearance screen silences the edge glow
+var radio_mode := false                             # web radioMode / softBloom: the Radio screen's frosted takeover
 
 var _viewport: SubViewport
 var _camera: Camera3D
@@ -40,6 +41,7 @@ var _view: TextureRect
 var _composite: ShaderMaterial
 var _glow: MenuEdgeGlow
 var _glow_level := MenuGlowLevel.new()
+var _soft_bloom := RadioSoftBloom.new()
 var _entries := {}                                  # key -> StageEntry
 var _warm_frames := 0
 var _light_angle := 0.0
@@ -245,17 +247,23 @@ func _process(delta: float) -> void:
 ## web MenuEdgeGlow useFrame: the level from the sound (muted with the profile's menu glow off) drives the edge
 ## intensity; the post chain renders only while that is visible.
 func _step_glow(delta: float) -> void:
-	var level := _glow_input if _glow_input_pinned else Audio.analysis.level()
-	_glow_level.step(delta, level, glow_muted or not bool(Game.profile.get(PROFILE_MENU_GLOW, true)))
-	# the web composer blooms whatever is HDR-bright even in silence: the appearance previews' beams need the chain
-	# the web composer blooms whatever is HDR-bright even in silence: the appearance previews' beams need the chain
-	var lit := _glow_level.is_lit() or _preview != null
+	# web App: the analysis reaches the backdrop with the profile's menu glow on or on the Radio screen, else it is muted
+	var heard := radio_mode or bool(Game.profile.get(PROFILE_MENU_GLOW, true))
+	var level := _glow_input if _glow_input_pinned else (Audio.analysis.level() if heard else 0.0)
+	_glow_level.step(delta, level, glow_muted or not heard)
+	_soft_bloom.step(delta, level, radio_mode)
+	# the web composer blooms whatever is HDR-bright even in silence: the appearance previews' beams need the chain,
+	# and the Radio screen's frosted bloom takes the whole scene
+	var lit := _glow_level.is_lit() or _preview != null or _soft_bloom.is_visible()
 	if lit != _glow.is_lit():
 		_glow.set_lit(lit)
 		_composite.set_shader_parameter("lit", lit)
 	if lit:
 		_glow.sync_models()
-	_glow.set_intensity(_glow_level.intensity())
+	_glow.set_intensity(_glow_level.intensity() * RadioSoftBloom.edge_boost(radio_mode))
+	_glow.bloom().set_threshold(_soft_bloom.threshold())
+	_glow.bloom().set_radius(_soft_bloom.radius())
+	_composite.set_shader_parameter("bloom_intensity", _soft_bloom.intensity())
 
 func _add_view() -> void:
 	_view = TextureRect.new()

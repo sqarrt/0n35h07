@@ -12,6 +12,7 @@ signal changed
 const KEY_ENABLED := "radioEnabled"
 const SCREEN_MENU := "menu"
 const EDITOR_FEATURE := "editor"                # web import.meta.env.DEV: a run from the editor is unlimited
+const LEVEL_SCALE := 12.0                       # web RADIO_LEVEL_SCALE: the normalised meter at the menu music's size
 
 var model := RadioModel.new()
 var host: RadioHost = null
@@ -24,6 +25,7 @@ var _warmed := false
 var _was_ready := false
 var _screen := SCREEN_MENU
 var _can_generate := true                       # the page's gate starts open
+var _meter_reader := Callable()
 
 func _ready() -> void:
 	model.changed.connect(_on_model_changed)
@@ -41,6 +43,9 @@ func attach_host(radio_host: RadioHost) -> void:
 	host = radio_host
 	model.bind(host)
 	host.generated.connect(_on_generated)
+	var meter := model                          # web: the radio's level joins the menu's audio analysis
+	_meter_reader = func() -> float: return meter.meter_level * LEVEL_SCALE
+	Audio.analysis.add_level_reader(_meter_reader)
 
 func is_available() -> bool:
 	return host != null
@@ -118,6 +123,8 @@ func open_store() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and rights != null:
 		recheck_dlc()
+	elif what == NOTIFICATION_PREDELETE and _meter_reader.is_valid():
+		Audio.analysis.remove_level_reader(_meter_reader)
 
 func _on_generated() -> void:
 	rights.note_generated(Game.profile, today.call())

@@ -1,0 +1,89 @@
+{
+  "id": "2026-09-15-radio-glow",
+  "title": "OneShot · радио R3c1: матовое свечение экрана радио",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Первая часть слайса R3c (takeover экрана радио). На экране радио фон меню превращается в «матовое стекло»: единственный bloom фона за ~0.2 с переходит к порогу 0 и широкому радиусу — светится вся сцена, у дымки есть база 0.35 даже в тишине, с громкостью радио она растёт, края шара светятся в 1.8 раза ярче, и свечение не глушится выключенной настройкой «свечение в меню». Уровень радио (метр страницы движка, ×12) теперь попадает в общий анализ звука — шары в меню светятся под радио на всех экранах. Сверка — кадрами фона без интерфейса с закреплённым светом, временем шара и уровнем, в окне 1280×720 и на весь экран 3840×2160. Бит-часы, панч камеры и дождь эмодзи — вторая часть (R3c2).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-glow.json`. Web: `web-reference/scripts/parity-capture-radio-glow.mjs` (`__debugMenuLightAngle` 0, `__debugMenuGlowLevel` 0, `__debugMenuBallTime` 1, `__debugAudioBands` — тишина, чтобы музыка меню не запускала биты; весь DOM над холстом скрыт; `PARITY_FULLSCREEN=1` — весь экран) → `test-results/parity-radio-glow/web-radio-glow-<menu|radio>[-fs].png`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-glow/godot-radio-glow-<menu|radio>[-fs].png 180 locale-en:profile:radio-glow-<menu|radio>`. Тесты GUT: `test_radio_soft_bloom`, `test_menu_backdrop`, `test_menu_edge_glow`, `test_main_menu`, `test_radio_autoload`, `test_radio_model`.",
+  "pages": [
+    {
+      "slug": "radio-glow",
+      "name": "Матовое свечение",
+      "verdict": "Фон совпадает с web на экране радио и в меню: весь кадр 0.06/255 (радио) и 0.04 (меню) в окне, 0.03 и 0.03 на весь экран; область шара 0.09 и 0.08. Дымка отличает кадр радио от кадра меню на 9.99/255 в web и на 10.02 в Godot — морф bloom воспроизведён, а не совпадение пустых кадров.",
+      "verdict_short": "Матовое свечение 1:1 (0.03–0.09/255)",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["закрепления", "свет 0, уровень свечения 0, время шара 1 с, тихий спектр", "`set_light_angle(0)`, `pin_glow_level(0)`, `pin_ball_time(1)`"],
+        ["профиль", "PARITY7 (#fa4), en, радио выключено", "`profile:` — PARITY7, `locale-en:`"],
+        ["экран радио", "клик по имени в мини-плеере, 2 с на монтирование и морф", "`open_radio()`, кадр 180"],
+        ["интерфейс", "весь DOM, не содержащий холст, скрыт", "панель, размытие, чип версии, плеер и окно кода скрыты"]
+      ],
+      "comparisons": [
+        {
+          "title": "Экран радио, окно",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-glow-report/web-radio.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-glow-report/godot-radio.png", "note": "0.06/255"}
+          ]
+        },
+        {
+          "title": "Меню, окно (для сравнения: без дымки)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-glow-report/web-menu.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-glow-report/godot-menu.png", "note": "0.04/255"}
+          ]
+        },
+        {
+          "title": "Экран радио, весь экран (левый верх 1280×720)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-glow-report/web-radio-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-glow-report/godot-radio-fs.png", "note": "0.03/255 по всему кадру"}
+          ]
+        },
+        {
+          "title": "Меню, весь экран (левый верх 1280×720)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-glow-report/web-menu-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-glow-report/godot-menu-fs.png", "note": "0.03/255 по всему кадру"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R3c1-1", "severity": "fixed",
+          "title": "Морф bloom на экране радио",
+          "web": "`MenuEdgeGlow softBloom`: порог 1.1 → 0, радиус 0.55 → 0.95, интенсивность 1.5 → 0.35 + 1.4·√(1.6·level) с экспонентой τ 0.06 с; края ×1.8; композер монтируется через 600 мс.",
+          "godot": "`RadioSoftBloom` считает морф, `MenuBackdrop` ставит порог и радиус в `BloomChain` (`set_threshold` / `set_radius`) и интенсивность в композит; цепочка рендерится, пока дымка видна, даже без свечения краёв.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["sim/radio/radio_soft_bloom.gd", "nodes/menu_backdrop.gd", "nodes/bloom_chain.gd", "tests/unit/test_radio_soft_bloom.gd"]
+        },
+        {
+          "id": "R3c1-2", "severity": "fixed",
+          "title": "Звук радио в анализе меню",
+          "web": "App: `audioAnalysis.addReader(() => radioEngine.readLevel() * 12)` пока есть движок — шары светятся под радио на любом экране меню; на экране радио анализ передаётся фону и при выключенной настройке свечения.",
+          "godot": "`AudioAnalysisHub.add_level_reader`; `Radio` регистрирует метр страницы (`RadioModel.meter_level` × 12) и снимает его при удалении; `MenuBackdrop.radio_mode` не глушит свечение.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/audio_analysis_hub.gd", "autoloads/radio.gd", "sim/radio/radio_model.gd", "nodes/main_menu.gd"]
+        },
+        {
+          "id": "R3c1-3", "severity": "missing",
+          "title": "Бит-часы, камера, дождь эмодзи",
+          "web": "`RadioTakeover`: сетка темпа с фазовой подстройкой по низким полосам, панч и дрожь камеры на бит, эмодзи Twemoji по настроению трека.",
+          "godot": "Вторая часть слайса (R3c2).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/radioTakeover/RadioTakeover.tsx"]
+        }
+      ],
+      "limitations": [
+        "Кадры сняты с закреплённым уровнем 0: реакция дымки на громкость проверена тестом (формула web), а не кадром.",
+        "Переход меню → радио (0.2 с) кадрами не сравнивался — только установившийся вид.",
+        "Реальный звук радио в кадр не попадал: радио выключено, спектр тихий."
+      ]
+    }
+  ]
+}

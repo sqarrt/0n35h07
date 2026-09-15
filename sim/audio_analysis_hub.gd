@@ -4,6 +4,7 @@ class_name AudioAnalysisHub extends RefCounted
 ## A capture is duck-typed: get_frames_available() -> int, get_buffer(frames) -> PackedVector2Array.
 
 var _sources := []                       # [{"capture", "analyser"}]
+var _readers: Array[Callable] = []       # level sources without a bus (web addReader: the radio page's meter)
 var _bands := PackedFloat32Array()
 var _level := 0.0
 
@@ -21,6 +22,14 @@ func remove_capture(capture) -> void:
 func source_count() -> int:
 	return _sources.size()
 
+## A level read each update (0..1 after its own scaling) that joins the loudest-source maximum.
+func add_level_reader(reader: Callable) -> void:
+	if not _readers.has(reader):
+		_readers.append(reader)
+
+func remove_level_reader(reader: Callable) -> void:
+	_readers.erase(reader)
+
 ## Drain every capture and take one analyser read per source (web AudioBar reads once per animation frame).
 func update() -> void:
 	_bands.fill(0.0)
@@ -33,6 +42,8 @@ func update() -> void:
 			analyser.push_frames(capture.get_buffer(available))
 		AudioAnalyser.fill_bands(analyser.frequency_bytes(), _bands)
 		_level = maxf(_level, analyser.level())
+	for reader in _readers:
+		_level = maxf(_level, float(reader.call()))
 
 func bands() -> PackedFloat32Array:
 	return _bands

@@ -179,9 +179,14 @@ Chrome на Windows берёт у системных фолбэков OS/2 win/t
 Blink `assets/text/chrome_line_breaks.json` — 816/816 строк как у Chrome; тонкая полоса 10 px; свечение через
 `CssGlow`, вынесенный из `GlowText`), полоса PROGRAM над плеером (`show_code_bar`). Кадры
 `locale-en:radio-code-<open|copied|min|max>`, web `parity-capture-radio-code.mjs` (`showScrollbars`). Отчёт
-`2026-09-15-radio-code-*`: хром 0.4–1.7/255, код 6–13 (мягче растеризация мелкого текста). GUT 879/879. **Дальше:**
-(1) R3c takeover (бит-часы, камера, дождь эмодзи, мягкое свечение), R4 библиотека (лимит сохранений `note_saved`,
-полоса LIBRARY), R5 матч/свечение; (1б) хинтинг мелкого текста (CssTextRun мягче DirectWrite на 11–12 px); (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
+`2026-09-15-radio-code-*`: хром 0.4–1.7/255, код 6–13 (мягче растеризация мелкого текста). GUT 879/879.
+**R3c1 смержен** (`feature/godot-radio-takeover`): матовое свечение экрана радио — `RadioSoftBloom` (морф bloom:
+порог 0, радиус 0.95, 0.35 + 1.4·√(1.6·level), края ×1.8), `MenuBackdrop.radio_mode`, `BloomChain.set_threshold/
+set_radius`; метр радио ×12 в `AudioAnalysisHub.add_level_reader`. Кадры `locale-en:profile:radio-glow-<menu|radio>`,
+web `parity-capture-radio-glow.mjs` (закрепления + тихий `__debugAudioBands`). Отчёт `2026-09-15-radio-glow-*`:
+0.03–0.09/255. GUT 885/885. **Дальше:** (1) R3c2 бит-часы, панч камеры, дождь эмодзи (Twemoji Mozilla из
+`web-reference/public/fonts`), R4 библиотека (лимит сохранений `note_saved`, полоса LIBRARY), R5 матч/свечение;
+(1б) хинтинг мелкого текста (CssTextRun мягче DirectWrite на 11–12 px); (2) хвост разрядки — трейлер, заставка, тост (`RichTextLabel`), поля ввода. **Переносим только Steam-версию** (десктоп, `IS_DESKTOP`): браузерные non-steam фичи не нужны.
 Эталон web для экранов — десктопная сборка: заглушка `__TAURI_INTERNALS__` (см. `parity-capture-settings.mjs`).
 Спека лобби: `docs/superpowers/specs/2026-09-14-godot-lobby-design.md`.
 

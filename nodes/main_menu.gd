@@ -558,6 +558,7 @@ func open_radio() -> void:
 	_panel_blur.visible = false
 	_set_ball_hidden(false)   # web: re-entering the radio shows the ball again
 	_backdrop.set_screen(MenuCameraRig.SCREEN_SETTINGS)
+	_backdrop.radio_mode = true
 	_radio_player.set_expanded(true)
 	_open_code_panel()
 	screen_requested.emit(SCREEN_RADIO)
@@ -575,6 +576,7 @@ func close_radio() -> void:
 	_radio_player.show_code_bar(false)
 	_code_panel.queue_free()
 	_code_panel = null
+	_backdrop.radio_mode = false
 	_backdrop.set_screen(MenuCameraRig.SCREEN_MENU)
 	_backdrop.set_balls(MenuStage.balls(MenuCameraRig.SCREEN_MENU, MenuStage.profile_spec(Game.profile), [], 0))
 	_on_radio_changed()
