@@ -14,7 +14,7 @@ func _toast() -> InviteToast:
 	holder.size = Vector2(SCREEN)
 	viewport.add_child(holder)
 	var toast := InviteToast.new()
-	toast.show_invite("PARITY7", "300", "555")
+	toast.show_invite("alice", "300", "555")   # the web capture's invite
 	holder.add_child(toast)
 	await wait_process_frames(2)
 	return toast
@@ -40,9 +40,10 @@ func test_starts_hidden_to_the_right() -> void:
 
 func test_texts_and_answers() -> void:
 	var toast := await _toast()
-	var title := toast.find_child("Title", true, false) as RichTextLabel
-	assert_eq(title.get_parsed_text(), "PARITY7 invites you to a game")
-	assert_eq(title.get_line_count(), 1, "one line in 208 px, like Chrome")
+	assert_eq(toast.title_text(), "alice invites you to a game")
+	assert_eq(Array(toast.title_lines()), ["alice invites you to a game"], "web toastTitle: one 18.75 px line in 208 px")
+	var title := toast.find_child("Title", true, false) as Control
+	assert_almost_eq(title.size.y, 18.75, EPS, "a 1.5 line box of 12.5 px")
 	var accept := toast.find_child("Accept", true, false) as UiButton
 	var decline := toast.find_child("Decline", true, false) as UiButton
 	assert_eq([accept.text, decline.text], ["Accept", "Decline"])
@@ -57,10 +58,12 @@ func test_texts_and_answers() -> void:
 func test_a_newer_invite_replaces_the_text() -> void:
 	var toast := await _toast()
 	toast.show_invite("OTHER", "301", "556")
-	assert_eq((toast.find_child("Title", true, false) as RichTextLabel).get_parsed_text(), "OTHER invites you to a game")
+	assert_eq(toast.title_text(), "OTHER invites you to a game")
 	watch_signals(toast)
 	(toast.find_child("Accept", true, false) as UiButton).pressed.emit()
 	assert_signal_emitted_with_parameters(toast, "accepted", ["556"])
+	toast.show_invite("A VERY LONG STEAM NICKNAME", "302", "557")
+	assert_gt(toast.title_lines().size(), 1, "a long name wraps like Chrome")
 
 func test_the_pressed_box_moves_down_one_pixel() -> void:
 	var toast := await _toast()
