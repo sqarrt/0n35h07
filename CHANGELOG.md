@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The game builds for Windows in the Steam depot layout.** `scripts/export_windows.ps1` exports `0N35H07.exe` with
   its pack, the Steam and WebView libraries and the radio page into `release/windows`; the window and the executable
   carry the original's icon instead of Godot's.
+- **CI checks the Godot game.** The CI workflow runs the GUT suite on Godot 4.7.1 (Linux, headless) and runs the web
+  reference's lint, types, unit tests and build inside `web-reference/`; the Pages deploy and Dependabot follow the web
+  reference there.
 - **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
   original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
   slot no longer takes a pixel, so names, frags and totals sit where the original has them.

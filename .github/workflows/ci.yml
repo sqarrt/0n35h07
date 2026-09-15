@@ -14,12 +14,55 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GODOT_VERSION: 4.7.1-stable
+
 jobs:
-  # Fast, deterministic gate — this is the job to require in branch protection.
-  check:
-    name: lint · types · unit · build
+  # The game: Godot 4.7 — the GUT unit suite, headless (the gate to require in branch protection).
+  godot:
+    name: godot · GUT
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Point scripts/godot.sh at it
+        run: echo "GODOT_BIN=$HOME/godot/godot" >> "$GITHUB_ENV"
+
+      # godot_wry's Linux library links WebKitGTK 4.1 (GTK 3 comes with it); GodotSteam ships its libsteam_api.so.
+      - name: Install extension libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0
+
+      - name: Import the project
+        run: scripts/godot.sh --headless --path . --import
+
+      - name: Unit tests (GUT)
+        run: scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit
+
+  # The web reference (web-reference/, the parity oracle kept until the rewrite replaces it): lint, types, unit, build.
+  web:
+    name: web-reference · lint · types · unit · build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web-reference
     steps:
       - uses: actions/checkout@v4
 
@@ -27,6 +70,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: web-reference/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -43,15 +87,17 @@ jobs:
       - name: Build (app + trailer)
         run: npm run build
 
-  # Browser e2e (WebGL + Rapier). On free runners WebGL is software-rendered (SwiftShader) and slow,
-  # so this runs with 1 worker and generous timeouts (see playwright.config.ts, gated by $CI).
-  # Kept non-blocking (continue-on-error) so a slow/flaky runner doesn't red the whole CI; once it's
-  # proven stable here, drop continue-on-error to make it a required gate.
+  # Browser e2e of the web reference (WebGL + Rapier). On free runners WebGL is software-rendered (SwiftShader) and
+  # slow, so this runs with 1 worker and generous timeouts (see web-reference/playwright.config.ts, gated by $CI).
+  # Non-blocking (continue-on-error) so a slow/flaky runner doesn't red the whole CI.
   e2e:
-    name: e2e (headless)
+    name: web-reference · e2e (headless)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     continue-on-error: true
+    defaults:
+      run:
+        working-directory: web-reference
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +105,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: web-reference/package-lock.json
 
       - name: Install dependencies
         run: npm ci
