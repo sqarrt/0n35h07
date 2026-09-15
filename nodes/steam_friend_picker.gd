@@ -241,6 +241,7 @@ func _search_box() -> LineEdit:
 	_search.add_theme_color_override("font_placeholder_color", UiTokens.MUTED)
 	_search.add_theme_stylebox_override("normal", _input_box(UiTokens.LINE, 1))
 	_search.add_theme_stylebox_override("focus", _input_box(UiTokens.ACCENT, 2))   # border + 1 px inset ring
+	CssFieldText.attach(_search, INPUT_FONT, INPUT_SPACING_EM)   # the query at Chrome's fractional letter spacing
 	_search.text_changed.connect(func(_text: String) -> void: _rebuild())
 	return _search
 

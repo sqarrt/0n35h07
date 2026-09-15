@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   and the HUD look the same fullscreen as in a small window; 3D backdrops and streak text render at full resolution.
 - **Letters sit where the original puts them.** Labels and buttons on the menu, settings, about and lobby screens,
   the pause menu, the match-end screen and the ready ritual (names, statuses, hint and controls legend), the glowing
-  logo and mode names, and the HUD's names, timer, streak banner and stats overlay were drawn
+  logo and mode names, the HUD's names, timer, streak banner and stats overlay, the warning splash, the trailer's
+  text cuts, title and SKIP, the Steam invite toast and the text inside input fields (the settings name, the friend
+  search, a seated bot's name) were drawn
   with whole-pixel letter spacing and font sizes, so words came out a few pixels too wide or narrow; every letter now
   lands at the original's fractional position, bold text thickens evenly and centred text keeps its exact place, in a
   window and fullscreen.

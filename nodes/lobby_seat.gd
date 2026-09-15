@@ -411,6 +411,7 @@ func _name_field(entry: Dictionary) -> LineEdit:
 	field.add_theme_color_override("font_placeholder_color", UiTokens.MUTED)
 	for state in ["normal", "focus", "read_only"]:
 		field.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+	CssFieldText.attach(field, NICK_FONT_SIZE, NICK_SPACING_EM)   # the name at Chrome's fractional letter spacing
 	# web .lobby-nick--edit asks for an underline, but Chrome draws no text-decoration inside an <input>
 	field.text_changed.connect(func(value: String) -> void: bot_renamed.emit(slot, value))
 	return field
