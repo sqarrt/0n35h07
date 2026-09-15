@@ -5,8 +5,10 @@ class_name RadioExplorer extends RadioWindow
 ## nowhere to go, home lit in the accent fill with a 12 px glow), the address bar (the folder's OS path, clicked to copy),
 ## the grid of folders then tracks (104 px cells 8 px apart, rows 18 px apart, inside 18 / 16 px of padding) and the
 ## status bar (the counts, and the visualizer's mode pill). A click selects (Ctrl toggles, Shift takes the range), a
-## double click opens a folder or plays the folder's tracks from that one. Context menu, rename, drag and drop and the
-## visualizer come with the next slice.
+## double click opens a folder or plays the folder's tracks from that one. A right click opens the context menu — on an
+## item (selecting it first) or on the window (clearing the selection) — whose actions also answer F2 (rename in place),
+## Del, Ctrl+C and Ctrl+V while the window shows and no name is being edited. Drag and drop and the visualizer come
+## with the next slice.
 
 signal play_requested(queue: Array, start_index: int)
 
@@ -18,6 +20,7 @@ const TITLE_KEY := "radioLibrary"
 const ITEMS_KEY := "radioItems"
 const FOLDERS_KEY := "radioFolders"
 const HOME_KEY := "radioHome"
+const NEW_FOLDER_KEY := "radioCtxNewFolder"      # web lib.makeFolder(path, t.radioCtxNewFolder)
 const STATUS_FORMAT := "%d %s · %d %s"
 const SELECTED_FORMAT := " · %d ✓"
 const TOOLS_PADDING := 8.0
@@ -44,6 +47,17 @@ const FIELD_PADDING_X := 9.0
 const FIELD_PX := 12.0
 const FIELD_FILL := Color(5.0 / 255.0, 8.0 / 255.0, 13.0 / 255.0, 0.7)
 const FIELD_RADIUS := 3
+const FIELD_HOVER_TEXT := Color("#eeeeff")
+const COPIED_S := 1.1                           # web: the ✓ flash after the path is copied
+const COPIED_GLYPH := "✓"
+const COPIED_PX := 13.0
+const COPIED_RIGHT := 14.0
+const COPIED_FAMILIES := ["Segoe UI Symbol"]
+const COPIED_GLOW_BLUR := 8.0
+const COPIED_GLOW_ALPHA := 0.55
+const COPIED_INSET_BLUR := 10.0
+const COPIED_INSET_ALPHA := 0.18
+const SIGMA_PER_BLUR := 0.5
 const GRID_PADDING := Vector2(16.0, 18.0)
 const COLUMN_GAP := 8.0
 const ROW_GAP := 18.0
@@ -68,6 +82,7 @@ const LIBRARY_SEPARATOR := "/"
 var library: RadioLibrary
 var display_root := ""                          # the address bar's root (parity captures pin the web's)
 var settings_path := SETTINGS_PATH
+var clipboard: Callable = func(text: String) -> void: DisplayServer.clipboard_set(text)
 
 var _path := ""
 var _history: PackedStringArray = []
@@ -75,6 +90,9 @@ var _entries: Array = []
 var _items: Array[RadioLibraryItem] = []
 var _selection := {}
 var _anchor := ""
+var _clip: Array = []                           # web clip: the copied tracks' paths
+var _menu: RadioContextMenu = null
+var _renaming := ""                             # the path whose name is being edited
 var _viz := VIZ_MODES[0]
 var _tools: Control
 var _back: CssButton
@@ -82,8 +100,12 @@ var _up: CssButton
 var _home: CssButton
 var _home_glow: ColorRect
 var _address: Control
-var _field: Panel
+var _field: ColorRect
 var _field_text: CssLabel
+var _field_hovered := false
+var _copied := false
+var _copied_token := 0
+var _copied_mark: GlowText
 var _grid: Control
 var _status: Panel
 var _status_text: CssLabel
@@ -102,16 +124,38 @@ func _init() -> void:
 	_up.pressed.connect(go_up)
 	_home.pressed.connect(go_home)
 	_address = _row("Address")
-	_field = Panel.new()
+	_field = ColorRect.new()
 	_field.name = "Field"
 	_field.mouse_filter = Control.MOUSE_FILTER_STOP
-	var field_box := RadioButtons.outline(UiTokens.SURFACE_LINE, FIELD_RADIUS, FIELD_FILL)
-	_field.add_theme_stylebox_override("panel", field_box)
+	_field.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var field_look := ShaderMaterial.new()
+	field_look.shader = RadioLibraryIcon.BOX_SHADER
+	field_look.set_shader_parameter("radii", Vector4.ONE * FIELD_RADIUS)
+	field_look.set_shader_parameter("top_color", FIELD_FILL)
+	field_look.set_shader_parameter("bottom_color", FIELD_FILL)
+	field_look.set_shader_parameter("border_px", float(RadioButtons.BORDER_PX))
+	field_look.set_shader_parameter("inset_color", Color(UiTokens.OK, COPIED_INSET_ALPHA))
+	_field.material = field_look
 	_field.clip_contents = true
+	_field.gui_input.connect(func(event: InputEvent) -> void:
+		var click := event as InputEventMouseButton
+		if click != null and click.button_index == MOUSE_BUTTON_LEFT and not click.pressed:
+			copy_address())
+	_field.mouse_entered.connect(func() -> void: _hover_field(true))
+	_field.mouse_exited.connect(func() -> void: _hover_field(false))
 	_address.add_child(_field)
 	_field_text = CssLabel.new().styled("", FIELD_PX, 0.0, UiTokens.TEXT)
 	_field_text.name = "Path"
 	_field.add_child(_field_text)
+	_copied_mark = GlowText.new()
+	_copied_mark.name = "Copied"
+	_copied_mark.configure_css(COPIED_PX, 0.0, UiTokens.OK, false, UiFont.base_with(COPIED_FAMILIES))
+	_copied_mark.set_shadows([CssShadow.make(COPIED_GLOW_BLUR, Color(UiTokens.OK, COPIED_GLOW_ALPHA))])
+	_copied_mark.set_text(COPIED_GLYPH)
+	_copied_mark.visible = false
+	_copied_mark.minimum_size_changed.connect(_layout_content)   # the glyph's box settles once the fonts apply
+	_address.add_child(_copied_mark)
+	_restyle_field()
 	_grid = Control.new()
 	_grid.name = "Grid"
 	_grid.clip_contents = true
@@ -189,6 +233,7 @@ func refresh() -> void:
 		var item := RadioLibraryItem.new(entry)
 		item.pressed.connect(_on_item_pressed)
 		item.opened.connect(func(opened: RadioLibraryItem) -> void: open_entry(opened.entry))
+		item.rename_finished.connect(_on_rename_finished)
 		_grid.add_child(item)
 		_items.append(item)
 	var kept := {}
@@ -265,20 +310,189 @@ func clear_selection() -> void:
 func open_entry(entry: Dictionary) -> void:
 	if entry[RadioLibrary.KIND] == RadioLibrary.FOLDER:
 		navigate_into(entry[RadioLibrary.PATH])
+	else:
+		_play_track(entry[RadioLibrary.PATH])
+
+## ▶ Play: a folder's readable tracks from the first, or a track with its folder (web playFolder / playTrack).
+func play_entry(entry: Dictionary) -> void:
+	if entry[RadioLibrary.KIND] != RadioLibrary.FOLDER:
+		_play_track(entry[RadioLibrary.PATH])
 		return
-	var queue := []
-	var start := -1
-	for other in _entries:
-		if other[RadioLibrary.KIND] != RadioLibrary.TRACK:
+	var readable := _readable(library.list_dir(entry[RadioLibrary.PATH]))
+	if not readable.is_empty():
+		play_requested.emit(readable.values(), 0)
+
+## The context menu at `global_at`: on `entry` (selected first, as web onContextMenu) or, with {}, on the window.
+func open_menu(entry: Dictionary, global_at: Vector2) -> void:
+	if _menu != null:
+		_menu.close()
+	if entry.is_empty():
+		clear_selection()
+	elif not _selection.has(entry[RadioLibrary.PATH]):
+		select(entry[RadioLibrary.PATH])
+	var host := get_parent() as Control
+	_menu = RadioContextMenu.new()
+	host.add_child(_menu)
+	_menu.open(RadioExplorerMenu.items(not entry.is_empty(), _selection.size(), _selected_tracks().size(), _clip.size()),
+		host.get_global_transform().affine_inverse() * global_at, host.size.x)
+	_menu.chosen.connect(func(action: String) -> void: run_action(action, entry))
+	_menu.closed.connect(func() -> void: _menu = null)
+
+func context_menu() -> RadioContextMenu:
+	return _menu
+
+func clipboard_paths() -> Array:
+	return _clip
+
+func run_action(action: String, entry: Dictionary) -> void:
+	match action:
+		RadioExplorerMenu.PLAY:
+			play_entry(entry)
+		RadioExplorerMenu.NEW_FOLDER:
+			new_folder()
+		RadioExplorerMenu.RENAME:
+			begin_rename(entry[RadioLibrary.PATH])
+		RadioExplorerMenu.COPY:
+			copy_selection()
+		RadioExplorerMenu.PASTE:
+			paste()
+		RadioExplorerMenu.DELETE:
+			delete_selection()
+
+func new_folder() -> void:
+	library.make_folder(_path, I18n.t(NEW_FOLDER_KEY))
+	refresh()
+
+## Del: every selected item, folders with what they hold.
+func delete_selection() -> void:
+	for entry in _entries:
+		if _selection.has(entry[RadioLibrary.PATH]):
+			library.delete_track(entry[RadioLibrary.PATH], entry[RadioLibrary.KIND] == RadioLibrary.FOLDER)
+	clear_selection()
+	refresh()
+
+## Ctrl+C: the selected tracks (folders are not copied).
+func copy_selection() -> void:
+	_clip = _selected_tracks()
+
+## Ctrl+V: a copy of every copied track still readable, saved into this folder under a free name.
+func paste() -> void:
+	for source in _clip:
+		var payload := library.read_track(source)
+		if not payload.is_empty():
+			library.save_track(_path, payload)
+	refresh()
+
+## F2 / ✎ Rename: the item's name becomes an edit field.
+func begin_rename(path: String) -> void:
+	for item in _items:
+		if item.path() == path:
+			_renaming = path
+			item.begin_rename()
+			_layout_grid()
+			return
+
+func renaming() -> String:
+	return _renaming
+
+## A click on the address: the path to the clipboard, the field green with a ✓ for 1.1 s.
+func copy_address() -> void:
+	clipboard.call(_field_text.text)
+	_copied = true
+	_copied_token += 1
+	var token := _copied_token
+	_restyle_field()
+	if is_inside_tree():
+		get_tree().create_timer(COPIED_S).timeout.connect(func() -> void:
+			if token == _copied_token:
+				_copied = false
+				_restyle_field())
+
+func is_address_copied() -> bool:
+	return _copied
+
+func copied_mark() -> GlowText:
+	return _copied_mark
+
+func _hover_field(on: bool) -> void:
+	_field_hovered = on
+	_restyle_field()
+
+## web .field / .field:hover / .field.copied (the copied look wins over hover).
+func _restyle_field() -> void:
+	var look := _field.material as ShaderMaterial
+	var border := UiTokens.SURFACE_LINE
+	var text := UiTokens.TEXT
+	if _copied:
+		border = UiTokens.OK
+		text = UiTokens.OK
+	elif _field_hovered:
+		border = UiTokens.LINE
+		text = FIELD_HOVER_TEXT
+	look.set_shader_parameter("border_color", border)
+	look.set_shader_parameter("inset_sigma", COPIED_INSET_BLUR * SIGMA_PER_BLUR if _copied else 0.0)
+	_field_text.add_theme_color_override("font_color", text)
+	_copied_mark.visible = _copied
+
+func _play_track(path: String) -> void:
+	var readable := _readable(_entries)
+	if readable.has(path):
+		play_requested.emit(readable.values(), readable.keys().find(path))
+
+## web readMany: the tracks among `listing` that read back, path → payload in order (a corrupt one is skipped).
+func _readable(listing: Array) -> Dictionary:
+	var out := {}
+	for entry in listing:
+		if entry[RadioLibrary.KIND] != RadioLibrary.TRACK:
 			continue
-		var payload := library.read_track(other[RadioLibrary.PATH])
-		if payload.is_empty():                     # web readMany: a corrupt sibling is skipped
-			continue
-		if other[RadioLibrary.PATH] == entry[RadioLibrary.PATH]:
-			start = queue.size()
-		queue.append(payload)
-	if start >= 0:
-		play_requested.emit(queue, start)
+		var payload := library.read_track(entry[RadioLibrary.PATH])
+		if not payload.is_empty():
+			out[entry[RadioLibrary.PATH]] = payload
+	return out
+
+func _selected_tracks() -> Array:
+	return _entries.filter(func(entry: Dictionary) -> bool:
+		return entry[RadioLibrary.KIND] == RadioLibrary.TRACK and _selection.has(entry[RadioLibrary.PATH])).map(
+		func(entry: Dictionary) -> String: return entry[RadioLibrary.PATH])
+
+## web commitRename: a name that is not blank and not the old one renames (trimmed); Escape leaves it.
+func _on_rename_finished(item: RadioLibraryItem, new_name: String, committed: bool) -> void:
+	_renaming = ""
+	if committed and not new_name.strip_edges().is_empty() and new_name != item.entry[RadioLibrary.NAME]:
+		library.rename(item.path(), new_name.strip_edges())
+		refresh()
+	else:
+		_layout_grid()
+
+## web onContextMenu on the window: the selection cleared, the menu without item actions.
+func _gui_input(event: InputEvent) -> void:
+	var click := event as InputEventMouseButton
+	if click != null and click.pressed and click.button_index == MOUSE_BUTTON_RIGHT:
+		open_menu({}, click.global_position)
+		accept_event()
+
+## web keydown: F2 rename, Del delete, Ctrl+C copy, Ctrl+V paste — not while minimized or editing a name.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or not is_visible_in_tree() or not _renaming.is_empty():
+		return
+	var command := key.ctrl_pressed or key.meta_pressed
+	if key.keycode == KEY_F2 and _selection.size() == 1:
+		begin_rename(selection()[0])
+	elif key.keycode == KEY_DELETE and not _selection.is_empty():
+		delete_selection()
+	elif command and key.keycode == KEY_C and not _selection.is_empty():
+		copy_selection()
+	elif command and key.keycode == KEY_V and not _clip.is_empty():
+		paste()
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+## The menu lives beside the window (over the player): it goes when the window hides or goes.
+func _notification(what: int) -> void:
+	if _menu != null and (what == NOTIFICATION_PREDELETE or (what == NOTIFICATION_VISIBILITY_CHANGED and not visible)):
+		_menu.close()
 
 ## The status bar's pill: the next visualizer mode, remembered (web localStorage radio.viz).
 func cycle_viz() -> void:
@@ -323,8 +537,8 @@ func _load_viz() -> String:
 func _on_item_pressed(item: RadioLibraryItem, event: InputEventMouseButton) -> void:
 	if event.button_index == MOUSE_BUTTON_LEFT:
 		select(item.path(), event.ctrl_pressed or event.meta_pressed, event.shift_pressed)
-	elif not _selection.has(item.path()):
-		select(item.path())
+	else:
+		open_menu(item.entry, event.global_position)
 
 func _row(node_name: String) -> Control:
 	var row := Panel.new()
@@ -383,6 +597,13 @@ func _layout_content() -> void:
 	_address.size = Vector2(width, address_height)
 	_field.position = ADDRESS_PADDING
 	_field.size = Vector2(width - 2.0 * ADDRESS_PADDING.x, FIELD_HEIGHT)
+	(_field.material as ShaderMaterial).set_shader_parameter("box_px", _field.size)
+	# .rexp-copied: right 14 px, centred on the row's padding box (top: 50%, translateY(-50%))
+	var mark_line := UiFont.fallback_line_px(COPIED_PX, COPIED_FAMILIES)
+	var mark_top := (address_height - RULE_PX - mark_line) * HALF
+	var mark := _copied_mark.get_combined_minimum_size()
+	_copied_mark.position = Vector2(width - COPIED_RIGHT - mark.x,
+		mark_top + UiFont.fallback_ascent_px(COPIED_PX, COPIED_FAMILIES) - _copied_mark.label().run().baseline())
 	var field_line := roundi(UiFont.ASCENT_EM * FIELD_PX) + roundi(UiFont.DESCENT_EM * FIELD_PX)
 	var text := _field_text.css_size()
 	var inner_width := _field.size.x - 2.0 * (FIELD_PADDING_X + RadioButtons.BORDER_PX)

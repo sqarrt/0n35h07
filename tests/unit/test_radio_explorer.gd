@@ -120,6 +120,105 @@ func test_the_visualizer_pill_cycles_and_remembers() -> void:
 	var again := _explorer()
 	assert_eq(again.viz_mode(), "scope", "web localStorage radio.viz")
 
+func _key(keycode: Key, ctrl := false) -> InputEventKey:
+	var key := InputEventKey.new()
+	key.keycode = keycode
+	key.ctrl_pressed = ctrl
+	key.pressed = true
+	return key
+
+func _names(explorer: RadioExplorer) -> Array:
+	return explorer.entries().map(func(entry: Dictionary) -> String: return entry[RadioLibrary.NAME])
+
+func test_a_menu_on_an_item_selects_it_and_offers_its_actions() -> void:
+	var explorer := _explorer()
+	explorer.open_menu(explorer.entries()[4], explorer.items()[4].global_position)
+	assert_eq(explorer.selection(), ["Twin.json"], "web onContextMenu selects the item first")
+	var menu := explorer.context_menu()
+	assert_not_null(menu)
+	assert_eq(menu.get_parent(), explorer.get_parent(), "over the window, beside it")
+	assert_eq(menu.items().map(func(item: Dictionary) -> String: return item[RadioExplorerMenu.ACTION]),
+		[RadioExplorerMenu.PLAY, RadioExplorerMenu.NEW_FOLDER, RadioExplorerMenu.RENAME, RadioExplorerMenu.COPY,
+			RadioExplorerMenu.PASTE, RadioExplorerMenu.DELETE])
+	explorer.open_menu({}, Vector2(860.0, 440.0))
+	assert_true(explorer.selection().is_empty(), "the window's menu clears the selection")
+	assert_eq(explorer.context_menu().items().size(), 2)
+	explorer.visible = false
+	assert_null(explorer.context_menu(), "hiding the window closes its menu")
+
+func test_new_folder_copy_paste_and_delete_change_the_library() -> void:
+	var explorer := _explorer()
+	explorer.new_folder()
+	assert_true(_names(explorer).has(I18n.t("radioCtxNewFolder")))
+	explorer.select("Twin.json")
+	explorer.select("Ambient", true)
+	explorer.copy_selection()
+	assert_eq(explorer.clipboard_paths(), ["Twin.json"], "folders are not copied")
+	explorer.navigate_into("Night Drive")
+	explorer.paste()
+	assert_eq(_names(explorer), ["Lagoon", "Twin"])
+	explorer.go_back()
+	explorer.select("Ambient")
+	explorer.select("Ashen Drift.json", true)
+	explorer.delete_selection()
+	assert_false(_names(explorer).has("Ambient"))
+	assert_false(_names(explorer).has("Ashen Drift"))
+	assert_true(explorer.selection().is_empty())
+
+func test_shortcuts_answer_only_with_a_selection_and_no_name_in_edit() -> void:
+	var explorer := _explorer()
+	explorer._unhandled_key_input(_key(KEY_DELETE))
+	assert_eq(explorer.entries().size(), 6, "Del with nothing selected")
+	explorer.select("Twin (2).json")
+	explorer._unhandled_key_input(_key(KEY_C, true))
+	assert_eq(explorer.clipboard_paths(), ["Twin (2).json"])
+	explorer._unhandled_key_input(_key(KEY_V, true))
+	assert_true(_names(explorer).has("Twin (3)"), "a free name")
+	explorer.select("Twin.json")
+	explorer._unhandled_key_input(_key(KEY_F2))
+	assert_eq(explorer.renaming(), "Twin.json")
+	explorer._unhandled_key_input(_key(KEY_DELETE))
+	assert_true(_names(explorer).has("Twin"), "Del while a name is edited")
+
+func test_rename_commits_a_new_name_and_escape_leaves_it() -> void:
+	var explorer := _explorer()
+	explorer.begin_rename("Ashen Drift.json")
+	var item: RadioLibraryItem = explorer.items()[2]
+	var field := item.rename_field()
+	assert_not_null(field)
+	assert_eq(field.text, "Ashen Drift")
+	assert_almost_eq(item.natural_height(), 75.0, EPS, "9 + 34 + 8, the 15 px field, 9")
+	assert_eq(Rect2(field.position, field.size), Rect2(6.0, 51.0, 92.0, 15.0), "web .rexp-rename [975, 311, 92, 15]")
+	field.text = "Ember"
+	item.finish_rename(false)
+	assert_eq(explorer.renaming(), "")
+	assert_true(_names(explorer).has("Ashen Drift"), "Escape")
+	explorer.begin_rename("Ashen Drift.json")
+	explorer.items()[2].rename_field().text = "  Ember "
+	explorer.items()[2].finish_rename(true)
+	assert_true(_names(explorer).has("Ember"), "trimmed")
+	assert_false(_names(explorer).has("Ashen Drift"))
+
+func test_a_click_on_the_address_copies_the_path() -> void:
+	var explorer := _explorer()
+	var copied := []
+	explorer.clipboard = func(text: String) -> void: copied.append(text)
+	explorer.copy_address()
+	assert_eq(copied, [DISPLAY_ROOT])
+	assert_true(explorer.is_address_copied())
+	assert_true(explorer.copied_mark().visible, "the ✓")
+	var mark := explorer.copied_mark()
+	assert_almost_eq(mark.position.x + mark.size.x, 612.0 - 2.0 - 14.0, 1.0, "right: 14px in the address row")
+
+func test_play_on_a_folder_queues_its_tracks_from_the_first() -> void:
+	var explorer := _explorer()
+	watch_signals(explorer)
+	explorer.play_entry(explorer.entries()[1])
+	var args: Array = get_signal_parameters(explorer, "play_requested")
+	assert_eq(args[0].size(), 1)
+	assert_eq(args[0][0]["name"], "Lagoon")
+	assert_eq(args[1], 0)
+
 func _remove_tree(absolute: String) -> void:
 	if not DirAccess.dir_exists_absolute(absolute):
 		return

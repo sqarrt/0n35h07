@@ -42,15 +42,26 @@ func blur() -> ColorRect:
 func surface() -> ColorRect:
 	return _surface
 
-## Another outer shadow and ring for the same glass (the radio windows, RadioExplorer.css .rexp: 0 18px 60px, no ring).
-func set_shadow(offset: Vector2, blur: float, ring_px := RING_PX) -> void:
+## Another outer shadow and ring for the same glass (the radio windows, RadioExplorer.css .rexp: 0 18px 60px, no ring;
+## the library's context menu: 0 14px 44px at 60%).
+func set_shadow(offset: Vector2, blur: float, ring_px := RING_PX, color := SHADOW) -> void:
 	_shadow_offset = offset
 	_shadow_blur = blur
 	var material := _surface.material as ShaderMaterial
+	material.set_shader_parameter("shadow_color", color)
 	material.set_shader_parameter("shadow_offset_px", offset)
 	material.set_shader_parameter("shadow_sigma", blur * SHADOW_SIGMA_SHARE)
 	material.set_shader_parameter("ring_px", ring_px)
 	set_box(size)
+
+## Another glass (RadioExplorer.css .rexp-ctx: a denser fill, a softer top highlight, 12 px corners, blur(22px)).
+func set_look(fill: Color, highlight: Color, radius: float, backdrop_sigma: float) -> void:
+	var material := _surface.material as ShaderMaterial
+	material.set_shader_parameter("fill_color", fill)
+	material.set_shader_parameter("highlight_color", highlight)
+	material.set_shader_parameter("radius_px", radius)
+	material.set_shader_parameter("sigma", backdrop_sigma)
+	(_blur.material as ShaderMaterial).set_shader_parameter("sigma", backdrop_sigma)
 
 ## Lay the passes out on the card's box, its top-left at this node's position; the shadow reaches past it.
 func set_box(box: Vector2) -> void:
