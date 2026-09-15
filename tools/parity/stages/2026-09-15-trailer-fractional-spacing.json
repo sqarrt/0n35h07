@@ -1,0 +1,110 @@
+{
+  "id": "2026-09-15-trailer-fractional-spacing",
+  "title": "OneShot · FS4b: дробная разрядка трейлера",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Вторая часть хвоста дробной разрядки. В трейлере с целой разрядкой ещё рисовались перебивки (жирный текст 88 px с разрядкой, которая схлопывается от 0.5em к 0.2em при ударе), титр финала (0N35H07, слоган, CTA) и кнопка SKIP. Теперь перебивка — `GlowText.configure_css` (разрядка из ключевых кадров применяется, только когда меняется), титр и строки под ним — `configure_css` / `CssLabel.styled`, SKIP — `CssButton` с разрядкой после последней буквы внутри прогона. Сверка — те же web-кадры, что в отчётах `2026-09-14-trailer-sequencer` и `2026-09-14-trailer-finale`, 1280×720.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-trailer-fractional-spacing.json`. Web: `test-results/parity-trailer-cut/web-trailer-shot-1-<117|450-awake|800>.png` (+ факты `.json`) и `test-results/parity-trailer-finale/web-trailer-shot-11-5200.png`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720 -s tools/screenshot.gd -- scenes/trailer_frame.tscn - res://test-results/parity-trailer-fs4/godot-trailer-shot-<план>-<ms>.png 30 trailer-shot-<план>-<ms>`. «До» — кадры Godot 14.09 из тех же папок. Области: рамка чернил текста web ±10 px, левые 90 px текста, SKIP [1150, 660, 120, 50]. Тесты GUT: `test_trailer_cut_view`, `test_trailer_screen`, `test_trailer_cut`.",
+  "pages": [
+    {
+      "slug": "trailer-fractional-spacing",
+      "name": "Трейлер",
+      "verdict": "Ширина текста совпала с Chrome: у перебивки рамка чернил 1149 px, как у web (была 1151), у титра — 636 px (была 635, на 2 px левее). По областям: текст перебивки на ударе 16.32 → 12.07/255, на паузе 15.82 → 11.64, SKIP 4.55 → 2.42, титр финала 9.41 → 7.27; кадры целиком 1.82 → 1.36, 1.79 → 1.32, 1.75 → 1.40. Остаток перебивки — вертикаль: текст на 2–3 px выше, чем у web, и так было и до слайса (у титра нижний край совпадает).",
+      "verdict_short": "Разрядка трейлера 1:1; перебивка на 2–3 px выше, как и раньше",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["кадры", "перебивка 1 на 117, 450 (после движения мыши) и 800 мс; финал на 5.2 с", "`TrailerScreen.hold_at`, те же планы и моменты, 30 кадров"]
+      ],
+      "comparisons": [
+        {
+          "title": "Перебивка на ударе, 117 мс",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-fs4/crops/web-1-117-text.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/godot-1-117-text.png", "note": "12.07/255 (было 16.32)"}
+          ]
+        },
+        {
+          "title": "Перебивка до слайса",
+          "panels": [
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/before-1-117-text.png", "note": "целая разрядка"}
+          ]
+        },
+        {
+          "title": "Левый край текста (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-fs4/crops/web-1-117-left.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/godot-1-117-left.png", "note": "11.38/255, на 2–3 px выше"}
+          ]
+        },
+        {
+          "title": "SKIP (×4)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-fs4/crops/web-skip.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/godot-skip.png", "note": "2.42/255 (было 4.55)"}
+          ]
+        },
+        {
+          "title": "SKIP до слайса (×4)",
+          "panels": [
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/before-skip.png", "note": "целая разрядка"}
+          ]
+        },
+        {
+          "title": "Титр финала, 5.2 с",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-trailer-fs4/crops/web-11-5200-text.png", "note": "—"},
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/godot-11-5200-text.png", "note": "7.27/255 (было 9.41)"}
+          ]
+        },
+        {
+          "title": "Титр до слайса",
+          "panels": [
+            {"kind": "godot", "img": "parity-trailer-fs4/crops/before-11-5200-text.png", "note": "на 2 px левее"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "FS4b-1", "severity": "fixed",
+          "title": "Целая разрядка перебивки",
+          "web": "`.trailer-cut-text` 5.5rem (88 px), жирный, `letter-spacing` по ключевым кадрам 0.5em → 0.2em к 13% и дальше 0.2em.",
+          "godot": "Было: `FontVariation.spacing_glyph` из `UiFont.bold_spacing_px` (целые px) и «хвостовой» отступ стилем. Стало: `GlowText.configure_css(88, spacing, white, bold)`; при каждом шаге анимации прогон пересобирается, только если разрядка сменилась.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/trailer_cut_view.gd", "nodes/glow_text.gd", "tests/unit/test_trailer_cut_view.gd"]
+        },
+        {
+          "id": "FS4b-2", "severity": "fixed",
+          "title": "Титр финала и SKIP",
+          "web": "`.trailer-title` 8rem, 0.18em, жирный, свечение; слоган 1.1rem 0.3em; CTA 1.4rem 0.22em жирный; `.trailer-skip` 0.8rem 0.16em, ▸ из Consolas.",
+          "godot": "Титр — `GlowText.configure_css`, слоган и CTA — `CssLabel.styled`; `TrailerSkipButton` теперь `CssButton` (`set_css_font` с гранью Consolas), правый отступ — просто CSS-паддинг: разрядку после последней буквы несёт сам прогон.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/trailer_title_card.gd", "nodes/trailer_skip_button.gd"]
+        },
+        {
+          "id": "FS4b-3", "severity": "visual",
+          "title": "Перебивка на 2–3 px выше",
+          "web": "Бокс текста [53.9, 310.5, 1172.2, 99]; чернила букв с y 326 до 390.",
+          "godot": "Чернила с 323 до 388 — и в кадрах 14.09 так же (не внесено этим слайсом). Метрики шрифта сверены (базовая линия 78 из 99 при 88 px); у титра 128 px нижний край совпадает, поэтому остаток — в размещении текста перебивки (скошенный `Node2D` + `CssOpacity`), разобрать отдельно.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/trailer_cut_view.gd", "sim/trailer_cut.gd"]
+        },
+        {
+          "id": "FS4b-4", "severity": "missing",
+          "title": "Тост приглашения и поля ввода",
+          "web": "`.invite-toast` заголовок 12.5px 0.04em; `.input` 1.3rem 0.1em; поиск друзей и имя бота.",
+          "godot": "Следующая часть FS4.",
+          "evidence": ["code"],
+          "sources": ["nodes/invite_toast.gd", "nodes/ui_text_field.gd", "nodes/steam_friend_picker.gd", "nodes/lobby_seat.gd"]
+        }
+      ],
+      "limitations": [
+        "Анимация разрядки проверена тестом (сжатие к удару) и двумя кадрами; промежуточные кадры 0–117 мс не снимались.",
+        "Кадр ухода (800 мс) без текста — 0.08 → 0.09/255, в сравнение не вошёл."
+      ]
+    }
+  ]
+}
