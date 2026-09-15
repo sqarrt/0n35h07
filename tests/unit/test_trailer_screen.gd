@@ -15,11 +15,21 @@ const STREAK := 3
 const SLAM_MS := 117.0                         # 13% of the 900 ms cut
 const OTHER_LOCALE := "ru"
 const FINALE_HOLD_MS := 5200.0                 # the beams hang, the title card has fully surfaced
+const BRIDGE := preload("res://autoloads/steam_bridge.gd")
+const FAKE := preload("res://tests/unit/fake_steam_api.gd")
+const INVITER := 300
+const FRIEND_LOBBY := 555
 
 var _sounds: Array = []
+var _fake
+var _bridge
 
 func before_each() -> void:
 	_sounds = []
+	_fake = FAKE.new()
+	_bridge = BRIDGE.new()
+	_bridge.api = _fake
+	add_child_autofree(_bridge)
 
 func after_each() -> void:
 	Audio.stop_trailer_music()
@@ -33,6 +43,7 @@ func _screen(index := COUNTDOWN_INDEX, hold_ms := -1.0) -> TrailerScreen:
 	if hold_ms >= 0.0:
 		screen.hold_at(index, hold_ms)
 	screen.play_sound = func(event: String, gain: float) -> void: _sounds.append([event, gain])
+	screen.steam = _bridge
 	viewport.add_child(screen)
 	return screen
 
@@ -97,6 +108,35 @@ func test_skip_or_escape_finish_once() -> void:
 	screen._input(escape)
 	screen.skip_button().pressed.emit()
 	assert_signal_emit_count(screen, "done", 1)
+
+func test_an_invite_over_the_trailer_is_accepted_into_the_friends_lobby() -> void:
+	_fake.names = {INVITER: "ALICE"}
+	var screen := _screen()
+	watch_signals(screen)
+	_fake.lobby_invite.emit(INVITER, FRIEND_LOBBY)
+	var toast := screen.invite_toast()
+	assert_not_null(toast, "web App: the invite shows on every screen but a match")
+	assert_eq(toast.inviter_name, "ALICE")
+	toast.accepted.emit(str(FRIEND_LOBBY))
+	assert_signal_emit_count(screen, "done", 1, "accepting leaves the trailer")
+	assert_eq(_bridge.pending_join, str(FRIEND_LOBBY), "the menu joins the friend's lobby")
+	assert_null(screen.invite_toast())
+
+func test_declining_an_invite_keeps_the_trailer_playing() -> void:
+	var screen := _screen()
+	watch_signals(screen)
+	_fake.lobby_invite.emit(INVITER, FRIEND_LOBBY)
+	screen.invite_toast().declined.emit(str(INVITER))
+	assert_eq(_fake.sent.back(), [INVITER, _bridge.DECLINE_MARKER], "the host's waiting seat frees")
+	assert_null(screen.invite_toast())
+	assert_signal_not_emitted(screen, "done")
+
+func test_join_game_leaves_the_trailer_for_the_friends_lobby() -> void:
+	var screen := _screen()
+	watch_signals(screen)
+	_fake.join_requested.emit(FRIEND_LOBBY)
+	assert_signal_emit_count(screen, "done", 1)
+	assert_eq(_bridge.pending_join, str(FRIEND_LOBBY), "left for the menu to take")
 
 func test_the_cursor_and_skip_hide_when_idle() -> void:
 	var screen := _screen()

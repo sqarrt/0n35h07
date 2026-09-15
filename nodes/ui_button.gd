@@ -21,8 +21,6 @@ const MIN_WIDTH := 220.0
 const BUTTON_HEIGHT := 44.0              # 16 px line (18) + 12 px padding and 1 px border, twice
 const MARGIN_Y := 6.4                    # margin: 0.4rem 0 — a CssColumn margin
 const DISABLED_OPACITY := 0.4
-const FOCUS_OUTLINE_PX := 2              # :focus-visible outline 2px, offset 2px (Godot hides focus a click gave)
-const FOCUS_OFFSET_PX := 2
 const COOLDOWN_FILL := Color(120.0 / 255.0, 180.0 / 255.0, 1.0, 0.28)   # web PauseMenu cooldown span
 const BACKGROUND := 0
 const BORDER := 1
@@ -114,6 +112,7 @@ var _opacity := 1.0
 
 func _init(label := "", button_variant := SECONDARY, sounds := true, button_metrics: Metrics = null) -> void:
 	metrics = button_metrics if button_metrics != null else Metrics.new()
+	focus_mode = Control.FOCUS_NONE   # web gameFeel: clicks blur a button and Tab is swallowed — no keyboard presses
 	set_label(label)
 	keep_minimum_size(Vector2(metrics.min_width, 0.0))
 	set_variant(button_variant)
@@ -137,8 +136,6 @@ func set_variant(value: String) -> void:
 		var look: Array = looks[state] if looks.has(state) else looks[STATES[state][0]]
 		add_theme_stylebox_override(state, _box(look[BACKGROUND], look[BORDER], STATES[state][0] == "pressed"))
 		add_theme_color_override(STATES[state][1], look[TEXT])
-	add_theme_color_override("font_focus_color", looks["normal"][TEXT])
-	add_theme_stylebox_override("focus", _focus_box())
 	set_css_font(metrics.font_px, metrics.spacing_em, bold, metrics.face)
 
 ## Enable or disable, fading the whole button like CSS opacity (as one layer once grouped()).
@@ -190,13 +187,4 @@ func _box(background: Color, border: Color, pressed := false) -> StyleBoxFlat:
 		box.expand_margin_bottom = metrics.press_shift
 		box.content_margin_top += metrics.press_shift
 		box.content_margin_bottom -= metrics.press_shift
-	return box
-
-func _focus_box() -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.draw_center = false
-	box.border_color = UiTokens.ACCENT
-	box.set_border_width_all(FOCUS_OUTLINE_PX)
-	box.set_expand_margin_all(FOCUS_OUTLINE_PX + FOCUS_OFFSET_PX)
-	box.anti_aliasing = false
 	return box

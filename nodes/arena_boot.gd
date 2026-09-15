@@ -8,9 +8,18 @@ const PLAYER := preload("res://scenes/player.tscn")
 const HUMAN_SLOT := 0
 const BOT_SLOT := 1
 const BOT_DIFFICULTY := "normal"   # web addBot default
+const MAIN_MENU := "res://scenes/main_menu.tscn"
+
+var steam = null                     # the Steam bridge: SteamBridge, or one over a fake Steam in tests
+var exit_to_menu := Callable()       # leaves the match for the menu (tests record it instead)
 
 func _ready() -> void:
 	Audio.stop_menu_music()   # web App: the menu music fades out in the match
+	if steam == null:
+		steam = SteamBridge
+	if not exit_to_menu.is_valid():
+		exit_to_menu = func() -> void: get_tree().change_scene_to_file.call_deferred(MAIN_MENU)
+	steam.net_event.connect(_on_steam_event)
 	var raw_path: String = Game.selected_map
 	var geo_path := raw_path.replace(".json", "_geo.json")
 	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
@@ -118,6 +127,12 @@ func _ready() -> void:
 ## Back to the menu (pause, match end): the room and its transport close with the match (web leaveRoom).
 func _exit_tree() -> void:
 	Game.leave_room()
+
+## A friend's "Join game" mid-match (web enterSteamFriendClient from any screen): the match is left at once and the
+## menu, coming back, takes the pending join into the friend's lobby.
+func _on_steam_event(event: Dictionary) -> void:
+	if String(event.get("kind", "")) == MainMenu.JOIN_REQUESTED:
+		exit_to_menu.call()
 
 ## The lobby's seats in seat order; without a lobby (tools, tests) the profile's human and a bot named by the host
 ## (generated when empty) at the default level.

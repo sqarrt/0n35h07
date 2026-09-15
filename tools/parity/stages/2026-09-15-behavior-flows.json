@@ -1,0 +1,69 @@
+{
+  "id": "2026-09-15-behavior-flows",
+  "title": "OneShot · Аудит поведения: переходы экранов, матч, Steam, ввод",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Первый этап сверки по поведению, а не по пикселям (фидбэк пользователя: важно, чтобы игра работала и переходила между экранами точно как web-версия; расхождения на пиксели не решают). Код web App.tsx (машина экранов, радио, Steam-слушатели, пауза, заставка), screens/MainMenu, screens/Lobby + components/lobby/Seats, GameOverlay, PauseMenu, EpilepsyWarning, CountdownOverlay, TrailerSequencer и gameFeel.ts прочитан и сопоставлен с Godot (main_menu, lobby_screen/lobby_seat, arena_boot, pause_overlay, match_ended_overlay, trailer_screen, steam_bridge, карта ввода). Плюс поперечные проверки: все 171 ключ словаря web против ссылок в коде Godot, все поля профиля web против чтения в Godot, все клавиши web против карты ввода. Найдено и исправлено три расхождения; остальное совпадает.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-behavior-flows.json`. Скриншотов нет: этап сверяет поведение по коду и тестам. Поперечные проверки — скрипты по `assets/i18n/en.json` (27 ключей без ссылок: вход по коду, сетевой чип и реле браузерной сборки, редактор карт, aria-подписи, скрытая на десктопе вкладка «Сеть», `countdownGo`), `web-reference/src/settings.ts` (все 26 полей профиля читаются) и grep `e.code` по `web-reference/src` без `editor/` (WASD, Space, Shift, V, Esc — как в `project.godot`; J — dev-полёт камеры меню). Тесты GUT: 965/965, новые — `test_ui_button` (фокус), `test_trailer_screen` (приглашение, отказ, «Join game»), `test_arena_scene` («Join game» в матче).",
+  "pages": [
+    {
+      "slug": "behavior-flows",
+      "name": "Поведение",
+      "verdict": "Переходы меню ↔ лобби ↔ матч ↔ меню, настройки / внешний вид / ABOUT → трейлер → ABOUT, радио, пауза (RESUME с кулдауном, настройки в матче, в меню, выход), итог матча (курсор освобождается, EXIT в меню с закрытием комнаты), ритуал готовности и Steam-потоки лобби (PLAY хостит Private-лобби, SEARCH/STOP, приглашения, тост, гость при уходе хоста снова хостит) совпадают с web. Исправлено: «Join game» во время матча и на трейлере, приглашение поверх трейлера, клавиатурный фокус кнопок.",
+      "verdict_short": "Флоу совпадают; 3 расхождения исправлены",
+      "conditions": [
+        ["эталон", "код web-reference (десктоп / Steam-ветки IS_DESKTOP)", "код Godot release_2.0.0 + ветка feature/godot-behavior-steam-focus"],
+        ["проверка", "чтение компонентов и App.tsx", "чтение узлов, GUT на фейковом Steam"],
+        ["вне охвата", "браузерные функции (вход по коду, реле, F11-подсказка), редактор карт, F9-запись демо", "не портируются (только Steam-версия)"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "B1", "severity": "fixed",
+          "title": "«Join game» во время матча",
+          "web": "App: слушатель `joinRequested` глобальный — `enterSteamFriendClient` с любого экрана: `leaveRoom()` и `setScreen('lobby')`, матч бросается сразу.",
+          "godot": "Было: событие ловило только меню; во время матча `SteamBridge.pending_join` ждал конца матча. Стало: `arena_boot` слушает `net_event` и по `joinRequested` уходит в меню, меню забирает отложенный join и входит в лобби друга гостем.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/arena_boot.gd", "tests/unit/test_arena_scene.gd", "autoloads/steam_bridge.gd"]
+        },
+        {
+          "id": "B2", "severity": "fixed",
+          "title": "Приглашение и «Join game» на трейлере",
+          "web": "`pendingInvite && screen !== 'game'` — InviteModal показывается и поверх трейлера; Accept → `enterSteamFriendClient` (трейлер уходит), Decline → отказ хосту; `joinRequested` тоже уводит в лобби.",
+          "godot": "Было: трейлер — отдельная сцена без Steam-слушателей, приглашение терялось. Стало: `TrailerScreen` показывает `InviteToast` на своём слое; Accept кладёт отложенный join и завершает трейлер (меню входит в лобби друга), Decline отправляет отказ, «Join game» завершает трейлер.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/trailer_screen.gd", "tests/unit/test_trailer_screen.gd"]
+        },
+        {
+          "id": "B3", "severity": "fixed",
+          "title": "Клавиатурный фокус кнопок",
+          "web": "gameFeel.ts: нажатая кнопка теряет фокус (иначе Space/Enter — прыжок — нажмёт её снова), Tab вне полей ввода подавлен.",
+          "godot": "Было: `UiButton` (меню, пауза, READY, BACK, итог) брал фокус по клику и Tab; Enter/Space жали кнопку в фокусе, Tab водил рамку. Стало: `focus_mode = FOCUS_NONE`, недостижимая рамка фокуса удалена (остальные кнопки уже были без фокуса).",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/ui_button.gd", "tests/unit/test_ui_button.gd", "web-reference/src/gameFeel.ts"]
+        },
+        {
+          "id": "B4", "severity": "visual",
+          "title": "Язык тоста поверх трейлера",
+          "web": "InviteModal вне `ForceLocale` трейлера — на языке игрока.",
+          "godot": "Трейлер переключает язык игры на английский целиком, поэтому тост поверх него английский; после трейлера язык возвращается.",
+          "evidence": ["code"],
+          "sources": ["nodes/trailer_screen.gd"]
+        },
+        {
+          "id": "B5", "severity": "visual",
+          "title": "FIGHT! после отсчёта",
+          "web": "CountdownOverlay показывает `countdownGo` при n = 0, но Match переводит фазу в live в том же тике, где отсчёт истёк — надпись на экран практически не попадает.",
+          "godot": "Отсчёт 3-2-1 и переход в live без надписи — наблюдаемое поведение то же.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/game/Match.ts", "nodes/hud.gd"]
+        }
+      ],
+      "limitations": [
+        "Сверка по коду и юнит-тестам на фейковом Steam; живой прогон с двумя Steam-аккаунтами не делался.",
+        "Аудит этого этапа охватил потоки экранов, матч-оверлеи, Steam-слушатели и ввод; правила боя, бот, сеть и радио были сверены в своих слайсах и здесь не перечитывались.",
+        "Настройки и внешний вид сверены по полям профиля (все читаются), а не построчно по реакциям каждого контрола."
+      ]
+    }
+  ]
+}

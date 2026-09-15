@@ -24,6 +24,7 @@ const PAUSE_ACTION := "pause"                  # Esc
 
 @export_file("*.tscn") var exit_scene := ""    # where the trailer leads when it is done ("" = nowhere: tests, tools)
 var start_index := 0                           # web __debugTrailerShot: the shot the sequence starts at
+var steam = null                               # the Steam bridge: SteamBridge, or one over a fake Steam in tests
 ## Plays a game sound at a gain (the SFX engine; tests record instead).
 var play_sound: Callable
 
@@ -48,6 +49,7 @@ var _banner: HudStreakBanner
 var _cover: ColorRect
 var _cut: TrailerCutView
 var _skip: TrailerSkipButton
+var _toast: InviteToast
 
 func _init() -> void:
 	play_sound = _play_sfx
@@ -76,6 +78,10 @@ func _ready() -> void:
 	_skip = TrailerSkipButton.new()
 	_layer.add_child(_skip)
 	_skip.pressed.connect(finish)
+	if steam == null:
+		steam = SteamBridge
+	steam.net_event.connect(_on_steam_event)
+	steam.invite_received.connect(_on_invite_received)
 	_set_idle(true)
 	_enter(start_index)
 	if _held:
@@ -136,6 +142,38 @@ func skip_button() -> TrailerSkipButton:
 
 func is_idle() -> bool:
 	return _idle
+
+func invite_toast() -> InviteToast:
+	return _toast
+
+## A friend's "Join game" (web enterSteamFriendClient from any screen): the trailer ends, the menu takes the pending join.
+func _on_steam_event(event: Dictionary) -> void:
+	if String(event.get("kind", "")) == MainMenu.JOIN_REQUESTED:
+		finish()
+
+## web App pendingInvite: the invite toast shows on every screen but a match — over the trailer too; the newest wins.
+func _on_invite_received(inviter_name: String, inviter_id: String, lobby_id: String) -> void:
+	if _toast == null:
+		_toast = InviteToast.new()
+		_toast.accepted.connect(_on_invite_accepted)
+		_toast.declined.connect(_on_invite_declined)
+		_layer.add_child(_toast)
+	_toast.show_invite(inviter_name, inviter_id, lobby_id)
+
+## Accept (web: enterSteamFriendClient): the trailer ends and the menu joins the friend's lobby.
+func _on_invite_accepted(lobby_id: String) -> void:
+	steam.pending_join = lobby_id
+	_close_toast()
+	finish()
+
+func _on_invite_declined(inviter_id: String) -> void:
+	steam.decline_invite(inviter_id)
+	_close_toast()
+
+func _close_toast() -> void:
+	if _toast != null:
+		_toast.queue_free()
+		_toast = null
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:

@@ -32,6 +32,24 @@ func test_players_start_on_the_map_spawn_points() -> void:
 		var spawn: Vector3 = spawns[0 if id == 0 else 1]
 		assert_almost_eq(Vector2(pos.x, pos.z), Vector2(spawn.x, spawn.z), SPAWN_TOLERANCE, "player %d starts on its map spawn" % id)
 
+const BRIDGE := preload("res://autoloads/steam_bridge.gd")
+const FAKE := preload("res://tests/unit/fake_steam_api.gd")
+const FRIEND_LOBBY := 555
+
+func test_join_game_mid_match_leaves_for_the_menu() -> void:
+	var fake = FAKE.new()
+	var bridge = BRIDGE.new()
+	bridge.api = fake
+	add_child_autofree(bridge)
+	var root: Node = load("res://scenes/arena_test.tscn").instantiate()
+	var exits := []
+	root.set("steam", bridge)
+	root.set("exit_to_menu", func() -> void: exits.append(true))
+	add_child_autofree(root)
+	fake.join_requested.emit(FRIEND_LOBBY)
+	assert_eq(exits.size(), 1, "web enterSteamFriendClient: the match is left from any screen")
+	assert_eq(bridge.pending_join, str(FRIEND_LOBBY), "the menu takes the join into the friend's lobby")
+
 func test_arena_has_no_leftover_target_dummy() -> void:
 	var root: Node = load("res://scenes/arena_test.tscn").instantiate()
 	add_child_autofree(root)
