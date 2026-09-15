@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **CI checks the Godot game.** The CI workflow runs the GUT suite on Godot 4.7.1 (Linux, headless) and runs the web
   reference's lint, types, unit tests and build inside `web-reference/`; the Pages deploy and Dependabot follow the web
   reference there.
+- **Uploading to Steam works with the Godot build.** `scripts/upload_steam.ps1` publishes `release/windows` to SteamPipe
+  with the same options as the web build's uploader (app, depot, branch, login, description), for the main app and
+  the Playtest app, and can write the build scripts without uploading (`-DryRun`).
 - **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
   original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
   slot no longer takes a pixel, so names, frags and totals sit where the original has them.
