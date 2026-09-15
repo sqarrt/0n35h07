@@ -29,6 +29,10 @@ const HOVER_FILL_ALPHA := 0.05
 const SELECTED_FILL_ALPHA := 0.12
 const INSET_BLUR := 16.0
 const INSET_ALPHA := 0.16
+const DROP_FILL_ALPHA := 0.10
+const DASH_LENGTH_RATIO := 3.0                  # Blink StyledStrokeData for a 1 px dashed border: 3 px dashes ...
+const DASH_GAP_RATIO := 2.0                     # ... 2 px gaps, stretched to fit the side (SelectBestDashGap)
+const DASH_SIDE_INSET := 0.5                    # the side measured along its stroke (capture: 5.028 px apart on 104)
 const SIGMA_PER_BLUR := 0.5
 const HALF := 0.5
 
@@ -36,6 +40,14 @@ var entry := {}                                 # RadioLibrary {kind, name, path
 var selected := false:
 	set(value):
 		selected = value
+		_restyle()
+## web .rexp-it.dropok: a folder under dragged tracks — an OK-green border on OK 10%, its icon lit green.
+var drop_target := false:
+	set(value):
+		if drop_target == value:
+			return
+		drop_target = value
+		_icon.set_drop_target(value)
 		_restyle()
 
 var _box: ColorRect
@@ -89,6 +101,13 @@ func natural_height() -> float:
 
 static func line_px() -> float:
 	return LABEL_PX * LINE_HEIGHT_EM
+
+## Blink SelectBestDashGap for an open stroke `length` long: the gap nearest `gap` that starts and ends it on a dash.
+static func dash_gap(length: float, dash: float, gap: float) -> float:
+	var fewer := floorf((length + gap) / (dash + gap))
+	var fewer_gap := (length - fewer * dash) / (fewer - 1.0)
+	var more_gap := (length - (fewer + 1.0) * dash) / fewer
+	return fewer_gap if more_gap <= 0.0 or absf(fewer_gap - gap) < absf(more_gap - gap) else more_gap
 
 ## The edit field's border box: the UI font's line at 11 px, the input padding and border.
 static func rename_height() -> float:
@@ -160,7 +179,11 @@ func _gui_input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_MOUSE_ENTER or what == NOTIFICATION_MOUSE_EXIT:
 		_hovered = what == NOTIFICATION_MOUSE_ENTER
+		if what == NOTIFICATION_MOUSE_EXIT:
+			drop_target = false                      # web dragleave
 		_restyle()
+	elif what == NOTIFICATION_DRAG_END:
+		drop_target = false
 	elif what == NOTIFICATION_RESIZED or what == NOTIFICATION_READY:   # a row as tall as before sends no resize
 		_layout()
 
@@ -178,6 +201,12 @@ func _restyle() -> void:
 	elif _hovered:
 		fill = Color(UiTokens.ACCENT, HOVER_FILL_ALPHA)
 		border = UiTokens.GHOST_LINE_HOVER
+	if drop_target:                                  # .dropok comes after .sel: its border and background win
+		fill = Color(UiTokens.OK, DROP_FILL_ALPHA)
+		border = UiTokens.OK
+	var dash := BORDER_PX * DASH_LENGTH_RATIO
+	material.set_shader_parameter("dash_px", dash if drop_target else 0.0)
+	material.set_shader_parameter("dash_gap_px", dash_gap(size.x - DASH_SIDE_INSET, dash, BORDER_PX * DASH_GAP_RATIO))
 	material.set_shader_parameter("top_color", fill)
 	material.set_shader_parameter("bottom_color", fill)
 	material.set_shader_parameter("border_color", border)

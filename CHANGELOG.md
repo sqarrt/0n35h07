@@ -65,8 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   mode switch (remembered). A click selects a track (Ctrl adds, Shift takes a range), a double click opens a folder or
   plays its tracks from that one. Saved tracks live in the game's app data `radio` folder, as in the original. A right
   click opens the original's glass context menu (Play, New folder, Rename, Copy, Paste, Delete) with the same F2, Del,
-  Ctrl+C and Ctrl+V shortcuts; names are edited in place, and a click on the path copies it. Drag and drop, the
-  visualizer and queue playback come next.
+  Ctrl+C and Ctrl+V shortcuts; names are edited in place, and a click on the path copies it. Tracks drag onto a folder
+  (lit with a green dashed outline) to move there, and a rubber band dragged over the empty grid selects what it
+  touches. The visualizer and queue playback come next.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

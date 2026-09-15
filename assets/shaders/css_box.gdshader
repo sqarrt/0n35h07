@@ -11,6 +11,45 @@ uniform float border_px = 0.0;
 uniform vec4 border_color : source_color = vec4(0.0);
 uniform float inset_sigma = 0.0;             // an inset glow: blur / 2
 uniform vec4 inset_color : source_color = vec4(0.0);
+uniform float dash_px = 0.0;                 // a dashed border: dashes this long (0: solid) ...
+uniform float dash_gap_px = 0.0;             // ... this far apart, along the outline clockwise from the top-left corner's end
+
+const float QUARTER_TURN = 1.5707963;
+
+// Where along the outline (uniform radius r) the point nearest `p` lies: clockwise from (left + r, top).
+float outline_distance(vec2 p, vec2 half_size, float r) {
+	float top = 2.0 * (half_size.x - r);
+	float side = 2.0 * (half_size.y - r);
+	float arc = QUARTER_TURN * r;
+	if (abs(p.x) <= half_size.x - r) {
+		return p.y < 0.0 ? p.x + half_size.x - r : top + arc + side + arc + (half_size.x - r - p.x);
+	}
+	if (abs(p.y) <= half_size.y - r) {
+		return p.x > 0.0 ? top + arc + (p.y + half_size.y - r) : 2.0 * (top + arc) + side + arc + (half_size.y - r - p.y);
+	}
+	vec2 centre = vec2(sign(p.x) * (half_size.x - r), sign(p.y) * (half_size.y - r));
+	float angle = atan(p.y - centre.y, p.x - centre.x);
+	if (p.x > 0.0 && p.y < 0.0) return top + (angle + QUARTER_TURN) * r;
+	if (p.x > 0.0) return top + arc + side + angle * r;
+	if (p.y > 0.0) return top + arc + side + arc + top + (angle - QUARTER_TURN) * r;
+	return 2.0 * (top + arc + side + arc) - arc + (angle + 2.0 * QUARTER_TURN) * r;
+}
+
+// Straight-alpha `top` over `bottom`: the alphas combine, the colours mix by what the top adds.
+vec4 over(vec4 top, vec4 bottom) {
+	float alpha = top.a + bottom.a * (1.0 - top.a);
+	return vec4(mix(bottom.rgb, top.rgb, top.a / max(alpha, 0.0001)), alpha);
+}
+
+// How much of a pixel at outline distance `s` a dash covers (a 1 px wide ramp at each dash end).
+float dash_coverage(float s) {
+	float period = dash_px + dash_gap_px;
+	float m = s - period * floor(s / period);                // [0, period)
+	float inside = min(m, dash_px - m);                      // how far inside the dash
+	float outside = min(m - dash_px, period - m);            // how far inside the gap
+	float signed_inside = mix(-outside, inside, step(m, dash_px));
+	return clamp(signed_inside + 0.5, 0.0, 1.0);
+}
 
 float rounded_distance(vec2 p, vec2 half_size, vec4 r) {
 	float radius = p.x < 0.0 ? (p.y < 0.0 ? r.x : r.w) : (p.y < 0.0 ? r.y : r.z);
@@ -31,15 +70,16 @@ void fragment() {
 	float d = rounded_distance(p, box_px * 0.5, radii);
 	float coverage = clamp(0.5 - d, 0.0, 1.0);
 	vec4 fill = mix(top_color, bottom_color, UV.y);
-	if (inset_sigma > 0.0) {                  // the outside of the box, blurred, seen inside it
+	if (inset_sigma > 0.0) {                  // the outside of the box, blurred, seen inside it, over the background
 		float glow = 0.5 * erfc_approx(-d / (inset_sigma * sqrt(2.0)));
-		fill = mix(fill, vec4(inset_color.rgb, 1.0), inset_color.a * glow * (1.0 - fill.a) / max(1.0 - fill.a * (1.0 - inset_color.a * glow), 0.0001));
-		fill.a = fill.a + inset_color.a * glow * (1.0 - fill.a);
+		fill = over(vec4(inset_color.rgb, inset_color.a * glow), fill);
 	}
 	if (border_px > 0.0) {
 		float border = clamp(0.5 - d, 0.0, 1.0) - clamp(0.5 - (d + border_px), 0.0, 1.0);
-		fill = mix(fill, vec4(border_color.rgb, 1.0), border * border_color.a / max(fill.a + border * border_color.a * (1.0 - fill.a), 0.0001));
-		fill.a = fill.a + border * border_color.a * (1.0 - fill.a);
+		if (dash_px > 0.0) {
+			border *= dash_coverage(outline_distance(p, box_px * 0.5, radii.x));
+		}
+		fill = over(vec4(border_color.rgb, border_color.a * border), fill);
 	}
 	COLOR = vec4(fill.rgb, fill.a * coverage);
 }

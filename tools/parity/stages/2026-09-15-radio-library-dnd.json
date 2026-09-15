@@ -1,0 +1,120 @@
+{
+  "id": "2026-09-15-radio-library-dnd",
+  "title": "OneShot · радио R4b2b: перетаскивание и рамка выделения",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R4b2b подпроекта «радио». В окне LIBRARY треки перетаскиваются в папку или на сетку (выделенные — вместе, папки не двигаются), папка под перетаскиваемыми треками подсвечивается зелёным пунктиром, а нажатие на пустое место сетки тянет рамку выделения, которая выделяет всё, чего касается (с Ctrl — добавляет к выделению). Попутно исправлен композитинг шейдера CSS-коробки: полупрозрачные края рамок и внутреннего свечения рисовались поверх заливки с завышенной альфой. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-library-dnd.json`. Web: `web-reference/scripts/parity-capture-radio-library.mjs` (кадр `-marquee` — рамка от (860, 440) к (700, 290) с зажатой кнопкой; `-dropok` — класс `.dropok` у Night Drive; `PARITY_FULLSCREEN=1` — весь экран, те же точки в CSS px окна на весь экран). Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-library/godot-radio-library-<marquee|dropok>[-fs].png 120 locale-en:radio-library-<marquee|dropok>`. Проба композитинга рендерила три пунктирные рамки с промежутками 2.0 / 2.025 / 2.5 px на Windows и в ветку не вошла. Тесты GUT: `test_radio_explorer`, `test_main_menu`; полный прогон 937/937.",
+  "pages": [
+    {
+      "slug": "radio-library-dnd",
+      "name": "Перетаскивание и рамка",
+      "verdict": "Рамка выделения совпадает с web по месту и размеру ([700, 290, 160, 150]), выделяет те же три ячейки и лежит под карточкой плеера, как у Chrome: 2.15/255 с ореолом (весь экран 2.95), сетка под ней 1.68. Подсветка папки-цели — 5.26/255 по ячейке (весь экран 5.25): иконка с зелёной рамкой и свечением совпадает, верхний пунктир — 3.97/255 (было 19.46 до исправления композитинга), фаза штрихов на вертикальных сторонах у Chrome своя (левая 69.43/255, правая 12.56). Исправление шейдера улучшило и прошлые кадры: поле «скопировано» 5.18 → 3.93/255, ✓ 5.23 → 3.94.",
+      "verdict_short": "Рамка выделения 1:1, пунктир папки-цели — кроме фазы по бокам",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["рамка", "mousedown в (860, 440), 8 шагов до (700, 290), кадр с зажатой кнопкой", "`begin_marquee` / `marquee_to` в тех же точках"],
+        ["папка-цель", "`.dropok` у Night Drive вручную (синтетический drag не рисует цель), выделение снято", "`drop_target = true` у Night Drive"]
+      ],
+      "comparisons": [
+        {
+          "title": "Рамка выделения (×2)",
+          "wipe": true,
+          "note": "Карточка плеера лежит поверх рамки в обоих кадрах.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-dnd-report/web-marquee.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-dnd-report/godot-marquee.png", "note": "2.15/255 с ореолом"}
+          ]
+        },
+        {
+          "title": "Папка под перетаскиваемыми треками (×6)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-dnd-report/web-dropok.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-dnd-report/godot-dropok.png", "note": "5.26/255; верх 3.97, левый край 69.43"}
+          ]
+        },
+        {
+          "title": "Рамка, весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-dnd-report/web-marquee-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-dnd-report/godot-marquee-fs.png", "note": "2.95/255"}
+          ]
+        },
+        {
+          "title": "Папка-цель, весь экран (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-dnd-report/web-dropok-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-dnd-report/godot-dropok-fs.png", "note": "5.25/255"}
+          ]
+        },
+        {
+          "title": "«Скопировано» после исправления композитинга (×5)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-library-dnd-report/web-copied.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-library-dnd-report/godot-copied.png", "note": "поле 3.93/255, ✓ 3.94"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R4b2b-1", "severity": "fixed",
+          "title": "Перетаскивание треков",
+          "web": "Трек тянется (не во время переименования): невыделенный становится выделением, переносятся выделенные треки (папки — никогда). Папка принимает drop и подсвечивается; сетка принимает drop в текущую папку. Перенос пропускает треки, уже лежащие в папке, саму папку и её предков.",
+          "godot": "`set_drag_forwarding` у ячеек и сетки: `RadioExplorer.drag_data` (полупрозрачная кассета как превью), `move_into`; `RadioLibraryItem.drop_target` снимается при выходе мыши и в конце перетаскивания.",
+          "evidence": ["test"],
+          "sources": ["nodes/radio/radio_explorer.gd", "nodes/radio/radio_library_item.gd", "tests/unit/test_radio_explorer.gd"]
+        },
+        {
+          "id": "R4b2b-2", "severity": "fixed",
+          "title": "Рамка выделения .rexp-marquee",
+          "web": "Нажатие на пустую сетку: выделение заново (или от текущего с Ctrl); движение — выделены все ячейки, чей прямоугольник касается рамки (края включительно); рамка 1 px accent на accent 14 %, радиус 2, свечение 12 px accent 20 %, `position: fixed; z-index: 200` — под плеером, который идёт позже в DOM.",
+          "godot": "`RadioMarquee`; `RadioExplorer.begin_marquee / marquee_to / end_marquee`, движение и отпускание — через `_input`; рамка вставляется под плеер (`overlay_under`, выставляет `MainMenu`). Первая версия клала рамку поверх плеера.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_marquee.gd", "nodes/radio/radio_explorer.gd", "nodes/main_menu.gd"]
+        },
+        {
+          "id": "R4b2b-3", "severity": "fixed",
+          "title": "Пунктир папки-цели",
+          "web": "`.rexp-it.dropok`: `border: 1px dashed #4fa`, фон #4fa 10 %; у иконки папки рамка #4fa и свечение 0 0 14px 40 %. Blink рисует тонкий пунктир штрихами 3 px с промежутком около 2 px, растянутым под длину стороны (SelectBestDashGap): 5.028 px на 104 px верхней стороны.",
+          "godot": "Шейдер `css_box` получил пунктир вдоль контура со скруглением (`dash_px`, `dash_gap_px`), промежуток — `RadioLibraryItem.dash_gap` по формуле Blink (2.025 px); `RadioLibraryIcon.set_drop_target` перекрашивает рамку и свечение.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["assets/shaders/css_box.gdshader", "nodes/radio/radio_library_item.gd", "nodes/radio/radio_library_icon.gd"]
+        },
+        {
+          "id": "R4b2b-4", "severity": "fixed",
+          "title": "Композитинг шейдера CSS-коробки",
+          "web": "Край рамки и внутреннее свечение ложатся на фон коробки обычным source-over.",
+          "godot": "`mix(fill, vec4(rgb, 1.0), t)` смешивал и альфу, а затем к ней ещё прибавлялось покрытие: на прозрачном или полупрозрачном фоне частично покрытые пиксели становились почти непрозрачными (пунктир без сглаживания, хвосты штрихов до 246). Проба на Windows с промежутками 2.0 / 2.025 / 2.5 px это показала; теперь — оператор over с отдельной альфой. Верх пунктира 19.46 → 3.97/255, поле «скопировано» 5.18 → 3.93.",
+          "evidence": ["screenshot", "runtime"],
+          "sources": ["assets/shaders/css_box.gdshader"]
+        },
+        {
+          "id": "R4b2b-5", "severity": "visual",
+          "title": "Фаза пунктира на вертикальных сторонах",
+          "web": "Chrome рисует стороны пунктира отдельными штрихами: у левой и правой свои начала (у правой штрих с 262.5, у левой — около 265.4) и позиции, квантованные по 1/8 px.",
+          "godot": "Один проход по контуру по часовой стрелке от конца верхнего левого угла: верх и низ совпадают, левый край расходится по фазе (69.43/255 по столбцу), правый — 12.56. Это переходный вид во время перетаскивания.",
+          "evidence": ["screenshot"],
+          "sources": ["assets/shaders/css_box.gdshader"]
+        },
+        {
+          "id": "R4b2b-6", "severity": "missing",
+          "title": "Визуализатор и очередь",
+          "web": "Визуализатор за содержимым окна (scope / bars / radial / field, AUTO раз в 18 с) по 24 полосам спектра; воспроизведение очереди, сохранение трека из плеера и полоса LIBRARY.",
+          "godot": "Слайсы R4b2c (визуализатор: хост WebView шлёт 24 полосы, детерминированный кадр web) и R4c (очередь, сохранение, полоса LIBRARY).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioVisualizer.tsx", "web-reference/src/radio/host/radioHost.ts"]
+        }
+      ],
+      "limitations": [
+        "Настоящее перетаскивание мышью кадрами не снималось ни у web, ни у Godot: подсветка цели выставлена вручную, перенос проверен тестами над файлами.",
+        "Превью перетаскивания (полупрозрачная кассета) не сравнивалось с изображением, которое рисует браузер.",
+        "Рамка выделения снята в одной позиции; Ctrl-добавление проверено тестами."
+      ]
+    }
+  ]
+}

@@ -606,6 +606,7 @@ func _open_explorer() -> void:
 		radio_library = RadioLibrary.new()
 	radio_library.ensure_root()                  # web RadioLibrary.init: the folder exists before the first listing
 	_explorer = RadioExplorer.new()
+	_explorer.overlay_under = _radio_player
 	add_child(_explorer)
 	move_child(_explorer, _radio_player.get_index())
 	_explorer.open_on(radio_library, size)

@@ -36,9 +36,13 @@ const STRIP_BOTTOM := 5.0
 const STRIP_HEIGHT := 6.0
 const STRIP_RADIUS := 2.0
 const STRIP_ALPHA := 0.16
+const DROP_GLOW_BLUR := 14.0                    # .rexp-it.dropok .rexp-folder::after: 0 0 14px OK 40%, an OK border
+const DROP_GLOW_ALPHA := 0.4
 const HALF := 0.5
 
 var kind := TRACK
+var _body: ColorRect
+var _body_glow: ColorRect
 
 func _init(icon_kind := TRACK) -> void:
 	kind = icon_kind
@@ -46,12 +50,12 @@ func _init(icon_kind := TRACK) -> void:
 	custom_minimum_size = FOLDER_SIZE if kind == FOLDER else CASSETTE_SIZE
 	size = custom_minimum_size
 	if kind == FOLDER:
-		_glow(FOLDER_BODY, FOLDER_RADIUS, FOLDER_GLOW_ALPHA)
+		_body_glow = _glow(FOLDER_BODY, FOLDER_RADIUS, Color(UiTokens.ACCENT, FOLDER_GLOW_ALPHA), GLOW_BLUR)
 		_box("Tab", TAB, TAB_RADII, UiTokens.ACCENT_FILL, UiTokens.ACCENT_FILL)
-		_box("Body", FOLDER_BODY, Vector4.ONE * FOLDER_RADIUS, FOLDER_TOP, FOLDER_BOTTOM, UiTokens.ACCENT_DIM)
+		_body = _box("Body", FOLDER_BODY, Vector4.ONE * FOLDER_RADIUS, FOLDER_TOP, FOLDER_BOTTOM, UiTokens.ACCENT_DIM)
 	else:
 		var body := Rect2(Vector2.ZERO, CASSETTE_SIZE)
-		_glow(body, CASSETTE_RADIUS, CASSETTE_GLOW_ALPHA)
+		_glow(body, CASSETTE_RADIUS, Color(UiTokens.ACCENT, CASSETTE_GLOW_ALPHA), GLOW_BLUR)
 		_box("Body", body, Vector4.ONE * CASSETTE_RADIUS, CASSETTE_TOP, CASSETTE_BOTTOM, UiTokens.ACCENT)
 		var inner := Vector2.ONE * BORDER_PX                        # absolute children sit inside the border
 		var inner_width := CASSETTE_SIZE.x - 2.0 * BORDER_PX
@@ -66,10 +70,22 @@ func _init(icon_kind := TRACK) -> void:
 			_box("Reel", Rect2(inner + Vector2(x, REEL_TOP), Vector2.ONE * REEL_PX), Vector4.ONE * REEL_PX * HALF,
 				REEL_FILL, REEL_FILL, UiTokens.ACCENT_DIM, REEL_RING_PX)
 
-func _glow(box: Rect2, radius: float, alpha: float) -> void:
-	var glow := CssBoxShadow.make(Color(UiTokens.ACCENT, alpha), GLOW_BLUR, Vector2.ZERO, 0.0, radius)
+## A folder under dragged tracks: the body's border and glow turn OK green (a cassette has no drop look).
+func set_drop_target(on: bool) -> void:
+	if kind != FOLDER:
+		return
+	(_body.material as ShaderMaterial).set_shader_parameter("border_color", UiTokens.OK if on else UiTokens.ACCENT_DIM)
+	var index := _body_glow.get_index()
+	_body_glow.queue_free()
+	_body_glow = _glow(FOLDER_BODY, FOLDER_RADIUS, Color(UiTokens.OK, DROP_GLOW_ALPHA) if on
+		else Color(UiTokens.ACCENT, FOLDER_GLOW_ALPHA), DROP_GLOW_BLUR if on else GLOW_BLUR)
+	move_child(_body_glow, index)
+
+func _glow(box: Rect2, radius: float, color: Color, blur: float) -> ColorRect:
+	var glow := CssBoxShadow.make(color, blur, Vector2.ZERO, 0.0, radius)
 	add_child(glow)
 	CssBoxShadow.place(glow, box.position, box.size)
+	return glow
 
 func _box(node_name: String, box: Rect2, radii: Vector4, top: Color, bottom: Color, border := Color(0.0, 0.0, 0.0, 0.0),
 		border_px := BORDER_PX) -> ColorRect:
