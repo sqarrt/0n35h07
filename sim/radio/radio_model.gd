@@ -16,6 +16,7 @@ var total_ms := 0.0
 var running := false
 var meter_level := 0.0                        # the page's output level (web engine.readLevel), ~30 Hz
 var meter_bands := PackedFloat32Array()       # its 8 bands (web engine.readBands)
+var meter_vis_bands := PackedFloat32Array()   # its 24 bands for the LIBRARY visualizer
 
 func bind(host: RadioHost) -> void:
 	host.init_state_changed.connect(func(state: String) -> void:
@@ -29,9 +30,10 @@ func bind(host: RadioHost) -> void:
 		total_ms = total
 		running = is_running
 		changed.emit())
-	host.meter_changed.connect(func(level: float, bands: PackedFloat32Array) -> void:   # read each frame, no signal
-		meter_level = level
-		meter_bands = bands)
+	host.meter_changed.connect(func(level: float, bands: PackedFloat32Array, vis_bands: PackedFloat32Array) -> void:
+		meter_level = level                     # read each frame, no signal
+		meter_bands = bands
+		meter_vis_bands = vis_bands)
 
 func is_ready() -> bool:
 	return init_state == INIT_READY

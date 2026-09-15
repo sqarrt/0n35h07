@@ -1,0 +1,137 @@
+{
+  "id": "2026-09-15-radio-viz",
+  "title": "OneShot · радио R4b2c: визуализатор окна LIBRARY",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R4b2c подпроекта «радио». За содержимым окна LIBRARY светится визуализатор web (components/RadioVisualizer): осциллограф из трёх фигур Лиссажу, 24 столбика, 24 луча или поле из 90 точек; AUTO меняет их каждые 18 секунд, выбор запоминается. Он рисуется по 24 полосам спектра, которые страница движка теперь присылает вместе с индикатором; попутно исправлено залипание полос на странице (они больше не держатся на максимуме). Для сверки кадр фиксируется отладочным хуком web: полосы, уровень, импульс, фаза и сид поля — одинаковые у web и Godot. Сверка — в окне 1280×720 и на весь экран 3840×2160 (Windows 150 %).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-viz.json`. Web: `web-reference/scripts/parity-capture-radio-viz.mjs` (заглушка десктопа из `parity-desktop-stub.mjs` с пустой библиотекой, `window.__debugVizPin`, клики по переключателю AUTO → SCOPE → BARS → RADIAL → FIELD; `PARITY_FULLSCREEN=1` — весь экран) → `test-results/parity-radio-viz/web-radio-viz-<mode>[-fs].png`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-radio-viz/godot-radio-viz-<mode>[-fs].png 120 locale-en:radio-viz-<mode>`. Страница движка: `npx vite build --config vite.radio-host.config.ts` → `localhost/radio_host/`; живая проба `tools/probes/radio_host_probe.gd` на Windows. Тесты GUT: `test_mulberry32`, `test_radio_viz_state`, `test_radio_visualizer`, `test_radio_host`, `test_radio_explorer`, `test_main_menu`, `test_radio_window`; полный прогон 945/945.",
+  "pages": [
+    {
+      "slug": "radio-viz",
+      "name": "Визуализатор",
+      "verdict": "Все четыре режима рисуют ту же картинку, что web, на том же месте холста [505, 132, 610, 370] с буфером 610×370 и прозрачностью 50 % под заголовком, тулбаром и сеткой, обрезанную по скруглению окна. Разница по холсту в окне: SCOPE 1.78/255, BARS 1.19, RADIAL 1.05, FIELD 0.95; на весь экран — 1.93 / 1.48 / 1.36 / 1.26 (холст растягивается как растр, как у Chrome). Остаток — сглаживание тонких линий осциллографа. Живая проба страницы движка: 737 событий индикатора за 25 с, в каждом 8 и 24 полосы, полосы теперь и падают (1973 спада), разброс нижних полос σ 0.18.",
+      "verdict_short": "Визуализатор 1:1 во всех режимах",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["кадр", "`__debugVizPin`: фаза 1.7, уровень 0.08, импульс 0.35, сид 7, 24 полосы от 0.82 до 0.08; поле неподвижно", "`RadioVisualizer.pin` с теми же значениями; `Mulberry32` совпадает с JavaScript"],
+        ["экран", "RADIO, пустая библиотека, фоновый холст скрыт, холст визуализатора виден", "`open_radio()` над пустой библиотекой, фон скрыт"],
+        ["режим", "клик по переключателю в статусе", "`set_viz_mode(mode, false)` (без записи настройки)"]
+      ],
+      "comparisons": [
+        {
+          "title": "SCOPE (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-scope.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-scope.png", "note": "холст 1.78/255"}
+          ]
+        },
+        {
+          "title": "SCOPE крупно (×4)",
+          "wipe": true,
+          "note": "Проход 2 px на 50 % и яркий проход 1 px, сложенные как canvas 'lighter'.",
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-scope-zoom.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-scope-zoom.png", "note": "сглаживание линий"}
+          ]
+        },
+        {
+          "title": "BARS (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-bars.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-bars.png", "note": "1.19/255"}
+          ]
+        },
+        {
+          "title": "RADIAL (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-radial.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-radial.png", "note": "1.05/255"}
+          ]
+        },
+        {
+          "title": "FIELD (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-field.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-field.png", "note": "0.95/255"}
+          ]
+        },
+        {
+          "title": "SCOPE, весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-scope-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-scope-fs.png", "note": "1.93/255"}
+          ]
+        },
+        {
+          "title": "FIELD, весь экран (×1)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-viz-report/web-field-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-viz-report/godot-field-fs.png", "note": "1.26/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R4b2c-1", "severity": "fixed",
+          "title": "Состояние визуализатора",
+          "web": "24 полосы сглаживаются (атака 0.85, спад 0.22, в тишине 0.035), бас / середина / верх — средние полос 0–5 / 6–14 / 15–23, огибающая баса и импульс (затухание 0.84, усиление 4.5), фаза; AUTO — по 1080 кадров на режим; поле из 90 точек со скоростью 0.0004–0.001 холста за кадр.",
+          "godot": "`RadioVizState` — те же формулы и порядок; `take_mode` крутит AUTO; `drift_field` двигает поле.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_viz_state.gd", "tests/unit/test_radio_viz_state.gd"]
+        },
+        {
+          "id": "R4b2c-2", "severity": "fixed",
+          "title": "Рисование: 'lighter' и прозрачность 50 %",
+          "web": "Прозрачный холст, `globalCompositeOperation = 'lighter'`, `.rexp-vis { opacity: .5 }` внутри `.rexp { overflow: hidden; border-radius: 14px }`, под заголовком и содержимым (z-index 0 против 1).",
+          "godot": "`RadioVisualizer`: прозрачный SubViewport размером с CSS-бокс, аддитивное смешение (`viz_lighter.gdshader`: цвет и альфа складываются, для этого фрагмент несёт √a), показ с premultiplied-смешением на 50 % и маской скругления 13 px (`viz_composite.gdshader`); слой `RadioWindow.underlay()` между стеклом и содержимым.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/radio/radio_visualizer.gd", "assets/shaders/viz_lighter.gdshader", "assets/shaders/viz_composite.gdshader", "nodes/radio/radio_window.gd"]
+        },
+        {
+          "id": "R4b2c-3", "severity": "fixed",
+          "title": "Полосы со страницы движка",
+          "web": "Визуализатор читает `engine.readBands` в 24 полосы, а меню — в 8; `readBands` поднимает значения в переданном массиве, поэтому и хаб анализа, и визуализатор сначала обнуляют его.",
+          "godot": "Страница хоста переиспользовала массив без обнуления: полосы держались на максимуме с начала трека. Теперь каждый тик — с нуля, и вместе с 8 полосами приходят 24 (`visBands`). Живая проба на Windows: 737 событий, 1973 спада полос, σ нижних полос 0.18 (прежняя проверка takeover видела σ 0.018).",
+          "evidence": ["runtime", "test"],
+          "sources": ["web-reference/src/radio/host/radioHost.ts", "localhost/radio_host/index.html", "sim/radio/radio_host.gd", "sim/radio/radio_model.gd", "autoloads/radio.gd", "tests/unit/test_radio_host.gd"]
+        },
+        {
+          "id": "R4b2c-4", "severity": "fixed",
+          "title": "Детерминированный кадр для сверки",
+          "web": "Анимация зависит от времени, а поле — от `Math.random`: два кадра одного режима никогда не совпадают.",
+          "godot": "Хук `window.__debugVizPin` в web и `RadioVisualizer.pin` в Godot фиксируют сглаженные полосы, уровень, импульс, фазу и кадр; поле строится из `mulberry32(seed)` и не движется. `Mulberry32` на GDScript совпадает с JavaScript до 1e-12.",
+          "evidence": ["test", "screenshot"],
+          "sources": ["web-reference/src/components/RadioVisualizer.tsx", "sim/mulberry32.gd", "tests/unit/test_mulberry32.gd"]
+        },
+        {
+          "id": "R4b2c-5", "severity": "visual",
+          "title": "Сглаживание тонких линий осциллографа",
+          "web": "Skia сглаживает штрихи 1 и 2 px с митровыми стыками.",
+          "godot": "`draw_polyline` со сглаживанием: форма линий совпадает, края чуть мягче — 1.78/255 по холсту, остальные режимы около 1/255.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/radio/radio_visualizer.gd"]
+        },
+        {
+          "id": "R4b2c-6", "severity": "missing",
+          "title": "Очередь, сохранение трека, полоса LIBRARY",
+          "web": "Двойной клик и ▶ Play играют очередь запечённых треков с автопереходом, трек из плеера перетаскивается в библиотеку (с дневной квотой пробного периода), свёрнутое окно возвращает полоса LIBRARY над плеером.",
+          "godot": "Слайс R4c.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/App.tsx", "web-reference/src/components/RadioPlayer.tsx"]
+        }
+      ],
+      "limitations": [
+        "Сравнивался зафиксированный кадр; живая анимация, смена режимов AUTO и движение поля проверены тестами.",
+        "Живая проба шла на громкости 0.001 — ниже порога компенсации громкости страницы (0.03), поэтому полосы тише, чем при обычном прослушивании.",
+        "Свечение меню и takeover после исправления полос кадрами заново не сравнивались."
+      ]
+    }
+  ]
+}

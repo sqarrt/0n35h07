@@ -21,6 +21,18 @@ const SETS: Comp[][] = [
 
 interface RadioVisualizerProps { engine: IStrudelEngine | null; active: boolean; mode: VizMode }
 
+// Parity captures pin one frame (window.__debugVizPin, set before the page loads): the smoothed bands, level, impulse,
+// phase and frame are taken as given, the particle field is seeded and holds still.
+type VizPin = { phase: number; frame: number; level: number; impulse: number; bands: number[]; seed: number }
+const vizPin = (): VizPin | undefined => (window as unknown as { __debugVizPin?: VizPin }).__debugVizPin
+// mulberry32: the pinned field's seeded random (the Godot port draws the same particles)
+const mulberry32 = (seed: number) => () => {
+  seed |= 0; seed = seed + 0x6D2B79F5 | 0
+  let t = Math.imul(seed ^ seed >>> 15, 1 | seed)
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+  return ((t ^ t >>> 14) >>> 0) / 4294967296
+}
+
 export function RadioVisualizer({ engine, active, mode }: RadioVisualizerProps) {
   const ref = useRef<HTMLCanvasElement>(null)
   const modeRef = useRef(mode)
@@ -29,14 +41,16 @@ export function RadioVisualizer({ engine, active, mode }: RadioVisualizerProps) 
   useEffect(() => {
     const canvas = ref.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
-    if (!active) { ctx.clearRect(0, 0, canvas.width, canvas.height); return } // minimized/off → don't burn a 60fps rAF loop
+    const pin = vizPin()
+    if (!active && !pin) { ctx.clearRect(0, 0, canvas.width, canvas.height); return } // minimized/off → don't burn a 60fps rAF loop
     let W = canvas.width, H = canvas.height, cx = W / 2, cy = H / 2
     const bands = new Float32Array(BANDS), sm = new Float32Array(BANDS)
     let raf = 0, phase = 0, lvl = 0, bassEnv = 0, impulse = 0, frame = 0
     let bass = 0, mid = 0, high = 0, energy = 0
     // particle field state
+    const rnd = pin ? mulberry32(pin.seed) : Math.random
     const px = new Float32Array(FIELD_N), py = new Float32Array(FIELD_N), pvx = new Float32Array(FIELD_N), pvy = new Float32Array(FIELD_N)
-    for (let i = 0; i < FIELD_N; i++) { px[i] = Math.random(); py[i] = Math.random(); const a = Math.random() * 6.283; const sp = 0.0004 + Math.random() * 0.0006; pvx[i] = Math.cos(a) * sp; pvy[i] = Math.sin(a) * sp }
+    for (let i = 0; i < FIELD_N; i++) { px[i] = rnd(); py[i] = rnd(); const a = rnd() * 6.283; const sp = 0.0004 + rnd() * 0.0006; pvx[i] = Math.cos(a) * sp; pvy[i] = Math.sin(a) * sp }
 
     const trace = (comps: Comp[], R: number, rot: number, amp: number, jit: number) => {
       const pass: [string, number][] = [['rgba(120,195,255,0.5)', 2], ['rgba(230,248,255,0.92)', 1]]
@@ -85,7 +99,7 @@ export function RadioVisualizer({ engine, active, mode }: RadioVisualizerProps) 
       const spd = 1 + impulse * 6, r = 0.6 + bass * 4 + impulse * 3.5
       ctx.fillStyle = `rgba(140,210,255,${0.22 + high * 0.5})`
       for (let i = 0; i < FIELD_N; i++) {
-        px[i] = (px[i] + pvx[i] * spd + 1) % 1; py[i] = (py[i] + pvy[i] * spd + 1) % 1
+        if (!pin) { px[i] = (px[i] + pvx[i] * spd + 1) % 1; py[i] = (py[i] + pvy[i] * spd + 1) % 1 }
         ctx.beginPath(); ctx.arc(px[i] * W, py[i] * H, r, 0, 6.283); ctx.fill()
       }
     }
@@ -109,6 +123,11 @@ export function RadioVisualizer({ engine, active, mode }: RadioVisualizerProps) 
       bassEnv += (bass - bassEnv) * (bass > bassEnv ? 0.35 : 0.05)
       impulse = Math.max(impulse * IMPULSE_DECAY, Math.min(1, Math.max(0, bass - bassEnv) * IMPULSE_GAIN))
       phase += 0.006 + bass * 0.03 + mid * 0.022 + high * 0.014 + impulse * 0.07
+      if (pin) {
+        for (let i = 0; i < BANDS; i++) sm[i] = pin.bands[i] ?? 0
+        bass = avg(sm, 0, 6); mid = avg(sm, 6, 15); high = avg(sm, 15, BANDS); energy = bass + mid + high
+        lvl = pin.level; impulse = pin.impulse; phase = pin.phase; frame = pin.frame
+      }
 
       ctx.clearRect(0, 0, W, H)
       ctx.globalCompositeOperation = 'lighter'

@@ -18,11 +18,15 @@ static func track(track_name: String, bpm: int) -> Dictionary:
 	return {"v": FORMAT_VERSION, "id": ID_FORMAT % track_name, "name": track_name, "bpm": bpm, "bars": BARS,
 		"info": INFO.duplicate(), "program": PROGRAM % bpm}
 
-## Empty `library`'s root and seed it.
-static func seed(library: RadioLibrary) -> void:
+## Empty `library`'s root (the visualizer capture's library).
+static func clear(library: RadioLibrary) -> void:
 	library.ensure_root()
 	for entry in library.list_dir(""):
 		library.delete_track(entry[RadioLibrary.PATH], true)
+
+## Empty `library`'s root and seed it.
+static func seed(library: RadioLibrary) -> void:
+	clear(library)
 	for folder in FOLDERS:
 		library.make_folder("", folder)
 	for pair in ROOT_TRACKS:

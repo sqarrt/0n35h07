@@ -65,6 +65,14 @@ func enabled() -> bool:
 func is_active() -> bool:
 	return enabled() and model.is_ready()
 
+## web engine.readLevel for the LIBRARY visualizer: the page's output level, unscaled.
+func level() -> float:
+	return model.meter_level
+
+## web engine.readBands into 24: the page's visualizer bands this frame.
+func vis_bands() -> PackedFloat32Array:
+	return model.meter_vis_bands
+
 ## web App warmup: once, lazily, from a menu screen — the mini-player lives on every one. DLC ownership resolves
 ## alongside, and the page learns whether it may generate before it starts.
 func warm_up() -> void:

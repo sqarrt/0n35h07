@@ -16,6 +16,7 @@ import scales from '../../../public/radio/scales.json'
 const PROGRESS_MS = 100   // the player's scrub bar and time labels
 const METER_MS = 33       // the visualizer and the menu edge glow read the output level every frame
 const METER_BANDS = 8
+const VIS_BANDS = 24      // the LIBRARY window's visualizer reads its own band count (components/RadioVisualizer BANDS)
 
 interface GodotIpc { postMessage(message: string): void }
 
@@ -29,6 +30,7 @@ let controller: RadioController | null = null
 let warming = false
 let canGenerate = true
 const bands = new Float32Array(METER_BANDS)
+const visBands = new Float32Array(VIS_BANDS)
 
 const target: HostTarget = {
   init(volume) {
@@ -75,8 +77,13 @@ setInterval(() => {
 
 setInterval(() => {
   if (!engine?.isReady) return
+  // readBands max-combines INTO its array: each tick starts from silence, as the app's analysis frame and the
+  // visualizer's bands.fill(0) do (reusing the array kept every band at its loudest so far)
+  bands.fill(0)
+  visBands.fill(0)
   engine.readBands(bands)
-  post({ event: 'meter', level: engine.readLevel(), bands: Array.from(bands) })
+  engine.readBands(visBands)
+  post({ event: 'meter', level: engine.readLevel(), bands: Array.from(bands), visBands: Array.from(visBands) })
 }, METER_MS)
 
 post({ event: 'ready' })

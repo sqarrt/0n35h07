@@ -55,6 +55,7 @@ var minimum := Vector2.ZERO
 
 var _glow: ColorRect
 var _glass: GlassCard
+var _underlay: Control
 var _chrome: ColorRect
 var _title_lines: Array[GlowText] = []
 var _title := ""
@@ -78,6 +79,10 @@ func _init() -> void:
 	_glass = GlassCard.new()
 	add_child(_glass)
 	_glass.set_shadow(SHADOW_OFFSET, SHADOW_BLUR, 0.0)
+	_underlay = Control.new()                     # over the glass, under the content and chrome (web .rexp-vis z 0)
+	_underlay.name = "Underlay"
+	_underlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_underlay)
 	_content = Control.new()
 	_content.name = "Content"
 	_content.clip_contents = true
@@ -134,6 +139,10 @@ func set_title(text: String) -> void:
 
 func content() -> Control:
 	return _content
+
+## The layer between the glass and the content, the size of the padding box (inside the border).
+func underlay() -> Control:
+	return _underlay
 
 func buttons() -> Array:
 	return [_minimize, _maximize, _close]
@@ -237,6 +246,10 @@ func _layout() -> void:
 	CssBoxShadow.place(_glow, Vector2.ZERO, box)
 	_glass.set_box(box)
 	var inner := box - Vector2.ONE * 2.0 * BORDER_PX
+	_underlay.position = Vector2.ONE * BORDER_PX
+	_underlay.size = inner
+	for layer in _underlay.get_children():
+		(layer as Control).size = inner
 	_chrome.position = Vector2.ONE * BORDER_PX
 	_chrome.size = inner
 	var chrome := _chrome.material as ShaderMaterial

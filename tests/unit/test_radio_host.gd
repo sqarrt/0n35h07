@@ -4,6 +4,7 @@ extends GutTest
 
 const VOLUME := 0.5
 const BANDS := [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+const VIS_BAND_COUNT := 24
 
 class FakeTransport extends RadioTransport:
 	var sent: Array[String] = []
@@ -43,12 +44,19 @@ func test_events_become_signals() -> void:
 	assert_signal_emitted_with_parameters(host, "state_changed", [{"mood": "dark", "bpm": 128.0}])   # JSON numbers: floats
 	transport.deliver('{"event":"progress","progress":0.25,"totalMs":180000,"running":true}')
 	assert_signal_emitted_with_parameters(host, "progress_changed", [0.25, 180000.0, true])
-	transport.deliver(JSON.stringify({"event": "meter", "level": 0.5, "bands": BANDS}))
+	var vis := []
+	vis.resize(VIS_BAND_COUNT)
+	vis.fill(0.25)
+	transport.deliver(JSON.stringify({"event": "meter", "level": 0.5, "bands": BANDS, "visBands": vis}))
 	assert_signal_emitted(host, "meter_changed")
 	var meter: Array = get_signal_parameters(host, "meter_changed")
 	assert_almost_eq(float(meter[0]), 0.5, 0.0001)
 	var bands: PackedFloat32Array = meter[1]   # `as` does not cast packed arrays
 	assert_eq(bands.size(), BANDS.size())
+	var vis_bands: PackedFloat32Array = meter[2]
+	assert_eq(vis_bands.size(), VIS_BAND_COUNT, "the visualizer's 24 bands")
+	transport.deliver(JSON.stringify({"event": "meter", "level": 0.5, "bands": BANDS}))
+	assert_eq((get_signal_parameters(host, "meter_changed")[2] as PackedFloat32Array).size(), 0, "an older page sends none")
 	transport.deliver('{"event":"track-end"}')
 	assert_signal_emitted(host, "track_ended")
 	transport.deliver('{"event":"generated"}')
