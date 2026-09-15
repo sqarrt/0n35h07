@@ -271,6 +271,19 @@ func test_a_drop_target_dashes_its_border_like_blink() -> void:
 	assert_eq(look.get_shader_parameter("dash_px"), 3.0)
 	assert_eq(look.get_shader_parameter("border_color"), UiTokens.OK)
 
+func test_a_track_from_the_player_asks_to_be_saved_where_it_lands() -> void:
+	var explorer := _explorer()
+	watch_signals(explorer)
+	var payload := {"name": "Live"}
+	var data := {RadioExplorer.DRAG_TRACK: payload}
+	var folder: RadioLibraryItem = explorer.items()[1]
+	assert_true(explorer._can_drop_into(folder, data), "a folder takes the player's track")
+	explorer._drop_into(folder, data)
+	assert_signal_emitted_with_parameters(explorer, "save_requested", ["Night Drive", payload])
+	explorer.drop_into(explorer.current_path(), data)
+	assert_eq(get_signal_parameters(explorer, "save_requested")[0], "", "the grid saves into the folder shown")
+	assert_false(explorer._can_drop_into(explorer.items()[2], data), "a cassette takes no drop")
+
 func test_play_on_a_folder_queues_its_tracks_from_the_first() -> void:
 	var explorer := _explorer()
 	watch_signals(explorer)

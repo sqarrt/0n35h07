@@ -13,6 +13,13 @@ const KEY_ENABLED := "radioEnabled"
 const SCREEN_MENU := "menu"
 const EDITOR_FEATURE := "editor"                # web import.meta.env.DEV: a run from the editor is unlimited
 const LEVEL_SCALE := 12.0                       # web RADIO_LEVEL_SCALE: the normalised meter at the menu music's size
+const MODE_GEN := "gen"                         # web RadioPlayMode: the live generative stream ...
+const MODE_FAV := "fav"                         # ... or a library folder's queue of baked tracks
+const SAVE_PROMPT_S := 4.0                      # web radioSavePrompt: the "saves used up" line
+const PAYLOAD_VERSION := 2                      # web TrackPayload v
+const STATE_CODE := "strudelCode"
+const STATE_SEED := "seed"
+const STATE_TRACK_INDEX := "trackIndex"
 
 var model := RadioModel.new()
 var host: RadioHost = null
@@ -21,7 +28,12 @@ var owns_dlc := func() -> bool: return SteamBridge.radio_dlc_owned()
 var save_profile := func(profile: Dictionary) -> void: ProfileStore.save_profile(profile, Game.random.randf)
 var today := func() -> String: return RadioEntitlement.today_key(Time.get_date_dict_from_system())
 
+var play_mode := MODE_GEN
+var queue := RadioQueue.new()
+var save_limited := false                       # a save was just refused: the player shows the prompt
+
 var _warmed := false
+var _save_prompt_token := 0
 var _was_ready := false
 var _screen := SCREEN_MENU
 var _can_generate := true                       # the page's gate starts open
@@ -44,6 +56,7 @@ func attach_host(radio_host: RadioHost) -> void:
 	host = radio_host
 	model.bind(host)
 	host.generated.connect(_on_generated)
+	host.track_ended.connect(_on_track_ended)
 	var meter := model                          # web: the radio's level joins the menu's audio analysis
 	_meter_reader = func() -> float: return meter.meter_level * LEVEL_SCALE
 	Audio.analysis.add_level_reader(_meter_reader)
@@ -94,13 +107,86 @@ func sync() -> void:
 		RadioDirector.sync(host, model.is_ready(), enabled(), Audio.radio_gain(), _screen)
 	changed.emit()
 
+## web radioNext / radioPrev: the library queue steps round, the live stream skips a track.
 func next() -> void:
-	if host != null:
-		host.next()
+	_step(1)
 
 func prev() -> void:
-	if host != null:
+	_step(-1)
+
+## web onPlayLibrary: a folder's readable tracks become the queue and the library plays from `start`.
+func play_library(tracks: Array, start: int) -> void:
+	if host == null or tracks.is_empty():
+		return
+	queue.set_tracks(tracks, start)
+	play_mode = MODE_FAV
+	host.play_baked(queue.current())
+	changed.emit()
+
+## web onRadioMode: On Air leaves the baked queue for the live generator (a no-op while already on air).
+func set_play_mode(mode: String) -> void:
+	if mode == play_mode:
+		return
+	play_mode = mode
+	if mode == MODE_GEN and host != null:
+		host.resume_generative()
+	changed.emit()
+
+## web currentTrackJSON: the audible track as a v2 library payload, or {} when no program is playing.
+func current_track_payload() -> Dictionary:
+	var state := model.musical_state
+	var program := str(state.get(STATE_CODE, ""))
+	if host == null or program.is_empty():
+		return {}
+	var label := model.track_label()
+	var seed := str(state.get(STATE_SEED, ""))
+	return {
+		"v": PAYLOAD_VERSION,
+		"id": RadioLibrary.track_id(seed, int(state.get(STATE_TRACK_INDEX, 0))) if not seed.is_empty() else label,
+		"name": label,
+		"bpm": state.get("bpm", 0.0),
+		"bars": model.bars,
+		"info": {"mood": state.get("mood", ""), "key": state.get("key", ""), "scale": state.get("scaleName", "")},
+		"program": program,
+	}
+
+## web onSaveTrack: a save the trial allows goes into `folder` and counts (the profile saved); a spent quota refuses
+## it and shows the prompt for 4 s.
+func save_track(library: RadioLibrary, folder: String, payload: Dictionary) -> bool:
+	if not rights.entitlement(Game.profile, today.call())["can_save"]:
+		_show_save_prompt()
+		return false
+	library.save_track(folder, payload)
+	rights.note_saved(Game.profile, today.call())
+	save_profile.call(Game.profile)
+	changed.emit()
+	return true
+
+func _step(offset: int) -> void:
+	if host == null:
+		return
+	if play_mode == MODE_FAV and not queue.is_empty():
+		host.play_baked(queue.step(offset))
+	elif offset > 0:
+		host.next()
+	else:
 		host.prev()
+
+## web onTrackEndRef: a finished queue track moves on to the next (looping); the live stream carries on by itself.
+func _on_track_ended() -> void:
+	if play_mode == MODE_FAV and not queue.is_empty():
+		host.play_baked(queue.step(1))
+
+func _show_save_prompt() -> void:
+	save_limited = true
+	_save_prompt_token += 1
+	var token := _save_prompt_token
+	changed.emit()
+	if is_inside_tree():
+		get_tree().create_timer(SAVE_PROMPT_S).timeout.connect(func() -> void:
+			if token == _save_prompt_token:
+				save_limited = false
+				changed.emit())
 
 ## web radioSeek: the track jumps to a fraction and the bar shows it at once.
 func seek(fraction: float) -> void:

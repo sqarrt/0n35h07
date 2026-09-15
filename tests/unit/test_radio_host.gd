@@ -42,8 +42,10 @@ func test_events_become_signals() -> void:
 	assert_signal_emitted_with_parameters(host, "init_state_changed", ["ready"])
 	transport.deliver('{"event":"state","state":{"mood":"dark","bpm":128}}')
 	assert_signal_emitted_with_parameters(host, "state_changed", [{"mood": "dark", "bpm": 128.0}])   # JSON numbers: floats
+	transport.deliver('{"event":"progress","progress":0.25,"totalMs":180000,"running":true,"bars":64}')
+	assert_signal_emitted_with_parameters(host, "progress_changed", [0.25, 180000.0, true, 64.0])
 	transport.deliver('{"event":"progress","progress":0.25,"totalMs":180000,"running":true}')
-	assert_signal_emitted_with_parameters(host, "progress_changed", [0.25, 180000.0, true])
+	assert_eq(get_signal_parameters(host, "progress_changed")[3], 0.0, "an older page: no bars")
 	var vis := []
 	vis.resize(VIS_BAND_COUNT)
 	vis.fill(0.25)

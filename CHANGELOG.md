@@ -68,7 +68,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Ctrl+C and Ctrl+V shortcuts; names are edited in place, and a click on the path copies it. Tracks drag onto a folder
   (lit with a green dashed outline) to move there, and a rubber band dragged over the empty grid selects what it
   touches. Behind the window the original's music visualizer glows — an oscilloscope, bars, spokes or a drifting dot
-  field, AUTO rotating them every 18 seconds, the choice remembered. Queue playback comes next.
+  field, AUTO rotating them every 18 seconds, the choice remembered. Playing a library track plays its folder as a
+  queue (prev / next step round it, a finished track moves on, On Air returns to the live stream); the track playing
+  drags from the player onto a folder to be saved (on the free trial, 5 saves a day); a minimized LIBRARY window
+  becomes a bar over the player beside PROGRAM, the one minimized last on top.
 - **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
   kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
   errors; the version chip in the menu opens it in its folder.

@@ -6,7 +6,7 @@ class_name RadioHost extends RefCounted
 signal page_ready
 signal init_state_changed(state: String)             # web RadioInitState: idle / loading / ready / error
 signal state_changed(state: Dictionary)              # web MusicalState of the track that just started
-signal progress_changed(progress: float, total_ms: float, running: bool)
+signal progress_changed(progress: float, total_ms: float, running: bool, bars: float)
 signal meter_changed(level: float, bands: PackedFloat32Array, vis_bands: PackedFloat32Array)
 signal track_ended
 signal generated                                     # a new live track began (the trial's generation counter)
@@ -81,7 +81,8 @@ func _on_received(text: String) -> void:
 				state_changed.emit(event["state"])
 		RadioProtocol.EVENT_PROGRESS:
 			if _is_number(event.get("progress")) and _is_number(event.get("totalMs")) and event.get("running") is bool:
-				progress_changed.emit(float(event["progress"]), float(event["totalMs"]), event["running"])
+				var bars := float(event["bars"]) if _is_number(event.get("bars")) else 0.0   # an older page sends none
+				progress_changed.emit(float(event["progress"]), float(event["totalMs"]), event["running"], bars)
 		RadioProtocol.EVENT_METER:
 			if _is_number(event.get("level")) and event.get("bands") is Array:
 				var vis_bands: Array = event["visBands"] if event.get("visBands") is Array else []

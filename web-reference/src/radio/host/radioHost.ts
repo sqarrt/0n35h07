@@ -72,7 +72,8 @@ document.addEventListener('message', (e) => {
 })
 
 setInterval(() => {
-  if (controller) post({ event: 'progress', progress: controller.progress(), totalMs: controller.totalMs(), running: controller.isRunning })
+  // bars: the audible track's length, for the player's drag-to-save payload (web App currentTrackJSON)
+  if (controller) post({ event: 'progress', progress: controller.progress(), totalMs: controller.totalMs(), running: controller.isRunning, bars: controller.currentBars() })
 }, PROGRESS_MS)
 
 setInterval(() => {

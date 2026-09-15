@@ -12,6 +12,7 @@ class_name RadioExplorer extends RadioWindow
 ## touches (with Ctrl, added to the selection). The visualizer comes with the next slice.
 
 signal play_requested(queue: Array, start_index: int)
+signal save_requested(folder: String, payload: Dictionary)   # a track dragged from the player onto a folder or the grid
 
 const WINDOW_SIZE := Vector2(612.0, 372.0)       # web W0 / H0
 const MIN_SIZE := Vector2(380.0, 260.0)
@@ -80,6 +81,7 @@ const SETTINGS_VIZ := "viz"
 const WINDOWS_SEPARATOR := "\\"
 const LIBRARY_SEPARATOR := "/"
 const DRAG_MOVE := "radio_move"                 # web DT_MOVE: the dragged tracks' library paths
+const DRAG_TRACK := "radio_track"               # web DT_TRACK: the player's audible track as a payload
 const DRAG_PREVIEW_ALPHA := 0.6                 # the browser's translucent drag image
 
 var library: RadioLibrary
@@ -170,8 +172,8 @@ func _init() -> void:
 	_grid.clip_contents = true
 	_grid.mouse_filter = Control.MOUSE_FILTER_PASS
 	_grid.gui_input.connect(_on_grid_input)
-	_grid.set_drag_forwarding(Callable(), func(_at: Vector2, data: Variant) -> bool: return _is_move(data),
-		func(_at: Vector2, data: Variant) -> void: move_into(_path, data[DRAG_MOVE]))
+	_grid.set_drag_forwarding(Callable(), func(_at: Vector2, data: Variant) -> bool: return _is_move(data) or _is_track(data),
+		func(_at: Vector2, data: Variant) -> void: drop_into(_path, data))
 	content().add_child(_grid)
 	_status = Panel.new()
 	_status.name = "Status"
@@ -411,16 +413,26 @@ func _input(event: InputEvent) -> void:
 static func _is_move(data: Variant) -> bool:
 	return data is Dictionary and (data as Dictionary).get(DRAG_MOVE) is Array
 
+static func _is_track(data: Variant) -> bool:
+	return data is Dictionary and (data as Dictionary).get(DRAG_TRACK) is Dictionary
+
+## web onDropTo: the player's track is saved into `folder` (through the trial's quota), dragged tracks move there.
+func drop_into(folder: String, data: Variant) -> void:
+	if _is_track(data):
+		save_requested.emit(folder, data[DRAG_TRACK])
+	elif _is_move(data):
+		move_into(folder, data[DRAG_MOVE])
+
 ## web onDragOver on a folder: it lights up as the drop target; tracks take no drop.
 func _can_drop_into(item: RadioLibraryItem, data: Variant) -> bool:
-	if not item.is_folder() or not _is_move(data):
+	if not item.is_folder() or not (_is_move(data) or _is_track(data)):
 		return false
 	item.drop_target = true
 	return true
 
 func _drop_into(item: RadioLibraryItem, data: Variant) -> void:
 	item.drop_target = false
-	move_into(item.path(), data[DRAG_MOVE])
+	drop_into(item.path(), data)
 
 ## A folder opens; a track plays with the folder's readable tracks as the queue.
 func open_entry(entry: Dictionary) -> void:

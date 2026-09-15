@@ -162,6 +162,20 @@ try {
   await shot('web-radio-library-folder');
   facts.folder = await measure();
 
+  // the LIBRARY window minimized: its bar over the player; then PROGRAM minimized too — the last one on top
+  const bars = () => page.evaluate(() => [...document.querySelectorAll('[data-testid="radio-explorer-min"], [data-testid="radio-code-min"]')]
+    .map(b => { const r = b.getBoundingClientRect(); return { id: b.dataset.testid, box: [r.x, r.y, r.width, r.height], text: b.textContent }; }));
+  await page.locator('[data-testid="radio-explorer"] .rexp-wbtn').first().click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-bar');
+  facts.libraryBar = await bars();
+  await page.locator('.rexp:not([data-testid="radio-explorer"]) .rexp-wbtn').first().click();
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(UI_SETTLE_MS);
+  await shot('web-radio-library-bars');
+  facts.bothBars = await bars();
+
   facts.errors = errors;
   await writeFile(resolve(output, `web-radio-library${SUFFIX}.json`), JSON.stringify(facts, null, 2));
   console.log(JSON.stringify({ window: facts.root.window?.box, title: facts.root.title?.text, tools: facts.root.toolButtons.map(b => b?.box),
