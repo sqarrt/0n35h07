@@ -492,5 +492,6 @@ func _icon_button(node_name: String, css_px: float, spacing_em: float, families:
 	button.focus_mode = Control.FOCUS_NONE
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	RadioButtons.set_font(button, css_px, spacing_em, families, css_px)
+	RadioButtons.press_scale(button)   # web .radio-player-root button:active
 	parent.add_child(button)
 	return button

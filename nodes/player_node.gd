@@ -3,7 +3,6 @@ class_name PlayerNode extends CharacterBody3D
 ## Adds manual stair/ledge stepping (CharacterBody3D has no native step height) to match the
 ## web KCC autostep, plus camera smoothing so the step rise isn't an abrupt snap.
 
-const STEP_FORWARD_PROBE := 0.35   # how far ahead to test for a step (~capsule radius)
 const STEP_SMOOTH_SPEED := 6.0     # units/s the camera catches up after a step (visual only)
 
 var player := Player.new()
@@ -145,9 +144,8 @@ func _physics_process(delta: float) -> void:
 	b.step_dash(delta)
 	var desired := b.consume_desired()
 	velocity = desired / delta
+	_step_up_if_blocked(Vector3(desired.x, 0.0, desired.z))   # before the move, as the web KCC steps inside its sweep
 	move_and_slide()
-	if is_on_wall():
-		_try_step_up(Vector3(desired.x, 0.0, desired.z))
 	b.set_grounded(is_on_floor())
 	b.position = global_position
 	player.update_weapon(delta, [_hitbox.get_rid()])   # exclude own hitbox from the beam
@@ -302,14 +300,15 @@ func shield_fx() -> ShieldFx:
 func _shield_can_show() -> bool:
 	return _body_visible and not player.respawning and not _respawn_fx.is_rebirth_active(_visual_ms - _spawn_ms)
 
-## Probe up -> forward -> down. If we can rise, advance over the ledge, and land on solid
-## ground higher than we started, snap up onto the step. Otherwise it's a real wall — do nothing.
+## The web KCC's autostep: the sweep that carries the player forward also lifts it over a step, so no speed is lost on
+## the way up. Here the lift happens BEFORE move_and_slide, and only when the horizontal path is actually blocked —
+## probe up -> forward (AUTOSTEP_MIN_WIDTH of landing, as web) -> down onto walkable ground higher than we started.
 ## Works grounded or airborne (matches web autostep), so you can also jump onto ledges.
-func _try_step_up(horiz: Vector3) -> void:
-	if horiz.length() < 1e-4:
+func _step_up_if_blocked(horiz: Vector3) -> void:
+	if horiz.length() < 1e-4 or not test_move(global_transform, horiz):
 		return
 	var max_h := MoveConst.AUTOSTEP_MAX_HEIGHT
-	var probe := horiz.normalized() * STEP_FORWARD_PROBE
+	var probe := horiz.normalized() * MoveConst.AUTOSTEP_MIN_WIDTH
 
 	# 1. Headroom: how high can we rise before a ceiling stops us?
 	var up_res := KinematicCollision3D.new()
@@ -325,14 +324,16 @@ func _try_step_up(horiz: Vector3) -> void:
 	var advanced := probe
 	if test_move(lifted, probe, fwd_res):
 		advanced = fwd_res.get_travel()
-	if advanced.length() < probe.length() * 0.5:
-		return  # still blocked -> a real wall, not a step
+	if advanced.length() < probe.length():
+		return  # no room for the whole foot -> a real wall, not a step (web AUTOSTEP_MIN_WIDTH)
 	var over := lifted.translated(advanced)
 
-	# 3. Drop back down onto the step surface.
+	# 3. Drop back down onto the step surface — it has to be ground the player could stand on.
 	var down_res := KinematicCollision3D.new()
 	if not test_move(over, Vector3.DOWN * (up_dist + 0.05), down_res):
 		return  # nothing beneath -> would be stepping into the air
+	if down_res.get_normal().y < cos(deg_to_rad(MoveConst.KCC_SLOPE_DEG)):
+		return  # too steep to stand on -> the KCC would slide off it
 	var landed := over.translated(down_res.get_travel())
 	var dy := landed.origin.y - global_position.y
 	if dy > 0.02:

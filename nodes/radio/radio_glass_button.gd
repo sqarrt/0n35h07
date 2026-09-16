@@ -30,6 +30,7 @@ func _init(label: String, families: Array = []) -> void:
 	box.content_margin_top = GlassCard.BORDER_PX + PADDING_Y
 	box.content_margin_bottom = GlassCard.BORDER_PX + PADDING_Y
 	RadioButtons.dress(_button, box, TEXT)
+	RadioButtons.press_scale(_button)   # web .radio-player-root button:active
 	RadioButtons.set_font(_button, LABEL_PX, SPACING_EM, families)
 	_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_button.css_baseline = GlassCard.BORDER_PX + PADDING_Y + UiFont.fallback_ascent_px(LABEL_PX, families)

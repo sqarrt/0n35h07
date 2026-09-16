@@ -52,6 +52,14 @@ func test_the_window_toolbar_address_and_status_follow_chrome() -> void:
 	var status := explorer.find_child("Status", true, false) as Control
 	assert_almost_eq(status.global_position.y - explorer.global_position.y, 345.0, EPS, "web status at 476")
 
+func test_the_visualizer_button_lights_under_the_mouse() -> void:
+	var explorer := _explorer()
+	var viz := explorer.viz_button()
+	var hover := viz.get_theme_stylebox("hover") as StyleBoxFlat
+	assert_eq(hover.bg_color, Color(UiTokens.ACCENT, RadioExplorer.VIZ_HOVER_ALPHA), "web .rexp-viz:hover fill")
+	assert_eq(hover.border_color, UiTokens.LINE)
+	assert_eq(viz.get_theme_color("font_hover_color"), UiTokens.ACCENT)
+
 func test_the_grid_puts_folders_first_in_104_px_cells() -> void:
 	var explorer := _explorer()
 	var names := explorer.items().map(func(item: RadioLibraryItem) -> String: return item.entry[RadioLibrary.NAME])

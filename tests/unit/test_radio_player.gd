@@ -64,6 +64,20 @@ func test_dim_until_ready_and_the_play_glyph_follows_the_state() -> void:
 	assert_eq(player.title_text(), "Galvanic Worm IV")
 	assert_eq((player.transport_buttons()[1] as Button).text, RadioPlayer.PAUSE_GLYPH)
 
+func test_buttons_answer_the_mouse() -> void:
+	# web theme.css: .radio-player-root button:hover brightens the label and rings it, :active shrinks it to 0.92.
+	var player := await _player()
+	var button := player.transport_buttons()[0] as Button
+	assert_eq(button.get_theme_color("font_hover_color"), RadioButtons.brighten(button.get_theme_color("font_color")))
+	var ring := button.get_theme_stylebox("hover") as StyleBoxFlat
+	assert_not_null(ring)
+	assert_eq(ring.border_color, RadioButtons.HOVER_RING)
+	assert_ne(ring.border_color, (button.get_theme_stylebox("normal") as StyleBoxFlat).border_color)
+	button.button_down.emit()
+	assert_almost_eq(button.scale.x, RadioButtons.PRESS_SCALE, EPS, "a press shrinks the button")
+	button.button_up.emit()
+	assert_almost_eq(button.scale.x, 1.0, EPS)
+
 func test_controls_ask_for_actions() -> void:
 	var player := await _player()
 	player.show_state("Galvanic Worm IV", true, false)
