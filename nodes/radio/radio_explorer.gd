@@ -273,6 +273,7 @@ func refresh() -> void:
 		item.pressed.connect(_on_item_pressed)
 		item.opened.connect(func(opened: RadioLibraryItem) -> void: open_entry(opened.entry))
 		item.rename_finished.connect(_on_rename_finished)
+		item.gui_input.connect(_on_item_input)   # a cell takes the mouse: the wheel over it still scrolls the grid
 		item.set_drag_forwarding(func(_at: Vector2) -> Variant: return drag_data(item),
 			func(_at: Vector2, data: Variant) -> bool: return _can_drop_into(item, data),
 			func(_at: Vector2, data: Variant) -> void: _drop_into(item, data))
@@ -416,17 +417,30 @@ func marquee() -> RadioMarquee:
 
 func _on_grid_input(event: InputEvent) -> void:
 	var press := event as InputEventMouseButton
-	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-		scroll_to(_scroll + WHEEL_PX)
-		_grid.accept_event()
-		return
-	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_WHEEL_UP:
-		scroll_to(_scroll - WHEEL_PX)
+	if press != null and _wheel_scrolls(press):
 		_grid.accept_event()
 		return
 	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
 		begin_marquee(press.global_position, press.ctrl_pressed or press.meta_pressed)
 		_grid.accept_event()
+
+## The mouse over a cell (Chrome scrolls the nearest scrollable ancestor — the grid — whatever it is over).
+func _on_item_input(event: InputEvent) -> void:
+	var press := event as InputEventMouseButton
+	if press != null:
+		_wheel_scrolls(press)
+
+## Whether this press was a wheel notch, scrolling the grid by it.
+func _wheel_scrolls(press: InputEventMouseButton) -> bool:
+	if not press.pressed:
+		return false
+	if press.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		scroll_to(_scroll + WHEEL_PX)
+		return true
+	if press.button_index == MOUSE_BUTTON_WHEEL_UP:
+		scroll_to(_scroll - WHEEL_PX)
+		return true
+	return false
 
 ## web document mousemove / mouseup while the band is out.
 func _input(event: InputEvent) -> void:

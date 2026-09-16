@@ -127,3 +127,36 @@ func test_esc_and_focus_loss_release_the_lock() -> void:
 	lock.lock()
 	overlay._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
 	assert_false(lock.locked, "alt-tab loses it too")
+
+func test_escape_closes_the_pause_it_opened() -> void:
+	# web could only pause with Esc — Chrome takes the lock away on that key and will not give it back to it.
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	assert_false(overlay.visible)
+	_press_escape(overlay)
+	overlay.refresh()
+	assert_true(overlay.visible, "Esc pauses")
+	_press_escape(overlay)
+	assert_true(lock.locked, "and Esc takes the mouse back")
+	assert_false(overlay.visible)
+
+func test_escape_steps_out_of_the_in_match_settings_first() -> void:
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	lock.release()
+	overlay.refresh()
+	overlay.open_settings()
+	assert_not_null(overlay.settings())
+	_press_escape(overlay)
+	assert_null(overlay.settings(), "back to the pause menu")
+	assert_true(overlay.visible)
+	assert_false(lock.locked, "still paused")
+	_press_escape(overlay)
+	assert_true(lock.locked, "and the next Esc resumes")
+
+func _press_escape(overlay: PauseOverlay) -> void:
+	var event := InputEventAction.new()
+	event.action = "pause"
+	event.pressed = true
+	overlay._unhandled_input(event)
