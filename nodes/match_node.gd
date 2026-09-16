@@ -154,6 +154,7 @@ func _physics_process(delta: float) -> void:
 	if phase.is_live() and _clock.is_over():
 		_end_match()
 	_apply_freeze()
+	KnockbackRule.apply(players(), owns)   # web maybeKnockback: overlapping balls push apart before the rules run
 	rules.resolve(delta)
 	emit_events(rules.events)
 	if mesh != null:

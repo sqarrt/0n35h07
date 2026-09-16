@@ -80,6 +80,14 @@ func test_a_cut_hands_over_to_a_play_shot_under_the_cover() -> void:
 	_run(screen, TrailerScreen.COVER_FADE_S + STEP_S)
 	assert_eq(screen.cover().modulate.a, 0.0, "faded once ready")
 
+func test_the_outgoing_shot_leaves_the_tree_before_the_next_one_draws() -> void:
+	# A queued free still renders its node for the rest of the frame, so the end of the old scene showed under the new.
+	var screen := _screen(PLAY_INDEX)
+	var leaving := screen.playback()
+	assert_true(leaving.is_inside_tree())
+	screen.playback().ended.emit()
+	assert_false(leaving.is_inside_tree(), "detached the moment the shot changed")
+
 func test_play_shot_sounds_are_dimmed_and_go_leads_later_cuts() -> void:
 	var screen := _screen(PLAY_INDEX)
 	screen.playback().sound.emit(DemoPlayback.DASH_SOUND)

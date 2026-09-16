@@ -52,6 +52,7 @@ func setup(clip: DemoClip, ranges: Array, reserve_color := "") -> void:
 	_reserve_color = clip.reserve_color if clip.reserve_color != "" else reserve_color   # web demo.reserveColor ?? profile
 
 func _ready() -> void:
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # the replay poses everyone per rendered frame
 	add_child(GeoLoader.build(MapCatalog.raw_path(_clip.map_id), MapCatalog.geo_path(_clip.map_id)))
 	add_child(MapEdges.new())                      # web DemoScene: the in-game block outlines
 	var lights := MapLights.build()

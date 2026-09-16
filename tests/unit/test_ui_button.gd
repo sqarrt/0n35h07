@@ -95,14 +95,6 @@ func test_a_grouped_button_fades_as_one_layer() -> void:
 	assert_eq(group.get_combined_minimum_size(), BOX, "the group takes the button's box")
 	assert_eq(button.size, BOX)
 
-func test_cooldown_fill_grows_inside_the_border() -> void:
-	var button := _button("RESUME", UiButton.PRIMARY)
-	button.set_cooldown_share(HALF)
-	var style := button.get_theme_stylebox("disabled") as UiButton.CooldownStyle
-	assert_not_null(style, "the fill is part of the disabled box, so the text draws over it")
-	assert_eq(style.fill_rect(Rect2(Vector2.ZERO, BOX)), Rect2(1.0, 1.0, 109.0, 42.0), "web span: 50% of the padding box")
-	assert_eq(style.fill_color, UiButton.COOLDOWN_FILL)
-
 func test_a_button_never_takes_keyboard_focus() -> void:
 	var button := _button("READY", UiButton.PRIMARY)
 	assert_eq(button.focus_mode, Control.FOCUS_NONE,

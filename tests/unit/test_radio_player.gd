@@ -78,6 +78,22 @@ func test_buttons_answer_the_mouse() -> void:
 	button.button_up.emit()
 	assert_almost_eq(button.scale.x, 1.0, EPS)
 
+func test_a_relayout_keeps_the_rows_under_the_mouse() -> void:
+	# The progress poll relayouts the card several times a second; hiding a row and showing it again drops the hover
+	# Godot only re-reads when the cursor moves, and cancels a press in flight (the ball button took several clicks).
+	var player := await _expanded()
+	var mounts := [0]
+	for row: Control in [player.find_child("AirRow", true, false), player.transport_row(), player.volume_row()]:
+		row.visibility_changed.connect(func() -> void: mounts[0] += 1)
+	player.show_details("126 BPM · E phrygian", 0.20, 137000.0)
+	player.show_state("proc/warden", true, true)
+	assert_eq(mounts[0], 0, "the rows the card shows stay mounted")
+
+func test_a_pressed_button_keeps_the_press_while_it_shrinks() -> void:
+	var player := await _expanded()
+	assert_true(player.ball_button().keep_pressed_outside,
+		"the 0.92 press must not slip the box out from under the cursor and swallow the click")
+
 func test_controls_ask_for_actions() -> void:
 	var player := await _player()
 	player.show_state("Galvanic Worm IV", true, false)

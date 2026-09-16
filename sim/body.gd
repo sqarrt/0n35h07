@@ -16,6 +16,8 @@ var _jumped_this_frame := false
 var _desired := Vector3.ZERO
 var _dash_dir := Vector3.ZERO
 var _dash_timer := 0.0
+var _knock_dir := Vector3.ZERO   # the push from overlapping another ball (web knockDir)
+var _knock_timer := 0.0
 var _dash_cooldown := 0.0
 
 # --- horizontal (Quake inertia) ---
@@ -108,6 +110,30 @@ func dash_progress() -> float:
 func reset_dash_cooldown() -> void:
 	_dash_cooldown = 0.0
 
+# --- knockback ---
+
+## A push along `dir` when two balls overlap (web Body.knockback): dash-like but not a dash. The horizontal share is a
+## burst into `desired`, the upward share overrides the fall, so landing on someone really throws you into an arc.
+func knockback(dir: Vector3) -> void:
+	if dir.length_squared() == 0.0:
+		return
+	var push := dir.normalized()
+	_knock_dir = Vector3(push.x, 0.0, push.z)   # the steeper the contact, the weaker the sideways push
+	_knock_timer = MoveConst.KNOCKBACK_DURATION_MS
+	if push.y > 0.0:
+		velocity_y = maxf(velocity_y, push.y * MoveConst.KNOCKBACK_UP_SPEED)
+
+## Accumulate the push into `desired` and tick its window (web Body.stepKnockback, called like step_dash).
+func step_knockback(dt: float) -> void:
+	if _knock_timer <= 0.0:
+		return
+	_desired += _knock_dir * (MoveConst.KNOCKBACK_SPEED * dt)
+	_knock_timer -= dt * 1000.0
+
+## Inside the push window — the match doesn't restart the impulse every overlapping frame (web get knocking).
+func is_knocking() -> bool:
+	return _knock_timer > 0.0
+
 # --- shared ---
 
 func consume_desired() -> Vector3:
@@ -128,6 +154,7 @@ func set_position(p: Vector3) -> void:
 	_wish_vel = Vector3.ZERO
 	_dash_timer = 0.0
 	_dash_cooldown = 0.0
+	_knock_timer = 0.0
 	grounded = p.y <= MoveConst.EYE_HEIGHT + 0.01
 
 func horizontal_speed() -> float:

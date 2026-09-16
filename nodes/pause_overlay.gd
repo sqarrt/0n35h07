@@ -1,7 +1,6 @@
 class_name PauseOverlay extends CanvasLayer
 ## Pause menu — port of web PauseMenu with the App pause rules (PauseModel): it shows while a live match has no pointer
-## lock and never stops the match. MENU over RESUME (primary, no UI sounds; after the lock is lost it waits out the
-## cooldown with its fill growing left to right), SETTINGS (the in-match settings panel in place of the menu, back to
+## lock and never stops the match. MENU over RESUME (primary, no UI sounds), SETTINGS (the in-match settings panel in place of the menu, back to
 ## the menu whenever the pause closes), TO MENU and, on the desktop build, QUIT (ghost). Esc and a lost window focus
 ## release the lock like the browser does.
 
@@ -17,7 +16,6 @@ const QUIT_KEY := "pauseExit"
 const TITLE_FONT_SIZE := 24              # h2: 1.5em, bold
 const TITLE_SPACING_EM := 0.2
 const TITLE_MARGIN_BOTTOM := 32.0        # 2rem
-const COOLDOWN_OPACITY := 0.5            # web inline opacity while RESUME waits
 const MAIN_MENU := "res://scenes/main_menu.tscn"
 
 var profile := {}                        # the live profile the in-match settings edit (arena_boot: Game.profile)
@@ -28,17 +26,14 @@ var _settings: MatchSettings
 var _desktop := true
 var _live: Callable = func() -> bool: return false   # no match wired: nothing to pause
 var _lock := PointerLock.new()
-var _now_ms: Callable = func() -> float: return float(Time.get_ticks_msec())
 var _resume: UiButton
 var _quit: UiButton
 
-## The live-phase check (MatchNode.is_live); the lock and the clock are injectable for tests.
-func setup(live: Callable, lock: PointerLock = null, now_ms := Callable()) -> void:
+## The live-phase check (MatchNode.is_live); the lock is injectable for tests.
+func setup(live: Callable, lock: PointerLock = null) -> void:
 	_live = live
 	if lock != null:
 		_lock = lock
-	if now_ms.is_valid():
-		_now_ms = now_ms
 
 func _ready() -> void:
 	layer = LAYER
@@ -56,7 +51,6 @@ func _ready() -> void:
 	_column.add(title, 0.0, TITLE_MARGIN_BOTTOM)
 	_resume = UiButton.new(I18n.t(RESUME_KEY), UiButton.PRIMARY, false)   # web: a plain <button>, silent
 	_resume.name = "Resume"
-	_resume.disabled_opacity = COOLDOWN_OPACITY
 	_resume.pressed.connect(_on_resume)
 	_column.add(_resume.grouped(), UiButton.MARGIN_Y, UiButton.MARGIN_Y)   # the dark label over the faded fill
 	_button("Settings", I18n.t(SETTINGS_KEY), UiButton.GHOST).pressed.connect(open_settings)
@@ -102,16 +96,12 @@ func settings() -> MatchSettings:
 func _process(_delta: float) -> void:
 	refresh()
 
-## Re-read the lock and the phase: show or hide, and the RESUME cooldown.
+## Re-read the lock and the phase: show or hide.
 func refresh() -> void:
-	var now: float = _now_ms.call()
-	_model.set_locked(_lock.is_locked(), now)
+	_model.set_locked(_lock.is_locked())
 	visible = _model.is_paused(_live.call())
 	if not visible:
 		close_settings()
-		return
-	_resume.set_cooldown_share(_model.cooldown_share(now))
-	_resume.set_enabled(_model.can_resume(now))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
@@ -128,9 +118,8 @@ func _button(node_name: String, label: String, variant: String, sounds := true) 
 	return button
 
 func _on_resume() -> void:
-	if _model.can_resume(_now_ms.call()):
-		_lock.lock()
-		refresh()
+	_lock.lock()
+	refresh()
 
 func _on_main_menu() -> void:
 	get_tree().change_scene_to_file(MAIN_MENU)

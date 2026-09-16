@@ -1,10 +1,9 @@
 extends GutTest
 ## Pause menu parity with web PauseMenu: it shows while a live match has no pointer lock and never stops the match;
-## MENU over RESUME (primary, waiting out the lock cooldown) and the ghost SETTINGS / TO MENU / QUIT; Esc and a lost
+## MENU over RESUME (primary) and the ghost SETTINGS / TO MENU / QUIT; Esc and a lost
 ## window focus release the lock like the browser does.
 
 const EPS := 0.01
-const UNLOCK_AT_MS := 5000.0
 
 class FakeLock extends PointerLock:
 	var locked := true
@@ -18,12 +17,11 @@ class FakeLock extends PointerLock:
 	func release() -> void:
 		locked = false
 
-var _now := 0.0
 var _live := true
 
 func _overlay(lock: FakeLock) -> PauseOverlay:
 	var overlay := PauseOverlay.new()
-	overlay.setup(func() -> bool: return _live, lock, func() -> float: return _now)
+	overlay.setup(func() -> bool: return _live, lock)
 	add_child_autofree(overlay)
 	return overlay
 
@@ -31,7 +29,6 @@ func _button(overlay: PauseOverlay, node_name: String) -> UiButton:
 	return overlay.find_child(node_name, true, false) as UiButton
 
 func before_each() -> void:
-	_now = 0.0
 	_live = true
 
 func test_shows_the_web_menu_without_the_lock() -> void:
@@ -104,23 +101,16 @@ func test_no_pause_outside_the_live_phase() -> void:
 	overlay.refresh()
 	assert_false(overlay.visible, "countdown / match end")
 
-func test_resume_waits_out_the_cooldown() -> void:
+func test_resume_takes_the_mouse_back_at_once() -> void:
+	# web made RESUME wait out POINTERLOCK_COOLDOWN because Chrome refused the repeat lock; Godot has no such limit.
 	var lock := FakeLock.new()
 	var overlay := _overlay(lock)
-	_now = UNLOCK_AT_MS
 	overlay.refresh()
 	lock.release()
 	overlay.refresh()
 	var resume := _button(overlay, "Resume")
-	_now = UNLOCK_AT_MS + PauseModel.COOLDOWN_MS * 0.5
-	overlay.refresh()
-	assert_true(resume.disabled)
-	assert_almost_eq(resume.opacity(), PauseOverlay.COOLDOWN_OPACITY, EPS)
+	assert_false(resume.disabled, "no waiting: the pause is over as soon as RESUME is pressed")
 	assert_not_null(resume.fade, "RESUME fades as one layer (CSS opacity)")
-	assert_almost_eq((resume.get_theme_stylebox("disabled") as UiButton.CooldownStyle).share, 0.5, EPS)
-	_now = UNLOCK_AT_MS + PauseModel.COOLDOWN_MS
-	overlay.refresh()
-	assert_false(resume.disabled)
 	resume.pressed.emit()
 	assert_true(lock.locked, "RESUME takes the pointer lock back")
 	overlay.refresh()

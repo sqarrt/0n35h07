@@ -39,12 +39,14 @@ var _time_s := 0.0
 var _hold_s := -1.0
 
 func _ready() -> void:
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # the duel is posed per rendered frame
 	name = "Finale"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_bloom = BloomChain.new(BLOOM_THRESHOLD, BLOOM_SMOOTHING, BLOOM_RADIUS)
 	add_child(_bloom)
 	_world = SubViewport.new()
+	_world.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # the duel is posed per rendered frame
 	_world.name = "World"
 	_world.own_world_3d = true
 	_world.msaa_3d = Viewport.MSAA_4X

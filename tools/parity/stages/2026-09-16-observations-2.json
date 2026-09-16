@@ -1,0 +1,91 @@
+{
+  "id": "2026-09-16-observations-2",
+  "title": "OneShot · Замечания пользователя, часть 2: мерцание смайликов, перешагивание, отталкивание, кулдаун паузы",
+  "date": "2026-09-16",
+  "captures_dir": "test-results",
+  "lede": "Шесть новых пунктов из `test-results/PARITY_OBSERVATIONS.md`. Эталон — web из истории git (коммит до удаления `web-reference`): `game/Match.ts`, `game/Body.ts`, `constants.ts`, `components/radioTakeover/RadioTakeover.tsx`, `App` (POINTERLOCK_COOLDOWN). Все шесть подтвердились и исправлены; корень трёх из них оказался общим — движок интерполировал между физ-тиками сцены, которые порт анимирует каждый нарисованный кадр.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-16-observations-2.json`. Web-исходники — `git show 4a91a4a^:web-reference/src/...`. Проверки: GUT 985/985 (новые файлы `test_knockback_rule.gd`, `test_body_knockback.gd`, `test_match_knockback_in_engine.gd`; новые тесты в `test_menu_backdrop_takeover.gd`, `test_trailer_screen.gd`, `test_radio_player.gd`, `test_player_node_physics.gd`); обычный запуск игры — `test-results/probes/launch_screenshot.ps1` (3840×2160), лог запуска чист.",
+  "pages": [
+    {
+      "slug": "observations-2",
+      "name": "Замечания (часть 2)",
+      "verdict": "Мерцание смайликов, «конец прошлой сцены» в трейлере и рывки фона — одна причина: `physics/common/physics_interpolation` включена глобально, а фон меню, его проходы свечения и сцены трейлера позируются в `_process` каждый кадр; движок сглаживал их между тиками физики, поэтому переиспользованный смайлик, прыгающий со дна наверх, рисовался проездом через середину кадра — ровно на том бите, который его родил (совпадает с наблюдением пользователя: мерцание на пике прыжка). Кнопка шара не нажималась, потому что карта плеера пересобирала строки несколько раз в секунду, снимая наведение и отменяя нажатие. Перешагивание срабатывало на проходимых пандусах. Отталкивание шаров не было перенесено вовсе. Кулдаун RESUME — костыль Chrome, удалён.",
+      "verdict_short": "Шесть замечаний подтверждены и исправлены",
+      "conditions": [
+        ["эталон", "web из истории git: `Match.maybeKnockback`, `Body.knockback/stepKnockback`, `constants.ts` (KNOCKBACK_*, PLAYER_OVERLAP_DIST), `EmojiRain` useFrame, `App` POINTERLOCK_COOLDOWN", "Godot `release_2.0.0` + ветка feature/godot-observations-2"],
+        ["проверка", "чтение web-кода", "GUT 985/985; обычный запуск игры (3840×2160, масштаб 150 %)"]
+      ],
+      "comparisons": [
+        {
+          "title": "Обычный запуск после правок (лог без предупреждений движка)",
+          "panels": [
+            {"kind": "godot", "img": "probes/launch_obs2.png", "note": "игра поднимается на весь экран; предупреждение «Interpolated Camera3D triggered from outside physics process» ушло"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "P1", "severity": "fixed",
+          "title": "Смайлики мерцали, появляясь из ниоткуда посреди кадра",
+          "web": "`EmojiRain` живёт в `useFrame`: каждый нарисованный кадр сам ставит позиции; у three.js нет промежуточной интерполяции, поэтому возврат капли наверх — мгновенный.",
+          "godot": "Было: `physics/common/physics_interpolation=true` на весь проект, а `MenuBackdrop._process` позирует камеру, шары, свечение и дождь каждый кадр. Движок интерполировал их между тиками физики: `Label3D`, прыгнувший со дна к верхней кромке, рисовался в промежуточных точках — вспышка посреди экрана на бите. Стало: `physics_interpolation_mode = OFF` у фона, у его мира, у проходов `MenuEdgeGlow` и у сцен трейлера (`DemoPlayback`, `FinaleScene`). Значения `SubViewport` не наследуются — выставлено на каждом мире отдельно.",
+          "evidence": ["code", "test", "runtime"],
+          "sources": ["nodes/menu_backdrop.gd", "nodes/menu_edge_glow.gd", "nodes/demo_playback.gd", "nodes/finale_scene.gd", "tests/unit/test_menu_backdrop_takeover.gd"]
+        },
+        {
+          "id": "P2", "severity": "fixed",
+          "title": "Кнопка шара в радио не нажималась и не подсвечивалась без движения мыши",
+          "web": "Строки карты плеера — обычный DOM: перерисовка не трогает `:hover` и не отменяет нажатие.",
+          "godot": "Было: `RadioPlayer._layout()` сначала прятал все строки, потом показывал нужные, а сам вызывался из `show_details()` — то есть несколько раз в секунду вместе с прогрессом. Godot перечитывает наведённый `Control` только при движении курсора, поэтому ховер пропадал у неподвижной мыши, а нажатие терялось. Стало: строка меняет видимость только когда действительно меняется состав карты. Плюс `keep_pressed_outside` у кнопок плеера: сжатие до 0.92 больше не выводит бокс из-под курсора и не съедает клик.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/radio/radio_player.gd", "nodes/radio/radio_buttons.gd", "tests/unit/test_radio_player.gd"]
+        },
+        {
+          "id": "P3", "severity": "fixed",
+          "title": "Перешагивание подкидывало шар",
+          "web": "Rapier делает автошаг только для препятствий: `handle_stepping` пропускает удар, нормаль которого проходима по углу — пандус проходится обычным движением.",
+          "godot": "Было: подъём пробовался, как только горизонтальный путь чем-то перекрыт, включая проходимый пандус: каждый кадр игрока поднимало на высоту площадки, и шар подбрасывало. Стало: собирается нормаль препятствия, и шаг запускается только если по ней нельзя идти (круче `KCC_SLOPE_DEG`). Магические числа пробы вынесены в именованные константы.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/player_node.gd", "tests/unit/test_player_node_physics.gd"]
+        },
+        {
+          "id": "P4", "severity": "fixed",
+          "title": "Шары проходили друг сквозь друга",
+          "web": "`Match.maybeKnockback` + `Body.knockback/stepKnockback`: центры ближе двух радиусов → импульс 26 ед/с на 150 мс по 3D-линии от чужого центра, вертикальная доля — `velocityY = max(velocityY, dir.y·12)`, один толчок на игрока за тик и ни одного, пока идёт свой.",
+          "godot": "Было: отталкивание не перенесено вовсе — тела игроков не сталкивались. Стало: `KnockbackRule` (перекрытие и выбор направления, на меше — только свои игроки), `Body.knockback / step_knockback / is_knocking` и вызов из `MatchNode` перед правилами; толчок копится в `desired`, поэтому стены его по-прежнему держат.",
+          "evidence": ["code", "test"],
+          "sources": ["sim/knockback_rule.gd", "sim/body.gd", "sim/constants.gd", "nodes/match_node.gd", "nodes/player_node.gd", "tests/unit/test_knockback_rule.gd", "tests/unit/test_match_knockback_in_engine.gd"]
+        },
+        {
+          "id": "P5", "severity": "fixed",
+          "title": "В трейлере мелькал конец прошлой сцены",
+          "web": "`ShotView` размонтируется по ключу кадра: старая сцена исчезает вместе со сменой.",
+          "godot": "Было: `_leave_shot()` звал `queue_free()` — узел освобождается в конце кадра и успевает нарисоваться под новой сценой. Стало: сцена вынимается из дерева сразу (`remove_child`), освобождение — уже после.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/trailer_screen.gd", "tests/unit/test_trailer_screen.gd"]
+        },
+        {
+          "id": "P6", "severity": "fixed",
+          "title": "Кулдаун возврата в игру из паузы",
+          "web": "`POINTERLOCK_COOLDOWN` 1300 мс: Chrome отказывает в повторном `requestPointerLock` около 1.25 с после выхода, поэтому RESUME ждал с заливкой прогресса.",
+          "godot": "Вынужденный костыль браузера — по правилу «костыли web не переносим» удалён целиком: из `PauseModel` (кулдаун и часы), из `PauseOverlay`, заливка `UiButton.CooldownStyle` и режим захвата `pause-cooldown`. Мышь забирается сразу по нажатию RESUME.",
+          "evidence": ["code", "test"],
+          "sources": ["sim/pause_model.gd", "nodes/pause_overlay.gd", "nodes/ui_button.gd", "tools/screenshot.gd", "tests/unit/test_pause_model.gd", "tests/unit/test_pause_overlay.gd"]
+        },
+        {
+          "id": "P7", "severity": "behavior",
+          "title": "Камера матча тоже двигается вне физики",
+          "web": "—",
+          "godot": "Найдено попутно: `HumanController` вращает узел игрока и камеру в `_process` / `_unhandled_input`, а сам игрок интерполируется (это нужно для плавности движения на 60 Гц физике). Значит поворот обзора может отставать на тик. Пользователь на это не жаловался, а лечение (вынести рыскание на неинтерполируемый узел) трогает движение — оставлено на отдельный слайс.",
+          "evidence": ["code"],
+          "sources": ["nodes/human_controller.gd", "nodes/player_node.gd"]
+        }
+      ],
+      "limitations": [
+        "Мерцание смайликов проверено разбором причины, тестом на выключенную интерполяцию и чистым логом обычного запуска; покадровое видео дождя не снималось — headless-захват с фиксированным fps не воспроизводит артефакт интерполяции.",
+        "Отталкивание проверено юнит-тестами и реальной физикой (два шара внутри друг друга расходятся за 0.5 с); на ощупь в живом матче не проверялось.",
+        "Ховер кнопок радио проверен тестом на неизменность строк; живой кадр наведения снимался в прошлом слайсе."
+      ]
+    }
+  ]
+}
