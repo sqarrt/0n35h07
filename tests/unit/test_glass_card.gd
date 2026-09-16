@@ -6,6 +6,7 @@ extends GutTest
 const EPS := 0.01
 const SCREEN := Vector2i(640, 360)
 const BOX := Vector2(300.0, 120.0)
+const MENU_RADIUS := 12.0          # web RadioExplorer.css .rexp-ctx: another glass, 12 px corners
 
 func _card() -> GlassCard:
 	var viewport := SubViewport.new()
@@ -53,3 +54,15 @@ func test_a_window_takes_its_own_shadow_and_no_ring() -> void:
 	var pad := GlassCard.KERNEL_SIGMAS * 60.0 * GlassCard.SHADOW_SIGMA_SHARE + 18.0
 	assert_almost_eq(float(surface.get_shader_parameter("pad_px")), pad, EPS, "the surface reaches the larger shadow")
 	assert_eq(card.surface().size, BOX + Vector2.ONE * 2.0 * pad)
+
+func test_the_backdrop_filter_is_clipped_to_the_corners() -> void:
+	# CSS clips a backdrop-filter to the element's border-radius; the port blurred the whole square, so the corners
+	# outside the radius showed a smeared square of whatever was behind the card.
+	var card := _card()
+	var blur := card.blur().material as ShaderMaterial
+	assert_almost_eq(float(blur.get_shader_parameter("radius_px")), GlassCard.RADIUS, EPS)
+	card.set_look(GlassCard.FILL, GlassCard.HIGHLIGHT, MENU_RADIUS, GlassCard.BACKDROP_SIGMA)
+	assert_almost_eq(float(blur.get_shader_parameter("radius_px")), MENU_RADIUS, EPS,
+		"another glass clips its filter to its own corners")
+	assert_almost_eq(float((card.surface().material as ShaderMaterial).get_shader_parameter("radius_px")),
+		MENU_RADIUS, EPS)

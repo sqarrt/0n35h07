@@ -380,6 +380,7 @@ func _rows() -> Array:
 		rows.append([_air_row, AIR_HEIGHT, 0.0])
 		rows.append([_volume, _volume.row_height(), 0.0])
 		if _has_trial:
+			_trial.set_content_width(WIDTH - 2.0 * (GlassCard.BORDER_PX + PADDING.x))   # it wraps in the room it gets
 			rows.append([_trial, _trial.row_height(), RadioTrialRow.MARGIN_TOP])
 		if _gen_limited:
 			rows.append([_limit, _limit.css_size().y, LIMIT_MARGIN_TOP])

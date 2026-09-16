@@ -1,7 +1,9 @@
 class_name RadioLibraryItem extends Control
 ## One cell of the Radio library grid — web RadioExplorer `.rexp-it`: 104 px wide, 8px 4px of padding inside a 1 px
 ## transparent border (radius 4), the icon centred on top and 8 px under it the name (11.5 px at line-height 1.25,
-## centred, --text with a 0 1px 4px black text-shadow, at most 96 px). The mouse over it: a ghost-line-hover border on
+## centred, --text with a 0 1px 4px black text-shadow, wrapped inside 96 px as `word-break: break-word` wraps it —
+## at spaces, and inside a word that would not fit a line of its own — so a long name grows the cell instead of
+## running over its neighbour). The mouse over it: a ghost-line-hover border on
 ## accent 5%; selected: an accent border on accent 12% with a 16 px accent-16% inset glow.
 
 signal pressed(item: RadioLibraryItem, event: InputEventMouseButton)
@@ -21,6 +23,7 @@ const BORDER_PX := 1.0
 const RADIUS := 4.0
 const GAP := 8.0
 const LABEL_PX := 11.5
+const LABEL_MAX_WIDTH := 96.0                   # web .lbl max-width: 96px
 const LINE_HEIGHT_EM := 1.25
 const LABEL_SHADOW := Color(0.0, 0.0, 0.0, 1.0)
 const LABEL_SHADOW_OFFSET := Vector2(0.0, 1.0)
@@ -52,7 +55,8 @@ var drop_target := false:
 
 var _box: ColorRect
 var _icon: RadioLibraryIcon
-var _label: GlowText
+var _label: GlowText                            # the name's first line (every line is a GlowText of its own)
+var _lines: Array[GlowText] = []
 var _rename: LineEdit = null
 var _hovered := false
 
@@ -72,13 +76,7 @@ func _init(library_entry: Dictionary) -> void:
 	_icon = RadioLibraryIcon.new(RadioLibraryIcon.FOLDER if entry[RadioLibrary.KIND] == RadioLibrary.FOLDER
 		else RadioLibraryIcon.TRACK)
 	add_child(_icon)
-	_label = GlowText.new()
-	_label.name = "Label"
-	_label.configure_css(LABEL_PX, 0.0, UiTokens.TEXT)
-	_label.set_shadows([CssShadow.make(LABEL_SHADOW_BLUR, LABEL_SHADOW, LABEL_SHADOW_OFFSET)])
-	_label.set_text(str(entry[RadioLibrary.NAME]))
-	_label.minimum_size_changed.connect(_layout)   # the name's box settles once the theme fonts apply
-	add_child(_label)
+	_set_lines(wrap_lines(str(entry[RadioLibrary.NAME])))
 	size = Vector2(WIDTH, natural_height())
 	_restyle()
 	_layout()
@@ -95,9 +93,38 @@ func icon() -> RadioLibraryIcon:
 func label() -> GlowText:
 	return _label
 
-## The cell's own height: the border, the padding, the icon, the gap and the name's line (or its edit field).
+## The name's lines, top to bottom.
+func label_lines() -> Array[GlowText]:
+	return _lines
+
+## web `word-break: break-word` inside `max-width: 96px`: break at spaces first, and inside a word only when it would
+## not fit a line of its own.
+static func wrap_lines(text: String, width := LABEL_MAX_WIDTH) -> PackedStringArray:
+	var measure := func(part: String) -> float: return UiFont.css_width(part, LABEL_PX, 0.0)
+	var wrapped := PackedStringArray()
+	for line in CssLineBreak.lines(text, width, measure):
+		if float(measure.call(line)) <= width:
+			wrapped.append(line)
+		else:
+			wrapped.append_array(_break_word(line, width, measure))
+	return wrapped if not wrapped.is_empty() else PackedStringArray([""])
+
+static func _break_word(word: String, width: float, measure: Callable) -> PackedStringArray:
+	var pieces := PackedStringArray()
+	var piece := ""
+	for i in word.length():
+		if piece != "" and float(measure.call(piece + word[i])) > width:
+			pieces.append(piece)
+			piece = ""
+		piece += word[i]
+	if piece != "":
+		pieces.append(piece)
+	return pieces
+
+## The cell's own height: the border, the padding, the icon, the gap and the name's lines (or its edit field).
 func natural_height() -> float:
-	return 2.0 * (BORDER_PX + PADDING.y) + _icon.size.y + GAP + (rename_height() if _rename != null else line_px())
+	return 2.0 * (BORDER_PX + PADDING.y) + _icon.size.y + GAP \
+		+ (rename_height() if _rename != null else line_px() * _lines.size())
 
 static func line_px() -> float:
 	return LABEL_PX * LINE_HEIGHT_EM
@@ -147,7 +174,7 @@ func begin_rename() -> LineEdit:
 		var key := event as InputEventKey
 		if key != null and key.pressed and key.keycode == KEY_ESCAPE:
 			finish_rename(false))
-	_label.visible = false
+	_show_lines(false)
 	add_child(_rename)
 	_rename.caret_column = _rename.text.length()
 	_rename.grab_focus.call_deferred()
@@ -162,7 +189,7 @@ func finish_rename(committed: bool) -> void:
 	_rename = null
 	var typed := field.text
 	field.queue_free()
-	_label.visible = true
+	_show_lines(true)
 	_layout()
 	rename_finished.emit(self, typed, committed)
 
@@ -220,11 +247,33 @@ func _layout() -> void:
 	(_box.material as ShaderMaterial).set_shader_parameter("box_px", size)
 	var top := BORDER_PX + PADDING.y
 	_icon.position = Vector2(CssPixel.snap((size.x - _icon.size.x) * HALF), top)
-	var text := _label.get_combined_minimum_size()
 	var line_top := top + _icon.size.y + GAP
-	var text_left := (size.x - text.x) * HALF                  # text-align: center keeps Chrome's fractional left
-	_label.position = Vector2(floorf(text_left), line_top + floorf((line_px() - text.y) * HALF))
-	_label.css_offset_x = text_left - _label.position.x
+	for i in _lines.size():
+		var line := _lines[i]
+		var text := line.get_combined_minimum_size()
+		var text_left := (size.x - text.x) * HALF              # text-align: center keeps Chrome's fractional left
+		line.position = Vector2(floorf(text_left), line_top + i * line_px() + floorf((line_px() - text.y) * HALF))
+		line.css_offset_x = text_left - line.position.x
 	if _rename != null:
 		_rename.size = Vector2(RENAME_WIDTH, rename_height())
 		_rename.position = Vector2((size.x - RENAME_WIDTH) * HALF, line_top)
+
+## One GlowText per wrapped line, reusing what is already there.
+func _set_lines(texts: PackedStringArray) -> void:
+	while _lines.size() > texts.size():
+		(_lines.pop_back() as GlowText).queue_free()
+	while _lines.size() < texts.size():
+		var line := GlowText.new()
+		line.name = "Label" if _lines.is_empty() else "Label%d" % _lines.size()
+		line.configure_css(LABEL_PX, 0.0, UiTokens.TEXT)
+		line.set_shadows([CssShadow.make(LABEL_SHADOW_BLUR, LABEL_SHADOW, LABEL_SHADOW_OFFSET)])
+		line.minimum_size_changed.connect(_layout)   # the name's box settles once the theme fonts apply
+		add_child(line)
+		_lines.append(line)
+	for i in texts.size():
+		_lines[i].set_text(texts[i])
+	_label = _lines[0]
+
+func _show_lines(shown: bool) -> void:
+	for line in _lines:
+		line.visible = shown

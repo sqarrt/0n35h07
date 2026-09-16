@@ -274,6 +274,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   shrinks.
 - **The trailer no longer shows the end of the previous scene.** A finished scene leaves the tree at once instead of
   lingering for one more drawn frame under the next one.
+- **The Radio's library scrolls.** A folder with more tracks than the window shows now scrolls under the same thin
+  scrollbar as the rest of the game (the wheel, the thumb, the arrows), as it did in the original, instead of hiding
+  everything past the bottom edge.
+- **Long track names no longer run over their neighbours.** A name wider than its cell wraps onto further lines and
+  grows the cell, the way the original wraps it.
+- **The PROGRAM window's scrollbar can be dragged.** Its thumb follows the pointer and its arrows and strip step and
+  page, instead of only the wheel scrolling the program.
+- **The free-trial strip fits every language.** Where the line was longer than English (Russian, for one), the counts
+  ran under the Unlock Radio button; the text now wraps in the room the button leaves.
+- **The glass cards no longer have smeared corners.** The frosted backdrop was blurred over the whole square of the
+  card, so outside its rounded corners a square of blurred background showed over bright scenery; the blur is now
+  clipped to the corners, as a CSS backdrop filter is.
+- **The Radio player answers the first click again.** Its card rebuilt its rows several times a second, which let go
+  of whatever the mouse was holding: the volume and position sliders took one click to grab and another to release,
+  buttons lost hover and presses. The rows now stay put, and a held button keeps its pressed look.
+
 - **RESUME no longer waits.** The pause menu's RESUME was held for a moment after the mouse was released — a browser
   limitation of the original (Chrome refuses to re-capture the mouse for about a second). The game takes the mouse
   back immediately.

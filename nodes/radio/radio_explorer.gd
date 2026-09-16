@@ -63,6 +63,8 @@ const SIGMA_PER_BLUR := 0.5
 const GRID_PADDING := Vector2(16.0, 18.0)
 const COLUMN_GAP := 8.0
 const ROW_GAP := 18.0
+const WHEEL_PX := 100.0                        # Chrome's wheel notch over `overflow-y: auto` (as the code panel)
+const OVERFLOW_EPS := 0.01                     # a hair of overflow is no overflow (fractional CSS heights)
 const STATUS_HEIGHT := 26.0
 const STATUS_PADDING_X := 12.0
 const STATUS_PX := 11.0
@@ -117,6 +119,9 @@ var _copied := false
 var _copied_token := 0
 var _copied_mark: GlowText
 var _grid: Control
+var _bar: VScrollBar                           # web .rexp-grid overflow-y: auto — Chrome's thin native bar
+var _scroll := 0.0
+var _content_height := 0.0
 var _status: Panel
 var _status_text: CssLabel
 var _viz_button: CssButton
@@ -176,6 +181,16 @@ func _init() -> void:
 	_grid.set_drag_forwarding(Callable(), func(_at: Vector2, data: Variant) -> bool: return _is_move(data) or _is_track(data),
 		func(_at: Vector2, data: Variant) -> void: drop_into(_path, data))
 	content().add_child(_grid)
+	_bar = VScrollBar.new()
+	_bar.name = "GridScroll"
+	_bar.visible = false
+	_bar.step = 1.0
+	UiScroll.style(_bar)
+	_bar.value_changed.connect(func(value: float) -> void:
+		if not is_equal_approx(value, _scroll):
+			_scroll = value
+			_place_items())
+	content().add_child(_bar)
 	_status = Panel.new()
 	_status.name = "Status"
 	_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -248,6 +263,7 @@ func viz_button() -> CssButton:
 
 ## List the folder again and lay the grid out (after a library change).
 func refresh() -> void:
+	_scroll = 0.0                                  # a folder opens at its top
 	_entries = library.list_dir(_path)
 	for item in _items:
 		item.queue_free()
@@ -400,6 +416,14 @@ func marquee() -> RadioMarquee:
 
 func _on_grid_input(event: InputEvent) -> void:
 	var press := event as InputEventMouseButton
+	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		scroll_to(_scroll + WHEEL_PX)
+		_grid.accept_event()
+		return
+	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_WHEEL_UP:
+		scroll_to(_scroll - WHEEL_PX)
+		_grid.accept_event()
+		return
 	if press != null and press.pressed and press.button_index == MOUSE_BUTTON_LEFT:
 		begin_marquee(press.global_position, press.ctrl_pressed or press.meta_pressed)
 		_grid.accept_event()
@@ -775,11 +799,28 @@ func _layout_content() -> void:
 	var grid_top := tools_height + address_height
 	_grid.position = Vector2(0.0, grid_top)
 	_grid.size = Vector2(width, maxf(0.0, content().size.y - grid_top - STATUS_HEIGHT))
+	_bar.position = Vector2(width - UiScroll.WIDTH_PX, grid_top)
+	_bar.size = Vector2(UiScroll.WIDTH_PX, _grid.size.y)
 	_layout_grid()
 
 ## grid-template-columns: repeat(auto-fill, 104px): as many columns as fit, rows as tall as their tallest cell.
+## `overflow-y: auto`: a grid taller than its box scrolls, and Chrome takes the bar's gutter out of the columns\' room.
 func _layout_grid() -> void:
-	var usable := _grid.size.x - 2.0 * GRID_PADDING.x
+	_place_items()
+	if _content_height > _grid.size.y + OVERFLOW_EPS and not _bar.visible:
+		_bar.visible = true                        # the gutter narrows the grid: lay the rows out again without it
+		_place_items()
+	elif _content_height <= _grid.size.y + OVERFLOW_EPS and _bar.visible:
+		_bar.visible = false
+		_place_items()
+	_bar.page = _grid.size.y
+	_bar.max_value = maxf(_content_height, _grid.size.y)
+	_scroll = clampf(_scroll, 0.0, max_scroll())
+	_bar.set_value_no_signal(_scroll)
+
+## Every cell in its place for the current scroll, and the height they add up to.
+func _place_items() -> void:
+	var usable := grid_width() - 2.0 * GRID_PADDING.x
 	var columns := maxi(1, floori((usable + COLUMN_GAP) / (RadioLibraryItem.WIDTH + COLUMN_GAP)))
 	var y := GRID_PADDING.y
 	for row_start in range(0, _items.size(), columns):
@@ -789,6 +830,32 @@ func _layout_grid() -> void:
 			height = maxf(height, item.natural_height())
 		for i in row.size():
 			var item: RadioLibraryItem = row[i]
-			item.position = Vector2(GRID_PADDING.x + i * (RadioLibraryItem.WIDTH + COLUMN_GAP), y)
+			item.position = Vector2(GRID_PADDING.x + i * (RadioLibraryItem.WIDTH + COLUMN_GAP), y - _scroll)
 			item.size = Vector2(RadioLibraryItem.WIDTH, height)
 		y += height + ROW_GAP
+	_content_height = (y - ROW_GAP + GRID_PADDING.y) if not _items.is_empty() else 2.0 * GRID_PADDING.y
+
+## The room the cells have: the box, less the scrollbar's gutter while it shows.
+func grid_width() -> float:
+	return _grid.size.x - (UiScroll.WIDTH_PX if _bar.visible else 0.0)
+
+func scroll_bar() -> VScrollBar:
+	return _bar
+
+func content_height() -> float:
+	return _content_height
+
+func scroll_offset() -> float:
+	return _scroll
+
+func max_scroll() -> float:
+	return maxf(0.0, _content_height - _grid.size.y)
+
+## The wheel over the grid (Chrome scrolls the nearest scrollable ancestor).
+func scroll_to(offset: float) -> void:
+	var clamped := clampf(offset, 0.0, max_scroll())
+	if is_equal_approx(clamped, _scroll):
+		return
+	_scroll = clamped
+	_bar.set_value_no_signal(_scroll)
+	_place_items()

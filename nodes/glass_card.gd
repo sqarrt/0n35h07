@@ -61,7 +61,9 @@ func set_look(fill: Color, highlight: Color, radius: float, backdrop_sigma: floa
 	material.set_shader_parameter("highlight_color", highlight)
 	material.set_shader_parameter("radius_px", radius)
 	material.set_shader_parameter("sigma", backdrop_sigma)
-	(_blur.material as ShaderMaterial).set_shader_parameter("sigma", backdrop_sigma)
+	var blur_material := _blur.material as ShaderMaterial
+	blur_material.set_shader_parameter("sigma", backdrop_sigma)
+	blur_material.set_shader_parameter("radius_px", radius)   # the filter is clipped to the same corners
 
 ## Lay the passes out on the card's box, its top-left at this node's position; the shadow reaches past it.
 func set_box(box: Vector2) -> void:
@@ -88,6 +90,7 @@ func _shader_rect(node_name: String, shader: Shader) -> ColorRect:
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter("sigma", BACKDROP_SIGMA)
+	material.set_shader_parameter("radius_px", RADIUS)
 	if shader == SURFACE_SHADER:
 		material.set_shader_parameter("radius_px", RADIUS)
 		material.set_shader_parameter("border_px", BORDER_PX)

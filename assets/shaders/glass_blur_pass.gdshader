@@ -2,10 +2,15 @@ shader_type canvas_item;
 // The first half of CSS `backdrop-filter: blur(σ px)` under a box (glass.ts): a horizontal Gaussian (σ in pixels, as
 // Chrome's filter blur, reaching 3σ) of what was drawn behind the box, read at whole pixels, samples past the box's sides
 // mirrored back into it. The screen is copied again after this pass; glass_surface.gdshader adds the vertical half.
+// A backdrop filter is clipped to the element's border-radius, so past the rounded corners the backdrop is left as it
+// was — otherwise the square of half-blurred screen shows outside the card's corners.
+
+#include "res://assets/shaders/css_rounded_box.gdshaderinc"
 
 uniform sampler2D screen_texture : hint_screen_texture, filter_nearest, repeat_disable;
 uniform float sigma = 0.0;
 uniform vec2 box_px = vec2(1.0);        // the box size in screen pixels
+uniform float radius_px = 0.0;          // border-radius: the corners the filter is clipped to
 
 const int MAX_RADIUS = 96;
 const float KERNEL_SIGMAS = 3.0;
@@ -32,7 +37,8 @@ void fragment() {
 			total += w * textureLod(screen_texture, origin_uv + vec2(x, centre.y) * SCREEN_PIXEL_SIZE, 0.0).rgb;
 			weights += w;
 		}
-		color = total / weights;
+		float inside = rounded_coverage(rounded_distance(UV * box_px, vec2(0.0), box_px, radius_px));
+		color = mix(color, total / weights, inside);
 	}
 	COLOR = vec4(color, modulate.a);
 }

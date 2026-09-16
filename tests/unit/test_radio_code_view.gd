@@ -66,3 +66,26 @@ func test_the_glow_blurs_the_same_lines_under_the_text() -> void:
 	var layer := view.glow().layers()[0].material as ShaderMaterial
 	assert_almost_eq(float(layer.get_shader_parameter("sigma")), 3.0, EPS, "text-shadow blur 6px = 2σ")
 	assert_eq(layer.get_shader_parameter("tint"), RadioCodeView.GLOW_COLOR)
+
+func test_the_thumb_drags_the_program() -> void:
+	# web: Chrome's native bar drags; the port drew one but only the wheel moved it.
+	var view := _view(_window_case()["program"])
+	var thumb := view.thumb_rect()
+	view.press_scrollbar(thumb.position + thumb.size * 0.5)
+	assert_true(view.is_dragging_scrollbar())
+	view.drag_scrollbar(Vector2(thumb.position.x, BOX.y))
+	assert_almost_eq(view.scroll_offset(), view.content_height() - BOX.y, EPS, "dragged to the bottom")
+	view.release_scrollbar()
+	assert_false(view.is_dragging_scrollbar())
+	view.drag_scrollbar(Vector2(thumb.position.x, 0.0))
+	assert_almost_eq(view.scroll_offset(), view.content_height() - BOX.y, EPS, "let go: the pointer no longer moves it")
+
+func test_the_arrows_step_a_line_and_the_strip_pages() -> void:
+	var view := _view(_window_case()["program"])
+	var middle := view.size.x - RadioCodeView.SCROLLBAR_PX * 0.5
+	view.press_scrollbar(Vector2(middle, view.size.y - RadioCodeView.ARROW_PX * 0.5))
+	assert_almost_eq(view.scroll_offset(), RadioCodeView.LINE_STEP_PX, EPS, "the down arrow steps a line")
+	view.press_scrollbar(Vector2(middle, RadioCodeView.ARROW_PX * 0.5))
+	assert_almost_eq(view.scroll_offset(), 0.0, EPS, "and the up arrow steps back")
+	view.press_scrollbar(Vector2(middle, view.size.y - RadioCodeView.ARROW_PX - 1.0))
+	assert_almost_eq(view.scroll_offset(), view.page_step(), EPS, "the strip under the thumb pages down")
