@@ -12,6 +12,7 @@ const BUTTON_WIDTH := (300.0 - 2.0 * 16.0 - 2.0 * 1.0 - 2.0 * 8.0) / 3.0
 const ROW_TOPS := [13.0, 39.0, 61.0, 88.0, 135.0, 176.0]
 const SETTLE_S := 1.0
 const HALF := 0.5
+const CARD_EDGE := 6.0      # inside the card, clear of every control (the rows start 17 px in)
 
 func _player() -> RadioPlayer:
 	var viewport := SubViewport.new()
@@ -291,3 +292,34 @@ func test_the_volume_slider_is_let_go_when_the_button_is() -> void:
 	assert_almost_eq(volume, 0.7, 0.1, "the drag followed the pointer")
 	await _move(player, at.call(0.1))
 	assert_almost_eq(slider.value, volume, EPS, "and the slider stays where it was let go")
+
+func test_the_docked_card_opens_the_radio_wherever_it_is_clicked() -> void:
+	# web gave that click to the track name alone; docked, the card does nothing else, so all of it takes it.
+	var player := await _player()
+	player.show_state("Brutal Warden /126", true, true)
+	await wait_process_frames(2)
+	var card := player.card_box()
+	var corner := player.find_child("CardSurface", true, false) as Control
+	watch_signals(player)
+	await _press(player, corner.get_global_transform() * Vector2(CARD_EDGE, card.y - CARD_EDGE), true)
+	await _press(player, corner.get_global_transform() * Vector2(CARD_EDGE, card.y - CARD_EDGE), false)
+	assert_signal_emitted(player, "open_requested", "a click on the card's empty corner opens the radio")
+
+func test_the_cards_buttons_still_take_their_own_clicks() -> void:
+	var player := await _player()
+	player.show_state("Brutal Warden /126", true, true)
+	await wait_process_frames(2)
+	watch_signals(player)
+	var next := player.transport_buttons()[2] as Button
+	await _press(player, next.get_global_transform() * (next.size * HALF), true)
+	await _press(player, next.get_global_transform() * (next.size * HALF), false)
+	assert_signal_emitted(player, "next_requested")
+	assert_signal_not_emitted(player, "open_requested", "the card under a button does not open the radio too")
+
+func test_the_expanded_card_is_not_a_button() -> void:
+	var player := await _expanded()
+	await wait_process_frames(1)
+	var surface := player.find_child("CardSurface", true, false) as Control
+	watch_signals(player)
+	await _press(player, surface.get_global_transform() * Vector2(CARD_EDGE, player.card_box().y - CARD_EDGE), true)
+	assert_signal_not_emitted(player, "open_requested", "on the Radio screen the card drags instead")

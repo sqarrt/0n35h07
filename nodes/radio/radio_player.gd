@@ -125,10 +125,14 @@ func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glass = GlassCard.new()
 	add_child(_glass)
-	_drag_surface = Control.new()                 # web draggable card: the empty areas carry the track to the library
-	_drag_surface.name = "DragSurface"
+	# The card itself under its content: docked, a click anywhere on it opens the radio (web only gave that to the
+	# track name, which is a small target for a card that does nothing else); expanded, its empty areas carry the
+	# track to the library. It sits under every control, so buttons and sliders take their own clicks first.
+	_drag_surface = Control.new()
+	_drag_surface.name = "CardSurface"
 	_drag_surface.mouse_filter = Control.MOUSE_FILTER_PASS
 	_drag_surface.set_drag_forwarding(func(_at: Vector2) -> Variant: return drag_data(), Callable(), Callable())
+	_drag_surface.gui_input.connect(_on_card_input)
 	add_child(_drag_surface)
 	_title = CssLabel.new().styled(RadioModel.NO_TRACK, TITLE_PX, TITLE_SPACING_EM, TITLE_COLOR)
 	_title.name = "TrackName"
@@ -287,8 +291,7 @@ func set_expanded(expanded: bool, animate := true) -> void:
 	_title.mouse_default_cursor_shape = Control.CURSOR_ARROW if expanded else Control.CURSOR_POINTING_HAND
 	# expanded, the name is part of the draggable card; docked, it opens the radio
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE if expanded else Control.MOUSE_FILTER_STOP
-	_drag_surface.mouse_default_cursor_shape = Control.CURSOR_DRAG if expanded else Control.CURSOR_ARROW
-	_drag_surface.visible = expanded
+	_drag_surface.mouse_default_cursor_shape = Control.CURSOR_DRAG if expanded else Control.CURSOR_POINTING_HAND
 	if animate:
 		_expand.set_target(1.0 if expanded else 0.0)
 		set_process(true)
@@ -365,6 +368,10 @@ func _process(delta: float) -> void:
 		set_process(false)
 
 func _on_title_input(event: InputEvent) -> void:
+	_on_card_input(event)
+
+## Docked, the whole card opens the radio; expanded it only drags (drag_data answers nothing while docked).
+func _on_card_input(event: InputEvent) -> void:
 	var click := event as InputEventMouseButton
 	if not _expanded and click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		request_open()
