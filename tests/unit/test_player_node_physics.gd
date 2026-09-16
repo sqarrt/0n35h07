@@ -68,6 +68,34 @@ func test_player_steps_up_low_ledge() -> void:
 	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 0.5,
 		"stepped up onto the 0.8 m ledge (eyes rise by ~0.8)")
 
+func test_step_up_keeps_the_player_moving_forward() -> void:
+	# web: the KCC sweep lifts and carries in one step — the climb must not cost the forward metres of that second.
+	var arena := Node3D.new()
+	arena.add_child(_floor())
+	arena.add_child(_ledge(Vector3(0, 0.25, -17), Vector3(8, 0.5, 30)))   # a 0.5 m kerb, deep in -Z
+	add_child_autofree(arena)
+	var p := _spawn(arena, Vector3(0, MoveConst.EYE_HEIGHT, 0))
+	for i in range(30):
+		await get_tree().physics_frame
+	for i in range(90):
+		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
+		await get_tree().physics_frame
+	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 0.3, "climbed the kerb")
+	assert_lt(p.global_position.z, -3.0, "and kept walking along it instead of stalling at the edge")
+
+func test_player_does_not_climb_a_wall_taller_than_autostep() -> void:
+	var arena := Node3D.new()
+	arena.add_child(_floor())
+	arena.add_child(_ledge(Vector3(0, 1.5, -17), Vector3(8, 3.0, 30)))    # 3 m wall: far above AUTOSTEP_MAX_HEIGHT
+	add_child_autofree(arena)
+	var p := _spawn(arena, Vector3(0, MoveConst.EYE_HEIGHT, 0))
+	for i in range(30):
+		await get_tree().physics_frame
+	for i in range(90):
+		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
+		await get_tree().physics_frame
+	assert_almost_eq(p.global_position.y, MoveConst.EYE_HEIGHT, 0.15, "walking into a wall never lifts the player")
+
 func test_player_jumps_onto_2m_block() -> void:
 	# Web parity: a single jump (apex ~1.45) + airborne autostep (1.05) lands you on a 2m block.
 	var arena := Node3D.new()

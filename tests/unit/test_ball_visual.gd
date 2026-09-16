@@ -26,8 +26,21 @@ func test_models_ring_and_facing() -> void:
 	assert_almost_eq(ball.ring().rotation_degrees.x, 70.0, EPS, "BALL_RING_TILT_DEG")
 	ball.face_dir(Vector3(1.0, -5.0, 0.0))
 	assert_almost_eq(ball.ball().rotation.y, -PI / 2.0, EPS, "yaw only, -Z toward the look")
+	ball.set_opacity(1.0)
 	ball.set_opacity(0.4)
 	assert_almost_eq(ball.ball().transparency, 0.6, EPS)
+
+func test_facing_ignores_the_yaw_of_the_node_it_rides() -> void:
+	var carrier := Node3D.new()      # PlayerNode turns with the camera; the web mesh sat in the unturned world
+	add_child_autofree(carrier)
+	carrier.rotation.y = 1.0
+	var ball := BallVisual.new()
+	carrier.add_child(ball)
+	ball.setup(Color("#4af"), "planet", Color("#f55"))
+	ball.face_dir(Vector3(0.0, 0.0, -1.0))
+	assert_almost_eq(ball.ball().global_rotation.y, 0.0, EPS, "the model faces the look, not the carrier's turn twice")
+	ball.face_dir(Vector3(1.0, 0.0, 0.0))
+	assert_almost_eq(ball.ball().global_rotation.y, -PI / 2.0, EPS)
 
 func test_player_takes_the_roster_look() -> void:
 	var p := _player()

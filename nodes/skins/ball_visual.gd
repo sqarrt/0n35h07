@@ -78,12 +78,18 @@ func set_mesh_offset(offset: Vector3) -> void:
 func set_mesh_visible(shown: bool) -> void:
 	_mesh.visible = shown
 
-## web Body.faceDir: yaw only, so looking up or down never tilts the model.
+## web Body.faceDir: yaw only, so looking up or down never tilts the model. The web mesh lives in the world, while here
+## the ball rides a node that may already yaw with the camera (PlayerNode) — the facing is a WORLD yaw either way, so
+## that turn is taken out instead of adding to it (otherwise the model spins twice as fast, the wrong way round).
 func face_dir(direction: Vector3) -> void:
 	var flat := Vector3(direction.x, 0.0, direction.z)
 	if flat.length_squared() < MIN_FACING_SQ:
 		return
-	_mesh.rotation.y = atan2(-flat.x, -flat.z)
+	_mesh.rotation.y = atan2(-flat.x, -flat.z) - _carrier_yaw()
+
+## The yaw this ball is carried at (0 outside the tree: the menu and the trailer hold their balls unturned).
+func _carrier_yaw() -> float:
+	return global_transform.basis.get_euler().y if is_inside_tree() else 0.0
 
 func tick(dt: float) -> void:
 	set_time(_time + dt)

@@ -39,6 +39,7 @@ func _init() -> void:
 	_unlock.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	RadioButtons.dress(_unlock, RadioButtons.outline(Color(UiTokens.ACCENT, UNLOCK_BORDER_ALPHA), UNLOCK_RADIUS,
 		Color(UiTokens.ACCENT, UNLOCK_FILL_ALPHA), UNLOCK_PADDING), UNLOCK_TEXT)
+	RadioButtons.press_scale(_unlock)   # web .radio-player-root button:active
 	RadioButtons.set_font(_unlock, UNLOCK_PX, UNLOCK_SPACING_EM, [])
 	_unlock.text = I18n.t("radioUnlock")
 	_unlock.pressed.connect(func() -> void: unlock_requested.emit())

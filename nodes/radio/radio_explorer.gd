@@ -71,6 +71,7 @@ const VIZ_SIZE := Vector2(92.0, 18.0)
 const VIZ_PX := 10.0
 const VIZ_SPACING_PX := 1.5
 const VIZ_RADIUS := 10
+const VIZ_HOVER_ALPHA := 0.1                   # web .rexp-viz:hover background: rgba(68,170,255,.1)
 const VIZ_FAMILIES := ["Cambria Math"]         # Chrome's face for ⟳
 const VIZ_MODES := ["auto", "scope", "bars", "radial", "field"]
 const VIZ_ICONS := {"auto": "⟳", "scope": "◉", "bars": "▥", "radial": "◎", "field": "✦"}
@@ -192,6 +193,11 @@ func _init() -> void:
 	_viz_button.focus_mode = Control.FOCUS_NONE
 	_viz_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	RadioButtons.dress(_viz_button, RadioButtons.outline(UiTokens.GHOST_LINE, VIZ_RADIUS), UiTokens.ACCENT_DIM)
+	var viz_hover := RadioButtons.outline(UiTokens.LINE, VIZ_RADIUS, Color(UiTokens.ACCENT, VIZ_HOVER_ALPHA))
+	for state in RadioWindow.HOVER_STATES:                    # web .rexp-viz:hover
+		_viz_button.add_theme_stylebox_override(state, viz_hover)
+	for key in RadioWindow.HOVER_COLORS:
+		_viz_button.add_theme_color_override(key, UiTokens.ACCENT)
 	RadioButtons.set_font(_viz_button, VIZ_PX, VIZ_SPACING_PX / VIZ_PX, VIZ_FAMILIES, VIZ_PX)
 	_viz_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_viz_button.pressed.connect(cycle_viz)

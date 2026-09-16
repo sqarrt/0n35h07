@@ -1,0 +1,67 @@
+{
+  "id": "2026-09-16-observations",
+  "title": "OneShot · Замечания пользователя: отзывчивость радио, поворот модели, перешагивание",
+  "date": "2026-09-16",
+  "captures_dir": "test-results",
+  "lede": "Проверка трёх наблюдений из `test-results/PARITY_OBSERVATIONS.md`: элементы радио перестали отзываться на наведение и нажатие; модель планеты крутится не в ту сторону при повороте прицела; изменилась логика перешагивания. Эталон брался из истории git (коммит до удаления `web-reference`): `ui/theme.css`, `components/RadioExplorer.css`, `game/Body.ts`, `game/Match.ts`, `constants.ts`. Все три подтвердились и исправлены.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-16-observations.json`. Web-исходники — `git show 4a91a4a^:web-reference/src/...`. Проверки: GUT 971/971 (новые тесты — `test_radio_player.test_buttons_answer_the_mouse`, `test_radio_explorer.test_the_visualizer_button_lights_under_the_mouse`, `test_ball_visual.test_facing_ignores_the_yaw_of_the_node_it_rides`, `test_player_node_physics.test_step_up_keeps_the_player_moving_forward`, `…test_player_does_not_climb_a_wall_taller_than_autostep`); живой кадр наведения — `test-results/probes/hover_screenshot.ps1` (курсор на кнопке воспроизведения пристыкованного плеера, 3840×2160).",
+  "pages": [
+    {
+      "slug": "observations",
+      "name": "Замечания",
+      "verdict": "Кнопки радио снова отвечают на мышь: под курсором подпись ярче в 1.75 раза и появляется голубое кольцо, нажатие сжимает кнопку до 0.92 — как в `theme.css` web; кнопка визуализатора проводника получила свой фон наведения. Модель игрока больше не поворачивается дважды: `face_dir` выставляет мировой угол, поэтому поворот узла игрока камерой не складывается с поворотом меша. Перешагивание вернулось к логике web: подъём выполняется до движения (скорость не теряется), глубина площадки 0.25 как `AUTOSTEP_MIN_WIDTH`, площадка должна быть проходимой по углу, стена выше 1.05 не берётся.",
+      "verdict_short": "Три замечания подтверждены и исправлены",
+      "conditions": [
+        ["эталон", "web из истории git: `theme.css` (.radio-player-root button:hover / :active), `RadioExplorer.css`, `Body.faceDir`, `Match.stepPlayerMovement` + `constants.ts`", "Godot `release_2.0.0` + ветка feature/godot-observations"],
+        ["проверка", "чтение web-кода", "GUT 971/971; живой запуск с наведением курсора (3840×2160, масштаб 150 %)"]
+      ],
+      "comparisons": [
+        {
+          "title": "Наведение на кнопку воспроизведения (×3, живой запуск)",
+          "panels": [
+            {"kind": "godot", "img": "probes/hover-player.png", "note": "кольцо и яркий значок под курсором, соседние кнопки тусклые"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "O1", "severity": "fixed",
+          "title": "Кнопки радио не отзывались",
+          "web": "`theme.css`: `.radio-player-root button:hover` — `filter: brightness(1.75)` и кольцо `0 0 0 1px rgba(120,180,255,.55)` с 14 px свечением; `:active` — `transform: scale(0.92)`. `RadioExplorer.css`: свои реакции у кнопок окна, кнопок панели, поля адреса, плиток, пунктов меню и `.rexp-viz`.",
+          "godot": "Было: `RadioButtons.dress` красил все состояния одинаково — «no hover or pressed look», поэтому транспорт, ЭФИР, скрытие шара, полосы BACK / LIBRARY / PROGRAM, кнопка разблокировки и кнопка визуализатора не реагировали (у окна, плиток, поля адреса, меню и панели кода реакции были). Стало: `dress` осветляет подпись и обводит бокс кольцом на наведении, `press_scale` сжимает кнопки плеера до 0.92, у кнопки визуализатора свой фон наведения.",
+          "evidence": ["code", "test", "runtime"],
+          "sources": ["nodes/radio/radio_buttons.gd", "nodes/radio/radio_player.gd", "nodes/radio/radio_glass_button.gd", "nodes/radio/radio_trial_row.gd", "nodes/radio/radio_explorer.gd"]
+        },
+        {
+          "id": "O2", "severity": "fixed",
+          "title": "Модель поворачивалась дважды",
+          "web": "`Body.faceDir` ставит кватернион меша в мире: модель живёт в мировом узле, камера её не крутит.",
+          "godot": "Было: `BallVisual.face_dir` писал ЛОКАЛЬНЫЙ угол, посчитанный от мирового направления взгляда, а шар — ребёнок `PlayerNode`, который сам поворачивается мышью: суммарный поворот двойной, и при повороте прицела планета выглядела крутящейся не в ту сторону. Стало: из угла вычитается поворот несущего узла (в меню и трейлере он нулевой — там ничего не изменилось).",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/skins/ball_visual.gd", "tests/unit/test_ball_visual.gd", "nodes/human_controller.gd"]
+        },
+        {
+          "id": "O3", "severity": "fixed",
+          "title": "Перешагивание работало иначе",
+          "web": "Автошаг встроен в тот же просчёт, что несёт игрока вперёд (`enableAutostep(1.05, 0.25, false)`), поэтому подъём не стоит потери скорости; отдельный контроллер без автошага гасит ложный подъём.",
+          "godot": "Было: шаг пробовался ПОСЛЕ `move_and_slide`, только если игрок упёрся в стену, с пробой 0.35 вперёд и без проверки угла площадки — рывок вверх после остановки и потерянная скорость. Стало: подъём до движения (в том же кадре игрок идёт дальше), глубина площадки `AUTOSTEP_MIN_WIDTH` 0.25, площадка обязана быть не круче `KCC_SLOPE_DEG`.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/player_node.gd", "sim/constants.gd", "tests/unit/test_player_node_physics.gd"]
+        },
+        {
+          "id": "O4", "severity": "visual",
+          "title": "Свечение кнопки при наведении",
+          "web": "Кроме кольца web рисует внешнее свечение `0 0 14px rgba(120,180,255,.4)`.",
+          "godot": "Перенесены кольцо и осветление подписи; внешнего свечения нет — для него нужен отдельный узел тени у каждой кнопки. Заметно только вплотную.",
+          "evidence": ["code"],
+          "sources": ["nodes/radio/radio_buttons.gd"]
+        }
+      ],
+      "limitations": [
+        "Поворот модели проверен тестом (мировой угол при повёрнутом несущем узле) и кодом; кадр из матча от третьего лица не снимался.",
+        "Перешагивание проверено тремя тестами в реальной физике (кербы 0.5 и 0.8 м, прыжок на блок 2 м, стена 3 м) — на ощупь в игре не проверялось.",
+        "Наведение снято на пристыкованном плеере в меню; остальные кнопки покрыты тестами темы."
+      ]
+    }
+  ]
+}

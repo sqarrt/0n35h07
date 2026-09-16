@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Uploading to Steam works with the Godot build.** `scripts/upload_steam.ps1` publishes `release/windows` to SteamPipe
   with the same options as the web build's uploader (app, depot, branch, login, description), for the main app and
   the Playtest app, and can write the build scripts without uploading (`-DryRun`).
+- **The radio's controls answer the mouse again.** Its buttons — the transport, ON AIR, the ball toggle, the BACK /
+  LIBRARY / PROGRAM bars, Unlock and the library's visualizer switch — light up under the pointer and shrink on a
+  press, as the original's did.
+- **Your ball faces where you look.** The model turned twice with the camera, so the planet appeared to spin the wrong
+  way as you swung the aim; it now holds the direction you are looking, as in the original.
+- **Stepping up feels like the original again.** The climb happens as part of the step forward instead of after the
+  bump, so you keep your speed over kerbs and stairs; a ledge is only taken when there is room to stand on it and the
+  surface is not too steep, and a wall taller than the step height is never climbed.
 - **The web version is retired from the repository.** The Godot game has replaced the React/Three.js game, which served as
   its parity reference; the web code, its tests, browser tooling and the GitHub Pages deploy are gone (the git history
   keeps them). The radio's engine page, which the game still runs, now lives in its own `radio-host/` package with its
