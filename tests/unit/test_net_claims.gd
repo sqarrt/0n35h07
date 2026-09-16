@@ -74,6 +74,17 @@ func test_bounty_is_derived_on_every_peer() -> void:
 		assert_eq(sync.players[SHOOTER].streak, 1)
 		assert_eq(sync.players[VICTIM].streak, 0)
 
+func test_the_bounty_follows_the_owners_streak_not_each_peers_own() -> void:
+	# Verdicts from different owners reach peers in different orders, so a peer can hold a stale streak for the victim.
+	# The bounty must still be the owner's word, or the scores part by a frag and never come back (seen live in 2v2).
+	_syncs[VICTIM].players[VICTIM].streak = Streak.STREAK_TRIPLE
+	_syncs[SHOOTER].players[VICTIM].streak = 0        # our copy has not caught up with the victim's streak
+	_syncs[OBSERVER].players[VICTIM].streak = 1
+	_deliver_shot()
+	_sessions[OBSERVER].after_update(SEND_TIME_MS)
+	for sync in _syncs:
+		assert_eq(sync.players[SHOOTER].kills, 2, "every peer pays the bounty the victim's owner saw")
+
 func test_sender_must_own_shooter() -> void:
 	_nets[OBSERVER].send(PEERS[VICTIM], "hit", _claim())
 	assert_true(_syncs[VICTIM].players[VICTIM].alive)
@@ -203,4 +214,84 @@ func test_local_bot_victim_is_judged_without_network() -> void:
 	assert_false(sync.players[VICTIM].alive)
 	assert_eq(sync.players[SHOOTER].kills, 1)
 	assert_eq(sync.drain_claims(), [])
-	assert_eq(sync.drain_events(), [{"t": "kill", "shooter": SHOOTER, "victim": VICTIM}])
+	assert_eq(sync.drain_events(), [{"t": "kill", "shooter": SHOOTER, "victim": VICTIM, "seq": 0, "broken": 0}],
+		"the verdict carries the shot's number (0 here: the claim was hand-made) and the streak it broke")
+
+func test_the_grace_runs_out_even_if_the_owner_goes_quiet() -> void:
+	# The grace used to be looked at only when the owner's next snapshot arrived: a peer that stalled left its player
+	# an unhittable ghost on our screen for the rest of the match.
+	var victim := _predict()
+	_syncs[SHOOTER].tick_prediction()
+	assert_false(victim.alive, "still inside the grace")
+	_now = AFTER_GRACE_MS
+	_syncs[SHOOTER].tick_prediction()
+	assert_true(victim.alive, "no verdict and no snapshots: the victim comes back")
+	assert_true(_syncs[SHOOTER].predicted_kill.is_empty())
+
+func test_a_snapshot_that_overtook_a_newer_one_is_dropped() -> void:
+	var owner: NetSync = _syncs[VICTIM]
+	var watcher: NetSync = _syncs[OBSERVER]
+	owner.players[VICTIM].body.position = Vector3.ZERO
+	var older := owner.serialize_snapshot()                # sent first, and overtaken on the way
+	owner.players[VICTIM].body.position = Vector3(5.0, MoveConst.EYE_HEIGHT, 0.0)
+	var newer := owner.serialize_snapshot()
+	watcher.apply_peer_snapshot(PEERS[VICTIM], newer)
+	watcher.apply_peer_snapshot(PEERS[VICTIM], older)
+	assert_almost_eq(watcher.players[VICTIM].position().x, 5.0, 0.01, "a stale snapshot would rewind the player")
+
+func test_a_claim_from_a_shooter_that_cannot_fire_is_dropped() -> void:
+	var owner: NetSync = _syncs[VICTIM]
+	owner.players[SHOOTER].alive = false
+	assert_eq(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "a dead player has no beam")
+	assert_true(owner.players[VICTIM].alive)
+	owner.players[SHOOTER].alive = true
+	owner.players[SHOOTER].frozen = true
+	assert_eq(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "nor a frozen one")
+	assert_true(owner.players[VICTIM].alive)
+
+func test_a_shot_that_left_before_its_shooter_died_still_counts() -> void:
+	# Seen live in 2v2: a player fires and dies a moment later; the news of the death overtakes the claim, and the
+	# honest hit was thrown away — the shooter watched its own predicted kill come back to life.
+	var owner: NetSync = _syncs[VICTIM]
+	var clock := [0.0]                       # a lambda captures by value, so the clock lives in something shared
+	owner.clock_ms = func() -> float: return clock[0]
+	owner.apply_peer_event(PEERS[SHOOTER], {"t": "kill", "shooter": OBSERVER, "victim": SHOOTER})
+	assert_false(owner.players[SHOOTER].alive, "its owner told us it died")
+	clock[0] = NetSync.CLAIM_DEAD_SLACK_MS
+	assert_ne(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "the shot was already on its way")
+	assert_false(owner.players[VICTIM].alive)
+
+func test_our_own_guess_does_not_silence_the_shooters_claim() -> void:
+	# Seen live in FFA: we shoot someone and show them dead at once (a prediction, not a verdict); their shot at us,
+	# fired a moment earlier, arrived and was thrown away as "a dead player has no beam".
+	var owner: NetSync = _syncs[VICTIM]
+	owner.predict_death(SHOOTER)
+	assert_false(owner.players[SHOOTER].alive, "our screen shows them dead")
+	assert_ne(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "but only we think so: their shot still counts")
+
+func test_a_claim_from_a_long_dead_shooter_is_still_dropped() -> void:
+	var owner: NetSync = _syncs[VICTIM]
+	var clock := [0.0]
+	owner.clock_ms = func() -> float: return clock[0]
+	owner.apply_peer_event(PEERS[SHOOTER], {"t": "kill", "shooter": OBSERVER, "victim": SHOOTER})
+	clock[0] = NetSync.CLAIM_DEAD_SLACK_MS + 1.0
+	assert_eq(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "a dead player has no beam")
+	assert_true(owner.players[VICTIM].alive)
+
+func test_claims_cannot_outrun_the_weapon() -> void:
+	var owner: NetSync = _syncs[VICTIM]
+	_now = PREDICT_AT_MS
+	owner.clock_ms = func() -> float: return _now
+	assert_ne(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "the first shot is judged")
+	owner.players[VICTIM].revive_from_false_prediction()
+	assert_eq(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "a second claim inside the cooldown is not a shot")
+	_now += CombatConst.BEAM_COOLDOWN_MS
+	assert_ne(owner.judge_claim(PEERS[SHOOTER], _claim()), {}, "once the beam could fire again, it is judged")
+
+func test_a_ghost_carries_its_time_left_to_the_other_screens() -> void:
+	var owner: NetSync = _syncs[VICTIM]
+	var watcher: NetSync = _syncs[OBSERVER]
+	owner.judge_claim(PEERS[SHOOTER], _claim())
+	assert_true(owner.players[VICTIM].respawning)
+	watcher.apply_peer_snapshot(PEERS[VICTIM], owner.serialize_snapshot())
+	assert_gt(watcher.players[VICTIM].respawn_timer, 0.0, "the remote ghost counts down too")

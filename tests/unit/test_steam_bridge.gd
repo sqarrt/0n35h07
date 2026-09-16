@@ -41,6 +41,15 @@ func test_a_created_lobby_is_entered_once_and_joinable() -> void:
 	assert_true(fake.joinable[fake.NEW_LOBBY])
 	assert_eq(fake.presence[bridge.RP_CONNECT_KEY], str(fake.NEW_LOBBY), "friends see us as joinable")
 
+func test_a_started_match_seals_the_lobby() -> void:
+	# A friend joining a match already under way could be let in and then never seated — Steam turns them away instead.
+	var made := _bridge()
+	var bridge = made[0]
+	var fake = made[1]
+	bridge.create_lobby()
+	bridge.seal_lobby()
+	assert_false(fake.joinable[fake.NEW_LOBBY])
+
 func test_member_changes_become_peer_events() -> void:
 	var made := _bridge()
 	var bridge = made[0]

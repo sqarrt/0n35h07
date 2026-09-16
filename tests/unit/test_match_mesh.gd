@@ -90,6 +90,18 @@ func test_remote_players_follow_snapshots_in_the_past() -> void:
 	assert_true((peers[1]["players"][0] as PlayerNode).global_position.is_equal_approx(MOVED))
 	assert_false((peers[1]["players"][1] as PlayerNode).global_position.is_equal_approx(MOVED), "ours never follow")
 
+func test_remote_players_are_placed_in_the_frame_that_draws_them() -> void:
+	# web nextRemoteTranslation: placing them a physics tick early leaves a lag that varies per frame — a visible shiver.
+	var peers := _pair()
+	var guest: MatchNode = peers[1]["match"]
+	(peers[0]["players"][0] as PlayerNode).place_at(MOVED)
+	(peers[0]["session"] as NetSession).after_update(NOW_MS)
+	_now = LATER_MS
+	guest._physics_process(DT)
+	assert_false((peers[1]["players"][0] as PlayerNode).global_position.is_equal_approx(MOVED), "not in the tick")
+	guest._process(DT)
+	assert_true((peers[1]["players"][0] as PlayerNode).global_position.is_equal_approx(MOVED), "in the frame")
+
 func test_verdicts_come_from_the_victims_owner() -> void:
 	var peers := _pair()
 	var host: MatchNode = peers[0]["match"]
@@ -127,8 +139,28 @@ func test_hits_on_remote_victims_become_claims() -> void:
 	rules.owns = func(id: int) -> bool: return id == 0
 	rules.resolve(DT)
 	assert_eq(rules.events.size(), 1, "our shot is still ours to show")
-	assert_eq(rules.claims, [{"shooter": 0, "hit_id": 1, "point": [HIT_POINT.x, HIT_POINT.y, HIT_POINT.z]}])
+	assert_eq(rules.claims, [{"shooter": 0, "hit_id": 1, "point": [HIT_POINT.x, HIT_POINT.y, HIT_POINT.z], "seq": 1}],
+		"the claim carries the shot's number, so its verdict can only score once")
 	assert_true(victim.alive, "the victim's owner decides")
+
+func test_a_beam_stopped_by_a_remote_teammate_claims_nothing() -> void:
+	# Their body blocks the beam but takes no harm, so a claim would only be dropped — and the optimistic prediction
+	# behind it would blink the teammate out of the world for the grace (web Match claimed here; we do not).
+	var rules := MatchRules.new()
+	var shooter := Player.new()
+	shooter.id = 0
+	shooter.team = 0
+	var mate := Player.new()
+	mate.id = 1
+	mate.team = 0
+	rules.add_player(shooter)
+	rules.add_player(mate)
+	shooter.weapon = FiredWeapon.new()
+	rules.owns = func(id: int) -> bool: return id == 0
+	rules.resolve(DT)
+	assert_eq(rules.claims, [], "no claim on a teammate")
+	assert_eq(rules.events.size(), 1, "the shot itself is still shown")
+	assert_true(mate.alive)
 
 func test_our_hit_on_a_remote_victim_is_predicted() -> void:
 	var peers := _pair()
@@ -143,6 +175,95 @@ func test_a_departed_peer_ends_the_duel() -> void:
 	var peers := _pair()
 	var host: MatchNode = peers[0]["match"]
 	host.handle_peer_left(GUEST)
-	assert_false((peers[0]["players"][1] as PlayerNode).visible)
+	var gone := peers[0]["players"][1] as PlayerNode
+	assert_false(gone.visible)
+	assert_eq(gone.hitbox_layer(), 0, "an invisible corpse must not swallow shots meant for the living")
+	assert_eq(gone.collision_layer, 0, "nor stand in anyone's way")
 	assert_eq(host.players().size(), 1, "bots stop targeting the departed")
 	assert_true(host.is_ended(), "one team left")
+
+func test_a_peer_that_stops_speaking_is_let_go() -> void:
+	# A hard quit (Alt+F4, a crash, a pulled cable) leaves the transport's session open for many seconds — seen live:
+	# twenty of them, with the departed body still standing there catching shots nobody would ever judge.
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	(peers[1]["session"] as NetSession).after_update(NOW_MS)   # the guest is here and speaking
+	host._physics_process(DT)
+	assert_eq(host.players().size(), 2, "both of us are in the match")
+	_now = NOW_MS + MatchNode.PEER_SILENCE_MS
+	host._physics_process(DT)
+	assert_eq(host.players().size(), 1, "silence that long is a disconnect, whatever the transport still holds open")
+	assert_true(host.is_ended(), "one team left")
+
+func test_a_peer_that_has_not_spoken_yet_is_waited_for() -> void:
+	# It may still be loading the map into the arena; only silence AFTER we have heard it means the line is dead.
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	_now = NOW_MS + MatchNode.PEER_SILENCE_MS * 2.0
+	host._physics_process(DT)
+	assert_eq(host.players().size(), 2, "nobody is thrown out before they arrive")
+
+func test_readiness_is_said_again_until_the_fight_starts() -> void:
+	# The other peer's session may not exist yet when we confirm — an unheard readiness used to strand both sides in
+	# READY for good, with one watchdog line as the only symptom.
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	var guest: MatchNode = peers[1]["match"]
+	assert_true(guest.mark_ready(1))
+	guest.drain_events()                                  # the first word is lost: nobody drained it onto the wire
+	assert_eq(host.ready_ids(), [], "the creator never heard it")
+	guest._physics_process(MatchNode.PRE_LIVE_REPEAT_S)
+	(peers[1]["session"] as NetSession).after_update(NOW_MS)
+	assert_eq(host.ready_ids(), [1], "the guest says it again")
+	assert_true(host.mark_ready(0))
+	(peers[0]["session"] as NetSession).after_update(NOW_MS)
+	assert_eq(guest.countdown_label(), "3", "and the fight is on")
+
+func test_the_creator_says_when_the_fight_is_on() -> void:
+	# The countdown used to be the last thing sent: each peer then ran its own three seconds and its own match clock.
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	var guest: MatchNode = peers[1]["match"]
+	host.mark_ready(0)
+	host.mark_ready(1)
+	(peers[0]["session"] as NetSession).after_update(NOW_MS)
+	assert_eq(guest.countdown_label(), "3")
+	host._physics_process(MatchConst.READY_COUNTDOWN_MS / 1000.0)
+	assert_false(host.is_ready_phase())
+	(peers[0]["session"] as NetSession).after_update(NOW_MS)
+	assert_true(guest.phase.is_live(), "the guest goes live when the creator does, not on its own timer")
+
+func test_a_phase_never_goes_backwards() -> void:
+	var peers := _pair()
+	var guest: MatchNode = peers[1]["match"]
+	guest.apply_phase({"phase": "live", "ready": [0, 1]})
+	assert_true(guest.phase.is_live())
+	guest.apply_phase({"phase": "countdown", "ready": [0, 1]})
+	assert_true(guest.phase.is_live(), "a countdown that overtook the live phase would refreeze the fight")
+
+func test_the_phase_authority_moves_on_when_the_creator_leaves() -> void:
+	var peers := _pair()
+	var guest: MatchNode = peers[1]["match"]
+	assert_false(guest.i_am_creator())
+	guest.handle_peer_left(HOST)
+	assert_eq(guest.creator_peer(), GUEST, "the lowest seat still here takes over")
+	assert_true(guest.i_am_creator(), "otherwise nobody could ever end the match")
+
+func test_a_repeated_verdict_scores_once() -> void:
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	var verdict := {"t": "kill", "shooter": 0, "victim": 1, "seq": 7}
+	host.apply_peer_event(GUEST, verdict)
+	host.apply_peer_event(GUEST, verdict.duplicate())
+	assert_eq(host.score_of(0), 1, "the same shot's verdict counts once, however often it arrives")
+
+func test_the_peers_compare_what_they_believe() -> void:
+	var peers := _pair()
+	var host: MatchNode = peers[0]["match"]
+	var guest: MatchNode = peers[1]["match"]
+	assert_eq(NetDigest.disagreements(host.serialize_digest(), guest.serialize_digest()), [],
+		"two peers that agree say nothing")
+	host.apply_peer_event(GUEST, {"t": "kill", "shooter": 0, "victim": 1, "seq": 3})
+	var gaps := NetDigest.disagreements(host.serialize_digest(), guest.serialize_digest())
+	assert_gt(gaps.size(), 0, "a score only one side counted is a disagreement")
+	assert_true(String(gaps[0]).begins_with("score"), gaps[0])

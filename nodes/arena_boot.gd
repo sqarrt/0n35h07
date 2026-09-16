@@ -118,6 +118,13 @@ func _ready() -> void:
 		if match_node.mark_ready(local_id):
 			UiSounds.play("ready"))                  # web: the sound only on the transition to ready
 
+	if NetDiag.is_on(OS.get_cmdline_args()):         # the network test: this window confirms and plays itself
+		hc.pilot = NetDiagPilot.new(local_id)
+		hc.pilot_targets = match_node.players
+		match_node.diag_jitter = NetDiagJitter.new()
+		pause.queue_free()                           # losing the window's focus must not hide the match behind a menu
+		match_node.mark_ready(local_id)
+
 	# Match-end screen (web MatchEndedOverlay), after the end freeze-frame; the match is no longer live, so no pause.
 	var ended := MatchEndedOverlay.new()
 	add_child(ended)

@@ -18,6 +18,8 @@ signal combat_event(event: Dictionary)      # every rule event as it resolves (w
 const MS_PER_S := 1000.0
 const NO_TEAM := -1
 const CREATOR_SLOT := 0                     # web iAmCreator: the lobby creator owns seat 0
+const PRE_LIVE_REPEAT_S := 0.5              # how often the ready ritual repeats itself until the fight is on
+const PEER_SILENCE_MS := 5000.0             # no word at all for this long: the peer is gone, whatever the transport thinks
 const REASON_DISCONNECT := "disconnect"     # web endMatch('disconnect'): fewer than two teams remain
 const MIN_TEAMS := 2
 
@@ -30,6 +32,7 @@ var roster := Roster.new()   # names, colours and looks of the participants (web
 var mesh: NetSync = null     # a networked match: who simulates and judges each player (null: a local match)
 var net_session: NetSession = null   # ships this peer's facts after every tick (web session.afterUpdate)
 var self_peer := ""          # this peer's transport id on a mesh
+var diag_jitter = null                             # NetDiagJitter under --netdiag: how steadily remotes arrive
 var clock_ms := Callable(Time, "get_ticks_msec")   # the wall clock remote interpolation runs on (tests pin it)
 var _clock := MatchClock.new(MatchConst.DEFAULT_MATCH_DURATION_MS)
 var _entities := {}   # id -> PlayerNode
@@ -43,6 +46,10 @@ var _phase_entered_ms := 0.0
 var _phase_warned := false
 var _last_health_ms := -INF
 var _actor_prev := {}                       # id -> {shield, dash} at the last tick
+var _digest_gaps := {}                      # peer -> what we disagreed about last time it said its world
+var _heard_at := {}                         # peer -> when it last said anything to us
+var _ready_said := {}                       # our own ids that confirmed: repeated until the fight starts
+var _repeat_left := 0.0                     # seconds to the next repeat of the ready ritual
 
 func _ready() -> void:
 	process_physics_priority = 100   # run after the entities' _physics_process each tick
@@ -87,8 +94,24 @@ func add_entity(pnode: PlayerNode, team: int, ready := false) -> void:
 func mark_ready(id: int) -> bool:
 	var news := phase.mark_ready(id)
 	if news and mesh != null and owns(id):
+		_ready_said[id] = true
 		mesh.emit_event({"t": "ready", "id": id})
 	return news
+
+## The ready ritual is the one place a lost message strands everyone: a peer that confirmed before the other side's
+## session existed would never be heard, and both sides sit in READY for good. So until the fight is on, every peer
+## says its readiness again and the creator re-stamps the phase.
+func _repeat_pre_live(delta: float) -> void:
+	if mesh == null or phase.is_live() or phase.is_ended():
+		return
+	_repeat_left -= delta
+	if _repeat_left > 0.0:
+		return
+	_repeat_left = PRE_LIVE_REPEAT_S
+	for id in _ready_said:
+		mesh.emit_event({"t": "ready", "id": id})
+	if phase.creator:
+		phase.dirty = true
 
 func ready_ids() -> Array:
 	return phase.ready_ids()
@@ -150,6 +173,7 @@ func _physics_process(delta: float) -> void:
 	if replay:
 		return
 	phase.update(delta)
+	_repeat_pre_live(delta)
 	_clock.update(delta, phase.is_live())
 	if phase.is_live() and _clock.is_over():
 		_end_match()
@@ -158,18 +182,28 @@ func _physics_process(delta: float) -> void:
 	rules.resolve(delta)
 	emit_events(rules.events)
 	if mesh != null:
+		_forget_silent()
+		mesh.tick_prediction()   # the grace on a predicted kill runs on the clock, not on the owner's next snapshot
 		_share(rules.events)
 		for claim in rules.claims:
 			mesh.queue_or_judge(claim)
 			if int(claim["shooter"]) == local_id:   # web resolveCombat: only the local player's own shots predict
 				mesh.predict_death(int(claim["hit_id"]))
-		_place_remotes()
 	if rules.apply_comeback():   # web: at the top of the next tick, before anyone moves or fires
 		singularity_changed.emit(rules.singularity_active)
 	_tick_result(delta)
 	_log_diag()
 	if net_session != null:
 		net_session.after_update(float(clock_ms.call()))
+
+## web nextRemoteTranslation: a remote ball is placed in the frame that draws it, not in the physics tick before it —
+## sampled a tick early, its lag behind the owner varies from frame to frame, and that reads as a shiver on the ball.
+func _process(delta: float) -> void:
+	if replay or mesh == null:
+		return
+	_place_remotes()
+	if diag_jitter != null:
+		diag_jitter.step(delta)
 
 ## Session log (web Match diag): each phase transition once, a pre-live phase stuck past the watchdog, a health line
 ## every couple of seconds while live, and every player's shield / dash edges.
@@ -218,6 +252,23 @@ func emit_events(events: Array) -> void:
 func serialize_snapshot() -> Dictionary:
 	return mesh.serialize_snapshot()
 
+## What this peer believes the match looks like right now (NetDigest): the others compare it with their own.
+func serialize_digest() -> Dictionary:
+	var positions := {}
+	for id in _entities:
+		if not _left.has(id):
+			positions[id] = (_entities[id] as PlayerNode).player.position()
+	return NetDigest.of(MatchPhase.NAMES[phase.phase], seconds_left(), scores(), positions)
+
+## A peer's picture against ours. Two peers differ for a moment at every transition (a phase or a kill is one flight
+## away), so only a gap that is still there on the peer's next word is worth a line.
+func compare_digest(from: String, theirs: Dictionary) -> void:
+	_hear(from)
+	var gaps := ", ".join(NetDigest.disagreements(serialize_digest(), theirs))
+	if gaps != "" and gaps == String(_digest_gaps.get(from, "")):
+		GameLog.warn("net", "desync", {"from": from, "gaps": gaps})
+	_digest_gaps[from] = gaps
+
 func drain_events() -> Array:
 	return mesh.drain_events()
 
@@ -226,6 +277,7 @@ func drain_claims() -> Array:
 
 ## web applyPeerSnapshot: the owner's facts for its players, their positions buffered for rendering in the past.
 func apply_peer_snapshot(from: String, snapshot: Dictionary) -> void:
+	_hear(from)
 	mesh.apply_peer_snapshot(from, snapshot)
 	var now := float(clock_ms.call())
 	for state in snapshot.get("players", []):
@@ -236,6 +288,7 @@ func apply_peer_snapshot(from: String, snapshot: Dictionary) -> void:
 
 ## web applyPeerEvent: only the owner speaks for its players (for a verdict, the victim's owner).
 func apply_peer_event(from: String, event: Dictionary) -> void:
+	_hear(from)
 	match String(event.get("t", "")):
 		"kill", "block":
 			var local := mesh.apply_peer_event(from, event)
@@ -266,6 +319,7 @@ func apply_peer_event(from: String, event: Dictionary) -> void:
 
 ## A claim on one of our players: the victim's real local state decides, and the verdict scores here too.
 func judge_claim(from: String, claim: Dictionary) -> void:
+	_hear(from)
 	var local := mesh.judge_claim(from, claim)
 	if not local.is_empty():
 		emit_events([local])
@@ -282,7 +336,14 @@ func serialize_phase() -> Dictionary:
 func i_am_creator() -> bool:
 	return phase.creator
 
+## Who stamps the phase: the creator (seat 0) while it is here, else the lowest seat still in the match. Every peer
+## works it out from the same facts, so a match whose creator leaves keeps exactly one authority.
 func creator_peer() -> String:
+	var seats := _entities.keys()
+	seats.sort()
+	for id in seats:
+		if not _left.has(id):
+			return owner_of(id)
 	return owner_of(CREATOR_SLOT)
 
 ## web applyPhase: the creator's phase; an ended one concludes the match here too.
@@ -297,12 +358,34 @@ func handle_peer_left(peer: String) -> void:
 		if owner_of(id) == peer:
 			handle_player_left(id)
 
+## Anything at all from a peer means it is still there (snapshots alone come 30 times a second).
+func _hear(peer: String) -> void:
+	_heard_at[peer] = float(clock_ms.call())
+
+## A peer that stops speaking mid-match is gone, even while the transport still holds its session open: a hard quit
+## took twenty seconds to be noticed, and until then its body stood there taking shots nobody would ever judge.
+func _forget_silent() -> void:
+	if mesh == null or phase.is_ended():
+		return
+	var now := float(clock_ms.call())
+	for id in _entities.keys():
+		var peer := owner_of(id)
+		if _left.has(id) or peer == "" or peer == self_peer:
+			continue
+		if not _heard_at.has(peer):
+			continue                  # it has not spoken yet at all: it may still be loading into the arena
+		if now - float(_heard_at[peer]) >= PEER_SILENCE_MS:
+			GameLog.warn("transport", "peer_silent", {"peer": peer, "ms": PEER_SILENCE_MS})
+			handle_peer_left(peer)
+
 ## web handlePlayerLeft: the model goes; the match ends once fewer than two teams remain.
 func handle_player_left(id: int) -> void:
 	if _left.has(id) or not _entities.has(id):
 		return
 	_left[id] = true
-	(_entities[id] as PlayerNode).visible = false
+	phase.creator = creator_peer() == self_peer   # the authority moves on when the peer holding it leaves
+	(_entities[id] as PlayerNode).leave_match()
+	_interp.erase(id)                             # nothing left to interpolate: its owner sends no more snapshots
 	var teams := {}
 	for other in _entities:
 		if not _left.has(other):
@@ -318,7 +401,8 @@ func _share(events: Array) -> void:
 				mesh.emit_event({"t": "fired", "id": e["id"], "end": _wire(e["end"]), "hit_point": _wire(e["hit_point"]),
 					"hit": e["hit"]})
 			"kill":
-				mesh.emit_event({"t": "kill", "shooter": e["shooter"], "victim": e["victim"]})
+				mesh.emit_event({"t": "kill", "shooter": e["shooter"], "victim": e["victim"],
+					"broken": e.get("broken", -1)})   # the streak we broke, so the bounty is the same everywhere
 			"block":
 				mesh.emit_event({"t": "block", "shooter": e["shooter"], "victim": e["victim"], "perfect": e["perfect"]})
 			"respawn":
@@ -331,6 +415,8 @@ func _place_remotes() -> void:
 		var at = (_interp[id] as InterpBuffer).sample(render_ms)
 		if at != null and _entities.has(id):
 			(_entities[id] as PlayerNode).place_at(at)
+			if diag_jitter != null:
+				diag_jitter.sample(int(id), render_ms, at)
 
 func _speaks_for(from: String, id: int) -> bool:
 	return _entities.has(id) and not owns(id) and owner_of(id) == from

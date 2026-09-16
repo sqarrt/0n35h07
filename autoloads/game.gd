@@ -19,7 +19,6 @@ var match_setup := {}                              # the room's START: owners, s
 var log_sink: GameLogSink = null                  # the Steam build's session log file (web logSink); null elsewhere
 
 const LOCAL_PEER := "local"                        # the transport id of a room nobody else has joined (web selfPeer)
-const HEADLESS_DISPLAY := "headless"               # DisplayServer.get_name() of a --headless run
 const CLIENT_PLATFORM := "desktop"                 # web CLIENT_PLATFORM on the Steam build
 
 ## Leave the room: its transport closes and the match facts go (web leaveRoom).
@@ -33,6 +32,8 @@ func leave_room() -> void:
 func _start_game_log() -> void:
 	log_sink = GameLogSink.new()
 	log_sink.name = "GameLogSink"
+	if NetDiag.is_on(OS.get_cmdline_args()):   # several windows share one user://: give each its own folder
+		log_sink.setup(NetDiag.dir_for(OS.get_process_id()))
 	add_child(log_sink)
 	GameLog.install(log_sink)
 	OS.add_logger(GameLogErrors.new())
@@ -40,11 +41,11 @@ func _start_game_log() -> void:
 		"engine": Engine.get_version_info()["string"]})
 
 func _ready() -> void:
-	DisplayStartup.start(get_tree().root, OS.get_cmdline_args(), DisplayServer.get_name() == HEADLESS_DISPLAY,
-		DisplayServer.screen_get_dpi())
+	DisplayStartup.start(get_tree().root, OS.get_cmdline_args(), DisplayServer.screen_get_dpi())
 	random.randomize()
 	var cloud := SteamBridge.available() and not DisplayStartup.is_tool_run(OS.get_cmdline_args())
-	if cloud:   # web installGameLog: the session log exists on the Steam build only
+	# web installGameLog: the session log exists on the Steam build — and on a network test run, whatever Steam says.
+	if cloud or NetDiag.is_on(OS.get_cmdline_args()):
 		_start_game_log()
 	if profile.is_empty():   # a tool may preset an in-memory profile before the autoloads get ready
 		if cloud:   # web main.tsx: reconcile with Steam Cloud before the profile is read

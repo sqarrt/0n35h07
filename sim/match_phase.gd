@@ -9,7 +9,7 @@ const MS_PER_S := 1000.0
 const NAMES := {Phase.READY: "ready", Phase.COUNTDOWN: "countdown", Phase.LIVE: "live", Phase.ENDED: "ended"}
 
 var phase := Phase.READY
-var creator := true                            # this peer stamps the countdown (a local match: always)
+var creator := true                            # this peer stamps the phase for the mesh (a local match: always)
 var dirty := false                             # the creator changed the phase for the mesh (web phaseDirtyFlag)
 var _participants: Array[int] = []
 var _confirmed := {}                           # id -> true (web readySet)
@@ -46,6 +46,7 @@ func update(dt: float) -> void:
 		if _timer <= 0.0:
 			_timer = 0.0
 			phase = Phase.LIVE
+			dirty = creator   # the creator says when the fight is on, so peers don't each start their own clock
 
 func is_ready_phase() -> bool:
 	return phase == Phase.READY
@@ -88,10 +89,13 @@ func reset() -> void:
 func serialize() -> Dictionary:
 	return {"phase": NAMES[phase], "ready": ready_ids()}
 
-## web applyPhase: take the creator's phase; entering the countdown starts its full length here.
+## web applyPhase: take the creator's phase; entering the countdown starts its full length here. A phase never goes
+## backwards — a message that overtook a newer one would refreeze a live match.
 func apply(message: Dictionary) -> void:
 	var next = NAMES.find_key(String(message.get("phase", "")))
 	if next == null:
+		return
+	if next < phase:
 		return
 	var entering_countdown: bool = next == Phase.COUNTDOWN and phase != Phase.COUNTDOWN
 	phase = next

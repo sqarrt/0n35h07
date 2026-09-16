@@ -17,6 +17,8 @@ var _third_person := false
 var _shake_left := 0
 var _random := RandomNumberGenerator.new()
 var _rng: Callable
+var pilot: NetDiagPilot = null   # --netdiag: the window plays itself instead of reading the keyboard
+var pilot_targets := Callable()  # ... and looks for someone to shoot at: () -> Array[Player]
 
 func _init() -> void:
 	_random.randomize()
@@ -83,8 +85,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.is_action_pressed(action, false):
 			press(action)
 
-func apply_intent(_delta: float = 0.0) -> void:
+func apply_intent(delta: float = 0.0) -> void:
 	var player := _pnode.player
+	if pilot != null:
+		_fly_by_script(delta)
+		return
 	if not _pointer_locked():
 		player.move_intent(Vector3.ZERO)
 		player.set_jump_input(false)
@@ -102,6 +107,46 @@ func apply_intent(_delta: float = 0.0) -> void:
 	player.set_jump_input(Input.is_action_pressed("jump"))
 	player.set_look(-_camera.global_basis.z)
 	update_aim()
+
+## The network test's window drives itself (NetDiag): the same walk, sweep and beat in every window, so what the peers
+## show each other can be compared instead of played.
+func _fly_by_script(delta: float) -> void:
+	var player := _pnode.player
+	pilot.step(delta)
+	var target = _nearest_target()
+	if target == null:
+		_pnode.rotation.y = pilot.yaw()
+	else:
+		var look := pilot.aim_at(player.position(), target.position())
+		_pnode.rotation.y = look.x
+		_pitch = CameraModel.clamp_pitch(look.y)
+		_camera.rotation.x = _pitch
+	player.move_intent(pilot.move())
+	player.set_jump_input(false)
+	player.set_look(-_camera.global_basis.z)
+	update_aim()
+	if pilot.fires():
+		press(&"fire")
+	if pilot.dashes():
+		press(&"dash")
+	if pilot.shields():
+		press(&"ability")
+
+## The closest living opponent, or null when the window has nobody to shoot at.
+func _nearest_target():
+	if not pilot_targets.is_valid():
+		return null
+	var mine: Vector3 = _pnode.player.position()
+	var closest = null
+	var best := INF
+	for other in pilot_targets.call():
+		if other.id == _pnode.player.id or not other.alive or other.team == _pnode.player.team:
+			continue
+		var span: float = mine.distance_squared_to(other.position())
+		if span < best:
+			best = span
+			closest = other
+	return closest
 
 ## Aim where the camera looks: the nearest world / body hit, else AIM_RANGE ahead (web HumanController.update).
 func update_aim() -> void:

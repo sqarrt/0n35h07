@@ -34,6 +34,7 @@ const HIT_FLASH_TIME := 0.25
 const REMOTE_FIRE_WINDUP := 0.5            # web applyNetState: a told windup above this collapsing to 0 was a shot
 
 var replay := false                        # driven from outside (a demo frame, a peer): no movement or weapon simulation
+var left_match := false                    # its peer is gone: the body leaves the fight with it
 var _remote_windup := 0.0
 
 func set_body_visible(v: bool) -> void:
@@ -130,6 +131,20 @@ func place_at(pos: Vector3) -> void:
 	player.body.position = pos
 	global_position = pos
 	reset_physics_interpolation()
+
+## The owner left the match: hide the body and take it out of the world — an invisible corpse that still stopped beams
+## and bodies would swallow shots meant for the living (web handlePlayerLeft hides the group, and a hidden group is
+## neither drawn nor hit).
+func leave_match() -> void:
+	left_match = true
+	visible = false
+	collision_layer = 0
+	if _hitbox != null:
+		_hitbox.collision_layer = 0
+
+## Which physics layer the combat hitbox is on (0: not shootable).
+func hitbox_layer() -> int:
+	return _hitbox.collision_layer if _hitbox != null else 0
 
 func hitbox_rid() -> RID:
 	return _hitbox.get_rid()
@@ -239,7 +254,7 @@ func _process(delta: float) -> void:
 	_flash = maxf(0.0, _flash - delta)
 	var ghost := player.respawning
 	if _hitbox != null:
-		_hitbox.collision_layer = 0 if ghost else CombatConst.LAYER_HITBOX_BIT   # the ghost can't be shot
+		_hitbox.collision_layer = 0 if ghost or left_match else CombatConst.LAYER_HITBOX_BIT   # the ghost can't be shot
 	update_visuals(delta)
 
 ## The ball's per-frame look (web Player.syncVisuals): the windup strategy (ball + world part) outside the ghost, then
