@@ -65,10 +65,15 @@ var _preview_hold_ms := MenuStagePreview.NO_HOLD
 func _ready() -> void:
 	name = "Backdrop"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Everything under here — the world, its camera and the glow chain's own cameras — is posed per rendered frame
+	# (web useFrame). Interpolating that between physics ticks resamples it: a reused emoji jumping back to the top
+	# gets drawn sliding up through the middle of the view on the very beat that reborn it.
+	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 	_glow = MenuEdgeGlow.new()
 	add_child(_glow)
 	_viewport = SubViewport.new()
 	_viewport.name = "World"
+	_viewport.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # posed per frame, see _init
 	_viewport.transparent_bg = true
 	_viewport.own_world_3d = true
 	_viewport.msaa_3d = Viewport.MSAA_4X

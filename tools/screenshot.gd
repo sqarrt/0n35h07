@@ -26,9 +26,9 @@ extends SceneTree
 ##                     output PNG (parity-capture-audio-bar.mjs), 90 frames to settle; the bar geometry joins the facts.
 ##   hud-stats         passive bot + the profile's showFps / showSpeed on, the stats overlay frozen on the readings of
 ##                     web-stats.json next to the output PNG (parity-capture-stats.mjs); its boxes join the facts.
-##   pause-<state>     the pause menu (web parity-capture-buttons.mjs): the pointer lock dropped, QUIT hidden like the
-##                     browser build and the RESUME cooldown frozen — state cooldown (halfway), idle (over),
-##                     hover-ghost (TO MENU hovered) or hover-primary (RESUME hovered); its boxes join the facts.
+##   pause-<state>     the pause menu (web parity-capture-buttons.mjs): the pointer lock dropped and QUIT hidden like
+##                     the browser build — state idle, hover-ghost (TO MENU hovered) or hover-primary (RESUME
+##                     hovered); its boxes join the facts.
 ##   match-end-hover   the match-end screen (pass <match ms>) with EXIT hovered once the column has settled.
 ##   menu-browser      the main menu scene in the browser build's layout (web parity-capture-menu.mjs: the F11 hint,
 ##                     no QUIT); menu-hover-play / menu-hover-secondary also hover PLAY / APPEARANCE. Its boxes join
@@ -78,12 +78,10 @@ const MODE_HUD_STATS := "hud-stats"
 const STATS_FIXTURE := "web-stats.json"
 const STATS_FRAMES := 2              # the HUD shows the overlay, then the frozen fixture draws
 const MODE_PAUSE := "pause-"
-const PAUSE_COOLDOWN := "cooldown"
 const PAUSE_HOVER_GHOST := "hover-ghost"
 const PAUSE_HOVER_PRIMARY := "hover-primary"
 const PAUSE_SETTINGS := "settings-"   # pause-settings-<tab>: the in-match settings panel on sound / graphics
-const PAUSE_COOLDOWN_SHARE := 0.5    # web __debugLockCooldownLeft = half of POINTERLOCK_COOLDOWN
-const PAUSE_FRAMES := 3              # the column lays out, then the frozen cooldown draws
+const PAUSE_FRAMES := 3              # the column lays out, then it draws
 const MODE_MATCH_END_HOVER := "match-end-hover"
 const END_SETTLE_FRAMES := 12        # the 0.1 s fade and the column layout (at --fixed-fps 60)
 const HOVER_FRAMES := 2              # the button takes the hover look
@@ -863,11 +861,6 @@ func _capture() -> void:
 			for child in column.get_children():
 				if child is Control and child.visible:
 					boxes[str(child.name)] = _rect(child)
-			var resume := column.find_child("Resume", true, false) as UiButton
-			var cooldown := resume.get_theme_stylebox("disabled") as UiButton.CooldownStyle if resume != null else null
-			if cooldown != null and resume.disabled:
-				var fill := cooldown.fill_rect(Rect2(resume.global_position, resume.size))
-				boxes["ResumeFill"] = [fill.position.x, fill.position.y, fill.size.x, fill.size.y]
 			facts[overlay_class] = boxes
 	var human := _human()
 	if human != null:
@@ -883,19 +876,17 @@ func _capture() -> void:
 	print("SHOT_SAVED ", ProjectSettings.globalize_path(_output))
 	_capture_done = true
 
-## web parity-capture-buttons.mjs pause frames: a live match whose pointer lock drops at clock 0, the clock frozen
-## halfway through the RESUME cooldown or past it, and QUIT hidden like the browser build.
+## web parity-capture-buttons.mjs pause frames: a live match whose pointer lock drops, and QUIT hidden like the
+## browser build.
 func _pause_fixture(state: String) -> void:
 	var pause := root.find_children("*", "PauseOverlay", true, false)[0] as PauseOverlay
 	var match_node := root.find_children("*", "MatchNode", true, false)[0] as MatchNode
 	var lock := ToolLock.new()
-	var clock := {"now": 0.0}
-	pause.setup(match_node.is_live, lock, func() -> float: return clock["now"])
+	pause.setup(match_node.is_live, lock)
 	pause.refresh()
 	lock.locked = false
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE   # the human controller reads the real mouse mode
 	pause.refresh()
-	clock["now"] = PauseModel.COOLDOWN_MS * (PAUSE_COOLDOWN_SHARE if state == PAUSE_COOLDOWN else 1.0)
 	pause.set_desktop(false)
 	pause.refresh()
 	if state.begins_with(PAUSE_SETTINGS):   # web parity-capture-match-settings.mjs: SETTINGS, then the tab

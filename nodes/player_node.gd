@@ -4,6 +4,9 @@ class_name PlayerNode extends CharacterBody3D
 ## web KCC autostep, plus camera smoothing so the step rise isn't an abrupt snap.
 
 const STEP_SMOOTH_SPEED := 6.0     # units/s the camera catches up after a step (visual only)
+const STEP_MIN_MOTION := 1e-4      # a motion shorter than this is no step attempt at all
+const STEP_PROBE_SLACK := 0.05     # slack over the lift when probing back down onto the step
+const STEP_MIN_RISE := 0.02        # a rise smaller than this is not worth moving the player for
 
 var player := Player.new()
 var controller = null  # optional; must expose apply_intent() -> void
@@ -142,6 +145,7 @@ func _physics_process(delta: float) -> void:
 	b.step_horizontal(delta)
 	b.step_vertical(delta)
 	b.step_dash(delta)
+	b.step_knockback(delta)   # web stepKnockback: the push rides in desired, so walls still stop it
 	var desired := b.consume_desired()
 	velocity = desired / delta
 	_step_up_if_blocked(Vector3(desired.x, 0.0, desired.z))   # before the move, as the web KCC steps inside its sweep
@@ -305,8 +309,11 @@ func _shield_can_show() -> bool:
 ## probe up -> forward (AUTOSTEP_MIN_WIDTH of landing, as web) -> down onto walkable ground higher than we started.
 ## Works grounded or airborne (matches web autostep), so you can also jump onto ledges.
 func _step_up_if_blocked(horiz: Vector3) -> void:
-	if horiz.length() < 1e-4 or not test_move(global_transform, horiz):
+	var blocker := KinematicCollision3D.new()
+	if horiz.length() < STEP_MIN_MOTION or not test_move(global_transform, horiz, blocker):
 		return
+	if _walkable(blocker.get_normal()):
+		return   # Rapier steps over obstacles only: a slope inside the limit is climbed by the move itself
 	var max_h := MoveConst.AUTOSTEP_MAX_HEIGHT
 	var probe := horiz.normalized() * MoveConst.AUTOSTEP_MIN_WIDTH
 
@@ -315,7 +322,7 @@ func _step_up_if_blocked(horiz: Vector3) -> void:
 	var up_dist := max_h
 	if test_move(global_transform, Vector3.UP * max_h, up_res):
 		up_dist = up_res.get_travel().length()
-	if up_dist < 0.05:
+	if up_dist < STEP_PROBE_SLACK:
 		return
 	var lifted := global_transform.translated(Vector3.UP * up_dist)
 
@@ -330,14 +337,18 @@ func _step_up_if_blocked(horiz: Vector3) -> void:
 
 	# 3. Drop back down onto the step surface — it has to be ground the player could stand on.
 	var down_res := KinematicCollision3D.new()
-	if not test_move(over, Vector3.DOWN * (up_dist + 0.05), down_res):
+	if not test_move(over, Vector3.DOWN * (up_dist + STEP_PROBE_SLACK), down_res):
 		return  # nothing beneath -> would be stepping into the air
-	if down_res.get_normal().y < cos(deg_to_rad(MoveConst.KCC_SLOPE_DEG)):
+	if not _walkable(down_res.get_normal()):
 		return  # too steep to stand on -> the KCC would slide off it
 	var landed := over.translated(down_res.get_travel())
 	var dy := landed.origin.y - global_position.y
-	if dy > 0.02:
+	if dy > STEP_MIN_RISE:
 		global_position = landed.origin
 		velocity.y = 0.0
 		player.body.velocity_y = 0.0
 		_step_smooth = minf(_step_smooth + dy, max_h)   # camera absorbs the rise, then eases up
+
+## Ground the character can stand on rather than slide off (web KCC_SLOPE_DEG).
+func _walkable(normal: Vector3) -> bool:
+	return normal.y >= cos(deg_to_rad(MoveConst.KCC_SLOPE_DEG))

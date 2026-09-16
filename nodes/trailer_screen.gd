@@ -271,6 +271,9 @@ func _leave_shot() -> void:
 	for scene: Node in [_playback, _finale]:
 		if scene != null:
 			scene.process_mode = Node.PROCESS_MODE_DISABLED   # no late signals from a shot on its way out
+			var parent := scene.get_parent()
+			if parent != null:
+				parent.remove_child(scene)   # out of the tree at once: a queued free still draws the old shot this frame
 			scene.queue_free()
 	_playback = null
 	_finale = null

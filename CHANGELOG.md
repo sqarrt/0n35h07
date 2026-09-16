@@ -13,8 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **Controls match the original.** The shield is on the right mouse button; a shot fires once per click instead of
   repeating while the button is held; aiming follows what the camera actually looks at.
 - **Pausing no longer freezes the match.** As in the original, the pause menu opens whenever a live match loses the
-  mouse (Esc or switching windows), the match keeps running behind it and the HUD steps aside; RESUME becomes
-  available a moment after the mouse is released.
+  mouse (Esc or switching windows), the match keeps running behind it and the HUD steps aside.
 - **The pre-fight countdown number matches the original's weight.** It was drawn bolder and a few pixels high; it now
   uses the browser's synthetic bold and line box.
 - **Bold text keeps the original's letter widths.** Large bold lines (titles, the trailer's text cuts) came out wider
@@ -261,6 +260,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   tall invisible walls around the arena; the beam hits only what it hits in the original, so it passes over the floor
   and through walls marked as beam-transparent. Passable blocks no longer stop the player.
 - **No leftover test target in matches.** The red practice dummy is gone from the match scene.
+- **Balls push each other apart again.** As in the original, two players whose spheres overlap get a short shove out
+  of each other (and landing on top of someone launches you into an arc) instead of standing inside one another.
+- **Stepping up no longer throws you into the air.** The automatic step now fires only against obstacles the player
+  cannot walk up, so ramps and slopes are simply walked up as in the original instead of lifting the ball.
+- **The Radio's emoji stopped flickering.** The menu's 3D backdrop is animated every drawn frame, but the engine was
+  also interpolating it between physics ticks, so an emoji returning to the top of the screen was drawn sliding
+  through the middle of the view on the beat that reborn it. The backdrop, its glow passes and the trailer's scenes
+  are no longer interpolated.
+- **The Radio player's buttons answer the first click.** The card rebuilt its rows several times a second, which
+  dropped the mouse that was hovering them and cancelled clicks in flight, so the ball toggle needed several presses
+  and only lit up while the cursor kept moving. The rows now stay put, and a pressed button keeps its press while it
+  shrinks.
+- **The trailer no longer shows the end of the previous scene.** A finished scene leaves the tree at once instead of
+  lingering for one more drawn frame under the next one.
+- **RESUME no longer waits.** The pause menu's RESUME was held for a moment after the mouse was released — a browser
+  limitation of the original (Chrome refuses to re-capture the mouse for about a second). The game takes the mouse
+  back immediately.
 
 ## [1.1.2] - 2026-07-21
 

@@ -3,6 +3,9 @@ extends GutTest
 ## Uses player.tscn (which carries the capsule collider); a bare PlayerNode has no shape.
 
 const PLAYER := preload("res://scenes/player.tscn")
+const RAMP_DEG := 30.0                      # well inside MoveConst.KCC_SLOPE_DEG
+const RAMP_SIZE := Vector3(8, 1, 20)
+const RAMP_NEAR_Z := -1.0
 
 func _floor() -> StaticBody3D:
 	var sb := StaticBody3D.new()
@@ -19,6 +22,19 @@ func _spawn(arena: Node3D, at: Vector3) -> PlayerNode:
 	p.player.body.position = at
 	arena.add_child(p)   # arena is already in the tree -> _ready runs, sets global_position from body.position
 	return p
+
+## A ramp inside the slope limit whose near top edge rests on the floor at `near_z`, rising towards -Z.
+func _ramp(near_z: float) -> StaticBody3D:
+	var sb := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = RAMP_SIZE
+	cs.shape = box
+	sb.add_child(cs)
+	sb.rotation.x = deg_to_rad(RAMP_DEG)
+	var near_top: Vector3 = sb.transform.basis * Vector3(0.0, box.size.y * 0.5, box.size.z * 0.5)
+	sb.position = Vector3(0.0, -near_top.y, near_z - near_top.z)
+	return sb
 
 func _ledge(at: Vector3, size: Vector3) -> StaticBody3D:
 	var sb := StaticBody3D.new()
@@ -82,6 +98,24 @@ func test_step_up_keeps_the_player_moving_forward() -> void:
 		await get_tree().physics_frame
 	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 0.3, "climbed the kerb")
 	assert_lt(p.global_position.z, -3.0, "and kept walking along it instead of stalling at the edge")
+
+func test_a_walkable_ramp_is_walked_up_without_a_step_lift() -> void:
+	# web: Rapier autosteps over obstacles only — a slope inside KCC_SLOPE_DEG is climbed by the move itself, and
+	# lifting there threw the ball into the air.
+	var arena := Node3D.new()
+	arena.add_child(_floor())
+	arena.add_child(_ramp(RAMP_NEAR_Z))
+	add_child_autofree(arena)
+	var p := _spawn(arena, Vector3(0, MoveConst.EYE_HEIGHT, 0))
+	for i in range(30):
+		await get_tree().physics_frame
+	var lifted := 0.0
+	for i in range(90):
+		p.player.move_intent(Vector3(0, 0, -MoveConst.MOVE_SPEED))
+		await get_tree().physics_frame
+		lifted = maxf(lifted, p.step_lag())
+	assert_gt(p.global_position.y, MoveConst.EYE_HEIGHT + 1.0, "walked up the ramp")
+	assert_almost_eq(lifted, 0.0, 0.001, "the autostep never fired on ground it could simply walk up")
 
 func test_player_does_not_climb_a_wall_taller_than_autostep() -> void:
 	var arena := Node3D.new()

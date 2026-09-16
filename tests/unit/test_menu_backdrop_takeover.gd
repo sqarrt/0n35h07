@@ -27,6 +27,16 @@ func test_the_takeover_comes_and_goes_with_the_radio_screen() -> void:
 	backdrop._process(FRAME_S)
 	assert_null(backdrop.takeover())
 
+func test_the_world_is_not_resampled_by_the_physics_interpolation() -> void:
+	# Everything here is posed per rendered frame (web useFrame). Interpolating between physics ticks would draw a
+	# reused emoji sliding up through the middle of the view on the beat that reborn it.
+	var backdrop := _backdrop()
+	assert_false(backdrop.is_physics_interpolated(), "the whole backdrop: its world, its camera and the glow chain")
+	backdrop.radio_mode = true
+	backdrop._process(FRAME_S)
+	assert_false(backdrop.world().is_physics_interpolated())
+	assert_false(backdrop.takeover().is_physics_interpolated(), "the rain inherits it")
+
 func test_a_silent_spectrum_leaves_the_camera_on_the_rig() -> void:
 	var backdrop := _backdrop()
 	backdrop.pin_beat_bands(PackedFloat32Array())

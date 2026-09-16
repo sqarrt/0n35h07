@@ -397,8 +397,11 @@ func _layout() -> void:
 		and _title.run().width() > content_width else TextServer.OVERRUN_NO_TRIMMING
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var rows := _rows()
+	# Mount what the card shows in one pass: hiding a row and showing it again drops the mouse that sits over its
+	# buttons (Godot re-reads the hovered control only when the cursor moves) and cancels a press in flight.
+	var mounted: Array = rows.map(func(row: Array) -> Control: return row[0])
 	for control: Control in [_subtitle, _scrub, _air_row, _volume, _trial, _limit, _save_limit]:
-		control.visible = false
+		control.visible = mounted.has(control)
 	_card_top = 0.0
 	for key: String in _bar_order():                # flex column, gap 8: the bars, then the card
 		var bar: RadioGlassButton = _bars[key]
@@ -413,7 +416,6 @@ func _layout() -> void:
 	for i in rows.size():
 		var control: Control = rows[i][0]
 		y += rows[i][2]
-		control.visible = true
 		control.position = Vector2(left, y)
 		control.size = Vector2(content_width, rows[i][1])
 		y += rows[i][1] + (GAP if i < rows.size() - 1 else 0.0)

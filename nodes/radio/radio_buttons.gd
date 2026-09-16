@@ -36,6 +36,7 @@ static func brighten(color: Color) -> Color:
 
 ## A press shrinks the button about its middle and lets go on release (web :active on the player's buttons).
 static func press_scale(button: Button) -> void:
+	button.keep_pressed_outside = true   # the shrink must not slip the button out from under the cursor mid-press
 	var centre := func() -> void: button.pivot_offset = button.size * HALF
 	button.resized.connect(centre)
 	centre.call()

@@ -21,7 +21,6 @@ const MIN_WIDTH := 220.0
 const BUTTON_HEIGHT := 44.0              # 16 px line (18) + 12 px padding and 1 px border, twice
 const MARGIN_Y := 6.4                    # margin: 0.4rem 0 — a CssColumn margin
 const DISABLED_OPACITY := 0.4
-const COOLDOWN_FILL := Color(120.0 / 255.0, 180.0 / 255.0, 1.0, 0.28)   # web PauseMenu cooldown span
 const BACKGROUND := 0
 const BORDER := 1
 const TEXT := 2
@@ -65,30 +64,6 @@ const STATES := {
 	"hover_pressed": ["pressed", "font_hover_pressed_color"],
 	"disabled": ["normal", "font_disabled_color"],
 }
-
-## A box with the pause RESUME cooldown fill over it (web: an absolutely placed span under the label, growing left to
-## right inside the border). Drawn as the box, so the label stays on top.
-class CooldownStyle extends StyleBox:
-	var base: StyleBox
-	var share := 0.0
-	var fill_color := UiButton.COOLDOWN_FILL
-
-	func _init(base_box: StyleBox = null) -> void:
-		base = base_box
-		if base_box == null:
-			return
-		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
-			set_content_margin(side, base_box.get_content_margin(side))
-
-	func fill_rect(rect: Rect2) -> Rect2:
-		var inner := rect.grow(-UiButton.BORDER_PX)
-		var right := CssPixel.snap(inner.position.x + inner.size.x * share)
-		return Rect2(inner.position, Vector2(right - inner.position.x, inner.size.y))
-
-	func _draw(to_canvas_item: RID, rect: Rect2) -> void:
-		if base != null:
-			base.draw(to_canvas_item, rect)
-		RenderingServer.canvas_item_add_rect(to_canvas_item, fill_rect(rect), fill_color)
 
 ## A button's CSS metrics — the `.btn` rule by default; inline styles override them (the settings language tile).
 class Metrics:
@@ -158,18 +133,6 @@ func grouped() -> CssOpacity:
 	modulate.a = 1.0
 	fade.set_opacity(_opacity)
 	return fade
-
-## The RESUME cooldown fill (0..1) over the disabled box.
-func set_cooldown_share(share: float) -> void:
-	var style := get_theme_stylebox("disabled") as CooldownStyle
-	if style == null:
-		style = CooldownStyle.new(get_theme_stylebox("disabled"))
-		add_theme_stylebox_override("disabled", style)
-	if is_equal_approx(style.share, share):
-		return
-	style.share = share
-	style.emit_changed()
-	queue_redraw()
 
 func _box(background: Color, border: Color, pressed := false) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()

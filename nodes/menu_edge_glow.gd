@@ -176,6 +176,7 @@ func _wire() -> void:
 func _model_stage(stage_name: String, layer: int) -> SubViewport:
 	var stage := SubViewport.new()
 	stage.name = stage_name
+	stage.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF   # its camera follows the backdrop's per frame
 	stage.use_hdr_2d = true
 	stage.transparent_bg = true
 	stage.msaa_3d = Viewport.MSAA_DISABLED
