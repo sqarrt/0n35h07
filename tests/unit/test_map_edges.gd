@@ -4,8 +4,8 @@ extends GutTest
 ## switch.
 
 const EPS := 0.001
-const RAW := "res://maps/os_pillars.json"
-const GEO := "res://maps/os_pillars_geo.json"
+const RAW := "res://maps/os_pillars.map"
+const GEO := "res://maps/os_pillars.geo"
 
 func _block() -> MeshInstance3D:
 	var block := MeshInstance3D.new()

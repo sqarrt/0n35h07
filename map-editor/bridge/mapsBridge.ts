@@ -6,8 +6,8 @@ import path from 'node:path'
 /**
  * Dev-only bridge between the editor and the game's own files (the web build kept each map in a folder of its own;
  * the Godot project keeps them flat, and the preview lives with the other assets):
- *   raw.json     → ../maps/<id>.json          (read by nodes/map_files.gd)
- *   geo.json     → ../maps/<id>_geo.json      (read by nodes/geo_loader.gd)
+ *   raw.json     → ../maps/<id>.map           (imported into a JsonPack; read by nodes/map_files.gd)
+ *   geo.json     → ../maps/<id>.geo           (imported into a MapGeo; read by nodes/geo_loader.gd)
  *   preview.png  → ../assets/maps/previews/<id>.png   (read by nodes/map_background.gd, nodes/map_tile.gd)
  *   backup.json  → .backups/<id>.json         (the editor's REVERT copy — not part of the game)
  *
@@ -25,8 +25,8 @@ const PREVIEW_DIR = path.join(PROJECT, 'assets', 'maps', 'previews')
 const BACKUP_DIR = path.resolve(process.cwd(), '.backups')
 const CATALOG = path.join(PROJECT, 'sim', 'map_catalog.gd')   // the lobby's list of maps, kept in step from here
 const CATALOG_RE = /^const MAP_IDS := \[(.*)\]$/m
-const GEO_SUFFIX = '_geo.json'
-const RAW_SUFFIX = '.json'
+const GEO_SUFFIX = '.geo'    // the game imports these two: sim/map_catalog.gd GEO_SUFFIX / RAW_SUFFIX
+const RAW_SUFFIX = '.map'
 const ID_RE = /^[a-zA-Z0-9_-]+$/
 const DEFAULT_WALL_COLOR = '#5a6678'
 const PARTS = new Set(['raw.json', 'geo.json', 'preview.png', 'backup.json'])
@@ -63,7 +63,7 @@ async function listIds(): Promise<string[]> {
   await fs.mkdir(MAPS_DIR, { recursive: true })
   const files = await fs.readdir(MAPS_DIR)
   return files
-    .filter(f => f.endsWith(RAW_SUFFIX) && !f.endsWith(GEO_SUFFIX))
+    .filter(f => f.endsWith(RAW_SUFFIX))
     .map(f => f.slice(0, -RAW_SUFFIX.length))
     .sort()
 }

@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.json_pack"
+type="Resource"
+uid="uid://ohw4r7ub54vh"
+path="res://.godot/imported/os_arena.map-9ceaff6f7d3fc7d91bd8173cbf9aed9e.res"
+
+[deps]
+
+source_file="res://maps/os_arena.map"
+dest_files=["res://.godot/imported/os_arena.map-9ceaff6f7d3fc7d91bd8173cbf9aed9e.res"]
+
+[params]
+

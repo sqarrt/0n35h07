@@ -3,8 +3,7 @@ class_name MapLoader
 ## Wedge (ramp) blocks are skipped for now — the next slice adds the triangular-prism geometry.
 
 static func build(path: String) -> Node3D:
-	var f := FileAccess.open(path, FileAccess.READ)
-	var data: Dictionary = JSON.parse_string(f.get_as_text())
+	var data := MapFiles.read_map(path)
 	var root := Node3D.new()
 	root.name = "Map"
 	var half: Array = data["half"]

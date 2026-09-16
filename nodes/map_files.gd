@@ -1,5 +1,7 @@
 class_name MapFiles
-## Reads a map's JSON file (raw editor data or compiled geo) into a Dictionary.
+## Reads a map's source (`maps/<id>.map`) — the editor's JSON, imported into a compressed JsonPack, so the build
+## carries neither the text nor the parse. Tools that work on the source text read it themselves.
 
-static func read_json(path: String) -> Dictionary:
-	return JSON.parse_string(FileAccess.get_file_as_string(path))
+static func read_map(path: String) -> Dictionary:
+	var pack := load(path) as JsonPack
+	return pack.data() if pack != null else {}

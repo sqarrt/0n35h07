@@ -21,7 +21,7 @@ func _ready() -> void:
 		exit_to_menu = func() -> void: get_tree().change_scene_to_file.call_deferred(MAIN_MENU)
 	steam.net_event.connect(_on_steam_event)
 	var raw_path: String = Game.selected_map
-	var geo_path := raw_path.replace(".json", "_geo.json")
+	var geo_path := raw_path.replace(MapCatalog.RAW_SUFFIX, MapCatalog.GEO_SUFFIX)
 	add_child(GeoLoader.build(raw_path, geo_path))   # compiled geo.json geometry (what the game renders)
 	var edges := MapEdges.new()                      # web Arena: {postFx && <MapEdges />}
 	edges.enabled = bool(Game.profile.get("postProcessing", true))
@@ -35,7 +35,7 @@ func _ready() -> void:
 	var roster := _match_roster()
 	var mode: String = Game.lobby_mode if not Game.lobby_roster.is_empty() else GameModes.DUEL
 	var ids := roster.map(func(entry: Dictionary) -> int: return entry["id"])
-	var map_spawns := Spawns.from_raw(MapFiles.read_json(raw_path))
+	var map_spawns := Spawns.from_raw(MapFiles.read_map(raw_path))
 	var ffa_spawns := _ffa_spawns(setup, ids.size(), map_spawns) if mode == GameModes.WAR else []
 	var spawns := Spawns.positions_for_mode(mode, ids, map_spawns, ffa_spawns)
 

@@ -1,7 +1,7 @@
 extends GutTest
 
 func test_builds_os_pillars_geometry() -> void:
-	var m := MapLoader.build("res://maps/os_pillars.json")
+	var m := MapLoader.build("res://maps/os_pillars.map")
 	add_child_autofree(m)
 	assert_gt(m.get_child_count(), 500, "floor + all blocks (boxes + wedges) built")
 	var floor_body: Node3D = m.get_child(0)
@@ -17,7 +17,7 @@ func test_wedge_builds_convex_collider_and_rotates() -> void:
 	assert_almost_eq(w.rotation.y, -PI / 2.0, 1e-4, "dir=1 -> -90 deg yaw")
 
 func test_map_floor_is_raycastable() -> void:
-	var m := MapLoader.build("res://maps/os_pillars.json")
+	var m := MapLoader.build("res://maps/os_pillars.map")
 	add_child_autofree(m)
 	await get_tree().physics_frame
 	var rc := WorldRaycaster.new(get_tree().root.world_3d.direct_space_state)

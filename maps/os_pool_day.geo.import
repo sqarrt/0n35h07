@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.map_geo"
+type="Resource"
+uid="uid://s10y65h0puka"
+path="res://.godot/imported/os_pool_day.geo-427e0720e6e89ce8b328b13a6d9b23a0.res"
+
+[deps]
+
+source_file="res://maps/os_pool_day.geo"
+dest_files=["res://.godot/imported/os_pool_day.geo-427e0720e6e89ce8b328b13a6d9b23a0.res"]
+
+[params]
+

@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.map_geo"
+type="Resource"
+uid="uid://oh3luh3xea2e"
+path="res://.godot/imported/os_india.geo-295b7ddc9bd181452403b74f29fb4e07.res"
+
+[deps]
+
+source_file="res://maps/os_india.geo"
+dest_files=["res://.godot/imported/os_india.geo-295b7ddc9bd181452403b74f29fb4e07.res"]
+
+[params]
+

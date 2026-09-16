@@ -4,11 +4,11 @@ class_name MapCatalog
 const MAP_IDS := ["os_arena", "os_india", "os_pillars", "os_pool_day", "os_sotia"]
 const MAP_DIR := "res://maps/"
 const PREVIEW_DIR := "res://assets/maps/previews/"
-const RAW_SUFFIX := ".json"
-const GEO_SUFFIX := "_geo.json"
+const RAW_SUFFIX := ".map"                      # the map's source (JSON text, imported as a JsonPack)
+const GEO_SUFFIX := ".geo"                      # its compiled geometry (imported as a MapGeo)
 const PREVIEW_SUFFIX := ".png"
 
-## The raw map (the geometry sits next to it as <id>_geo.json).
+## The map's source (its compiled geometry sits next to it as <id>.geo).
 static func raw_path(id: String) -> String:
 	return MAP_DIR + id + RAW_SUFFIX
 

@@ -2,10 +2,10 @@ extends GutTest
 ## Block (voxel cell) grid parity with web blockGrid.ts: cells occupied by map blocks, 12 edges per cell,
 ## drawn as translucent #4af lines only on maps with showBlockGrid.
 
-const POOL_RAW := "res://maps/os_pool_day.json"
-const POOL_GEO := "res://maps/os_pool_day_geo.json"
-const ARENA_RAW := "res://maps/os_arena.json"
-const ARENA_GEO := "res://maps/os_arena_geo.json"
+const POOL_RAW := "res://maps/os_pool_day.map"
+const POOL_GEO := "res://maps/os_pool_day.geo"
+const ARENA_RAW := "res://maps/os_arena.map"
+const ARENA_GEO := "res://maps/os_arena.geo"
 const POOL_CELLS := 17210          # web blockCells(os_pool_day) — cross-checked with a port of the JS algorithm
 const EDGES_PER_CELL := 12
 const VERTS_PER_EDGE := 2
@@ -37,7 +37,7 @@ func test_overlapping_blocks_share_cells() -> void:
 	assert_eq(BlockGrid.cells([block, block.duplicate(true)]).size(), BlockGrid.cells([block]).size())
 
 func test_pool_cell_count_matches_web() -> void:
-	assert_eq(BlockGrid.cells(MapFiles.read_json(POOL_RAW)["blocks"]).size(), POOL_CELLS)
+	assert_eq(BlockGrid.cells(MapFiles.read_map(POOL_RAW)["blocks"]).size(), POOL_CELLS)
 
 func test_each_cell_has_twelve_edges_on_the_voxel_lattice() -> void:
 	var verts := BlockGrid.edge_vertices([Vector3i(0, 0, 0)])

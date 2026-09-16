@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.json_pack"
+type="Resource"
+uid="uid://dcxyoukg1v1si"
+path="res://.godot/imported/os_india.demo-a923f7deadaf1bbacd578e8cab09468e.res"
+
+[deps]
+
+source_file="res://assets/demos/os_india.demo"
+dest_files=["res://.godot/imported/os_india.demo-a923f7deadaf1bbacd578e8cab09468e.res"]
+
+[params]
+
