@@ -98,6 +98,12 @@ enums and namespaces are **forbidden**.
 
 ## Architecture (big picture)
 
+**Map data.** A map is authored in `map-editor/` and lands as two JSON files — `maps/<id>.map` (the source: arena
+size, blocks, spawns) and `maps/<id>.geo` (its compiled geometry) — plus `assets/maps/previews/<id>.png`. Recorded
+clips for the trailer are `assets/demos/<id>.demo`. None of that text ships: `addons/map_data` imports `.map` and
+`.demo` into a compressed `JsonPack` and `.geo` into a `MapGeo` (decoded arrays, Godot winding, no collider normals),
+which is what `MapFiles.read_map`, `DemoClip.load_clip` and `GeoLoader` load.
+
 **Layers.** `sim/` — engine-agnostic game logic ported 1:1 from the web simulation (plain `RefCounted` classes:
 `Body`, `Player`, `Weapon`, `Shield`, `MatchRules`, `MatchPhase`, `BotController` with personality / aim / tactics,
 `Streak`, `Overheat`, the HUD / lobby / radio models); `nodes/` — Godot nodes that host it (`PlayerNode`

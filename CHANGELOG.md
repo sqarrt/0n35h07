@@ -251,6 +251,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   raised — with its sounds and the beam's glow.
 
 ### Fixed
+- **The game is a third smaller and opens the way it should.** The build carried its maps and recorded clips as raw
+  text — one map alone was 30 MB of it — and packed the map editor's dependencies along with them; the data is now
+  imported into compressed resources, so the installed game is about 125 MB instead of 169 MB and a big map loads
+  without parsing anything. The window also opens fullscreen straight away, on the game's own background, instead of
+  showing a small window and the engine's logo first.
 - **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
   up with the charge and eases like the original; HUD gauges update at the original's pace.
 - **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game

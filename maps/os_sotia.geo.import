@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.map_geo"
+type="Resource"
+uid="uid://h868co4ovg1w"
+path="res://.godot/imported/os_sotia.geo-89675ca17d0b81d3b05ba95698b2fee6.res"
+
+[deps]
+
+source_file="res://maps/os_sotia.geo"
+dest_files=["res://.godot/imported/os_sotia.geo-89675ca17d0b81d3b05ba95698b2fee6.res"]
+
+[params]
+

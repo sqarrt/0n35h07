@@ -4,7 +4,7 @@ class_name DemoClip extends RefCounted
 ## events), so any contiguous range replays on its own. Frames stay the recording's dictionaries; the helpers turn them
 ## into the shapes the port uses.
 
-const PATH := "res://assets/demos/%s.demo.json"
+const PATH := "res://assets/demos/%s.demo"
 const MS_PER_S := 1000.0
 
 var map_id := ""
@@ -14,10 +14,10 @@ var roster: Array = []                         # web RosterEntry dictionaries
 var frames: Array = []
 
 static func load_clip(id: String) -> DemoClip:
-	var json := JSON.new()
-	if json.parse(FileAccess.get_file_as_string(PATH % id)) != OK or not (json.data is Dictionary):
+	var pack := load(PATH % id) as JsonPack   # the recording, imported into a compressed pack
+	if pack == null or pack.data().is_empty():
 		return null
-	return from_data(json.data)
+	return from_data(pack.data())
 
 static func from_data(data: Dictionary) -> DemoClip:
 	var clip := DemoClip.new()

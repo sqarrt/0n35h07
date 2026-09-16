@@ -7,7 +7,7 @@ const DEFAULT_ID := "os_roundtrip"
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var id: String = args[0] if args.size() > 0 else DEFAULT_ID
-	var raw := MapFiles.read_json(MapCatalog.raw_path(id))
+	var raw := MapFiles.read_map(MapCatalog.raw_path(id))
 	var node := GeoLoader.build(MapCatalog.raw_path(id), MapCatalog.geo_path(id))
 	root.add_child(node)
 	var meshes := node.find_children("*", "MeshInstance3D", true, false).size()

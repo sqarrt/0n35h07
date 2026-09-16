@@ -17,9 +17,13 @@ Saving a map writes the three files the game reads, in place:
 
 | editor artifact | file in the game |
 |---|---|
-| source map | `maps/<id>.json` — `nodes/map_files.gd`, `sim/block_grid.gd`, `sim/spawns.gd` |
-| compiled geometry | `maps/<id>_geo.json` — `nodes/geo_loader.gd` (render chunks + the movement collider) |
+| source map | `maps/<id>.map` — `nodes/map_files.gd`, `sim/block_grid.gd`, `sim/spawns.gd` |
+| compiled geometry | `maps/<id>.geo` — `nodes/geo_loader.gd` (render groups + the movement collider) |
 | preview | `assets/maps/previews/<id>.png` — the lobby's map tiles and background |
+
+Both map files are JSON text, and the game never reads them as such: `addons/map_data` imports them into compressed
+resources (one map's geometry is 30 MB of base64 and about 1 MB imported), and only those are exported. Godot
+re-imports a file it sees change, so after saving from the editor the game picks the map up on its next run.
 
 The REVERT copy taken when a map is opened stays out of the game, in `map-editor/.backups/<id>.json`.
 

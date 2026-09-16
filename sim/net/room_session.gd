@@ -229,7 +229,7 @@ func _guest_entry(hello: Dictionary) -> Dictionary:
 
 ## web genFfaSpawns: the creator rolls the start positions once and ships them, so every peer places the same.
 func _ffa_spawns() -> Array:
-	var map_spawns := Spawns.from_raw(MapFiles.read_json(MapCatalog.raw_path(map_id)))
+	var map_spawns := Spawns.from_raw(MapFiles.read_map(MapCatalog.raw_path(map_id)))
 	var positions := Spawns.gen_ffa_spawns(occupied().size(), (map_spawns[0] as Vector3).y, _rng)
 	return positions.map(func(position: Vector3) -> Array: return [position.x, position.y, position.z])
 

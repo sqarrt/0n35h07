@@ -12,7 +12,7 @@ func test_arena_loads_and_player_settles() -> void:
 		await get_tree().physics_frame
 	assert_lt(pnode.global_position.y, 5.0, "player has fallen/settled onto the arena floor")
 
-const ARENA_MAP := "res://maps/os_arena.json"
+const ARENA_MAP := "res://maps/os_arena.map"
 const SPAWN_TOLERANCE := Vector2(0.01, 0.01)
 
 func test_players_start_on_the_map_spawn_points() -> void:
@@ -21,7 +21,7 @@ func test_players_start_on_the_map_spawn_points() -> void:
 	var root: Node = load("res://scenes/arena_test.tscn").instantiate()
 	add_child_autofree(root)
 	Game.selected_map = previous
-	var spawns: Array = Spawns.from_raw(MapFiles.read_json(ARENA_MAP))
+	var spawns: Array = Spawns.from_raw(MapFiles.read_map(ARENA_MAP))
 	var by_id := {}
 	for n in root.find_children("*", "", true, false):
 		if n is PlayerNode:
