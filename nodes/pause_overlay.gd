@@ -1,8 +1,9 @@
 class_name PauseOverlay extends CanvasLayer
 ## Pause menu — port of web PauseMenu with the App pause rules (PauseModel): it shows while a live match has no pointer
-## lock and never stops the match. MENU over RESUME (primary, no UI sounds), SETTINGS (the in-match settings panel in place of the menu, back to
-## the menu whenever the pause closes), TO MENU and, on the desktop build, QUIT (ghost). Esc and a lost window focus
-## release the lock like the browser does.
+## lock and never stops the match. MENU over RESUME (primary, no UI sounds), SETTINGS (the in-match settings panel in
+## place of the menu, back to the menu whenever the pause closes), TO MENU and, on the desktop build, QUIT (ghost).
+## A lost window focus releases the lock like the browser does, and Esc both pauses and unpauses — web could only pause
+## with it, because Chrome takes the pointer lock away on that key and refuses to give it back to the same press.
 
 signal profile_changed(profile: Dictionary)   # a setting changed in the in-match panel
 
@@ -104,8 +105,15 @@ func refresh() -> void:
 		close_settings()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
+	if not event.is_action_pressed("pause"):
+		return
+	if not visible:
 		_lock.release()                    # the browser leaves the pointer lock on Esc
+		return
+	if _settings != null:                  # the in-match settings step back to the pause menu first
+		close_settings()
+		return
+	_on_resume()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:

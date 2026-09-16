@@ -286,6 +286,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The glass cards no longer have smeared corners.** The frosted backdrop was blurred over the whole square of the
   card, so outside its rounded corners a square of blurred background showed over bright scenery; the blur is now
   clipped to the corners, as a CSS backdrop filter is.
+- **The library scrolls with the pointer over a track.** A cell took the mouse, so the wheel over one never reached
+  the grid and nothing moved; the wheel now scrolls the library wherever it is inside the window.
+- **Esc closes the pause menu.** It opened the pause but could not close it — a browser limitation of the original
+  (Chrome takes the mouse away on Esc and refuses to give it back to the same key press). Esc now pauses and resumes,
+  and steps back out of the in-match settings first.
+
 - **The Radio player answers the first click again.** Its card rebuilt its rows several times a second, which let go
   of whatever the mouse was holding: the volume and position sliders took one click to grab and another to release,
   buttons lost hover and presses. The rows now stay put, and a held button keeps its pressed look.

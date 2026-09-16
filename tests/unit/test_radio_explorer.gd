@@ -350,6 +350,23 @@ func test_a_full_folder_scrolls_under_the_thin_bar() -> void:
 	assert_almost_eq(explorer.scroll_offset(), explorer.max_scroll() - RadioExplorer.WHEEL_PX, EPS,
 		"the wheel over the grid scrolls it")
 
+func test_the_wheel_scrolls_with_the_pointer_over_a_track() -> void:
+	# Bug: a cell takes the mouse, so the wheel over one never reached the grid and the library would not scroll.
+	var explorer := _crowded(60)
+	var item := explorer.items()[0]
+	var at: Vector2 = item.get_global_transform() * (item.size * 0.5)
+	var before := explorer.scroll_offset()
+	for pressed in [true, false]:
+		var wheel := InputEventMouseButton.new()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = pressed
+		wheel.position = at
+		wheel.global_position = at
+		explorer.get_viewport().push_input(wheel)
+		await wait_process_frames(1)
+	assert_almost_eq(explorer.scroll_offset(), before + RadioExplorer.WHEEL_PX, EPS,
+		"the grid under the cell is the one that scrolls")
+
 func test_opening_a_folder_starts_at_its_top() -> void:
 	var explorer := _crowded(60)
 	explorer.scroll_to(RadioExplorer.WHEEL_PX * 2.0)
