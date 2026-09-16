@@ -1,0 +1,38 @@
+{
+  "name": "oneshot-map-editor",
+  "private": true,
+  "version": "2.0.0",
+  "description": "OneShot map editor: the web game's editor kept as a dev tool, writing the Godot project's maps/ and assets/maps/previews/",
+  "author": "Dmitry Shatalov",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "dev": "npm run ensure:native --silent && vite",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "pretest": "npm run ensure:native --silent",
+    "ensure:native": "node scripts/ensure-native.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "@react-three/postprocessing": "^3.0.4",
+    "postprocessing": "^6.39.1",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "three": "^0.184.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.1",
+    "@vitejs/plugin-react": "^6.0.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.7"
+  }
+}

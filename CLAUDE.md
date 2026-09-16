@@ -7,8 +7,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 OneShot (0N35H07) is an arcade first-person shooter for Steam, built natively on **Godot 4.7 (GDScript, Windows)**.
 The repo **root is the Godot project** (`project.godot`, `scenes/`, `autoloads/`, `nodes/`, `sim/`, `assets/`,
 `maps/`, `addons/`, `tests/unit/`). It is a 1:1 port of the React/Three.js web game, which served as the parity
-oracle until the port replaced it and was removed from the repository (its history stays in git). The one piece of
-web code the game still runs is the generative radio's engine page, kept as its own package in **`radio-host/`**.
+oracle until the port replaced it and was removed from the repository (its history stays in git). Two pieces of web code
+survive: the generative radio's engine page the game runs (**`radio-host/`**) and the map editor, kept as a dev-only
+web app in **`map-editor/`** (it authors the files in `maps/`).
 
 - Two runners, same Godot 4.7.1: **Claude Code works in WSL** → `scripts/godot.sh` (`$GODOT_BIN`, else the Linux binary
   in `~/.local/share/godot/godot`; engine runs need the sandbox disabled). **Codex works natively in Windows /
@@ -85,8 +86,12 @@ web code the game still runs is the generative radio's engine page, kept as its 
   default] [-DryRun]` — SteamPipe VDFs for `release/windows` (Playtest app: `-App 4888710`).
 - Radio page (`radio-host/`, Node `^20.19 || >=22.12`): `npm ci`, `npm test` (vitest), `npm run typecheck`,
   `npm run build` → `localhost/radio_host/` (commit the rebuilt bundle).
-- CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless, plus `radio-host` types / tests / a build
-  that must reproduce the committed bundle.
+- Map editor (`map-editor/`, a dev tool that never ships): `npm ci`, `npm run dev` → http://localhost:5173/ (the web
+  game's editor, restored from history; see `map-editor/README.md`). It writes `maps/<id>.json`, `maps/<id>_geo.json`
+  and `assets/maps/previews/<id>.png` in place, and keeps `MAP_IDS` in `sim/map_catalog.gd` in step (create / rename /
+  delete). Checks: `npm run typecheck`, `npm test`.
+- CI (`.github/workflows/ci.yml`): the GUT suite on Godot 4.7.1 Linux headless, `radio-host` types / tests / a build
+  that must reproduce the committed bundle, and `map-editor` types / tests.
 
 Note on the radio page's TypeScript: `erasableSyntaxOnly` is on — parameter properties (`constructor(private x)`),
 enums and namespaces are **forbidden**.

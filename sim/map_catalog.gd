@@ -1,7 +1,7 @@
 class_name MapCatalog
 ## The lobby's maps in the web order (game/maps.ts MAP_IDS), with their data files and preview images.
 
-const MAP_IDS := ["os_arena", "os_india", "os_pillars", "os_pool_day", "os_test"]
+const MAP_IDS := ["os_arena", "os_india", "os_pillars", "os_pool_day", "os_sotia"]
 const MAP_DIR := "res://maps/"
 const PREVIEW_DIR := "res://assets/maps/previews/"
 const RAW_SUFFIX := ".json"

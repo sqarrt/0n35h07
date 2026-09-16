@@ -64,3 +64,4 @@ trailer-dist
 
 # Python bytecode (tools/parity scripts)
 __pycache__/
+map-editor/.backups/
