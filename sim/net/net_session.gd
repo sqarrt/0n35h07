@@ -8,10 +8,13 @@ const TAG_SNAPSHOT := "snapshot"
 const TAG_EVENT := "event"
 const TAG_HIT := "hit"
 const TAG_PHASE := "phase"
+const TAG_DIGEST := "digest"
+const MS_PER_S := 1000.0
 
 var _net
 var _match
 var _last_snapshot_at := -1000000.0
+var _last_digest_at := -1000000.0
 var _snapshot_interval := 1000.0 / NetConst.NET_SNAPSHOT_HZ
 
 func _init(net, match_obj) -> void:
@@ -26,6 +29,8 @@ func _init(net, match_obj) -> void:
 				GameLog.warn("phase", "phase_drop", {"from": from})
 				return
 			_match.apply_phase(payload))
+	if _match.has_method("compare_digest"):
+		_net.on(TAG_DIGEST, func(payload, from): _match.compare_digest(from, payload))
 	if _match.has_method("handle_peer_left"):
 		_net.on_peer_leave(func(peer):
 			GameLog.warn("transport", "peer_left", {"peer": peer})
@@ -44,6 +49,9 @@ func after_update(now_ms: float) -> void:
 	if now_ms - _last_snapshot_at >= _snapshot_interval:  # snapshots throttled
 		_last_snapshot_at = now_ms
 		_net.broadcast(TAG_SNAPSHOT, _match.serialize_snapshot())
+	if _match.has_method("serialize_digest") and now_ms - _last_digest_at >= NetDigest.INTERVAL_S * MS_PER_S:
+		_last_digest_at = now_ms
+		_net.broadcast(TAG_DIGEST, _match.serialize_digest())
 
 func dispose() -> void:
 	_net.leave()

@@ -127,6 +127,11 @@ func _ready() -> void:
 		var warning := WarningSplash.new()
 		warning.dismissed.connect(func() -> void: Game.warning_seen = true)
 		add_child(warning)
+	if NetDiag.is_on(OS.get_cmdline_args()):   # the network test drives the menu itself, without a mouse
+		var driver := NetDiagDriver.new()
+		driver.name = "NetDiagDriver"
+		driver.setup(self, OS.get_cmdline_args())
+		add_child(driver)
 	Audio.play_menu_music()   # web App: menu music on every non-match screen
 	if Game.menu_screen == SCREEN_ABOUT:   # back from the trailer (web onDone → setScreen('about'))
 		Game.menu_screen = ""
@@ -833,6 +838,8 @@ func _start_match(setup: Dictionary) -> void:
 	Game.lobby_mode = setup["mode"]
 	setup[RADIO_FOR_MATCH] = Radio.is_active()          # web gameNet.radioForMatch: this peer's radio at START
 	Game.match_setup = setup                            # the room (Game.room) stays open through the match
+	if Game.room != null and Game.room.is_host():
+		SteamBridge.seal_lobby()                       # the fight is on: nobody new can be seated now
 	get_tree().change_scene_to_file(ARENA)
 
 func _on_quit() -> void:

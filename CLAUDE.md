@@ -82,6 +82,12 @@ web app in **`map-editor/`** (it authors the files in `maps/`).
   (the Steam depot layout; needs the Godot export templates in `%APPDATA%\Godot\export_templates\4.7.1.stable`). The
   preset lives in `tools/export/windows_preset.cfg` (`export_presets.cfg` stays untracked). A shipped build takes the
   Steam app from its launch: run it outside Steam with a temporary `steam_appid.txt` beside the exe.
+- Netcode stand (several windows playing each other on one PC, PowerShell): export the build, then
+  `./tools/probes/netdiag_layout.ps1 -Count 4 -Emulator <gbe_fork x64 folder>` (copies of the build, each with its own
+  SteamID) and `./tools/probes/netdiag_run.ps1 -Mode duel|battle|war -Windows N [-Bots N] [-MatchSeconds N]
+  [-KillHostAfter N]`. The windows drive themselves (`--netdiag`); logs and frames land in
+  `test-results/probes/netdiag/`, one log per window, and a peer warns `net desync` when its world stops matching
+  another's.
 - Steam upload (steamcmd on PATH or `$env:STEAMCMD`): `./scripts/upload_steam.ps1 -App 4881310 -User <login> [-Branch
   default] [-DryRun]` — SteamPipe VDFs for `release/windows` (Playtest app: `-App 4888710`).
 - Radio page (`radio-host/`, Node `^20.19 || >=22.12`): `npm ci`, `npm test` (vitest), `npm run typecheck`,

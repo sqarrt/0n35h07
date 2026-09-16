@@ -13,6 +13,7 @@ var first_kill_done := false
 var singularity_active := false  # someone is on a SINGULARITY streak: everyone pierces, blocks see-through
 
 var _last_seq := {}              # id -> last processed weapon.fire_seq
+var _judged := {}                # "shooter:victim:seq" -> true: a verdict scores once, however often it arrives
 
 func add_player(p) -> void:
 	players.append(p)
@@ -59,10 +60,13 @@ func _resolve_combat() -> void:
 		var eid: int = int(o["hit_entity_id"])
 		if eid < 0:
 			continue
-		if not _owns(eid):
-			claims.append({"shooter": shooter.id, "hit_id": eid, "point": _wire(o["hit_point"])})
-			continue
 		var victim = _by_id(eid)
+		if not _owns(eid):
+			if victim != null and victim.team == shooter.team:
+				continue          # a teammate's body stopped the beam: no harm, so no claim and nothing to predict
+			claims.append({"shooter": shooter.id, "hit_id": eid, "point": _wire(o["hit_point"]),
+				"seq": w.fire_seq})   # the shot's number travels with the claim and comes back in the verdict
+			continue
 		if victim != null:
 			_resolve_hit(shooter, victim, o["hit_point"])
 
@@ -79,15 +83,19 @@ func _resolve_hit(shooter, victim, point) -> void:
 		events.append({"t": "block", "shooter": shooter.id, "victim": victim.id, "perfect": perfect})
 	else:
 		GameLog.log("act", "kill", {"shooter": shooter.id, "victim": victim.id})
-		var first_blood := _apply_kill(shooter, victim)
-		events.append({"t": "kill", "shooter": shooter.id, "victim": victim.id, "point": point,
+		var broken: int = victim.streak            # the streak this kill broke: it travels, so every peer pays the same bounty
+		var first_blood := _apply_kill(shooter, victim, broken)
+		events.append({"t": "kill", "shooter": shooter.id, "victim": victim.id, "point": point, "broken": broken,
 			"streak": (shooter.streak if shooter != victim else 0), "first_blood": first_blood})
 
-func _apply_kill(shooter, victim) -> bool:
+## `broken` is the victim's streak as its OWNER saw it. Verdicts from different owners arrive in different orders on
+## different peers, so a locally read streak would pay different bounties and the scores would part for good.
+func _apply_kill(shooter, victim, broken := -1) -> bool:
 	if victim.alive:
 		victim.apply_death()
 	victim.deaths += 1
-	var broken: int = victim.streak
+	if broken < 0:
+		broken = victim.streak
 	victim.streak = 0
 	var first_blood := false
 	if shooter != victim:
@@ -112,11 +120,20 @@ func apply_combat_event(e: Dictionary) -> Dictionary:
 	var victim = _by_id(int(e.get("victim", -1)))
 	if shooter == null or victim == null:
 		return {}
+	var seq := int(e.get("seq", 0))
+	if seq > 0:                      # a repeat of the same shot's verdict must not score twice
+		var shot := "%d:%d:%d" % [shooter.id, victim.id, seq]
+		if _judged.has(shot):
+			GameLog.warn("act", "verdict_repeat", {"t": e.get("t", ""), "shooter": shooter.id, "victim": victim.id,
+				"seq": seq})
+			return {}
+		_judged[shot] = true
 	match e.get("t", ""):
 		"kill":
-			var first_blood := _apply_kill(shooter, victim)
+			var broken := int(e.get("broken", -1))
+			var first_blood := _apply_kill(shooter, victim, broken)
 			return {"t": "kill", "shooter": shooter.id, "victim": victim.id, "point": victim.position(),
-				"streak": (shooter.streak if shooter != victim else 0), "first_blood": first_blood}
+				"broken": broken, "streak": (shooter.streak if shooter != victim else 0), "first_blood": first_blood}
 		"block":
 			var perfect := bool(e.get("perfect", false))
 			_apply_block(shooter, victim, perfect)

@@ -251,6 +251,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   raised — with its sounds and the beam's glow.
 
 ### Fixed
+- **Networked matches keep the same score on every screen.** A kill is worth more when it breaks a streak, and each
+  peer used to read that streak from its own copy: verdicts from different owners arrive in different orders, so two
+  peers could count the same kills and still end a frag apart for the rest of the match. The verdict now carries the
+  streak it broke, so the bounty is the victim owner's word everywhere. Found in a live 2v2 and caught by a new
+  state digest peers exchange every couple of seconds.
+- **A shot fired an instant before dying counts.** The news of the shooter's death could overtake its own claim, and
+  the victim's peer threw the hit away — the shooter watched a killed opponent come back to life. A claim from a
+  shooter that died within the prediction's grace is now judged; a long-dead one is still refused. The same went for
+  a shooter the other screen had only *predicted* dead: a guess about someone is no reason to ignore their shot.
+- **Shooting past a teammate no longer blinks them out.** Their body stops the beam but takes no harm, yet the shot
+  was still claimed and the teammate optimistically shown dead until the verdict refused it a quarter second later.
+- **Remote players glide instead of shivering.** They were placed a physics tick before the frame that drew them, so
+  their lag behind their owner changed from frame to frame; they are now placed in the frame that draws them, as in
+  the original.
+- **A peer that drops out is let go in seconds, not half a minute.** A hard quit leaves the connection open on the
+  other side for as long as the transport takes to notice — twenty seconds in a live run, with the departed body still
+  standing in the arena catching shots. A match now lets go of a peer it has not heard from for five seconds.
+- **A player who leaves takes their body with them.** It was hidden but still solid: an invisible corpse went on
+  stopping beams meant for the living and standing in everyone's way.
+- **A networked match can no longer hang before it starts.** Readiness went out once, and a peer that was not listening
+  yet never heard it — both sides waited in the ready screen for good. Readiness is now repeated until the lobby's
+  creator has stamped it, the creator stamps the start of the fight too (so the clocks agree), and a phase never runs
+  backwards.
+- **A peer that goes quiet no longer leaves an opponent a ghost.** The grace on a predicted kill was only looked at
+  when the owner's next snapshot arrived; it now runs on the clock, so a stalled peer's player comes back instead of
+  staying an unhittable ghost for the rest of the match.
+- **The match survives its creator leaving.** The right to stamp the phase now passes to the lowest remaining seat,
+  so the fight still ends for everybody instead of each peer running out its own clock.
+- **The room handshake only listens to who it should.** Seat assignments are taken from the room's host alone, the
+  start of a match from its creator and only once, and a latecomer can no longer be seated into a match already
+  underway. A repeated verdict scores once, a snapshot that overtook a newer one is dropped, and a claim from a
+  player that cannot fire (dead, frozen, or firing faster than the beam reloads) is refused.
+- **A remote ghost shows its own time left.** The respawn timer was missing from snapshots, so another player's ghost
+  always read zero.
 - **The game is a third smaller and opens the way it should.** The build carried its maps and recorded clips as raw
   text — one map alone was 30 MB of it — and packed the map editor's dependencies along with them; the data is now
   imported into compressed resources, so the installed game is about 125 MB instead of 169 MB and a big map loads

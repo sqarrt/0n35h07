@@ -69,6 +69,12 @@ func join_lobby(id: String) -> void:
 	if id.is_valid_int():
 		api.join_lobby(int(id))
 
+## Shut the door on a lobby whose match is on: Steam turns a friend's join away at once instead of letting them in to
+## a room that cannot seat them (they would sit on a dead connection until it timed out).
+func seal_lobby() -> void:
+	if lobby_id != 0:
+		api.set_lobby_joinable(lobby_id, false)
+
 ## Leave the lobby and stop being joinable (web steam_net_leave_lobby).
 func leave_lobby() -> void:
 	if lobby_id != 0:

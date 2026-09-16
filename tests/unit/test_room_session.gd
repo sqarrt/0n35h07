@@ -148,3 +148,38 @@ func test_guests_do_not_run_the_rules() -> void:
 	assert_eq(host.mode, GameModes.WAR)
 	assert_eq(third.local_player_id, 2)
 	assert_eq(guest.slots[2]["name"], "THIRD", "every guest follows the whole room")
+
+func test_the_room_turns_away_what_the_creator_did_not_say() -> void:
+	# In a lobby of three, any guest could send an assign (stealing the creator's voice) or a start (pushing everyone
+	# into a match); a repeated start sent us into the arena twice.
+	var nets := LoopbackNet.create_loopback_hub([HOST, GUEST, THIRD])
+	var host := _session(nets[0], RoomSession.ROLE_HOST, HOST_PROFILE)
+	var guest := _session(nets[1], RoomSession.ROLE_CLIENT, GUEST_PROFILE)
+	guest.tick(RoomSession.HELLO_RETRY_S)
+	assert_eq(guest.local_player_id, 1, "the creator seated us")
+	nets[2].send(GUEST, RoomSession.TAG_ASSIGN, {"yourId": 0, "roster": [], "durationMin": 9, "mapId": WISHED_MAP,
+		"ready": [], "mode": GameModes.DUEL, "owners": {}, "seed": "zzzz"})
+	assert_eq(guest.local_player_id, 1, "a stranger's assign is not the room")
+	assert_eq(guest.music_seed, CODE, "nor its seed")
+	var started := [0]
+	guest.started.connect(func(_setup: Dictionary) -> void: started[0] += 1)
+	nets[2].send(GUEST, RoomSession.TAG_START, {"durationMs": 60000, "mapId": WISHED_MAP, "spawns": [], "owners": {}})
+	assert_eq(started[0], 0, "and a stranger cannot start the match")
+	host.set_local_ready(true)
+	guest.set_local_ready(true)
+	assert_eq(started[0], 1, "the creator can")
+	nets[0].send(GUEST, RoomSession.TAG_START, {"durationMs": 60000, "mapId": WISHED_MAP, "spawns": [], "owners": {}})
+	assert_eq(started[0], 1, "a repeat does not send us in a second time")
+
+func test_a_newcomer_after_the_start_is_not_seated() -> void:
+	var nets := LoopbackNet.create_loopback_hub([HOST, GUEST, THIRD])
+	var host := _session(nets[0], RoomSession.ROLE_HOST, HOST_PROFILE)
+	var guest := _session(nets[1], RoomSession.ROLE_CLIENT, GUEST_PROFILE)
+	guest.tick(RoomSession.HELLO_RETRY_S)
+	host.set_local_ready(true)
+	guest.set_local_ready(true)
+	var seated := host.occupied().size()
+	var late := _session(nets[2], RoomSession.ROLE_CLIENT, THIRD_PROFILE)
+	late.tick(RoomSession.HELLO_RETRY_S)
+	assert_eq(host.occupied().size(), seated, "the match is on: a seat now would never get its start")
+	assert_eq(late.local_player_id, RoomSession.UNASSIGNED)

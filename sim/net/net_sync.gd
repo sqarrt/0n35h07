@@ -2,6 +2,9 @@ class_name NetSync extends RefCounted
 ## Ownership-based world sync: each peer serialises the players it OWNS and applies others' snapshots
 ## to the players it doesn't own. The narrow Match-net contract NetSession drives; a MatchNode shares its rules with it.
 
+const CLAIM_INTERVAL_SLACK := 0.8   # a shot can't come sooner than its cooldown; leave room for clock jitter
+const CLAIM_DEAD_SLACK_MS := NetConst.NET_PREDICT_KILL_MS   # a shot that left just before its shooter died still counts
+
 var players := {}       # id -> Player
 var owned_ids := {}     # id -> true
 var local_id := 0
@@ -12,6 +15,10 @@ var owner_of := {}      # id -> peer id; configured for mesh play, empty for loc
 var rules: MatchRules
 var clock_ms := Callable(Time, "get_ticks_msec")   # the kill prediction's grace runs on it (tests pin it)
 var predicted_kill := {}   # {id, until}: a remote victim the local player's shot predicted dead (web predictedKill)
+
+var _dead_at := {}         # id -> when this peer saw that remote player die
+var _seen_tick := {}       # peer -> the newest snapshot we applied from it (a later-arriving older one is stale)
+var _claim_at := {}        # shooter id -> when its last claim was judged (ms), the rate a beam can honestly fire
 
 ## `match_rules`: the rules the verdicts score in (a MatchNode's own); a fresh set when omitted.
 func _init(match_rules: MatchRules = null) -> void:
@@ -30,9 +37,16 @@ func serialize_snapshot() -> Dictionary:
 	for id in players:
 		if owned_ids.has(id):
 			ps.append(NetProtocol.player_snapshot(players[id]))
+	tick += 1                       # numbers this peer's snapshots so a receiver can tell an old one from a new one
 	return {"tick": tick, "players": ps}
 
 func apply_peer_snapshot(from: String, snap: Dictionary) -> void:
+	var sent := int(snap.get("tick", 0))
+	if sent > 0:
+		if sent <= int(_seen_tick.get(from, 0)):
+			GameLog.warn("net", "snapshot_stale", {"from": from, "tick": sent, "seen": _seen_tick.get(from, 0)})
+			return                  # a snapshot that overtook a newer one would rewind the peer's players
+		_seen_tick[from] = sent
 	for s in snap["players"]:
 		var id := int(s["id"])
 		if owned_ids.has(id):
@@ -40,7 +54,9 @@ func apply_peer_snapshot(from: String, snap: Dictionary) -> void:
 		if not _sender_owns(from, id):
 			continue
 		if players.has(id):
+			var was_alive: bool = players[id].alive
 			NetProtocol.apply_player_snapshot(players[id], _predicted_state(id, s))
+			_note_death(id, was_alive)
 
 ## web applyPeerSnapshot with a latched prediction: an alive snapshot sent before our claim arrived keeps the ghost
 ## until the grace runs out (then the claim was rejected or lost: revive); a dead one means the owner confirmed it.
@@ -57,6 +73,25 @@ func _predicted_state(id: int, s: Dictionary) -> Dictionary:
 		return held
 	_revert_prediction(id, "grace")
 	return s
+
+## When a remote player died on our screen — a claim from a shooter that has just died is still honest: the shot left
+## before the death did, and the news of the death simply overtook it.
+func _note_death(id: int, was_alive: bool) -> void:
+	var p = players.get(id)
+	if was_alive and p != null and not p.alive:
+		_dead_at[id] = float(clock_ms.call())
+
+## Whether a claim from this (locally dead) shooter is still within the window its own kill prediction would hold.
+func _shot_before_dying(shooter_id: int) -> bool:
+	return float(clock_ms.call()) - float(_dead_at.get(shooter_id, -INF)) <= CLAIM_DEAD_SLACK_MS
+
+## The grace on a predicted death, checked every tick — an owner that went quiet (a stall, a lost burst) used to leave
+## its player an unhittable ghost forever, because the grace was only looked at when its next snapshot arrived.
+func tick_prediction() -> void:
+	if predicted_kill.is_empty():
+		return
+	if float(clock_ms.call()) >= float(predicted_kill["until"]):
+		_revert_prediction(int(predicted_kill["id"]), "grace")
 
 ## web predictOpponentDeath: our shot hit a remote victim — show its death now, before its owner's verdict. A visibly
 ## shielded victim is left to its owner (the verdict will be a block).
@@ -127,6 +162,16 @@ func judge_claim(from: String, claim: Dictionary) -> Dictionary:
 	if not victim.alive:
 		GameLog.log("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "dead"})
 		return {}
+	# A player we merely PREDICTED dead is not dead: its owner has not spoken yet, and refusing its claim would throw
+	# away an honest exchange (we then revert the prediction anyway when the grace runs out).
+	var guessed_dead: bool = int(predicted_kill.get("id", -1)) == shooter_id
+	if shooter.frozen or (not shooter.alive and not guessed_dead and not _shot_before_dying(shooter_id)):
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "shooter_idle"})
+		return {}                    # a dead or frozen player has no beam to hit us with
+	var now := float(clock_ms.call())
+	if now - float(_claim_at.get(shooter_id, -INF)) < CombatConst.BEAM_COOLDOWN_MS * CLAIM_INTERVAL_SLACK:
+		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "too_soon"})
+		return {}                    # claims can't outrun the weapon that makes them
 	var point: Vector3 = victim.position()
 	var claim_point = claim.get("point")
 	if claim_point != null:
@@ -140,14 +185,18 @@ func judge_claim(from: String, claim: Dictionary) -> Dictionary:
 	if not is_finite(distance) or distance > CombatConst.AIM_RANGE:
 		GameLog.warn("act", "claim_drop", {"shooter": shooter_id, "victim": hit_id, "reason": "range", "dist": distance})
 		return {}
+	_claim_at[shooter_id] = now
 	GameLog.log("act", "claim_judge", {"shooter": shooter_id, "victim": hit_id, "dist": distance})
+	var broken: int = victim.streak          # the owner's word on the streak this shot breaks (the bounty rides on it)
 	var res: String = victim.receive_hit()   # the shield on the victim's screen wins
 	var verdict: Dictionary
+	var seq: int = int(claim.get("seq", 0))   # the shot's number: a verdict repeated on the wire must score once
 	if res == "blocked":
-		verdict = {"t": "block", "shooter": shooter_id, "victim": hit_id, "perfect": victim.is_perfect_block()}
+		verdict = {"t": "block", "shooter": shooter_id, "victim": hit_id, "perfect": victim.is_perfect_block(),
+			"seq": seq}
 		GameLog.log("act", "block", {"shooter": shooter_id, "victim": hit_id, "perfect": verdict["perfect"]})
 	else:
-		verdict = {"t": "kill", "shooter": shooter_id, "victim": hit_id}
+		verdict = {"t": "kill", "shooter": shooter_id, "victim": hit_id, "seq": seq, "broken": broken}
 		GameLog.log("act", "kill", {"shooter": shooter_id, "victim": hit_id})
 	var local := rules.apply_combat_event(verdict)
 	emit_event(verdict)
@@ -185,7 +234,10 @@ func apply_peer_event(from: String, e: Dictionary) -> Dictionary:
 					GameLog.log("act", "predict_confirm", {"victim": v})
 				else:                                   # web applyBlock: the owner's shield won
 					_revert_prediction(v, "block")
-			return rules.apply_combat_event(e)
+			var was_alive: bool = players[v].alive if players.has(v) else false
+			var applied := rules.apply_combat_event(e)
+			_note_death(v, was_alive)
+			return applied
 		"respawn":
 			var id := int(e["id"])
 			if players.has(id) and not owned_ids.has(id):

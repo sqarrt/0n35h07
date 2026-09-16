@@ -14,6 +14,8 @@ static func player_snapshot(p) -> Dictionary:
 		"dashing": p.is_dashing(),
 		"windup": p.windup_progress(),
 		"respawning": p.respawning,
+		# the ghost's time left, so a remote ghost counts down on every screen (0..1 of RESPAWN_GHOST_MS)
+		"respawn_left": p.respawn_timer / MatchConst.RESPAWN_GHOST_MS if p.respawning else 0.0,
 	}
 
 ## Apply a remote player's snapshot (web applyNetState): position, aim, life and the visual flags the player then shows

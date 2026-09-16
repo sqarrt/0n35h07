@@ -173,6 +173,9 @@ func _seat_moved(from_slot: int, to_slot: int) -> void:
 # --- creator ---
 
 func _on_hello(hello: Dictionary, from: String) -> void:
+	if _started:
+		GameLog.warn("room", "hello_reject_started", {"from": from})
+		return                                  # the match is on: a newcomer would get a seat but never a START
 	if _slot_of(from) >= 0:
 		_send_assign(from)                      # a retry: the first ASSIGN may have been lost
 		return
@@ -256,6 +259,9 @@ func _on_host_found(_peer: String) -> void:
 	_say_hello()
 
 func _on_assign(assign: Dictionary, from: String) -> void:
+	if _host_peer != "" and from != _host_peer:
+		GameLog.warn("room", "assign_drop", {"from": from, "host": _host_peer})
+		return                                  # only the peer that seated us speaks for the room
 	_host_peer = from
 	connected = true
 	found_host = true
@@ -267,7 +273,13 @@ func _on_assign(assign: Dictionary, from: String) -> void:
 	apply_room(String(assign["mode"]), assign["roster"], String(assign["mapId"]), int(assign["durationMin"]),
 		assign.get("ready", []))
 
-func _on_start(start: Dictionary, _from: String) -> void:
+func _on_start(start: Dictionary, from: String) -> void:
+	if _started:
+		GameLog.warn("room", "start_drop", {"from": from, "reason": "already_started"})
+		return                                  # a repeat would send us into the arena a second time
+	if _host_peer != "" and from != _host_peer:
+		GameLog.warn("room", "start_drop", {"from": from, "host": _host_peer})
+		return                                  # only the creator starts the match
 	GameLog.log("room", "start_recv", {"mapId": start["mapId"], "durationMs": start["durationMs"]})
 	_started = true
 	map_id = String(start["mapId"])

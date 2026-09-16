@@ -14,14 +14,27 @@ func _window() -> Window:
 
 func test_the_game_fills_the_screen_at_the_windows_scale() -> void:
 	var window := _window()
-	DisplayStartup.start(window, PackedStringArray(), false, SCALED_DPI)
+	window.mode = Window.MODE_FULLSCREEN   # as the project setting opened it
+	DisplayStartup.start(window, PackedStringArray(), SCALED_DPI)
 	assert_almost_eq(window.content_scale_factor, 1.5, EPS, "CSS px = physical px / 1.5")
-	assert_eq(window.mode, Window.MODE_FULLSCREEN, "like the Tauri window")
+	assert_eq(window.mode, Window.MODE_FULLSCREEN, "startup leaves the window the engine opened")
+
+func test_the_network_test_gets_its_own_window() -> void:
+	# Several windows side by side: the engine's own --windowed loses to the project's fullscreen setting, so the
+	# stand places the window itself.
+	var window := _window()
+	window.mode = Window.MODE_FULLSCREEN
+	DisplayStartup.start(window, PackedStringArray([NetDiag.FLAG, NetDiag.SIZE_FLAG, "800x600",
+		NetDiag.POSITION_FLAG, "40,50"]), SCALED_DPI)
+	assert_eq(window.mode, Window.MODE_WINDOWED)
+	assert_eq(window.size, Vector2i(800, 600))
+	assert_eq(window.position, Vector2i(40, 50))
+	assert_almost_eq(window.content_scale_factor, 1.5, EPS, "and the interface still follows the Windows scale")
 
 func test_a_tool_keeps_its_window_and_scale() -> void:
 	var window := _window()
 	window.mode = Window.MODE_FULLSCREEN   # the project setting opens every window fullscreen
-	DisplayStartup.start(window, PackedStringArray(TOOL_ARGS), false, SCALED_DPI)
+	DisplayStartup.start(window, PackedStringArray(TOOL_ARGS), SCALED_DPI)
 	assert_almost_eq(window.content_scale_factor, 1.0, EPS, "the capture tool sets its own scale")
 	assert_eq(window.mode, Window.MODE_WINDOWED, "a capture window is not fullscreen")
 
@@ -30,8 +43,10 @@ func test_a_tool_run_is_recognized_from_outside() -> void:
 	assert_false(DisplayStartup.is_tool_run(PackedStringArray()))
 
 func test_a_headless_run_keeps_its_window() -> void:
+	# Nothing here sets the window mode any more: headless has no window manager to ask, and the project setting is
+	# what a real run opens with.
 	var window := _window()
-	DisplayStartup.start(window, PackedStringArray(), true, SCALED_DPI)
+	DisplayStartup.start(window, PackedStringArray(), SCALED_DPI)
 	assert_almost_eq(window.content_scale_factor, 1.5, EPS)
 	assert_eq(window.mode, Window.MODE_WINDOWED, "no screen to fill")
 
