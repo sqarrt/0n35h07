@@ -11,6 +11,7 @@ const CARD := Vector2(300.0, 90.0)          # 12 + 17 (the 0.92rem line) + 9 + 3
 const BUTTON_WIDTH := (300.0 - 2.0 * 16.0 - 2.0 * 1.0 - 2.0 * 8.0) / 3.0
 const ROW_TOPS := [13.0, 39.0, 61.0, 88.0, 135.0, 176.0]
 const SETTLE_S := 1.0
+const HALF := 0.5
 
 func _player() -> RadioPlayer:
 	var viewport := SubViewport.new()
@@ -91,8 +92,14 @@ func test_a_relayout_keeps_the_rows_under_the_mouse() -> void:
 
 func test_a_pressed_button_keeps_the_press_while_it_shrinks() -> void:
 	var player := await _expanded()
-	assert_true(player.ball_button().keep_pressed_outside,
+	var button := player.ball_button()
+	assert_true(button.keep_pressed_outside,
 		"the 0.92 press must not slip the box out from under the cursor and swallow the click")
+	button.button_down.emit()
+	button.mouse_exited.emit()   # the shrunken box no longer reaches the cursor
+	assert_almost_eq(button.scale.x, RadioButtons.PRESS_SCALE, EPS, "it stays pressed while the button is held")
+	button.button_up.emit()
+	assert_almost_eq(button.scale.x, 1.0, EPS)
 
 func test_controls_ask_for_actions() -> void:
 	var player := await _player()
@@ -204,3 +211,83 @@ func test_the_move_between_dock_and_screen_is_a_transition() -> void:
 	player._process(SETTLE_S)
 	assert_almost_eq(player.scale.x, 1.0, EPS)
 	assert_almost_eq(player.global_position.x, (SCREEN.x - RadioPlayer.WIDTH) * 0.5, EPS)
+
+## A real click at a screen point, through the viewport's own hit testing.
+func _click(player: RadioPlayer, at: Vector2) -> void:
+	var viewport := player.get_viewport()
+	for pressed in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = at
+		event.global_position = at
+		viewport.push_input(event)
+		await wait_process_frames(1)
+
+func test_the_docked_card_takes_the_mouse_where_it_is_drawn() -> void:
+	# Bug: docked, the card is drawn shrunk to 0.8 in the corner — the mouse has to hit it there.
+	var player := await _player()
+	player.show_state("Brutal Warden /126", true, true)
+	await wait_process_frames(2)
+	watch_signals(player)
+	var play := player.transport_buttons()[1] as Button
+	await _click(player, play.get_global_transform() * (play.size * HALF))
+	assert_signal_emitted(player, "play_pause_requested", "the play button under the cursor is the one drawn there")
+	var title: Control = player.find_child("TrackName", true, false)
+	await _click(player, title.get_global_transform() * (title.size * HALF))
+	assert_signal_emitted(player, "open_requested", "and the name opens the radio")
+
+## A real press / move / release at screen points, through the viewport's own hit testing.
+func _press(player: RadioPlayer, at: Vector2, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.position = at
+	event.global_position = at
+	player.get_viewport().push_input(event)
+	await wait_process_frames(1)
+
+func _move(player: RadioPlayer, at: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	player.get_viewport().push_input(motion)
+	await wait_process_frames(1)
+
+func test_the_scrub_is_grabbed_by_a_press_and_let_go_by_the_release() -> void:
+	# Bug: the card relayouts several times a second with the progress, and that used to drop the grab — so seeking
+	# took two clicks (one to take the slider, another to let it go).
+	var player := await _expanded()
+	player.show_state("proc/warden", true, true)
+	await wait_process_frames(2)
+	var scrub := player.scrub()
+	var rail := scrub.rail_box()
+	watch_signals(player)
+	await _press(player, scrub.get_global_transform() * (rail.position + Vector2(rail.size.x * 0.25, rail.size.y * HALF)), true)
+	player.show_details("126 BPM · E phrygian", 0.3, 137000.0)   # the poll lands in the middle of the drag
+	await _move(player, scrub.get_global_transform() * (rail.position + Vector2(rail.size.x * 0.6, rail.size.y * HALF)))
+	assert_signal_not_emitted(player, "seek_requested", "nothing is asked for while the slider is held")
+	await _press(player, scrub.get_global_transform() * (rail.position + Vector2(rail.size.x * 0.6, rail.size.y * HALF)), false)
+	assert_signal_emitted(player, "seek_requested", "letting go seeks, on the first click")
+	var asked: float = get_signal_parameters(player, "seek_requested")[0]
+	assert_almost_eq(asked, 0.6, 0.05, "where the pointer let go")
+
+func test_the_volume_slider_is_let_go_when_the_button_is() -> void:
+	# The same dropped grab made the volume slider stick to the pointer until the next click.
+	var player := await _expanded()
+	player.show_state("proc/warden", true, true)
+	await wait_process_frames(2)
+	var slider := player.volume_row().range_input()
+	var track := slider.track_rect()
+	var at := func(share: float) -> Vector2:
+		return slider.get_global_transform() * (track.position + Vector2(track.size.x * share, track.size.y * HALF))
+	watch_signals(player)
+	await _press(player, at.call(0.3), true)
+	player.show_details("126 BPM · E phrygian", 0.4, 137000.0)
+	await _move(player, at.call(0.7))
+	await _press(player, at.call(0.7), false)
+	var volume: float = slider.value
+	assert_almost_eq(volume, 0.7, 0.1, "the drag followed the pointer")
+	await _move(player, at.call(0.1))
+	assert_almost_eq(slider.value, volume, EPS, "and the slider stays where it was let go")

@@ -3,7 +3,8 @@ class_name RadioCodeView extends Control
 ## Mono 0.72rem spaced 0.02em at line-height 1.5, #bcd2ff under a 0 0 6px text-shadow of rgba(120,170,255,0.45), wrapped
 ## as Chrome wraps pre-wrap anywhere text (CssPreWrap) — narrower by the scrollbar once the program overflows. The
 ## scrollbar is the thin Windows one Chrome draws for theme.css's `scrollbar-width: thin`: a 10 px strip with 12 px arrow
-## buttons and a 6 px rounded thumb, both rgba(47,111,158,0.35). The wheel scrolls; a click asks for a copy; the mouse
+## buttons and a 6 px rounded thumb, both rgba(47,111,158,0.35). The wheel scrolls, the thumb drags, an arrow steps a
+## line and the strip around the thumb pages (Blink's own steps); a click on the text asks for a copy; the mouse
 ## over it draws an inset hairline, the copied state an accent one over rgba(120,180,255,0.12).
 
 signal copy_requested
@@ -21,6 +22,9 @@ const THUMB_PX := 6.0
 const THUMB_MIN := 17.0
 const SCROLLBAR_COLOR := Color(47.0 / 255.0, 111.0 / 255.0, 158.0 / 255.0, 0.35)
 const WHEEL_PX := 100.0
+const LINE_STEP_PX := 40.0                      # Blink kPixelsPerLineStep: one arrow click
+const PAGE_FRACTION := 0.875                    # Blink kMinFractionToStepWhenPaging: a click on the strip
+const PAGE_OVERLAP_PX := 40.0                   # ... but never more than a page less kMaxOverlapBetweenPages
 const HOVER_LINE := Color(120.0 / 255.0, 180.0 / 255.0, 1.0, 0.35)
 const COPIED_FILL := Color(120.0 / 255.0, 180.0 / 255.0, 1.0, 0.12)
 const LINE_PX := 1.0
@@ -30,6 +34,7 @@ var _code := ""
 var _lines: Array = []
 var _widths := {}
 var _scroll := 0.0
+var _drag_grab := -1.0                          # where inside the thumb it was grabbed (-1: not dragging)
 var _hovered := false
 var _copied := false
 var _text: RadioCodeLines
@@ -113,8 +118,56 @@ func _gui_input(event: InputEvent) -> void:
 		MOUSE_BUTTON_WHEEL_UP:
 			scroll_to(_scroll - WHEEL_PX)
 		MOUSE_BUTTON_LEFT:
-			if not (overflows() and button.position.x >= size.x - SCROLLBAR_PX):
+			if overflows() and button.position.x >= size.x - SCROLLBAR_PX:
+				press_scrollbar(button.position)
+			else:
 				copy_requested.emit()
+
+## A press on the bar: the thumb takes the drag, an arrow steps a line, the strip around the thumb pages.
+func press_scrollbar(at: Vector2) -> void:
+	var thumb := thumb_rect()
+	if thumb.has_point(at):
+		_drag_grab = at.y - thumb.position.y
+		return
+	if at.y < ARROW_PX:
+		scroll_to(_scroll - LINE_STEP_PX)
+	elif at.y > size.y - ARROW_PX:
+		scroll_to(_scroll + LINE_STEP_PX)
+	else:
+		scroll_to(_scroll + (-page_step() if at.y < thumb.position.y else page_step()))
+
+## How far a click on the strip moves (Blink ScrollableArea::PageStep).
+func page_step() -> float:
+	return maxf(size.y * PAGE_FRACTION, size.y - PAGE_OVERLAP_PX)
+
+## Where the dragged thumb puts the scroll: the grab point keeps its place inside the thumb.
+func drag_scrollbar(at: Vector2) -> void:
+	if _drag_grab < 0.0 or not overflows():
+		return
+	var thumb := thumb_rect()
+	var track := size.y - 2.0 * ARROW_PX - thumb.size.y
+	if track <= 0.0:
+		return
+	var share := clampf((at.y - _drag_grab - ARROW_PX) / track, 0.0, 1.0)
+	scroll_to(share * (content_height() - size.y))
+
+func release_scrollbar() -> void:
+	_drag_grab = -1.0
+
+func is_dragging_scrollbar() -> bool:
+	return _drag_grab >= 0.0
+
+## web: the drag follows the mouse outside the box too, and ends wherever the button is let go.
+func _input(event: InputEvent) -> void:
+	if _drag_grab < 0.0:
+		return
+	var motion := event as InputEventMouseMotion
+	if motion != null:
+		drag_scrollbar(get_local_mouse_position())
+		return
+	var release := event as InputEventMouseButton
+	if release != null and not release.pressed and release.button_index == MOUSE_BUTTON_LEFT:
+		release_scrollbar()
 
 func _draw() -> void:
 	var box := Rect2(Vector2.ZERO, size)

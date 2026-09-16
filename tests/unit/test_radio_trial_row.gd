@@ -3,6 +3,7 @@ extends GutTest
 ## the hairline and padding over the 19 px button, the day's counts in the text, the unlock action.
 
 const WIDTH := 266.0
+const NARROW := 0.75        # a strip whose text no longer fits beside the button on one line
 
 func _row() -> RadioTrialRow:
 	var row := RadioTrialRow.new()
@@ -36,3 +37,18 @@ func test_unlock_asks_for_the_store() -> void:
 	assert_signal_emitted(row, "unlock_requested")
 	row.show_trial(0, 0, false)
 	assert_false(row.unlock_button().visible)
+
+func test_a_line_too_long_for_the_room_wraps_instead_of_running_under_the_button() -> void:
+	# Bug: a locale whose strip is longer than the English one (Russian) drew its text under the Unlock button.
+	var row := _row()
+	var one_line := row.row_height()
+	assert_eq(row.text_lines().size(), 1, "the English strip fits beside the button")
+	assert_almost_eq(row.text_width(), WIDTH - RadioTrialRow.GAP - row.unlock_button().size.x, 0.01,
+		"the text gets the room the button leaves")
+	row.set_content_width(WIDTH * NARROW)
+	row.size = Vector2(WIDTH * NARROW, row.row_height())
+	assert_gt(row.text_lines().size(), 1, "it wraps in what is left")
+	assert_gt(row.row_height(), one_line, "and the strip grows instead of overlapping")
+	for line: CssLabel in row.text_lines():
+		assert_lte(line.css_size().x, row.text_width() + 0.01, "every line inside the room")
+	assert_gt(row.unlock_button().position.x, row.text_width(), "the button still sits past the text")

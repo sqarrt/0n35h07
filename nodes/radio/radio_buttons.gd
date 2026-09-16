@@ -34,15 +34,16 @@ static func brighten(color: Color) -> Color:
 	return Color(minf(color.r * HOVER_BRIGHTNESS, 1.0), minf(color.g * HOVER_BRIGHTNESS, 1.0),
 		minf(color.b * HOVER_BRIGHTNESS, 1.0), color.a)
 
-## A press shrinks the button about its middle and lets go on release (web :active on the player's buttons).
+## A press shrinks the button about its middle and lets go on release (web :active on the player's buttons). The press
+## survives the shrink: the smaller box slips out from under a cursor near its edge, and Chrome's :active does not let
+## that cancel the click — nor does it spring back while the button is still held.
 static func press_scale(button: Button) -> void:
-	button.keep_pressed_outside = true   # the shrink must not slip the button out from under the cursor mid-press
+	button.keep_pressed_outside = true
 	var centre := func() -> void: button.pivot_offset = button.size * HALF
 	button.resized.connect(centre)
 	centre.call()
 	button.button_down.connect(func() -> void: button.scale = Vector2.ONE * PRESS_SCALE)
 	button.button_up.connect(func() -> void: button.scale = Vector2.ONE)
-	button.mouse_exited.connect(func() -> void: button.scale = Vector2.ONE)
 
 ## The box with the hover ring around it; null when the box draws no border of its own (a glass bar: only its label lits).
 static func _ringed(box: StyleBox) -> StyleBox:

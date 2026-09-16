@@ -309,3 +309,51 @@ func _remove_tree(absolute: String) -> void:
 	for file in DirAccess.get_files_at(absolute):
 		DirAccess.remove_absolute(absolute.path_join(file))
 	DirAccess.remove_absolute(absolute)
+
+## The seeded library plus `count` more tracks, so the grid overflows its box.
+func _crowded(count: int) -> RadioExplorer:
+	var library := RadioLibrary.new(ROOT)
+	RadioLibrarySeed.seed(library)
+	for i in count:
+		library.save_track("", RadioLibrarySeed.track("Filler %d" % i, 120))
+	var viewport := SubViewport.new()
+	viewport.size = SCREEN
+	add_child_autofree(viewport)
+	var holder := Control.new()
+	holder.size = Vector2(SCREEN)
+	viewport.add_child(holder)
+	var explorer := RadioExplorer.new()
+	explorer.display_root = DISPLAY_ROOT
+	explorer.settings_path = SETTINGS
+	holder.add_child(explorer)
+	explorer.open_on(library, Vector2(SCREEN))
+	return explorer
+
+func test_a_full_folder_scrolls_under_the_thin_bar() -> void:
+	# web .rexp-grid: overflow-y: auto — Chrome shows its thin bar and takes its gutter out of the cells' room.
+	var roomy := _explorer()
+	assert_false(roomy.scroll_bar().visible, "the seeded folder fits")
+	var explorer := _crowded(60)
+	assert_true(explorer.scroll_bar().visible)
+	assert_almost_eq(explorer.grid_width(), roomy.grid_width() - UiScroll.WIDTH_PX, EPS, "the gutter narrows the grid")
+	assert_gt(explorer.content_height(), explorer.max_scroll(), "the box shows part of the grid")
+	var first := explorer.items()[0].position.y
+	explorer.scroll_to(RadioExplorer.WHEEL_PX)
+	assert_almost_eq(explorer.items()[0].position.y, first - RadioExplorer.WHEEL_PX, EPS, "the cells move up with it")
+	assert_almost_eq(explorer.scroll_bar().value, RadioExplorer.WHEEL_PX, EPS, "the thumb follows")
+	explorer.scroll_to(explorer.content_height() * 2.0)
+	assert_almost_eq(explorer.scroll_offset(), explorer.max_scroll(), EPS, "never past the last row")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	(explorer.find_child("Grid", true, false) as Control).gui_input.emit(wheel)
+	assert_almost_eq(explorer.scroll_offset(), explorer.max_scroll() - RadioExplorer.WHEEL_PX, EPS,
+		"the wheel over the grid scrolls it")
+
+func test_opening_a_folder_starts_at_its_top() -> void:
+	var explorer := _crowded(60)
+	explorer.scroll_to(RadioExplorer.WHEEL_PX * 2.0)
+	explorer.open_entry({RadioLibrary.KIND: RadioLibrary.FOLDER, RadioLibrary.NAME: "Ambient",
+		RadioLibrary.PATH: "Ambient"})
+	assert_almost_eq(explorer.scroll_offset(), 0.0, EPS)
+	assert_false(explorer.scroll_bar().visible, "an empty folder needs no bar")
