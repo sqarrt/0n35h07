@@ -289,6 +289,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **The glass cards no longer have smeared corners.** The frosted backdrop was blurred over the whole square of the
   card, so outside its rounded corners a square of blurred background showed over bright scenery; the blur is now
   clipped to the corners, as a CSS backdrop filter is.
+- **The whole docked Radio card opens the Radio.** Only the track name did before (as in the original), which is a
+  small target on a card that does nothing else while docked; a click anywhere on it now opens the Radio screen, and
+  its buttons still take their own clicks.
 - **The library scrolls with the pointer over a track.** A cell took the mouse, so the wheel over one never reached
   the grid and nothing moved; the wheel now scrolls the library wherever it is inside the window.
 - **Esc closes the pause menu.** It opened the pause but could not close it — a browser limitation of the original
