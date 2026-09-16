@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   on seats and in the friend picker keep their small line height.
 
 ### Added
+- **The map editor is back, as a tool of its own.** The original's editor now runs as a small local web app
+  (`map-editor/`, `npm run dev`) that writes the game's own map files in place — the map, its compiled geometry and
+  its preview — so maps can be built and fixed again. It is not part of the game build.
 - **The Radio's music engine runs inside the game.** The original's generative Radio engine now runs in an embedded,
   invisible web runtime (the system WebView2) and the game drives it.
 - **The RADIO button and the docked Radio player.** The main menu has the original's RADIO entry and, in its corner,

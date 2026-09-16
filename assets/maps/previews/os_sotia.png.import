@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvqm2a3vpcguj"
-path="res://.godot/imported/os_test.png-6d3b4615d98d78c0b954ff8b01692694.ctex"
+uid="uid://snboa358h7c5"
+path="res://.godot/imported/os_sotia.png-d71596a83179acf58118bd9829c1f769.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/maps/previews/os_test.png"
-dest_files=["res://.godot/imported/os_test.png-6d3b4615d98d78c0b954ff8b01692694.ctex"]
+source_file="res://assets/maps/previews/os_sotia.png"
+dest_files=["res://.godot/imported/os_sotia.png-d71596a83179acf58118bd9829c1f769.ctex"]
 
 [params]
 
