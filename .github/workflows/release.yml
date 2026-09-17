@@ -1,8 +1,7 @@
 name: Release (notes)
 
 # On a version tag: publish a GitHub Release whose notes are the annotated tag's message. No build —
-# the Godot game is exported locally for Steam (scripts/export_windows.ps1 → release/windows), and the web
-# reference ships via deploy-pages while it lives in the repo.
+# the Godot game is exported locally for Steam (scripts/export_windows.ps1 → release/windows).
 #
 # Trigger: push an annotated tag like `0.5.11` (`git tag -a 0.5.11 -F notes` — the message is the notes).
 
