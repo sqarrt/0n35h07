@@ -5,6 +5,350 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - Unreleased
+
+### Changed
+- **The game is being rewritten natively on Godot 4.7.** The repository root is now the Godot project; the
+  React/Three.js game lives in `web-reference/` as the 1:1 parity oracle until the port catches up.
+- **Controls match the original.** The shield is on the right mouse button; a shot fires once per click instead of
+  repeating while the button is held; aiming follows what the camera actually looks at.
+- **Pausing no longer freezes the match.** As in the original, the pause menu opens whenever a live match loses the
+  mouse (Esc or switching windows), the match keeps running behind it and the HUD steps aside.
+- **The pre-fight countdown number matches the original's weight.** It was drawn bolder and a few pixels high; it now
+  uses the browser's synthetic bold and line box.
+- **Bold text keeps the original's letter widths.** Large bold lines (titles, the trailer's text cuts) came out wider
+  than in the original; the extra width is now taken out of the letter spacing.
+- **The game starts fullscreen at the Windows display scale.** As in the original's desktop build, the window fills the
+  screen and the interface follows the Windows scale setting (150% draws it half again as large), so menus, the lobby
+  and the HUD look the same fullscreen as in a small window; 3D backdrops and streak text render at full resolution.
+- **Letters sit where the original puts them.** Labels and buttons on the menu, settings, about and lobby screens,
+  the pause menu, the match-end screen and the ready ritual (names, statuses, hint and controls legend), the glowing
+  logo and mode names, the HUD's names, timer, streak banner and stats overlay, the warning splash, the trailer's
+  text cuts, title and SKIP, the Steam invite toast and the text inside input fields (the settings name, the friend
+  search, a seated bot's name) were drawn
+  with whole-pixel letter spacing and font sizes, so words came out a few pixels too wide or narrow; every letter now
+  lands at the original's fractional position, bold text thickens evenly and centred text keeps its exact place, in a
+  window and fullscreen.
+- **Steam invites reach you anywhere, as in the original.** A friend's "Join game" during a match leaves it for their
+  lobby at once instead of waiting for the menu, and an invite that arrives while the trailer plays pops up over it —
+  accepting leaves the trailer for the friend's lobby.
+- **Buttons no longer answer the keyboard.** As in the original, Tab does not walk the menu buttons and Space or Enter
+  never press a button that was just clicked.
+- **The radio follows every volume slider.** Master and radio volume changed in SETTINGS or in the pause settings now
+  change the radio at once, as in the original, not only the player's own slider.
+- **The game builds for Windows in the Steam depot layout.** `scripts/export_windows.ps1` exports `0N35H07.exe` with
+  its pack, the Steam and WebView libraries and the radio page into `release/windows`; the window and the executable
+  carry the original's icon instead of Godot's.
+- **CI checks the Godot game.** The CI workflow runs the GUT suite on Godot 4.7.1 (Linux, headless) and runs the web
+  reference's lint, types, unit tests and build inside `web-reference/`; the Pages deploy and Dependabot follow the web
+  reference there.
+- **Uploading to Steam works with the Godot build.** `scripts/upload_steam.ps1` publishes `release/windows` to SteamPipe
+  with the same options as the web build's uploader (app, depot, branch, login, description), for the main app and
+  the Playtest app, and can write the build scripts without uploading (`-DryRun`).
+- **The radio's controls answer the mouse again.** Its buttons — the transport, ON AIR, the ball toggle, the BACK /
+  LIBRARY / PROGRAM bars, Unlock and the library's visualizer switch — light up under the pointer and shrink on a
+  press, as the original's did.
+- **Your ball faces where you look.** The model turned twice with the camera, so the planet appeared to spin the wrong
+  way as you swung the aim; it now holds the direction you are looking, as in the original.
+- **Stepping up feels like the original again.** The climb happens as part of the step forward instead of after the
+  bump, so you keep your speed over kerbs and stairs; a ledge is only taken when there is room to stand on it and the
+  surface is not too steep, and a wall taller than the step height is never climbed.
+- **The web version is retired from the repository.** The Godot game has replaced the React/Three.js game, which served as
+  its parity reference; the web code, its tests, browser tooling and the GitHub Pages deploy are gone (the git history
+  keeps them). The radio's engine page, which the game still runs, now lives in its own `radio-host/` package with its
+  tests; CI checks it and that the bundled page is up to date.
+- **The match HUD bars line up with the original.** The top bar and the team panes add up fractional widths like the
+  original's flex rows instead of rounding each item up, the timer frame counts its borders, and an empty streak-dot
+  slot no longer takes a pixel, so names, frags and totals sit where the original has them.
+- **Scroll bars match the original's desktop build.** Scrolling screens keep the room of its thin native scroll bar,
+  with arrow buttons and a narrow round-ended thumb, so the lobby's column lines up with the original; the ✕ buttons
+  on seats and in the friend picker keep their small line height.
+
+### Added
+- **The map editor is back, as a tool of its own.** The original's editor now runs as a small local web app
+  (`map-editor/`, `npm run dev`) that writes the game's own map files in place — the map, its compiled geometry and
+  its preview — so maps can be built and fixed again. It is not part of the game build.
+- **The Radio's music engine runs inside the game.** The original's generative Radio engine now runs in an embedded,
+  invisible web runtime (the system WebView2) and the game drives it.
+- **The RADIO button and the docked Radio player.** The main menu has the original's RADIO entry and, in its corner,
+  the glass mini-player with the track name and prev / play-pause / next; it warms the engine up on the menu, dims until
+  the engine is ready, remembers whether the Radio is on and keeps the menu music quiet while it plays. Track names are
+  the original's, seed for seed. The Radio screen and library come next.
+- **The Radio's free daily trial.** As in the original's Steam build, without the Radio DLC the Radio makes 10 new
+  tracks a day (the count starts over at local midnight; setting the clock back does not reset it) and then stops;
+  owning the DLC — asked of Steam when the menu opens and again when the Steam overlay closes or the game window gets
+  focus back — lifts the limit and resumes the stream.
+- **The Radio screen.** RADIO or the docked player's track name opens the original's Radio screen: the menu gives way
+  to the backdrop and the player glides to the bottom centre and unfolds — tempo and key, a seekable progress bar with
+  times, the transport, On Air, a toggle that tilts the camera off your ball, the radio volume, the free-trial strip
+  with Unlock Radio (it opens the DLC's store page) and BACK. Symbols the UI font lacks (emoji, arrows, math signs) sit
+  on the same line heights as in the original. The code panel, the beat-driven visuals and the library come next.
+- **The PROGRAM window.** The Radio screen shows the track's Strudel program in the original's glass window: it wraps
+  exactly where the original does, glows softly, scrolls with its thin scrollbar, drags by its title, resizes by its
+  corner, maximizes, copies the program on a click ("(copied)" in the title) and minimizes to a PROGRAM bar over the
+  player that brings it back.
+- **The Radio screen's frosted glow.** On the Radio screen the menu backdrop turns into the original's frosted glass: the
+  whole scene blooms softly, brighter with the music, and the ball's edges glow stronger (even with the menu glow
+  setting off). The Radio's sound now drives the menu glow on every menu screen, as in the original.
+- **The Radio screen dances.** As in the original, the camera punches in on every beat of the track and emoji picked
+  by the track's mood rain down from the top of the screen, born on the beat.
+- **The LIBRARY window.** The Radio screen opens the original's library explorer beside the player: back / up / home,
+  the folder's path, folders and cassettes laid out as in the original, the item and folder counts and the visualizer
+  mode switch (remembered). A click selects a track (Ctrl adds, Shift takes a range), a double click opens a folder or
+  plays its tracks from that one. Saved tracks live in the game's app data `radio` folder, as in the original. A right
+  click opens the original's glass context menu (Play, New folder, Rename, Copy, Paste, Delete) with the same F2, Del,
+  Ctrl+C and Ctrl+V shortcuts; names are edited in place, and a click on the path copies it. Tracks drag onto a folder
+  (lit with a green dashed outline) to move there, and a rubber band dragged over the empty grid selects what it
+  touches. Behind the window the original's music visualizer glows — an oscilloscope, bars, spokes or a drifting dot
+  field, AUTO rotating them every 18 seconds, the choice remembered. Playing a library track plays its folder as a
+  queue (prev / next step round it, a finished track moves on, On Air returns to the live stream); the track playing
+  drags from the player onto a folder to be saved (on the free trial, 5 saves a day); a minimized LIBRARY window
+  becomes a bar over the player beside PROGRAM, the one minimized last on top.
+- **The Radio plays through a match.** As in the original, a match started while the Radio is playing keeps it as its
+  soundtrack instead of the match music (the HUD's audio bar follows it); a match started without it plays its own
+  music and stops the Radio, and the trailer always stops it.
+- **A diagnostic log per session.** As in the original's Steam build, each run writes a session log (the newest 15 are
+  kept) with the room handshake, map and time negotiation, match phases, shots, verdicts, peers leaving and uncaught
+  errors; the version chip in the menu opens it in its folder.
+- **Steam profile, cloud, achievements and status.** As in the original's Steam build, a first run takes the Steam
+  name; the profile follows the Steam account through Steam Cloud (the newest save wins, a different account on the
+  same machine gets its own profile); the seven achievements unlock for first blood, double / triple kill,
+  singularity, a perfect block, a win and a win without dying (never against a passive bot); and friends see whether
+  the player is in the menu, the lobby or a match.
+- **Friends and quick match over Steam.** As in the original's desktop build, PLAY hosts a private Steam lobby: a free
+  seat offers INVITE A FRIEND next to ADD A BOT, the friend picker lists online friends with a search, and an invited
+  friend waits on the seat with a pulsing tag until they sit down or decline. SEARCH looks for a quick match (STOP
+  cancels it), a friend's invite slides into the corner with Accept / Decline, and "Join game" from Steam or a launch
+  link joins the lobby as a guest; a guest whose lobby closes hosts their own again.
+- **The built-in trailer plays from ABOUT → WATCH.** As in the original: a 3-2-1 countdown, text cuts slamming in
+  with a neon sweep and a glitch split, recorded matches replayed shot by shot under a cover that lifts once each scene
+  is ready, the streak banner carrying across shots, dimmed game sounds, the trailer's own music starting on GO, and the
+  closing slow-motion duel — two fighters charge and fire, their beams freeze mid-flight as the camera pulls back and
+  the title surfaces. It is always in English; the cursor and SKIP hide after a moment without mouse movement, and SKIP
+  or Esc returns to ABOUT.
+- **Rooms and matches run on the peer mesh.** As in the original, the Play screen is a room its creator hosts:
+  guests take free seats, follow the room and ready up, and the match starts on every peer at once with the same
+  seats, map and music. In the match each peer runs its own player and bots, shows the others as their owners send
+  them, and a player who leaves drops out (the match ends when one team is left). Joining over Steam comes next.
+- **Your own hits land at once in networked matches.** As in the original, a shot that hits an opponent shows their
+  death immediately instead of waiting for the opponent's machine to confirm it; if their shield blocked it or the
+  hit never arrived, they come back within a quarter of a second and can be hit again.
+- **Networked combat is victim-judged over the P2P mesh.** A shot is claimed by the shooter and judged by the
+  victim's owner against the victim's real local state — the shield on the victim's screen always wins — and every
+  peer derives the same score, streak, bounty and perfect-block reward from the verdict. Claims, verdicts and
+  snapshots from peers that do not own the player are ignored.
+- **Parity reports.** Each web → Godot parity check produces a standalone HTML report with side-by-side screenshots
+  (and a wipe slider for camera-aligned frames), capture conditions, confirmed discrepancies and known limits.
+  Web reference frames are captured on a real GPU — software rendering drew the floor grid as stripes.
+- **The lobby shows the chosen map behind the spheres.** As in the original, the selected map's preview fills the
+  screen blurred and dimmed while the lobby is open, fades in and out with it and crossfades when another map is picked.
+- **The ready ritual before every match.** As in the original, a match opens on the ready screen: both sides'
+  names with their READY / NOT READY status, the "LMB to start" hint and the controls legend; a click takes the mouse
+  and confirms, and the 3-second countdown starts once everyone is ready (bots are ready at once).
+- **Settings from the pause menu.** SETTINGS in the pause now opens the original's in-match panel: the sound volumes
+  and the graphics switches (block outlines, FPS counter, player speed) change live and are saved; leaving the pause
+  brings back its menu.
+- **Photosensitivity warning on launch.** As in the original, the game opens on a warning about flashing images over a
+  dimly breathing ringed planet; the hint to continue appears once the menu has warmed up, and a left click fades the
+  warning away. It shows once per launch, in the chosen language.
+- **The interface speaks the original's ten languages.** Menus, lobby, settings, appearance, pause, match results and
+  HUD words follow the language picked in Settings (or the system language) and switch the moment a language is
+  picked. Chinese draws with Microsoft YaHei and the original's tighter button tracking, buttons grow to fit its taller
+  lines, and Russian lines no longer sit a pixel lower than the original's.
+
+- **Matches end on time.** A match now runs for a set length (3 minutes by default, the original lobby's first
+  choice) with the time left shown in
+  the HUD. When the clock runs out everyone freezes and, after a brief freeze-frame, the result screen shows victory,
+  defeat or draw, every player ranked by kills, the reason and an exit back to the main menu. The pause menu no
+  longer opens once the match is over.
+
+- **Floor grid, sky and map lighting match the original.** Arenas show the 1 m floor grid, the sky takes the
+  original's dark page colour, and the ambient light and shadow-casting sun come from the same place with the same
+  strength. Checked by measuring pixels against the original on the same GPU: sky, floor and walls agree within one
+  step of 255.
+
+- **Match HUD in the original's style.** The top bar shows both sides' frags around the match timer in the original
+  layout and font; the crosshair ring fills as the beam recharges; four corner brackets fill as the shield recharges
+  and side bars as the dash recharges. The old bottom cooldown bars and the always-on speed readout are gone, as in the
+  original. Positions and colours were checked pixel by pixel against the original.
+- **HUD effects from the original.** The countdown dims the arena and pops each big glowing number in; a streak
+  banner flickers in under the timer naming the player (any player's streak, as in the original); the screen edges
+  glow while charging a shot, while the shield is up (with its faint grid) and during the respawn ghost phase, which
+  also shows shrinking bars and a "RESPAWNING" caption; own shots, being hit and blocking tint the screen briefly
+  for the original's durations.
+- **Block cell grid.** Maps that enable it (Pool) outline every block cell with translucent blue lines, as in the
+  original.
+- **Kill-streak text effects and soft glows.** The streak banner and the players' names in the top bar take the
+  original's streak effects: DOUBLE KILL flickers in the player's colour with electric distortion, TRIPLE KILL
+  overdrives, SINGULARITY burns and corrupts its letters, CATALYST throbs with sparks; streak dots count each
+  player's run. Every HUD glow — the countdown number, the respawn caption and bars, the result headline — is now a
+  soft blur like the original's instead of a hard outline.
+- **Third-person view and camera feel.** V switches to the original's over-the-shoulder view (your ball becomes
+  visible); your own shot shakes the camera briefly; the field of view widens during the respawn ghost phase like a
+  dash. Mouse look uses the original's sensitivity and slows down while charging a shot.
+- **Player profiles.** The first launch creates a profile like the original — a generated model-style name and a
+  colour pair — and keeps it between sessions. Bots get a fresh model name each match, and the name decides their
+  colour and look exactly as in the original. The top bar, the streak banner and the result screen show everyone's
+  real name in their own colour, with the streak effect kept on the names at the end of the match.
+- **Player balls look like the original.** Each ball takes its player's colour and model (smooth, waves or a planet
+  with its ring) and artwork, turns with the player's look, swells and whitens while charging a shot (or chars red /
+  collapses for the other windup styles), bursts into particles on death, floats as a translucent ghost with a trail
+  and pops back in when it respawns. Your own ball and shield stay hidden in first person, as in the original.
+- **Beams in every style.** Your shot fires the original's beam for your windup style — the classic white core in
+  your colour with its afterglow, the ragged rage discharge or the dark singularity thread with its spiral — while
+  bots fire the classic beam with a red shell. Impact sparks come only from your own hits, as in the original.
+- **Shield and dash skins.** Shields take the player's style — the pulsing wireframe dome, the hexagon tiles that
+  flash in a wave, or the crystal with a flickering face — and dashes leave the chosen trail: speed clones,
+  shockwave rings or a red-green-blue rift.
+- **Windup and respawn skins.** Charging a rage shot opens a glitching hologram of jaws in front of the ball that
+  snaps shut when you fire; a singularity shot pulls a vortex of sparks into the ball and ends in a white collapse
+  flash. Respawns follow the chosen style too — the particle burst and translucent ghost, a jittering glitch ghost
+  that reassembles in steps, or a swarm of fragments that orbits you and gathers back into the ball.
+- **Overheat works like the original.** A kill streak now speeds you up while lengthening your beam and shield
+  cooldowns; once anyone reaches a SINGULARITY streak every beam and aim ray passes through map blocks and the blocks
+  turn see-through for everyone. Your screen edges glow red with flickering lightning that grows with your streak.
+  Ghosts move twice as fast again, easing back before they respawn, and glass blocks use the original's transparency.
+- **Block edges are outlined.** With post-processing on (the default), the visible edges of map blocks are drawn
+  lighter, as in the original, including on see-through blocks.
+- **The game has sound.** Matches play the original's music, composed from the same room code into the same song form
+  of 8-second loops and fading out with an echo when the match ends; the menu has its own music. Players, shots,
+  shields, dashes, landings, blocks, kills, respawns, the countdown and streak announces sound as in the original,
+  positionally for the opponent. Buttons click and blip on hover. The HUD shows the original's sound visualiser line,
+  and every level follows the master / music / effects / menu music volumes of the profile.
+- **FPS and speed readouts.** With the profile's FPS / speed options on, the HUD corner under the shield bracket shows
+  the frame rate with the slowest frame of the last half second, the frame-time graph with its 120 / 60 FPS guides and
+  the player's speed, as in the original.
+- **The original's buttons and pause menu.** Buttons take the original's filled, outlined and dim looks that switch
+  instantly on hover and press. The pause menu shows MENU with RESUME, SETTINGS, TO MENU and QUIT over the dimmed
+  match, and the result screen gets the original's column spacing, a bold headline and the filled EXIT button.
+- **The original's main menu.** The game opens on the original's centred menu panel with the glowing 0N35H07 logo,
+  PLAY, APPEARANCE, SETTINGS, ABOUT and QUIT, and the version in the corner, which opens the log folder when clicked.
+  The map is no longer chosen in the main menu: as in the original, that belongs to the lobby.
+- **The lobby.** PLAY opens the original's Play screen: pick Duel, Battle or War, one or several maps from their
+  previews (os_test included), and 3, 5 or 10 minutes; seat bots, rename them or roll a new name, and set them to
+  normal or passive. READY starts the match on the chosen map for the chosen time: a duel, a Battle of two teams of
+  two starting side by side, or a four-player War from spread-out random spots, with every bot hunting its nearest
+  enemy. With more than two players the top bar lists everyone's frags on two panes around the timer, with the team
+  totals in Battle, and every other player carries a name plate — in their team's colour in Battle, neutral grey in
+  War — that disappears while they are dead.
+- **The menu stage behind the panel.** The menus now sit over the original's 3D backdrop: your ball stands in the
+  scene under a slowly orbiting light, framed by the original's camera poses. In the lobby every seated player
+  appears on their seat's spot — the Duel pair or the Battle / War square — fading in when they sit down and shrinking
+  away when they leave.
+- **The menu glows with the music.** As in the original, the edges of the balls and planet rings on the menu stage
+  light up with a soft glow that follows the music (the menu glow setting turns it off), and the menu panel softly
+  blurs the scene behind it.
+- **Settings and About.** SETTINGS opens the original's settings: your name, the default first- or third-person view
+  (a match now starts in it), the language (remembered for when translations arrive), the volume sliders and the
+  graphics switches — every change is saved and applied at once. ABOUT shows the developer's links and the trailer
+  button. Russian and Chinese text in the interface now takes the same bold and letter spacing as Latin text.
+- **Appearance.** APPEARANCE opens the original's cosmetics page: the panel slides to the right and your ball previews
+  every change behind it — the primary and reserve colours, the sphere model, artwork painted on its front and back,
+  and the shot, respawn, dash-trail and shield styles — with the camera turning to the block you last touched.
+  Everything is saved as you go.
+- **Style previews.** Clicking a shot, respawn, dash-trail or shield style on the appearance page plays it on your
+  ball as in a match — the charge and the beam, a ghost lap and the reassembly, a dash out and back, the shield
+  raised — with its sounds and the beam's glow.
+
+### Fixed
+- **The repository no longer carries the old web build.** A frozen copy of the web trailer sat in `trailer-dist/`
+  although the project's own ignore list excluded it, so a fresh clone would have imported its 2.7 MB of audio and
+  scripts into the Godot project and shipped them inside the game. It is gone from the branch, along with a handoff
+  note and a build command left over from the web version.
+- **Networked matches keep the same score on every screen.** A kill is worth more when it breaks a streak, and each
+  peer used to read that streak from its own copy: verdicts from different owners arrive in different orders, so two
+  peers could count the same kills and still end a frag apart for the rest of the match. The verdict now carries the
+  streak it broke, so the bounty is the victim owner's word everywhere. Found in a live 2v2 and caught by a new
+  state digest peers exchange every couple of seconds.
+- **A shot fired an instant before dying counts.** The news of the shooter's death could overtake its own claim, and
+  the victim's peer threw the hit away — the shooter watched a killed opponent come back to life. A claim from a
+  shooter that died within the prediction's grace is now judged; a long-dead one is still refused. The same went for
+  a shooter the other screen had only *predicted* dead: a guess about someone is no reason to ignore their shot.
+- **Shooting past a teammate no longer blinks them out.** Their body stops the beam but takes no harm, yet the shot
+  was still claimed and the teammate optimistically shown dead until the verdict refused it a quarter second later.
+- **Remote players glide instead of shivering.** They were placed a physics tick before the frame that drew them, so
+  their lag behind their owner changed from frame to frame; they are now placed in the frame that draws them, as in
+  the original.
+- **A peer that drops out is let go in seconds, not half a minute.** A hard quit leaves the connection open on the
+  other side for as long as the transport takes to notice — twenty seconds in a live run, with the departed body still
+  standing in the arena catching shots. A match now lets go of a peer it has not heard from for five seconds.
+- **A player who leaves takes their body with them.** It was hidden but still solid: an invisible corpse went on
+  stopping beams meant for the living and standing in everyone's way.
+- **A networked match can no longer hang before it starts.** Readiness went out once, and a peer that was not listening
+  yet never heard it — both sides waited in the ready screen for good. Readiness is now repeated until the lobby's
+  creator has stamped it, the creator stamps the start of the fight too (so the clocks agree), and a phase never runs
+  backwards.
+- **A peer that goes quiet no longer leaves an opponent a ghost.** The grace on a predicted kill was only looked at
+  when the owner's next snapshot arrived; it now runs on the clock, so a stalled peer's player comes back instead of
+  staying an unhittable ghost for the rest of the match.
+- **The match survives its creator leaving.** The right to stamp the phase now passes to the lowest remaining seat,
+  so the fight still ends for everybody instead of each peer running out its own clock.
+- **The room handshake only listens to who it should.** Seat assignments are taken from the room's host alone, the
+  start of a match from its creator and only once, and a latecomer can no longer be seated into a match already
+  underway. A repeated verdict scores once, a snapshot that overtook a newer one is dropped, and a claim from a
+  player that cannot fire (dead, frozen, or firing faster than the beam reloads) is refused.
+- **A remote ghost shows its own time left.** The respawn timer was missing from snapshots, so another player's ghost
+  always read zero.
+- **The game is a third smaller and opens the way it should.** The build carried its maps and recorded clips as raw
+  text — one map alone was 30 MB of it — and packed the map editor's dependencies along with them; the data is now
+  imported into compressed resources, so the installed game is about 125 MB instead of 169 MB and a big map loads
+  without parsing anything. The window also opens fullscreen straight away, on the game's own background, instead of
+  showing a small window and the engine's logo first.
+- **The charge vignette was always at full strength.** The blue screen-edge glow while charging a shot now builds
+  up with the charge and eases like the original; HUD gauges update at the original's pace.
+- **Map surfaces were drawn inside out.** Map geometry is authored with the opposite triangle facing, so the game
+  drew the back faces of blocks and walls and lit them from the wrong side (the bright and dark perimeter walls were
+  swapped). Faces now point the right way, which also makes the beam hit block surfaces from the correct side.
+  Edges are antialiased as in the original.
+- **Players start on the map's spawn points.** The human and the bot now appear on the map's own start positions
+  (slot 0 on the first point, the opponent on the second), instead of a fixed spot and a hard-coded bot position.
+- **Map collisions match the original.** Movement collides with the map's compiled collision geometry, the floor and
+  tall invisible walls around the arena; the beam hits only what it hits in the original, so it passes over the floor
+  and through walls marked as beam-transparent. Passable blocks no longer stop the player.
+- **No leftover test target in matches.** The red practice dummy is gone from the match scene.
+- **Balls push each other apart again.** As in the original, two players whose spheres overlap get a short shove out
+  of each other (and landing on top of someone launches you into an arc) instead of standing inside one another.
+- **Stepping up no longer throws you into the air.** The automatic step now fires only against obstacles the player
+  cannot walk up, so ramps and slopes are simply walked up as in the original instead of lifting the ball.
+- **The Radio's emoji stopped flickering.** The menu's 3D backdrop is animated every drawn frame, but the engine was
+  also interpolating it between physics ticks, so an emoji returning to the top of the screen was drawn sliding
+  through the middle of the view on the beat that reborn it. The backdrop, its glow passes and the trailer's scenes
+  are no longer interpolated.
+- **The Radio player's buttons answer the first click.** The card rebuilt its rows several times a second, which
+  dropped the mouse that was hovering them and cancelled clicks in flight, so the ball toggle needed several presses
+  and only lit up while the cursor kept moving. The rows now stay put, and a pressed button keeps its press while it
+  shrinks.
+- **The trailer no longer shows the end of the previous scene.** A finished scene leaves the tree at once instead of
+  lingering for one more drawn frame under the next one.
+- **The Radio's library scrolls.** A folder with more tracks than the window shows now scrolls under the same thin
+  scrollbar as the rest of the game (the wheel, the thumb, the arrows), as it did in the original, instead of hiding
+  everything past the bottom edge.
+- **Long track names no longer run over their neighbours.** A name wider than its cell wraps onto further lines and
+  grows the cell, the way the original wraps it.
+- **The PROGRAM window's scrollbar can be dragged.** Its thumb follows the pointer and its arrows and strip step and
+  page, instead of only the wheel scrolling the program.
+- **The free-trial strip fits every language.** Where the line was longer than English (Russian, for one), the counts
+  ran under the Unlock Radio button; the text now wraps in the room the button leaves.
+- **The glass cards no longer have smeared corners.** The frosted backdrop was blurred over the whole square of the
+  card, so outside its rounded corners a square of blurred background showed over bright scenery; the blur is now
+  clipped to the corners, as a CSS backdrop filter is.
+- **The whole docked Radio card opens the Radio.** Only the track name did before (as in the original), which is a
+  small target on a card that does nothing else while docked; a click anywhere on it now opens the Radio screen, and
+  its buttons still take their own clicks.
+- **The library scrolls with the pointer over a track.** A cell took the mouse, so the wheel over one never reached
+  the grid and nothing moved; the wheel now scrolls the library wherever it is inside the window.
+- **Esc closes the pause menu.** It opened the pause but could not close it — a browser limitation of the original
+  (Chrome takes the mouse away on Esc and refuses to give it back to the same key press). Esc now pauses and resumes,
+  and steps back out of the in-match settings first.
+
+- **The Radio player answers the first click again.** Its card rebuilt its rows several times a second, which let go
+  of whatever the mouse was holding: the volume and position sliders took one click to grab and another to release,
+  buttons lost hover and presses. The rows now stay put, and a held button keeps its pressed look.
+
+- **RESUME no longer waits.** The pause menu's RESUME was held for a moment after the mouse was released — a browser
+  limitation of the original (Chrome refuses to re-capture the mouse for about a second). The game takes the mouse
+  back immediately.
+
 ## [1.1.2] - 2026-07-21
 
 ### Changed

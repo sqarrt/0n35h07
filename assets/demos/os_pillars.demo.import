@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.json_pack"
+type="Resource"
+uid="uid://c8noshf4se7qm"
+path="res://.godot/imported/os_pillars.demo-f612048664f4ad43a355b3e987b20b9a.res"
+
+[deps]
+
+source_file="res://assets/demos/os_pillars.demo"
+dest_files=["res://.godot/imported/os_pillars.demo-f612048664f4ad43a355b3e987b20b9a.res"]
+
+[params]
+

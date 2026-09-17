@@ -1,0 +1,35 @@
+{
+  "id": "2026-09-16-behavior-radio-volume",
+  "title": "OneShot · Аудит поведения: реакции настроек, громкость радио",
+  "date": "2026-09-16",
+  "captures_dir": "test-results",
+  "lede": "Второй этап сверки поведения. Прочитаны web `screens/Settings.tsx` и `components/SettingsControls.tsx` (общие контролы звука и графики экрана настроек и паузы) и сопоставлены с Godot `settings_screen`, `sound_controls`, `graphics_controls`, `match_settings` и тем, где каждый ключ профиля применяется. Web пишет профиль целиком при каждом изменении и применяет его эффектами App сразу; в Godot всё применялось так же, кроме громкости радио — её отправлял только ползунок самого плеера.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-16-behavior-radio-volume.json`. Скриншотов сравнения нет: этап сверяет поведение по коду и тестам. Проверка обычного запуска после правки автозагрузок — `test-results/probes/launch_screenshot.ps1` → `test-results/probes/launch.png` (3840×2160, заставка-предупреждение, без белого экрана). Тесты GUT: 966/966, новый — `test_radio_autoload.test_any_volume_slider_reaches_the_page_at_once`.",
+  "pages": [
+    {
+      "slug": "behavior-radio-volume",
+      "name": "Реакции настроек",
+      "verdict": "Вкладки (игрок / звук / графика; «Сеть» скрыта на десктопе, как в web), имя с ограничением длины, вид по умолчанию, язык, громкости, обводка блоков, свечение меню, визуализатор звука, FPS и скорость применяются сразу и сохраняются, как в web: свечение меню читается фоном каждый кадр, переключатели HUD — HUD каждый кадр, обводка — арена по сигналу панели паузы. Исправлено: общая громкость и громкость радио из SETTINGS и из паузы теперь сразу доходят до радио.",
+      "verdict_short": "Настройки применяются как в web; громкость радио исправлена",
+      "conditions": [
+        ["эталон", "web App: эффект `radioController.setVolume(volumeMaster × volumeRadio)` на изменение профиля", "Godot `Audio.apply_volumes` → `volumes_applied` → `Radio.apply_volume`"],
+        ["проверка", "чтение Settings.tsx / SettingsControls.tsx / App.tsx", "GUT на фейковом транспорте радио; обычный запуск на Windows"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "B4", "severity": "fixed",
+          "title": "Громкость радио из настроек",
+          "web": "App.tsx: `useEffect(() => radioController?.setVolume(volumeMaster × volumeRadio), [volumeMaster, volumeRadio])` — любой ползунок (настройки, пауза, плеер) меняет громкость радио сразу, играет оно или на паузе.",
+          "godot": "Было: `Radio.apply_volume()` звал только ползунок плеера в `MainMenu`; SETTINGS и пауза вызывали `Audio.apply_volumes()`, который радио не касался. Стало: `Audio.apply_volumes()` испускает `volumes_applied`, автозагрузка `Radio` подписана и отправляет странице `master × radio`; лишний вызов у ползунка плеера убран.",
+          "evidence": ["code", "test", "runtime"],
+          "sources": ["autoloads/audio.gd", "autoloads/radio.gd", "nodes/main_menu.gd", "tests/unit/test_radio_autoload.gd"]
+        }
+      ],
+      "limitations": [
+        "Громкость на слух не сверялась: проверено, что команда громкости уходит странице радио с тем же коэффициентом, что в web.",
+        "Web передаёт в SoundControls флаг `radioReady` для серого ползунка радио, но ни один экран его не задаёт — ползунок в web никогда не серый; в Godot тоже."
+      ]
+    }
+  ]
+}

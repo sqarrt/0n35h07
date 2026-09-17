@@ -1,0 +1,119 @@
+{
+  "id": "2026-09-13-hud-core",
+  "title": "Сверка паритета OneShot · ядро HUD",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса H1: боевой HUD Godot перестроен по web — верхняя строка с таймером, кольцо перезарядки луча в прицеле, угловые скобки щита и полосы рывка, шрифт Share Tech Mono. Геометрия и цвета сверены по пикселям с web-кадром на одном GPU; по ходу найдена и исправлена ошибка раскладки первой сборки.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-hud-core.json`. Замеры: `tools/parity/measure.py --hud` (одиночные пиксели HUD) и поиск строк/столбцов цвета скобок. Web: `parity-gpu/web-game.png`. Godot: `parity-gpu-g6-winding/godot-arena.png` (старый HUD), `parity-gpu-h1/godot-arena-hud-fixed.png` (до поправки нижних скобок), `parity-gpu-h1/godot-arena-hud-final.png` (итог). Первая сборка с ошибкой раскладки: `parity-gpu-h1/godot-arena-hud.png`.",
+  "pages": [
+    {
+      "slug": "hud-core",
+      "name": "Ядро HUD",
+      "verdict": "Скобки щита, полосы рывка и раскладка верхней строки совпадают с web попиксельно; кольцо прицела отличается только сглаживанием. Открыты имена и цвета игроков (нужны профили), анимации и вспышки HUD (H2), текстовые эффекты серий (H3) и визуализатор звука.",
+      "verdict_short": "Скобки, полосы, кольцо и строка совпали; анимации и профили открыты",
+      "conditions": [
+        ["карта и фаза", "Arena, live, щит и рывок готовы", "Arena, live (`passive-bot`), щит и рывок готовы"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["шрифт", "Share Tech Mono (@fontsource) + кириллический ttf", "те же файлы в `assets/fonts/` (OFL), кириллица — fallback"],
+        ["скобка: плечо (60, 24)", "`#3a5cc4`", "`#3a5cc4` (первая сборка `#3a5cc4`)"],
+        ["скобка: вершина (24, 24)", "`#3a5cc4`", "`#3a5cc4` (первая сборка `#14151f` — излом в углу)"],
+        ["скобка: вертикаль (24, 60)", "`#3a5cc4`", "`#3a5cc4`"],
+        ["строки плеч, x = 60 и 1220", "21–26 и 689–694", "21–26 и 689–694 (до поправки нижние 693–698)"],
+        ["столбцы вертикалей, y = 60", "21–26 и 1253–1258", "21–26 и 1253–1258"],
+        ["полоса рывка (24, 360)", "`#2e9d57`", "`#2e9d57` (первая сборка `#313131` — полосы не рисовались)"],
+        ["кольцо справа (654, 360)", "`#0ccbcb`", "`#01fdfd`"],
+        ["кольцо сверху (640, 346)", "`#2d2d2d` (кольцо не сомкнуто)", "`#00ffff`"],
+        ["тесты", "—", "GUT 188/188, 493 проверки"]
+      ],
+      "comparisons": [
+        {
+          "title": "HUD: web и Godot",
+          "wipe": true,
+          "note": "Шторка: скобки, полосы, кольцо и строка должны совпадать по положению; различаются имена и цвета игроков (в web — случайный профиль) и значение таймера (3 и 5 минут).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu/web-game.png", "note": "OR8773R / XJ417X, таймер 02:43, скобки щита, полосы рывка, линия визуализатора звука."},
+            {"kind": "godot", "img": "parity-gpu-h1/godot-arena-hud-final.png", "note": "YOU / OPPONENT, таймер 04:55, скобки щита, полосы рывка; визуализатора звука нет."}
+          ]
+        },
+        {
+          "title": "Godot: старый HUD и новый",
+          "panels": [
+            {"kind": "godot", "label": "GODOT · до", "img": "parity-gpu-g6-winding/godot-arena.png", "note": "«YOU 0 — BOT 0», белый «+», полосы BEAM / SHIELD / DASH и «u/s» внизу."},
+            {"kind": "godot", "label": "GODOT · после", "img": "parity-gpu-h1/godot-arena-hud-final.png", "note": "Раскладка и оформление web."}
+          ]
+        },
+        {
+          "title": "Первая сборка и исправление",
+          "note": "`set_anchors_preset` меняет только якоря: полноэкранные слои получили размер 0×0 — правые и нижние скобки ушли за экран, полосы рывка имели нулевую высоту, строка не центрировалась. Исправлено через `set_anchors_and_offsets_preset` и раскладку контейнерами; тесты проверяют размер слоёв и центровку в окне 1280×720.",
+          "panels": [
+            {"kind": "godot", "label": "GODOT · первая сборка", "img": "parity-gpu-h1/godot-arena-hud.png"},
+            {"kind": "godot", "label": "GODOT · итог", "img": "parity-gpu-h1/godot-arena-hud-final.png"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G5", "severity": "fixed",
+          "title": "Скобки щита",
+          "web": "Четыре L-скобки 90px в 20px от углов, плечо 78px толщиной 6, растут от вершины по перезарядке; `#1a2a6e` / `#4169e1` / `#6af`, прозрачность на группу.",
+          "godot": "`HudShieldBrackets`: те же размеры, цвета и прозрачности (`HudModel.shield_bracket_look`); плечи — непересекающиеся прямоугольники, вершина закрашена ровно один раз.",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["nodes/hud_shield_brackets.gd", "sim/hud_model.gd", "tests/unit/test_hud_shield_geometry.gd", "tests/unit/test_hud_core_look.gd"]
+        },
+        {
+          "id": "W2", "severity": "platform",
+          "title": "Нижние скобки на 4px выше расчёта",
+          "web": "Скобка — строчный `<svg>` внутри `div`; под ним остаётся запас под выносные элементы шрифта, поэтому нижние скобки стоят на 4px выше, чем даёт `bottom: 20px`.",
+          "godot": "Сдвиг воспроизведён константой `WEB_BASELINE_GAP`; тест привязан к строкам и столбцам web-кадра.",
+          "evidence": ["runtime", "test"],
+          "sources": ["nodes/hud_shield_brackets.gd", "web-reference/src/components/ShieldBrackets.tsx"]
+        },
+        {
+          "id": "G3", "severity": "fixed",
+          "title": "Полосы рывка",
+          "web": "Две полосы 6px на треть высоты в 21px от краёв, заливка от центра: `#0c4d28` (0.55) при зарядке, `#2e9d57` готов.",
+          "godot": "`HudDashBars` с теми же размерами и цветами (`HudModel.dash_bar_look`).",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["nodes/hud_dash_bars.gd", "sim/hud_model.gd"]
+        },
+        {
+          "id": "G2", "severity": "fixed",
+          "title": "Кольцо прицела",
+          "web": "Кольцо r = 14, толщина 2: подложка `#333` (0.6), прогресс луча по часовой от верха, `#066` / `#0ff`, скруглённые концы; «+» 16px.",
+          "godot": "`HudCrosshair` рисует то же через `_draw`. Отличия: сглаживание края (`#01fdfd` против `#0ccbcb`) и на web-кадре кольцо не сомкнуто в верхней точке.",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["nodes/hud_crosshair.gd", "web-reference/src/components/Crosshair.tsx"]
+        },
+        {
+          "id": "G1", "severity": "visual",
+          "title": "Верхняя строка: имена и цвета игроков",
+          "web": "Раскладка: стороны 150px, имя 16px `#8a93a0` с разрядкой, фраги 22px в цвете игрока, таймер 26px `#dfe9f5` в рамке `#25303f`; имена и цвета — из профилей, точки серии.",
+          "godot": "Раскладка, размеры, цвета таймера и рамки совпадают. Вместо профилей — подписи web по умолчанию `YOU` / `OPPONENT` и цвета команд `#37f` / `#f53`; точек серии нет.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/hud_top_bar.gd", "web-reference/src/components/MatchHud.tsx", "web-reference/src/ui/theme.css"]
+        },
+        {
+          "id": "H2", "severity": "missing",
+          "title": "Анимации и вспышки HUD",
+          "web": "Отсчёт 144px со свечением, баннер серии с мерцанием, ghost-полосы `#9cf` и подпись, виньетка замаха, вспышки выстрела / попадания / блока, свечение активного щита, вспышки готовности.",
+          "godot": "Отсчёт, баннер и подпись ghost-фазы — простые метки; виньеток и вспышек нет. Следующий слайс (спека `docs/superpowers/specs/2026-09-13-godot-hud-effects-design.md`).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/CountdownOverlay.tsx", "web-reference/src/components/ScreenFlashes.tsx", "nodes/hud.gd"]
+        },
+        {
+          "id": "G4", "severity": "missing",
+          "title": "Визуализатор звука",
+          "web": "`AudioBar` — спектр музыки и эффектов внизу (`audioViz` включён по умолчанию).",
+          "godot": "Звука и визуализатора нет. Надпись скорости убрана: в web она выключена по умолчанию (`showSpeed: false`).",
+          "evidence": ["code", "screenshot"],
+          "sources": ["web-reference/src/components/AudioBar.tsx", "web-reference/src/settings.ts"]
+        }
+      ],
+      "limitations": [
+        "Замеры — одиночные пиксели и поиск строк/столбцов цвета скобок на одном кадре Arena; состояния «заряжается» и «щит активен» проверены юнит-тестами, а не кадрами.",
+        "Таймеры разные (web — лобби 3 мин, Godot — 5 мин по умолчанию); сравнивается положение и оформление.",
+        "Разрядка букв перенесена через `FontVariation.spacing_glyph` с округлением до пикселя; ширина текста может отличаться на 1–2px."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "id": "2026-09-14-skins-windup-respawn",
+  "title": "Сверка паритета OneShot · скины: замахи rage / singularity и респавны",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап G11d: мировые части замахов (rage — голограмма челюстей из 12 зубов перед шаром, раскрывается с зарядом и захлопывается после выстрела; singularity — 48 квадратных искр, закручивающихся в шар, и белая вспышка коллапса) и три стиля респавна (echo — взрыв частиц, полупрозрачный призрак, «пуф»; chaos — дрожащий мерцающий призрак и ступенчатая сборка; swarm — рой осколков на орбитах вокруг игрока, собирающийся обратно в шар). Стили берутся из профиля; мировые части скрыты в первом лице. Кадры web сняты с замедленными часами симуляции (`__debugTimeScale`); смерть — новым хуком `__debugKill`.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-skins-windup-respawn.json`. Web: `web-reference/scripts/parity-capture-windup-respawn.mjs` → `test-results/parity-gpu-g11d/` (профиль PARITY7 `#fa4`; вид V; замах — ЛКМ и кадр через 200 мс симуляции; призрак — `__debugKill(0)` и кадр через 600 мс симуляции; возрождение — в реальном времени, момент материализации ловится по `__debugRespawning`). Godot: `tools/screenshot.gd` режимы `profile:third-person-windup-<style>` (12 кадров), `profile:third-person-ghost-<style>` (36 кадров после `apply_death`), `profile:third-person-rebirth-<style>` (8 кадров после материализации). Вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "skins-windup-respawn",
+      "name": "Замахи rage / singularity и респавны echo / chaos / swarm",
+      "verdict": "Все пять скинов совпадают с web по форме, размеру, цвету и положению: челюсти rage — те же 12 зубов подковой на том же расстоянии и с тем же раскрытием, искры singularity — квадраты того же размера в том же диске вокруг шара, призраки и возрождения — тот же вид шара, осколков и клонов следа. Съёмка нашла и закрыла два дефекта Godot: искры вихря рисовались вдали от шара (узел сохранял смещение игрока) и клоны следа echo просвечивали сквозь призрак (шар в three.js пишет глубину). Мелкие различия — случайные фазы дрожания, сбоев и разлёта (Math.random).",
+      "verdict_short": "Замахи и респавны перенесены; формы и цвета совпадают",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["игрок", "PARITY7 `#fa4`, третье лицо, модель smooth", "то же"],
+        ["кадр замаха", "200 мс симуляции после ЛКМ", "12 кадров после `start_firing`"],
+        ["кадр призрака", "600 мс симуляции после `__debugKill(0)`", "36 кадров после `apply_death`"],
+        ["кадр возрождения", "101–178 мс реального времени после материализации (замер скрипта)", "8 кадров (≈133 мс) после материализации"],
+        ["тесты", "—", "GUT 304/304, 1095 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Замах rage: голограмма челюстей (увеличение ×2)", "wipe": true,
+          "note": "Две дуги по 6 зубов `#e8f4ff` α 0.4, 0.9 R перед шаром по горизонтали прицела; раскрытие 50% заряда.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-windup-rage.png", "note": "Подкова зубов, раскрыта наполовину."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-windup-rage.png", "note": "Те же зубы и раскрытие."}
+          ]},
+        {"title": "Замах singularity: вихрь искр (увеличение ×2)", "wipe": false,
+          "note": "48 точек `#aaccff` размером 0.08 (PointsMaterial с затуханием по глубине), диск r 0.35–1.6 вокруг потемневшего сжатого шара.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-windup-singularity.png", "note": "Искры вокруг шара."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-windup-singularity.png", "note": "Тот же диск и размер точек; расклад случайный."}
+          ]},
+        {"title": "Призрак echo (увеличение ×2)", "wipe": true,
+          "note": "Шар α 0.4; клоны следа в центре шара скрыты его глубиной.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-ghost-echo.png", "note": "Ровный полупрозрачный шар."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-ghost-echo.png", "note": "То же (после исправления глубины)."}
+          ]},
+        {"title": "Призрак chaos (увеличение ×2)", "wipe": false,
+          "note": "Сетка шара дрожит на ±0.16 (±0.4 первые 250 мс), прозрачность мерцает 0.4 / 0.15; клоны следа выглядывают из-за смещённого шара.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-ghost-chaos.png", "note": "Шар сдвинут, края клонов сверху."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-ghost-chaos.png", "note": "Шар сдвинут в другую сторону (случайно), края клонов."}
+          ]},
+        {"title": "Призрак swarm (увеличение ×2)", "wipe": false,
+          "note": "60 тетраэдров r 0.09 цвета игрока на орбитах r 0.5–1.3 с покачиванием; 24 гаснущих аддитивных клона; шар скрыт.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-ghost-swarm.png", "note": "Рой вокруг места игрока."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-ghost-swarm.png", "note": "Тот же рой и размер осколков."}
+          ]},
+        {"title": "Возрождение echo (увеличение ×2)", "wipe": true,
+          "note": "«Пуф»: масштаб 1 + 0.25·sin(π·t) за 280 мс.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-rebirth-echo.png", "note": "Шар увеличен."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-rebirth-echo.png", "note": "Тот же размер."}
+          ]},
+        {"title": "Возрождение chaos (увеличение ×2)", "wipe": true,
+          "note": "Сборка за 450 мс: прозрачность ступенями 0.4 → 0.6 → 0.8 → 1, смещение гаснет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-rebirth-chaos.png", "note": "Шар α 0.6."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-rebirth-chaos.png", "note": "Та же ступень."}
+          ]},
+        {"title": "Возрождение swarm (увеличение ×2)", "wipe": false,
+          "note": "Осколки стягиваются в центр за 280 мс, шар разгорается с 0.5 (ease-out).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11d/crops/web-rebirth-swarm.png", "note": "Шар почти полного размера, несколько осколков."},
+            {"kind": "godot", "img": "parity-gpu-g11d/crops/godot-rebirth-swarm.png", "note": "То же."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "G11d", "severity": "fixed",
+          "title": "Мировые части замахов rage и singularity",
+          "web": "`RageWindupFx` — голограмма челюстей перед шаром; `SingularityWindupFx` — `THREE.Points` (48 искр) и вспышка коллапса; скрыты у своего тела в первом лице и в фазе призрака.",
+          "godot": "`WindupWorldView` + `RageJaws` / `SingularityVortex`, точки — шейдер `size_attenuated_points` на примитиве POINTS. Было: замахи меняли только шар.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/skins/windup_world_view.gd", "sim/rage_jaws.gd", "sim/singularity_vortex.gd", "assets/shaders/size_attenuated_points.gdshader", "tests/unit/test_windup_world_skins.gd", "tests/unit/test_respawn_windup_nodes.gd", "web-reference/src/game/fx/windup"]
+        },
+        {
+          "id": "G11d-2", "severity": "fixed",
+          "title": "Стили респавна chaos и swarm",
+          "web": "`createRespawnFx(respawnStyle, color)`: Echo / Chaos / Swarm; стиль владеет шаром в фазе призрака и в своём окне возрождения (280 / 450 / 280 мс), щит скрыт в этом окне.",
+          "godot": "`RespawnFxView` + `ChaosRespawn` / `SwarmRespawn`. Было: у всех стилей респавн echo.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/skins/respawn_fx_view.gd", "sim/chaos_respawn.gd", "sim/swarm_respawn.gd", "tests/unit/test_respawn_skins.gd", "web-reference/src/game/fx/respawn"]
+        },
+        {
+          "id": "G11d-3", "severity": "fixed",
+          "title": "Клоны следа просвечивали сквозь призрак echo",
+          "web": "Материал шара `transparent: true` с включённой записью глубины; шар создан раньше клонов и при равной глубине рисуется первым — клоны внутри скрыты.",
+          "godot": "Шейдер шара `depth_draw_always`, клонам `sorting_offset` для ничьих. Было: полупрозрачный шар не писал глубину, клоны светились сквозь него.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["assets/shaders/ball.gdshader", "nodes/skins/particle_view.gd", "web-reference/src/game/fx/ballMaterial.ts"]
+        },
+        {
+          "id": "G11d-4", "severity": "fixed",
+          "title": "Искры singularity рисовались вдали от шара",
+          "web": "Точки вихря — в координатах мира вокруг центра шара.",
+          "godot": "`top_level`, включённый у узла уже в дереве, сохранял смещение игрока → вершины сдвигались дважды; теперь трансформ сбрасывается, тест ставит игрока вне начала координат.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/skins/windup_world_view.gd", "nodes/skins/respawn_fx_view.gd", "tests/unit/test_respawn_windup_nodes.gd"]
+        }
+      ],
+      "limitations": [
+        "Сбои голограммы, дрожание и мерцание chaos, разлёт и орбиты swarm, расклад искр — на `Math.random` / `randf`: мелкие детали кадров различаются; ритмы и амплитуды проверены тестами.",
+        "Окно возрождения в web идёт по `Date.now()`, которое `__debugTimeScale` не замедляет: кадр web снят в реальном времени через 101–178 мс после материализации, Godot — через 8 кадров.",
+        "Внизу кадров web — полоса аудио-визуализатора `AudioBar`; в Godot её пока нет (бэклог «звук»)."
+      ]
+    }
+  ]
+}

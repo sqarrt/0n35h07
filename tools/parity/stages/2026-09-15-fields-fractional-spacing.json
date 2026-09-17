@@ -1,0 +1,106 @@
+{
+  "id": "2026-09-15-fields-fractional-spacing",
+  "title": "OneShot · FS4d: дробная разрядка в полях ввода",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Последняя часть хвоста дробной разрядки. Нативный `LineEdit` умеет только целую разрядку, поэтому текст полей ввода (имя в настройках — 1.3rem / 0.1em, поиск друзей в Steam, имя бота в лобби) стоял не на местах Chrome. Теперь поле продолжает редактировать, прокручивать и ловить мышь, а свой текст, плейсхолдер, каретку и выделение делает прозрачными: их рисует наложенный `CssFieldText` прогонами `CssTextRun` — значение (или плейсхолдер), выровненное как у поля, каретку на пере глифа, выделение под глифами. Сверка с прежними web-кадрами на GPU в окне 1280×720 и на весь экран 3840×2160 (масштаб 150 %); «до» снято с того же HEAD без подключения наложения.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-fields-fractional-spacing.json`. Web (прежние кадры на GPU): `parity-gpu-settings/web-settings-player.png`, `parity-fs-settings/web-settings-player.png` (на весь экран), `parity-gpu-lobby-steam-2/web-steam-picker[-fs].png`, `parity-gpu-lobby/web-lobby-bot-bottom.png`. Godot: `Godot.exe --path . --fixed-fps 60 --resolution 1280x720|--fullscreen -s tools/screenshot.gd -- scenes/main_menu.tscn - res://test-results/parity-fields-fs4/godot-<кадр>.png <N> profile:<режим>` — `settings-player` (60), `steam-picker` (95), `lobby-bot-bottom` (90); «до» — те же команды → `before-<кадр>.png` с `nodes/ui_text_field.gd`, `steam_friend_picker.gd`, `lobby_seat.gd` из HEAD 4aae307. Пиксели — среднее отличие каналов (0–255) по области поля: имя [341, 195, 256, 41] (на весь экран [1471, 357, 385, 62]), поиск [477, 233, 326, 35] ([1675, 883, 490, 53]), имя бота web [725, 415, 140, 26] ↔ Godot [717, 478, 140, 26]. Центроиды букв — сумма яркости над порогом 50 по столбцам полосы текста; строки чернил — порог 60. Тесты GUT: `test_css_field_text`, `test_ui_controls`, `test_settings_screen`, `test_lobby_seat`, `test_steam_friend_picker`.",
+  "pages": [
+    {
+      "slug": "fields-fractional-spacing",
+      "name": "Поля ввода",
+      "verdict": "По горизонтали текст полей встал на места Chrome: у имени в настройках центры букв расходятся с web не больше чем на 0.16 px (было до 0.54), чернила поиска и имени бота совпадают с web столбец в столбец в окне и на весь экран. Поиск друзей: 1.34 → 0.15/255 в окне, 5.52 → 4.55 на весь экран; имя бота 1.94 → 1.86; имя в настройках на весь экран 3.80 → 3.74. Имя в настройках в окне стало 2.31 → 3.18: места букв точнее, но заглавные на 20.8 px растеризуются на ряд ниже сверху (строки чернил 208–221 при web 207–221) — это хинтинг дробного размера, общий для всех прогонов `CssTextRun`, а не раскладка; отдельный слайс.",
+      "verdict_short": "Текст полей на местах Chrome; остаток — хинтинг верха заглавных",
+      "conditions": [
+        ["окно", "Chrome 1280×720, GPU", "Godot 1280×720, `--fixed-fps 60`, GPU"],
+        ["полный экран", "Chrome на весь экран 3840×2160, масштаб 150 %", "Godot `--fullscreen` 3840×2160, масштаб 150 %"],
+        ["поля", "настройки (ник PARITY7), выбор друга (пустой поиск — плейсхолдер), лобби с ботом EX82R", "`profile:settings-player`, `profile:steam-picker`, `profile:lobby-bot-bottom`"]
+      ],
+      "comparisons": [
+        {
+          "title": "Поиск друзей, окно (×3)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fields-fs4/crops/web-picker.png", "note": "—"},
+            {"kind": "godot", "img": "parity-fields-fs4/crops/godot-picker.png", "note": "0.15/255 (было 1.34)"}
+          ]
+        },
+        {
+          "title": "Поиск друзей до слайса (×3)",
+          "panels": [
+            {"kind": "godot", "img": "parity-fields-fs4/crops/before-picker.png", "note": "плейсхолдер шире и выше"}
+          ]
+        },
+        {
+          "title": "Поиск друзей на весь экран (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fields-fs4/crops/web-picker-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-fields-fs4/crops/godot-picker-fs.png", "note": "4.55/255 (было 5.52)"}
+          ]
+        },
+        {
+          "title": "Имя в настройках, окно (×4)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fields-fs4/crops/web-settings.png", "note": "—"},
+            {"kind": "godot", "img": "parity-fields-fs4/crops/godot-settings.png", "note": "3.18/255 (было 2.31): верх заглавных на ряд ниже"}
+          ]
+        },
+        {
+          "title": "Имя в настройках до слайса (×4)",
+          "panels": [
+            {"kind": "godot", "img": "parity-fields-fs4/crops/before-settings.png", "note": "буквы до 0.54 px мимо мест web"}
+          ]
+        },
+        {
+          "title": "Имя в настройках на весь экран (×2)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fields-fs4/crops/web-settings-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-fields-fs4/crops/godot-settings-fs.png", "note": "3.74/255 (было 3.80)"}
+          ]
+        },
+        {
+          "title": "Имя бота (×4, Godot со сдвигом −8, +63)",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fields-fs4/crops/web-bot.png", "note": "—"},
+            {"kind": "godot", "img": "parity-fields-fs4/crops/godot-bot.png", "note": "1.86/255 (было 1.94)"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "FS4d-1", "severity": "fixed",
+          "title": "Текст полей ввода",
+          "web": "`<input>`: значение и плейсхолдер с дробной letter-spacing (настройки `.input` 1.3rem / 0.1em; поиск и имя бота — свои размеры), выравнивание по `text-align`, каретка у пера глифа.",
+          "godot": "Было: текст самого `LineEdit` с разрядкой, округлённой до пикселя (`UiFont.spaced`). Стало: `CssFieldText.attach(field, px, em)` — цвета текста, плейсхолдера, каретки и выделения поля прозрачны, наложение рисует прогон `CssTextRun` в контентной рамке стиля (центр по вертикали, выравнивание поля, минус прокрутка), мигающую каретку и выделение; перерисовка при любом изменении поля (`sync()`), в фокусе — каждый кадр.",
+          "evidence": ["screenshot", "test"],
+          "sources": ["nodes/css_field_text.gd", "nodes/ui_text_field.gd", "nodes/steam_friend_picker.gd", "nodes/lobby_seat.gd", "tests/unit/test_css_field_text.gd"]
+        },
+        {
+          "id": "FS4d-2", "severity": "visual",
+          "title": "Верх заглавных на дробном размере",
+          "web": "DirectWrite на 20.8 px: заглавные «PARITY7» занимают строки 207–221 (15 рядов); на весь экран (31.2 px) — 376–397.",
+          "godot": "`CssTextRun` растеризует тот же размер через oversampling: базовая линия и места совпадают (низ 221), но верх — 208 (14 рядов); на весь экран наоборот 375. Прежний `LineEdit` на целых 21 px случайно попадал в 207. Общий для всего дробного текста остаток хинтинга — следующий слайс.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/css_text_run.gd"]
+        },
+        {
+          "id": "FS4d-3", "severity": "visual",
+          "title": "Раскладка лобби в web-кадре бота",
+          "web": "Кадр `web-lobby-bot-bottom` снят в браузерной раскладке (есть JOIN BY CODE, нет полосы прокрутки) — карточка бота на 8 px правее и на 63 px выше.",
+          "godot": "Десктопная раскладка; имя бота сравнено со сдвигом по центру карточки, чернила совпадают столбец в столбец. Дробная доля сдвига (0.14 px) остаётся в разнице.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/scripts/parity-capture-lobby.mjs"]
+        }
+      ],
+      "limitations": [
+        "Каретка, выделение и прокрутка длинного значения проверены тестами, кадрами web не сравнивались (в захватах поля без фокуса ввода, кроме поиска, где каретка в момент кадра не видна).",
+        "Web-кадр бота — браузерная раскладка; десктопного кадра лобби с ботом нет.",
+        "Мигание каретки (0.53 с, как у Windows) по времени не сверялось."
+      ]
+    }
+  ]
+}

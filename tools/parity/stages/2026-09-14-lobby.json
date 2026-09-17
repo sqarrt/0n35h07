@@ -1,0 +1,136 @@
+{
+  "id": "2026-09-14-lobby",
+  "title": "Сверка паритета OneShot · лобби «Играть» (L1–L5, срез L-a)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Срез L-a лобби: экран «Играть» в панели меню (web `screens/Lobby` с `ModeCarousel`, `MapPicker`, `TimePicker`, `Seats`) и локальная комната хоста без сети (правила web `RoomSession`: места по режиму, боты, переключение режима, выбор карты и длительности, автостарт). Сравнение на английской локали с профилем PARITY7; в web спрятаны 3D-фон меню и размытый фон карты. Кадры: свежая комната Duel, с пассивным ботом EX82R, режимы Battle и War — каждый у верха и прокрученным до конца.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-lobby.json`. Web: `web-reference/scripts/parity-capture-lobby.mjs` (меню → PLAY, canvas и `.map-bg` скрыты, бот через поля места) → `test-results/parity-gpu-lobby/web-lobby*.png` + рамки и стили `web-lobby.json`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, кадр 60, режимы `profile:lobby-<fresh|bot|2v2|ffa>[-bottom]` → `godot-lobby-*.png` + факты `.png.json`. Замеры: `tools/parity/measure.py read_png` (места — по собственным рамкам, т. к. прокрутка Godot на 62 px короче); вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "lobby",
+      "name": "Экран «Играть» и локальная комната",
+      "verdict": "Экран лобби перенесён: рамки совпадают с web в пределах 0.5 px (заголовок 46 / 46.4; карусель 89 / 89.4; строка карт 195 / 195.4; плитки 194×207 на 226 / 226.4; TIME 697 / 697.4; места 263×108 на 771 / 771.4, x 353 и 664 против 353.5 и 663.4; READY 581 / 580.8, BACK 638 / 637.6). Фон и края панели 0.00/255, READY 0.14–0.27, BACK 0.3–0.4, плитки карт 0.9–1.1, карусель 1.4–1.5, место бота 2.3, своё место 4.2–4.9. Отличия от браузерной сборки: нет строки «вход по коду» и зоны «отправить код» (сети ещё нет) — прокрутка на 62 px короче, свободные места показывают только ADD A BOT (6.3–7.6/255).",
+      "verdict_short": "Лобби перенесено (локальная комната, старт дуэли)",
+      "conditions": [
+        ["экран", "меню → PLAY, `locale: en`", "`scenes/main_menu.tscn` → `open_lobby()`"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, кадр 60 + 30 кадров фикстуры"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["фон", "canvas 3D-фона и размытое превью карты скрыты", "не перенесены (фон `--bg`)"],
+        ["комната", "`?net=bc`, хост; бот: ADD A BOT → PASSIVE → имя EX82R", "`RoomModel`: `add_bot(1, passive, EX82R)`"],
+        ["прокрутка", "`.lobby-body` scrollTop 0 / до конца (385, 467, 643)", "`ScrollContainer` 0 / до конца (323, 405, 581)"],
+        ["тесты", "—", "GUT 431/431, 4540 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Свежая комната Duel", "wipe": true,
+          "note": "PLAY, карусель режимов, // MAP с MULTI / SELECT ALL и превью, READY неактивна (хост один), BACK.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-full-fresh.png", "note": "Тело 542.4 px, содержимое 927 px."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-full-fresh.png", "note": "Тело 542.4 px, содержимое 865 px (без строки кода)."}
+          ]},
+        {"title": "Заголовок и карусель (Duel)", "wipe": true,
+          "note": "Центр — рамка и заливка accent, светящееся имя; соседи на ширину плитки, масштаб .86, прозрачность .45.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-top-fresh.png", "note": "Центр [540.3, 99.4, 199.4×68]; стороны 171.4×58.5."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-top-fresh.png", "note": "Карусель 1.38/255, заголовок 9.12/255."}
+          ]},
+        {"title": "Карусель Battle", "wipe": true,
+          "note": "Переход .25 с завершён: Battle в центре, War справа, Duel слева.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-top-2v2.png", "note": "Режим 2v2."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-top-2v2.png", "note": "1.40/255."}
+          ]},
+        {"title": "Места Duel: своё и свободное (увеличение ×2)", "wipe": true,
+          "note": "Пунктир 2 px цвета игрока со скруглёнными углами, подчёркнутое своё имя, VS; в web у свободного места ещё зона «отправить код».",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-seats-fresh.png", "note": "26 штрихов по 263 px, 10 по 108 px."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-seats-fresh.png", "note": "Своё место 4.88/255, свободное 6.32/255 (только ADD A BOT)."}
+          ]},
+        {"title": "Места Duel с пассивным ботом (увеличение ×2)", "wipe": true,
+          "note": "Готовое место бота: сплошная рамка, кольцо 1 px и свечение 0 0 20px -4px; ✕, имя EX82R, NORMAL / PASSIVE.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-seats-bot.png", "note": "Цвет бота rgb(255, 221, 68)."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-seats-bot.png", "note": "Место бота 2.27/255."}
+          ]},
+        {"title": "Прокрутка до конца с ботом", "wipe": true,
+          "note": "READY зелёная (`btn--go`), BACK → LEAVE; в web ниже мест строка «вход по коду».",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-full-bot-bottom.png", "note": "scrollTop 385."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-full-bot-bottom.png", "note": "scroll 323; READY 0.27/255, BACK 0.42/255."}
+          ]},
+        {"title": "Места War (прокрутка до конца)", "wipe": true,
+          "note": "Колонка из четырёх мест шириной 62%, высота 84, промежуток 10.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby/crops/web-seats-ffa.png", "note": "Места 370.8×84."},
+            {"kind": "godot", "img": "parity-gpu-lobby/crops/godot-seats-ffa.png", "note": "Своё 4.21/255, свободные 6.44/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "L1", "severity": "fixed",
+          "title": "Экран лобби «Играть»",
+          "web": "`Lobby`: прокручиваемое тело (padding-top 2vh, секции через 18 px) над READY и BACK / LEAVE на всю ширину; полоса прокрутки в 28 px отступа панели.",
+          "godot": "`LobbyScreen` в той же панели меню (`MainMenu.open_lobby`, BACK закрывает); `ScrollContainer` с тонкой полосой; секции на местах web. Было: экрана не было, PLAY сразу запускал арену.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/lobby_screen.gd", "nodes/main_menu.gd", "tests/unit/test_lobby_screen.gd", "tests/unit/test_main_menu.gd", "web-reference/src/screens/Lobby.tsx"]
+        },
+        {
+          "id": "L2", "severity": "fixed",
+          "title": "Режимы Duel / Battle / War",
+          "web": "`game/modes.ts`: пресет лобби (2 / 4 / 4 места, команды, условие старта); `ModeCarousel` с плавным переходом.",
+          "godot": "`GameModes`, `ModeCarousel` (переход .25 с; первая раскладка без анимации, новая раскладка останавливает старый переход; рамки уменьшенных плиток сглажены как в Chrome).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/game_modes.gd", "nodes/mode_carousel.gd", "tests/unit/test_game_modes.gd", "tests/unit/test_mode_carousel.gd", "web-reference/src/game/modes.ts", "web-reference/src/components/lobby/ModeCarousel.tsx"]
+        },
+        {
+          "id": "L3", "severity": "fixed",
+          "title": "Места и боты",
+          "web": "`Seats` + `RoomSession`: своё место с подчёркнутым именем; свободное место хоста — зона ADD A BOT; бот всегда готов, имя (клик по карточке — новое), сложность NORMAL / PASSIVE, ✕; смена режима уплотняет занятые места и не выгоняет игроков.",
+          "godot": "`RoomModel` (правила хоста без сети) + `LobbySeat` (пунктир Chrome по `CssDashedBorder` со скруглёнными углами; готовое место — сплошная рамка, кольцо и аналитическое свечение `glow_rect`). Пассивный бот стоит на месте в матче (`BotController(passive)`). Было: один бот без выбора.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["sim/room_model.gd", "nodes/lobby_seat.gd", "sim/css_dashed_border.gd", "nodes/arena_boot.gd", "tests/unit/test_room_model.gd", "tests/unit/test_lobby_seat.gd", "tests/unit/test_css_dashed_border.gd"]
+        },
+        {
+          "id": "L4", "severity": "fixed",
+          "title": "Выбор карт",
+          "web": "`MapPicker`: 5 плиток превью по 3 в ряд, одиночный выбор, MULTI, SELECT ALL; с появлением бота выбор сворачивается к случайной карте из выбранных.",
+          "godot": "`MapTile` + `MapCatalog` (превью web и карта `os_test` перенесены), та же логика выбора и разрешения. Было: выпадающий список из 4 карт в главном меню.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/map_tile.gd", "sim/map_catalog.gd", "maps/os_test.json", "tests/unit/test_map_tile.gd", "tests/unit/test_map_catalog.gd", "web-reference/src/components/lobby/MapPicker.tsx"]
+        },
+        {
+          "id": "L5", "severity": "fixed",
+          "title": "Длительность матча",
+          "web": "`TimePicker`: 3 / 5 / 10 MIN (сегменты `.seg`).",
+          "godot": "`SegButton` + `RoomModel.set_duration`; матч получает выбранную длительность. Было: выбора не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/seg_button.gd", "tests/unit/test_seg_button.gd", "web-reference/src/components/lobby/TimePicker.tsx"]
+        },
+        {
+          "id": "L-b", "severity": "missing",
+          "title": "Матчи Battle и War",
+          "web": "READY стартует 2v2 и FFA: четыре участника, команды по местам, стартовые позиции FFA, HUD на несколько игроков.",
+          "godot": "Лобби собирает места этих режимов, но READY включается только в Duel до среза L-b.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/lobby_screen.gd", "tests/unit/test_lobby_screen.gd"]
+        },
+        {
+          "id": "L6", "severity": "missing",
+          "title": "Сетевая комната",
+          "web": "Код комнаты в свободном месте и строка «вход по коду» (браузер), приглашения Steam и SEARCH (desktop), ритуал готовности гостей.",
+          "godot": "Не перенесено: комната локальная, без гостей.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/net/RoomSession.ts", "web-reference/src/components/lobby/Seats.tsx"]
+        }
+      ],
+      "limitations": [
+        "Прокрутка Godot на 62 px короче (нет строки «вход по коду»), поэтому нижние кадры сравниваются по рамкам мест, а не по одинаковым координатам экрана.",
+        "Заголовок PLAY 9.1/255: синтетический жирный и дробная базовая линия Chrome (как у MENU в отчёте ui-theme).",
+        "Строка // MAP 2.6/255: разрядка 11 px (1.98 → 2) и 0.88 → 1 px у сегментов.",
+        "Свечение готового места — прямоугольник без скругления (размытие 20 px делает разницу малой: 2.3/255 по месту).",
+        "Имя бота в поле ввода Godot переводится в верхний регистр не через CSS text-transform, а как введено; сгенерированные имена и так в верхнем регистре.",
+        "3D-фон меню с шарами комнаты и размытое превью выбранной карты не перенесены; в web-кадрах скрыты.",
+        "Локаль только английская."
+      ]
+    }
+  ]
+}

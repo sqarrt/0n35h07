@@ -31,7 +31,7 @@ body:
         - Versus bot (local)
         - Online — With friend
         - Online — Matchmaking
-        - Map editor
+        - Radio
         - Other / not sure
     validations:
       required: true
@@ -39,12 +39,12 @@ body:
     id: env
     attributes:
       label: Environment
-      description: Browser + version, OS, and whether it's the web build or the Tauri desktop build.
-      placeholder: Chrome 140 / Windows 11 / web
+      description: Game version (the chip in the menu corner), OS, display resolution / Windows scale, and how you launched it (Steam or the exe).
+      placeholder: v2.0.0 / Windows 11 / 3840x2160 at 150% / Steam
     validations:
       required: true
   - type: textarea
     id: console
     attributes:
-      label: Console errors / screenshots (optional)
-      description: Paste any DevTools console errors or attach screenshots / a clip.
+      label: Session log / screenshots (optional)
+      description: Click the version chip in the menu corner to open the log folder and attach the session's oneshot-*.log, or add screenshots / a clip.

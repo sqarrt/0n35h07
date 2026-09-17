@@ -1,0 +1,61 @@
+{
+  "id": "2026-09-15-radio-match",
+  "title": "OneShot · радио R5: радио в матче и белый экран при запуске",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R5 подпроекта «радио» и исправление, найденное пользователем. Радио играет через матч, как в web: если на старте комнаты радио звучало, оно остаётся саундтреком матча вместо музыки матча; матч без радио играет свою музыку и останавливает радио; трейлер останавливает радио всегда. Rich Presence у web для экрана радио показывает статус меню — в Godot это уже так. Отдельно: при обычном запуске игры экран был белым — окно WebView движка радио растягивалось на всё окно игры.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-match.json`. Проба значений WebView: `Godot.exe --path . -s tools/probes/webview_defaults_probe.gd`. Запуск как у игрока (без `-s`) и снимок всего экрана средствами Windows: `test-results/probes/launch_screenshot.ps1` → `test-results/probes/launch.png`. Живая проба страницы движка: `Godot.exe --path . --resolution 640x360 -s tools/probes/radio_host_probe.gd`. Тесты GUT: `test_radio_director`, `test_radio_autoload`, `test_match_audio`, `test_trailer_screen`, `test_main_menu`; полный прогон 957/957.",
+  "pages": [
+    {
+      "slug": "radio-match",
+      "name": "Радио в матче и запуск",
+      "verdict": "Решения совпадают с эффектом web App: `radioForMatch` фиксируется при старте комнаты, в матче радио остаётся только при нём, музыка матча в этом случае не запускается, трейлер радио останавливает. Белый экран при запуске исправлен: у WebView godot_wry по умолчанию `full_window_size = true` и белый фон, поэтому пустая страница движка закрывала игру; теперь WebView — действительно 1×1 за краем окна, и игра, запущенная как у игрока, показывает заставку. Радио при этом играет в реальном времени: трек прошёл 24.47 с за 24.47 с, 740 событий индикатора, шаг 33 мс.",
+      "verdict_short": "Радио в матче как у web; белый экран исправлен",
+      "conditions": [
+        ["радио в матче", "web App: `radioForMatch: radioActive` при старте, `stop()` в 'game' без него, `musicEngine` не создаётся под радио", "`match_setup.radio_for_match`, `Radio.set_screen(game, флаг)`, `MatchAudio.music_enabled`"],
+        ["трейлер", "web App: `stop()` на экране 'trailer'", "`TrailerScreen._ready` → `Radio.set_screen(trailer)`"],
+        ["запуск", "—", "Windows, весь экран 3840×2160 при 150 %, обычный запуск без `-s`, снимок экрана через 12 с"]
+      ],
+      "comparisons": [
+        {
+          "title": "Обычный запуск после исправления (центр кадра, ×1)",
+          "note": "До исправления этот же запуск давал белый экран: WebView на всё окно с белым фоном.",
+          "panels": [
+            {"kind": "godot", "img": "parity-radio-match-report/godot-launch.png", "note": "заставка видна, WebView не закрывает игру"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R5-1", "severity": "fixed",
+          "title": "Белый экран при обычном запуске",
+          "web": "Движок радио — часть страницы; отдельного окна нет.",
+          "godot": "godot_wry создаёт нативное окно WebView поверх игры. Проба значений по умолчанию: `full_window_size = true`, `background_color` белый, `focused_when_created = true` — размер 1×1 за экраном игнорировался, пустая страница закрывала игру (при Alt+F4 WebView закрывался первым, и меню было видно на миг). Проверки паритета снимались через `-s`-инструмент, который WebView не создаёт, поэтому дефект не попадал в кадры. Теперь `full_window_size = false` и `focused_when_created = false`; обычный запуск показывает игру, живая проба — радио в реальном времени.",
+          "evidence": ["runtime", "screenshot"],
+          "sources": ["nodes/radio/webview_radio_transport.gd", "tools/probes/webview_defaults_probe.gd", "test-results/probes/launch_screenshot.ps1"]
+        },
+        {
+          "id": "R5-2", "severity": "fixed",
+          "title": "Радио в матче",
+          "web": "`gameNet.radioForMatch = radioActive` при старте; эффект радио: `stop()` на трейлере и в 'game' без `radioForMatch`, иначе пауза или воспроизведение по `radioEnabled`; `Game` не создаёт музыку матча под радио.",
+          "godot": "`MainMenu._start_match` пишет `radio_for_match`; `arena_boot` передаёт экран и флаг радио и выключает музыку матча; `RadioDirector.sync(…, radio_for_match)`; до слайса радио останавливалось в любом матче, а на трейлере продолжало играть.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_director.gd", "autoloads/radio.gd", "nodes/main_menu.gd", "nodes/arena_boot.gd", "nodes/audio/match_audio.gd", "nodes/trailer_screen.gd"]
+        },
+        {
+          "id": "R5-3", "severity": "fixed",
+          "title": "Rich Presence",
+          "web": "`richPresence.ts`: экран радио — токен меню, отдельного статуса нет.",
+          "godot": "`SteamPresence.token_for` отдаёт токен меню для всего, кроме лобби и матча; изменений не потребовалось.",
+          "evidence": ["code"],
+          "sources": ["sim/steam/steam_presence.gd", "web-reference/src/steam/richPresence.ts"]
+        }
+      ],
+      "limitations": [
+        "Матч с радио вживую (меню → комната → арена) не запускался: решения проверены тестами над подменной страницей.",
+        "Снимок запуска — один кадр заставки через 12 с; кадра «до исправления» нет, дефект подтверждён пробой значений по умолчанию и описанием пользователя.",
+        "Проверки паритета по-прежнему идут через `-s`-инструменты; обычный запуск теперь проверяется снимком экрана."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>webview audio probe</title>
+  </head>
+  <body style="margin:0;background:#101820;color:#8cf;font:12px monospace">
+    <div id="log">probe</div>
+    <script>
+      // Probe (2026-09-15): does a WebView2 AudioContext keep rendering while the Godot WebView is hidden or tiny, and do
+      // messages cross both ways? Silent: the oscillator runs through a zero gain.
+      const TICK_MS = 250
+      const ctx = new AudioContext()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      gain.gain.value = 0
+      osc.connect(gain).connect(ctx.destination)
+      osc.start()
+      const send = (kind, extra) => {
+        const facts = { kind, state: ctx.state, t: ctx.currentTime, visibility: document.visibilityState,
+          hidden: document.hidden, ipc: typeof window.ipc, ...extra }
+        document.getElementById('log').textContent = JSON.stringify(facts)
+        if (window.ipc && window.ipc.postMessage) window.ipc.postMessage(JSON.stringify(facts))
+      }
+      setInterval(() => send('tick'), TICK_MS)
+      window.addEventListener('message', (e) => send('window-message', { data: String(e.data) }))
+      document.addEventListener('message', (e) => send('document-message', { data: String(e.detail ?? e.data) }))
+      ctx.resume().then(() => send('resumed')).catch((err) => send('resume-failed', { error: String(err) }))
+      // Strudel needs a secure context (AudioWorklet), worklet modules and the sample CDNs: report what this origin allows.
+      const WORKLET = 'class Probe extends AudioWorkletProcessor { process() { return true } } registerProcessor("probe", Probe)'
+      const CDN = 'https://raw.githubusercontent.com/felixroos/dough-samples/main/piano.json'
+      const env = async () => {
+        const facts = { href: location.href, origin: location.origin, secure: window.isSecureContext,
+          worklet: typeof ctx.audioWorklet }
+        try {
+          await ctx.audioWorklet.addModule('data:text/javascript;base64,' + btoa(WORKLET))
+          new AudioWorkletNode(ctx, 'probe')
+          facts.workletModule = 'ok'
+        } catch (err) { facts.workletModule = String(err) }
+        try {
+          const res = await fetch(CDN)
+          facts.cdn = res.status
+        } catch (err) { facts.cdn = String(err) }
+        send('env', facts)
+      }
+      env()
+    </script>
+  </body>
+</html>

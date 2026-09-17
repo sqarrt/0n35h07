@@ -1,0 +1,114 @@
+{
+  "id": "2026-09-14-warning-splash",
+  "title": "Сверка паритета OneShot · заставка-предупреждение (M6)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс M6: web `components/EpilepsyWarning.tsx` + theme.css `.warn-*` — полноэкранное предупреждение о вспышках при запуске, поверх меню. Эталон — десктопная сборка (заглушка `__TAURI_INTERNALS__`, без `?net=bc`, который прячет заставку). CSS-анимации web для кадров остановлены через `document.getAnimations()` (пауза и `currentTime`), в Godot те же моменты закреплены `pin_clock_ms` / `pin_pulse_ms`. Сверено на en, ru и zh-CN.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-warning-splash.json`. Web: `PARITY_LOCALE=<id> node scripts/parity-capture-warning.mjs ..\\test-results\\parity-warning\\<id>` → `web-warning-early.png` (600 мс, пульс 1000 мс), `web-warning.png` (подсказка показана, пульс 1000 мс), `web-warning-peak.png` (пульс 2000 мс) + рамки, стили и строки текста в `web-warning.json`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режимы `locale-<id>:profile:warning[-early|-peak]` → `godot-*.png` + рамки `WarningSplash` в `.png.json`. Шрифты Chrome: CDP `CSS.getPlatformFontsForNode`. Пиксели — среднее отличие каналов (0–255).",
+  "pages": [
+    {
+      "slug": "warning",
+      "name": "Заставка-предупреждение",
+      "verdict": "Заставка перенесена: непрозрачный фон с голубым радиальным свечением, «дышащая» планета с кольцом, ⚠ WARNING со свечением, абзац с переносами как в Chrome, подсказка «[LMB] to continue» после прогрева; клик до 1500 мс игнорируется, после — затухание 280 мс, один раз за запуск. Кадр целиком отличается на 1.37–1.39/255 (en), 1.49–1.54 (ru), 1.06–1.10 (zh-CN); угол фона 0.21, планета без текста 0.33–0.67. Рамки: иконка 27×35 против 26.97×35, абзац x 285 шириной 710 против 285.03 / 709.92 с теми же переносами, чип 52×23 против 49.75×23. Остаток — ширина текста на целых пикселях (строки абзаца шире на ~10 px) и высота CJK-строки подсказки (17 против 19).",
+      "verdict_short": "M6 перенесён",
+      "conditions": [
+        ["сборка", "браузер с заглушкой `__TAURI_INTERNALS__`, без `?net=bc`", "десктоп Godot"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "600 мс / подсказка показана; пульс планеты на 1000 и 2000 мс", "`pin_clock_ms` 600 / 2400, `pin_pulse_ms` 1000 / 2000"],
+        ["язык", "en / ru / zh-CN", "то же (`locale-<id>:`)"],
+        ["тесты", "—", "GUT 544/544 (`test_warning_timeline`, `test_warning_splash`)"]
+      ],
+      "comparisons": [
+        {"title": "en · подсказка показана", "wipe": true,
+          "note": "Центр кадра 768×320 от (256, 200).",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-centre.png", "note": "Кадр 1.39/255."},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-centre.png", "note": "Строки абзаца шире на ~10 px (целый шаг глифа)."}
+          ]},
+        {"title": "Иконка и заголовок (×3)", "wipe": true,
+          "note": "⚠ Segoe UI Symbol 26 px с drop-shadow 8 px и text-shadow 16 px; WARNING 19 px, разрядка 0.24em.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-head.png", "note": "иконка 26.97×35"},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-head.png", "note": "иконка 27×35"}
+          ]},
+        {"title": "Подсказка (×3)", "wipe": true,
+          "note": "Чип 13 px с рамкой `--line`, скруглением 5 px, линией тени снизу и внутренним кольцом; текст 14 px `--muted`.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-hint.png", "note": "чип 49.75×23"},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-hint.png", "note": "чип 52×23"}
+          ]},
+        {"title": "Планета на пике пульса", "wipe": true,
+          "note": "SVG 256 → 560 px, непрозрачность слоя 0.24 (50% цикла 4 s).",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-peak-planet.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-peak-planet.png", "note": "Области без текста 0.33–0.67/255."}
+          ]},
+        {"title": "en · до подсказки (600 мс)", "wipe": true,
+          "note": "Подсказка уже в раскладке, но прозрачна — ничего не прыгает.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-early-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-early-centre.png", "note": "Кадр 1.37/255."}
+          ]},
+        {"title": "ru", "wipe": true,
+          "note": "ПРЕДУПРЕЖДЕНИЕ, две строки абзаца, «ЛКМ чтобы продолжить».",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/ru-web-warning-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning/crops/ru-godot-warning-centre.png", "note": "Заголовок шире на 11 px; кадр 1.54/255."}
+          ]},
+        {"title": "zh-CN", "wipe": true,
+          "note": "Абзац в одну строку: рамка абзаца сужается до 601 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/zh-CN-web-warning-centre.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning/crops/zh-CN-godot-warning-centre.png", "note": "Кадр 1.10/255."}
+          ]},
+        {"title": "Фон в углу", "wipe": true,
+          "note": "`#06080c` + radial-gradient(1100px 700px at 50% 45%, rgba(68,170,255,.07), transparent 70%).",
+          "panels": [
+            {"kind": "web", "img": "parity-warning/crops/en-web-warning-corner.png", "note": "—"},
+            {"kind": "godot", "img": "parity-warning/crops/en-godot-warning-corner.png", "note": "0.21/255."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "W1", "severity": "fixed",
+          "title": "Предупреждения о вспышках не было",
+          "web": "`EpilepsyWarning` показывается с первого кадра при каждом запуске (все сборки; только `?net=bc` пропускает): контент проявляется 320 мс, подсказка и закрытие — через 1500 мс (240 мс), планета пульсирует 0.13 → 0.24 за 4 s ease-in-out, клик ЛКМ гасит экран за 280 мс.",
+          "godot": "`WarningSplash` поверх `MainMenu`, пока не выставлен `Game.warning_seen` (меню перезагружается после каждого матча). Время — `WarningTimeline`; фон — шейдер `warning_backdrop`; планета — SVG web через `Image.load_svg_from_string`; абзац — `CssLineBreak` (переносы Chrome по дробным ширинам, CJK между иероглифами) и строки на CSS-базовой линии. Было: игра открывалась сразу в меню. Попутно `CssTiming.cubic_bezier` возвращает точные 0 и 1 на концах.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/warning_splash.gd", "sim/warning_timeline.gd", "nodes/css_line_break.gd", "assets/shaders/warning_backdrop.gdshader", "nodes/main_menu.gd", "autoloads/game.gd", "sim/css_timing.gd", "tests/unit/test_warning_timeline.gd", "tests/unit/test_warning_splash.gd", "web-reference/src/components/EpilepsyWarning.tsx"]
+        },
+        {
+          "id": "W2", "severity": "fixed",
+          "title": "Цветная иконка вместо контурной",
+          "web": "Глифа ⚠ нет в стеке `--ui-font`; Chrome берёт Segoe UI Symbol (CDP `getPlatformFontsForNode`): контурный треугольник, шаг 22.41 px, строка 35 px.",
+          "godot": "Иконка на явном `SystemFont` «Segoe UI Symbol», строка по его собственным метрикам (`UiFont.with_face_line`). Было (первый кадр сверки): системный запасной шрифт Godot дал цветной Segoe UI Emoji 46×33 px, заголовок сдвигался на 9 px вправо, всё ниже — на 3 px вверх.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/warning_splash.gd", "nodes/ui_font.gd"]
+        },
+        {
+          "id": "W3", "severity": "visual",
+          "title": "Ширина текста заставки на целых пикселях",
+          "web": "Абзац 17 px: шаг 9.18 + разрядка 0.68 = 9.86 px на символ (первая строка 709.92 px); WARNING 103.75 px; ПРЕДУПРЕЖДЕНИЕ 210.64 px.",
+          "godot": "Шаг 9 + разрядка 1 = 10 px: строки абзаца шире на ~10 px (центрированы по той же оси), заголовок en 107 px, ru 222 px — шапка ru левее на 5 px. Переносы совпадают: они считаются по дробным ширинам. Общий остаток «дробной разрядки».",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd", "nodes/warning_splash.gd"]
+        },
+        {
+          "id": "W4", "severity": "visual",
+          "title": "Высота китайских строк подсказки и заголовка",
+          "web": "14 px 单击继续 — строка 19 px, 19 px 警告 — 25 px (подъём и спуск YaHei округлены).",
+          "godot": "17 и 26 px: тот же остаток, что I9 отчёта i18n (системный запасной шрифт Godot округляет метрики вверх).",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/ui_font.gd"]
+        }
+      ],
+      "limitations": [
+        "Во время проявления (320 мс) и затухания (280 мс) прозрачность накладывается на каждый слой отдельно, а не на собранную группу, как CSS `opacity`; кадры сверки сняты вне переходов.",
+        "`filter: drop-shadow` иконки размывает и её `text-shadow`; в Godot это второе свечение самого глифа.",
+        "Линия тени чипа (`box-shadow 0 1px 0`) — нижняя граница скруглённой рамки на 1 px ниже, а не срез сдвинутой тени.",
+        "Растеризация SVG планеты — ThorVG, а не Skia: края кольца расходятся на доли уровня."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "id": "2026-09-15-fractional-spacing-glow",
+  "title": "Сверка паритета OneShot · дробная разрядка, тексты со свечением и HUD",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс FS3 переводит на `CssTextRun` тексты со свечением и эффектами серий: `GlowText` (текст и маска размытия) и `EffectText` (простой текст, свечение, глитч-копии) получили `configure_css`. На прогонах теперь логотип меню, карусель режимов, заголовок и имена итога матча, имена и таймер HUD, панель команд, баннер серии, индикатор ghost и StatsOverlay. Сверка — окно 1280×720 и выборочно весь экран против прежних web-кадров; «до» — кадры Godot до слайса (для меню и итога — финальные кадры FS2).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-fractional-spacing-glow.json`. Web (прежние кадры на GPU): `parity-capture-menu.mjs` → `test-results/parity-gpu-menu/web-menu.png`, `parity-capture-lobby-steam.mjs` → `parity-gpu-lobby-steam-2/web-steam-idle[-fs].png`, `parity-capture-buttons.mjs` → `parity-gpu-buttons/web-match-end.png`, `parity-capture-stats.mjs` → `parity-gpu-stats/web-stats.png` (+ `web-stats.json`), `parity-capture-profile.mjs` → `parity-gpu-p1/web-hud[-double].png`, `parity-capture-teams.mjs` → `parity-gpu-teams/web-match-2v2.png`; с `PARITY_FULLSCREEN=1` → `parity-fs-settings/web-menu.png`. Godot: `tools/screenshot.gd` → `test-results/parity-fs4/godot-*.png`: `scenes/main_menu.tscn` режимы `profile:menu-browser` (кадр 60), `profile:steam-idle` (95), на весь экран `profile:desktop-menu`, `profile:steam-idle`; `scenes/arena_test.tscn` + `res://maps/os_arena.json`: `profile` с матчем 1000 мс (кадр 480), `profile:hud-stats` (кадр 300; фикстура `web-stats.json` скопирована в папку кадра), `profile-double` и `profile` (кадры из фактов `parity-gpu-p1`), `profile:team-2v2` (кадр 300). «До»: `parity-fs3/godot-menu-browser.png`, `godot-match-end.png`, `godot-desktop-menu-fs.png`; `parity-fs2/godot-steam-idle[-fs].png`; `parity-gpu-stats/godot-stats.png`, `parity-gpu-p1/godot-hud[-double].png`, `parity-gpu-teams/godot-match-2v2.png`. Вырезки — `tools/parity/crop.py` → `test-results/parity-fs4-report/`. Пиксели — среднее отличие каналов (0–255) по области: логотип 440–840 × 150–270, карусель 330–950 × 90–180, центр итога 540–740 × 210–410, текст StatsOverlay 0–280 × 110–220, верхняя строка HUD 380–900 × 20–70.",
+  "pages": [
+    {
+      "slug": "fractional-spacing-glow",
+      "name": "Свечение и HUD",
+      "verdict": "Тексты со свечением и HUD встали по Chrome: строка FPS StatsOverlay 209.56 px при web 209.61 (до 208), таймер HUD 81×29 при CSS 80.6×29 (до 78×31), заголовок итога на месте web. Пиксели: текст StatsOverlay 1.57 → 0.67/255, центр итога 4.98 → 4.18 (кадр 0.64 → 0.61), логотип 4.73 → 4.16 (меню 0.29 → 0.26), карусель 1.15 → 1.05, верхняя строка HUD 7.05 → 4.39 и с эффектом double 9.38 → 6.94 (в кадрах разное время на таймере и фаза турбулентности). На весь экран меню и лобби не хуже прежнего. Открыто: `HBoxContainer` округляет дробные ширины — левая панель команд съезжает на ~2 px.",
+      "verdict_short": "Свечение и HUD как в Chrome",
+      "conditions": [
+        ["окно", "1280×720, pixel ratio 1", "`--resolution 1280x720`, `ui_scale` 1"],
+        ["весь экран", "2560×1440 CSS px × 1.5", "`--fullscreen` 3840×2160, `ui_scale` 1.5"],
+        ["рендер", "Chromium (Playwright), ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "кадры стадий main-menu, steam-lobby, ui-theme, stats, player-profiles, teams", "те же кадры: 60 / 95 (меню), 480 при матче 1000 мс (итог), 300 (HUD)"],
+        ["профиль", "PARITY7, en; бот EX82R", "PARITY7, en; бот EX82R"],
+        ["тесты", "—", "GUT 768/768 (`test_glow_text`, `test_effect_text`, `test_hud_stats_overlay`, `test_match_ended_overlay`)"]
+      ],
+      "comparisons": [
+        {"title": "StatsOverlay (×3)", "wipe": true,
+          "note": "Базовая линия — прогона (Chrome округляет подъём строки), ширина строки FPS 209.56 при web 209.61.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-stats.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-stats.png", "note": "1.57/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-stats.png", "note": "0.67/255"}
+          ]},
+        {"title": "Итог матча (×2)", "wipe": true,
+          "note": "Заголовок h1 с `padding-left` одной разрядки уравновешивает хвостовую — у прогона она есть, отступ задан явно.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-match-end.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-match-end.png", "note": "центр 4.98/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-match-end.png", "note": "центр 4.18/255"}
+          ]},
+        {"title": "Верхняя строка HUD (×2)", "wipe": true,
+          "note": "Таймер в кадрах разный (02:55 / 02:57): сравнение по раскладке имён и рамке.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-hud.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-hud.png", "note": "7.05/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-hud.png", "note": "4.39/255"}
+          ]},
+        {"title": "Верхняя строка HUD: серия ×2 (×2)", "wipe": true,
+          "note": "Турбулентность и глитч в web и Godot в разной фазе; ширины имён совпадают.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-hud-double.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-hud-double.png", "note": "9.38/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-hud-double.png", "note": "6.94/255"}
+          ]},
+        {"title": "Логотип меню (×2)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-menu-logo.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-menu-logo.png", "note": "4.73/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-menu-logo.png", "note": "4.16/255"}
+          ]},
+        {"title": "Карусель режимов (×2)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-carousel.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-carousel.png", "note": "1.15/255"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-carousel.png", "note": "1.05/255"}
+          ]},
+        {"title": "Панель команд 2v2 (×2)", "wipe": true,
+          "note": "Ширины по Chrome (таймер 81 px, строки на 0.5 px шире), но `HBoxContainer` округляет дробные минимальные ширины вверх — левая панель съезжает на ~2 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-fs4-report/web-team-bar.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-fs4-report/godot-before-team-bar.png", "note": "таймер 78×31"},
+            {"kind": "godot", "img": "parity-fs4-report/godot-team-bar.png", "note": "таймер 81×29"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "FS3-1", "severity": "fixed",
+          "title": "Целая разрядка текстов со свечением и эффектами серий",
+          "web": "text-shadow и SVG-фильтр поверх дробного текста.",
+          "godot": "`GlowText.configure_css` (текст и маска размытия — `CssLabel`, раскладка по `get_combined_minimum_size`), `EffectText.configure_css` (простой текст, свечение, глитч-копии); `CssLabel` рисует тень шрифта (глитч-копии ±1 px). Прежний `configure(font)` рисует нативно: отсчёт и итоги команд (разрядка 0), трейлер и заставка — хвост. Перенесены логотип, карусель, итог, имена и таймер HUD, панель команд, баннер, ghost, StatsOverlay.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/glow_text.gd", "nodes/effect_text.gd", "nodes/css_label.gd", "nodes/hud_top_bar.gd", "nodes/hud_team_bar.gd", "nodes/hud_stats_overlay.gd", "nodes/hud_streak_banner.gd", "nodes/hud_ghost_indicator.gd", "nodes/match_ended_overlay.gd", "nodes/main_menu.gd", "nodes/mode_carousel.gd", "tests/unit/test_glow_text.gd", "tests/unit/test_effect_text.gd"]
+        },
+        {
+          "id": "FS3-2", "severity": "fixed",
+          "title": "Заголовок итога левее на 6 px",
+          "web": "h1 итога: `padding-left` одной разрядки уравновешивает хвостовую.",
+          "godot": "Нативная подпись не ставила хвостовой спейсинг, и бокс был симметричным без отступа; прогон хвост включает — первая съёмка дала центр 12.52/255. Отступ слева `OUTCOME_SPACING_EM × OUTCOME_FONT_SIZE` у текста и маски — 4.18.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/match_ended_overlay.gd"]
+        },
+        {
+          "id": "FS3-3", "severity": "visual",
+          "title": "Дробные ширины в HBoxContainer HUD",
+          "web": "Flex-строки складывают дробные ширины.",
+          "godot": "`BoxContainer` округляет минимальные ширины детей вверх: строки панели команд шире на 1.7–2.5 px, левая панель съезжает на ~2 px. Нужна дробная строка (`CssRow`).",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/hud_team_bar.gd", "nodes/hud_top_bar.gd"]
+        },
+        {
+          "id": "FS3-4", "severity": "visual",
+          "title": "Хвост разрядки",
+          "web": "Все тексты дробные.",
+          "godot": "На целой разрядке: трейлер (титр, перебивки), заставка M6, тост приглашения (`RichTextLabel`), поля ввода (`LineEdit`).",
+          "evidence": ["code"],
+          "sources": ["nodes/trailer_title_card.gd", "nodes/trailer_cut_view.gd", "nodes/warning_splash.gd", "nodes/invite_toast.gd"]
+        },
+        {
+          "id": "FS3-5", "severity": "missing",
+          "title": "Нет кнопки RADIO и мини-плеера",
+          "web": "Десктопное меню и лобби показывают RADIO и мини-плеер.",
+          "godot": "Слайс радио; колонка меню на весь экран 4.42 → 4.41/255.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/radio"]
+        }
+      ],
+      "limitations": [
+        "Первая съёмка StatsOverlay шла без фикстуры (`hud-stats` читает `web-stats.json` из папки выходного PNG) и показывала 0 FPS; в отчёте — повторная съёмка с фикстурой.",
+        "Кадры HUD сняты в другое время матча, чем web: таймер и фаза турбулентности различаются, пиксели верхней строки — ориентир, не мера.",
+        "У `web-teams.json` нет рамок элементов: панель команд сверена по вырезкам.",
+        "Кадры итога и HUD на весь экран не снимались."
+      ]
+    }
+  ]
+}

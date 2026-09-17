@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.json_pack"
+type="Resource"
+uid="uid://bfyslvabuj3al"
+path="res://.godot/imported/os_pool_day.map-0263ba35eb1ee6274704dd3a37f7c2fb.res"
+
+[deps]
+
+source_file="res://maps/os_pool_day.map"
+dest_files=["res://.godot/imported/os_pool_day.map-0263ba35eb1ee6274704dd3a37f7c2fb.res"]
+
+[params]
+

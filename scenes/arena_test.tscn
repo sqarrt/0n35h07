@@ -1,0 +1,13 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://nodes/arena_boot.gd" id="boot"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="p"]
+[ext_resource type="Script" path="res://nodes/human_controller.gd" id="hc"]
+
+[node name="ArenaTest" type="Node3D"]
+script = ExtResource("boot")
+
+[node name="Player" parent="." instance=ExtResource("p")]
+
+[node name="HumanController" type="Node" parent="."]
+script = ExtResource("hc")

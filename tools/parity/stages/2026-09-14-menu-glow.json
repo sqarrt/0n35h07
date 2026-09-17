@@ -1,0 +1,104 @@
+{
+  "id": "2026-09-14-menu-glow",
+  "title": "Сверка паритета OneShot · свечение краёв и размытие панели меню",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс закрывает два эффекта 3D-фона меню, открытых в отчёте menu-backdrop. Первый — web `MenuEdgeGlow`: контур по разрыву глубины слоя моделей, яркий в HDR, раздутый Bloom из postprocessing 6.39.1 (порог 1.1, mipmap-размытие на 8 уровней, смешивание SCREEN); яркость идёт от уровня звука. Второй — `backdrop-filter: blur(2px)` панели меню. Для детерминированных кадров уровень звука закреплён хуком `__debugMenuGlowLevel` (web) и `pin_glow_level` (Godot).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-menu-glow.json`. Web: `web-reference/scripts/parity-capture-lobby-stage.mjs` (War, пассивные B1–B3; UI скрыт, свет 0, часы шаров 1 с, уровень свечения 0.1 и 1) и `parity-capture-menu-ball.mjs` (меню целиком, свет 0°) → `test-results/parity-gpu-menu/web-*.png`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режимы `profile:stage-ffa-glow-<level>` и `profile:menu-full-0` (90 кадров) → `godot-*.png`. Замеры: среднее отличие каналов по кадру и по рамкам, профили строк (`tools/parity/measure.py read_png`); вырезки — `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "edge-glow",
+      "name": "Свечение краёв",
+      "verdict": "Свечение перенесено. Кадр War со свечением отличается от web на 0.19/255 при уровне звука 0.1 и на 0.27/255 при уровне 1. Профиль через край жёлтого шара (строка 270, x 568–580) совпадает до 1–6 уровней, пик контура (146, 148, 153) одинаковый. Без свечения кадры не изменились: шар меню 0.04/255, War 0.03/255.",
+      "verdict_short": "Свечение совпадает",
+      "conditions": [
+        ["экран", "PLAY → War, пассивные B1–B3", "`open_lobby`, `set_mode(ffa)`, `add_bot` ×3"],
+        ["окно", "1280×720", "1280×720, `--fixed-fps 60`, 90 кадров"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080"],
+        ["фикстура", "UI скрыт; свет 0; `__debugMenuBallTime` 1 с; `__debugMenuGlowLevel` 0.1 / 1", "`PanelBlur`, `Panel`, `Version`, `LobbyScreen` скрыты; `set_light_angle(0)`; `pin_ball_time(1)`; `pin_glow_level(0.1 / 1)`"],
+        ["тесты", "—", "GUT 474/474"]
+      ],
+      "comparisons": [
+        {"title": "Уровень звука 1 (полное свечение)", "wipe": true,
+          "note": "Контур серый у шаров и жёлтый у кольца планеты, Bloom над ярким краем.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-glow-1.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-glow-1.png", "note": "Кадр 0.27/255."}
+          ]},
+        {"title": "Уровень звука 0.1", "wipe": true,
+          "note": "√(0.1·3.2) ≈ 0.57 от полной яркости.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-glow-0.1.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-glow-0.1.png", "note": "Кадр 0.19/255."}
+          ]},
+        {"title": "Край шара (увеличение ×3)", "wipe": true,
+          "note": "Двойная линия контура: край силуэта и ступень глубины внутри радиуса размытия 4 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-glow-1-yellow.png", "note": "x 570: (146, 148, 153)."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-glow-1-yellow.png", "note": "x 570: (146, 148, 153)."}
+          ]},
+        {"title": "Кольцо планеты (увеличение ×3)", "wipe": true,
+          "note": "Кольцо пишет глубину по всему кольцу и даёт контуру свой цвет.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-glow-1-ring.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-glow-1-ring.png", "note": "—"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MB4", "severity": "fixed",
+          "title": "Свечение краёв моделей",
+          "web": "`MenuEdgeGlow`: `ObjDepthPass` (слой моделей), `EdgeGlowEffect` (8 точек на радиусе 4 px, разрыв глубины ±1.5 px, порог 0.05, цвет модели + 15% белого × 4), `BloomEffect` (яркость по порогу 1.1 и сглаживанию 0.3 в полном размере, mipmap-размытие 8 уровней с радиусом 0.55, сила 1.5, SCREEN); уровень √(RMS·3.2), сглаживание 0.18 за кадр, монтирование через 600 мс.",
+          "godot": "`MenuEdgeGlow` — цепочка float-вьюпортов, каждый вложен в читающий его (Godot рисует дочерний вьюпорт раньше родителя): Up0…Up6 ⊃ Down7…Down0 ⊃ Luminance ⊃ Edge ⊃ {Depth ⊃ World, ModelColor}. Шейдеры `menu_glow_depth`, `menu_edge_glow`, `bloom_luminance`, `bloom_downsample`, `bloom_upsample` — порты исходников postprocessing. Композит `menu_backdrop_composite`, яркость — `MenuGlowLevel`. Цепочка рисуется только пока свечение видно.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/menu_edge_glow.gd", "sim/menu_glow_level.gd", "nodes/menu_backdrop.gd", "assets/shaders/menu_edge_glow.gdshader", "assets/shaders/menu_glow_depth.gdshader", "assets/shaders/bloom_luminance.gdshader", "assets/shaders/bloom_downsample.gdshader", "assets/shaders/bloom_upsample.gdshader", "assets/shaders/menu_backdrop_composite.gdshader", "tests/unit/test_menu_edge_glow.gd", "tests/unit/test_menu_glow_level.gd", "web-reference/src/components/MenuEdgeGlow.tsx"]
+        },
+        {
+          "id": "MG1", "severity": "fixed",
+          "title": "Шары в проходе моделей чёрные",
+          "web": "three.js фильтрует источники света слоями камеры: проход `ObjDepthPass` видит только слой моделей, свет на него не попадает, освещаемые шары выходят чёрными. Цвет контура у шаров — нейтральный серый (0.15 белого × 4), у кольца (unlit-шейдер) — цвет кольца.",
+          "godot": "Модели в проходах заменены двойниками на своих слоях: чёрный шар с той же волной (`ball_waves.gdshaderinc`), непрозрачное кольцо для глубины, копия кольца для цвета. Двойники берут параметры моделей каждый кадр. Первая версия брала цвет освещённой сцены: контур был жёлтым и ярче (пик 182 против 146, кадр 0.85/255).",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["assets/shaders/menu_glow_proxy.gdshader", "assets/shaders/ball_waves.gdshaderinc", "assets/shaders/ball.gdshader", "nodes/menu_edge_glow.gd"]
+        }
+      ],
+      "limitations": [
+        "Живой уровень звука в Godot берётся из `AudioAnalysisHub` (свой анализатор), в web — из `AnalyserNode`; при музыке пульсация сверена по формуле, не по кадрам.",
+        "Мягкий Bloom радио (`softBloom`) и приглушение свечения на экране внешности не перенесены: радио и экрана APPEARANCE ещё нет. Настройка профиля `menuGlow` уже гасит свечение.",
+        "Пока свечение видно, рисуются 19 дополнительных вьюпортов; в тишине цепочка стоит."
+      ]
+    },
+    {
+      "slug": "panel-blur",
+      "name": "Размытие под панелью",
+      "verdict": "Размытие перенесено. Край шара под панелью совпадает с web до 1 уровня: рамка левой дуги отличается на 0.16/255, нижней — на 0.17/255 (было 0.94/255 по рамке шара с резким краем). Кадр меню целиком — 0.38/255; остаток приходится на глифы логотипа (известная дробная разрядка).",
+      "verdict_short": "Размытие совпадает",
+      "conditions": [
+        ["экран", "главное меню целиком, свет 0°", "`profile:menu-full-0`"],
+        ["размытие", "`.menu-panel { backdrop-filter: blur(2px) }`", "`PanelBlur` под панелью, шейдер `backdrop_blur` σ 2 px"]
+      ],
+      "comparisons": [
+        {"title": "Край шара под панелью (увеличение ×3)", "wipe": true,
+          "note": "Заливка панели 72% поверх размытого фона.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-menu/crops/web-menu-full-edge.png", "note": "Строка 420: 10 → 35 за x 327–337."},
+            {"kind": "godot", "img": "parity-gpu-menu/crops/godot-menu-full-edge.png", "note": "Строка 420: те же значения ±1."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "MB5", "severity": "fixed",
+          "title": "Размытие фона под панелью",
+          "web": "`.menu-panel`: `backdrop-filter: blur(2px)`: гауссово размытие σ 2 px всего, что под рамкой панели, затем заливка rgba(10,12,17,.72).",
+          "godot": "`MainMenu._backdrop_blur`: ColorRect `PanelBlur` по рамке панели перед `Panel`. Шейдер `backdrop_blur`: экранная текстура по целым пикселям, ядро 3σ, выборки за краем отражаются внутрь рамки. Было: край шара за панелью резкий.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["assets/shaders/backdrop_blur.gdshader", "nodes/main_menu.gd", "tests/unit/test_main_menu.gd", "web-reference/src/ui/theme.css"]
+        }
+      ],
+      "limitations": [
+        "Режим края (отражение внутрь рамки) выбран по поведению Chrome, но не сверен кадром: в снятых кадрах у краёв панели однородный фон.",
+        "Кадры фона без UI теперь прячут и `PanelBlur` (web прячет `.screen` вместе с размытием); первая съёмка без этого размыла шары на ±3 px."
+      ]
+    }
+  ]
+}

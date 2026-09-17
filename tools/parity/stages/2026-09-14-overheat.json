@@ -1,0 +1,104 @@
+{
+  "id": "2026-09-14-overheat",
+  "title": "Сверка паритета OneShot · перегрев (OVERHEAT)",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап OV + G11e: модификаторы перегрева (скорость ×1.1/1.2/1.3, кулдауны луча и щита ×1.15/1.3/1.5), режим SINGULARITY (у ВСЕХ игроков луч и прицел сквозь блоки, блоки карты прозрачны на 20%), ускорение призрака ×2 и HUD своего игрока — красная пульсирующая виньетка и молнии по краям экрана. Кадры web сняты с настоящей серией (новый хук `__debugSetStreak`); анимации молний поставлены на паузу на пике вспышки, а их форма выгружена в JSON, чтобы Godot нарисовал те же самые молнии.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-overheat.json`. Web: `web-reference/scripts/parity-capture-overheat.mjs` → `test-results/parity-gpu-ov/` (os_arena, серии 2/3/5) и `test-results/parity-gpu-ov/os_pillars/` (`PARITY_MAP=os_pillars`, `PARITY_TIERS=singularity`); пробник размытия `parity-probe-drop-shadow.mjs` → `test-results/probes/drop-shadow/`. Godot: `tools/screenshot.gd` режим `profile:hud-overheat-<tier>` (кадр 300, молнии из `web-overheat-<tier>.json`). Замеры пикселей: `tools/parity/measure.py read_png`; вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "overheat",
+      "name": "Виньетка и молнии перегрева, прозрачные блоки SINGULARITY",
+      "verdict": "Виньетка совпадает с web попиксельно (±2/255 от края до 140 px на всех трёх уровнях), молнии — те же зигзаги, толщина штриха и двойное свечение. Прозрачность блоков при SINGULARITY перенесена: стены и столбы становятся прозрачными в тот же момент. Открыто одно расхождение, найденное этой сверкой: в web поверх блоков рисуется контур рёбер (пост-обработка `MapEdges`, включена по умолчанию) — в Godot его нет, поэтому прозрачные столбы в Godot без светлых рёбер. Функциональная часть (модификаторы, pierce для всех, ускорение призрака) проверена тестами.",
+      "verdict_short": "Перегрев перенесён; открыт контур рёбер блоков (MapEdges)",
+      "conditions": [
+        ["карты", "`os_arena`, `os_pillars`", "`maps/os_arena.json`, `maps/os_pillars.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["игрок", "PARITY7 `#fa4`, первое лицо, `__debugSetStreak(0, 2 / 3 / 5)`", "то же, `player.streak = 2 / 3 / 5`"],
+        ["кадр", "300 мс после серии; ov-strike на 4%, ov-pulse на 0% (пауза)", "2 кадра после серии; молнии web на пике, пульс в начале"],
+        ["размытие drop-shadow", "Chrome: N px → σ = N (замер 1.95 и 4.97 для 2 и 5 px)", "σ 2 и 5, цепочка из вложенных SubViewport"],
+        ["тесты", "—", "GUT 319/319, 1160 проверок"]
+      ],
+      "comparisons": [
+        {"title": "Уровень double, левая молния (увеличение ×3)", "wipe": true,
+          "note": "Виньетка a 0.05 r 40; 3 молнии на сторону.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-ov/crops/web-overheat-double-left.png", "note": "Молния и красный край."},
+            {"kind": "godot", "img": "parity-gpu-ov/crops/godot-overheat-double-left.png", "note": "Та же молния."}
+          ]},
+        {"title": "Уровень triple, правая молния (увеличение ×3)", "wipe": true,
+          "note": "Виньетка a 0.085 r 58; справа молнии отражены.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-ov/crops/web-overheat-triple-right.png", "note": "Отражённая молния."},
+            {"kind": "godot", "img": "parity-gpu-ov/crops/godot-overheat-triple-right.png", "note": "Та же."}
+          ]},
+        {"title": "Уровень singularity, левая молния (увеличение ×3)", "wipe": true,
+          "note": "Виньетка a 0.14 r 78; 10 молний на сторону; развилки 0.75 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-ov/crops/web-overheat-singularity-left.png", "note": "Молния с развилками."},
+            {"kind": "godot", "img": "parity-gpu-ov/crops/godot-overheat-singularity-left.png", "note": "Те же развилки и свечение."}
+          ]},
+        {"title": "Кадр целиком: singularity на os_arena", "wipe": true,
+          "note": "Красные края, 20 молний, стены арены прозрачны (серия 5 у игрока).",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-ov/web-overheat-singularity.png", "note": "Стена слева (26,28,32)."},
+            {"kind": "godot", "img": "parity-gpu-ov/godot-overheat-singularity.png", "note": "Стена слева (23,24,26)."}
+          ]},
+        {"title": "Прозрачные блоки SINGULARITY на os_pillars (увеличение ×2)", "wipe": true,
+          "note": "Все блоки α 0.2 без записи глубины; бот виден сквозь столбы.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-ov/crops/web-pillars-see-through.png", "note": "Светлые рёбра — пост-обработка MapEdges."},
+            {"kind": "godot", "img": "parity-gpu-ov/crops/godot-pillars-see-through.png", "note": "Та же прозрачность, рёбер нет."}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "OV", "severity": "fixed",
+          "title": "Модификаторы перегрева и режим SINGULARITY не действовали",
+          "web": "`Match.applyComeback` каждый тик: `applyOverheat()` всем (скорость, кулдауны), `pierceWalls` всем при серии ≥ 5 у кого-либо, `World.setBlocksTransparent` при смене режима.",
+          "godot": "`Player.apply_overheat` / `see_through`, `MatchRules.apply_comeback`, сигнал `MatchNode.singularity_changed` → `MapBlocks.set_transparent`; луч передаёт pierce в `WorldRaycaster` (маска без блоков). Было: модификаторы не подключены, pierce всегда false.",
+          "evidence": ["test", "screenshot", "code"],
+          "sources": ["sim/player.gd", "sim/match_rules.gd", "sim/weapon.gd", "nodes/world_raycaster.gd", "nodes/map_blocks.gd", "tests/unit/test_overheat.gd", "tests/unit/test_map_blocks.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "OV-2", "severity": "fixed",
+          "title": "Призрак не ускорялся",
+          "web": "`Player.respawnSpeedMult`: ×2 в фазе призрака, плавно к ×1 на последних 30% фазы.",
+          "godot": "`Player.respawn_speed_mult` в `move_intent`. Было: призрак двигался с обычной скоростью.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/player.gd", "sim/match_const.gd", "tests/unit/test_overheat.gd"]
+        },
+        {
+          "id": "OV-3", "severity": "fixed",
+          "title": "Прозрачность стеклянных блоков 0.3 вместо 0.2",
+          "web": "`BLOCK_TRANSPARENT_OPACITY = 0.2`.",
+          "godot": "`MapBlocks.GLASS_OPACITY = 0.2` (было 0.3 в `GeoLoader`).",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/map_blocks.gd", "nodes/geo_loader.gd", "web-reference/src/constants.ts"]
+        },
+        {
+          "id": "G11e", "severity": "fixed",
+          "title": "Виньетка и молнии перегрева",
+          "web": "`OverheatVignette`: inset box-shadow с растеканием и пульсом, молнии с `drop-shadow(0 0 2px #ff4a36) drop-shadow(0 0 5px #ff2a18)` и мерцанием ov-strike.",
+          "godot": "`HudOverheatVignette` + `OverheatFx`, шейдеры `hud_vignette` (spread) и `overheat_bolts`. Было: не было.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_overheat_vignette.gd", "sim/overheat_fx.gd", "assets/shaders/overheat_bolts.gdshader", "tests/unit/test_overheat_fx.gd", "tests/unit/test_hud_overheat_vignette.gd", "web-reference/src/components/OverheatVignette.tsx"]
+        },
+        {
+          "id": "PP1", "severity": "missing",
+          "title": "Нет контура рёбер блоков (пост-обработка MapEdges)",
+          "web": "`Arena.tsx`: при `postProcessing` (по умолчанию true) `MapEdges` — EffectComposer с проходом нормалей+глубины только для блоков (BLOCK_LAYER) и эффектом, осветляющим цвет блока на разрывах нормалей там, где блок виден.",
+          "godot": "Пост-обработки нет; настройка `postProcessing` хранится в профиле, но ничего не включает. Заметно на прозрачных блоках и на рёбрах непрозрачных. Следующий слайс.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["web-reference/src/components/EdgeOutline.tsx", "web-reference/src/Arena.tsx", "sim/player_profile.gd"]
+        }
+      ],
+      "limitations": [
+        "Прозрачная стена в web на 3–6 единиц светлее и холоднее (26,28,32 против 23,24,26): у web кадр идёт через EffectComposer контура рёбер; перепроверить после переноса MapEdges.",
+        "Прозрачность каждой молнии в Godot накладывается на её прямоугольник после цепочки свечения; у пересекающихся свечений соседних молний берётся максимум (в web — прозрачность каждого элемента отдельно).",
+        "Кадры молний сравнивают застывший пик вспышки; ритм, задержки и перерисовка формы проверены тестами.",
+        "Внизу кадров web — полоса AudioBar; в Godot её пока нет (бэклог «звук»)."
+      ]
+    }
+  ]
+}

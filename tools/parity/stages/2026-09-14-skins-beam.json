@@ -1,0 +1,99 @@
+{
+  "id": "2026-09-14-skins-beam",
+  "title": "Сверка паритета OneShot · скины: лучи",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Этап G11b: луч выстрела в стиле замаха игрока — classic (белое ядро и оболочка цвета игрока, сжатие и послесвечение), rage (ядро и семь дребезжащих сегментов, ступенчатое затухание) и singularity (тёмная нить, слабая оболочка и спираль частиц, втягивающаяся в дуло). У ботов, как в web, всегда классический луч с красной оболочкой; искры попадания — только от своих выстрелов человека, даже в щит. Для кадров web добавлен отладочный хук `__debugTimeScale`: без замедления 200-миллисекундный луч не успевает попасть в скриншот.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-skins-beam.json`. Web: `web-reference/scripts/parity-capture-beams.mjs` → `test-results/parity-gpu-g11b/` (профиль PARITY7 `#fa4` с `windupStyle` classic / rage / singularity, клавиша V, `__debugTimeScale(0.05)`, клик, кадр через 50 мс симуляции после выстрела). Godot: `tools/screenshot.gd` режим `profile:third-person-shot-<style>` (27 кадров после клика = выстрел + 50 мс). Вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "skins-beam",
+      "name": "Лучи трёх стилей",
+      "verdict": "Все три луча совпадают с web по составу, цветам, толщине и направлению: classic — белое ядро с оранжевой оболочкой цвета игрока; rage — сплошное белое ядро и смещённые сегменты оболочки; singularity — тонкая нить со слабой оболочкой и квадратными частицами спирали вдоль луча. На этапе исправлены частицы спирали: они стояли со смещением на позицию игрока. Размер шара на кадрах не сравним: сдувание шара в web идёт по реальным часам и хуком замедления не замедляется.",
+      "verdict_short": "Лучи classic / rage / singularity перенесены; правила искр и луча бота как в web",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["стрелок", "PARITY7 `#fa4`, третье лицо, пассивный бот EX82R впереди", "то же"],
+        ["момент кадра", "50 мс симуляции после выстрела (`__debugTimeScale` 0.05)", "кадр выстрел + 3 (≈ 50 мс)"],
+        ["тесты", "—", "GUT, см. коммит слайса"]
+      ],
+      "comparisons": [
+        {
+          "title": "Classic (увеличение ×2)",
+          "wipe": true,
+          "note": "Белое ядро r 0.05 и оболочка r 0.15 цвета игрока (additive 0.6), радиус сжимается за 200 мс.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11b/crop-web-classic.png", "note": "Шар уже сдулся (реальные часы)."},
+            {"kind": "godot", "img": "parity-gpu-g11b/crop-godot-classic.png", "note": "Шар ещё раздут — сдувание по часам кадров."}
+          ]
+        },
+        {
+          "title": "Rage (увеличение ×2)",
+          "wipe": true,
+          "note": "Сплошное белое ядро и 7 сегментов оболочки со случайным боковым смещением до 0.22; смещения на кадрах случайны.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11b/crop-web-rage.png", "note": "Крупный смещённый сегмент в середине."},
+            {"kind": "godot", "img": "parity-gpu-g11b/crop-godot-rage.png", "note": "Сегменты ближе к ядру (другой бросок); шар раскалён при сдувании."}
+          ]
+        },
+        {
+          "title": "Singularity (увеличение ×2)",
+          "wipe": true,
+          "note": "Тёмная нить r 0.03, слабая оболочка r 0.09 (0.25) и 64 частицы спирали цвета игрока.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-g11b/crop-web-singularity.png", "note": "Квадраты спирали вдоль луча."},
+            {"kind": "godot", "img": "parity-gpu-g11b/crop-godot-singularity.png", "note": "После исправления спираль идёт вдоль луча."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G11b", "severity": "fixed",
+          "title": "Скины луча",
+          "web": "`createBeamFx(windupStyle, color)` для людей: ClassicBeamFx / RageBeamFx / SingularityBeamFx; луч рисуется в тот же тик, что и выстрел.",
+          "godot": "`BeamFx.setup(style, colour)` со всеми тремя стилями; кривые в `BeamCurves`. Было: одна голубая палка-заглушка.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/beam_fx.gd", "sim/beam_curves.gd", "tests/unit/test_beam_curves.gd", "tests/unit/test_beam_skins.gd", "web-reference/src/game/fx/beam"]
+        },
+        {
+          "id": "G11b-2", "severity": "fixed",
+          "title": "Луч бота и искры попадания (найдено на этапе)",
+          "web": "Бот стреляет `new BeamWeapon({ outerColor: '#f44' })` — классический луч с красной оболочкой; `spawnImpact` только для выстрелов человека, при любом исходе (и при блоке щитом).",
+          "godot": "Было: искры у любого стрелка и только без щита. Стало как в web.",
+          "evidence": ["code", "test"],
+          "sources": ["nodes/player_node.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "G11a-3", "severity": "fixed",
+          "title": "«Пуф» при появлении в начале матча (исправление G11a)",
+          "web": "Match ставит каждого на спавн через `respawnAt` → `spawnTime = now`, «пуф» играет и при первом появлении.",
+          "godot": "Было: часы «пуфа» начинались с −∞. Стало: с момента создания игрока.",
+          "evidence": ["code"],
+          "sources": ["nodes/player_node.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "G11b-3", "severity": "fixed",
+          "title": "Частицы спирали смещены (найдено на этапе)",
+          "web": "Точки спирали в мировых координатах вдоль луча.",
+          "godot": "Было: трансформы экземпляров MultiMesh в мире, а узел — дочерний у игрока, точки смещались на его позицию. Стало: узел спирали `top_level`.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/beam_fx.gd"]
+        },
+        {
+          "id": "OV1", "severity": "behavior",
+          "title": "Сквозной луч в режиме SINGULARITY",
+          "web": "`world.raycast(..., ctx.pierceWalls)` — при перегреве луч проходит сквозь блоки.",
+          "godot": "Флаг сквозного луча не передаётся в рейкаст. Слайс перегрева.",
+          "evidence": ["code"],
+          "sources": ["sim/weapon.gd", "web-reference/src/game/BeamWeapon.ts"]
+        }
+      ],
+      "limitations": [
+        "Хук `__debugTimeScale` замедляет только симуляцию: визуальные часы web (`Date.now()`: сдувание шара, «пуф») идут в реальном времени, поэтому размер и цвет шара на кадрах web не сравнимы с Godot.",
+        "Смещения сегментов rage и фаза спирали singularity случайны или зависят от времени — сравнивается характер, не пиксели.",
+        "Послесвечение classic, втягивание singularity и ступени rage проверены тестами по ключевым моментам, а не кадрами."
+      ]
+    }
+  ]
+}

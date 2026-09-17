@@ -1,0 +1,86 @@
+{
+  "id": "2026-09-15-radio-beat",
+  "title": "OneShot · радио R3c2: биты, камера и дождь эмодзи",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Вторая часть слайса R3c (takeover экрана радио). В 3D-фон экрана радио встроена реакция на музыку web: бит-часы по темпу трека с фазовой подстройкой по ударам низких полос, панч и лёгкая дрожь камеры на каждый бит, дождь эмодзи из шрифта Twemoji Mozilla по настроению трека — они рождаются только на бит, падают, пульсируют и исчезают внизу. Полосы спектра приходят со страницы движка (8 полос, 30 Гц) и вместе с музыкой меню собираются в общий анализ звука. Поведение случайное и зависит от звука, поэтому сверка — тестами на формулы web и живой пробой в игре: кадр неподвижного экрана с тихим спектром не изменился (0.06 / 0.03 от web).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-beat.json`. Живая проба: `Godot.exe --path . tools/probes/radio_takeover_probe.tscn` (радио выключено — без звука на машине; фону закреплён синтетический спектр: удар каждые 60/138 с) → `test-results/probes/radio_takeover/frame.png`. Метр живого движка записан той же пробой в раннем варианте (`meter.json`, 1818 событий за 60 с). Неподвижный экран: `locale-en:profile:radio-glow-radio` против `web-reference/scripts/parity-capture-radio-glow.mjs` (`__debugAudioBands` — тишина). Тесты GUT: `test_radio_beat_clock`, `test_radio_camera_punch`, `test_radio_emoji_moods`, `test_radio_emoji_rain`, `test_menu_backdrop_takeover`, `test_audio_analysis_hub_readers`, `test_radio_autoload`.",
+  "pages": [
+    {
+      "slug": "radio-beat",
+      "name": "Биты и эмодзи",
+      "verdict": "Takeover работает в запущенной игре: из 46 синтетических ударов при 138 BPM сработали 45 битов, одновременно в кадре до 22 эмодзи Twemoji из набора dark_hypnotic, камера двигалась 2329 кадров из ~2380 (119 Гц). Без битов (тихий спектр) экран радио совпадает с web как и до слайса: 0.06/255 в окне, 0.03 на весь экран — камера остаётся на позе, эмодзи не рождаются. Полосы живого движка приходят 30 раз в секунду; на тихой громкости радио (ниже VIS_MIN_VOLUME движка) самые низкие полосы насыщены без всплесков, и битов нет — так же, как у web на той же громкости.",
+      "verdict_short": "Биты, камера, эмодзи работают; неподвижный вид 1:1",
+      "conditions": [
+        ["проба", "—", "игра (сцена), экран радио, радио выключено, синтетический удар каждые 0.435 с, настроение dark_hypnotic"],
+        ["неподвижный кадр", "Chrome, тихий `__debugAudioBands`, закрепления фона", "`pin_beat_bands([])`, те же закрепления"],
+        ["метр движка", "readBands 8 полос на кадр", "страница хоста шлёт 8 полос раз в 33 мс"],
+        ["эмодзи", "Twemoji Mozilla в canvas-спрайтах 64 px", "тот же шрифт в Label3D (48 px, 0.12 ед. на 64 px)"]
+      ],
+      "comparisons": [
+        {
+          "title": "Экран радио с битами, живой кадр Godot (весь экран)",
+          "note": "Кадр с наибольшим числом эмодзи; у web тот же вид — только на живой музыке, случайный.",
+          "panels": [
+            {"kind": "godot", "img": "parity-radio-beat-report/godot-takeover-live.png", "note": "45 битов / 46 ударов, до 22 эмодзи"}
+          ]
+        },
+        {
+          "title": "Без битов: экран радио, окно",
+          "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-radio-beat-report/web-radio-still.png", "note": "—"},
+            {"kind": "godot", "img": "parity-radio-beat-report/godot-radio-still.png", "note": "0.06/255"}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "R3c2-1", "severity": "fixed",
+          "title": "Бит-часы",
+          "web": "`BeatClock`: сетка 60/bpm, фаза подтягивается к всплескам > 0.09 с усилением 0.2; бит — всплеск полос 0+1 > 0.035 в окне 26 % интервала от тика и не раньше 40 % интервала после прошлого; сила — всплеск / 0.35.",
+          "godot": "`RadioBeatClock` с теми же константами; живёт в фоне между визитами, как модульное состояние web.",
+          "evidence": ["test", "runtime"],
+          "sources": ["sim/radio/radio_beat_clock.gd", "tests/unit/test_radio_beat_clock.gd"]
+        },
+        {
+          "id": "R3c2-2", "severity": "fixed",
+          "title": "Панч и дрожь камеры",
+          "web": "`RadioCameraMod`: бит задаёт цель зума 0.05 + 0.32·сила (подъём τ 0.045, спад τ 0.22), дрожь 0.006·сила (τ 0.08), после рига камеры и до рендера.",
+          "godot": "`RadioCameraPunch`; `MenuBackdrop` шагает takeover сразу после `_place_camera`, до синхронизации камер свечения.",
+          "evidence": ["test", "runtime"],
+          "sources": ["sim/radio/radio_camera_punch.gd", "nodes/radio/radio_takeover.gd", "nodes/menu_backdrop.gd"]
+        },
+        {
+          "id": "R3c2-3", "severity": "fixed",
+          "title": "Дождь эмодзи",
+          "web": "`EmojiRain`: пул 36, 1–2 на бит у верхнего края видимой области на глубине 3.2, падение 0.35 + 0.4·уровень с рывком ×(1 + 6·сила) и пульсом ×(1 + 1.1·сила), разброс скорости и размера, наборы по подстроке настроения, шрифт Twemoji Mozilla.",
+          "godot": "`RadioEmojiRain` на `Label3D` со шрифтом `assets/fonts/Twemoji.Mozilla.ttf` (лицензия рядом), `RadioEmojiMoods` с порядком ключей web.",
+          "evidence": ["test", "runtime"],
+          "sources": ["nodes/radio/radio_emoji_rain.gd", "sim/radio/radio_emoji_moods.gd", "assets/fonts/Twemoji-LICENSE.txt"]
+        },
+        {
+          "id": "R3c2-4", "severity": "fixed",
+          "title": "Спектр радио в анализе звука",
+          "web": "`addBandReader(out => radioEngine.readBands(out))`: бит-часы читают 8 полос, собранных максимумом со всех источников.",
+          "godot": "`AudioAnalysisHub.fill_bands(out)` раскладывает последнее чтение каждого источника (без повторного сглаживания) и зовёт источники полос; `Radio` отдаёт 8 полос метра страницы.",
+          "evidence": ["test", "runtime"],
+          "sources": ["sim/audio_analysis_hub.gd", "autoloads/radio.gd", "tests/unit/test_audio_analysis_hub_readers.gd"]
+        },
+        {
+          "id": "R3c2-5", "severity": "platform",
+          "title": "На тихой громкости радио битов нет",
+          "web": "Анализатор движка стоит после громкости; ниже VIS_MIN_VOLUME = 0.03 окно дБ больше не сдвигается, и нижние полосы упираются в постоянную подложку.",
+          "godot": "Страница хоста — тот же код движка: запись метра при громкости 0.02 — удар 1.69–1.76 (σ 0.018), ни одного всплеска > 0.035 за 60 с. Поведение эталона, не порта.",
+          "evidence": ["runtime"],
+          "sources": ["web-reference/src/radio/music/StrudelWebEngine.ts", "tools/probes/radio_takeover_probe.gd"]
+        }
+      ],
+      "limitations": [
+        "Сравнения кадр-в-кадр с битами нет: биты и эмодзи случайны и зависят от живого звука (Math.random у web).",
+        "Биты на настоящей музыке на обычной громкости не проверялись — это минута громкого звука на машине; логика бит-часов проверена тестами, отрисовка — синтетическим ударом.",
+        "Полосы движка приходят 30 Гц против 60 Гц чтения у web; на синтетическом ударе это не мешает (45/46)."
+      ]
+    }
+  ]
+}

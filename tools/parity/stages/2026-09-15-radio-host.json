@@ -1,0 +1,64 @@
+{
+  "id": "2026-09-15-radio-host",
+  "title": "OneShot · радио R1: движок в WebView",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R1 подпроекта «радио». Музыку в десктопной (Steam) сборке web пишет Strudel — только браузер (Web Audio, AudioWorklet, сэмплы с CDN). В Godot тот же код движка web (RadioController, StrudelWebEngine, композитор, банки) собран отдельной страницей и живёт во встроенном WebView (godot_wry, WebView2); Godot говорит с ним по JSON-протоколу. Сверки кадров в этом слайсе нет — интерфейса радио ещё нет; отчёт фиксирует живой прогон моста на Windows и факты эксперимента, из которых выросла архитектура.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-host.json`. Хост: `web-reference/src/radio/host/hostProtocol.ts` + `radioHost.ts`, сборка `npx vite build --config vite.radio-host.config.ts` → `localhost/radio_host/` (index.html + один бандл 719 кБ). Мост: `sim/radio/radio_protocol.gd`, `radio_transport.gd`, `radio_host.gd`, `nodes/radio/webview_radio_transport.gd`. Живой прогон: `Godot.exe --path . --resolution 640x360 -s tools/probes/radio_host_probe.gd` (громкость 0.001, 25 с) → `test-results/probes/radio_host/events.json`, лог `run-bridge.log`. Эксперимент: `tools/probes/webview_audio_probe.gd` + `localhost/probes/webview_audio_probe.html`, `webview_api_probe.gd` → `test-results/probes/webview/*.json`. Тесты: GUT `test_radio_protocol`, `test_radio_host`; vitest `tests/unit/radioHostProtocol.test.ts`; `tsc -b` без ошибок. Спека: `docs/superpowers/specs/2026-09-15-godot-radio-design.md`.",
+  "pages": [
+    {
+      "slug": "radio-host",
+      "name": "Движок радио",
+      "verdict": "Движок радио web работает внутри Godot: страница загружается, Strudel прогревается (с холодным кэшем сэмплов 3.7 с, с тёплым 0.74 с), контроллер генерирует трек (hard_techno, E harmonic minor, 140 BPM) и играет его — прогресс за 25 с дошёл до 0.21 из 116.6 с, `running: true`, уровень выхода меняется (992 события). Команды ждут `ready` страницы и уходят по порядку; события приходят сигналами `RadioHost`.",
+      "verdict_short": "Движок радио играет в WebView",
+      "conditions": [
+        ["среда", "Tauri WebView2 (десктопная сборка web)", "godot_wry v1.0.2 WebView2 в Godot 4.7.1, Windows"],
+        ["страница", "приложение web целиком", "`res://localhost/radio_host/index.html` → `http://res.localhost` (secure context)"],
+        ["окно движка", "окно приложения", "WebView 1×1 за краем экрана, `autoplay`"],
+        ["громкость прогона", "—", "0.001 (почти беззвучно)"],
+        ["тесты", "vitest радио", "GUT `test_radio_protocol`, `test_radio_host`; vitest `radioHostProtocol`"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "R1-1", "severity": "fixed",
+          "title": "Strudel в Godot: встроенный WebView",
+          "web": "`@strudel/web` в Tauri WebView2; сэмплы с dough-samples / uzu-wavetables.",
+          "godot": "godot_wry `WebView` (аддон `addons/godot_wry`). Эксперимент: без `autoplay` `AudioContext` остаётся `suspended` (переменная `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` не действует), с `autoplay` — `running` без жеста; скрытый WebView замедляет таймеры до ~1/с (планировщик Strudel потерял бы ноты), коробка 1×1 за экраном — полный темп.",
+          "evidence": ["runtime", "code"],
+          "sources": ["addons/godot_wry/WRY.gdextension", "tools/probes/webview_audio_probe.gd", "localhost/probes/webview_audio_probe.html"]
+        },
+        {
+          "id": "R1-2", "severity": "fixed",
+          "title": "AudioWorklet только в защищённом контексте",
+          "web": "Tauri отдаёт страницу из защищённого origin.",
+          "godot": "godot_wry отдаёт `res://<каталог>/…` как `http://res.<каталог>/…`: `http://res.tools` — не secure context, `audioWorklet` отсутствует. Под `res://localhost/…` origin `http://res.localhost` — secure context (Chromium доверяет `*.localhost`): `addModule` работает, CDN отвечает 200. Хост лежит в `localhost/radio_host/`.",
+          "evidence": ["runtime"],
+          "sources": ["nodes/radio/webview_radio_transport.gd", "web-reference/vite.radio-host.config.ts"]
+        },
+        {
+          "id": "R1-3", "severity": "fixed",
+          "title": "Протокол Godot ↔ страница",
+          "web": "Вызовы контроллера в App.tsx.",
+          "godot": "Команды `init/resume/pause/stop/next/prev/resume-generative/seek/volume/gate/play-track/play-baked`, события `ready/init-state/state/progress/meter/track-end/generated` (`hostProtocol.ts` ↔ `RadioProtocol`). Сообщение до загрузки страницы теряется — `RadioHost` держит очередь до `ready`; события проверяются по полям.",
+          "evidence": ["test", "runtime", "code"],
+          "sources": ["web-reference/src/radio/host/hostProtocol.ts", "web-reference/src/radio/host/radioHost.ts", "sim/radio/radio_protocol.gd", "sim/radio/radio_host.gd", "tests/unit/test_radio_host.gd"]
+        },
+        {
+          "id": "R1-4", "severity": "missing",
+          "title": "Интерфейс радио, права и библиотека",
+          "web": "Кнопка RADIO, мини-плеер, экран радио, библиотека, DLC и пробный режим, радио в матче.",
+          "godot": "Слайсы R2–R5: мост ещё не подключён к меню (автозагрузка и прогрев — R2).",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioPlayer.tsx", "web-reference/src/App.tsx"]
+        }
+      ],
+      "limitations": [
+        "Звук на слух не проверялся: прогон шёл на громкости 0.001, работа движка подтверждена его событиями (трек, прогресс, уровень выхода).",
+        "Сэмплы грузятся с CDN, как в web: без сети прогрев упирается в бюджет предзагрузки StrudelWebEngine.",
+        "Экспорт игры не собирался: для страницы хоста понадобится include-фильтр html/js.",
+        "Linux: расширение подключено, но WebView в тестах не создаётся (радио — десктопная Windows-сборка)."
+      ]
+    }
+  ]
+}

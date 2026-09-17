@@ -14,12 +14,56 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  GODOT_VERSION: 4.7.1-stable
+
 jobs:
-  # Fast, deterministic gate — this is the job to require in branch protection.
-  check:
-    name: lint · types · unit · build
+  # The game: Godot 4.7 — the GUT unit suite, headless (the gate to require in branch protection).
+  godot:
+    name: godot · GUT
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}-linux-x86_64
+
+      - name: Download Godot
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+
+      - name: Point scripts/godot.sh at it
+        run: echo "GODOT_BIN=$HOME/godot/godot" >> "$GITHUB_ENV"
+
+      # godot_wry's Linux library links WebKitGTK 4.1 (GTK 3 comes with it); GodotSteam ships its libsteam_api.so.
+      - name: Install extension libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-0
+
+      - name: Import the project
+        run: scripts/godot.sh --headless --path . --import
+
+      - name: Unit tests (GUT)
+        run: scripts/godot.sh --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests/unit -gexit
+
+  # The radio engine page the game hosts in its WebView (radio-host/): types, unit tests, and a build that must reproduce
+  # the committed localhost/radio_host bundle.
+  radio-host:
+    name: radio-host · types · unit · bundle
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: radio-host
     steps:
       - uses: actions/checkout@v4
 
@@ -27,31 +71,33 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: radio-host/package-lock.json
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint
 
       - name: Type-check
-        run: npx tsc -b --noEmit
+        run: npm run typecheck
 
       - name: Unit tests
-        run: npm run test:unit
+        run: npm test
 
-      - name: Build (app + trailer)
+      - name: Build the bundle
         run: npm run build
 
-  # Browser e2e (WebGL + Rapier). On free runners WebGL is software-rendered (SwiftShader) and slow,
-  # so this runs with 1 worker and generous timeouts (see playwright.config.ts, gated by $CI).
-  # Kept non-blocking (continue-on-error) so a slow/flaky runner doesn't red the whole CI; once it's
-  # proven stable here, drop continue-on-error to make it a required gate.
-  e2e:
-    name: e2e (headless)
+      - name: The committed bundle is up to date
+        working-directory: .
+        run: git diff --exit-code -- localhost/radio_host
+
+  # The map editor (map-editor/): a dev tool that never ships, so only its types and unit tests are checked — the
+  # tests pin the geo format nodes/geo_loader.gd parses and the constants it shares with the simulation.
+  map-editor:
+    name: map-editor · types · unit
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    continue-on-error: true
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: map-editor
     steps:
       - uses: actions/checkout@v4
 
@@ -59,12 +105,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: map-editor/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium chromium-headless-shell
+      - name: Type-check
+        run: npm run typecheck
 
-      - name: E2E tests (headless)
-        run: npm run test:e2e
+      - name: Unit tests
+        run: npm test

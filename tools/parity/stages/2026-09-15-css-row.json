@@ -1,0 +1,99 @@
+{
+  "id": "2026-09-15-css-row",
+  "title": "Сверка паритета OneShot · дробные flex-строки HUD",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс CR. После слайсов разрядки ширины текстов HUD дробные, как в Chrome, но строки стояли в `HBoxContainer`, а `BoxContainer._resort` округляет минимальный размер каждого ребёнка вверх (`box_container.cpp`: `get_bound_minimum_size().ceil()` в `Size2i`, целые смещения). Панель команд съезжала на ~2 px. Новый `CssRow` — flex-строка web: дробные ширины через `gap`, центр по вертикали, прижатие внутри фиксированной ширины, доля потерянного пикселя передаётся текстам и вложенным строкам. Сверка по ходу нашла ещё две причины сдвига: рамка таймера без бордюра в CSS border-box (109 px вместо 111) и 1 px у пустого `Label` (точки серии без серии).",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-css-row.json`. Web (прежние кадры на GPU): `parity-capture-teams.mjs` → `test-results/parity-gpu-teams/web-match-<2v2|ffa>.png`, `parity-capture-profile.mjs` → `parity-gpu-p1/web-hud[-double].png`. Godot: `tools/screenshot.gd` на `scenes/arena_test.tscn` + `res://maps/os_arena.json`: `profile:team-2v2`, `profile:team-ffa` (кадр 300), `profile` и `profile-double` (кадры из фактов `parity-gpu-p1`) → `test-results/parity-cr/godot-*.png`. «До»: `parity-fs4/godot-team-2v2.png`, `godot-hud[-double].png` (после слайса FS3), `parity-gpu-teams/godot-match-ffa.png`. Исходник раскладки `BoxContainer` — `godotengine/godot` `scene/gui/box_container.cpp`. Вырезки — `tools/parity/crop.py` → `test-results/parity-cr-report/`. Пиксели — среднее отличие каналов (0–255): панель команд 300–980 × 20–70, верхняя строка 380–900 × 20–70. Положения — центроиды глифов по столбцам полосы текста; рамка таймера — столбцы цвета `#25303f`.",
+  "pages": [
+    {
+      "slug": "css-row",
+      "name": "Строки HUD",
+      "verdict": "Строки HUD встали по Chrome: каждый глиф панели команд в пределах ±0.7 px от web (2v2: PARITY7 −0.67 при −2.67 до слайса, B3 +0.72 при +1.55 после первой версии; FFA −0.41…+0.5), в строке дуэли PARITY7 −0.16 px и фраг соперника −0.35 (до −1.35), рамка таймера совпала (столбцы 585 / 695, как в web). Вырезки: 2v2 5.31 → 1.83/255, FFA 3.36 → 1.45, строка дуэли 4.39 → 1.59, серия ×2 6.94 → 5.39 (турбулентность в другой фазе).",
+      "verdict_short": "Строки HUD как в Chrome",
+      "conditions": [
+        ["окно", "1280×720, pixel ratio 1", "`--resolution 1280x720`, `ui_scale` 1"],
+        ["рендер", "Chromium (Playwright), ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "кадры стадий teams и player-profiles", "кадр 300 (панель команд), кадры фактов `parity-gpu-p1` (дуэль)"],
+        ["профиль", "PARITY7, en; боты B1–B3 / EX82R", "PARITY7, en; боты B1–B3 / EX82R"],
+        ["тесты", "—", "GUT 774/774 (`test_css_row`, `test_hud_core_nodes`, `test_hud_team_bar`)"]
+      ],
+      "comparisons": [
+        {"title": "Панель команд 2v2 (×2)", "wipe": true,
+          "note": "Таймер в кадрах разный: сравнивайте положения имён и фрагов.",
+          "panels": [
+            {"kind": "web", "img": "parity-cr-report/web-team-2v2.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-cr-report/godot-before-team-2v2.png", "note": "5.31/255, PARITY7 −2.67 px"},
+            {"kind": "godot", "img": "parity-cr-report/godot-team-2v2.png", "note": "1.83/255, ±0.7 px"}
+          ]},
+        {"title": "Панель FFA (×2)", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-cr-report/web-team-ffa.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-cr-report/godot-before-team-ffa.png", "note": "3.36/255"},
+            {"kind": "godot", "img": "parity-cr-report/godot-team-ffa.png", "note": "1.45/255"}
+          ]},
+        {"title": "Строка дуэли (×2)", "wipe": true,
+          "note": "Рамка таймера 111 px: padding 14 px и бордюр 1 px с каждой стороны.",
+          "panels": [
+            {"kind": "web", "img": "parity-cr-report/web-hud.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-cr-report/godot-before-hud.png", "note": "4.39/255, рамка 109 px"},
+            {"kind": "godot", "img": "parity-cr-report/godot-hud.png", "note": "1.59/255, рамка 111 px"}
+          ]},
+        {"title": "Строка дуэли: серия ×2 (×2)", "wipe": true,
+          "note": "Турбулентность и глитч в разной фазе.",
+          "panels": [
+            {"kind": "web", "img": "parity-cr-report/web-hud-double.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до слайса", "img": "parity-cr-report/godot-before-hud-double.png", "note": "6.94/255"},
+            {"kind": "godot", "img": "parity-cr-report/godot-hud-double.png", "note": "5.39/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "CR1", "severity": "fixed",
+          "title": "HBoxContainer округлял дробные ширины вверх",
+          "web": "Flex-строки `.match-hud`, `.side`, `.mhud-team`, `.mhud-row` складывают дробные ширины с `gap`.",
+          "godot": "`box_container.cpp`: минимальный размер ребёнка `.ceil()` в `Size2i`, смещения целые — строки панели команд шире на 1.7–2.5 px. `CssRow extends Container`: дробные ширины, `align-items: center`, `justify` START / END / CENTER внутри `css_width`, рамки на целых пикселях, доля — `CssOffset.keep`, своя доля (`css_offset_x`) — детям; `CssRow.centre_in` — центр `left: 50%; translateX(-50%)` после сортировки `VBoxContainer`. `EffectText` / `GlowText.css_offset_x` передают долю подписям. Верхняя строка и панель команд на `CssRow`; фраги дуэли — `CssLabel`.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/css_row.gd", "nodes/css_column.gd", "nodes/effect_text.gd", "nodes/glow_text.gd", "nodes/hud_top_bar.gd", "nodes/hud_team_bar.gd", "tests/unit/test_css_row.gd"]
+        },
+        {
+          "id": "CR2", "severity": "fixed",
+          "title": "Рамка таймера на 2 px уже",
+          "web": "`.timer { padding: 0 14px; border-left / border-right: 1px }` — 111 px вокруг 02:55 (столбцы бордюров 585 и 695).",
+          "godot": "Явный `content_margin` 14 у `StyleBoxFlat` не включает бордюр: 109 px, левая сторона смещалась на +1, правая на −1 (раньше это скрывало целочисленное округление). Отступы `TIMER_PADDING + TIMER_BORDER` в обеих строках; тест `test_the_timer_frame_is_the_css_border_box`.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/hud_top_bar.gd", "nodes/hud_team_bar.gd", "tests/unit/test_hud_core_nodes.gd"]
+        },
+        {
+          "id": "CR3", "severity": "fixed",
+          "title": "Пустые точки серии занимали 1 px",
+          "web": "Пустой `.streak-dots` span оставляет зазор, ширина 0.",
+          "godot": "Нативный `Label` с пустым текстом держит 1 px минимума: каждая строка панели сдвигала соседнюю на 1 px (B3 +1.55). Точки — `CssLabel`, `CssLabel.css_size()` (пустой прогон — 0) и `CssColumn.box_size` для колонок и строк.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/css_label.gd", "nodes/css_column.gd", "nodes/hud_team_bar.gd", "nodes/hud_top_bar.gd"]
+        },
+        {
+          "id": "CR4", "severity": "visual",
+          "title": "Строка точек серии: line-height 1",
+          "web": "`.streak-dots { line-height: 1 }` — строка 10 px.",
+          "godot": "`CssLabel` строит строку `line-height: normal` (12 px); точки центрируются по вертикали на ~1 px иначе. Без серии точек не видно.",
+          "evidence": ["code"],
+          "sources": ["nodes/css_label.gd"]
+        },
+        {
+          "id": "CR5", "severity": "visual",
+          "title": "Хвост разрядки и раскладки",
+          "web": "—",
+          "godot": "На целой разрядке: трейлер, заставка M6, тост приглашения (`RichTextLabel`), поля ввода (`LineEdit`); прочие `HBoxContainer` вне HUD (лобби, выбор друга) не переводились.",
+          "evidence": ["code"],
+          "sources": ["nodes/trailer_title_card.gd", "nodes/warning_splash.gd", "nodes/invite_toast.gd", "nodes/steam_friend_picker.gd"]
+        }
+      ],
+      "limitations": [
+        "Таймер и фаза эффектов в кадрах Godot и web различаются, поэтому пиксели строк — ориентир; положения мерены центроидами глифов.",
+        "Весь экран для HUD-строк не снимался: раскладка идёт в CSS px, а масштаб проверен слайсом DS.",
+        "`web-teams.json` не содержит рамок элементов — панели сверены по глифам."
+      ]
+    }
+  ]
+}

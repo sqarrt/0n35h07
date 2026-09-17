@@ -1,0 +1,60 @@
+{
+  "id": "2026-09-17-map-editor",
+  "title": "OneShot · Редактор карт возвращён отдельным веб-приложением",
+  "date": "2026-09-17",
+  "captures_dir": "test-results",
+  "lede": "Веб-версия удалена, вместе с ней ушёл редактор карт — а игра читает ровно те файлы, которые он писал: `maps/<id>.json`, `maps/<id>_geo.json` и `assets/maps/previews/<id>.png`. Редактор восстановлен из истории (`git show 4a91a4a^:web-reference/src/editor/...`) как отдельное дев-приложение `map-editor/`, пишущее прямо в проект. Компилятор геометрии перенесён без изменений — он и задаёт формат, который разбирает `nodes/geo_loader.gd`.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-17-map-editor.json`. Проверки: `npm run typecheck` и `npm test` в `map-editor/` (34 теста), GUT 1002/1002, живой круг «редактор записал карту → игра её загрузила» через `tools/probes/map_roundtrip_probe.gd`.",
+  "pages": [
+    {
+      "slug": "map-editor",
+      "name": "Редактор карт",
+      "verdict": "Редактор живёт своим приложением: `cd map-editor && npm run dev` → http://localhost:5173/. Мост разработки переложен с папочной раскладки web (`src/maps/<id>/raw.json`) на плоскую раскладку порта и правит файлы игры на месте. Список карт лобби (`MAP_IDS` в `sim/map_catalog.gd`) редактор держит в согласии сам: создание добавляет, переименование переименовывает, удаление убирает; переименование переносит все файлы карты разом — карта без geo в игре не откроется вовсе. Из игры ничего не менялось: `GeoLoader`, `MapCatalog`, `Spawns` и `BlockGrid` уже читают этот формат.",
+      "verdict_short": "Редактор вернулся, круг замкнут",
+      "conditions": [
+        ["эталон", "web-редактор из истории git (`src/editor/*`, `build/vite-plugins/editorMaps.ts`, `game/mapGeometryCache.ts`)", "пакет `map-editor/` на ветке feature/map-editor"],
+        ["проверка", "чтение web-кода", "typecheck + 34 юнит-теста пакета, GUT 1002/1002, проба загрузки карты в движке"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "E1", "severity": "fixed",
+          "title": "Редактора карт не было вовсе",
+          "web": "`#editor` в дев-сборке: пикер карт и редактор (воксельная сетка, кубы и клинья, выделение с буфером, свойства блоков, спавны, ходьба с автошагом, автосохранение).",
+          "godot": "Перенесены все 9 файлов редактора и его зависимости (компилятор геометрии, клинья, сетки, свет карты, рендер превью) — 1131 строка редактора плюс ~560 строк общего кода. Оболочки игры нет: точка входа монтирует `EditorRoot`, маршрут по хэшу (`#` — пикер, `#editor-<id>` — карта), ссылка «в меню» убрана за ненадобностью.",
+          "evidence": ["code", "test"],
+          "sources": ["map-editor/src/editor/MapEditor.tsx", "map-editor/src/editor/EditorScene.tsx", "map-editor/src/main.tsx", "map-editor/README.md"]
+        },
+        {
+          "id": "E2", "severity": "fixed",
+          "title": "Формат карт нечем было собрать",
+          "web": "`compileBlocks` + `serializeGeo`: чанки по четыре группы (прозрачность × попадание луча) и отдельный коллайдер, каждый — три base64-массива Float32.",
+          "godot": "Компилятор перенесён байт в байт, поэтому совместимость с `nodes/geo_loader.gd` гарантирована построением. Сверху добавлен тест `geoFormat.test.ts`, фиксирующий именно ту форму, которую разбирает загрузчик (чанки, четыре группы, коллайдер, длины кратны треугольнику), и `constants.test.ts`, который читает `sim/constants.gd` и `sim/block_grid.gd` и падает при расхождении общих чисел.",
+          "evidence": ["code", "test"],
+          "sources": ["map-editor/src/game/mapGeometryCache.ts", "map-editor/tests/unit/geoFormat.test.ts", "map-editor/tests/unit/constants.test.ts"]
+        },
+        {
+          "id": "E3", "severity": "fixed",
+          "title": "Раскладка файлов у порта другая",
+          "web": "Папка на карту: `src/maps/<id>/{raw.json, geo.json, preview.png}`, дев-мост Vite `/__maps`.",
+          "godot": "Мост переписан под порт: `maps/<id>.json`, `maps/<id>_geo.json`, `assets/maps/previews/<id>.png`; копия для REVERT ушла в `map-editor/.backups/` — вне дерева игры. Добавлено серверное переименование (переносит все части разом) и правка `MAP_IDS` при создании / переименовании / удалении. Проверено живыми запросами: создать → каталог пополнился, переименовать → запись переехала на месте, удалить → исчезла и запись, и файлы.",
+          "evidence": ["code", "runtime"],
+          "sources": ["map-editor/bridge/mapsBridge.ts", "map-editor/src/editor/mapsApi.ts", "sim/map_catalog.gd", "tests/unit/test_map_catalog.gd"]
+        },
+        {
+          "id": "E4", "severity": "platform",
+          "title": "Что из web не переносили",
+          "web": "Редактор жил внутри игры: брал профиль игрока (постобработка), звуки кнопок, локализацию и реестр карт, вшитый в бандл.",
+          "godot": "Это дев-инструмент, поэтому профиль заменён константой, звуки убраны, локализации нет, реестр карт заменён чтением папки `maps/`. Тема оформления взята куском из `ui/theme.css` (токены и четыре элемента управления) — кириллическое начертание Share Tech Mono не тянули, подхватывается системный моноширинный.",
+          "evidence": ["code"],
+          "sources": ["map-editor/src/editorProfile.ts", "map-editor/src/theme.css", "map-editor/src/ui/Button.tsx", "map-editor/src/game/maps.ts"]
+        }
+      ],
+      "limitations": [
+        "Отрисовка редактора в браузере глазами не проверялась: в этом окружении нет Chrome для автоматизации. Проверено, что dev-сервер отдаёт страницу и собирает все модули (включая сцену и превью), а данные ходят по мосту в обе стороны.",
+        "Круг «редактор → игра» проверен на воссозданной карте (arena + один куб) и на реальной карте os_sotia: `GeoLoader` собрал 85 мешей и 7 тел, спавны разобрались.",
+        "В коммит входит переименование карты os_test → os_sotia, сделанное пользователем уже через этот редактор."
+      ]
+    }
+  ]
+}

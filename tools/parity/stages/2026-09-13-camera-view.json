@@ -1,0 +1,134 @@
+{
+  "id": "2026-09-13-camera-view",
+  "title": "Сверка паритета OneShot · камера и управление",
+  "date": "2026-09-13",
+  "captures_dir": "test-results",
+  "lede": "Этап после слайса CAM1/G12: вид от третьего лица по клавише V, тряска камеры при своём выстреле, расширение поля зрения в ghost-фазе, чувствительность мыши PointerLockControls, прицеливание лучом из камеры и кнопки мыши как в web (щит — правая кнопка). Кадры первого и третьего лица сняты на одном GPU (NVIDIA RTX 4080) в живом матче на `os_arena`.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-13-camera-view.json`. Web: `web-reference/scripts/parity-capture-camera.mjs` → `test-results/parity-gpu-cam/` (первое лицо после входа в матч, третье — после клавиши V и успокоения сцены; позиция и FOV камеры из `__debugCamera`). Godot: `tools/screenshot.gd` режимы `passive-bot` и `third-person`, кадр 300 → `test-results/parity-gpu-cam/`. Вырезки: `tools/parity/crop.py`.",
+  "pages": [
+    {
+      "slug": "camera-view",
+      "name": "Вид от третьего лица и поведение камеры",
+      "verdict": "Камера третьего лица стоит в той же точке, что и в web (0.70, 3.20, 20.00 против 0.70, 3.21, 20.00), шар игрока и его тень занимают те же пиксели; FOV 75 в обоих. Тряска, FOV ghost-фазы, чувствительность и кнопки проверены тестами по коду web. Открыты скины шара (цвет профиля и модель) и профили игроков.",
+      "verdict_short": "Третье лицо совпадает по позиции камеры; тряска, FOV и управление перенесены",
+      "conditions": [
+        ["карта", "`os_arena`", "`maps/os_arena.json`"],
+        ["рендер", "ANGLE D3D11, RTX 4080", "Vulkan 1.4 Forward+, RTX 4080, MSAA 3D 4x"],
+        ["игрок (глаз)", "(0.00, 1.71, 16.00)", "(0.00, 1.70, 16.00)"],
+        ["камера, первое лицо", "(0.00, 1.71, 16.00), FOV 75", "(0.00, 1.70, 16.00), FOV 75"],
+        ["камера, третье лицо", "(0.70, 3.21, 20.00), FOV 75", "(0.70, 3.20, 20.00), FOV 75"],
+        ["переключение вида", "клавиша V (`KeyV`) в живом матче", "фикстура `third-person`: `HumanController.toggle_view()`"],
+        ["тесты", "—", "GUT 249/249, 790 проверок"]
+      ],
+      "comparisons": [
+        {
+          "title": "Третье лицо: общий вид",
+          "wipe": true,
+          "note": "Шторка: горизонт, стены, шар игрока и тень совпадают. Цвет шара — скин профиля (G11), ники и цвета — P1, линия внизу — визуализатор звука.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-cam/web-third-person.png", "note": "Красный шар профиля, бот с кольцом скина."},
+            {"kind": "godot", "img": "parity-gpu-cam/godot-third-person.png", "note": "Серый шар-заглушка на том же месте."}
+          ]
+        },
+        {
+          "title": "Шар игрока и тень (увеличение ×2)",
+          "wipe": true,
+          "note": "Смещение через плечо 0.7 вправо, 1.5 вверх, 4 назад: контур шара и тени совпадают по пикселям.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-cam/crops/web-tp-ball.png", "note": "Шар цвета профиля."},
+            {"kind": "godot", "img": "parity-gpu-cam/crops/godot-tp-ball.png", "note": "Тот же размер и положение."}
+          ]
+        },
+        {
+          "title": "Прицел и соперник (увеличение ×3)",
+          "wipe": true,
+          "note": "Кольцо прицела в центре; соперник на спавне 1 виден над прицелом в том же месте.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-cam/crops/web-tp-aim.png", "note": "Бот со скином (кольцо)."},
+            {"kind": "godot", "img": "parity-gpu-cam/crops/godot-tp-aim.png", "note": "Бот — серый шар."}
+          ]
+        },
+        {
+          "title": "Первое лицо",
+          "wipe": true,
+          "note": "Собственный шар скрыт в первом лице в обоих.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-cam/web-first-person.png", "note": "Вид из глаза."},
+            {"kind": "godot", "img": "parity-gpu-cam/godot-first-person.png", "note": "Вид из глаза."}
+          ]
+        }
+      ],
+      "discrepancies": [
+        {
+          "id": "G12", "severity": "fixed",
+          "title": "Вид от третьего лица",
+          "web": "Клавиша V переключает вид; камера = глаз − forward·4 + right·0.7 + up·1.5 по осям камеры с наклоном; в третьем лице шар игрока виден, в первом скрыт.",
+          "godot": "`CameraModel.third_person_position`, `HumanController.toggle_view` и `PlayerNode.set_body_visible`; действие `toggle_view` на физическую V.",
+          "evidence": ["screenshot", "runtime", "test"],
+          "sources": ["sim/camera_model.gd", "nodes/human_controller.gd", "tests/unit/test_camera_model.gd", "tests/unit/test_human_controller_view.gd", "web-reference/src/game/controllers/HumanController.ts"]
+        },
+        {
+          "id": "CAM1", "severity": "fixed",
+          "title": "Тряска камеры при своём выстреле",
+          "web": "`humanController.shake()` при выстреле своего игрока: 5 кадров рендера, сдвиг `(random − 0.5)·0.04` по мировым x и y.",
+          "godot": "`MatchNode.fired` → `HumanController.on_fired`: 5 кадров того же сдвига; чужие выстрелы не трясут.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/human_controller.gd", "nodes/arena_boot.gd", "web-reference/src/game/Match.ts"]
+        },
+        {
+          "id": "CAM2", "severity": "fixed",
+          "title": "Поле зрения в ghost-фазе (найдено на этапе)",
+          "web": "Цель FOV 95 при рывке ИЛИ в ghost-фазе (скорость ×2); замах 70, движение 87, покой 75.",
+          "godot": "Было: ghost-фаза не расширяла FOV. Стало: `CameraModel.fov_target` с ghost-фазой.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/camera_model.gd", "tests/unit/test_human_controller_view.gd"]
+        },
+        {
+          "id": "CAM3", "severity": "fixed",
+          "title": "Чувствительность мыши и наклон (найдено на этапе)",
+          "web": "PointerLockControls: 0.002 рад на пиксель, `pointerSpeed` 0.15 во время замаха, наклон ограничен ±90°.",
+          "godot": "Было: 0.003 рад/пиксель без замедления, наклон ±89°. Стало как в web.",
+          "evidence": ["test", "code"],
+          "sources": ["sim/camera_model.gd", "web-reference/node_modules/three/examples/jsm/controls/PointerLockControls.js", "web-reference/src/constants.ts"]
+        },
+        {
+          "id": "IN1", "severity": "fixed",
+          "title": "Кнопки: выстрел по нажатию, щит на правой кнопке (найдено на этапе)",
+          "web": "`mousedown` левой — один `startFiring`, правой — `activateShield`, Shift — рывок, V — вид; только при захваченном указателе.",
+          "godot": "Было: выстрел каждый тик при удержании, щит на E. Стало: события нажатия ЛКМ / ПКМ / Shift / V.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/human_controller.gd", "project.godot", "web-reference/src/Game.tsx"]
+        },
+        {
+          "id": "AIM1", "severity": "fixed",
+          "title": "Прицеливание лучом из камеры (найдено на этапе)",
+          "web": "Точка прицела — попадание луча камеры в мир (иначе `AIM_RANGE`); луч попадания из камеры только в третьем лице, в первом — из дула.",
+          "godot": "Было: всегда дальняя точка по взгляду и луч из камеры. Стало: `HumanController.update_aim` с `WorldRaycaster`.",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/human_controller.gd", "sim/player.gd", "web-reference/src/game/controllers/HumanController.ts"]
+        },
+        {
+          "id": "S1", "severity": "missing",
+          "title": "Стартовый вид из настроек",
+          "web": "Настройка профиля `defaultView` (`fp` / `tp`) задаёт вид в начале матча.",
+          "godot": "Всегда первое лицо до слайса настроек.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/settings.ts", "web-reference/src/App.tsx"]
+        },
+        {
+          "id": "G11", "severity": "missing",
+          "title": "Скины шаров",
+          "web": "Шар игрока цвета профиля с моделью скина; у бота — скин по нику (кольцо).",
+          "godot": "Серые шары-заглушки.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/game/botAppearance.ts", "web-reference/src/game/ballArt.ts"]
+        }
+      ],
+      "limitations": [
+        "Тряска длится 5 кадров и не видна на неподвижном кадре; она проверена тестом с подставным генератором случайных чисел.",
+        "FOV ghost-фазы web снять нельзя (нет хука смерти своего игрока); проверено по коду и тестом.",
+        "Высота глаза web на 0.0098 выше (осадка физики Rapier), отсюда разница 0.01 в позиции камеры."
+      ]
+    }
+  ]
+}

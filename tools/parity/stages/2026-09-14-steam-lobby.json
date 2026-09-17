@@ -1,0 +1,185 @@
+{
+  "id": "2026-09-14-steam-lobby",
+  "title": "Сверка паритета OneShot · Steam-лобби, выбор друга и приглашение",
+  "date": "2026-09-14",
+  "captures_dir": "test-results",
+  "lede": "Слайс сети N2: экран «Играть» десктопной (Steam) сборки. Web — `components/InviteModal`, `components/lobby/SteamFriendPicker`, `components/lobby/Seats` и theme.css под заглушкой Tauri, отвечающей на Steam-команды; Godot — `InviteToast`, `SteamFriendPicker`, `LobbySeat`, `LobbyScreen` и `MainMenu` на поддельном Steam (`fake_steam_api.gd` за `SteamBridge`). Кадры: приглашение поверх меню, хост Duel-лобби (верх и низ), выбор друга, друг ждёт на месте 1 (пульс на пике), быстрый поиск. Фон 3D и размытая карта скрыты в обоих. Кадры «до» — первая съёмка этой стадии, «после» — после правок ниже. По просьбе пользователя часть кадров сверена и на весь экран.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-14-steam-lobby.json`. Web: `web-reference/scripts/parity-capture-lobby-steam.mjs` (десктопная сборка через заглушку `__TAURI_INTERNALS__`, классические полосы прокрутки; `PARITY_FULLSCREEN=1` — окно 2560×1440 CSS px × 1.5, суффикс -fs) → `test-results/parity-gpu-lobby-steam[-2]/web-steam-*.png` + `web-lobby-steam[-fs].json`; проба полосы — `parity-probe-lobby-scrollbar.mjs`, проба текста под backdrop-filter — `parity-probe-backdrop-text.mjs`. Godot: `tools/screenshot.gd` на `scenes/main_menu.tscn`, режим `profile:steam-<состояние>` (95 кадров; фон и `MapBackground` отключены перед кадром, пульс закреплён на 550 мс; `--fullscreen` для -fs) → `godot-steam-*.png` + факты рамок. Пиксели — среднее отличие каналов (0–255) по области.",
+  "pages": [
+    {
+      "slug": "steam-lobby",
+      "name": "Окно 1280×720",
+      "verdict": "Steam-состояния экрана «Играть» перенесены: тост приглашения на стекле, лобби хоста с зонами INVITE A FRIEND / ADD A BOT, выбор друга, ожидающее место с пульсом, поиск со STOP. Сверка нашла и исправила четыре расхождения: заголовок тоста был на 1.2 px на букву уже (строка 162 px против 195), полоса прокрутки десктопного WebView не занимала места и не имела стрелок (колонка лобби 598 px против 588), кнопки ✕ были выше (27 и 23 px против 20 и 17), фикстура съёмки показывала размытую карту. После правок: полоса 7.14 → 0.02/255, шапка выбора друга 12.20 → 2.50, лобби целиком 6.25 → 0.71, кнопка поиска 3.37 → 0.32. Остаток — целая разрядка букв (заголовок тоста 19.12/255, чипы INVITE шире на 3 px) и сдвиг на 1 px в конце прокрутки.",
+      "verdict_short": "Лобби совпадает, остаток — разрядка",
+      "conditions": [
+        ["сборка", "десктоп (заглушка Tauri, Steam-команды отвечает скрипт)", "десктоп Godot, поддельный Steam за `SteamBridge`"],
+        ["окно", "1280×720, классические полосы прокрутки", "1280×720, `--fixed-fps 60`"],
+        ["рендер", "Chromium 148 (Playwright), ANGLE D3D11, RTX 4080", "Vulkan Forward+, RTX 4080"],
+        ["момент", "600 ms после каждого действия, пульс на паузе 550 ms", "95 кадров, пульс закреплён на 0.55 s"],
+        ["профиль", "PARITY7 `#fa4`, en; друзья alice, Bob (онлайн), zed", "те же"],
+        ["тесты", "—", "GUT 685/685 (`test_ui_scroll`, `test_glyph_button`, `test_ui_font`, `test_lobby_screen`, `test_steam_friend_picker`, `test_lobby_seat_steam`, `test_invite_toast`)"]
+      ],
+      "comparisons": [
+        {"title": "Тост приглашения (×4)",
+          "note": "Заголовок 12.5 px с разрядкой 0.04em: Chrome 7.25 px на букву. Было 6 px (подгонка мерила одиночный глиф с лишним пикселем), стало 7 px — остаток целой разрядки.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-toast.png", "note": "текст 1038–1232"},
+            {"kind": "godot", "label": "GODOT · до правок", "img": "parity-gpu-lobby-steam-2/crops/godot-before-toast.png", "note": "текст 1039–1200 · 23.68/255"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-toast.png", "note": "текст 1039–1226 · 19.12/255"}
+          ]},
+        {"title": "Шапка выбора друга (×3)",
+          "note": "✕ 16 px с line-height 1 и padding 2px 4px — кнопка 20 px; шапка задаёт положение поля и списка.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-picker-head.png", "note": "карточка 178, высота 364"},
+            {"kind": "godot", "label": "GODOT · до правок", "img": "parity-gpu-lobby-steam-2/crops/godot-before-picker-head.png", "note": "карточка 175, высота 371 · 12.20/255"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-picker-head.png", "note": "карточка 178, высота 364 · 2.50/255"}
+          ]},
+        {"title": "Полоса прокрутки: верх (×6)",
+          "note": "Нативная тонкая полоса Chrome (theme.css `scrollbar-width: thin` + `scrollbar-color` отменяют `::-webkit-scrollbar`): жёлоб 10 px, кнопки-стрелки 12 px, ползунок 6 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-scrollbar-top.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до правок", "img": "parity-gpu-lobby-steam-2/crops/godot-before-scrollbar-top.png", "note": "5 px без стрелок"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-scrollbar-top.png", "note": "полоса 0.02/255"}
+          ]},
+        {"title": "Полоса прокрутки: низ (×6)",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-scrollbar-bottom.png", "note": "—"},
+            {"kind": "godot", "label": "GODOT · до правок", "img": "parity-gpu-lobby-steam-2/crops/godot-before-scrollbar-bottom.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-scrollbar-bottom.png", "note": "—"}
+          ]},
+        {"title": "Друг ждёт на месте 1 (×3)",
+          "note": "Место уже на 10 px жёлоба полосы; ✕ 13 px с line-height 1 — кнопка 17 px.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-invited-seat.png", "note": "место 658.4 × 258.7"},
+            {"kind": "godot", "label": "GODOT · до правок", "img": "parity-gpu-lobby-steam-2/crops/godot-before-invited-seat.png", "note": "место 664 × 263.1 · 2.83/255"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-invited-seat.png", "note": "1.71/255"}
+          ]},
+        {"title": "Лобби хоста: верх", "wipe": true,
+          "note": "Колонка 588 px: карусель, плитки 190.67 px, MULTI / SELECT ALL у правого края жёлоба.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-idle.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-idle.png", "note": "0.71/255 (до правок 6.25)"}
+          ]},
+        {"title": "Выбор друга", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-picker.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-picker.png", "note": "карточка 1.98/255 (до правок 5.41)"}
+          ]},
+        {"title": "Быстрый поиск (низ)", "wipe": true,
+          "note": "Имена в месте поиска случайны (спин), кнопка STOP.",
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-searching-bottom.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-searching-bottom.png", "note": "кнопки 0.32/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "SL1", "severity": "fixed",
+          "title": "Заголовок тоста уже на 1.2 px на букву",
+          "web": "`.invite-title` 12.5px, letter-spacing .04em: шаг Chrome 7.25 px, строка «alice invites you to a game» 195 px.",
+          "godot": "`UiFont.fitted_spacing` мерил ширину одного «0» строкой `TextLine` (8 px при настоящем шаге 7.07), подгонка давала −1 px и строка сжималась до 162 px. Теперь шаг берётся со 100 глифов; тест проверяет, что прогон держит шаг Chrome в пределах полупикселя.",
+          "evidence": ["screenshot", "test", "code", "runtime"],
+          "sources": ["nodes/ui_font.gd", "nodes/invite_toast.gd", "tests/unit/test_ui_font.gd"]
+        },
+        {
+          "id": "SL2", "severity": "fixed",
+          "title": "Полоса прокрутки десктопного WebView не занимала места и не имела стрелок",
+          "web": "`* { scrollbar-width: thin; scrollbar-color }` — Chrome 121+ игнорирует `::-webkit-scrollbar` и рисует нативную тонкую полосу: `.lobby-body` offsetWidth 626 − clientWidth 616 = 10 px, кнопки 12 px с треугольниками, ползунок 6 px с отступом 2 px и радиусом 3, всё цветом rgba(47,111,158,.35). Колонка лобби 588 px.",
+          "godot": "`UiScroll`: жёлоб 10 px, иконки-стрелки 10×12 (покрытие треугольника подогнано по пикселям кадра Chrome), ползунок StyleBoxFlat с отступами −2 px. `LobbyScreen` раскладывает тело второй раз на 10 px уже, когда оно не помещается (overflow-y: auto); READY / BACK остаются 598 px. `AppearanceScreen` берёт ширину полосы оттуда же. Было: полоса 5 px поверх колонки 598 px.",
+          "evidence": ["screenshot", "test", "code", "runtime"],
+          "sources": ["nodes/ui_scroll.gd", "nodes/lobby_screen.gd", "nodes/appearance_screen.gd", "tests/unit/test_ui_scroll.gd", "tests/unit/test_lobby_screen.gd", "web-reference/scripts/parity-probe-lobby-scrollbar.mjs"]
+        },
+        {
+          "id": "SL3", "severity": "fixed",
+          "title": "Кнопки ✕ выше, чем в web",
+          "web": "`.lobby-picker-x` 16px и `.lobby-seat-cancel` 13px с `line-height: 1`: коробки 21.08×20 и 14.62×17, глиф из Segoe UI Symbol.",
+          "godot": "Button с текстом ✕ брал высоту строки запасного системного шрифта: 27 и 23 px — шапка выбора друга на 7 px выше, карточка 371 px, поле и список на 4 px ниже. Новый `GlyphButton` (BaseButton): коробка = размер шрифта + поля, глиф на базовой линии UI-шрифта, приглушённый цвет до наведения.",
+          "evidence": ["screenshot", "test", "code"],
+          "sources": ["nodes/glyph_button.gd", "nodes/steam_friend_picker.gd", "nodes/lobby_seat.gd", "tests/unit/test_glyph_button.gd", "tests/unit/test_steam_friend_picker.gd", "tests/unit/test_lobby_seat_steam.gd"]
+        },
+        {
+          "id": "SL4", "severity": "fixed",
+          "title": "Свечения, размытие и тень выбора друга, рамка места, наклон спина",
+          "web": "`.lobby-picker-dot` box-shadow 0 0 6px -1px, `.lobby-seat-waitdot` 0 0 6px; `.lobby-picker-backdrop` backdrop-filter blur(2px), `.lobby-picker` box-shadow 0 24px 70px -16px #000, autoFocus поиска, Esc из поля; содержимое места внутри рамки 2 px; спин имён — `font-style: italic` синтетическим наклоном.",
+          "godot": "Найдено на первом кадре стадии: общий `CssBoxShadow` (шейдер `box_shadow`, размытый скруглённый прямоугольник из `css_rounded_box`) для точек и карточки, размытие фона σ 2 px, фокус поиска, Esc через `_input`; поля места считаются от рамки; наклон по оси y компоненты x (Godot).",
+          "evidence": ["test", "code"],
+          "sources": ["nodes/css_box_shadow.gd", "assets/shaders/box_shadow.gdshader", "assets/shaders/css_rounded_box.gdshaderinc", "nodes/steam_friend_picker.gd", "nodes/lobby_seat.gd"]
+        },
+        {
+          "id": "SL5", "severity": "fixed",
+          "title": "Фикстура съёмки показывала размытую карту за лобби",
+          "web": "Скрипт прячет `.map-bg`.",
+          "godot": "Фикстура скрывала `MapBackground` один раз, а его проявление снова включало видимость. Инструмент съёмки теперь выключает узел прямо перед кадром. Игру правка не затрагивает.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["tools/screenshot.gd"]
+        },
+        {
+          "id": "SL6", "severity": "visual",
+          "title": "Целая разрядка букв",
+          "web": "Дробная letter-spacing: 12.5px × .04em, 11px × .14em (INVITE), 13px × .18em (CHOOSE A FRIEND), 11px × .18em (INVITE A FRIEND).",
+          "godot": "`FontVariation.spacing_glyph` целый: заголовок тоста на 6 px уже (19.12/255 по строке), чипы INVITE на 3 px шире, CHOOSE A FRIEND на 6 px уже. Общий слайс «дробная разрядка» для всех текстов.",
+          "evidence": ["screenshot", "code"],
+          "sources": ["nodes/ui_font.gd"]
+        },
+        {
+          "id": "SL7", "severity": "missing",
+          "title": "Нет кнопки RADIO и мини-плеера",
+          "web": "Десктопное меню: RADIO между ABOUT и QUIT, мини-плеер в правом нижнем углу (из-за кнопки меню ниже на 28 px).",
+          "godot": "Радио — отдельный слайс; на кадре тоста меню Godot выше, а плеера нет. Тост сравнивается вырезкой.",
+          "evidence": ["screenshot"],
+          "sources": ["web-reference/src/radio"]
+        },
+        {
+          "id": "SL8", "severity": "visual",
+          "title": "Конец прокрутки на 1 px ниже, фаза пунктира",
+          "web": "scrollTop = scrollHeight − clientHeight с дробной высотой тела 542.44.",
+          "godot": "`scroll_to_end` берёт целую высоту содержимого: места на 1 px ниже, у пунктирной рамки своя фаза штрихов (места внизу 5.57/255). Нижняя стрелка у Chrome прижата к целому пикселю.",
+          "evidence": ["screenshot"],
+          "sources": ["nodes/lobby_screen.gd", "sim/css_dashed_border.gd"]
+        }
+      ],
+      "limitations": [
+        "Steam поддельный с обеих сторон: web — скрипт отвечает на Tauri-команды, Godot — `fake_steam_api.gd`; живой Steam проверен только дымовым прогоном `tools/steam_smoke.gd`.",
+        "Эталон — Chromium 148 из Playwright с классическими полосами; WebView2 у игрока может быть другой версии.",
+        "Цвет ползунка под мышью не снят: при `scrollbar-color` правило `:hover` не действует, Godot держит один цвет.",
+        "Имена спина поиска случайны, сравнивается раскладка места, не текст."
+      ]
+    },
+    {
+      "slug": "fullscreen",
+      "name": "На весь экран",
+      "verdict": "Подтверждено замечание пользователя: на весь экран игра выглядит иначе. Монитор 3840×2160 с масштабом Windows 150%: WebView раскладывает страницу в 2560×1440 CSS px и рисует всё в 1.5 раза крупнее, а в Godot нет масштаба содержимого (`project.godot` без раздела `[display]`) — интерфейс нарисован 1:1 в физических пикселях: панель меню 680 px вместо 1020, текст и кнопки в 1.5 раза мельче, лобби занимает треть высоты. Среднее отличие мало (1.35 и 3.14/255) только потому, что кадр почти весь — фон. Исправление — следующий слайс: масштаб интерфейса по DPI Windows для всех экранов и HUD.",
+      "verdict_short": "На весь экран UI в 1.5 раза мельче",
+      "conditions": [
+        ["окно", "2560×1440 CSS px × deviceScaleFactor 1.5 = 3840×2160", "`--fullscreen` на 3840×2160"],
+        ["масштаб Windows", "150% (DPI 144)", "не учитывается"],
+        ["момент", "как в окне", "как в окне"]
+      ],
+      "comparisons": [
+        {"title": "Приглашение поверх меню", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-toast-fs.png", "note": "панель 1020 px"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-toast-fs.png", "note": "панель 680 px · 1.35/255"}
+          ]},
+        {"title": "Лобби хоста", "wipe": true,
+          "panels": [
+            {"kind": "web", "img": "parity-gpu-lobby-steam-2/crops/web-idle-fs.png", "note": "—"},
+            {"kind": "godot", "img": "parity-gpu-lobby-steam-2/crops/godot-idle-fs.png", "note": "3.14/255"}
+          ]}
+      ],
+      "discrepancies": [
+        {
+          "id": "FS1", "severity": "visual",
+          "title": "Интерфейс не масштабируется по DPI Windows",
+          "web": "Десктопный WebView: CSS px = физические px / 1.5 при масштабе 150%; `width: min(680px, 92vw)` даёт панель 1020 физических px, шрифты и рамки крупнее.",
+          "godot": "Окно без `content_scale`: 2D-интерфейс в физических пикселях. Не исправлено в этой стадии — отдельный слайс.",
+          "evidence": ["screenshot", "runtime"],
+          "sources": ["project.godot"]
+        }
+      ],
+      "limitations": [
+        "Сняты два состояния из шести; остальные кадры -fs лежат рядом в `test-results/parity-gpu-lobby-steam-2/`."
+      ]
+    }
+  ]
+}

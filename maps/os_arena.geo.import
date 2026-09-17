@@ -1,0 +1,14 @@
+[remap]
+
+importer="oneshot.map_geo"
+type="Resource"
+uid="uid://fckdeld4id63"
+path="res://.godot/imported/os_arena.geo-d3bfd6ba4cd2b4a87ec3129709a1ba6e.res"
+
+[deps]
+
+source_file="res://maps/os_arena.geo"
+dest_files=["res://.godot/imported/os_arena.geo-d3bfd6ba4cd2b4a87ec3129709a1ba6e.res"]
+
+[params]
+

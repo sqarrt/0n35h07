@@ -1,0 +1,162 @@
+extends GutTest
+## Pause menu parity with web PauseMenu: it shows while a live match has no pointer lock and never stops the match;
+## MENU over RESUME (primary) and the ghost SETTINGS / TO MENU / QUIT; Esc and a lost
+## window focus release the lock like the browser does.
+
+const EPS := 0.01
+
+class FakeLock extends PointerLock:
+	var locked := true
+
+	func is_locked() -> bool:
+		return locked
+
+	func lock() -> void:
+		locked = true
+
+	func release() -> void:
+		locked = false
+
+var _live := true
+
+func _overlay(lock: FakeLock) -> PauseOverlay:
+	var overlay := PauseOverlay.new()
+	overlay.setup(func() -> bool: return _live, lock)
+	add_child_autofree(overlay)
+	return overlay
+
+func _button(overlay: PauseOverlay, node_name: String) -> UiButton:
+	return overlay.find_child(node_name, true, false) as UiButton
+
+func before_each() -> void:
+	_live = true
+
+func test_shows_the_web_menu_without_the_lock() -> void:
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	assert_false(overlay.visible, "hidden while the pointer is locked")
+	lock.release()
+	overlay.refresh()
+	assert_true(overlay.visible)
+	var title := overlay.find_child("Title", true, false) as Label
+	assert_eq(title.text, "MENU")
+	assert_almost_eq(title.get_combined_minimum_size().y, 27.0, EPS, "h2 24 px line-height normal: 21 + 6")
+	assert_almost_eq(title.get_combined_minimum_size().x,
+		CssTextRun.new("MENU", PauseOverlay.TITLE_FONT_SIZE, PauseOverlay.TITLE_SPACING_EM, true).width(), EPS,
+		"Chrome's bold run, the trailing letter spacing included")
+	var expected := {"Resume": ["RESUME", UiButton.PRIMARY], "Settings": ["SETTINGS", UiButton.GHOST],
+		"ToMenu": ["TO MENU", UiButton.GHOST], "Quit": ["QUIT", UiButton.GHOST]}
+	for node_name in expected:
+		var button := _button(overlay, node_name)
+		assert_eq(button.text, expected[node_name][0])
+		assert_eq(button.variant, expected[node_name][1])
+	assert_false(get_tree().paused, "the match keeps running under the pause menu (web)")
+
+func test_quit_only_on_the_desktop_build() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	var overlay := _overlay(lock)
+	overlay.set_desktop(false)
+	overlay.refresh()
+	assert_false(_button(overlay, "Quit").visible)
+
+func test_settings_open_the_in_match_panel_and_back_returns() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	var overlay := _overlay(lock)
+	overlay.profile = {"volumeMaster": 1.0, "postProcessing": true}
+	overlay.refresh()
+	watch_signals(overlay)
+	_button(overlay, "Settings").pressed.emit()
+	var panel := overlay.settings()
+	assert_not_null(panel, "web setPauseView('settings')")
+	assert_false((overlay.find_child("Column", true, false) as Control).visible, "the panel replaces the menu")
+	assert_eq(panel.tab, MatchSettings.TAB_SOUND)
+	(panel.find_child("Toggle_postProcessing", true, false) as UiToggle).pressed.emit()
+	assert_signal_emitted_with_parameters(overlay, "profile_changed", [overlay.profile])
+	assert_false(overlay.profile["postProcessing"], "the live profile is edited in place")
+	(panel.find_child("Back", true, false) as UiButton).pressed.emit()
+	assert_null(overlay.settings())
+	assert_true((overlay.find_child("Column", true, false) as Control).visible)
+
+func test_closing_the_pause_resets_it_to_the_menu() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	overlay.open_settings()
+	lock.lock()
+	overlay.refresh()
+	assert_null(overlay.settings(), "web: pauseView back to 'menu' when the pause closes")
+	lock.release()
+	overlay.refresh()
+	assert_true((overlay.find_child("Column", true, false) as Control).visible)
+
+func test_no_pause_outside_the_live_phase() -> void:
+	var lock := FakeLock.new()
+	lock.release()
+	_live = false
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	assert_false(overlay.visible, "countdown / match end")
+
+func test_resume_takes_the_mouse_back_at_once() -> void:
+	# web made RESUME wait out POINTERLOCK_COOLDOWN because Chrome refused the repeat lock; Godot has no such limit.
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	lock.release()
+	overlay.refresh()
+	var resume := _button(overlay, "Resume")
+	assert_false(resume.disabled, "no waiting: the pause is over as soon as RESUME is pressed")
+	assert_not_null(resume.fade, "RESUME fades as one layer (CSS opacity)")
+	resume.pressed.emit()
+	assert_true(lock.locked, "RESUME takes the pointer lock back")
+	overlay.refresh()
+	assert_false(overlay.visible)
+
+func test_esc_and_focus_loss_release_the_lock() -> void:
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	var esc := InputEventAction.new()
+	esc.action = "pause"
+	esc.pressed = true
+	overlay._unhandled_input(esc)
+	assert_false(lock.locked, "Esc leaves the pointer lock")
+	lock.lock()
+	overlay._notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	assert_false(lock.locked, "alt-tab loses it too")
+
+func test_escape_closes_the_pause_it_opened() -> void:
+	# web could only pause with Esc — Chrome takes the lock away on that key and will not give it back to it.
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	overlay.refresh()
+	assert_false(overlay.visible)
+	_press_escape(overlay)
+	overlay.refresh()
+	assert_true(overlay.visible, "Esc pauses")
+	_press_escape(overlay)
+	assert_true(lock.locked, "and Esc takes the mouse back")
+	assert_false(overlay.visible)
+
+func test_escape_steps_out_of_the_in_match_settings_first() -> void:
+	var lock := FakeLock.new()
+	var overlay := _overlay(lock)
+	lock.release()
+	overlay.refresh()
+	overlay.open_settings()
+	assert_not_null(overlay.settings())
+	_press_escape(overlay)
+	assert_null(overlay.settings(), "back to the pause menu")
+	assert_true(overlay.visible)
+	assert_false(lock.locked, "still paused")
+	_press_escape(overlay)
+	assert_true(lock.locked, "and the next Esc resumes")
+
+func _press_escape(overlay: PauseOverlay) -> void:
+	var event := InputEventAction.new()
+	event.action = "pause"
+	event.pressed = true
+	overlay._unhandled_input(event)

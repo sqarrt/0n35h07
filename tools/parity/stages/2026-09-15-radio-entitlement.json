@@ -1,0 +1,63 @@
+{
+  "id": "2026-09-15-radio-entitlement",
+  "title": "OneShot · радио R2b: пробный режим и DLC",
+  "date": "2026-09-15",
+  "captures_dir": "test-results",
+  "lede": "Слайс R2b подпроекта «радио»: права на радио. Без DLC радио даёт в сутки 10 новых треков и 5 сохранений в библиотеку; DLC Steam (app 4904970) и запуск из редактора (web — dev-сборка) снимают лимит. Кадров в этом слайсе нет: пробная полоса и кнопка «Разблокировать» живут в развёрнутом плеере экрана радио (R3), сохранения — в библиотеке (R4). Сверка — логика прав против самого модуля web и живой прогон гейта генерации на движке в WebView.",
+  "footer": "Сгенерировано `tools/parity/report.py` из `tools/parity/stages/2026-09-15-radio-entitlement.json`. Оракул: `node --experimental-strip-types web-reference/scripts/export-radio-entitlement.mjs` исполняет `src/radio/entitlement.ts` → `tests/fixtures/radio_entitlement.json` (42 сдвига дня, 72 расхода, 24 права, 6 ключей дня). Живой прогон: `Godot.exe --path . --resolution 640x360 -s tools/probes/radio_gate_probe.gd` (громкость 0.001) → `test-results/probes/radio_gate/summary.json`, лог `test-results/probes/radio_gate_run.log`. Код: `sim/radio/radio_entitlement.gd`, `sim/radio/radio_rights.gd`, `autoloads/radio.gd`, `autoloads/steam_bridge.gd`, `sim/net/steam_api.gd`. Тесты GUT: `test_radio_entitlement`, `test_radio_rights`, `test_radio_autoload`, `test_steam_bridge_radio` — полный прогон 821/821.",
+  "pages": [
+    {
+      "slug": "radio-entitlement",
+      "name": "Права радио",
+      "verdict": "Логика прав совпадает с web во всех 144 случаях оракула: ключ дня, новый день обнуляет счётчики, отмотанные назад часы их не обнуляют, лимиты 10 / 5, DLC и dev — без лимита. На живом движке закрытый гейт держит радио: движок готов, `resume` отправлен, за 10 с — 0 новых треков и `running: false`; после открытия гейта и `resume` за 10 с — 1 новый трек, `running: true`.",
+      "verdict_short": "Пробный режим 1:1, гейт работает вживую",
+      "conditions": [
+        ["логика", "`src/radio/entitlement.ts` под node 22 (strip-types)", "`RadioEntitlement`, GUT по выгрузке web"],
+        ["день", "`new Date('YYYY-MM-DDT12:00:00')`, локальный", "ключ дня из `Time.get_date_dict_from_system()`"],
+        ["движок", "Tauri WebView2, `RadioController.canGenerate`", "godot_wry WebView2, команда `gate` → `canGenerate` страницы"],
+        ["dev без лимита", "`import.meta.env.DEV`", "`OS.has_feature(\"editor\")`"],
+        ["громкость прогона", "—", "0.001"]
+      ],
+      "comparisons": [],
+      "discrepancies": [
+        {
+          "id": "R2b-1", "severity": "fixed",
+          "title": "Суточный пробный режим",
+          "web": "`entitlement.ts`: `rollTrial`, `entitlementFor`, `consumeGen` / `consumeSave`; счётчики в профиле `radioTrial`.",
+          "godot": "`RadioEntitlement` — те же функции над ключом дня; `RadioRights` держит владение (кэш `radioDlcOwned`, «известно» только после ответа при прогреве) и считает генерации и сохранения в профиль.",
+          "evidence": ["test"],
+          "sources": ["sim/radio/radio_entitlement.gd", "sim/radio/radio_rights.gd", "web-reference/scripts/export-radio-entitlement.mjs", "tests/unit/test_radio_entitlement.gd", "tests/unit/test_radio_rights.gd"]
+        },
+        {
+          "id": "R2b-2", "severity": "fixed",
+          "title": "Гейт генерации и возобновление",
+          "web": "`canGenerate: () => entRef.current.canGenerate` — контроллер останавливается перед новым треком; `onGenerated` → `bumpTrial('gen')` + сохранение профиля; эффект `start()` при `canGenerate`.",
+          "godot": "`Radio` шлёт `gate` до `init` и при каждом переключении; событие `generated` считает трек и сохраняет профиль; открытие гейта — `sync()` → `resume`, а `resume` у остановленного контроллера — `start()`. Проверено на живом движке.",
+          "evidence": ["runtime", "test"],
+          "sources": ["autoloads/radio.gd", "tools/probes/radio_gate_probe.gd", "tests/unit/test_radio_autoload.gd", "web-reference/src/radio/host/radioHost.ts"]
+        },
+        {
+          "id": "R2b-3", "severity": "fixed",
+          "title": "Покупка DLC: магазин и перепроверка",
+          "web": "`open_radio_store` открывает `steam://store/4904970` клиентом Steam (оверлей не рисуется поверх WebView2); `radio-recheck-dlc` при закрытии оверлея и `focus` окна.",
+          "godot": "`SteamBridge.open_radio_store()` — тот же URL через ОС; `SteamApi.overlay_toggled` → `SteamBridge.overlay_closed`; `Radio.recheck_dlc()` по нему и по `NOTIFICATION_APPLICATION_FOCUS_IN`.",
+          "evidence": ["test", "code"],
+          "sources": ["autoloads/steam_bridge.gd", "sim/net/steam_api.gd", "tests/unit/test_steam_bridge_radio.gd", "web-reference/src-tauri/src/steam.rs"]
+        },
+        {
+          "id": "R2b-4", "severity": "missing",
+          "title": "Пробная полоса, кнопка разблокировки, сообщения о лимите",
+          "web": "В развёрнутом плеере: «Бесплатно сегодня · ⟳ N · 💾 M», кнопка «Разблокировать радио», сообщения о лимите генераций и сохранений.",
+          "godot": "Данные готовы (`RadioRights.trial_strip`, `can_unlock`, `Radio.open_store`); отрисовка — с развёрнутым плеером в R3, лимит сохранений — с библиотекой в R4.",
+          "evidence": ["code"],
+          "sources": ["web-reference/src/components/RadioPlayer.tsx"]
+        }
+      ],
+      "limitations": [
+        "Покупка DLC вживую не проверялась: владение отвечает `isSubscribedApp` GodotSteam, закрытие оверлея — сигнал `overlay_toggled` (проверены на фейке Steam).",
+        "Суточный сброс в живом прогоне не ждали: смена дня проверена оракулом, пересчёт гейта — при фокусе окна и событиях радио.",
+        "Прогон шёл из редактора: в Godot это «dev без лимита», поэтому гейт закрывали командой напрямую, а не расходом квоты."
+      ]
+    }
+  ]
+}

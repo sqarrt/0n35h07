@@ -1,0 +1,1980 @@
+{
+  "freeGensPerDay": 10,
+  "freeSavesPerDay": 5,
+  "today": [
+    {
+      "day": "2025-12-31",
+      "key": "2025-12-31",
+      "empty": {
+        "day": "2025-12-31",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "day": "2026-01-01",
+      "key": "2026-01-01",
+      "empty": {
+        "day": "2026-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "day": "2026-06-27",
+      "key": "2026-06-27",
+      "empty": {
+        "day": "2026-06-27",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "day": "2026-06-28",
+      "key": "2026-06-28",
+      "empty": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "day": "2026-06-29",
+      "key": "2026-06-29",
+      "empty": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "day": "2027-01-01",
+      "key": "2027-01-01",
+      "empty": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    }
+  ],
+  "roll": [
+    {
+      "trial": null,
+      "today": "2025-12-31",
+      "out": {
+        "day": "2025-12-31",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      }
+    },
+    {
+      "trial": null,
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": null,
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": null,
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": null,
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": null,
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    },
+    {
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 0
+      }
+    }
+  ],
+  "consume": [
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 10,
+        "saves": 4
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 4,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 2
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 11,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 6
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 13,
+        "saves": 7
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 8
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2025-12-31",
+        "gens": 11,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2025-12-31",
+      "out": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 6
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 10,
+        "saves": 4
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 4,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 2
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 11,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 6
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 13,
+        "saves": 7
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 8
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-01-01",
+      "out": {
+        "day": "2026-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 10,
+        "saves": 4
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 4,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 2
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 11,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 6
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 13,
+        "saves": 7
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 8
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-27",
+      "out": {
+        "day": "2026-06-27",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 4,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 2
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 11,
+        "saves": 5
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 6
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 13,
+        "saves": 7
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 8
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-28",
+      "out": {
+        "day": "2026-06-28",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2026-06-29",
+      "out": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    },
+    {
+      "kind": "gen",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 1,
+        "saves": 0
+      }
+    },
+    {
+      "kind": "save",
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "today": "2027-01-01",
+      "out": {
+        "day": "2027-01-01",
+        "gens": 0,
+        "saves": 1
+      }
+    }
+  ],
+  "entitlement": [
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 1,
+        "savesLeft": 1,
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 7,
+        "savesLeft": 4,
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 0,
+        "savesLeft": 0,
+        "canGenerate": false,
+        "canSave": false
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 0,
+        "savesLeft": 0,
+        "canGenerate": false,
+        "canSave": false
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 10,
+        "savesLeft": 5,
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": false,
+        "gensLeft": 0,
+        "savesLeft": 0,
+        "canGenerate": false,
+        "canSave": false
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": false,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": false,
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-27",
+        "gens": 9,
+        "saves": 4
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 3,
+        "saves": 1
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-28",
+        "gens": 12,
+        "saves": 7
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2026-06-29",
+        "gens": 0,
+        "saves": 0
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    },
+    {
+      "owned": true,
+      "devUnlimited": true,
+      "trial": {
+        "day": "2025-12-31",
+        "gens": 10,
+        "saves": 5
+      },
+      "out": {
+        "unlimited": true,
+        "gensLeft": "Infinity",
+        "savesLeft": "Infinity",
+        "canGenerate": true,
+        "canSave": true
+      }
+    }
+  ]
+}
