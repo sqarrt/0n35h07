@@ -251,6 +251,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   raised — with its sounds and the beam's glow.
 
 ### Fixed
+- **The repository no longer carries the old web build.** A frozen copy of the web trailer sat in `trailer-dist/`
+  although the project's own ignore list excluded it, so a fresh clone would have imported its 2.7 MB of audio and
+  scripts into the Godot project and shipped them inside the game. It is gone from the branch, along with a handoff
+  note and a build command left over from the web version.
 - **Networked matches keep the same score on every screen.** A kill is worth more when it breaks a streak, and each
   peer used to read that streak from its own copy: verdicts from different owners arrive in different orders, so two
   peers could count the same kills and still end a frag apart for the rest of the match. The verdict now carries the
